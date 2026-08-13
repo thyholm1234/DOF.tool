@@ -56,7 +56,8 @@ async def fetch_observer_name(obserkode: str) -> str:
         return ""
     if response.status_code != 200:
         return ""
-    return extract_observer_name(response.text)
+    # popobser.php serves ISO-8859-1 without declaring it in the Content-Type header.
+    return extract_observer_name(response.content.decode("latin-1", errors="replace"))
 
 
 async def authenticate_dof_user(obserkode: str, password: str) -> DofLoginResult:
