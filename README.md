@@ -48,10 +48,24 @@ uvicorn backend.app.main:app --reload
 pytest
 ```
 
+## Login (obligatorisk)
+
+Al adgang til app og API kræver login med en DOFbasen-konto. Login valideres mod
+`POST https://krydslister.dofbasen.dk/api/v1/login` (samme endpoint som de gamle apps), og
+observatørens navn hentes fra `https://dofbasen.dk/popobser.php`. Adgangskoden gemmes aldrig —
+kun obserkode og navn persisteres, og sessionen holdes i en signeret cookie (`dof_session`).
+Sæt `SESSION_SECRET` (og `SESSION_COOKIE_SECURE=true` bag HTTPS) i produktion.
+
+Maskine-til-maskine-endpoints (`/api/update`, `/api/request_sync`) bruger `X-Admin-Key` i stedet
+for en session.
+
 ## API-endpoints (v1)
 
-- `GET /api/v1/health`
-- `POST /api/v1/auth/dof/login`
+- `GET /api/v1/health` (offentlig)
+- `POST /api/v1/auth/login` (offentlig)
+- `GET /api/v1/auth/session` (offentlig)
+- `GET /api/v1/auth/me`
+- `POST /api/v1/auth/logout`
 - `POST /api/v1/observations/ingest`
 - `POST /api/v1/observations/legacy-update` (kompatibel med gammel DOF.not watcher payload)
 - `POST /api/v1/observations/sync/dof`
@@ -99,5 +113,5 @@ curl -X POST http://localhost:8000/api/v1/observations/sync/dof \
 
 1. Koble `watcher`-flowet fra gamle DOF.not direkte på `/api/v1/observations/ingest`.
 2. Tilføj scheduler-jobs (Redis) til løbende sync af observationer/phenologi.
-3. Udbyg login/auth med server-side session/JWT + roller (admin/superadmin).
+3. Udbyg roller (admin/superadmin) oven på den nye session-baserede auth.
 4. Migrér gamle adminhandlinger (blacklist, trafik, brugeradministration) trinvis.

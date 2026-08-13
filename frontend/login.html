@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d2738" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>Log ind · DOF.tool</title>
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>DOF.tool</h1>
+        <p>Log ind med din DOFbasen-konto for at fortsætte.</p>
+      </header>
+      <form id="login-form" class="card login-card" autocomplete="on">
+        <label for="obserkode">Obserkode</label>
+        <input id="obserkode" name="obserkode" required autocapitalize="characters" autocomplete="username" />
+        <label for="adgangskode">Adgangskode</label>
+        <input id="adgangskode" name="adgangskode" type="password" required autocomplete="current-password" />
+        <button id="login-submit" type="submit">Log ind</button>
+        <p id="login-error" class="login-error" role="alert"></p>
+      </form>
+      <p class="login-note">
+        Din adgangskode sendes kun til DOFbasen og gemmes aldrig i DOF.tool.
+      </p>
+    </main>
+    <script type="module" src="/login.js"></script>
+  </body>
+</html>

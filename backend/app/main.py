@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
+from starlette.middleware.sessions import SessionMiddleware
 
 from backend.app.api.router import api_router
 from backend.app.api.routes.legacy_compat import router as legacy_compat_router
@@ -48,8 +49,17 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret,
+    max_age=settings.session_max_age_seconds,
+    same_site="lax",
+    https_only=settings.session_cookie_secure,
+    session_cookie="dof_session",
+)
+
+app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

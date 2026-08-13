@@ -59,3 +59,52 @@ body {
   color: #d9f4ff;
   overflow: auto;
 }
+
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #365064;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 380px;
+}
+
+.login-card input {
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #c3cede;
+  font-size: 1rem;
+}
+
+button {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.login-error {
+  color: #b3261e;
+  min-height: 1.2rem;
+  margin: 0;
+}
+
+.login-note {
+  max-width: 380px;
+  font-size: 0.85rem;
+  color: #365064;
+}

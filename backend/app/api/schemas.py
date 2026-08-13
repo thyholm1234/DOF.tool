@@ -10,15 +10,15 @@ class HealthResponse(BaseModel):
 
 
 class DofLoginRequest(BaseModel):
-    username: str = Field(min_length=3)
-    password: str = Field(min_length=3)
+    obserkode: str = Field(min_length=2, max_length=16)
+    adgangskode: str = Field(min_length=1)
 
 
-class DofLoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str | None = None
-    expires_in: int | None = None
-    user: dict
+class SessionUser(BaseModel):
+    obserkode: str
+    navn: str
+    is_admin: bool
+    environment: str
 
 
 class ObservationAlert(BaseModel):
