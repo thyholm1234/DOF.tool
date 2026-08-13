@@ -106,6 +106,19 @@ async def _async_value(value):
     return value
 
 
+async def test_fetch_observer_name_decodes_latin1(monkeypatch):
+    html = 'Navn</acronym>:</td><td valign="top">Christian Helligsø</td>'.encode("latin-1")
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=html))
+    original = httpx.AsyncClient
+
+    def client_factory(*args, **kwargs):
+        kwargs["transport"] = transport
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", client_factory)
+    assert await dof_auth.fetch_observer_name("ABC12") == "Christian Helligsø"
+
+
 def test_protected_endpoint_requires_login(client):
     assert client.get("/api/v1/protected").status_code == 401
     assert client.get("/api/v1/auth/me").status_code == 401
