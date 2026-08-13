@@ -33,11 +33,19 @@ docker compose logs -f api
 
 ## Lokalt uden Docker
 
+Kræver Python 3.11+, samt kørende PostgreSQL og Redis (fx `docker compose up -d postgres redis`).
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e '.[dev]'
 uvicorn backend.app.main:app --reload
+```
+
+## Tests
+
+```bash
+pytest
 ```
 
 ## API-endpoints (v1)
