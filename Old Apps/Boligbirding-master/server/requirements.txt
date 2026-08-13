@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+aiosqlite
+pandas
+requests
+itsdangerous
+asyncpg
+passlib[bcrypt]

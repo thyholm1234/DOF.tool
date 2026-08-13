@@ -1,0 +1,68 @@
+<!-- Version: 1.13.16 - 2026-05-15 23.55.20 -->
+<!-- © Christian Vemmelund Helligsø -->
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Indstillinger</title>
+  <link rel="stylesheet" href="style.css?v=1.13.16">
+</head>
+<body>
+  <div style="max-width:340px;margin:60px auto;padding:2em 2em 1.5em 2em;background:var(--card-bg);border-radius:12px;box-shadow:var(--card-shadow)">
+    <h2>Profil og indstillinger</h2>
+    <div id="userInfo" style="margin-bottom:1.5em;color:#333;font-size:1em"></div>
+    <div style="margin:0 0 1.25em 0;">
+      <button id="fullSyncBtn" type="button" style="width:100%;">Kør fuld synkronisering</button>
+      <div id="fullSyncStatus" style="margin-top:0.6em;font-size:0.95em;"></div>
+    </div>
+    <div style="margin:0 0 1.25em 0;">
+      <button id="logoutBtn" type="button" style="width:100%;">Log ud</button>
+      <div id="logoutStatus" style="margin-top:0.6em;font-size:0.95em;"></div>
+    </div>
+    <form id="afdelingForm">
+      <label for="lokalafdeling" style="font-weight:bold;">Primær lokalafdeling:</label>
+      <select id="lokalafdeling" required style="margin:0.5em 0 1em 0;width:100%;">
+        <option value="">Vælg lokalafdeling...</option>
+        <option value="DOF København">DOF København</option>
+        <option value="DOF Nordsjælland">DOF Nordsjælland</option>
+        <option value="DOF Vestsjælland">DOF Vestsjælland</option>
+        <option value="DOF Storstrøm">DOF Storstrøm</option>
+        <option value="DOF Bornholm">DOF Bornholm</option>
+        <option value="DOF Fyn">DOF Fyn</option>
+        <option value="DOF Sønderjylland">DOF Sønderjylland</option>
+        <option value="DOF Sydvestjylland">DOF Sydvestjylland</option>
+        <option value="DOF Sydøstjylland">DOF Sydøstjylland</option>
+        <option value="DOF Vestjylland">DOF Vestjylland</option>
+        <option value="DOF Østjylland">DOF Østjylland</option>
+        <option value="DOF Nordvestjylland">DOF Nordvestjylland</option>
+        <option value="DOF Nordjylland">DOF Nordjylland</option>
+      </select>
+      <button type="submit">Gem</button>
+      <div id="afdelingError" style="color:#b71c1c;margin-top:1em"></div>
+    </form>
+    <div id="matrikelSettings" style="margin-top:1.5em;"></div>
+    <div id="matrikelSaveStatus" style="margin-top:0.6em;font-size:0.92em;"></div>
+    <div style="margin-top:1.4em;padding:0.9em;border:1px solid #b71c1c;border-radius:10px;background:var(--card-bg);">
+      <div style="font-weight:700;color:#b71c1c;margin-bottom:0.35em;">Slet konto og alle data</div>
+      <div class="muted" style="font-size:0.9em;margin-bottom:0.65em;">Dette sletter din konto, alle indstillinger og alle observationer permanent.</div>
+      <button id="deleteAccountBtn" type="button" style="width:100%;background:#b71c1c;border-color:#8d1717;">Slet konto permanent</button>
+      <div id="deleteAccountStatus" style="margin-top:0.55em;font-size:0.92em;"></div>
+    </div>
+  </div>
+
+  <!-- Gruppe-funktionalitet -->
+<div style="max-width:340px;margin:40px auto 0 auto;padding:2em 2em 1.5em 2em;background:var(--card-bg);border-radius:12px;box-shadow:var(--card-shadow)">
+  <h2>Dine grupper</h2>
+  <form id="gruppeForm" style="margin-bottom:1.5em;">
+    <label for="gruppenavn" style="font-weight:bold;">Opret en ny gruppe:</label>
+    <input id="gruppenavn" type="text" required placeholder="Skriv gruppenavn" style="width:70%;margin-right:1em;">
+    <button type="submit">Opret</button>
+    <div id="gruppeError" style="color:#b71c1c;margin-top:0.5em"></div>
+  </form>
+  <div id="grupper"></div>
+</div>
+
+<script type="module" src="settings.js?v=1.13.16"></script>
+</body>
+</html>

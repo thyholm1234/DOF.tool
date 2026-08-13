@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d2738" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>DOF.tool</title>
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>DOF.tool</h1>
+        <p>Én samlet platform for al din fuglekigger-data.</p>
+      </header>
+      <section class="card-grid">
+        <article class="card">
+          <h2>Notifikationer</h2>
+          <p>Sjældne arter og live varsler fra DOFbasen.</p>
+          <div id="alerts-preview" class="preview"></div>
+        </article>
+        <article class="card">
+          <h2>Fugleliga</h2>
+          <p>Årsranglister og matrikelstatistik samlet ét sted.</p>
+          <div id="rankings-preview" class="preview"></div>
+        </article>
+        <article class="card">
+          <h2>Trends</h2>
+          <p>Se hvad der trækker nu kontra historiske mønstre.</p>
+          <div id="trends-preview" class="preview"></div>
+        </article>
+        <article class="card">
+          <h2>Ture</h2>
+          <p>Opret og join ture for nye fuglekiggere.</p>
+          <div id="trips-preview" class="preview"></div>
+        </article>
+        <article class="card">
+          <h2>Læring</h2>
+          <p>Flashcards med udseende og kald.</p>
+          <div id="learning-preview" class="preview"></div>
+        </article>
+      </section>
+      <pre id="api-status">Indlæser API status...</pre>
+      <pre id="admin-status">Indlæser admin-overblik...</pre>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

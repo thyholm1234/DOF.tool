@@ -1,0 +1,17 @@
+server/boligbirding.db
+server/__pycache__/
+server/data
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+.env
+.env.*
+/server/downloads/
+.vscode/
+.idea/
+.DS_Store
+pgdata/
+debug.log

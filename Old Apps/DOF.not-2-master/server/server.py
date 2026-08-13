@@ -1,0 +1,4403 @@
+import sqlite3
+import csv
+from fastapi import FastAPI, Request, status, HTTPException, WebSocket, WebSocketDisconnect, Body, Header
+from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, HTMLResponse
+import json
+import os
+import glob
+from datetime import datetime, timedelta
+from fastapi.staticfiles import StaticFiles
+from pywebpush import webpush, WebPushException
+import unicodedata
+import uuid
+import re
+import html
+import urllib.request
+from urllib.parse import urljoin, urlparse, parse_qs
+from fastapi import Query  # Kun hvis du stadig bruger Query i nogle endpoints
+from contextlib import asynccontextmanager, suppress
+from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List
+import threading
+from collections import defaultdict
+import time
+import asyncio
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.requests import ClientDisconnect
+import pytz
+import logging
+import subprocess
+import queue
+from haversine import haversine
+
+load_dotenv()
+
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY")
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY")
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "web", "obs"))
+BLACKLIST_PATH = os.path.join(os.path.dirname(__file__), "blacklist.json")
+NYHEDER_PATH = os.path.join(os.path.dirname(__file__), "nyheder.json")
+MAX_BODY_SIZE = 2 * 1024 * 1024  # 2 MB
+SYNC_PATH = os.path.join(os.path.dirname(__file__), "request_sync.json")
+
+SERVER_DIR = os.path.dirname(__file__)
+ADMIN_PATH = os.path.join(SERVER_DIR, "admin.json")
+SUPERADMIN_PATH = os.path.join(SERVER_DIR, "superadmin.json")
+BLACKLIST_PATH = os.path.join(SERVER_DIR, "blacklist.json")
+NYHEDER_PATH = os.path.join(SERVER_DIR, "nyheder.json")
+
+comment_file_locks = defaultdict(threading.Lock)
+dk_time = datetime.now(pytz.timezone("Europe/Copenhagen")).isoformat()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Oprydning i baggrundstråd (blocking) – uændret
+    def run_and_repeat():
+        while True:
+            try:
+                cleanup_dirs(os.path.join(web_dir, "payload"), days=3)
+                cleanup_dirs(os.path.join(web_dir, "obs"), days=3)
+                database_maintenance()
+            except Exception as e:
+                logging.exception(f"[cleanup] Fejl under oprydning: {e}")
+            time.sleep(3600)
+
+    t = threading.Thread(target=run_and_repeat, daemon=True)
+    t.start()
+
+    yield  # appen kører
+
+
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://notifikation.dofbasen.dk"],  # eller ["*"] for test, men ikke i produktion!
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def log_all_requests(request: Request, call_next):
+    try:
+        response = await call_next(request)
+    except ClientDisconnect:
+        logging.info(f'{request.client.host} - "DISCONNECT {request.url.path}" 499')
+        return PlainTextResponse("Client disconnected", status_code=499)
+    log_line = f'{request.client.host} - "{request.method} {request.url.path} HTTP/{request.scope.get("http_version", "1.1")}" {response.status_code}'
+    logging.info(log_line)
+    return response
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "users.db")
+
+logging.basicConfig(
+    filename="server.log",
+    format="%(message)s",
+    level=logging.INFO,
+)
+
+def db_init():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_prefs (
+                user_id TEXT PRIMARY KEY,
+                prefs TEXT,
+                ts INTEGER
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                user_id TEXT,
+                device_id TEXT,
+                subscription TEXT,
+                PRIMARY KEY (user_id, device_id)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS thread_subs (
+                day TEXT,
+                thread_id TEXT,
+                user_id TEXT,
+                device_id TEXT,
+                PRIMARY KEY (day, thread_id, user_id, device_id)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS thread_unsubs (
+                day TEXT,
+                thread_id TEXT,
+                user_id TEXT,
+                device_id TEXT,
+                PRIMARY KEY (day, thread_id, user_id, device_id)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS obsid_subs (
+                user_id TEXT,
+                device_id TEXT,
+                date TEXT,
+                obsid TEXT,
+                sub INTEGER,
+                PRIMARY KEY (user_id, device_id, obsid)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS stats_notifications (
+                date TEXT PRIMARY KEY,
+                obs_notification INTEGER DEFAULT 0
+            )
+        """)
+db_init()
+
+def cleanup_user_prefs_without_subscriptions():
+    """
+    Slet alle user_prefs hvor user_id ikke findes i subscriptions.
+    """
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            DELETE FROM user_prefs
+            WHERE user_id NOT IN (SELECT DISTINCT user_id FROM subscriptions)
+        """)
+        conn.commit()
+
+def remove_subscription_and_cleanup(user_id, device_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            "DELETE FROM subscriptions WHERE user_id=? AND device_id=?",
+            (user_id, device_id)
+        )
+        deleted = cur.rowcount
+        print(f"[remove_subscription_and_cleanup] Slettede {deleted} subscription(s) for {user_id}/{device_id}")
+        conn.execute(
+            "DELETE FROM thread_subs WHERE user_id=? AND device_id=?",
+            (user_id, device_id)
+        )
+        conn.execute(
+            "DELETE FROM thread_unsubs WHERE user_id=? AND device_id=?",
+            (user_id, device_id)
+        )
+        # Slet user_prefs hvis der ikke er flere subscriptions for user_id
+        remaining = conn.execute(
+            "SELECT 1 FROM subscriptions WHERE user_id=? LIMIT 1",
+            (user_id,)
+        ).fetchone()
+        if not remaining:
+            conn.execute(
+                "DELETE FROM user_prefs WHERE user_id=?",
+                (user_id,)
+            )
+            print(f"[remove_subscription_and_cleanup] Slettede user_prefs for {user_id} (ingen subscriptions tilbage)")
+        else:
+            print(f"[remove_subscription_and_cleanup] Der findes stadig subscriptions for {user_id} efter sletning!")
+        conn.commit()
+
+def slugify(text):
+    # Tag de første 5 ord, lav til lowercase, fjern ikke-bogstaver/tal, bindestreg mellem ord
+    words = re.findall(r'\w+', text.lower())[:5]
+    return '-'.join(words)
+
+def get_navn_from_userid(user_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute("SELECT prefs FROM user_prefs WHERE user_id=?", (user_id,))
+        row = cur.fetchone()
+        if row:
+            try:
+                prefs = json.loads(row[0])
+                return prefs.get("navn") or prefs.get("obserkode") or user_id
+            except Exception:
+                return user_id
+    return user_id
+
+def get_device_id_for_user(user_id):
+    """Returner device_id for user_id fra subscriptions-tabellen (første fundne)."""
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT device_id FROM subscriptions WHERE user_id=? LIMIT 1",
+            (user_id,)
+        ).fetchone()
+    return row[0] if row else None
+
+def cleanup_dirs(base_dir, days=3):
+    now = datetime.now()
+    for name in os.listdir(base_dir):
+        dir_path = os.path.join(base_dir, name)
+        if not os.path.isdir(dir_path):
+            continue
+        try:
+            dir_date = datetime.strptime(name, "%d-%m-%Y")
+        except ValueError:
+            continue
+        if (now - dir_date).days >= days:
+            print(f"Sletter: {dir_path}")
+            import shutil
+            shutil.rmtree(dir_path)
+
+def database_maintenance():
+    with sqlite3.connect(DB_PATH) as conn:
+        # Slet KUN thread_subs og thread_unsubs for dage der ikke længere findes i obs
+        for table in ["thread_subs", "thread_unsubs"]:
+            days = conn.execute(f"SELECT DISTINCT day FROM {table}").fetchall()
+            for (day,) in days:
+                obs_dir = os.path.join(web_dir, "obs", day)
+                if not os.path.isdir(obs_dir):
+                    print(f"Sletter {table} for dag {day} (mappe findes ikke)")
+                    conn.execute(f"DELETE FROM {table} WHERE day=?", (day,))
+        conn.commit()
+    # Ryd op i user_prefs uden tilknyttede subscriptions
+    cleanup_user_prefs_without_subscriptions()  
+
+obs_notification_queue = queue.Queue()
+
+def obs_notification_worker():
+    import sqlite3
+    tz = pytz.timezone("Europe/Copenhagen")
+    while True:
+        today = datetime.now(pytz.UTC).astimezone(tz).strftime("%Y-%m-%d")
+        # Saml alle kald i køen (batch)
+        count = 0
+        try:
+            while True:
+                obs_notification_queue.get(timeout=1)
+                count += 1
+        except queue.Empty:
+            pass
+        if count > 0:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute("""
+                    INSERT INTO stats_notifications (date, obs_notification)
+                    VALUES (?, ?)
+                    ON CONFLICT(date) DO UPDATE SET obs_notification = obs_notification + ?
+                """, (today, count, count))
+                conn.commit()
+
+# Start baggrundstråden én gang ved opstart
+threading.Thread(target=obs_notification_worker, daemon=True).start()
+
+def send_push(sub, push_payload, user_id, device_id):
+    try:
+        webpush(
+            subscription_info=sub,
+            data=json.dumps(push_payload),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": "mailto:kontakt@dofnot.dk"},
+            ttl=3600,
+            headers={"Urgency": "high"}
+        )
+    except WebPushException as ex:
+        should_delete = False
+        status = None
+        if hasattr(ex, "response") and ex.response:
+            status = getattr(ex.response, "status_code", None)
+            if status is None:
+                status = getattr(ex.response, "status", None)
+            msg = f"[WebPushException] status={status}, body={getattr(ex.response, 'content', '')}"
+            print(msg)
+            logging.info(msg)
+        if status == 410:
+            should_delete = True
+        elif "unsubscribed" in str(ex).lower() or "expired" in str(ex).lower():
+            should_delete = True
+        if should_delete:
+            msg = f"Sletter abonnement for {user_id}/{device_id} pga. push-fejl: {ex}"
+            print(msg)
+            logging.info(msg)
+            remove_subscription_and_cleanup(user_id, device_id)
+        else:
+            msg = f"Push-fejl til {user_id}/{device_id}: {ex}"
+            print(msg)
+            logging.info(msg)
+    except Exception as ex:
+        msg = f"Uventet push-fejl til {user_id}/{device_id}: {ex}"
+        print(msg)
+        logging.info(msg)
+        if "getaddrinfo failed" in str(ex) or "NameResolutionError" in str(ex) or "Failed to resolve" in str(ex):
+            msg = f"Sletter abonnement for {user_id}/{device_id} pga. netværksfejl: {ex}"
+            print(msg)
+            logging.info(msg)
+            remove_subscription_and_cleanup(user_id, device_id)
+
+def get_prefs(user_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute("SELECT prefs FROM user_prefs WHERE user_id=?", (user_id,))
+        row = cur.fetchone()
+        return json.loads(row[0]) if row else {}
+
+def set_prefs(user_id, prefs):
+    ts = int(datetime.now().timestamp())
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO user_prefs (user_id, prefs, ts) VALUES (?, ?, ?)",
+            (user_id, json.dumps(prefs), ts)
+        )
+
+@app.post("/api/prefs/quiet-hours")
+async def set_quiet_hours(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    start = data.get("start")
+    end = data.get("end")
+    if not user_id or not device_id:
+        raise HTTPException(status_code=400, detail="user_id og device_id kræves")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    prefs = get_prefs(user_id)
+    if "quiet_hours" not in prefs:
+        prefs["quiet_hours"] = {}
+    # Slet hvis tomme værdier
+    if not start or not end:
+        if device_id in prefs["quiet_hours"]:
+            del prefs["quiet_hours"][device_id]
+    else:
+        prefs["quiet_hours"][device_id] = {"start": start, "end": end}
+    set_prefs(user_id, prefs)
+    return {"ok": True}
+
+@app.get("/share/{day}/{thread_id}", response_class=HTMLResponse)
+async def share_thread(day: str, thread_id: str, user_agent: str = Header(None)):
+    import html
+    import pytz
+    from datetime import datetime
+
+    # 1. Valider input (kun tilladte tegn)
+    if not re.match(r"^\d{2}-\d{2}-\d{4}$", day):
+        return HTMLResponse("<h1>Ugyldig dag</h1>", status_code=400)
+    if not re.match(r"^[a-zA-Z0-9\-_]+$", thread_id):
+        return HTMLResponse("<h1>Ugyldigt thread_id</h1>", status_code=400)
+
+    # 2. Byg sti og check at den er under web_dir
+    thread_path = os.path.abspath(os.path.join(web_dir, "obs", day, "threads", thread_id, "thread.json"))
+    allowed_dir = os.path.abspath(os.path.join(web_dir, "obs"))
+    if not thread_path.startswith(allowed_dir):
+        return HTMLResponse("<h1>Ikke fundet</h1>", status_code=404)
+
+    if not os.path.isfile(thread_path):
+        return HTMLResponse("<h1>Ikke fundet</h1>", status_code=404)
+    with open(thread_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    thread = data.get("thread", {})
+    art = thread.get("art", "").strip()
+    lok = thread.get("lok", "").strip()
+    images = thread.get("images", [])
+    # Brug et billede på mindst 1200x630 px hvis muligt!
+    og_image = images[0] if images else "https://notifikation.dofbasen.dk/icons/icon-2048.png"
+    og_image_width = "2048"
+    og_image_height = "2048"
+    og_image_type = "image/png" if og_image.endswith(".png") else "image/jpeg"
+    if art and lok:
+        og_title = f"{art} - {lok}"
+    elif art:
+        og_title = art
+    elif lok:
+        og_title = lok
+    else:
+        og_title = "DOFbasen Notifikation"
+    og_desc = f"Se observationen af {art or 'en fugl'} ved {lok or 'ukendt lokalitet'} i DOFbasen Notifikationer."
+    # Sæt url og canonical til denne /share/...-side!
+    url = f"https://notifikation.dofbasen.dk/share/{day}/{thread_id}"
+    canonical = f'<link rel="canonical" href="{html.escape(url)}">'
+
+    crawler_agents = [
+        "facebookexternalhit", "facebookcatalog", "meta-webindexer",
+        "meta-externalads", "meta-externalagent", "meta-externalfetcher", "bsky"
+    ]
+    is_crawler = user_agent and any(a in user_agent.lower() for a in crawler_agents)
+
+    # Kun redirect for almindelige brugere, ikke crawlers
+    meta_refresh = ""
+    if user_agent and not is_crawler:
+        # Omdiriger til traad.html for almindelige brugere
+        traad_url = f"https://notifikation.dofbasen.dk/traad.html?date={day}&id={thread_id}&from_share=1"
+        meta_refresh = f'<meta http-equiv="refresh" content="0; url={html.escape(traad_url)}">'
+
+    html_out = f"""<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{html.escape(og_title)}</title>
+  <meta property="og:url" content="{html.escape(url)}">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{html.escape(og_title)}">
+  <meta property="og:description" content="{html.escape(og_desc)}">
+  <meta property="og:site_name" content="DOFbasen Notifikationer">
+  <meta property="og:image" content="{html.escape(og_image)}">
+  <meta property="og:image:type" content="{og_image_type}">
+  <meta property="og:image:width" content="{og_image_width}">
+  <meta property="og:image:height" content="{og_image_height}">
+  <meta property="og:locale" content="da_DK">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{html.escape(og_title)}">
+  <meta name="twitter:description" content="{html.escape(og_desc)}">
+  <meta name="twitter:image" content="{html.escape(og_image)}">
+  <meta name="twitter:image:alt" content="{html.escape(og_title)}">
+  {canonical}
+  {meta_refresh}
+</head>
+<body>
+  <p>Omdirigerer til <a href="https://notifikation.dofbasen.dk/traad.html?date={day}&id={thread_id}">https://notifikation.dofbasen.dk/traad.html?date={day}&id={thread_id}</a>...</p>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html_out, status_code=200)
+
+@app.post("/api/log-pageview")
+async def log_pageview(data: dict, request: Request):
+    url = data.get("url")
+    user_id = data.get("user_id")
+    os_info = data.get("os", "Unknown")
+    browser = data.get("browser", "Unknown")
+    is_pwa = data.get("is_pwa", False)
+    from_sharelink = data.get("from_sharelink", False)
+    from_notification = data.get("from_notification", False)
+    ip = request.client.host
+    dk_time = datetime.now(pytz.timezone("Europe/Copenhagen")).isoformat()
+    log_path = os.path.join(os.path.dirname(__file__), "pageviews.log")
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(f"{dk_time} {ip} {user_id} {url} OS: {os_info}  BROWSER: {browser}  PWA: {is_pwa}{'  SHARELINK: True' if from_sharelink else ''}{'  NOTIFICATION: True' if from_notification else ''}\n")
+    return {"ok": True}
+
+@app.post("/api/admin/superadmin")
+async def superadmins(data: dict = Body(None)):
+    action = (data or {}).get("action", "get")
+    user_id = (data or {}).get("user_id", "")
+    device_id = (data or {}).get("device_id", "")
+    obserkode = ((data or {}).get("obserkode") or "").strip().upper()
+    try:
+        # Tjek device_id matcher det i databasen FØR filbehandling
+        correct_device_id = get_device_id_for_user(user_id)
+        if correct_device_id and device_id and device_id != correct_device_id:
+            raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+        requester_obserkode = get_obserkode_from_userprefs(user_id)
+        superadmins = load_superadmins()
+        if requester_obserkode not in superadmins:
+            raise HTTPException(status_code=403, detail="Kun hovedadmin")
+
+        # Nu er adgang tjekket, så læs filen
+        with open(SUPERADMIN_PATH, "r", encoding="utf-8") as f:
+            file_data = json.load(f)
+        protected = set(file_data.get("protected", []))
+
+        if action == "get":
+            return {"superadmins": sorted(superadmins)}
+        elif action == "toggle":
+            if not obserkode:
+                raise HTTPException(status_code=400, detail="Obserkode mangler")
+            if obserkode in protected:
+                raise HTTPException(status_code=400, detail="Denne superadmin kan ikke fjernes")
+            if obserkode in superadmins:
+                superadmins.remove(obserkode)
+            else:
+                superadmins.add(obserkode)
+            file_data["superadmins"] = sorted(superadmins)
+            with open(SUPERADMIN_PATH, "w", encoding="utf-8") as f:
+                json.dump(file_data, f, ensure_ascii=False, indent=2)
+            return {"ok": True, "superadmins": file_data["superadmins"]}
+        else:
+            raise HTTPException(status_code=400, detail="Ugyldig action")
+    except Exception as e:
+        return {"ok": False, "error": str(e), "superadmins": []}
+
+@app.post("/api/prefs")
+async def api_prefs(request: Request):
+    try:
+        data = await request.json()
+    except ClientDisconnect:
+        raise HTTPException(status_code=499, detail="Client disconnected")
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    new_prefs = data.get("prefs")
+    if not user_id or not device_id:
+        raise HTTPException(status_code=400, detail="user_id og device_id kræves")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    if new_prefs is not None:
+        # Opdater kun afdelingsnøgler
+        old_prefs = get_prefs(user_id)
+        for afd in new_prefs:
+            old_prefs[afd] = new_prefs[afd]
+        set_prefs(user_id, old_prefs)
+        return {"ok": True}
+    # Hvis ingen prefs i body, returner prefs for user
+    prefs = get_prefs(user_id)
+    return JSONResponse(prefs)
+
+@app.get("/api/nyheder")
+async def list_nyheder():
+    if os.path.isfile(NYHEDER_PATH):
+        with open(NYHEDER_PATH, "r", encoding="utf-8") as f:
+            nyheder = json.load(f)
+        def format_ts(ts):
+            try:
+                dt = datetime.fromisoformat(ts.replace("T", " "))
+                return dt.strftime("%Y-%m-%d")  # Kun dato, ingen tid
+            except Exception:
+                return ts[:10]  # fallback: første 10 tegn
+        nu = datetime.now()
+        aktuelle_nyheder = []
+        ændret = False
+        for n in nyheder:
+            slet_ts = n.get("slet_tidspunkt")
+            try:
+                if slet_ts and datetime.fromisoformat(slet_ts.replace("T", " ")) < nu:
+                    ændret = True
+                    continue  # Slet denne nyhed
+            except Exception:
+                pass  # Hvis slet_tidspunkt er ugyldig, behold nyheden
+            aktuelle_nyheder.append(n)
+        # Slet overskredne nyheder fra filen
+        if ændret:
+            with open(NYHEDER_PATH, "w", encoding="utf-8") as f:
+                json.dump(aktuelle_nyheder, f, ensure_ascii=False, indent=2)
+        return [
+            {
+                "id": n["id"],
+                "titel": n["titel"],
+                "forfatter": n["forfatter"],
+                "oprettet_tidspunkt": format_ts(n.get("oprettet_tidspunkt", "")),
+                "body": n["body"]
+            }
+            for n in aktuelle_nyheder
+        ]
+    return []
+
+def strip_markdown(md):
+    # Fjern billeder og links
+    md = re.sub(r'!\[.*?\]\(.*?\)', '', md)
+    md = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', md)
+    # Fjern kodeblokke og inline-kode
+    md = re.sub(r'`{3}.*?`{3}', '', md, flags=re.DOTALL)
+    md = re.sub(r'`[^`]+`', '', md)
+    # Fjern overskrifter, lister, stjerner, underscores, >, #
+    md = re.sub(r'^[#>\-\*\+ ]+', '', md, flags=re.MULTILINE)
+    md = re.sub(r'[*_~`]', '', md)
+    # Fjern HTML-tags
+    md = re.sub(r'<[^>]+>', '', md)
+    # Sammenkæd whitespace
+    md = re.sub(r'\s+', ' ', md)
+    return md.strip()
+
+@app.api_route("/api/admin/nyhed", methods=["POST", "GET", "PUT", "DELETE"])
+async def admin_nyhed(request: Request, data: dict = Body(None), id: str = Query(None), user_id: str = Query(None)):
+    # --- Adgangskontrol: Kun superadmin for alle metoder undtagen GET ---
+    if request.method != "GET":
+        # Prøv at finde user_id fra body eller query
+        _data = data or {}
+        _user_id = _data.get("user_id") or user_id
+        if not _user_id:
+            raise HTTPException(status_code=400, detail="user_id kræves")
+        obserkode = get_obserkode_from_userprefs(_user_id)
+        superadmins = load_superadmins()
+        if obserkode not in superadmins:
+            raise HTTPException(status_code=403, detail="Kun superadmin")
+
+    # --- GET: Hent én nyhed (kræver ikke superadmin) ---
+    if request.method == "GET":
+        if not id:
+            raise HTTPException(status_code=400, detail="id kræves")
+        if os.path.isfile(NYHEDER_PATH):
+            with open(NYHEDER_PATH, "r", encoding="utf-8") as f:
+                nyheder = json.load(f)
+            for nyhed in nyheder:
+                if nyhed["id"] == id:
+                    return nyhed
+        raise HTTPException(status_code=404, detail="Nyhed ikke fundet")
+
+    # --- DELETE: Slet nyhed ---
+    if request.method == "DELETE":
+        nyhed_id = id or (data or {}).get("id")
+        _data = data or {}
+        _user_id = _data.get("user_id") or user_id
+        device_id = _data.get("device_id")
+        if not _user_id or not device_id:
+            raise HTTPException(status_code=400, detail="user_id og device_id kræves")
+        # adgangskontrol allerede tjekket ovenfor
+        if not nyhed_id:
+            raise HTTPException(status_code=400, detail="id kræves for sletning")
+        if os.path.isfile(NYHEDER_PATH):
+            with open(NYHEDER_PATH, "r", encoding="utf-8") as f:
+                nyheder = json.load(f)
+        else:
+            raise HTTPException(status_code=404, detail="Nyhed ikke fundet")
+        nyheder2 = [n for n in nyheder if n.get("id") != nyhed_id]
+        if len(nyheder2) == len(nyheder):
+            raise HTTPException(status_code=404, detail="Nyhed ikke fundet")
+        with open(NYHEDER_PATH, "w", encoding="utf-8") as f:
+            json.dump(nyheder2, f, ensure_ascii=False, indent=2)
+        return {"ok": True, "id": nyhed_id}
+
+    # --- POST/PUT kræver adgangskontrol (tjekket ovenfor) ---
+    data = data or {}
+    user_id = data.get("user_id") or user_id
+    device_id = data.get("device_id")
+    if not user_id or not device_id:
+        raise HTTPException(status_code=400, detail="user_id og device_id kræves")
+
+    # --- PUT eller POST med id: Rediger eksisterende nyhed ---
+    if request.method == "PUT" or (request.method == "POST" and data.get("id")):
+        nyhed_id = data.get("id")
+        if not nyhed_id:
+            raise HTTPException(status_code=400, detail="id kræves for redigering")
+        if os.path.isfile(NYHEDER_PATH):
+            with open(NYHEDER_PATH, "r", encoding="utf-8") as f:
+                nyheder = json.load(f)
+        else:
+            raise HTTPException(status_code=404, detail="Nyhed ikke fundet")
+        found = False
+        for i, nyhed in enumerate(nyheder):
+            if nyhed["id"] == nyhed_id:
+                for felt in ["titel", "body", "slet_tidspunkt", "send_notifikation"]:
+                    if felt in data:
+                        nyhed[felt] = data[felt]
+                nyheder[i] = nyhed
+                found = True
+                break
+        if not found:
+            raise HTTPException(status_code=404, detail="Nyhed ikke fundet")
+        with open(NYHEDER_PATH, "w", encoding="utf-8") as f:
+            json.dump(nyheder, f, ensure_ascii=False, indent=2)
+        # Send notifikation hvis ønsket
+        if int(data.get("send_notifikation") or 0):
+            titel = nyhed.get("titel", "")
+            body = nyhed.get("body", "")
+            push_payload = {
+                "title": f"Nyhed: {titel}",
+                "body": strip_markdown(body)[:100] + ("..." if len(strip_markdown(body)) > 100 else ""),
+                "url": f"https://notifikation.dofbasen.dk/nyhed.html?id={nyhed_id}&from_notification=1"
+            }
+            with sqlite3.connect(DB_PATH) as conn, ThreadPoolExecutor(max_workers=8) as executor:
+                rows = conn.execute("SELECT user_id, device_id, subscription FROM subscriptions").fetchall()
+                tasks = []
+                for user_id_row, device_id_row, sub_json in rows:
+                    try:
+                        sub = json.loads(sub_json)
+                        tasks.append(executor.submit(send_push, sub, push_payload, user_id_row, device_id_row))
+                        obs_notification_queue.put(1)
+                    except Exception as e:
+                        print(f"Push-fejl til {user_id_row}/{device_id_row}: {e}")
+                for t in tasks:
+                    t.result()
+        return {"ok": True, "id": nyhed_id}
+
+    # --- POST: Opret nyhed ---
+    titel = (data.get("titel") or "").strip()
+    body = (data.get("body") or "").strip()
+    slet_tidspunkt = data.get("slet_tidspunkt")
+    send_notifikation = int(data.get("send_notifikation") or 0)
+    if not titel or not body:
+        raise HTTPException(status_code=400, detail="Titel og brødtekst kræves")
+    try:
+        datetime.fromisoformat(slet_tidspunkt)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Ugyldigt slet_tidspunkt (skal være ISO8601)")
+    navn = get_navn_from_userid(user_id)
+    unikt_id_base = slugify(titel)
+    now = datetime.now()
+    tidstempel = now.strftime("%Y%m%d%H%M%S")
+    unikt_id = f"{unikt_id_base}-{tidstempel}"
+    oprettet_tidspunkt = now.strftime("%Y-%m-%dT%H:%M:%S")
+    nyhed = {
+        "id": unikt_id,
+        "forfatter": navn,
+        "titel": titel,
+        "body": body,
+        "oprettet_tidspunkt": oprettet_tidspunkt,
+        "slet_tidspunkt": slet_tidspunkt,
+        "send_notifikation": send_notifikation
+    }
+    try:
+        if os.path.isfile(NYHEDER_PATH):
+            with open(NYHEDER_PATH, "r", encoding="utf-8") as f:
+                nyheder = json.load(f)
+        else:
+            nyheder = []
+    except Exception:
+        nyheder = []
+    nyheder.append(nyhed)
+    with open(NYHEDER_PATH, "w", encoding="utf-8") as f:
+        json.dump(nyheder, f, ensure_ascii=False, indent=2)
+
+    # --- Send notifikation hvis ønsket ---
+    if send_notifikation:
+        push_payload = {
+            "title": f"Nyhed: {titel}",
+            "body": strip_markdown(body)[:100] + ("..." if len(strip_markdown(body)) > 100 else ""),
+            "url": f"https://notifikation.dofbasen.dk/nyhed.html?id={unikt_id}&from_notification=1"
+        }
+        with sqlite3.connect(DB_PATH) as conn, ThreadPoolExecutor(max_workers=8) as executor:
+            rows = conn.execute("SELECT user_id, device_id, subscription FROM subscriptions").fetchall()
+            tasks = []
+            for user_id_row, device_id_row, sub_json in rows:
+                try:
+                    sub = json.loads(sub_json)
+                    tasks.append(executor.submit(send_push, sub, push_payload, user_id_row, device_id_row))
+                    obs_notification_queue.put(1)
+                except Exception as e:
+                    print(f"Push-fejl til {user_id_row}/{device_id_row}: {e}")
+            for t in tasks:
+                t.result()
+
+    return {"ok": True, "id": unikt_id}
+
+@app.post("/api/subscribe")
+async def api_subscribe(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id") or data.get("userid")
+    device_id = data.get("device_id") or data.get("deviceid")
+    subscription = data.get("subscription")
+    if not user_id or not device_id or not subscription:
+        raise HTTPException(status_code=400, detail="user_id, device_id og subscription kræves")
+    # Hvis der allerede findes en anden device_id for user_id, kræv at det er samme device_id
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO subscriptions (user_id, device_id, subscription) VALUES (?, ?, ?)",
+            (user_id, device_id, json.dumps(subscription))
+        )
+    return {"ok": True}
+
+@app.post("/api/unsubscribe")
+async def api_unsubscribe(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "DELETE FROM subscriptions WHERE user_id=? AND device_id=?",
+            (user_id, device_id)
+        )
+    return {"ok": True}
+
+
+
+# Stier
+web_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "web"))
+payload_dir = os.path.join(web_dir, "payload")
+latest_symlink_path = os.path.join(web_dir, "payload", "latest.json")
+
+def _parse_dt_from_row(row: dict) -> datetime:
+    time_keys = ["Obstidtil", "Obstidfra", "Turtidtil", "Turtidfra"]
+    date_str = (row.get("Dato") or "").strip()
+    if not date_str:
+        return datetime.min
+    time_str = ""
+    for k in time_keys:
+        v = (row.get(k) or "").strip()
+        if v:
+            time_str = v
+            break
+    if not time_str:
+        time_str = "00:00"
+    try:
+        return datetime.strptime(f"{date_str} {time_str}", "%d-%m-%Y %H:%M")
+    except Exception:
+        try:
+            return datetime.strptime(date_str, "%d-%m-%Y")
+        except Exception:
+            return datetime.min
+        
+def should_include_obs(obs, species_filters):
+    artnavn = (obs.get("Artnavn") or "").strip().lower()
+    # Ekskluderede arter har altid højeste prioritet
+    if artnavn in [a.lower() for a in species_filters.get("exclude", [])]:
+        return False
+    # Minimumsantal (hvis sat)
+    min_count = species_filters.get("counts", {}).get(artnavn)
+    if min_count is not None:
+        try:
+            antal = int(obs.get("Antal") or 0)
+            if antal < int(min_count):
+                return False
+        except Exception:
+            return False
+    # Hvis ikke ekskluderet og evt. antal opfyldt, så inkluder
+    return True
+
+def _latest_from_data(data):
+    if isinstance(data, list) and data:
+        try:
+            return max(data, key=_parse_dt_from_row)
+        except Exception:
+            return data[-1]
+    if isinstance(data, dict):
+        return data
+    return {}
+
+def _ts() -> str:
+    tz = pytz.timezone("Europe/Copenhagen")
+    return datetime.now(pytz.UTC).astimezone(tz).strftime("%Y%m%d_%H%M%S")
+
+def _save_payload(payload) -> str:
+    # Opret dato-mappe i format DD-MM-YYYY
+    tz = pytz.timezone("Europe/Copenhagen")
+    today = datetime.now(pytz.UTC).astimezone(tz).strftime("%d-%m-%Y")
+    datedir = os.path.join(payload_dir, today)
+    os.makedirs(datedir, exist_ok=True)
+    fname = f"payload_{_ts()}.json"
+    fpath = os.path.join(datedir, fname)
+    with open(fpath, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False)
+    # Skriv/overskriv "latest.json" for nem hentning (stadig i payload_dir)
+    with open(latest_symlink_path, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False)
+    return fpath
+
+def _get_latest_payload_path() -> str | None:
+    # Foretræk latest.json hvis den findes
+    if os.path.exists(latest_symlink_path) and os.path.getsize(latest_symlink_path) > 0:
+        return latest_symlink_path
+    # Ellers find seneste payload_*.json
+    pattern = os.path.join(payload_dir, "payload_*.json")
+    files = glob.glob(pattern)
+    if not files:
+        return None
+    return max(files, key=os.path.getmtime)
+
+def _load_latest_payload():
+    path = _get_latest_payload_path()
+    if not path:
+        return None
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return None
+    
+def normalize(s):
+    if not isinstance(s, str):
+        return ""
+    s = s.lower()
+    s = s.replace("æ", "ae").replace("ø", "oe").replace("å", "aa")
+    s = unicodedata.normalize("NFKD", s)
+    return s
+
+_IMG_URL_RE = re.compile(
+    r"""(?:"|')(?P<u>(?:https?:)?//dofbasen\.dk/image_proxy\.php\?[^"']+|/image_proxy\.php\?[^"']+)["']""",
+    re.IGNORECASE,
+)
+
+def _fetch_html(url: str, timeout: float = 10.0) -> str:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (DOFbasen Notifikation-server) AppleWebKit/537.36 Chrome/119 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+        ctype = resp.headers.get("Content-Type", "")
+
+    # Try charset from header, then meta, then fallbacks
+    m = re.search(r"charset=([\w\-]+)", ctype, re.I)
+    enc = m.group(1) if m else None
+    if not enc:
+        m2 = re.search(rb"<meta[^>]+charset=['\"]?([\w\-]+)", raw, re.I)
+        enc = (m2.group(1).decode("ascii", "ignore") if m2 else None)
+    for candidate in [enc, "windows-1252", "iso-8859-1", "utf-8"]:
+        try:
+            return raw.decode(candidate or "utf-8", errors="strict")
+        except Exception:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+def _image_proxy_to_service_url(u: str, base: str = "https://dofbasen.dk") -> str | None:
+    """
+    Map image_proxy.php?… → https://service.dofbasen.dk/media/image/o/<filename>.jpg
+    Handles HTML entities (&amp;) and stray %3B in query delimiters.
+    """
+    if not u:
+        return None
+    s = html.unescape(str(u))
+    # Fix cases like ?mode=o&amp%3Bpic=... (remove encoded ';' after & or ?)
+    s = re.sub(r'([?&])%3B', r'\1', s, flags=re.IGNORECASE)
+    absu = urljoin(base, s)
+    pu = urlparse(absu)
+    if not pu.path.lower().endswith("/image_proxy.php"):
+        return None
+    qs = parse_qs(pu.query, keep_blank_values=True)
+    # keys may be like 'pic' or weirdly prefixed; normalize
+    pic = None
+    for k, vals in qs.items():
+        kk = k.lower().lstrip(' ;')
+        if kk == "pic" and vals:
+            pic = vals[0]
+            break
+    if not pic:
+        return None
+    filename = str(pic).split("/")[-1]
+    if not filename:
+        return None
+    return f"https://service.dofbasen.dk/media/image/o/{filename}"
+
+def _extract_service_image_urls(html_text: str) -> list[str]:
+    seen = set()
+    out: list[str] = []
+    for m in _IMG_URL_RE.finditer(html_text or ""):
+        raw_u = m.group("u")
+        svc = _image_proxy_to_service_url(raw_u)
+        if not svc:
+            continue
+        key = svc.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(svc)
+    return out
+
+ALLOWED_CSV_FILES = {
+    "data/arter_filter_klassificeret.csv",
+    "data/bornholm_bemaerk_parsed.csv",
+    "data/faenologi.csv",
+    "data/fyn_bemaerk_parsed.csv",
+    "data/koebenhavn_bemaerk_parsed.csv",
+    "data/nordjylland_bemaerk_parsed.csv",
+    "data/nordsjaelland_bemaerk_parsed.csv",
+    "data/nordvestjylland_bemaerk_parsed.csv",
+    "data/oestjylland_bemaerk_parsed.csv",
+    "data/soenderjylland_bemaerk_parsed.csv",
+    "data/storstroem_bemaerk_parsed.csv",
+    "data/sydoestjylland_bemaerk_parsed.csv",
+    "data/sydvestjylland_bemaerk_parsed.csv",
+    "data/vestjylland_bemaerk_parsed.csv",
+    "data/vestsjaelland_bemaerk_parsed.csv",
+    "web/data/arter_filter_klassificeret.csv",
+    "data/arter_dof_content.csv"
+}
+
+@app.post("/api/admin/csv")
+async def admin_csv(request: Request):
+    data = await request.json()
+    file = data.get("file")
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    action = data.get("action", "read")  # "read" eller "write"
+    if file not in ALLOWED_CSV_FILES:
+        raise HTTPException(status_code=403, detail="Ugyldig filsti")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+
+    path = os.path.join(os.path.dirname(__file__), "..", file)
+    if action == "read":
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail="File not found")
+        with open(path, "r", encoding="utf-8") as f:
+            return PlainTextResponse(f.read())
+    elif action == "write":
+        content = data.get("content", "")
+        # Skriv til begge hvis det er arter_filter_klassificeret.csv
+        if file.endswith("arter_filter_klassificeret.csv"):
+            path1 = os.path.join(os.path.dirname(__file__), "..", "data", "arter_filter_klassificeret.csv")
+            path2 = os.path.join(os.path.dirname(__file__), "..", "web", "data", "arter_filter_klassificeret.csv")
+            for p in {path1, path2}:
+                with open(p, "w", encoding="utf-8") as f:
+                    f.write(content)
+        else:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+        return {"ok": True}
+    else:
+        raise HTTPException(status_code=400, detail="Ugyldig action")
+
+def append_line_robust(path, line):
+    needs_newline = False
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        with open(path, "rb") as f:
+            try:
+                f.seek(-1, os.SEEK_END)
+                last_char = f.read(1)
+                if last_char not in (b'\n', b'\r'):
+                    needs_newline = True
+            except OSError:
+                pass
+    with open(path, "a", encoding="utf-8") as f:
+        if needs_newline:
+            f.write("\n")
+        f.write(line if line.endswith("\n") else line + "\n")
+
+@app.api_route("/api/admin/fetch-faenologi-csv", methods=["GET", "POST"])
+async def fetch_faenologi_csv(request: Request):
+    import urllib.request
+    import re
+    import html
+
+    urls = {
+        "sommer": "https://dofbasen.dk/opslag/wsdata.php?tid=sommer",
+        "vinter": "https://dofbasen.dk/opslag/wsdata.php?tid=vinter"
+    }
+    rows = []
+    for season, url in urls.items():
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (DOFbasen Notifikation-server)",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            html_text = resp.read().decode("windows-1252", errors="replace")
+        for m in re.finditer(
+            r"<tr><td>(\d+)</td><td[^>]*>.*?</td><td>(?:<span[^>]*>)?([^<]+)(?:</span>)?</td><td>\(([\d/]+)-([\d/]+)\)</td></tr>",
+            html_text
+        ):
+            artnr, artnavn, datofra, datotil = m.groups()
+            artnavn = html.unescape(artnavn)
+            def fix_date(s):
+                d, m = s.split("/")
+                return f"{int(d):02d}-{int(m):02d}"
+            datofra = fix_date(datofra)
+            datotil = fix_date(datotil)
+            rows.append([artnr, artnavn, datofra, datotil])
+
+    csv_header = "Artnr;Artnavn;Datofra;Datotil\n"
+    csv_content = csv_header + "\n".join(";".join(row) for row in rows) + "\n"
+
+    # Skriv til begge placeringer hvis ændret
+    csv_paths = [
+        os.path.join(os.path.dirname(__file__), "..", "data", "faenologi.csv"),
+        os.path.join(os.path.dirname(__file__), "..", "web", "data", "faenologi.csv"),
+    ]
+    old_content = ""
+    if os.path.exists(csv_paths[0]):
+        with open(csv_paths[0], "r", encoding="utf-8-sig") as f:
+            old_content = f.read()
+    changed = (csv_content != old_content)
+
+    if changed:
+        for path in csv_paths:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8-sig", newline="") as f:
+                f.write(csv_content)
+        try:
+            subprocess.run(
+                ["python", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "update_version.py")), "small"],
+                check=True,
+                cwd=os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            )
+        except Exception as e:
+            return {"ok": True, "rows": len(rows), "changed": changed, "update_version_error": str(e)}
+    return {"ok": True, "rows": len(rows), "changed": changed}
+
+@app.api_route("/api/admin/fetch-all-bemaerk-csv", methods=["GET", "POST"])
+async def fetch_all_bemaerk_csv(request: Request):
+    import os
+    import subprocess
+    import urllib.request
+    import re
+    import html
+    import unicodedata
+    import hashlib
+
+    # Mapping fra list-param til filnavn
+    region_map = {
+        "kbh": "koebenhavn_bemaerk_parsed.csv",
+        "nsjl": "nordsjaelland_bemaerk_parsed.csv",
+        "vsjl": "vestsjaelland_bemaerk_parsed.csv",
+        "ss": "storstroem_bemaerk_parsed.csv",
+        "b": "bornholm_bemaerk_parsed.csv",
+        "f": "fyn_bemaerk_parsed.csv",
+        "sdrj": "soenderjylland_bemaerk_parsed.csv",
+        "soej": "sydoestjylland_bemaerk_parsed.csv",
+        "svj": "sydvestjylland_bemaerk_parsed.csv",
+        "vj": "vestjylland_bemaerk_parsed.csv",
+        "oej": "oestjylland_bemaerk_parsed.csv",
+        "nvj": "nordvestjylland_bemaerk_parsed.csv",
+        "nj": "nordjylland_bemaerk_parsed.csv",
+    }
+
+    base_url = "https://dofbasen.dk/opslag/bemaerk.php?list={}"
+    results = {}
+    changed_any = False
+
+    # Regex: <tr><td>ART</td><td align="right">KOL2</td>
+    row_re = re.compile(
+        r"""
+        <tr>\s*
+           <td>\s*(?:<span[^>]*>)?        # evt. <span ...>
+               (?P<art>[^<]+?)            # artsnavn (tekst)
+           (?:</span>)?\s*</td>\s*
+           <td[^>]*\balign=["']right["'][^>]*>\s*
+               (?P<col2>[0-9][0-9\ \.,]*) # kolonne 2: tal med evt. separators
+           \s*</td>
+        """,
+        re.IGNORECASE | re.DOTALL | re.VERBOSE,
+    )
+
+    def clean_text(s: str) -> str:
+        """Hård normalisering: unescape, Unicode NFKC, NBSP->space, kollaps whitespace."""
+        if s is None:
+            return ""
+        s = html.unescape(s)
+        s = unicodedata.normalize("NFKC", s)
+        s = s.replace("\u00A0", " ")          # NBSP -> normal space
+        s = re.sub(r"[ \t\r\f\v]+", " ", s)   # kollaps horisontal whitespace
+        return s.strip()
+
+    def normalize_number(s: str) -> str:
+        """Fjern tusind-separatorer/mellemrum -> behold kun cifre."""
+        return re.sub(r"[^\d]", "", s or "")
+
+    def normalize_for_diff(s: str) -> str:
+        """Diff-normalisering af hele filindholdet."""
+        if s is None:
+            return ""
+        s = s.lstrip("\ufeff")                # fjern BOM
+        s = s.replace("\r\n", "\n")           # CRLF -> LF
+        s = s.replace("\r", "\n")             # ensret CR -> LF
+        s = unicodedata.normalize("NFKC", s)
+        s = s.replace("\u00A0", " ")          # NBSP -> space
+
+        # Trim trailing spaces pr. linje
+        s = "\n".join(line.rstrip(" \t") for line in s.split("\n"))
+        # Fjern afsluttende blanke linjer
+        s = s.rstrip("\n")
+        return s
+
+    def hash_str(s: str) -> str:
+        return hashlib.md5(s.encode("utf-8")).hexdigest()
+
+    for region, filename in region_map.items():
+        url = base_url.format(region)
+        region_result = {
+            "file": filename,
+            "rows_total": 0,
+            "numeric_rows": 0,
+            "changed": False,
+            "error": None,
+            "reason": None,
+        }
+        try:
+            # Hent HTML
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (DOFbasen Notifikation-server; fetch-bemaerk-csv)",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                charset = resp.headers.get_content_charset() or "windows-1252"
+                html_text = resp.read().decode(charset, errors="replace")
+
+            # Parse rækker
+            all_rows = []
+            numeric_rows = []
+            for m in row_re.finditer(html_text):
+                art_raw = m.group("art")
+                col2_raw = m.group("col2")
+                art = clean_text(art_raw)
+                col2_clean = clean_text(col2_raw)
+                num = normalize_number(col2_clean)
+
+                all_rows.append((art, col2_clean))
+                if num.isdigit():
+                    numeric_rows.append((art, num))
+
+            region_result["rows_total"] = len(all_rows)
+            region_result["numeric_rows"] = len(numeric_rows)
+
+            # Ingen numeriske rækker? Skriv ikke.
+            if not numeric_rows:
+                region_result["reason"] = "no-numeric-second-column"
+                results[region] = region_result
+                continue
+
+            # Gør output deterministisk: sortér rækker
+            numeric_rows.sort(key=lambda x: (x[0].casefold(), int(x[1])))
+
+            # Byg CSV
+            lines = ["artsnavn;bemaerk_antal"]
+            for art, num in numeric_rows:
+                lines.append(f"{art};{num}")
+            csv_content = "\n".join(lines) + "\n"
+
+            # Sammenlign med eksisterende fil
+            csv_path = os.path.join(os.path.dirname(__file__), "..", "data", filename)
+            old_content = ""
+            if os.path.exists(csv_path):
+                with open(csv_path, "r", encoding="utf-8", newline="") as f:
+                    old_content = f.read()
+
+            old_norm = normalize_for_diff(old_content)
+            new_norm = normalize_for_diff(csv_content)
+            changed = (new_norm != old_norm)
+            region_result["changed"] = changed
+
+            # (Valgfrit) medtag hashes i results for nem fejlsøgning
+            if changed:
+                region_result["old_md5"] = hash_str(old_norm)
+                region_result["new_md5"] = hash_str(new_norm)
+
+                # Skriv deterministisk: UTF-8 uden BOM og LF
+                with open(csv_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(csv_content)
+                changed_any = True
+            else:
+                region_result["old_md5"] = hash_str(old_norm)
+                region_result["new_md5"] = region_result["old_md5"]
+
+            results[region] = region_result
+
+        except Exception as e:
+            region_result["error"] = str(e)
+            results[region] = region_result
+            # fortsæt til næste region
+
+    # Kør update_version.py small hvis noget ændret
+    if changed_any:
+        try:
+            subprocess.run(
+                [
+                    "python",
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "update_version.py")),
+                    "small",
+                ],
+                check=True,
+                cwd=os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
+            )
+        except Exception as e:
+            return {"ok": True, "results": results, "update_version_error": str(e)}
+
+    return {"ok": True, "results": results}
+
+@app.get("/api/lok_koordinater")
+async def lok_koordinater(loknr: str):
+    """
+    Henter koordinater for en lokalitet fra dofbasen.dk/poplok.php?loknr=...
+    Returnerer laengde og bredde (float) eller fejl.
+    """
+    import urllib.request
+    import re
+
+    url = f"https://dofbasen.dk/poplok.php?loknr={loknr}"
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (DOFbasen Notifikation-server)",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html_text = resp.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        return {"ok": False, "error": f"Kunne ikke hente HTML: {e}"}
+
+    m_lon = re.search(r'<span id="lok_center_lon">([0-9\.\-]+)</span>', html_text)
+    m_lat = re.search(r'<span id="lok_center_lat">([0-9\.\-]+)</span>', html_text)
+    if not m_lon or not m_lat:
+        return {"ok": False, "error": "Koordinater ikke fundet"}
+
+    try:
+        laengde = float(m_lon.group(1))
+        bredde = float(m_lat.group(1))
+    except Exception as e:
+        return {"ok": False, "error": f"Ugyldige koordinater: {e}"}
+
+    return {"ok": True, "laengde": laengde, "bredde": bredde}
+
+@app.api_route("/api/admin/fetch-arter-csv", methods=["GET", "POST"])
+async def fetch_arter_csv(request: Request):
+    urls = [
+        "https://dofbasen.dk/opslag/artdata.php?list=art",
+        "https://dofbasen.dk/opslag/artdata.php?list=hybrid",
+        "https://dofbasen.dk/opslag/artdata.php?list=ub",
+        "https://dofbasen.dk/opslag/artdata.php?list=andre",
+    ]
+
+    def _clean_text(value: str) -> str:
+        text = html.unescape(re.sub(r"<[^>]+>", "", value))
+        text = text.replace("&nbsp;", " ").replace("&nbsp", " ").replace("\xa0", " ")
+        return re.sub(r"\s+", " ", text).strip()
+
+    # Hent klassificering fra sudata.php og subdata.php
+    # Bygger lookup dicts: artsid -> klassificering (og artsnavn -> klassificering som fallback)
+    su_artsids = set()  # SU arter
+    su_artnavne = set()  # SU arter ved navn
+    sub_artsids = set()  # SUB arter (underarter)
+    sub_artnavne = set()  # SUB arter ved navn
+
+    try:
+        su_html = _fetch_html("https://dofbasen.dk/opslag/sudata.php", timeout=30.0)
+        rows = re.findall(r'<tr[^>]*>(.*?)</tr>', su_html, re.DOTALL | re.IGNORECASE)
+        for row_html in rows:
+            tds = re.findall(r'<td([^>]*)>(.*?)</td>', row_html, re.DOTALL | re.IGNORECASE)
+            if len(tds) >= 1:
+                # TD 0: artsid, TD 1: tom, TD 2: dansk navn, TD 3: videnskabeligt navn
+                artsid_raw = _clean_text(tds[0][1])
+                if re.fullmatch(r"\d+", artsid_raw):
+                    artsid = artsid_raw.lstrip("0") or "0"
+                    su_artsids.add(artsid)
+                # Læs dansk navn fra TD 2 (TD 1 er tom)
+                if len(tds) >= 3:
+                    artnavn_raw = _clean_text(tds[2][1])
+                    if artnavn_raw:
+                        su_artnavne.add(artnavn_raw)
+        logging.info(f"[fetch_arter_csv] Hentet {len(su_artsids)} SU arter (ID) og {len(su_artnavne)} (navn) fra sudata.php")
+    except Exception as e:
+        logging.warning(f"Kunne ikke hente sudata.php: {e}")
+
+    try:
+        sub_html = _fetch_html("https://dofbasen.dk/opslag/subdata.php", timeout=30.0)
+        rows = re.findall(r'<tr[^>]*>(.*?)</tr>', sub_html, re.DOTALL | re.IGNORECASE)
+        for row_html in rows:
+            tds = re.findall(r'<td([^>]*)>(.*?)</td>', row_html, re.DOTALL | re.IGNORECASE)
+            if len(tds) >= 1:
+                # TD 0: artsid, TD 1: tom, TD 2: dansk navn, TD 3: videnskabeligt navn
+                artsid_raw = _clean_text(tds[0][1])
+                if re.fullmatch(r"\d+", artsid_raw):
+                    artsid = artsid_raw.lstrip("0") or "0"
+                    sub_artsids.add(artsid)
+                # Læs dansk navn fra TD 2 (TD 1 er tom)
+                if len(tds) >= 3:
+                    artnavn_raw = _clean_text(tds[2][1])
+                    if artnavn_raw:
+                        sub_artnavne.add(artnavn_raw)
+        logging.info(f"[fetch_arter_csv] Hentet {len(sub_artsids)} SUB arter (ID) og {len(sub_artnavne)} (navn) fra subdata.php")
+    except Exception as e:
+        logging.warning(f"Kunne ikke hente subdata.php: {e}")
+
+    # artdata.php indeholder flere tabelafsnit. Vi bruger kun rækker, der matcher
+    # den egentlige artsliste: 4 celler, første celle er et artsnummer.
+    data_rows = []
+    seen_rows = set()
+    for url in urls:
+        html_text = _fetch_html(url, timeout=30.0)
+
+        rows = re.findall(r'<tr[^>]*>(.*?)</tr>', html_text, re.DOTALL | re.IGNORECASE)
+        for row_html in rows:
+            tds = re.findall(r'<td([^>]*)>(.*?)</td>', row_html, re.DOTALL | re.IGNORECASE)
+            if len(tds) != 4:
+                continue
+            artsid_raw = _clean_text(tds[0][1])
+            if not re.fullmatch(r"\d+", artsid_raw):
+                continue
+            artsid = artsid_raw.lstrip("0") or "0"
+            artnavn = _clean_text(tds[2][1])
+
+            row_classes = " ".join(
+                cls
+                for cls in re.findall(r'class=["\']([^"\']+)["\']', row_html, re.IGNORECASE)
+            )
+            # Bestem klassificering: først fra CSS-klasser, ellers fra sudata/subdata
+            if re.search(r'\bsu\b', row_classes):
+                kategori_out = "SU"
+            elif re.search(r'\bsubart\b', row_classes):
+                kategori_out = "SUB"
+            elif artsid in su_artsids or artnavn in su_artnavne:
+                kategori_out = "SU"
+            elif artsid in sub_artsids or artnavn in sub_artnavne:
+                kategori_out = "SUB"
+            else:
+                kategori_out = "Alm"
+
+            row_key = (artsid, artnavn)
+            if row_key in seen_rows:
+                continue
+            seen_rows.add(row_key)
+            data_rows.append([artsid, artnavn, kategori_out])
+
+    fixed_row = ["99999", "Ny fugleart for landet", "SU"]
+    data_rows = [row for row in data_rows if row[0] != fixed_row[0]]
+    data_rows.append(fixed_row)
+
+    # Sorter efter artsid stigende
+    data_rows.sort(key=lambda row: int(row[0]))
+
+    # Byg nyt CSV-indhold som tekst
+    csv_header = "artsid;artsnavn;klassifikation\n"
+    csv_content = csv_header + "\n".join(";".join(row) for row in data_rows) + "\n"
+
+    # Sammenlign med eksisterende fil (data/arter_filter_klassificeret.csv)
+    csv_path = os.path.join(os.path.dirname(__file__), "..", "data", "arter_filter_klassificeret.csv")
+    old_content = ""
+    if os.path.exists(csv_path):
+        with open(csv_path, "r", encoding="utf-8-sig") as f:
+            old_content = f.read()
+    changed = (csv_content != old_content)
+
+    # Skriv til CSV begge steder hvis ændret
+    csv_paths = [
+        os.path.join(os.path.dirname(__file__), "..", "data", "arter_filter_klassificeret.csv"),
+        os.path.join(os.path.dirname(__file__), "..", "web", "data", "arter_filter_klassificeret.csv"),
+    ]
+    if changed:
+        for path in csv_paths:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8-sig", newline="") as f:
+                f.write(csv_content)
+        # Kør update_version.py small i roden hvis ændret
+        try:
+            subprocess.run(
+                ["python", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "update_version.py")), "small"],
+                check=True,
+                cwd=os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            )
+        except Exception as e:
+            return {"ok": True, "rows": len(data_rows), "changed": changed, "update_version_error": str(e)}
+    return {"ok": True, "rows": len(data_rows), "changed": changed}
+
+@app.get("/api/obs/full")
+async def api_obs_full(obsid: str = Query(..., min_length=3, description="DOFbasen observation id")):
+    """
+    Returnerer DKU-status, billeder og lydklip for observationen.
+    """
+    url = f"https://dofbasen.dk/popobs.php?obsid={obsid}&summering=tur&obs=obs"
+    try:
+        html_page = _fetch_html(url, timeout=10.0)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Kunne ikke hente kilde: {e}")
+
+    # DKU-status
+    m = re.search(r'<acronym[^>]*class=["\']behandl["\'][^>]*title=["\']([^"\']+)["\']', html_page, re.IGNORECASE)
+    status = m.group(1) if m else ""
+
+    # Billeder
+    images = _extract_service_image_urls(html_page)
+
+    # Lydklip
+    matches = re.findall(r"""<a[^>]+href=['"]([^'"]*sound_proxy\.php[^'"]+)['"]""", html_page, re.IGNORECASE)
+    sound_urls = []
+    for href in matches:
+        href = html.unescape(href)
+        if href.startswith("/"):
+            sound_url = "https://dofbasen.dk" + href
+        else:
+            sound_url = href
+        sound_urls.append(sound_url)
+
+    return {
+        "obsid": obsid,
+        "status": status,
+        "images": images,
+        "sound_urls": sound_urls
+    }
+
+def haversine(lat1, lon1, lat2, lon2):
+    from math import radians, sin, cos, sqrt, atan2
+    R = 6371.0  # km
+    lat1, lon1, lat2, lon2 = map(float, [lat1, lon1, lat2, lon2])
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
+
+def extract_timestamp(filename):
+    m = re.search(r'observationer_(\d+)\.json', filename)
+    return int(m.group(1)) if m else 0
+
+
+def _split_departments(value) -> list[str]:
+    return [p.strip() for p in str(value or "").split("|") if p.strip()]
+
+
+def _merge_departments(a, b) -> str:
+    seen = set()
+    out = []
+    for raw in (a, b):
+        for part in _split_departments(raw):
+            k = part.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(part)
+    return " | ".join(out)
+
+
+def _obs_unique_key(obs: dict) -> tuple:
+    obsid = str(obs.get("Obsid") or obs.get("obsid") or obs.get("id") or "").strip()
+    if obsid:
+        return ("obsid", obsid)
+    return (
+        "fallback",
+        str(obs.get("Dato") or "").strip(),
+        str(obs.get("Turid") or "").strip(),
+        str(obs.get("Loknr") or "").strip(),
+        str(obs.get("Artnr") or "").strip(),
+        str(obs.get("Artnavn") or "").strip(),
+        str(obs.get("Koen") or "").strip(),
+        str(obs.get("Adfkode") or "").strip(),
+        str(obs.get("Alderkode") or "").strip(),
+        str(obs.get("Dragtkode") or "").strip(),
+        str(obs.get("Antal") or "").strip(),
+        str(obs.get("Obserkode") or "").strip(),
+        str(obs.get("Fornavn") or "").strip(),
+        str(obs.get("Efternavn") or "").strip(),
+        str(obs.get("Obstidfra") or "").strip(),
+        str(obs.get("Obstidtil") or "").strip(),
+        str(obs.get("Turtidfra") or "").strip(),
+        str(obs.get("Turtidtil") or "").strip(),
+    )
+
+
+def _dedupe_payload_rows(rows: list[dict]) -> list[dict]:
+    by_key: dict[tuple, dict] = {}
+    for raw in rows:
+        if not isinstance(raw, dict):
+            continue
+        row = dict(raw)
+        key = _obs_unique_key(row)
+        cur = by_key.get(key)
+        if cur is None:
+            by_key[key] = row
+            continue
+
+        # Keep highest priority statechanged and merge departments.
+        cur_state = int(cur.get("statechanged", 0) or 0)
+        row_state = int(row.get("statechanged", 0) or 0)
+        cur["statechanged"] = 1 if (cur_state or row_state) else 0
+        cur["DOF_afdeling"] = _merge_departments(cur.get("DOF_afdeling", ""), row.get("DOF_afdeling", ""))
+
+        # Merge obserstate if present.
+        cur_obs_state = cur.get("obserstate") or []
+        row_obs_state = row.get("obserstate") or []
+        if isinstance(cur_obs_state, str):
+            cur_obs_state = [cur_obs_state]
+        if isinstance(row_obs_state, str):
+            row_obs_state = [row_obs_state]
+        merged_state = []
+        seen_state = set()
+        for code in list(cur_obs_state) + list(row_obs_state):
+            code_s = str(code).strip()
+            if not code_s:
+                continue
+            key_state = code_s.upper()
+            if key_state in seen_state:
+                continue
+            seen_state.add(key_state)
+            merged_state.append(code_s)
+        cur["obserstate"] = merged_state
+
+        # Keep largest antal to avoid inflation from duplicate department rows.
+        try:
+            cur_antal = int(cur.get("Antal") or 0)
+        except Exception:
+            cur_antal = 0
+        try:
+            row_antal = int(row.get("Antal") or 0)
+        except Exception:
+            row_antal = 0
+        if row_antal > cur_antal:
+            cur["Antal"] = str(row_antal)
+
+    return list(by_key.values())
+
+@app.post("/api/nearby-observations")
+async def nearby_observations(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    lat = data.get("lat")
+    lng = data.get("lng")
+    radius_km = float(data.get("radius_km", 5))
+    if not user_id or not device_id or lat is None or lng is None:
+        raise HTTPException(status_code=400, detail="user_id, device_id, lat og lng kræves")
+
+    downloads_dir = os.path.join(os.path.dirname(__file__), "..", "downloads")
+    files = glob.glob(os.path.join(downloads_dir, "observationer_*.json"))
+    if not files:
+        raise HTTPException(status_code=404, detail="Ingen observationer fundet")
+    files.sort(key=extract_timestamp, reverse=True)
+    latest_file = files[0]
+
+    try:
+        with open(latest_file, "r", encoding="utf-8") as f:
+            items = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fejl ved indlæsning af observationer: {e}")
+
+    allowed_categories = {"bemaerk", "faenologi", "sub", "su"}
+    grouped = {}
+    seen_obs_keys = set()
+    for obs in items:
+        obs_key = _obs_unique_key(obs)
+        if obs_key in seen_obs_keys:
+            continue
+        seen_obs_keys.add(obs_key)
+
+        kategori = (obs.get("kategori") or "").strip().lower()
+        if kategori not in allowed_categories:
+            continue
+        lat_obs = obs.get("obs_breddegrad") or obs.get("lok_breddegrad")
+        lng_obs = obs.get("obs_laengdegrad") or obs.get("lok_laengdegrad")
+        if not lat_obs or not lng_obs:
+            continue
+        try:
+            lat_obs = float(str(lat_obs).replace(",", "."))
+            lng_obs = float(str(lng_obs).replace(",", "."))
+        except Exception:
+            continue
+        dist = haversine(lat, lng, lat_obs, lng_obs)
+        if dist > radius_km:
+            continue
+
+        artnr = obs.get("Artnr")
+        turid = obs.get("Turid")
+        loknr = obs.get("Loknr")
+        key = (artnr, turid, loknr)
+        antal = int(obs.get("Antal") or 0)
+        dato = obs.get("Dato") or ""
+        birthtime = obs.get("obsidbirthtime") or ""
+        # Summer antal og gem seneste obs
+        if key not in grouped:
+            grouped[key] = {"sum_antal": 0, "latest_obs": obs, "latest_dato": dato, "latest_birthtime": birthtime}
+        grouped[key]["sum_antal"] += antal
+        # Hvis denne obs er nyere, opdater latest_obs
+        if dato > grouped[key]["latest_dato"]:
+            grouped[key]["latest_obs"] = obs
+            grouped[key]["latest_dato"] = dato
+            grouped[key]["latest_birthtime"] = birthtime
+        elif dato == grouped[key]["latest_dato"]:
+            # Hvis dato er ens, brug seneste obsidbirthtime
+            if birthtime > grouped[key]["latest_birthtime"]:
+                grouped[key]["latest_obs"] = obs
+                grouped[key]["latest_birthtime"] = birthtime
+
+    # Step 2: For hver Loknr og Artnr, vælg obs med størst sum_antal (eller seneste hvis ens)
+    lok_art_best = {}
+    for (artnr, turid, loknr), data in grouped.items():
+        best_key = (loknr, artnr)
+        sum_antal = data["sum_antal"]
+        latest_obs = data["latest_obs"]
+        latest_birthtime = data["latest_birthtime"]
+        if best_key not in lok_art_best:
+            lok_art_best[best_key] = {"sum_antal": sum_antal, "obs": latest_obs, "birthtime": latest_birthtime}
+        else:
+            prev = lok_art_best[best_key]
+            if sum_antal > prev["sum_antal"]:
+                lok_art_best[best_key] = {"sum_antal": sum_antal, "obs": latest_obs, "birthtime": latest_birthtime}
+            elif sum_antal == prev["sum_antal"]:
+                # Hvis antal er ens, vælg den med seneste obsidbirthtime
+                if latest_birthtime > prev["birthtime"]:
+                    lok_art_best[best_key] = {"sum_antal": sum_antal, "obs": latest_obs, "birthtime": latest_birthtime}
+
+    result = []
+    for v in lok_art_best.values():
+        obs = v["obs"].copy()
+        obs["Antal"] = str(v["sum_antal"])
+        result.append(obs)
+
+    return {"observations": result}
+
+@app.post("/api/thread/{day}/{thread_id}/subscribe")
+async def subscribe_thread(day: str, thread_id: str, request: Request):
+    # Beskyt mod directory traversal
+    if not re.match(r"^\d{2}-\d{2}-\d{4}$", day):
+        raise HTTPException(status_code=400, detail="Ugyldig dag")
+    if not re.match(r"^[a-zA-Z0-9\-_]+$", thread_id):
+        raise HTTPException(status_code=400, detail="Ugyldigt thread_id")
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    if not user_id or not device_id:
+        raise HTTPException(status_code=400, detail="user_id og device_id kræves")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO thread_subs (day, thread_id, user_id, device_id) VALUES (?, ?, ?, ?)",
+            (day, thread_id, user_id, device_id)
+        )
+    return {"ok": True}
+
+@app.post("/api/thread/{day}/{thread_id}/unsubscribe")
+async def unsubscribe_thread(day: str, thread_id: str, request: Request):
+    # Beskyt mod directory traversal
+    if not re.match(r"^\d{2}-\d{2}-\d{4}$", day):
+        raise HTTPException(status_code=400, detail="Ugyldig dag")
+    if not re.match(r"^[a-zA-Z0-9\-_]+$", thread_id):
+        raise HTTPException(status_code=400, detail="Ugyldigt thread_id")
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    if not user_id or not device_id:
+        raise HTTPException(status_code=400, detail="user_id og device_id kræves")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "DELETE FROM thread_subs WHERE day=? AND thread_id=? AND user_id=? AND device_id=?",
+            (day, thread_id, user_id, device_id)
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO thread_unsubs (day, thread_id, user_id, device_id) VALUES (?, ?, ?, ?)",
+            (day, thread_id, user_id, device_id)
+        )
+    return {"ok": True}
+
+@app.post("/api/thread/{day}/{thread_id}/subscription")
+async def thread_subscription_status(day: str, thread_id: str, request: Request):
+    # Beskyt mod directory traversal
+    if not re.match(r"^\d{2}-\d{2}-\d{4}$", day):
+        return JSONResponse({"detail": "Ugyldig dag"}, status_code=400)
+    if not re.match(r"^[a-zA-Z0-9\-_]+$", thread_id):
+        return JSONResponse({"detail": "Ugyldigt thread_id"}, status_code=400)
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    if not user_id or not device_id:
+        return JSONResponse({"subscribed": False})
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM thread_subs WHERE day=? AND thread_id=? AND user_id=? AND device_id=?",
+            (day, thread_id, user_id, device_id)
+        ).fetchone()
+    return {"subscribed": bool(row)}
+
+stats_lock = threading.Lock()
+
+@app.post("/api/obsid/{obsid}/subscribe")
+async def obsid_subscribe(obsid: str, request: Request):
+    """
+    POST: Tilmeld/frameld abonnement på obsid.
+    Body: {user_id, device_id, obsid, subscribe}
+    Hvis subscribe mangler, returner status.
+    """
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    subscribe = data.get("subscribe")
+    today = datetime.now().strftime("%Y-%m-%d")
+    if not user_id or not device_id or not obsid:
+        raise HTTPException(status_code=400, detail="user_id, device_id og obsid kræves")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    with sqlite3.connect(DB_PATH) as conn:
+        if subscribe is None:
+            # Returner status: True hvis ingen row eller sub=1, False kun hvis sub=0
+            row = conn.execute(
+                "SELECT sub FROM obsid_subs WHERE user_id=? AND device_id=? AND obsid=?",
+                (user_id, device_id, obsid)
+            ).fetchone()
+            return {"subscribed": not row or row[0] == 1}
+        else:
+            # Sæt abonnement (1=tilmeld, 0=frameld)
+            conn.execute(
+                "INSERT OR REPLACE INTO obsid_subs (user_id, device_id, date, obsid, sub) VALUES (?, ?, ?, ?, ?)",
+                (user_id, device_id, today, obsid, int(subscribe))
+            )
+            conn.commit()
+            return {"ok": True, "subscribed": bool(int(subscribe))}
+
+def is_obsid_unsubscribed(user_id: str, device_id: str, obsid: str) -> bool:
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT sub FROM obsid_subs WHERE user_id=? AND device_id=? AND obsid=?",
+            (user_id, device_id, obsid)
+        ).fetchone()
+        # Returner True kun hvis sub=0 (frameldt), ellers False (også hvis ingen row)
+        return bool(row and row[0] == 0)
+
+
+SPECIES_LIST_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "arter_filter_klassificeret.csv")
+
+
+def _normalize_species_name(name: str) -> str:
+    return re.sub(r"\s+", " ", (name or "").replace("[", "").replace("]", "").strip().lower())
+
+
+def _load_known_species_names() -> set[str]:
+    names: set[str] = set()
+    try:
+        with open(SPECIES_LIST_PATH, "r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            for row in reader:
+                name = _normalize_species_name(row.get("artsnavn") or "")
+                if name:
+                    names.add(name)
+    except Exception as e:
+        print(f"[server] Kunne ikke læse artsliste til sync-check: {e}")
+    return names
+
+
+def _payload_contains_unknown_species(payload: list[dict]) -> bool:
+    known_species = _load_known_species_names()
+    if not known_species:
+        return False
+    for obs in payload:
+        artnavn = _normalize_species_name(str(obs.get("Artnavn") or ""))
+        if artnavn and artnavn not in known_species:
+            return True
+    return False
+
+@app.post("/api/update")
+async def update_data(request: Request):
+    from datetime import datetime
+
+    def increment_obs_notification_db():
+        obs_notification_queue.put(1)
+
+    payload = await request.json()
+    if not isinstance(payload, list):
+        raise HTTPException(status_code=400, detail="Payload skal være en liste")
+    payload = _dedupe_payload_rows(payload)
+    _save_payload(payload)
+
+    tasks = []
+
+    api_token = request.headers.get("X-API-Token")
+    if api_token != os.environ.get("UPDATE_API_TOKEN"):
+        raise HTTPException(status_code=403, detail="Ikke tilladt")
+
+    if _payload_contains_unknown_species(payload):
+        try:
+            await fetch_arter_csv(request)
+            await fetch_faenologi_csv(request)
+            await fetch_all_bemaerk_csv(request)
+            print("[server] Artslister opdateret pga. ukendt art i sync-payload.")
+        except Exception as e:
+            print(f"[server] Kunne ikke opdatere artslister ved sync: {e}")
+
+    skip_set = set()  # <-- Tilføj denne linje
+
+    def push_task(sub, push_payload, user_id, device_id, obs_id=None):
+        if (user_id, device_id) in skip_set:
+            return
+        # Tjek quiet hours for denne bruger/device
+        prefs = get_prefs(user_id)
+        qh = prefs.get("quiet_hours", {}).get(device_id)
+        if qh:
+            tz = pytz.timezone("Europe/Copenhagen")
+            now = datetime.now(pytz.UTC).astimezone(tz).time()
+            try:
+                start = datetime.strptime(qh["start"], "%H:%M").time()
+                end = datetime.strptime(qh["end"], "%H:%M").time()
+                if start == end:
+                    pass
+                elif start < end:
+                    if start <= now < end:
+                        return
+                else:
+                    if now >= start or now < end:
+                        return
+            except Exception:
+                pass
+
+        # --- TJEK OBSID-UNSUB ---
+        if obs_id:
+            unsub = is_obsid_unsubscribed(user_id, device_id, str(obs_id))
+            if unsub:
+                return
+        
+        try:
+            webpush(
+                subscription_info=sub,
+                data=json.dumps(push_payload),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims={"sub": "mailto:kontakt@dofnot.dk"},
+                ttl=3600,
+                headers={"Urgency": "high"}
+            )
+            increment_obs_notification_db()
+        except WebPushException as ex:
+            should_delete = False
+            status = None
+            if hasattr(ex, "response") and ex.response:
+                status = getattr(ex.response, "status_code", None)
+                if status is None:
+                    status = getattr(ex.response, "status", None)
+                print(f"[DEBUG] WebPushException status={status}, body={getattr(ex.response, 'content', '')}")
+            if status == 410:
+                should_delete = True
+            elif "unsubscribed" in str(ex).lower() or "expired" in str(ex).lower():
+                should_delete = True
+            if should_delete:
+                print(f"Sletter abonnement for {user_id}/{device_id} pga. push-fejl: {ex}")
+                remove_subscription_and_cleanup(user_id, device_id)
+                skip_set.add((user_id, device_id))  # <-- Tilføj til skip_set
+                return
+        except Exception as ex:
+            print(f"Uventet push-fejl til {user_id}/{device_id}: {ex}")
+            if "getaddrinfo failed" in str(ex) or "NameResolutionError" in str(ex) or "Failed to resolve" in str(ex):
+                print(f"Sletter abonnement for {user_id}/{device_id} pga. netværksfejl: {ex}")
+                remove_subscription_and_cleanup(user_id, device_id)
+                skip_set.add((user_id, device_id))  # <-- Tilføj til skip_set
+
+    with ThreadPoolExecutor(max_workers=8) as executor, sqlite3.connect(DB_PATH) as conn:
+        for obs in payload:
+            afd = obs.get("DOF_afdeling")
+            kat = obs.get("kategori")
+            statechanged = int(obs.get("statechanged", 0))
+            thread_id = obs.get("tag")  # eller obs.get("thread_id")
+            day = datetime.strptime(obs.get("Dato"), "%Y-%m-%d").strftime("%d-%m-%Y")
+            title = f"{obs.get('Antal','?')} {obs.get('Artnavn','')}, {obs.get('Loknavn','')}"
+            body = f"{obs.get('Adfbeskrivelse','')}, {obs.get('Fornavn','')} {obs.get('Efternavn','')}"
+            push_payload = {
+                "title": title,
+                "body": body,
+                "url": obs.get("url", "https://dofbasen.dk"),
+                "tag": obs.get("tag") or ""
+            }
+            obs_id = obs.get("Obsid") or obs.get("obsid") or obs.get("id") or None
+
+            if statechanged == 1:
+                rows = conn.execute(
+                    "SELECT user_prefs.user_id, subscriptions.device_id, user_prefs.prefs, subscriptions.subscription "
+                    "FROM user_prefs JOIN subscriptions ON user_prefs.user_id = subscriptions.user_id"
+                ).fetchall()
+                for user_id, device_id, prefs_json, sub_json in rows:
+                    if (user_id, device_id) in skip_set:
+                        continue
+                    prefs = json.loads(prefs_json)
+                    sub = json.loads(sub_json)
+                    species_filters = prefs.get("species_filters") or {"include": [], "exclude": [], "counts": {}}
+                    user_obserkode = prefs.get("obserkode", "").strip().upper()
+                    obs_obserstate = obs.get("obserstate") or []
+                    if isinstance(obs_obserstate, str):
+                        obs_obserstate = [obs_obserstate]
+                    obs_obserstate = [k.strip().upper() for k in obs_obserstate if k]
+                    if user_obserkode and user_obserkode in obs_obserstate:
+                        continue
+                    if should_notify(prefs, afd, kat) and should_include_obs(obs, species_filters):
+                        tasks.append(
+                            executor.submit(push_task, sub, push_payload, user_id, device_id, obs_id)
+                        )
+            else:
+                if not thread_id:
+                    continue
+                thread_path = os.path.join(web_dir, "obs", day, "threads", thread_id, "thread.json")
+                if not os.path.isfile(thread_path):
+                    continue
+                try:
+                    with open(thread_path, "r", encoding="utf-8") as f:
+                        thread_data = json.load(f)
+                    thread_info = thread_data.get("thread", {})
+                    thread_art = (thread_info.get("art") or "").strip().lower()
+                    thread_lok = (thread_info.get("lok") or "").strip().lower()
+                except Exception:
+                    continue
+                obs_art = (obs.get("Artnavn") or "").strip().lower()
+                obs_lok = (obs.get("Loknavn") or "").strip().lower()
+                if obs_art != thread_art or obs_lok != thread_lok:
+                    continue
+                rows = conn.execute(
+                    "SELECT user_id, device_id FROM thread_subs WHERE day=? AND thread_id=?",
+                    (day, thread_id)
+                ).fetchall()
+                obs_obserstate = obs.get("obserstate") or []
+                if isinstance(obs_obserstate, str):
+                    obs_obserstate = [obs_obserstate]
+                obs_obserstate = [k.strip().upper() for k in obs_obserstate if k]
+                for user_id, device_id in rows:
+                    if (user_id, device_id) in skip_set:
+                        continue
+                    prefs = get_prefs(user_id)
+                    user_obserkode = (prefs.get("obserkode") or "").strip().upper()
+                    if obs_obserstate and user_obserkode and user_obserkode in obs_obserstate:
+                        continue
+                    sub_row = conn.execute(
+                        "SELECT subscription FROM subscriptions WHERE user_id=? AND device_id=?",
+                        (user_id, device_id)
+                    ).fetchone()
+                    if not sub_row:
+                        continue
+                    sub = json.loads(sub_row[0])
+                    tasks.append(
+                        executor.submit(push_task, sub, push_payload, user_id, device_id, obs_id)
+                    )
+        for t in tasks:
+            t.result()
+    return {"ok": True}
+
+@app.post("/api/users-overview")
+async def users_overview(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    # Tjek superadmin
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    users = []
+    with sqlite3.connect(DB_PATH) as conn:
+        # Find alle user_ids fra både user_prefs og subscriptions
+        user_ids = set()
+        rows = conn.execute("SELECT user_id FROM user_prefs").fetchall()
+        user_ids.update(uid for (uid,) in rows)
+        rows = conn.execute("SELECT user_id FROM subscriptions").fetchall()
+        user_ids.update(uid for (uid,) in rows)
+        for uid in sorted(user_ids):
+            # Hent prefs hvis de findes
+            cur = conn.execute("SELECT prefs FROM user_prefs WHERE user_id=?", (uid,))
+            row = cur.fetchone()
+            if row and row[0]:
+                try:
+                    prefs = json.loads(row[0])
+                except Exception:
+                    prefs = {}
+            else:
+                prefs = {}
+            lokalafdelinger = {afd: val for afd, val in prefs.items() if val in ("Ingen", "SU", "SUB", "Bemærk")}
+            obserkode = prefs.get("obserkode", "")
+            species_filters = prefs.get("species_filters", {})
+            # Tjek om der er indhold i include, exclude eller counts
+            sf_active = 0
+            if (
+                isinstance(species_filters, dict)
+                and (
+                    species_filters.get("include")
+                    or species_filters.get("exclude")
+                    or (species_filters.get("counts") and len(species_filters.get("counts")) > 0)
+                )
+            ):
+                sf_active = 1
+
+            subs = conn.execute("SELECT subscription FROM subscriptions WHERE user_id=?", (uid,)).fetchall()
+            subscriptions = [json.loads(s[0]) for s in subs if s and s[0]]
+            users.append({
+                "user_id": uid,
+                "lokalafdelinger": lokalafdelinger,
+                "obserkode": obserkode,
+                "advanced": sf_active
+            })
+    return users
+
+@app.post("/api/admin/blacklist")
+async def admin_blacklist(data: dict = Body(...)):
+    obsid = data.get("obsid")
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    reason = data.get("reason", "").strip()
+    navn = data.get("navn", "").strip()
+    body = data.get("body", "").strip()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        return JSONResponse({"ok": False, "error": "Forkert device_id for bruger"}, status_code=403)
+
+    prefs = get_prefs(user_id)
+    admins = load_admins()
+    admin_obserkode = prefs.get("obserkode", "")
+    if admin_obserkode not in admins:
+        return JSONResponse({"ok": False, "error": "Not admin"}, status_code=403)
+
+    if not obsid:
+        try:
+            with open(BLACKLIST_PATH, "r", encoding="utf-8") as f:
+                bl = json.load(f)
+            return bl
+        except Exception as e:
+            print("Blacklist read error:", e)
+            return []
+    if not reason:
+        return {"ok": False, "error": "Årsag til blacklistning mangler"}
+    try:
+        try:
+            with open(BLACKLIST_PATH, "r", encoding="utf-8") as f:
+                bl = json.load(f)
+        except Exception:
+            bl = []
+        bl = [entry for entry in bl if entry.get("obserkode") != obsid]
+        bl.append({
+            "obserkode": obsid,
+            "navn": navn,
+            "reason": reason,
+            "body": body,
+            "time": now,
+            "admin_obserkode": admin_obserkode
+        })
+        with open(BLACKLIST_PATH, "w", encoding="utf-8") as f:
+            json.dump(bl, f, ensure_ascii=False, indent=2)
+        return {"ok": True}
+    except Exception as e:
+        print("Blacklist error:", e)
+        return {"ok": False, "error": "Server error"}
+
+@app.post("/api/admin/unblacklist")
+async def admin_unblacklist(data: dict = Body(...)):
+    obsid = data.get("obsid")
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    if not obsid or not user_id:
+        return {"ok": False, "error": "Missing obsid or user_id"}
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        return {"ok": False, "error": "Forkert device_id for bruger"}
+    # Tjek admin-status
+    prefs = get_prefs(user_id)
+    admins = load_admins()
+    if prefs.get("obserkode") not in admins:
+        return {"ok": False, "error": "Not admin"}
+    try:
+        with open(BLACKLIST_PATH, "r", encoding="utf-8") as f:
+            bl = json.load(f)
+        # Fjern entry med denne obserkode
+        bl = [entry for entry in bl if entry.get("obserkode") != obsid]
+        with open(BLACKLIST_PATH, "w", encoding="utf-8") as f:
+            json.dump(bl, f, ensure_ascii=False, indent=2)
+        return {"ok": True}
+    except Exception as e:
+        print("Unblacklist error:", e)
+        return {"ok": False, "error": "Server error"}
+    
+@app.post("/api/admin/remove-comment")
+async def admin_remove_comment(data: dict = Body(...)):
+    admin_user_id = data.get("admin_user_id")
+    device_id = data.get("device_id")
+    comment_navn = data.get("navn")
+    comment_obserkode = data.get("obserkode")
+    comment_body = data.get("body")
+    ts = data.get("ts")
+    thread_id = data.get("thread_id")
+    day = data.get("day")
+
+    if not all([admin_user_id, device_id, comment_navn, comment_obserkode, comment_body, ts, thread_id, day]):
+        return {"ok": False, "error": "Missing data"}
+
+    correct_device_id = get_device_id_for_user(admin_user_id)
+    if correct_device_id and device_id != correct_device_id:
+        return {"ok": False, "error": "Forkert device_id for bruger"}
+
+    prefs = get_prefs(admin_user_id)
+    admins = load_admins()
+    if prefs.get("obserkode") not in admins:
+        return {"ok": False, "error": "Not admin"}
+
+    kommentar_path = os.path.join(web_dir, "obs", day, "threads", thread_id, "kommentar.json")
+    lock = get_comment_lock(day, thread_id)
+
+    try:
+        with lock:
+            if not os.path.exists(kommentar_path):
+                return {"ok": False, "error": "File not found"}
+
+            with open(kommentar_path, "r", encoding="utf-8") as f:
+                comments = json.load(f)
+
+            before = len(comments)
+            comments = [
+                c for c in comments
+                if not (
+                    c.get("ts") == ts and
+                    (c.get("navn") or "") == comment_navn and
+                    (c.get("obserkode") or "") == comment_obserkode and
+                    (c.get("body") or "") == comment_body
+                )
+            ]
+
+            if len(comments) == before:
+                return {"ok": False, "error": "Comment not found"}
+
+            with open(kommentar_path, "w", encoding="utf-8") as f:
+                json.dump(comments, f, ensure_ascii=False, indent=2)
+
+        return {"ok": True}
+    except Exception as e:
+        print("Remove comment error:", e)
+        return {"ok": False, "error": "Server error"}
+
+@app.get("/api/threads/{day}")
+async def api_threads_index(day: str):
+    """
+    Returner index.json for en given dag, inkl. comment_count for hver tråd.
+    Understøtter både array og objekt med "threads".
+    """
+    # Sikring mod directory traversal
+    if not re.match(r"^\d{2}-\d{2}-\d{4}$", day):
+        return JSONResponse({"detail": "Ugyldig dag"}, status_code=400)
+    index_path = os.path.join(web_dir, "obs", day, "index.json")
+    threads_dir = os.path.join(web_dir, "obs", day, "threads")
+    allowed_dir = os.path.abspath(os.path.join(web_dir, "obs"))
+    if not os.path.abspath(index_path).startswith(allowed_dir):
+        return JSONResponse({"detail": "Ikke fundet"}, status_code=404)
+    if not os.path.isfile(index_path):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    with open(index_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Hvis data er en liste, brug den direkte
+    if isinstance(data, list):
+        threads = data
+        out = threads
+    # Hvis data er et objekt med "threads", brug det
+    elif isinstance(data, dict) and "threads" in data:
+        threads = data["threads"]
+        out = data
+    else:
+        return JSONResponse({"detail": "Ugyldigt index-format"}, status_code=500)
+
+    # Tilføj comment_count til hver tråd
+    for thread in threads:
+        thread_id = thread.get("thread_id")
+        if not thread_id:
+            thread["comment_count"] = 0
+            continue
+        thread_dir = os.path.join(threads_dir, thread_id)
+        comments_path = os.path.join(thread_dir, "kommentar.json")
+        comment_count = 0
+        if os.path.isfile(comments_path):
+            try:
+                with open(comments_path, "r", encoding="utf-8") as f2:
+                    comments = json.load(f2)
+                comment_count = len(comments)
+            except Exception:
+                comment_count = 0
+        thread["comment_count"] = comment_count
+
+    return JSONResponse(out)
+
+@app.get("/share/obsid/{obsid}/", response_class=HTMLResponse)
+async def share_obsid(obsid: str, user_agent: str = Header(None)):
+    import html
+    from fastapi.testclient import TestClient
+
+    # Sikring mod directory traversal: obsid må kun være tal
+    if not re.match(r"^\d+$", obsid):
+        return HTMLResponse("<h1>Ugyldigt obsid</h1>", status_code=400)
+
+    # Brug TestClient til at kalde /api/dofbasen internt
+    client = TestClient(app)
+    resp = client.get(f"/api/dofbasen?obsid={obsid}")
+    if resp.status_code != 200:
+        print(f"[DEBUG] /api/dofbasen fejl: {resp.text}")
+        return HTMLResponse("<h1>Observation ikke fundet</h1>", status_code=404)
+    data = resp.json()
+
+    antal = (data.get("antal") or "").strip()
+    art = (data.get("art") or "").strip()
+    lok = (data.get("loknavn") or "").strip()
+    og_title = f"{antal} {art} - {lok}".strip(" -")
+
+    og_image = "https://notifikation.dofbasen.dk/icons/icon-2048.png"
+    og_image_width = "2048"
+    og_image_height = "2048"
+    og_image_type = "image/png" if og_image.endswith(".png") else "image/jpeg"
+    og_desc = f"Se observationen af {antal} {art or 'en fugl'} ved {lok or 'ukendt lokalitet'} i DOFbasen Notifikationer."
+    url = f"https://notifikation.dofbasen.dk/obsid.html?obsid={obsid}"
+    canonical = f'<link rel="canonical" href="{html.escape(url)}">'
+
+    crawler_agents = [
+        "facebookexternalhit", "facebookcatalog", "meta-webindexer",
+        "meta-externalads", "meta-externalagent", "meta-externalfetcher", "bsky"
+    ]
+    is_crawler = user_agent and any(a in user_agent.lower() for a in crawler_agents)
+
+    # Kun redirect for almindelige brugere, ikke crawlers
+    meta_refresh = ""
+    if user_agent and not is_crawler:
+        obsid_url = f"https://notifikation.dofbasen.dk/obsid.html?obsid={obsid}&from_share=1"
+        meta_refresh = f'<meta http-equiv="refresh" content="0; url={html.escape(obsid_url)}">'
+
+    html_out = f"""<!DOCTYPE html>
+    <html lang="da">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{html.escape(og_title)}</title>
+    <meta property="og:url" content="{html.escape(url)}"> 
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{html.escape(og_title)}">
+    <meta property="og:description" content="{html.escape(og_desc)}">
+    <meta property="og:site_name" content="DOFbasen Notifikationer">
+    <meta property="og:image" content="{html.escape(og_image)}">
+    <meta property="og:image:type" content="{og_image_type}">
+    <meta property="og:image:width" content="{og_image_width}">
+    <meta property="og:image:height" content="{og_image_height}">
+    <meta property="og:locale" content="da_DK">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{html.escape(og_title)}">
+    <meta name="twitter:description" content="{html.escape(og_desc)}">
+    <meta name="twitter:image" content="{html.escape(og_image)}">
+    <meta name="twitter:image:alt" content="{html.escape(og_title)}">
+    {canonical}
+    {meta_refresh}
+    </head>
+    <body>
+    <p>Omdirigerer til <a href="https://notifikation.dofbasen.dk/obsid.html?obsid={obsid}">https://notifikation.dofbasen.dk/obsid.html?obsid={obsid}</a>...</p>
+    </body>
+    </html>
+    """
+    print(f"[DEBUG] share_obsid: returnerer HTML ({len(html_out)} bytes)")
+    return HTMLResponse(content=html_out, status_code=200)
+    
+@app.get("/api/dofbasen")
+async def dofbasen_tur(obsid: str = Query(...)):
+    import urllib.request
+    import html
+    import re
+
+    url = f"https://dofbasen.dk/popobs.php?obsid={obsid}&summering=tur&obs=obs"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (DOFbasen Notifikation-server)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        raw = resp.read()
+        html_text = raw.decode("ISO-8859-1", errors="replace")
+
+    def clean(val):
+        return html.unescape(re.sub(r'<[^>]+>', '', val)).strip()
+
+    # DKU-status
+    m = re.search(r'<acronym[^>]*class=["\']behandl["\'][^>]*title=["\']([^"\']+)["\']', html_text, re.IGNORECASE)
+    status = m.group(1) if m else ""
+
+    # Billeder
+    images = _extract_service_image_urls(html_text)
+
+    # Lydklip
+    matches = re.findall(r"""<a[^>]+href=['"]([^'"]*sound_proxy\.php[^'"]+)['"]""", html_text, re.IGNORECASE)
+    sound_urls = []
+    for href in matches:
+        href = html.unescape(href)
+        if href.startswith("/"):
+            sound_url = "https://dofbasen.dk" + href
+        else:
+            sound_url = href
+        sound_urls.append(sound_url)
+
+    # Art (dansk og latin) - også SU
+    art_match = re.search(r'<font class="(?:subart|defaultart|su)">([^<]+)</font>(?:\s*\(SU\))?\s*\(<i>([^<]+)</i>\)', html_text)
+    art_dansk = art_match.group(1) if art_match else None
+    art_latin = art_match.group(2) if art_match else None
+
+    # Antal (første <td valign="top"> efter art)
+    antal = None
+    if art_match:
+        end = art_match.end()
+        m_antal = re.search(r'<td[^>]*valign="top"[^>]*>(\d+)</td>', html_text[end:])
+        if m_antal:
+            antal = m_antal.group(1)
+
+    # Adfærd
+    adfaerd_match = re.search(r'Adfærd</acronym>:</td><td[^>]*>([^<]+)</td>', html_text)
+    adfaerd = adfaerd_match.group(1) if adfaerd_match else None
+
+    # Tid (obstid)
+    tid_match = re.search(r'Tid</acronym>:</td><td[^>]*>([^<]+)</td>', html_text)
+    obstid = tid_match.group(1) if tid_match else None
+
+    # Kommentar til tur
+    tur_note_match = re.search(
+        r'Kommentar til tur</acronym>:</td[^>]*><td[^>]*>(.*?)</td>',
+        html_text, re.DOTALL | re.IGNORECASE
+    )
+    kommentar_til_tur = None
+    if tur_note_match:
+        raw = tur_note_match.group(1)
+        kommentar_til_tur = html.unescape(re.sub(r'<[^>]+>', '', raw)).strip()
+
+    # Kommentar til obs.
+    obsnote_match = re.search(r'Kommentar til obs\.</acronym>:</td><td[^>]*>([^<]+)</td>', html_text)
+    obsnote = obsnote_match.group(1) if obsnote_match else None
+
+    # Lokalitet, loknr, loknavn, turtid (turtid valgfri)
+    lok_match = re.search(
+        r"loknr=(\d+)[^>]+title=\"Information om ([^\"]+)\">([^<]+)</a>(?:\s*&nbsp;\(([\d: \-]+)\))?",
+        html_text
+    )
+    loknr = lok_match.group(1) if lok_match else None
+    loknavn = lok_match.group(3) if lok_match else None
+    loklink = f"https://dofbasen.dk/poplok.php?loknr={loknr}" if loknr else None
+    turtid = lok_match.group(4) if lok_match and lok_match.lastindex >= 4 else None
+
+    # Koordinater
+    koord_match = re.search(r'lng=([0-9.]+)&lat=([0-9.]+)', html_text)
+    lng = koord_match.group(1) if koord_match else None
+    lat = koord_match.group(2) if koord_match else None
+    koordinater = {"lng": float(lng), "lat": float(lat)} if lng and lat else None
+
+    # Observatør
+    obs_match = re.search(r'Observatør</acronym>:</td><td[^>]*>.*?title="([^"]+)">([^<]+)</a>', html_text)
+    observatoer = obs_match.group(2) if obs_match else None
+
+    # Observatør (obserkode og obserlink)
+    obs_match = re.search(
+        r"href=['\"]javascript:openwin\('(/popobser\.php\?obserkode=([A-Z0-9]+)[^']*)'",
+        html_text
+    )
+    obs_match = re.search(
+        r"openwin\('(/popobser\.php\?obserkode=([A-Z0-9]+)[^']*)'",
+        html_text
+    )
+    obserlink = None
+    obserkode = None
+    if obs_match:
+        obserlink = "https://dofbasen.dk" + obs_match.group(1)
+        obserkode = obs_match.group(2)
+
+    # Medobservatør
+    medobs_match = re.search(r'Medobservatør</acronym>:</td><td[^>]*>([^<]+)</td>', html_text)
+    medobservatoer = medobs_match.group(1) if medobs_match else None
+
+    # Indtastet
+    indtastet_match = re.search(r'Indtastet</acronym>:</td><td[^>]*>([^<]+)', html_text)
+    indtastet = indtastet_match.group(1).strip() if indtastet_match else None
+
+    # Find dato i header
+    m = re.search(r'DATA FOR OBSERVATION NR\. \d+ - (\d{2}/\d{2}/\d{4})', html_text)
+    dato = m.group(1) if m else None
+
+    result = {
+        "dato": dato,
+        "art": art_dansk,
+        "latin": art_latin,
+        "antal": antal,
+        "adfaerd": adfaerd,
+        "obstid": obstid,
+        "loknr": loknr,
+        "loknavn": loknavn,
+        "loklink": loklink,
+        "turtid": turtid,
+        "turnote": kommentar_til_tur,
+        "obsnote": obsnote,
+        "obstid_param": obsid,
+        "naal": koordinater,
+        "navn": observatoer,
+        "obserkode": obserkode,
+        "obserlink": obserlink,
+        "medobservatør": medobservatoer,
+        "indtastet": indtastet,
+        "status": status,
+        "images": images,
+        "sound_urls": sound_urls
+    }
+
+    return JSONResponse(result)
+
+
+# In-memory rate limiting: user_id -> [timestamps]
+login_attempts = defaultdict(list)
+
+@app.post("/api/copy-species-filter-to-obserkode-users")
+async def copy_species_filter_to_obserkode_users(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    if not user_id or not device_id:
+        raise HTTPException(status_code=400, detail="user_id og device_id kræves")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    # Find obserkode for bruger
+    prefs = get_prefs(user_id)
+    obserkode = (prefs.get("obserkode") or "").strip().upper()
+    if not obserkode:
+        raise HTTPException(status_code=400, detail="Obserkode mangler for bruger")
+    # Find avanceret filter for bruger
+    species_filters = prefs.get("species_filters")
+    if not species_filters:
+        return {"ok": False, "error": "Ingen avanceret filter fundet for bruger"}
+    updated_users = []
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute("SELECT user_id, prefs FROM user_prefs").fetchall()
+        for uid, prefs_json in rows:
+            try:
+                uprefs = json.loads(prefs_json)
+                kode = (uprefs.get("obserkode") or "").strip().upper()
+                if kode == obserkode and uid != user_id:
+                    uprefs["species_filters"] = species_filters
+                    set_prefs(uid, uprefs)
+                    updated_users.append(uid)
+            except Exception:
+                continue
+    return {"ok": True, "updated_users": updated_users}
+
+@app.post("/api/validate-login")
+async def validate_login(data: dict = Body(...)):
+    import requests
+
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    obserkode = data.get("obserkode")
+    adgangskode = data.get("adgangskode")
+
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+
+    # --- RATE LIMITING: max 5 forsøg pr. 10 min pr. user_id ---
+    now = time.time()
+    attempts = login_attempts[user_id]
+    # Fjern forsøg ældre end 10 min (600 sek)
+    attempts = [t for t in attempts if now - t < 600]
+    if len(attempts) >= 5:
+        return {"ok": False, "error": "For mange loginforsøg. Prøv igen om 10 minutter."}
+    attempts.append(now)
+    login_attempts[user_id] = attempts
+    # ---------------------------------------------------------
+
+    # Send til DOFbasen API
+    url = "https://krydslister.dofbasen.dk/api/v1/login"
+    payload = { "username": obserkode, "password": adgangskode }
+    try:
+        r = requests.post(url, json=payload, timeout=10)
+        if r.status_code != 200:
+            return { "ok": False, "error": "Login fejlede" }
+        token = r.json().get("token")
+        if not token:
+            return { "ok": False, "error": "Token mangler" }
+    except Exception as e:
+        return { "ok": False, "error": str(e) }
+
+    # Hent navn fra DOFbasen (valgfrit, hvis du vil vise det)
+    navn = ""
+    try:
+        navn_res = requests.get(f"https://dofbasen.dk/popobser.php?obserkode={obserkode}", timeout=10)
+        if navn_res.status_code == 200:
+            html = navn_res.text
+            idx = html.find("Navn</acronym>:</td><td valign=\"top\">")
+            if idx != -1:
+                start = idx + len("Navn</acronym>:</td><td valign=\"top\">")
+                end = html.find("</td>", start)
+                if end != -1:
+                    navn = html[start:end].strip()
+    except Exception:
+        navn = ""
+
+    # Gem obserkode og navn i prefs (adgangskode gemmes IKKE)
+    prefs = get_prefs(user_id)
+    prefs["obserkode"] = obserkode
+    prefs["navn"] = navn
+    set_prefs(user_id, prefs)
+
+    return { "ok": True, "token": token, "navn": navn }
+
+@app.post("/api/remove-connection")
+async def remove_connection(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    if not user_id:
+        return {"ok": False, "error": "user_id mangler"}
+    prefs = get_prefs(user_id)
+    prefs.pop("obserkode", None)
+    prefs.pop("navn", None)
+    set_prefs(user_id, prefs)
+    return {"ok": True}
+
+def load_admins():
+    try:
+        with open(ADMIN_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return set(data.get("admins", []))
+    except Exception:
+        return set()
+
+def get_obserkode_from_userprefs(user_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute("SELECT prefs FROM user_prefs WHERE user_id=?", (user_id,))
+        row = cur.fetchone()
+        if row:
+            try:
+                prefs = json.loads(row[0])
+                return prefs.get("obserkode", "")
+            except Exception:
+                return ""
+    return ""
+
+@app.post("/api/request_sync")
+async def api_request_sync(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id mangler")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+
+    # Skriv sync-request (overskriver evt. eksisterende)
+    with open(SYNC_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    return {"status": "ok", "written": data}
+
+@app.get("/api/admin/traffic-diffs")
+async def traffic_diffs_public():
+    import datetime
+    import pytz
+    import os
+    import json
+    import collections
+    import sqlite3
+
+    masterlog_path = os.path.join(os.path.dirname(__file__), "pageview_masterlog.jsonl")
+    log_path = os.path.join(os.path.dirname(__file__), "pageviews.log")
+
+    def parse_date(s):
+        try:
+            return datetime.datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    # Læs alle linjer og byg dict med dato -> sidste obj (fra masterlog)
+    days_dict = {}
+    if os.path.isfile(masterlog_path):
+        with open(masterlog_path, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    obj = json.loads(line)
+                    d = parse_date(obj.get("date", ""))
+                    if d:
+                        days_dict[d] = obj  # overskriv, så sidste vinder
+                except Exception:
+                    continue
+
+    # Beregn dagens statistik fra pageviews.log (samme logik som archive_and_reset_pageview_log)
+    tz = pytz.timezone("Europe/Copenhagen")
+    today = datetime.datetime.now(tz).strftime("%Y-%m-%d")
+    today_date = datetime.datetime.strptime(today, "%Y-%m-%d").date()
+
+    def count_comments_and_threads_for_day(day_date):
+        comment_count = 0
+        su_count = 0
+        sub_count = 0
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "web", "obs"))
+        threads_dir = os.path.join(base_dir, day_date.strftime("%d-%m-%Y"), "threads")
+        if os.path.isdir(threads_dir):
+            for thread_folder in os.listdir(threads_dir):
+                kommentar_path = os.path.join(threads_dir, thread_folder, "kommentar.json")
+                if os.path.isfile(kommentar_path):
+                    try:
+                        with open(kommentar_path, "r", encoding="utf-8") as f:
+                            comments = json.load(f)
+                        comment_count += len(comments)
+                    except Exception:
+                        continue
+                thread_json_path = os.path.join(threads_dir, thread_folder, "thread.json")
+                if os.path.isfile(thread_json_path):
+                    try:
+                        with open(thread_json_path, "r", encoding="utf-8") as f:
+                            thread_data = json.load(f)
+                        kategori = (thread_data.get("thread", {}).get("last_kategori") or "").strip().upper()
+                        if kategori == "SU":
+                            su_count += 1
+                        elif kategori == "SUB":
+                            sub_count += 1
+                    except Exception:
+                        continue
+        return comment_count, su_count, sub_count
+
+    # For både i dag og i går
+    comments_today, su_threads_today, sub_threads_today = count_comments_and_threads_for_day(today_date)
+    comments_yesterday, su_threads_yesterday, sub_threads_yesterday = count_comments_and_threads_for_day(today_date - datetime.timedelta(days=1))
+
+    # --- Hent obs_notification fra stats_notifications (database) ---
+    obs_notif_today = 0
+    obs_notif_yesterday = 0
+    today_str = today
+    yesterday_str = (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT obs_notification FROM stats_notifications WHERE date=?",
+            (today_str,)
+        ).fetchone()
+        if row:
+            obs_notif_today = row[0]
+        row = conn.execute(
+            "SELECT obs_notification FROM stats_notifications WHERE date=?",
+            (yesterday_str,)
+        ).fetchone()
+        if row:
+            obs_notif_yesterday = row[0]
+
+    # --- Diffs/statistik ---
+    # (kopieret fra din eksisterende kode)
+    if os.path.isfile(log_path):
+        stats = collections.defaultdict(lambda: {"total": 0, "unique": set()})
+        all_users = set()
+        total_views = 0
+        unique_obserkoder = set()
+        with open(log_path, encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) < 4:
+                    continue
+                ts = parts[0]
+                if not ts.startswith(today):
+                    continue
+                user_id = parts[2]
+                all_users.add(user_id)
+                total_views += 1
+                okode = get_obserkode_from_userprefs(user_id)
+                if okode:
+                    unique_obserkoder.add(okode)
+        stats_out = {
+            "date": today,
+            "unique_users_total": len(all_users),
+            "total_views": total_views,
+            "unique_obserkoder": len(unique_obserkoder)
+        }
+        # Tæl brugere i databasen
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute("SELECT prefs FROM user_prefs").fetchall()
+            total_users = 0
+            users_with_obserkode = 0
+            users_without_obserkode = 0
+            all_db_obserkoder = set()
+            for (prefs_json,) in rows:
+                try:
+                    prefs = json.loads(prefs_json)
+                    total_users += 1
+                    obserkode = prefs.get("obserkode")
+                    if obserkode:
+                        users_with_obserkode += 1
+                        all_db_obserkoder.add(obserkode)
+                    else:
+                        users_without_obserkode += 1
+                except Exception:
+                    continue
+        stats_out["users_total"] = total_users
+        stats_out["users_with_obserkode"] = users_with_obserkode
+        stats_out["users_without_obserkode"] = users_without_obserkode
+        stats_out["unique_obserkoder_total_db"] = len(all_db_obserkoder)
+        days_dict[today_date] = stats_out
+
+    # Sortér efter dato
+    days = sorted(days_dict.items(), key=lambda x: x[0])
+    # Sidste 365 dage (pr. dag)
+    last365 = []
+    for d, obj in days[-365:]:
+        last365.append({
+            "date": d.strftime("%Y-%m-%d"),
+            "unique_users_total": obj.get("unique_users_total", 0),
+            "users_with_obserkode": obj.get("users_with_obserkode", 0),
+            "users_without_obserkode": obj.get("users_without_obserkode", 0),
+            "unique_obserkoder": obj.get("unique_obserkoder", 0),
+            "unique_obserkoder_total_db": obj.get("unique_obserkoder_total_db", 0),
+            "users_total": obj.get("users_total", 0),
+            "total_views": obj.get("total_views", 0),
+        })
+
+    def pct_diff(now, prev):
+        if prev == 0:
+            return 100.0 if now > 0 else 0.0
+        return ((now - prev) / prev) * 100
+
+    def safe_get(lst, idx, key):
+        if -len(lst) <= idx < len(lst):
+            return lst[idx].get(key, 0)
+        return 0
+
+    stats_keys = [
+        ("unique_users_total", "Unikke besøgende"),
+        ("unique_obserkoder_total_db", "Unikke obserkoder"),
+        ("users_total", "Antal enheder"),
+        ("total_views", "Sidevisninger"),
+    ]
+    diffs = {}
+
+    for key, label in stats_keys:
+        today_val = safe_get(last365, -1, key)
+        yesterday = safe_get(last365, -2, key)
+        week_ago_vals = [safe_get(last365, -i, key) for i in (7, 8, 9)]
+        week_ago_vals_nonzero = [v for v in week_ago_vals if v is not None]
+        week_ago_avg = sum(week_ago_vals_nonzero) / len(week_ago_vals_nonzero) if week_ago_vals_nonzero else None
+
+        month_ago_vals = [safe_get(last365, -i, key) for i in (30, 31, 32)]
+        month_ago_vals_nonzero = [v for v in month_ago_vals if v is not None and v != 0]
+        if month_ago_vals_nonzero:
+            month_ago_avg = sum(month_ago_vals_nonzero) / len(month_ago_vals_nonzero)
+        else:
+            month_ago_avg = None
+
+        diff_yesterday = today_val - yesterday if yesterday is not None else None
+
+        diffs[key] = {
+            "label": label,
+            "today": today_val,
+            "diff_yesterday": diff_yesterday,
+            "pct_yesterday": pct_diff(today_val, yesterday) if yesterday else None,
+            "diff_week": today_val - week_ago_avg if week_ago_avg is not None else None,
+            "pct_week": pct_diff(today_val, week_ago_avg) if week_ago_avg else None,
+            "diff_month": today_val - month_ago_avg if month_ago_avg is not None else None,
+            "pct_month": pct_diff(today_val, month_ago_avg) if month_ago_avg else None,
+        }
+
+    return {
+        "diffs": diffs,
+        "comments_today": comments_today,
+        "su_threads_today": su_threads_today,
+        "sub_threads_today": sub_threads_today,
+        "comments_yesterday": comments_yesterday,
+        "su_threads_yesterday": su_threads_yesterday,
+        "sub_threads_yesterday": sub_threads_yesterday,
+        "obs_notification_today": obs_notif_today,
+        "obs_notification_yesterday": obs_notif_yesterday
+    }
+
+@app.post("/api/admin/pageviews-rolling")
+async def pageviews_rolling(data: dict = Body(...)):
+    import pytz
+    import datetime
+
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+
+    log_path = os.path.join(os.path.dirname(__file__), "pageviews.log")
+    if not os.path.isfile(log_path):
+        return {"error": "Ingen log"}
+
+    # Find dagens dato i DK-tid
+    tz = pytz.timezone("Europe/Copenhagen")
+    today = datetime.datetime.now(tz).strftime("%Y-%m-%d")
+
+    # Byg tidsintervaller (5 min) for hele døgnet
+    intervals = []
+    interval_map = {}
+    dt0 = datetime.datetime.strptime(today, "%Y-%m-%d").replace(tzinfo=tz)
+    for i in range(0, 24 * 60, 5):
+        dt = dt0 + datetime.timedelta(minutes=i)
+        label = dt.strftime("%H:%M")
+        intervals.append(label)
+        interval_map[label] = 0
+
+    # Tæl sidevisninger pr. 5. minut
+    with open(log_path, encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) < 1:
+                continue
+            ts = parts[0]
+            if not ts.startswith(today):
+                continue
+            try:
+                dt = datetime.datetime.fromisoformat(ts)
+                dt = dt.astimezone(tz)
+                # Find nærmeste 5-min interval
+                minute = (dt.minute // 5) * 5
+                label = dt.replace(minute=minute, second=0, microsecond=0).strftime("%H:%M")
+                if label in interval_map:
+                    interval_map[label] += 1
+            except Exception:
+                continue
+
+    # Lav liste med counts i rækkefølge
+    counts = [interval_map[label] for label in intervals]
+
+    def rolling_avg(counts, window):
+        result = []
+        for i in range(len(counts)):
+            left = max(0, i - window // 2)
+            right = min(len(counts), i + window // 2)
+            vals = counts[left:right]
+            avg = sum(vals) / len(vals) if vals else 0
+            result.append(round(avg, 2))
+        return result
+
+    rolling_30min = rolling_avg(counts, 6)
+    rolling_1h = rolling_avg(counts, 12)
+    rolling_2h = rolling_avg(counts, 24)
+
+    return {
+        "intervals": intervals,
+        "counts": counts,
+        "rolling_30min": rolling_30min,
+        "rolling_1h": rolling_1h,
+        "rolling_2h": rolling_2h
+    }
+
+@app.post("/api/admin/traffic-graphs")
+async def admin_traffic_graphs(data: dict = Body(None)):
+    data = data or {}
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    # Kun superadmins må tilgå dette endpoint
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    masterlog_path = os.path.join(os.path.dirname(__file__), "pageview_masterlog.jsonl")
+    log_path = os.path.join(os.path.dirname(__file__), "pageviews.log")
+    import datetime
+    import collections
+    import json
+    import sqlite3
+
+    def parse_date(s):
+        try:
+            return datetime.datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    # Læs alle linjer og byg dict med dato -> sidste obj (fra masterlog)
+    days_dict = {}
+    if os.path.isfile(masterlog_path):
+        with open(masterlog_path, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    obj = json.loads(line)
+                    d = parse_date(obj.get("date", ""))
+                    if d:
+                        days_dict[d] = obj  # overskriv, så sidste vinder
+                except Exception:
+                    continue
+
+    # Beregn dagens statistik fra pageviews.log (samme logik som archive_and_reset_pageview_log)
+    today = datetime.datetime.now(pytz.timezone("Europe/Copenhagen")).strftime("%Y-%m-%d")
+    today_date = datetime.datetime.strptime(today, "%Y-%m-%d").date()
+    if os.path.isfile(log_path):
+        stats = collections.defaultdict(lambda: {"total": 0, "unique": set()})
+        traad_total = {"total": 0, "unique": set()}
+        traad_per_thread = collections.defaultdict(lambda: {"total": 0, "unique": set()})
+        all_users = set()
+        total_views = 0
+        unique_obserkoder = set()
+        with open(log_path, encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) < 4:
+                    continue
+                ts = parts[0]
+                if not ts.startswith(today):
+                    continue
+                user_id = parts[2]
+                url = parts[3]
+                all_users.add(user_id)
+                total_views += 1
+                # Find obserkode for user_id
+                okode = get_obserkode_from_userprefs(user_id)
+                if okode:
+                    unique_obserkoder.add(okode)
+                m = re.search(r"https?://[^/]+/([^?#]+)", url)
+                page = m.group(1) if m else url
+                if page.startswith("info.html"):
+                    page = "info.html"
+                if url in ("https://notifikation.dofbasen.dk/", "https://notifikation.dofbasen.dk/index.html") or page == "index.html":
+                    page = "index.html"
+                if page.startswith("traad.html"):
+                    traad_total["total"] += 1
+                    traad_total["unique"].add(user_id)
+                    m_id = re.search(r"id=([a-z0-9\-]+)", url)
+                    m_date = re.search(r"date=([0-9\-]+)", url)
+                    if m_id and m_date:
+                        key = f"{m_id.group(1)}-{m_date.group(1)}"
+                        traad_per_thread[key]["total"] += 1
+                        traad_per_thread[key]["unique"].add(user_id)
+                stats[page]["total"] += 1
+                stats[page]["unique"].add(user_id)
+        stats_out = {
+            "date": today,
+            "unique_users_total": len(all_users),
+            "total_views": total_views,
+            "unique_obserkoder": len(unique_obserkoder)
+        }
+        for page, d in stats.items():
+            stats_out[page] = {
+                "total": d["total"],
+                "unique": len(d["unique"])
+            }
+        stats_out["traad.html"] = {
+            "total": traad_total["total"],
+            "unique": len(traad_total["unique"]),
+            "threads": {
+                k: {"total": v["total"], "unique": len(v["unique"])}
+                for k, v in traad_per_thread.items()
+            }
+        }
+        # Tæl brugere i databasen
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute("SELECT prefs FROM user_prefs").fetchall()
+            total_users = 0
+            users_with_obserkode = 0
+            users_without_obserkode = 0
+            all_db_obserkoder = set()
+            for (prefs_json,) in rows:
+                try:
+                    prefs = json.loads(prefs_json)
+                    total_users += 1
+                    obserkode = prefs.get("obserkode")
+                    if obserkode:
+                        users_with_obserkode += 1
+                        all_db_obserkoder.add(obserkode)
+                    else:
+                        users_without_obserkode += 1
+                except Exception:
+                    continue
+        stats_out["users_total"] = total_users
+        stats_out["users_with_obserkode"] = users_with_obserkode
+        stats_out["users_without_obserkode"] = users_without_obserkode
+        stats_out["unique_obserkoder_total_db"] = len(all_db_obserkoder)
+        # Opdater days_dict for i dag
+        days_dict[today_date] = stats_out
+
+    # Sortér efter dato
+    days = sorted(days_dict.items(), key=lambda x: x[0])
+
+    # Sidste 7 dage (inkl. i dag)
+    last7 = []
+    for i in range(6, -1, -1):
+        d = datetime.datetime.now(pytz.timezone("Europe/Copenhagen")).date() - datetime.timedelta(days=i)
+        obj = days_dict.get(d)
+        if obj:
+            last7.append({
+                "date": d.strftime("%Y-%m-%d"),
+                "unique_users_total": obj.get("unique_users_total", 0),
+                "users_with_obserkode": obj.get("users_with_obserkode", 0),
+                "users_without_obserkode": obj.get("users_without_obserkode", 0),
+                "unique_obserkoder": obj.get("unique_obserkoder", 0),
+                "unique_obserkoder_total_db": obj.get("unique_obserkoder_total_db", 0),
+                "users_total": obj.get("users_total", 0),
+                "total_views": obj.get("total_views", 0),  # <-- tilføj denne linje
+            })
+        else:
+            last7.append({
+                "date": d.strftime("%Y-%m-%d"),
+                "unique_users_total": 0,
+                "users_with_obserkode": 0,
+                "users_without_obserkode": 0,
+                "unique_obserkoder": 0,
+                "unique_obserkoder_total_db": 0,
+                "users_total": 0,
+                "total_views": 0,  # <-- tilføj denne linje
+            })
+
+    # Sidste 365 dage (pr. dag)
+    last365 = []
+    for d, obj in days[-365:]:
+        last365.append({
+            "date": d.strftime("%Y-%m-%d"),
+            "unique_users_total": obj.get("unique_users_total", 0),
+            "users_with_obserkode": obj.get("users_with_obserkode", 0),
+            "users_without_obserkode": obj.get("users_without_obserkode", 0),
+            "unique_obserkoder": obj.get("unique_obserkoder", 0),
+            "unique_obserkoder_total_db": obj.get("unique_obserkoder_total_db", 0),
+            "users_total": obj.get("users_total", 0),
+            "total_views": obj.get("total_views", 0),  # <-- tilføj denne linje
+        })
+
+    # Uge-totaler for sidste 52 uger
+    week_stats = collections.OrderedDict()
+    for dt, obj in days:
+        year, week, _ = dt.isocalendar()
+        key = f"{year}-W{week:02d}"
+        if key not in week_stats:
+            week_stats[key] = {
+                "unique_users_total": 0,
+                "users_with_obserkode": 0,
+                "users_without_obserkode": 0
+            }
+        week_stats[key]["unique_users_total"] += obj.get("unique_users_total", 0)
+        week_stats[key]["users_with_obserkode"] += obj.get("users_with_obserkode", 0)
+        week_stats[key]["users_without_obserkode"] += obj.get("users_without_obserkode", 0)
+
+    week_keys = list(week_stats.keys())[-52:]
+    week_data = []
+    for k in week_keys:
+        v = week_stats[k]
+        week_data.append({
+            "week": k,
+            "unique_users_total": v["unique_users_total"],
+            "users_with_obserkode": v["users_with_obserkode"],
+            "users_without_obserkode": v["users_without_obserkode"]
+        })
+
+    # --- Userplatforms statistik (samme logik som last-user-platforms) ---
+    userplatforms = {}
+    user_states = {}
+    if os.path.isfile(log_path):
+        with open(log_path, encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) < 4:
+                    continue
+
+                user_id = parts[2]
+                m = re.search(r'OS:\s*(.*?)\s+BROWSER:\s*(.*?)\s+PWA:\s*(True|False|true|false|1|0)\b', line)
+                if not m:
+                    continue
+
+                os_info = m.group(1).strip() or "Unknown"
+                browser = m.group(2).strip() or "Unknown"
+                is_pwa = m.group(3).strip().lower() in ("true", "1")
+
+                prev = user_states.get(user_id)
+                if prev:
+                    user_states[user_id] = {
+                        "os": os_info,
+                        "browser": browser,
+                        "pwa_installed": prev["pwa_installed"] or is_pwa
+                    }
+                else:
+                    user_states[user_id] = {
+                        "os": os_info,
+                        "browser": browser,
+                        "pwa_installed": is_pwa
+                    }
+
+        combo_counter = collections.Counter()
+        pwa_installed = 0
+        pwa_not_installed = 0
+        for state in user_states.values():
+            combo_counter[(state["os"], state["browser"])] += 1
+            if state["pwa_installed"]:
+                pwa_installed += 1
+            else:
+                pwa_not_installed += 1
+
+        combos = [
+            {"os": os_info, "browser": browser, "count": count}
+            for (os_info, browser), count in combo_counter.items()
+        ]
+        userplatforms = {
+            "unique_users": len(user_states),
+            "platform_combinations": combos,
+            "pwa_installed": pwa_installed,
+            "pwa_not_installed": pwa_not_installed
+        }
+
+    # --- NYT: Udregn forskelle ---
+    def pct_diff(now, prev):
+        if prev == 0:
+            return 100.0 if now > 0 else 0.0
+        return ((now - prev) / prev) * 100
+
+    def safe_get(lst, idx, key):
+        if -len(lst) <= idx < len(lst):
+            return lst[idx].get(key, 0)
+        return 0
+
+    stats_keys = [
+        ("unique_users_total", "Unikke besøgende"),
+        ("unique_obserkoder_total_db", "Unikke obserkoder"),
+        ("users_total", "Antal enheder"),
+        ("total_views", "Sidevisninger"),  # <-- tilføj denne linje
+    ]
+    diffs = {}
+
+    for key, label in stats_keys:
+        today = safe_get(last365, -1, key)
+        yesterday = safe_get(last365, -2, key)
+        week_ago_vals = [safe_get(last365, -i, key) for i in (7, 8, 9)]
+        week_ago_vals_nonzero = [v for v in week_ago_vals if v is not None]
+        week_ago_avg = sum(week_ago_vals_nonzero) / len(week_ago_vals_nonzero) if week_ago_vals_nonzero else None
+
+        month_ago_vals = [safe_get(last365, -i, key) for i in (30, 31, 32)]
+        month_ago_vals_nonzero = [v for v in month_ago_vals if v is not None and v != 0]
+        if month_ago_vals_nonzero:
+            month_ago_avg = sum(month_ago_vals_nonzero) / len(month_ago_vals_nonzero)
+        else:
+            month_ago_avg = None
+
+        # Nu er det bare en simpel differens for alle tre nøgler
+        diff_yesterday = today - yesterday if yesterday is not None else None
+
+        diffs[key] = {
+            "label": label,
+            "today": today,
+            "yesterday": yesterday,
+            "diff_yesterday": diff_yesterday,
+            "pct_yesterday": pct_diff(today, yesterday) if yesterday else None,
+            "week_ago_avg": week_ago_avg,
+            "diff_week": today - week_ago_avg if week_ago_avg is not None else None,
+            "pct_week": pct_diff(today, week_ago_avg) if week_ago_avg else None,
+            "month_ago_avg": month_ago_avg,
+            "diff_month": today - month_ago_avg if month_ago_avg is not None else None,
+            "pct_month": pct_diff(today, month_ago_avg) if month_ago_avg else None,
+        }
+
+    return {
+        "last7": last7,
+        "last365": last365,
+        "week_data": week_data,
+        "userplatforms": userplatforms,
+        "diffs": diffs
+    }
+
+@app.post("/api/is-app-user-bulk")
+async def api_is_app_user_bulk(data: dict = Body(...)):
+    obserkoder = [str(k).strip().upper() for k in data.get("obserkoder", []) if k]
+    result = {k: False for k in obserkoder}
+    if not obserkoder:
+        return result
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute("SELECT prefs FROM user_prefs").fetchall()
+    known = set()
+    for (prefs_json,) in rows:
+        try:
+            prefs = json.loads(prefs_json)
+            kode = (prefs.get("obserkode") or "").strip().upper()
+            if kode:
+                known.add(kode)
+        except Exception:
+            continue
+    for k in obserkoder:
+        if k in known:
+            result[k] = True
+    return result
+
+@app.post("/api/admin/all-users")
+async def admin_all_users(data: dict = Body(None)):
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    users = {}
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute("SELECT user_id, prefs FROM user_prefs").fetchall()
+        for uid, prefs_json in rows:
+            try:
+                prefs = json.loads(prefs_json)
+                navn = prefs.get("navn", "")
+                kode = prefs.get("obserkode", "")
+                kode_norm = (kode or "").strip().upper()
+                if kode_norm:
+                    if kode_norm not in users:
+                        users[kode_norm] = {"navn": navn, "obserkode": kode, "antal_oprettede": 1}
+                    else:
+                        users[kode_norm]["antal_oprettede"] += 1
+            except Exception:
+                continue
+    user_list = list(users.values())
+    user_list.sort(key=lambda u: (u["navn"] or u["obserkode"] or "").upper())
+    return user_list
+
+@app.post("/api/admin/delete-user")
+async def admin_delete_user(data: dict = Body(...)):
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    requester_id = data.get("user_id")
+    obserkode = (data.get("obserkode") or "").strip().upper()
+    target_user_id = data.get("target_user_id") or data.get("delete_user_id") or data.get("delete_userid") or None
+
+    # Tjek om requester er superadmin
+    requester_obserkode = get_obserkode_from_userprefs(requester_id)
+    superadmins = load_superadmins()
+    if requester_obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin kan slette brugere")
+
+    deleted = 0
+    with sqlite3.connect(DB_PATH) as conn:
+        user_ids = []
+        # Hvis obserkode angivet: find alle user_ids med denne obserkode
+        if obserkode:
+            rows = conn.execute("SELECT user_id, prefs FROM user_prefs").fetchall()
+            for uid, prefs_json in rows:
+                try:
+                    prefs = json.loads(prefs_json)
+                    kode = (prefs.get("obserkode") or "").strip().upper()
+                    if kode == obserkode:
+                        user_ids.append(uid)
+                except Exception:
+                    continue
+        # Hvis user_id angivet og ikke allerede fundet
+        elif target_user_id:
+            user_ids.append(target_user_id)
+        else:
+            raise HTTPException(status_code=400, detail="Obserkode eller user_id mangler")
+
+        # Slet fra alle relevante tabeller
+        for uid in user_ids:
+            conn.execute("DELETE FROM user_prefs WHERE user_id=?", (uid,))
+            conn.execute("DELETE FROM subscriptions WHERE user_id=?", (uid,))
+            conn.execute("DELETE FROM thread_subs WHERE user_id=?", (uid,))
+            conn.execute("DELETE FROM thread_unsubs WHERE user_id=?", (uid,))
+            deleted += 1
+        conn.commit()
+    return {"ok": True, "deleted_users": deleted}
+
+@app.post("/api/is-admin")
+async def is_admin(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    admins = load_admins()
+    obserkode = get_obserkode_from_userprefs(user_id)
+    return {"admin": obserkode in admins, "obserkode": obserkode}
+
+def load_superadmins():
+    try:
+        with open(SUPERADMIN_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return set(data.get("superadmins", []))
+    except Exception:
+        return set()
+
+@app.post("/api/is-subscribed")
+async def is_subscribed(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    # Tjek om user_id findes i subscriptions (tilpas evt. logik)
+    import sqlite3
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM subscriptions WHERE user_id=? OR device_id=? LIMIT 1",
+            (user_id, device_id)
+        ).fetchone()
+        is_subscribed = bool(row)
+    return {"isSubscribed": is_subscribed}
+
+@app.post("/api/is-superadmin")
+async def is_superadmin(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    return {
+        "superadmin": obserkode in superadmins,
+        "obserkode": obserkode
+    }
+
+def archive_and_reset_pageview_log(for_date=None, reset_log=True):
+    tz = pytz.timezone("Europe/Copenhagen")
+    today = datetime.now(tz).strftime("%Y-%m-%d")  # Dagens dato
+    if for_date is None:
+        for_date = (datetime.now(tz) - timedelta(days=1)).strftime("%Y-%m-%d")  # Gårsdagens dato
+    log_path = os.path.join(os.path.dirname(__file__), "pageviews.log")
+    masterlog_path = os.path.join(os.path.dirname(__file__), "pageview_masterlog.jsonl")
+
+    stats_out = {}
+    stats = defaultdict(lambda: {"total": 0, "unique": set()})
+    traad_total = {"total": 0, "unique": set()}
+    traad_per_thread = defaultdict(lambda: {"total": 0, "unique": set()})
+    all_users = set()
+    total_views = 0
+
+    if not os.path.isfile(log_path):
+        return
+
+    unique_obserkoder = set()
+    kept_lines = []
+
+    with open(log_path, encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) < 4:
+                continue
+            ts = parts[0]
+            # Brug dansk dato
+            if ts.startswith(for_date):
+                user_id = parts[2]
+                url = parts[3]
+                all_users.add(user_id)
+                total_views += 1
+                # Find obserkode for user_id
+                obserkode = get_obserkode_from_userprefs(user_id)
+                if obserkode:
+                    unique_obserkoder.add(obserkode)
+                m = re.search(r"https?://[^/]+/([^?]+)", url)
+                page = m.group(1) if m else url
+                if url in ("https://notifikation.dofbasen.dk/", "https://notifikation.dofbasen.dk/index.html") or page == "index.html":
+                    page = "index.html"
+                if page.startswith("traad.html"):
+                    traad_total["total"] += 1
+                    traad_total["unique"].add(user_id)
+                    m_id = re.search(r"id=([a-z0-9\-]+)", url)
+                    m_date = re.search(r"date=([0-9\-]+)", url)
+                    if m_id and m_date:
+                        key = f"{m_id.group(1)}-{m_date.group(1)}"
+                        traad_per_thread[key]["total"] += 1
+                        traad_per_thread[key]["unique"].add(user_id)
+                stats[page]["total"] += 1
+                stats[page]["unique"].add(user_id)
+            else:
+                kept_lines.append(line)
+
+    for page, d in stats.items():
+        stats_out[page] = {
+            "total": d["total"],
+            "unique": len(d["unique"])
+        }
+    stats_out["traad.html"] = {
+        "total": traad_total["total"],
+        "unique": len(traad_total["unique"]),
+        "threads": {
+            k: {"total": v["total"], "unique": len(v["unique"])}
+            for k, v in traad_per_thread.items()
+        }
+    }
+    stats_out["unique_users_total"] = len(all_users)
+    stats_out["total_views"] = total_views
+    stats_out["unique_obserkoder"] = len(unique_obserkoder)
+
+    # Tæl brugere i databasen
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute("SELECT prefs FROM user_prefs").fetchall()
+        total_users = 0
+        users_with_obserkode = 0
+        users_without_obserkode = 0
+        all_db_obserkoder = set()
+        for (prefs_json,) in rows:
+            try:
+                prefs = json.loads(prefs_json)
+                total_users += 1
+                obserkode = prefs.get("obserkode")
+                if obserkode:
+                    users_with_obserkode += 1
+                    all_db_obserkoder.add(obserkode)
+                else:
+                    users_without_obserkode += 1
+            except Exception:
+                continue
+    stats_out["users_total"] = total_users
+    stats_out["users_with_obserkode"] = users_with_obserkode
+    stats_out["users_without_obserkode"] = users_without_obserkode
+    stats_out["unique_obserkoder_total_db"] = len(all_db_obserkoder)
+
+    # Skriv til masterlog
+    log_entry = {
+        "date": for_date,
+        **stats_out,
+    }
+    with open(masterlog_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+
+    # Overskriv pageviews.log med kun de linjer der IKKE matcher for_date
+    if reset_log:
+        with open(log_path, "w", encoding="utf-8") as f:
+            for line in kept_lines:
+                f.write(line if line.endswith("\n") else line + "\n")
+
+@app.post("/api/admin/pageview-stats")
+async def admin_pageview_stats(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+
+    today_dk = datetime.now(pytz.timezone("Europe/Copenhagen")).strftime("%Y-%m-%d")
+    stats = defaultdict(lambda: {"total": 0, "unique": set()})
+    traad_total = {"total": 0, "unique": set()}
+    traad_per_thread = defaultdict(lambda: {"total": 0, "unique": set(), "sharelink": 0, "notification": 0})
+    all_users = set()
+    total_views = 0
+    unique_obserkoder = set()
+    traad_notification_total = 0
+    traad_sharelink_total = 0
+    obsid_notification_total = 0
+
+    log_path = os.path.join(os.path.dirname(__file__), "pageviews.log")
+    if not os.path.isfile(log_path):
+        return {}
+
+    with open(log_path, encoding="utf-8") as f:
+        for line in f:
+            m_url = re.search(r"https?://[^\s]+", line)
+            if not m_url:
+                continue
+            url = m_url.group(0)
+            parts = line.strip().split()
+            if len(parts) < 3:
+                continue
+            ts = parts[0]
+            if not ts.startswith(today_dk):
+                continue
+            user_id = parts[2]
+            all_users.add(user_id)
+            total_views += 1
+            okode = get_obserkode_from_userprefs(user_id)
+            if okode:
+                unique_obserkoder.add(okode)
+            m = re.search(r"https?://[^/]+/([^?]+)", url)
+            page = m.group(1) if m else url
+
+            is_sharelink = "SHARELINK: True" in line
+            is_notification = "NOTIFICATION: True" in line
+
+            if url in ("https://notifikation.dofbasen.dk/", "https://notifikation.dofbasen.dk/index.html") or page == "index.html":
+                page = "index.html"
+
+            if page.startswith("traad.html"):
+                traad_total["total"] += 1
+                traad_total["unique"].add(user_id)
+                m_id = re.search(r"id=([a-z0-9\-]+)", url)
+                m_date = re.search(r"date=([0-9\-]+)", url)
+                if m_id and m_date:
+                    key = f"{m_id.group(1)}-{m_date.group(1)}"
+                    traad_per_thread[key]["total"] += 1
+                    traad_per_thread[key]["unique"].add(user_id)
+                    if is_sharelink:
+                        traad_per_thread[key]["sharelink"] += 1
+                        traad_sharelink_total += 1
+                    if is_notification:
+                        traad_per_thread[key]["notification"] += 1
+                        traad_notification_total += 1
+                elif is_sharelink:
+                    traad_sharelink_total += 1
+                elif is_notification:
+                    traad_notification_total += 1
+
+            if page.startswith("obsid.html"):
+                stats["obsid.html"]["total"] += 1
+                stats["obsid.html"]["unique"].add(user_id)
+                # Tæl sharelink for obsid.html uanset om obsid= findes
+                if is_sharelink:
+                    stats.setdefault("obsid.html_sharelink", {"total": 0, "unique": set()})
+                    stats["obsid.html_sharelink"]["total"] += 1
+                    stats["obsid.html_sharelink"]["unique"].add(user_id)
+                if is_notification:
+                    stats.setdefault("obsid.html_notification", {"total": 0, "unique": set()})
+                    stats["obsid.html_notification"]["total"] += 1
+                    stats["obsid.html_notification"]["unique"].add(user_id)
+                    obsid_notification_total += 1
+            stats[page]["total"] += 1
+            stats[page]["unique"].add(user_id)
+
+    traad_unique_users = set()
+    for v in traad_per_thread.values():
+        traad_unique_users.update(v["unique"])
+
+    obsid_stats = stats.get("obsid.html", {"total": 0, "unique": set()})
+    obsid_sharelink = stats.get("obsid.html_sharelink", {"total": 0, "unique": set()})
+    obsid_notification = stats.get("obsid.html_notification", {"total": 0, "unique": set()})
+
+    stats_out = {}
+
+    stats_out["obsid.html"] = {
+        "total": obsid_stats["total"],
+        "unique": len(obsid_stats["unique"]),
+        "sharelink": obsid_sharelink["total"],
+        "sharelink_unique": len(obsid_sharelink["unique"]),
+        "notification": obsid_notification["total"],
+        "notification_unique": len(obsid_notification["unique"])
+    }
+
+    stats_out["traad.html"] = {
+        "total": traad_total["total"],
+        "unique": len(traad_unique_users),
+        "sharelink": traad_sharelink_total,
+        "notification": traad_notification_total,
+        "threads": {
+            k: {
+                "total": v["total"],
+                "unique": len(v["unique"]),
+                "sharelink": v["sharelink"],
+                "notification": v.get("notification", 0)
+            }
+            for k, v in traad_per_thread.items()
+        }
+    }
+
+    # Tilføj statistik for alle andre sider (index.html, settings.html, info.html osv.)
+    for page, d in stats.items():
+        if page in ("obsid.html", "obsid.html_sharelink", "obsid.html_notification", "traad.html"):
+            continue
+        if page.startswith("info.html") and page != "info.html":
+            continue  # spring alle info.html#... og info.html?... over
+        stats_out[page] = {
+            "total": d["total"],
+            "unique": len(d["unique"])
+        }
+
+    stats_out["unique_users_total"] = len(all_users)
+    stats_out["total_views"] = total_views
+    return stats_out
+
+@app.post("/api/admin/archive-pageview-log")
+async def archive_pageview_log(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    tz = pytz.timezone("Europe/Copenhagen")
+    today = datetime.now(tz).strftime("%Y-%m-%d")
+    archive_and_reset_pageview_log(for_date=today, reset_log=False)
+    return {"status": "ok"}
+
+@app.post("/api/admin/list-admins")
+async def list_admins(data: dict = Body(...)):
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    try:
+        with open(ADMIN_PATH, "r", encoding="utf-8") as f:
+            admin_data = json.load(f)
+        admin_koder = admin_data.get("admins", [])
+        # Hent navn for hver admin fra user_prefs
+        admins = []
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute("SELECT prefs FROM user_prefs").fetchall()
+            kode_to_navn = {}
+            for (prefs_json,) in rows:
+                try:
+                    prefs = json.loads(prefs_json)
+                    kode = (prefs.get("obserkode") or "").strip().upper()
+                    navn = prefs.get("navn", "")
+                    if kode:
+                        kode_to_navn[kode] = navn
+                except Exception:
+                    continue
+        for kode in admin_koder:
+            admins.append({
+                "obserkode": kode,
+                "navn": kode_to_navn.get(kode, "")
+            })
+        return {"admins": admins}
+    except Exception:
+        return {"admins": []}
+
+@app.post("/api/admin/add-admin")
+async def add_admin(data: dict = Body(...)):
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    new_obserkode = (data.get("obserkode") or "").strip().upper()
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    if not new_obserkode or not re.match(r"^[A-Z0-9]+$", new_obserkode):
+        raise HTTPException(status_code=400, detail="Ugyldig obserkode")
+    try:
+        with open(ADMIN_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        admins = set(data.get("admins", []))
+        admins.add(new_obserkode)
+        data["admins"] = sorted(admins)
+        with open(ADMIN_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.post("/api/admin/remove-admin")
+async def remove_admin(data: dict = Body(...)):
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    remove_obserkode = (data.get("obserkode") or "").strip().upper()
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    if not remove_obserkode:
+        raise HTTPException(status_code=400, detail="Ugyldig obserkode")
+    # Beskyt alle superadmins mod at blive fjernet
+    if remove_obserkode in superadmins:
+        raise HTTPException(status_code=400, detail="Kan ikke fjerne hovedadmin")
+    try:
+        with open(ADMIN_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        protected_admins = set(data.get("protected", []))
+        if remove_obserkode in protected_admins:
+            raise HTTPException(status_code=400, detail="Kan ikke fjerne beskyttet admin")
+        admins = set(data.get("admins", []))
+        admins.discard(remove_obserkode)
+        data["admins"] = sorted(admins)
+        with open(ADMIN_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+def safe_comment(comment):
+    return {
+        "navn": html.escape(comment.get("navn", "")),
+        "obserkode": html.escape(comment.get("obserkode", "")),
+        "body": html.escape(comment.get("body", "")),
+        "ts": comment.get("ts", ""),
+        "thumbs": comment.get("thumbs", 0),
+        "thumbs_users": comment.get("thumbs_users", []),
+    }
+
+@app.post("/api/admin/comments")
+async def admin_comments(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    # Tjek superadmin
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    today = datetime.now()
+    days = [(today - timedelta(days=i)).strftime("%d-%m-%Y") for i in range(2)]
+    threads = []
+
+    for day in days:
+        threads_dir = os.path.join(BASE_DIR, day, "threads")
+        if not os.path.isdir(threads_dir):
+            continue
+        for thread_folder in os.listdir(threads_dir):
+            thread_path = os.path.join(threads_dir, thread_folder)
+            kommentar_file = os.path.join(thread_path, "kommentar.json")
+            if os.path.isfile(kommentar_file):
+                try:
+                    with open(kommentar_file, "r", encoding="utf-8") as f:
+                        comments = json.load(f)
+                    # Escape alle kommentarer server-side
+                    safe_comments = [safe_comment(c) for c in comments]
+                    threads.append({
+                        "art_lokation": thread_folder.replace("-", " "),
+                        "day": day,
+                        "comments": safe_comments
+                    })
+                except Exception:
+                    continue
+    return JSONResponse(threads)
+
+@app.get("/api/thread/{day}/{thread_id}")
+async def api_thread(day: str, thread_id: str, request: Request):
+    """Returner thread.json for en given dag og tråd-id."""
+    # Beskyt mod directory traversal
+    if not re.match(r"^\d{2}-\d{2}-\d{4}$", day):
+        return JSONResponse({"detail": "Ugyldig dag"}, status_code=400)
+    if not re.match(r"^[a-zA-Z0-9\-_]+$", thread_id):
+        return JSONResponse({"detail": "Ugyldigt thread_id"}, status_code=400)
+    thread_path = os.path.abspath(os.path.join(web_dir, "obs", day, "threads", thread_id, "thread.json"))
+    allowed_dir = os.path.abspath(os.path.join(web_dir, "obs"))
+    if not thread_path.startswith(allowed_dir):
+        return JSONResponse({"detail": "Ikke fundet"}, status_code=404)
+    if not os.path.isfile(thread_path):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    with open(thread_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return JSONResponse(data)
+
+@app.post("/api/admin/download/{filename}")
+async def download_admin_file(filename: str, data: dict = Body(...)):
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    # Tjek superadmin
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    # Beskyt mod directory traversal: kun whitelistede filnavne tilladt
+    base_dir = os.path.dirname(__file__)
+    allowed = {
+        "pageview_masterlog.jsonl": os.path.join(base_dir, "pageview_masterlog.jsonl"),
+        "pageviews.log": os.path.join(base_dir, "pageviews.log")
+    }
+    # Ekstra check: ingen ../ eller / i filename
+    if filename not in allowed or "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=404, detail="Ikke tilladt")
+    if not os.path.isfile(allowed[filename]):
+        raise HTTPException(status_code=404, detail="Filen findes ikke")
+    return FileResponse(allowed[filename], filename=filename)
+
+@app.middleware("http")
+async def log_all_requests(request: Request, call_next):
+    response = await call_next(request)
+    log_line = f'{request.client.host} - "{request.method} {request.url.path} HTTP/{request.scope.get("http_version", "1.1")}" {response.status_code}'
+    logging.info(log_line)
+    return response
+
+@app.post("/api/admin/serverlog")
+async def get_server_log(data: dict = Body(...)):
+    user_id = data.get("user_id", "")
+    device_id = data.get("device_id", "")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    obserkode = get_obserkode_from_userprefs(user_id)
+    superadmins = load_superadmins()
+    if obserkode not in superadmins:
+        raise HTTPException(status_code=403, detail="Kun hovedadmin")
+    log_path = os.path.join(os.path.dirname(__file__), "server.log")
+    if not os.path.isfile(log_path):
+        return {"log": ""}
+    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()[-1000:]
+    return {"log": "".join(lines)}
+
+@app.post("/api/userinfo")
+async def get_or_save_userinfo(data: dict = Body(...)):
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    # Hvis der er obserkode/navn, så gem, ellers hent
+    obserkode = data.get("obserkode")
+    navn = data.get("navn")
+    prefs = get_prefs(user_id)
+    if obserkode is not None or navn is not None:
+        if obserkode is not None:
+            prefs["obserkode"] = obserkode
+        if navn is not None:
+            prefs["navn"] = navn
+        set_prefs(user_id, prefs)
+        return {"ok": True}
+    return {
+        "user_id": user_id,
+        "device_id": device_id,
+        "obserkode": prefs.get("obserkode", ""),
+        "navn": prefs.get("navn", "")
+    }
+
+@app.post("/api/prefs/user/species")
+async def species_filters(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id")
+    device_id = data.get("device_id")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+    filters = data.get("filters")
+    prefs = get_prefs(user_id)
+    if filters is not None:
+        # Opdater artsfilter
+        prefs["species_filters"] = filters
+        set_prefs(user_id, prefs)
+        return {"ok": True}
+    # Returner artsfilter
+    return JSONResponse(prefs.get("species_filters") or {"include": [], "exclude": [], "counts": {}})
+
+@app.get("/api/payload")
+async def api_payload():
+    data = _load_latest_payload()
+    if data is None:
+        return JSONResponse([])
+    return JSONResponse(data)
+
+@app.get("/api/latest")
+async def api_latest():
+    data = _load_latest_payload()
+    latest = _latest_from_data(data) if data is not None else {}
+    return JSONResponse(latest)
+
+@app.get("/obs/{day}/threads/{thread_id}")
+async def get_thread_short(day: str, thread_id: str):
+    # Beskyt mod directory traversal
+    if not re.match(r"^\d{2}-\d{2}-\d{4}$", day):
+        return JSONResponse({"detail": "Ugyldig dag"}, status_code=400)
+    if not re.match(r"^[a-zA-Z0-9\-_]+$", thread_id):
+        return JSONResponse({"detail": "Ugyldigt thread_id"}, status_code=400)
+    thread_path = os.path.abspath(os.path.join(web_dir, "obs", day, "threads", thread_id, "thread.json"))
+    allowed_dir = os.path.abspath(os.path.join(web_dir, "obs"))
+    if not thread_path.startswith(allowed_dir):
+        return JSONResponse({"detail": "Ikke fundet"}, status_code=404)
+    if not os.path.isfile(thread_path):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    return FileResponse(thread_path, media_type="application/json")
+
+@app.post("/api/debug-push")
+async def debug_push(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id") or data.get("userid")
+    device_id = data.get("device_id") or data.get("deviceid")
+    # Tjek at device_id matcher det i databasen
+    correct_device_id = get_device_id_for_user(user_id)
+    if correct_device_id and device_id != correct_device_id:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+
+    # Indlæs latest.json og tag første observation
+    try:
+        with open(latest_symlink_path, "r", encoding="utf-8") as f:
+            latest_list = json.load(f)
+        if not latest_list or not isinstance(latest_list, list):
+            return JSONResponse({"error": "Ingen observationer fundet eller forkert format"}, status_code=400)
+        obs = latest_list[0]
+    except Exception as e:
+        return JSONResponse({"error": f"Kunne ikke læse latest.json: {e}"}, status_code=500)
+
+    # Find subscription for denne bruger+device
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT subscription FROM subscriptions WHERE user_id=? AND device_id=?",
+                (user_id, device_id)
+            ).fetchone()
+        if not row:
+            return JSONResponse({"error": f"Ingen subscription fundet for {user_id} / {device_id}"}, status_code=404)
+        sub = json.loads(row[0])
+    except Exception as e:
+        return JSONResponse({"error": f"DB-fejl: {e}"}, status_code=500)
+
+    # Byg push payload
+    title = f"{obs.get('Antal','?')} {obs.get('Artnavn','')}, {obs.get('Loknavn','')}"
+    body = f"{obs.get('Adfbeskrivelse','')}, {obs.get('Fornavn','')} {obs.get('Efternavn','')}"
+    payload = {
+        "title": title,
+        "body": body,
+        "url": obs.get("url", "https://dofbasen.dk"),
+        "tag": obs.get("tag") or ""
+    }
+
+    # Send push
+    try:
+        webpush(
+            subscription_info=sub,
+            data=json.dumps(payload, ensure_ascii=False),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={
+                "sub": "mailto:cvh.privat@gmail.com",
+                "publicKey": VAPID_PUBLIC_KEY  # valgfrit, men ikke som separat argument
+            },
+            ttl=3600,  # 1 time
+            headers={"Urgency": "high"}  # <-- Tilføj urgency high
+        )
+    except Exception as ex:
+        return JSONResponse({"error": f"webpush-fejl: {ex}"}, status_code=500)
+
+    return {"ok": True}
+
+def should_notify(prefs, afdeling, kategori):
+    # Normaliser afdeling og kategori.
+    # En observation kan komme med flere afdelinger i samme felt, adskilt af '|'.
+    prefs_norm = {normalize(k): v for k, v in prefs.items()}
+    kat_norm = normalize(kategori)
+
+    afdelinger = _split_departments(afdeling)
+    if not afdelinger and str(afdeling or "").strip():
+        afdelinger = [str(afdeling).strip()]
+
+    for afd in afdelinger:
+        valg = prefs_norm.get(normalize(afd), "Ingen")
+        if valg == "SU" and kat_norm == "su":
+            return True
+        if valg == "SUB" and kat_norm in ("su", "sub"):
+            return True
+        if valg == "Bemærk" and kat_norm in ("su", "sub", "bemaerk", "bemærk"):
+            return True
+    return False
+
+# --- WEBSOCKET CHAT/THUMBSUP ---
+
+# In-memory mapping: (day, thread_id) -> [WebSocket, ...]
+ws_connections: Dict[str, List[WebSocket]] = {}
+
+def ws_key(day, thread_id):
+    return f"{day}::{thread_id}"
+
+def load_blacklisted_obsids():
+    try:
+        with open(BLACKLIST_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return set(entry["obserkode"] for entry in data if "obserkode" in entry)
+    except Exception:
+        return set()
+    
+def get_comment_lock(day, thread_id):
+    return comment_file_locks[(day, thread_id)]
+
+def get_comments_for_thread(day, thread_id):
+    lock = get_comment_lock(day, thread_id)
+    with lock:
+        thread_dir = os.path.join(web_dir, "obs", day, "threads", thread_id)
+        comments_path = os.path.join(thread_dir, "kommentar.json")
+        if not os.path.isfile(comments_path):
+            return []
+        with open(comments_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+def save_comments_for_thread(day, thread_id, comments):
+    lock = get_comment_lock(day, thread_id)
+    with lock:
+        thread_dir = os.path.join(web_dir, "obs", day, "threads", thread_id)
+        os.makedirs(thread_dir, exist_ok=True)
+        comments_path = os.path.join(thread_dir, "kommentar.json")
+        with open(comments_path, "w", encoding="utf-8") as f:
+            json.dump(comments, f, ensure_ascii=False, indent=2)
+
+def get_comments_for_user(thread_comments, current_user_id):
+    blacklisted = load_blacklisted_obsids()
+    filtered = []
+    for c in thread_comments:
+        if c.get("obserkode") in blacklisted:
+            if c.get("user_id") == current_user_id:
+                filtered.append(c)  # vis kun til afsender
+        else:
+            filtered.append(c)
+    return filtered
+
+
+    
+def is_blacklisted_obserkode(obserkode):
+    return obserkode in load_blacklisted_obsids()
+
+def is_valid_user_device(user_id, device_id):
+    """Tjek at user_id/device_id findes i subscriptions-tabellen."""
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM subscriptions WHERE user_id=? AND device_id=?",
+            (user_id, device_id)
+        ).fetchone()
+    return bool(row)
+
+def is_thread_subscriber(day, thread_id, user_id, device_id):
+    """Tjek at user_id/device_id er abonnent på tråden."""
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM thread_subs WHERE day=? AND thread_id=? AND user_id=? AND device_id=?",
+            (day, thread_id, user_id, device_id)
+        ).fetchone()
+    return bool(row)
+
+@app.websocket("/ws/thread/{day}/{thread_id}")
+async def ws_thread(websocket: WebSocket, day: str, thread_id: str):
+    await websocket.accept()
+    key = ws_key(day, thread_id)
+    ws_connections.setdefault(key, []).append(websocket)
+    thread_dir = os.path.join(web_dir, "obs", day, "threads", thread_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+
+            msg_type = msg.get("type")
+            user_id = msg.get("user_id")
+            device_id = msg.get("device_id")
+
+            # Alle må læse kommentarer
+            if msg_type == "get_comments":
+                comments = get_comments_for_thread(day, thread_id)
+                filtered = get_comments_for_user(comments, user_id)
+                safe_comments = [safe_comment(c) for c in filtered]
+                await websocket.send_json({"type": "comments", "comments": safe_comments})
+                continue
+
+            # Kun brugere med gyldig user_id/device_id må skrive/like
+            if not user_id or not device_id or not is_valid_user_device(user_id, device_id):
+                await websocket.send_json({"type": "error", "message": "Du skal være logget ind for at skrive eller like."})
+                continue
+
+            # Ny kommentar
+            if msg_type == "new_comment":
+                # Tjek device_id matcher det i databasen
+                correct_device_id = get_device_id_for_user(user_id)
+                if correct_device_id and device_id != correct_device_id:
+                    await websocket.send_json({"type": "error", "message": "Forkert device_id for bruger."})
+                    continue
+
+                navn = msg.get("navn", "Ukendt")
+                body = (msg.get("body") or "").strip()
+                obserkode = msg.get("obserkode", "")
+                blacklisted = load_blacklisted_obsids()
+                if obserkode in blacklisted:
+                    await websocket.send_json({"type": "error", "message": "Du er blacklistet og kan ikke skrive kommentarer."})
+                    continue
+                if not body or not user_id or not device_id:
+                    continue
+                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                # Gem IKKE device_id i kommentar.json
+                comment = {
+                    "navn": navn,
+                    "obserkode": obserkode,
+                    "body": body,
+                    "ts": ts,
+                    "thumbs": 0,
+                    "thumbs_users": [],
+                    "user_id": user_id
+                }
+                comments = get_comments_for_thread(day, thread_id)
+                comments.append(comment)
+                save_comments_for_thread(day, thread_id, comments)
+
+                # Log kommentaren til comments.log (her kan device_id stadig logges hvis ønsket)
+                comment_log_entry = {
+                    "day": day,
+                    "thread_id": thread_id,
+                    **comment,
+                }
+                with open("comments.log", "a", encoding="utf-8") as logf:
+                    logf.write(json.dumps(comment_log_entry, ensure_ascii=False) + "\n")
+
+                # Tilføj forfatteren som abonnent på tråden (hvis ikke allerede)
+                with sqlite3.connect(DB_PATH) as conn:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO thread_subs (day, thread_id, user_id, device_id) VALUES (?, ?, ?, ?)",
+                        (day, thread_id, user_id, device_id)
+                    )
+
+                # --- AUTO-SUBSCRIBE ALLE OBSERKODER FRA EVENTS PÅ TRÅDEN ---
+                thread_path = os.path.join(thread_dir, "thread.json")
+                obserkoder_on_thread = set()
+                if os.path.isfile(thread_path):
+                    try:
+                        with open(thread_path, "r", encoding="utf-8") as f:
+                            thread_data = json.load(f)
+                        events = thread_data.get("events", [])
+                        for ev in events:
+                            kode = (ev.get("Obserkode") or ev.get("obserkode") or "").strip().upper()
+                            if kode:
+                                obserkoder_on_thread.add(kode)
+                    except Exception:
+                        pass
+
+                if obserkoder_on_thread:
+                    with sqlite3.connect(DB_PATH) as conn:
+                        for kode in obserkoder_on_thread:
+                            rows = conn.execute("SELECT user_id, prefs FROM user_prefs").fetchall()
+                            for u_id, prefs_json in rows:
+                                try:
+                                    prefs = json.loads(prefs_json)
+                                    bruger_kode = (prefs.get("obserkode") or "").strip().upper()
+                                    if bruger_kode == kode:
+                                        dev_rows = conn.execute("SELECT device_id FROM subscriptions WHERE user_id=?", (u_id,)).fetchall()
+                                        for (dev_id,) in dev_rows:
+                                            # Tjek om brugeren har afmeldt denne tråd
+                                            skip = conn.execute(
+                                                "SELECT 1 FROM thread_unsubs WHERE day=? AND thread_id=? AND user_id=? AND device_id=?",
+                                                (day, thread_id, u_id, dev_id)
+                                            ).fetchone()
+                                            if skip:
+                                                continue
+                                            conn.execute(
+                                                "INSERT OR IGNORE INTO thread_subs (day, thread_id, user_id, device_id) VALUES (?, ?, ?, ?)",
+                                                (day, thread_id, u_id, dev_id)
+                                            )
+                                except Exception:
+                                    continue
+                        conn.commit()
+                # --- SLUT AUTO-SUBSCRIBE ---
+
+                # Send push til alle abonnenter (undtagen forfatteren)
+                with sqlite3.connect(DB_PATH) as conn:
+                    subs = conn.execute(
+                        "SELECT user_id, device_id FROM thread_subs WHERE day=? AND thread_id=?",
+                        (day, thread_id)
+                    ).fetchall()
+                thread_path = os.path.join(thread_dir, "thread.json")
+                artnavn = ""
+                loknavn = ""
+                if os.path.isfile(thread_path):
+                    try:
+                        with open(thread_path, "r", encoding="utf-8") as f:
+                            thread_data = json.load(f)
+                        thread_info = thread_data.get("thread", {})
+                        artnavn = thread_info.get("art", "")
+                        loknavn = thread_info.get("lok", "")
+                    except Exception:
+                        pass
+                for sub_user_id, sub_device_id in subs:
+                    # Find obserkode for abonnent
+                    sub_prefs = get_prefs(sub_user_id)
+                    sub_obserkode = (sub_prefs.get("obserkode") or "").strip().upper()
+                    # Find obserkode for forfatter
+                    author_prefs = get_prefs(user_id)
+                    author_obserkode = (author_prefs.get("obserkode") or "").strip().upper()
+                    # Spring over hvis det er forfatteren selv eller en anden med samme obserkode
+                    if (sub_user_id == user_id and sub_device_id == device_id) or (sub_obserkode and author_obserkode and sub_obserkode == author_obserkode):
+                        continue
+                    with sqlite3.connect(DB_PATH) as conn:
+                        row = conn.execute(
+                            "SELECT subscription FROM subscriptions WHERE user_id=? AND device_id=?",
+                            (sub_user_id, sub_device_id)
+                        ).fetchone()
+                    if not row:
+                        continue
+                    sub = json.loads(row[0])
+                    payload = {
+                        "title": f"Nyt indlæg på: {artnavn} - {loknavn}",
+                        "body": f"{navn}: {body}",
+                        "url": f"/traad.html?date={day}&id={thread_id}",
+                        "tag": f"{thread_id}-comment-{ts.replace(' ', '_').replace(':', '-')}"
+                    }
+                    try:
+                        webpush(
+                            subscription_info=sub,
+                            data=json.dumps(payload, ensure_ascii=False),
+                            vapid_private_key=VAPID_PRIVATE_KEY,
+                            vapid_claims={"sub": "mailto:kontakt@dofnot.dk"},
+                            ttl=3600,
+                            headers={"Urgency": "high"}
+                        )
+                        obs_notification_queue.put(1)
+                    except Exception as ex:
+                        print(f"Push-fejl til {sub_user_id}/{sub_device_id}: {ex}")
+
+                # Broadcast til alle websockets
+                for ws in ws_connections.get(key, []):
+                    try:
+                        await ws.send_json({"type": "new_comment"})
+                    except:
+                        pass
+
+            # Thumbs up
+            elif msg.get("type") == "thumbsup":
+                ts = msg.get("ts")
+                user_id = msg.get("user_id")
+                # Tjek device_id matcher det i databasen
+                correct_device_id = get_device_id_for_user(user_id)
+                if correct_device_id and device_id != correct_device_id:
+                    await websocket.send_json({"type": "error", "message": "Forkert device_id for bruger."})
+                    continue
+
+                if not ts or not user_id:
+                    continue
+                comments = get_comments_for_thread(day, thread_id)
+                found = False
+                for c in comments:
+                    if c.get("ts") == ts:
+                        thumbs_users = set(c.get("thumbs_users", []))
+                        already_thumbed = user_id in thumbs_users
+                        if already_thumbed:
+                            thumbs_users.remove(user_id)
+                        else:
+                            thumbs_users.add(user_id)
+                        c["thumbs_users"] = list(thumbs_users)
+                        c["thumbs"] = len(thumbs_users)
+                        found = True
+
+                        # Send push hvis ny thumbs up og ikke fra ejeren selv
+                        if not already_thumbed and user_id != c.get("user_id"):
+                            owner_user_id = c.get("user_id")
+                            owner_device_id = c.get("device_id")
+                            if owner_user_id and owner_device_id:
+                                with sqlite3.connect(DB_PATH) as conn:
+                                    sub_row = conn.execute(
+                                        "SELECT 1 FROM thread_subs WHERE day=? AND thread_id=? AND user_id=? AND device_id=?",
+                                        (day, thread_id, owner_user_id, owner_device_id)
+                                    ).fetchone()
+                                if sub_row:
+                                    with sqlite3.connect(DB_PATH) as conn:
+                                        row = conn.execute(
+                                            "SELECT subscription FROM subscriptions WHERE user_id=? AND device_id=?",
+                                            (owner_user_id, owner_device_id)
+                                        ).fetchone()
+                                    if row:
+                                        sub = json.loads(row[0])
+                                        thread_path = os.path.join(thread_dir, "thread.json")
+                                        artnavn = ""
+                                        loknavn = ""
+                                        if os.path.isfile(thread_path):
+                                            try:
+                                                with open(thread_path, "r", encoding="utf-8") as f:
+                                                    thread_data = json.load(f)
+                                                thread_info = thread_data.get("thread", {})
+                                                artnavn = thread_info.get("art", "")
+                                                loknavn = thread_info.get("lok", "")
+                                            except Exception:
+                                                pass
+                                        payload = {
+                                            "title": f"👍 på dit indlæg: {artnavn} - {loknavn}",
+                                            "body": f"Dit indlæg har fået en thumbs up!",
+                                            "url": f"/traad.html?date={day}&id={thread_id}",
+                                            "tag": f"{thread_id}-thumbsup-{ts.replace(' ', '_').replace(':', '-')}"
+                                        }
+                                        try:
+                                            webpush(
+                                                subscription_info=sub,
+                                                data=json.dumps(payload, ensure_ascii=False),
+                                                vapid_private_key=VAPID_PRIVATE_KEY,
+                                                vapid_claims={"sub": "mailto:kontakt@dofnot.dk"},
+                                                ttl=3600,
+                                                headers={"Urgency": "high"}
+                                            )
+                                            obs_notification_queue.put(1) 
+                                        except Exception as ex:
+                                            print(f"Push-fejl til {owner_user_id}/{owner_device_id}: {ex}")
+                        break
+                if found:
+                    save_comments_for_thread(day, thread_id, comments)
+                    for ws in ws_connections.get(key, []):
+                        try:
+                            await ws.send_json({"type": "thumbs_update"})
+                        except:
+                            pass
+
+    except WebSocketDisconnect:
+        ws_connections[key].remove(websocket)
+        if not ws_connections[key]:
+            del ws_connections[key]
+
+app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,0 +1,92 @@
+<!-- Version: 1.13.16 - 2026-05-15 23.55.20 -->
+<!-- © Christian Vemmelund Helligsø -->
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin</title>
+    <link rel="stylesheet" href="style.css?v=1.13.16">
+    <script type="module">
+        import { renderNavbar, initNavbar, initMobileNavbar } from './navbar.js';
+        renderNavbar();
+        initNavbar();
+        initMobileNavbar();
+    </script>
+</head>
+<body>
+    <!-- Fjern <div id="navbar"></div> hvis den findes, da navbaren nu indsættes via JS -->
+    <div id="adminLogin"></div>
+    <div id="admin-content" style="display:none;">
+        <form id="addForm" style="margin-bottom:1em; margin-left:0; margin-right:auto; max-width:420px;">
+            <input type="text" id="addKode" placeholder="Ny obserkode" required>
+            <button>Tilføj</button>
+        </form>
+        <form id="yearForm" style="margin-top:2em; margin-left:0; margin-right:auto; max-width:420px;">
+            <input type="number" id="syncYear" min="2020" max="2100" placeholder="År">
+            <button>Sæt år</button>
+        </form>
+        <form id="filterForm" style="margin-top:2em; margin-left:0; margin-right:auto; max-width:420px;">
+            <input type="text" id="globalFilter" placeholder="Globalt matrikel-filter">
+            <button>Gem filter</button>
+        </form>
+        <div style="margin-top:2em; margin-left:0; margin-right:auto; max-width:620px;">
+            <h2>Arter der ikke skal fremgå som godkendte</h2>
+            <div style="display:flex;gap:0.6em;flex-wrap:wrap;margin-bottom:0.8em;">
+                <button type="button" id="syncExcludedSpeciesBtn">Sync artsliste (DOFbasen)</button>
+                <button type="button" id="saveExcludedSpeciesBtn">Gem liste</button>
+            </div>
+            <div class="muted" style="margin-bottom:0.6em;">Farver: <span class="species-name species-name--su">su</span> · <span class="species-name species-name--subart">subart</span> · normal</div>
+            <label for="excludedSpeciesBulk" class="muted" style="display:block;margin-bottom:0.35em;">En art pr. linje (kan redigeres manuelt):</label>
+            <textarea id="excludedSpeciesBulk" rows="10" style="width:100%;margin-bottom:0.8em;"></textarea>
+            <form id="excludedSpeciesForm" style="display:flex;gap:0.6em;flex-wrap:wrap;margin-bottom:0.8em;">
+                <input type="text" id="excludedSpeciesInput" placeholder="Artnavn" required style="flex:1;min-width:220px;">
+                <button type="submit">Tilføj</button>
+            </form>
+            <div id="excludedSpeciesStatus" class="muted" style="margin-bottom:0.6em;"></div>
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left; padding:0.45em;">Art</th>
+                        <th style="text-align:left; padding:0.45em; width:110px;">Type</th>
+                        <th style="text-align:left; padding:0.45em; width:120px;">Handling</th>
+                    </tr>
+                </thead>
+                <tbody id="excludedSpeciesTableBody"></tbody>
+            </table>
+        </div>
+        <button id="syncAllBtn" style="margin-top:1em;">Sync alle (indeværende år)</button>
+        <button id="syncPreviousYearsBtn" style="margin-top:1em;">Sync alle (tidligere år)</button>
+        <button id="syncAllUserNamesBtn" style="margin-top:1em;">Sync alle brugernavne</button>
+        <button id="rebuildScoreboardsBtn" style="margin-top:1em;">Genbyg scoreboards (kun DB-data)</button>
+        <button id="updateLokationerBtn" style="margin-top:1em;">Sync kommune-lokationer</button>
+        <div id="updateLokationerStatus" style="margin-top:0.4em;"></div>
+        <button id="adminLogout" style="margin-top:1em;">Log ud</button>
+        <div id="obserkodeList"></div>
+        <div id="gruppeList" style="margin-top:2em;"></div>
+    </div>
+    <div id="adminUserModal">
+        <div>
+            <h3>Rediger bruger</h3>
+            <div id="adminUserModalKode" class="muted" style="margin-bottom:0.8em;"></div>
+            <form id="adminUserForm">
+                <label for="adminUserNavn"><b>Navn</b></label>
+                <input type="text" id="adminUserNavn" required style="width:100%;margin-bottom:0.8em;">
+
+                <label for="adminUserAfdeling"><b>Lokalafdeling</b></label>
+                <select id="adminUserAfdeling" style="width:100%;margin-bottom:0.8em;"></select>
+
+                <label for="adminUserKommune"><b>Kommune</b></label>
+                <select id="adminUserKommune" style="width:100%;margin-bottom:0.8em;"></select>
+
+                <div style="margin-top:1em;display:flex;gap:0.6em;flex-wrap:wrap;">
+                    <button type="submit" id="adminUserSave">Gem</button>
+                    <button type="button" id="adminUserCancel">Annuller</button>
+                </div>
+            </form>
+            <div id="adminUserStatus" class="muted" style="margin-top:0.8em;"></div>
+        </div>
+    </div>
+    <script src="admin.js?v=1.13.16"></script>
+</body>
+</html>
