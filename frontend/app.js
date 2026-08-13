@@ -6,9 +6,15 @@ if ("serviceWorker" in navigator) {
 
 const statusEl = document.getElementById("api-status");
 const adminEl = document.getElementById("admin-status");
+const userEl = document.getElementById("session-user");
+const logoutEl = document.getElementById("logout-button");
 
 async function fetchJson(url, options = undefined) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, { credentials: "same-origin", ...options });
+  if (response.status === 401) {
+    window.location.replace("/login.html");
+    throw new Error("Login påkrævet");
+  }
   if (!response.ok) {
     throw new Error(`${url} failed with status ${response.status}`);
   }
@@ -21,7 +27,9 @@ function setPreview(id, lines) {
   el.innerHTML = lines.map((line) => `<div>${line}</div>`).join("");
 }
 
-async function ensureDemoData() {
+async function ensureDemoData(user) {
+  if (user.environment !== "development") return;
+
   await fetchJson("/api/v1/observations/preferences", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -84,9 +92,31 @@ async function loadSection(id, url, render, emptyText) {
   }
 }
 
+async function loadSession() {
+  const response = await fetch("/api/v1/auth/session", { credentials: "same-origin" });
+  const data = await response.json();
+  if (!data.authenticated) {
+    window.location.replace("/login.html");
+    return null;
+  }
+  return data.user;
+}
+
+logoutEl?.addEventListener("click", async () => {
+  await fetch("/api/v1/auth/logout", { method: "POST", credentials: "same-origin" });
+  window.location.replace("/login.html");
+});
+
 async function loadDashboard() {
+  const user = await loadSession();
+  if (!user) return;
+
+  if (userEl) {
+    userEl.textContent = `${user.navn} (${user.obserkode})`;
+  }
+
   try {
-    await ensureDemoData();
+    await ensureDemoData(user);
   } catch (error) {
     console.error("Kunne ikke oprette demodata:", error);
   }

@@ -38,6 +38,7 @@ services:
       REDIS_DSN: redis://redis:6379/0
       ADMIN_API_KEY: dev-admin-key
       SUPERADMIN_API_KEY: dev-superadmin-key
+      SESSION_SECRET: dev-session-secret-change-me
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 10s
