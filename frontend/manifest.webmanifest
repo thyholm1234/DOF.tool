@@ -1,0 +1,11 @@
+{
+  "name": "DOF.tool",
+  "short_name": "DOF.tool",
+  "description": "Samlet PWA for DOF-notifikationer, ranglister, trends, ture og læring.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0d2738",
+  "icons": []
+}
+
