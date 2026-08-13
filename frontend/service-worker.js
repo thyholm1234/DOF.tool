@@ -1,5 +1,13 @@
-const CACHE_NAME = "dof-tool-v2";
-const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest"];
+const CACHE_NAME = "dof-tool-v3";
+const CORE_ASSETS = [
+  "/",
+  "/index.html",
+  "/login.html",
+  "/styles.css",
+  "/app.js",
+  "/login.js",
+  "/manifest.webmanifest",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

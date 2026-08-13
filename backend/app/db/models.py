@@ -19,6 +19,22 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.db.base import Base
 
 
+class User(Base):
+    """Observer authenticated against DOFbasen. Passwords are never stored."""
+
+    __tablename__ = "users"
+
+    obserkode: Mapped[str] = mapped_column(String(16), primary_key=True)
+    navn: Mapped[str] = mapped_column(String(180), default="")
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class UserPreference(Base):
     __tablename__ = "user_preferences"
 

@@ -7,10 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.routes.observations import legacy_row_to_ingest, upsert_rows
 from backend.app.api.schemas import DofSyncRequest
+from backend.app.core.security import require_service_key
 from backend.app.db.session import get_db
 from backend.app.services.dof_sync import fetch_observations_for_date
 
-router = APIRouter(tags=["legacy-compat"])
+router = APIRouter(tags=["legacy-compat"], dependencies=[Depends(require_service_key)])
 
 
 @router.post("/api/update")

@@ -1,44 +1,95 @@
+from __future__ import annotations
+
+import re
 from dataclasses import dataclass
+from html import unescape
 
 import httpx
 from fastapi import HTTPException, status
 
 from backend.app.core.config import get_settings
 
+OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
+_NAME_MARKER = 'Navn</acronym>:</td><td valign="top">'
+_NAME_FALLBACK_RE = re.compile(
+    r"Navn(?:</acronym>)?\s*:\s*</td>\s*<td[^>]*>(.*?)</td>", re.IGNORECASE | re.DOTALL
+)
+
 
 @dataclass(frozen=True)
 class DofLoginResult:
-    access_token: str
-    refresh_token: str | None
-    expires_in: int | None
-    user: dict
+    obserkode: str
+    token: str
+    navn: str
 
 
-async def authenticate_dof_user(username: str, password: str) -> DofLoginResult:
+def normalize_obserkode(value: str | None) -> str:
+    kode = (value or "").strip().upper()
+    if not OBSERKODE_RE.fullmatch(kode):
+        raise ValueError("Ugyldig obserkode")
+    return kode
+
+
+def extract_observer_name(html: str) -> str:
+    content = html or ""
+    index = content.find(_NAME_MARKER)
+    if index != -1:
+        start = index + len(_NAME_MARKER)
+        end = content.find("</td>", start)
+        if end != -1:
+            return unescape(content[start:end].strip())
+
+    match = _NAME_FALLBACK_RE.search(content)
+    if not match:
+        return ""
+    return unescape(re.sub(r"<[^>]+>", "", match.group(1) or "").strip())
+
+
+async def fetch_observer_name(obserkode: str) -> str:
     settings = get_settings()
-    login_url = f"{settings.dof_api_base_url}{settings.dof_api_login_path.lstrip('/')}"
-    payload = {"username": username, "password": password}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                str(settings.dof_observer_profile_url), params={"obserkode": obserkode}
+            )
+    except httpx.HTTPError:
+        return ""
+    if response.status_code != 200:
+        return ""
+    # popobser.php serves ISO-8859-1 without declaring it in the Content-Type header.
+    return extract_observer_name(response.content.decode("latin-1", errors="replace"))
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(login_url, json=payload)
 
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="DOFbasen-login fejlede.",
-        )
+async def authenticate_dof_user(obserkode: str, password: str) -> DofLoginResult:
+    """Validate credentials against DOFbasen and return the observer's token and name."""
+    settings = get_settings()
+    try:
+        kode = normalize_obserkode(obserkode)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
-    data = response.json()
-    access_token = data.get("access_token")
-    if not access_token:
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                str(settings.dof_login_url), json={"username": kode, "password": password}
+            )
+    except httpx.HTTPError as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="DOFbasen returnerede ikke et access_token.",
+            detail="Kunne ikke kontakte DOFbasen.",
+        ) from error
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="DOFbasen-login fejlede. Tjek obserkode og adgangskode.",
         )
 
-    return DofLoginResult(
-        access_token=access_token,
-        refresh_token=data.get("refresh_token"),
-        expires_in=data.get("expires_in"),
-        user=data.get("user", {}),
-    )
+    token = (response.json() or {}).get("token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="DOFbasen returnerede ikke et token.",
+        )
+
+    return DofLoginResult(obserkode=kode, token=token, navn=await fetch_observer_name(kode))
