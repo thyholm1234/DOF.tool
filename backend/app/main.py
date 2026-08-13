@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,7 @@ from backend.app.db.models import FlashcardModel
 from backend.app.db.session import SessionLocal, engine
 
 settings = get_settings()
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 
 @asynccontextmanager
@@ -55,4 +57,4 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.api_prefix)
 app.include_router(legacy_compat_router)
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

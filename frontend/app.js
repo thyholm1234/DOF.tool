@@ -38,9 +38,10 @@ async function ensureDemoData() {
   });
 
   const now = new Date();
+  const today = now.toISOString().slice(0, 10);
   const rows = [
     {
-      obsid: `demo-${now.getTime()}-1`,
+      obsid: `demo-${today}-1`,
       observed_at: now.toISOString(),
       species: "Lille Kjove",
       location: "Skagen",
@@ -53,7 +54,7 @@ async function ensureDemoData() {
       is_matrikel: true,
     },
     {
-      obsid: `demo-${now.getTime()}-2`,
+      obsid: `demo-${today}-2`,
       observed_at: now.toISOString(),
       species: "Hedelærke",
       location: "Blåvand",
@@ -73,45 +74,81 @@ async function ensureDemoData() {
   });
 }
 
-async function loadDashboard() {
-  await ensureDemoData();
-
-  const [health, admin, alerts, rankings, trends, trips, cards] = await Promise.all([
-    fetchJson("/api/v1/health"),
-    fetchJson("/api/v1/admin/overview"),
-    fetchJson("/api/v1/observations/alerts?user_id=demo-user"),
-    fetchJson("/api/v1/rankings/yearly"),
-    fetchJson("/api/v1/trends/signals"),
-    fetchJson("/api/v1/trips"),
-    fetchJson("/api/v1/learning/flashcards"),
-  ]);
-
-  statusEl.textContent = JSON.stringify(health, null, 2);
-  adminEl.textContent = JSON.stringify(admin, null, 2);
-
-  setPreview(
-    "alerts-preview",
-    alerts.slice(0, 3).map((item) => `${item.species} (${item.category}) @ ${item.location}`)
-  );
-  setPreview(
-    "rankings-preview",
-    rankings.slice(0, 3).map((row) => `#${row.rank} ${row.observer_name}: ${row.species_count} arter`)
-  );
-  setPreview(
-    "trends-preview",
-    trends.slice(0, 3).map((item) => `${item.species}: x${item.trend_score}`)
-  );
-  setPreview(
-    "trips-preview",
-    trips.length ? trips.slice(0, 3).map((trip) => `${trip.title} (${trip.joined_count}/${trip.max_participants})`) : ["Ingen ture oprettet endnu."]
-  );
-  setPreview(
-    "learning-preview",
-    cards.slice(0, 2).map((card) => `${card.species}: ${card.prompt}`)
-  );
+async function loadSection(id, url, render, emptyText) {
+  try {
+    const data = await fetchJson(url);
+    const lines = render(data);
+    setPreview(id, lines.length ? lines : [emptyText]);
+  } catch (error) {
+    setPreview(id, [`Kunne ikke hentes: ${error.message}`]);
+  }
 }
 
-loadDashboard().catch((error) => {
-  statusEl.textContent = `Fejl ved hentning af status: ${error.message}`;
-});
+async function loadDashboard() {
+  try {
+    await ensureDemoData();
+  } catch (error) {
+    console.error("Kunne ikke oprette demodata:", error);
+  }
+
+  const statusTasks = [
+    fetchJson("/api/v1/health")
+      .then((health) => {
+        statusEl.textContent = JSON.stringify(health, null, 2);
+      })
+      .catch((error) => {
+        statusEl.textContent = `Fejl ved hentning af status: ${error.message}`;
+      }),
+    fetchJson("/api/v1/admin/overview")
+      .then((admin) => {
+        adminEl.textContent = JSON.stringify(admin, null, 2);
+      })
+      .catch((error) => {
+        adminEl.textContent = `Fejl ved hentning af admin-overblik: ${error.message}`;
+      }),
+  ];
+
+  await Promise.all([
+    ...statusTasks,
+    loadSection(
+      "alerts-preview",
+      "/api/v1/observations/alerts?user_id=demo-user",
+      (alerts) =>
+        alerts.slice(0, 3).map((item) => `${item.species} (${item.category}) @ ${item.location}`),
+      "Ingen varsler lige nu."
+    ),
+    loadSection(
+      "rankings-preview",
+      "/api/v1/rankings/yearly",
+      (rankings) =>
+        rankings
+          .slice(0, 3)
+          .map((row) => `#${row.rank} ${row.observer_name}: ${row.species_count} arter`),
+      "Ingen ranglistedata endnu."
+    ),
+    loadSection(
+      "trends-preview",
+      "/api/v1/trends/signals",
+      (trends) => trends.slice(0, 3).map((item) => `${item.species}: x${item.trend_score}`),
+      "Ingen trendsignaler endnu."
+    ),
+    loadSection(
+      "trips-preview",
+      "/api/v1/trips",
+      (trips) =>
+        trips
+          .slice(0, 3)
+          .map((trip) => `${trip.title} (${trip.joined_count}/${trip.max_participants})`),
+      "Ingen ture oprettet endnu."
+    ),
+    loadSection(
+      "learning-preview",
+      "/api/v1/learning/flashcards",
+      (cards) => cards.slice(0, 2).map((card) => `${card.species}: ${card.prompt}`),
+      "Ingen flashcards endnu."
+    ),
+  ]);
+}
+
+loadDashboard();
 

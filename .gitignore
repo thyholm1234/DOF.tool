@@ -11,3 +11,4 @@ dist/
 coverage/
 .env
 
+*.egg-info/
