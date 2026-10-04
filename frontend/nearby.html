@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="da">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="stylesheet" href="/styles.css" /><title>Observationer i nærheden · DOF.tool</title></head>
+  <body>
+    <main class="app nearby-page">
+      <nav class="module-nav"><a href="/">DOF.tool</a><a href="/notifications.html">Notifikationer</a><a href="/community.html">Fællesskabet</a></nav>
+      <header><p class="eyebrow">Notifikationer</p><h1>Observationer i nærheden</h1><p>Find relevante observationer omkring en position.</p></header>
+      <form class="nearby-form" id="nearby-form"><label>Latitude<input name="lat" type="number" step="any" placeholder="56.16" required /></label><label>Longitude<input name="lng" type="number" step="any" placeholder="10.20" required /></label><label>Radius i km<input name="radius_km" type="number" min="1" max="100" value="5" required /></label><button class="button button-dark" type="submit">Søg i nærheden</button></form>
+      <p class="notification-status" id="nearby-status">Indtast en position for at søge.</p><section class="thread-list" id="nearby-list"></section>
+    </main>
+    <script type="module" src="/nearby.js"></script>
+  </body>
+</html>

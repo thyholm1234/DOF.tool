@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from backend.app.api.routes import (
     admin,
     auth,
+    community,
     health,
     learning,
     observations,
@@ -20,3 +21,4 @@ api_router.include_router(trends.router)
 api_router.include_router(trips.router)
 api_router.include_router(learning.router)
 api_router.include_router(admin.router)
+api_router.include_router(community.router)

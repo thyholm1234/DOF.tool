@@ -1,0 +1,168 @@
+[cleanup] Fejl under oprydning: [Errno 2] No such file or directory: '/app/web/payload'
+Traceback (most recent call last):
+  File "/app/server/server.py", line 62, in run_and_repeat
+    cleanup_dirs(os.path.join(web_dir, "payload"), days=3)
+  File "/app/server/server.py", line 231, in cleanup_dirs
+    for name in os.listdir(base_dir):
+                ^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/web/payload'
+[cleanup] Fejl under oprydning: [Errno 2] No such file or directory: '/app/web/payload'
+Traceback (most recent call last):
+  File "/app/server/server.py", line 62, in run_and_repeat
+    cleanup_dirs(os.path.join(web_dir, "payload"), days=3)
+  File "/app/server/server.py", line 231, in cleanup_dirs
+    for name in os.listdir(base_dir):
+                ^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/web/payload'
+[cleanup] Fejl under oprydning: [Errno 2] No such file or directory: '/app/web/payload'
+Traceback (most recent call last):
+  File "/app/server/server.py", line 62, in run_and_repeat
+    cleanup_dirs(os.path.join(web_dir, "payload"), days=3)
+  File "/app/server/server.py", line 231, in cleanup_dirs
+    for name in os.listdir(base_dir):
+                ^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/web/payload'
+[cleanup] Fejl under oprydning: [Errno 2] No such file or directory: '/app/web/payload'
+Traceback (most recent call last):
+  File "/app/server/server.py", line 62, in run_and_repeat
+    cleanup_dirs(os.path.join(web_dir, "payload"), days=3)
+  File "/app/server/server.py", line 231, in cleanup_dirs
+    for name in os.listdir(base_dir):
+                ^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/web/payload'
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+172.19.0.4 - "POST /api/update HTTP/1.1" 403
+172.19.0.4 - "POST /api/update HTTP/1.1" 403
+172.19.0.1 - "GET / HTTP/1.1" 200
+172.19.0.1 - "GET / HTTP/1.1" 200
+172.19.0.1 - "GET /style.css HTTP/1.1" 200
+172.19.0.1 - "GET /style.css HTTP/1.1" 200
+172.19.0.1 - "GET /app.js HTTP/1.1" 200
+172.19.0.1 - "GET /app.js HTTP/1.1" 200
+172.19.0.1 - "GET /sw.js HTTP/1.1" 200
+172.19.0.1 - "GET /sw.js HTTP/1.1" 200
+172.19.0.1 - "GET /threads.js HTTP/1.1" 200
+172.19.0.1 - "GET /threads.js HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 400
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 400
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "GET /icons/icon-192.png HTTP/1.1" 200
+172.19.0.1 - "GET /icons/icon-192.png HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs/user/species HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs/user/species HTTP/1.1" 200
+172.19.0.1 - "GET /api/threads/04-10-2026 HTTP/1.1" 200
+172.19.0.1 - "GET /api/threads/04-10-2026 HTTP/1.1" 200
+172.19.0.1 - "GET /index.html HTTP/1.1" 200
+172.19.0.1 - "GET /manifest.webmanifest HTTP/1.1" 200
+172.19.0.1 - "GET /index.html HTTP/1.1" 200
+172.19.0.1 - "GET /manifest.webmanifest HTTP/1.1" 200
+172.19.0.1 - "GET /icons/icon-512.png HTTP/1.1" 200
+172.19.0.1 - "GET /icons/icon-512.png HTTP/1.1" 200
+172.19.0.1 - "GET /data/faenologi.csv HTTP/1.1" 200
+172.19.0.1 - "GET /data/faenologi.csv HTTP/1.1" 200
+172.19.0.1 - "GET /data/arter_dof_content.csv HTTP/1.1" 200
+172.19.0.1 - "GET /data/arter_dof_content.csv HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs/user/species HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs/user/species HTTP/1.1" 200
+172.19.0.1 - "GET /api/threads/04-10-2026 HTTP/1.1" 200
+172.19.0.1 - "GET /api/threads/04-10-2026 HTTP/1.1" 200
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "GET /settings.html HTTP/1.1" 200
+172.19.0.1 - "GET /settings.html HTTP/1.1" 200
+172.19.0.1 - "GET /install.js HTTP/1.1" 200
+172.19.0.1 - "GET /install.js HTTP/1.1" 200
+172.19.0.1 - "GET /validate.js HTTP/1.1" 200
+172.19.0.1 - "GET /validate.js HTTP/1.1" 200
+172.19.0.1 - "GET /icons/share.svg HTTP/1.1" 200
+172.19.0.1 - "GET /icons/share.svg HTTP/1.1" 200
+172.19.0.1 - "GET /icons/plus.svg HTTP/1.1" 200
+172.19.0.1 - "GET /icons/plus.svg HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-admin HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-admin HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-subscribed HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-subscribed HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/userinfo HTTP/1.1" 200
+172.19.0.1 - "POST /api/userinfo HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "GET /api/latest HTTP/1.1" 200
+172.19.0.1 - "GET /api/latest HTTP/1.1" 200
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "POST /api/subscribe HTTP/1.1" 200
+172.19.0.1 - "POST /api/subscribe HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-admin HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-admin HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-subscribed HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-subscribed HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/userinfo HTTP/1.1" 200
+172.19.0.1 - "POST /api/userinfo HTTP/1.1" 200
+172.19.0.1 - "GET /api/latest HTTP/1.1" 200
+172.19.0.1 - "GET /api/latest HTTP/1.1" 200
+172.19.0.4 - "POST /api/update HTTP/1.1" 403
+172.19.0.4 - "POST /api/update HTTP/1.1" 403
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-admin HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-admin HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-subscribed HTTP/1.1" 200
+172.19.0.1 - "POST /api/is-subscribed HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/userinfo HTTP/1.1" 200
+172.19.0.1 - "POST /api/userinfo HTTP/1.1" 200
+172.19.0.1 - "GET /api/latest HTTP/1.1" 200
+172.19.0.1 - "GET /api/latest HTTP/1.1" 200
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "POST /api/validate-login HTTP/1.1" 200
+172.19.0.1 - "POST /api/validate-login HTTP/1.1" 200
+172.19.0.1 - "POST /api/validate-login HTTP/1.1" 200
+172.19.0.1 - "POST /api/validate-login HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/log-pageview HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs/user/species HTTP/1.1" 200
+172.19.0.1 - "POST /api/prefs/user/species HTTP/1.1" 200
+172.19.0.1 - "GET /api/threads/04-10-2026 HTTP/1.1" 200
+172.19.0.1 - "GET /api/threads/04-10-2026 HTTP/1.1" 200
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.1 - "GET /sw.js HTTP/1.1" 304
+172.19.0.4 - "POST /api/update HTTP/1.1" 403
+172.19.0.4 - "POST /api/update HTTP/1.1" 403
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200
+127.0.0.1 - "GET /healthz HTTP/1.1" 200

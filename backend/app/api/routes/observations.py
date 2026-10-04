@@ -6,7 +6,6 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.schemas import (
@@ -21,6 +20,8 @@ from backend.app.api.schemas import (
 from backend.app.db.models import Observation, UserPreference
 from backend.app.db.session import get_db
 from backend.app.services.dof_sync import fetch_observations_for_date
+from backend.app.services.dof_enrichment import enrich_observations
+from backend.app.services.observation_store import upsert_rows
 
 router = APIRouter(prefix="/observations", tags=["observations"])
 
@@ -70,11 +71,14 @@ def legacy_row_to_ingest(row: dict) -> ObservationIngest | None:
         species=species,
         location=location,
         category=category,
+        enriched_class=category.upper() if category else "ALM",
         count=count,
         observer_code=str(row.get("Obserkode") or row.get("observer_code") or "").strip() or None,
         species_code=str(row.get("Artnr") or row.get("species_code") or "").strip() or None,
         species_latin=str(row.get("Latin") or row.get("species_latin") or "").strip() or None,
         location_id=str(row.get("Loknr") or row.get("location_id") or "").strip() or None,
+        latitude=_float_value(row.get("obs_breddegrad") or row.get("lok_breddegrad") or row.get("latitude")),
+        longitude=_float_value(row.get("obs_laengdegrad") or row.get("lok_laengdegrad") or row.get("longitude")),
         dof_afdeling=str(row.get("DOF_afdeling") or row.get("dof_afdeling") or "").strip() or None,
         note=str(row.get("Fuglnoter") or row.get("note") or "").strip() or None,
         is_migration=adfkode == "T",
@@ -82,51 +86,11 @@ def legacy_row_to_ingest(row: dict) -> ObservationIngest | None:
     )
 
 
-async def upsert_rows(rows: list[ObservationIngest], db: AsyncSession) -> int:
-    processed = 0
-    for row in rows:
-        payload = row.model_dump(mode="json")
-        stmt = pg_insert(Observation).values(
-            obsid=row.obsid,
-            observed_on=row.observed_at.date(),
-            observed_at=row.observed_at,
-            species=row.species,
-            species_latin=row.species_latin,
-            species_code=row.species_code,
-            category=row.category,
-            observer_code=row.observer_code,
-            location_name=row.location,
-            location_id=row.location_id,
-            dof_afdeling=row.dof_afdeling,
-            count=row.count,
-            note=row.note,
-            is_migration=row.is_migration,
-            is_matrikel=row.is_matrikel,
-            source_payload=json.dumps(payload, ensure_ascii=False),
-        ).on_conflict_do_update(
-            index_elements=["obsid"],
-            set_={
-                "observed_on": row.observed_at.date(),
-                "observed_at": row.observed_at,
-                "species": row.species,
-                "species_latin": row.species_latin,
-                "species_code": row.species_code,
-                "category": row.category,
-                "observer_code": row.observer_code,
-                "location_name": row.location,
-                "location_id": row.location_id,
-                "dof_afdeling": row.dof_afdeling,
-                "count": row.count,
-                "note": row.note,
-                "is_migration": row.is_migration,
-                "is_matrikel": row.is_matrikel,
-                "source_payload": json.dumps(payload, ensure_ascii=False),
-            },
-        )
-        await db.execute(stmt)
-        processed += 1
-    await db.commit()
-    return processed
+def _float_value(value: object) -> float | None:
+    try:
+        return float(str(value).replace(",", ".")) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
 
 
 @router.post("/ingest", response_model=dict)
@@ -134,7 +98,7 @@ async def ingest_observations(
     rows: list[ObservationIngest],
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    processed = await upsert_rows(rows, db)
+    processed = await upsert_rows(await enrich_observations(rows), db)
     return {"status": "ok", "processed": processed}
 
 
@@ -146,7 +110,7 @@ async def ingest_legacy_observations(
     normalized = [item for item in (legacy_row_to_ingest(row) for row in payload.rows) if item]
     if not normalized:
         raise HTTPException(status_code=400, detail="Ingen gyldige observationsrækker modtaget.")
-    processed = await upsert_rows(normalized, db)
+    processed = await upsert_rows(await enrich_observations(normalized), db)
     return {"status": "ok", "processed": processed}
 
 
@@ -170,7 +134,7 @@ async def sync_from_dof(
         target = datetime.now(tz=timezone.utc).date()
 
     rows = await fetch_observations_for_date(target)
-    processed = await upsert_rows(rows, db)
+    processed = await upsert_rows(await enrich_observations(rows), db)
     return {"status": "ok", "target_date": target.isoformat(), "processed": processed}
 
 
@@ -194,6 +158,33 @@ async def set_observation_preferences(
 
     await db.commit()
     return {"status": "ok", "user_id": payload.user_id}
+
+
+@router.get("/preferences", response_model=dict)
+async def get_observation_preferences(
+    user_id: str = Query(..., min_length=2),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    pref = await db.get(UserPreference, user_id)
+    if pref is None:
+        return {
+            "user_id": user_id,
+            "afdelinger": [],
+            "categories": ["SU", "SUB", "bemaerk"],
+            "exclude_species": [],
+            "min_count_default": 1,
+            "quiet_hours": None,
+        }
+    return {
+        "user_id": user_id,
+        "observer_code": pref.observer_code,
+        "display_name": pref.display_name,
+        "afdelinger": json.loads(pref.afdelinger or "[]"),
+        "categories": [item for item in pref.categories.split(",") if item],
+        "exclude_species": json.loads(pref.exclude_species or "[]"),
+        "min_count_default": pref.min_count_default,
+        "quiet_hours": pref.quiet_hours,
+    }
 
 
 @router.get("/alerts", response_model=list[ObservationAlert])
@@ -232,6 +223,8 @@ async def get_rare_observation_alerts(
                 location=row.location_name,
                 count=row.count,
                 observed_at=row.observed_at,
+                enriched_class=row.enriched_class,
+                remarkable_count=row.remarkable_count,
             )
         )
     return alerts
@@ -292,6 +285,8 @@ async def get_thread_detail(
                     location=row.location_name,
                     count=row.count,
                     observed_at=row.observed_at,
+                    enriched_class=row.enriched_class,
+                    remarkable_count=row.remarkable_count,
                 )
             )
     if not items:

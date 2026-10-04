@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+import html
+import re
 
 import httpx
 from fastapi import HTTPException, status
@@ -12,6 +14,30 @@ class DofLoginResult:
     refresh_token: str | None
     expires_in: int | None
     user: dict
+
+
+def extract_dof_observer_name(page: str) -> str:
+    match = re.search(
+        r"Navn</acronym>:\s*</td>\s*<td[^>]*>(.*?)</td>",
+        page,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        return ""
+    return html.unescape(re.sub(r"<[^>]+>", "", match.group(1))).strip()
+
+
+async def fetch_dof_observer_name(observer_code: str) -> str:
+    """Look up the public display name after DOFbasen authentication."""
+    url = f"https://dofbasen.dk/popobser.php?obserkode={observer_code}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            response = await client.get(url, headers={"User-Agent": "DOF.tool/1.0"})
+            response.raise_for_status()
+    except httpx.HTTPError:
+        return ""
+
+    return extract_dof_observer_name(response.text)
 
 
 async def authenticate_dof_user(username: str, password: str) -> DofLoginResult:
@@ -29,7 +55,7 @@ async def authenticate_dof_user(username: str, password: str) -> DofLoginResult:
         )
 
     data = response.json()
-    access_token = data.get("access_token")
+    access_token = data.get("access_token") or data.get("token")
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

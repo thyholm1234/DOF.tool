@@ -3,48 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0d2738" />
+    <meta name="theme-color" content="#102f2b" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
     <title>DOF.tool</title>
   </head>
   <body>
-    <main class="app">
-      <header>
-        <h1>DOF.tool</h1>
-        <p>Én samlet platform for al din fuglekigger-data.</p>
-      </header>
-      <section class="card-grid">
-        <article class="card">
-          <h2>Notifikationer</h2>
-          <p>Sjældne arter og live varsler fra DOFbasen.</p>
-          <div id="alerts-preview" class="preview"></div>
-        </article>
-        <article class="card">
-          <h2>Fugleliga</h2>
-          <p>Årsranglister og matrikelstatistik samlet ét sted.</p>
-          <div id="rankings-preview" class="preview"></div>
-        </article>
-        <article class="card">
-          <h2>Trends</h2>
-          <p>Se hvad der trækker nu kontra historiske mønstre.</p>
-          <div id="trends-preview" class="preview"></div>
-        </article>
-        <article class="card">
-          <h2>Ture</h2>
-          <p>Opret og join ture for nye fuglekiggere.</p>
-          <div id="trips-preview" class="preview"></div>
-        </article>
-        <article class="card">
-          <h2>Læring</h2>
-          <p>Flashcards med udseende og kald.</p>
-          <div id="learning-preview" class="preview"></div>
-        </article>
-      </section>
-      <pre id="api-status">Indlæser API status...</pre>
-      <pre id="admin-status">Indlæser admin-overblik...</pre>
+    <header class="site-header hub-header"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>DOF.tool</span></a><span class="hub-label">Samlet platform</span></header>
+    <main class="hub-main">
+      <section class="hub-intro"><p class="eyebrow">Din digitale platform</p><h1>Alt det, der<br /><em>holder os sammen.</em></h1><p>Vælg en funktion og gå direkte til det, du har brug for. Fællesskab, fugledata og læring samlet i én rolig indgang.</p></section>
+      <section class="hub-grid" aria-label="DOF.tool moduler"><a class="hub-card hub-community" href="/community.html"><span class="module-number">01</span><h2>Fællesskabet</h2><p>Agenda, nyheder, dokumenter og kontaktpersoner.</p><span class="module-arrow">↗</span></a><a class="hub-card" href="/module.html?module=notifications"><span class="module-number">02</span><h2>Notifikationer</h2><p>Sjældne arter og live varsler fra DOFbasen.</p><span class="module-arrow">↗</span></a><a class="hub-card" href="/module.html?module=rankings"><span class="module-number">03</span><h2>Fugleliga</h2><p>Årsranglister og matrikelstatistik.</p><span class="module-arrow">↗</span></a><a class="hub-card" href="/module.html?module=trends"><span class="module-number">04</span><h2>Trends</h2><p>Se hvad der trækker nu kontra historikken.</p><span class="module-arrow">↗</span></a><a class="hub-card" href="/module.html?module=trips"><span class="module-number">05</span><h2>Ture</h2><p>Opret og deltag i ture for fuglekiggere.</p><span class="module-arrow">↗</span></a><a class="hub-card" href="/module.html?module=learning"><span class="module-number">06</span><h2>Læring</h2><p>Flashcards med udseende og kald.</p><span class="module-arrow">↗</span></a></section>
     </main>
-    <script type="module" src="/app.js"></script>
+    <footer class="site-footer hub-footer"><span>DOF.tool</span><a href="/samtykke.html">Samtykke & privatliv</a><span>© 2026</span></footer>
+    <script type="module" src="/hub.js?v=1"></script>
   </body>
 </html>

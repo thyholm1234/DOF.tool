@@ -59,16 +59,26 @@ def _to_ingest_row(row: dict[str, str]) -> ObservationIngest | None:
         species=species,
         location=location,
         category=category,
+        enriched_class=category.upper() if category else "ALM",
         count=_parse_count(row.get("Antal") or ""),
         observer_code=(row.get("Obserkode") or "").strip() or None,
         species_code=(row.get("Artnr") or "").strip() or None,
         species_latin=(row.get("Latin") or "").strip() or None,
         location_id=(row.get("Loknr") or "").strip() or None,
+        latitude=_float_value(row.get("obs_breddegrad") or row.get("lok_breddegrad")),
+        longitude=_float_value(row.get("obs_laengdegrad") or row.get("lok_laengdegrad")),
         dof_afdeling=(row.get("DOF_afdeling") or "").strip() or None,
         note=(row.get("Fuglnoter") or "").strip() or None,
         is_migration=adfkode == "T",
         is_matrikel=bool((row.get("Turid") or "").strip()),
     )
+
+
+def _float_value(value: str | None) -> float | None:
+    try:
+        return float(str(value).replace(",", ".")) if value else None
+    except (TypeError, ValueError):
+        return None
 
 
 async def fetch_observations_for_date(target_date: date) -> list[ObservationIngest]:

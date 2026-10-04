@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#102f2b" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>Fællesskabet · DOF.tool</title>
+  </head>
+  <body>
+    <header class="site-header"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>DOF.tool</span></a><nav class="site-nav" aria-label="Hovednavigation"><a href="/">Moduler</a><a href="#agenda">Agenda</a><a href="#board">Opslagstavle</a><a href="#people">Kontakt</a><a href="#documents">Dokumenter</a></nav><div class="account-actions"><button class="button button-quiet" id="login-button" type="button">Log ind</button><button class="button button-dark" id="register-button" type="button">Opret bruger</button><span class="user-menu" id="user-menu" hidden></span></div></header>
+    <main>
+      <section class="hero-band"><div class="hero-inner"><div class="hero-copy"><p class="eyebrow">DOF.tool · Fællesskabet</p><h1>Det, vi deler,<br /><em>begynder her.</em></h1><p class="hero-lede">Arrangementer, nyheder og praktisk information samlet i et roligt digitalt hjem for hele fællesskabet.</p><div class="hero-actions"><a class="button button-light" href="#agenda">Se kommende arrangementer</a><button class="text-button" id="hero-register" type="button">Bliv en del af det <span>↗</span></button></div></div><div class="hero-note"><span class="note-kicker">Næste på kalenderen</span><div id="hero-event"><span class="loading-line"></span><span class="loading-line short"></span></div></div></div></section>
+      <section class="content-shell" id="agenda"><div class="section-heading"><div><p class="eyebrow">Kom med</p><h2>På kalenderen</h2></div><span class="section-rule"></span></div><div class="event-grid" id="events-list"><p class="muted">Henter arrangementer...</p></div></section>
+      <section class="content-shell" id="board"><div class="section-heading"><div><p class="eyebrow">Seneste nyt</p><h2>Opslagstavlen</h2></div></div><div class="news-grid" id="news-list"><p class="muted">Henter opslag...</p></div></section>
+      <section class="content-shell people-section" id="people"><div class="section-heading"><div><p class="eyebrow">Mød holdet</p><h2>Kontaktpersoner</h2></div></div><div class="people-grid" id="contacts-list"><p class="muted">Henter kontaktpersoner...</p></div></section>
+      <section class="content-shell" id="documents"><div class="section-heading"><div><p class="eyebrow">Find det hele</p><h2>Dokumenter</h2></div></div><div class="document-list" id="documents-list"><p class="muted">Henter dokumenter...</p></div></section>
+    </main>
+    <footer class="site-footer"><span>DOF.tool · Fællesskabet</span><a href="/samtykke.html">Samtykke & privatliv</a><span>© 2026</span></footer>
+    <dialog class="auth-dialog" id="auth-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Luk">×</button><p class="eyebrow" id="auth-eyebrow">Velkommen tilbage</p><h2 id="auth-title">Log ind</h2><form id="auth-form"><label id="display-name-field" hidden>Navn<input id="display-name" name="display_name" autocomplete="name" /></label><label>E-mail<input id="email" name="email" type="email" required /></label><label>Adgangskode<input id="password" name="password" type="password" minlength="8" required /></label><button class="button button-dark full-width" type="submit" id="auth-submit">Log ind</button><p class="form-message" id="auth-message"></p></form><button class="switch-auth" id="switch-auth" type="button">Opret en ny bruger</button></dialog>
+    <dialog class="event-dialog" id="event-dialog"><button class="dialog-close" id="event-dialog-close" type="button" aria-label="Luk">×</button><div id="event-detail"></div></dialog>
+    <script type="module" src="/app.js?v=community-2"></script>
+  </body>
+</html>

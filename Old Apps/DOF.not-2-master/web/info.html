@@ -1,0 +1,232 @@
+<!-- Version: 4.11.26 - 2026-06-05 16.00.28 -->
+<!-- © Christian Vemmelund Helligsø -->
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DOFbasen Notifikationer</title>
+  <meta name="description" content="Få de nyeste fugleobservationer fra hele landet – direkte fra DOFbasen Notifikationer. Hold dig opdateret på sjældne fund, spændende arter og lokale observationer." />
+  <meta property="og:title" content="DOFbasen Notifikationer">
+  <meta property="og:description" content="Få de nyeste fugleobservationer fra hele landet – direkte fra DOFbasen Notifikationer. Hold dig opdateret på sjældne fund, spændende arter og lokale observationer.">
+  <meta property="og:image" content="https://notifikation.dofbasen.dk/icons/icon-2048.png">
+  <meta property="og:image:width" content="2048">
+  <meta property="og:image:height" content="2048">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DOFbasen Notifikationer">
+  <meta property="og:locale" content="da_DK">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DOFbasen Notifikationer">
+  <meta name="twitter:description" content="Få de nyeste fugleobservationer fra hele landet – direkte fra DOFbasen Notifikationer. Hold dig opdateret på sjældne fund, spændende arter og lokale observationer.">
+  <meta name="twitter:image" content="https://notifikation.dofbasen.dk/icons/icon-2048.png">
+  <meta name="twitter:image:alt" content="DOFbasen Notifikationer">
+  <meta name="theme-color" content="#0b3d91" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/style.css?v=4.11.26">
+  <style>
+  .card h2 {
+    margin-top: 0;
+  }
+  .card ul {
+    margin: 0 0 1em 0;
+    padding: 0 0 0 1.2em;
+  }
+  .card ul li {
+    margin-bottom: 1em;
+    line-height: 1.0;
+  }
+  .card ul li:last-child {
+    margin-bottom: 0;
+  }
+.nyhed-meta {
+  font-size: 0.95em;
+  color: var(--text-muted);
+  margin-top: 0.2em;
+}
+@media (max-width: 600px) {
+  .nyhed-meta {
+    display: block;
+    margin-top: 0.2em;
+    white-space: normal;
+  }
+  .nyhed-meta .meta-sep {
+    display: none;
+  }
+  .nyhed-meta .meta-author {
+    display: block;
+    margin-top: 2px;
+  }
+}
+</style>
+</head>
+
+<body>
+  <header class="wrap">
+      <h1 style="text-align:left;">
+        <a class="brand" href="/index.html" aria-label="Gå til forsiden">DOFbasen Notifikationer</a>
+      </h1>
+      <div class="toolbar">
+        <button id="refresh-btn" aria-label="Opdater" title="Opdater siden" type="button"
+                onclick="window.location.reload()">
+          <span id="refresh-icon">🔄</span>
+        </button>
+        <button id="taetpaa-btn" aria-label="Observationer i nærheden" title="Observationer i nærheden" type="button"
+                onclick="window.location.href='./taetpaa.html'">
+          <span id="taetpaa-icon">📍</span>
+        </button>
+        <button id="info-btn" aria-label="Info" title="Info" type="button"
+                onclick="window.location.href='./info.html'">
+          <span id="info-icon">ℹ️</span>
+        </button>
+        <button id="settings-btn" aria-label="Indstillinger" title="Indstillinger" type="button"
+                onclick="window.location.href='./settings.html'">
+          <span id="settings-icon">⚙️</span>
+        </button>
+        <button id="theme-toggle" aria-label="Skift tema" onclick="this.blur()">
+          <span id="theme-icon">☀️</span>
+        </button>
+      </div>
+    </header>
+
+  <main class="wrap">
+    <h1 class="page-title">Nyheder</h1>
+    <div id="nyheder-list"></div>
+    <script>
+    async function visNyheder() {
+      const container = document.getElementById('nyheder-list');
+      container.innerHTML = "Indlæser nyheder...";
+      try {
+        const res = await fetch('/api/nyheder');
+        let nyheder = await res.json();
+        nyheder.sort((a, b) => b.oprettet_tidspunkt.localeCompare(a.oprettet_tidspunkt));
+        nyheder = nyheder.slice(0, 5); // max 5 nyheder
+        if (!nyheder.length) {
+          container.innerHTML = "<div class='card'>Ingen nyheder.</div>";
+          return;
+        }
+        container.innerHTML = "";
+        nyheder.forEach(n => {
+          const card = document.createElement('a');
+          card.className = "card";
+          card.href = `https://notifikation.dofbasen.dk/nyhed.html?id=${encodeURIComponent(n.id)}`;
+          card.style.textDecoration = "none";
+          card.style.display = "block";
+          card.style.color = "inherit";
+          card.innerHTML = `
+            <h2 style="margin-bottom:0.3em;">${n.titel}</h2>
+            <div class="nyhed-meta">
+              <span class="meta-date">${n.oprettet_tidspunkt}</span>
+              <span class="meta-sep"> – </span>
+              <span class="meta-author">${n.forfatter}</span>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+
+        // Skjul bindestreg på mobil
+        if (window.innerWidth <= 600) {
+          document.querySelectorAll('.meta-sep').forEach(el => el.style.display = 'none');
+          document.querySelectorAll('.nyhed-meta').forEach(el => el.innerHTML = el.innerHTML.replace(' – ', '<br>'));
+        }
+      } catch (e) {
+        container.innerHTML = "<div class='card'>Kunne ikke hente nyheder.</div>";
+      }
+    }
+    visNyheder();
+    </script>
+    <h1 class="page-title">Information</h1>
+    <div class="card">
+      <h2>DOFbasen</h2>
+      <p>
+        <strong>DOFbasen</strong> er Dansk Ornitologisk Forenings (DOF) internetbaserede database til registrering af observationer af fugle og andre udvalgte dyr i Danmark.<br><br>
+        Alle kan indtaste og udsøge data i DOFbasen, når man er oprettet som bruger. Prøv fx <a href="https://app.dofbasen.dk" target="_blank" rel="noopener">DOFbasens indtastningsapp (PWA)</a> på din smartphone eller tablet.<br><br>
+        DOFbasen er grundlaget for dataindsamlingen i DOFs projekter og dermed fugle- og naturbeskyttelse i Danmark. Der sker løbende kvalitetssikring af data, og DOF har fuld råderet over alle data i DOFbasen.<br><br>
+        Der kan indtastes på over 20.000 lokaliteter, og databasen rummer mere end 37 millioner observationer.<br><br>
+        Det er de mange frivillige fugleinteresserede, der indtaster deres observationer i DOFbasen, som gør det muligt at samle og dele viden om Danmarks fugle. Det er netop disse data, der bruges til at vise observationer, kommentarer og statistik i denne app.
+        <br><br>
+        <strong>Sådan kommer du i gang:</strong>
+        <ul>
+          <li>Læs mere på <a href="https://dofbasen.dk" target="_blank" rel="noopener">dofbasen.dk</a></li>
+          <li>Opret dig som indtaster: <a href="https://dofbasen.dk/opretmig.php" target="_blank" rel="noopener">Opret bruger</a></li>
+          <li>Bliv medlem af DOF: <a href="https://minside.dof.dk/bliv-medlem/" target="_blank" rel="noopener">Bliv medlem</a></li>
+          <li>Støt naturen: <a href="https://minside.dof.dk/stoet-naturen/" target="_blank" rel="noopener">Giv en gave</a></li>
+          <li>Læs mere om DOF: <a href="https://www.dof.dk/" target="_blank" rel="noopener">dof.dk</a></li>
+        </ul>
+        <strong>DOFbasen er central for dansk fugleovervågning og naturbeskyttelse – og alle kan bidrage!</strong>
+      </p>
+    </div>
+    <div class="card">
+      <h2 id="retningslinjer-for-debat-og-kommentarer">Retningslinjer for kommentarer</h2>
+      <p>
+        For at sikre et konstruktivt, fugleorienteret og trygt debatmiljø gælder følgende regler for kommentarer i app'en:
+      </p>
+      <ul>
+        <li>
+          <strong>Omgangstone:</strong> Omgangstonen skal altid være sober, venlig og respektfuld. Udokumenterede beskyldninger, nedladende, hånende eller spydige kommentarer tolereres ikke. Hold ekstreme holdninger for dig selv og undgå diskussioner for diskussionens skyld.
+        </li>
+        <li>
+          <strong>Humor og sprog:</strong> Humor er velkommen, men vær varsom med ironi og sarkasme, da det let kan misforstås i skrift. Skriv gerne indlægget i et tekstbehandlingsprogram først for at undgå fejl og misforståelser.
+        </li>
+        <li>
+          <strong>Ved mistanke om fejlbestemmelse:</strong> Hvis du mener, at en observation er fejlbestemt, så vær venlig at påpege det konstruktivt. Undgå at angribe den, der har indtastet observationen. Husk, at vi alle kan begå fejl og at det ikke er din opgave at være <a href="https://dofbasen.dk/kvalitet/" target="_blank" rel="noopener">DKU</a>.
+        </li>
+        <li>
+          <strong>Ingen diskrimination:</strong> Kommentarer med racistisk, sexistisk, truende eller på anden måde diskriminerende indhold er forbudt.
+        </li>
+        <li>
+          <strong>Ingen spam eller reklame:</strong> Reklame for brugerbetalte kurser, arrangerede rejser eller lignende er ikke tilladt uden forudgående aftale.
+        </li>
+        <li>
+          <strong>Privatliv:</strong> Del ikke andres personlige oplysninger uden samtykke.
+        </li>
+        <li>
+          <strong>Moderation og advarsler:</strong> Kommentarer kan blive fjernet, og brugere kan blive udelukket, hvis reglerne overtrædes. Ved overtrædelse kan du modtage en advarsel via mail. Gentagne eller grove overtrædelser kan føre til permanent udelukkelse.
+        </li>
+      </ul>
+      <p>
+        Reglerne er til for at sikre et åbent, sagligt og inkluderende miljø for alle fugleinteresserede brugere af appen. Vær høflig, brug almindelig sund fornuft og overhold loven.
+      </p>
+    </div>
+    <div class="card">
+      <h2>Hvem står bag?</h2>
+      <p>
+        <strong>Appen</strong> er udviklet af Christian Vemmelund Helligsø i samarbejde med DOF ud fra ønsket om en app, der kan give notifikationer fra DOFbasen og samtidig tilbyde kommentarspor på observationer. Appen er skabt for at gøre det nemmere og mere engagerende for fugleinteresserede at følge med i nye observationer – et behov, som flere danske fuglekiggere har givet udtryk for.
+      </p>
+    </div>
+    <div class="card" id="feedback">
+      <h2>Feedback og idéer</h2>
+      <p>
+        Har du forslag, idéer eller ønsker til forbedringer af appen, så vil jeg meget gerne høre fra dig!<br><br>
+        Du er velkommen til at sende feedback, kommentarer eller idéer til nye funktioner. Jeg kan ikke tilbyde egentlig support, men alle henvendelser læses og bruges til at gøre appen bedre for alle brugere.<br><br>
+        Hvis du har store problemer, så kopier indholdet fra <a href="debug.html" target="_blank" rel="noopener">debug-siden</a> og send det med i din henvendelse sammen med en komplet beskrivelse af dit problem.<br><br>
+      </p>
+      <iframe src="https://nc.chfotofilm.dk/apps/forms/embed/FQZxSnC9ZHsR86w5aKKnekM5"
+        width="100%" height="1000" frameborder="0" allowfullscreen style="border:none;max-width:100%;"></iframe>
+    </div>
+    <div class="card">
+      <h2>Data og tredjeparter</h2>
+      <p>
+        Appen benytter en række tredjepartsbiblioteker og -tjenester for at fungere. På serversiden anvendes FastAPI til at håndtere webserver, push-notifikationer og brugerdata. Når brugeren logger ind, sendes loginoplysninger til DOFbasens officielle API, og der hentes supplerende oplysninger som navn fra DOFbasen. Push-notifikationer sendes via browserens indbyggede push-tjeneste, hvilket betyder, at beskeder går igennem browserleverandørens push-servere (typisk Google, Mozilla eller Apple afhængigt af brugerens browser). Derudover logges sidebesøg med henblik på brugsanalyse. Appen udveksler ikke brugerdata med andre virksomheder end DOFbasen.
+      </p>
+    </div>
+  </main>
+
+  <script src="app.js?v=4.11.26"></script>
+  <footer class="footer">
+    <a href="https://dofbasen.dk" target="_blank" rel="noopener" class="footer-link">
+      <div class="footer-content">
+        DOFbasen &copy; 2026 <br> Dansk Ornitologisk Forening<br>
+      </div>
+    </a>
+  </footer>
+</body>
+</html>

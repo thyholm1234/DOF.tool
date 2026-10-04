@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>Indstillinger · DOF.tool</title>
+</head>
+<body>
+  <main class="app settings-page">
+    <nav class="module-nav" aria-label="Modulnavigation"><a href="/">DOF.tool</a><a href="/notifications.html">Observationer</a><a href="/advanced.html">Artsfiltre</a><a href="/nearby.html">Tæt på</a></nav>
+    <header><p class="eyebrow">Notifikationer</p><h1>Indstillinger</h1><p>Vælg hvilke kategorier du vil følge fra hver lokalafdeling.</p></header>
+    <section class="settings-card card"><h2>Min konto</h2><p id="account-status" class="muted">Indlæser konto...</p><button class="button button-quiet" id="login-link" type="button" hidden>Log ind fra forsiden</button></section>
+    <section class="settings-card card"><h2>Forbind til DOFbasen</h2><p class="muted">Forbindelsen bruges til kommentarer og personlige DOFbasen-notifikationer. Din adgangskode gemmes ikke.</p><div id="dof-connection" class="connection-summary" hidden><strong id="dof-name"></strong><span id="dof-code"></span><button class="button button-quiet" id="remove-dof-connection" type="button">Fjern forbindelse</button></div><form id="dof-login-form" class="dof-login-form"><label>DOF-obserkode<input name="obserkode" autocomplete="username" required /></label><label>Adgangskode<input name="adgangskode" type="password" autocomplete="current-password" required /></label><button class="button button-dark" type="submit">Hent navn og forbind</button></form><p id="dof-login-status" class="muted" role="status"></p></section>
+    <section class="settings-card card"><div class="section-heading"><div><p class="eyebrow">Lokalafdelinger</p><h2>Mine notifikationer</h2></div></div><p class="muted">Et højere niveau inkluderer de underliggende kategorier. “Ingen” slår afdelingen helt fra.</p><div id="department-list" class="department-list"></div><div class="settings-actions"><button class="button button-dark" id="save-settings" type="button">Gem præferencer</button><span id="settings-status" class="muted" role="status"></span></div></section>
+    <section class="settings-card card"><h2>Flere filtre</h2><p class="muted">Udeluk bestemte arter eller sæt et minimumsantal på artsniveau.</p><a class="button button-quiet" href="/advanced.html">Åbn avancerede artsfiltre</a></section>
+    <section class="settings-card card"><h2>Stille timer</h2><p class="muted">Vælg et tidsrum, hvor du ikke vil modtage push-notifikationer.</p><div class="quiet-hours"><label>Fra<input id="quiet-start" type="time" value="22:00" /></label><label>Til<input id="quiet-end" type="time" value="07:00" /></label></div><div class="settings-actions"><button class="button button-quiet" id="save-quiet-hours" type="button">Gem stille timer</button><button class="button button-quiet" id="clear-quiet-hours" type="button">Nulstil</button></div></section>
+  </main>
+  <script type="module" src="/settings.js"></script>
+</body>
+</html>

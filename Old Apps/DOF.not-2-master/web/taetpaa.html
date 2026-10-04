@@ -1,0 +1,89 @@
+<!-- Version: 4.9.70 - 2025-12-04 23.03.01 -->
+<!-- © Christian Vemmelund Helligsø -->
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DOFbasen Notifikationer</title>
+  <meta name="description" content="Få de nyeste fugleobservationer fra hele landet – direkte fra DOFbasen Notifikationer. Hold dig opdateret på sjældne fund, spændende arter og lokale observationer." />
+  <meta property="og:title" content="DOFbasen Notifikationer">
+  <meta property="og:description" content="Få de nyeste fugleobservationer fra hele landet – direkte fra DOFbasen Notifikationer. Hold dig opdateret på sjældne fund, spændende arter og lokale observationer.">
+  <meta property="og:image" content="https://notifikation.dofbasen.dk/icons/icon-2048.png">
+  <meta property="og:image:width" content="2048">
+  <meta property="og:image:height" content="2048">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DOFbasen Notifikationer">
+  <meta property="og:locale" content="da_DK">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DOFbasen Notifikationer">
+  <meta name="twitter:description" content="Få de nyeste fugleobservationer fra hele landet – direkte fra DOFbasen Notifikationer. Hold dig opdateret på sjældne fund, spændende arter og lokale observationer.">
+  <meta name="twitter:image" content="https://notifikation.dofbasen.dk/icons/icon-2048.png">
+  <meta name="twitter:image:alt" content="DOFbasen Notifikationer">
+  <meta name="theme-color" content="#0b3d91" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/style.css?v=4.9.70">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.css" />
+  <script src="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.js"></script>
+</head>
+
+  <body>
+    <header class="wrap">
+      <h1 style="text-align:left;">
+        <a class="brand" href="/index.html" aria-label="Gå til forsiden">DOFbasen Notifikationer</a>
+      </h1>
+      <div class="toolbar">
+        <button id="refresh-btn" aria-label="Opdater" title="Opdater siden" type="button"
+                onclick="window.location.reload()">
+          <span id="refresh-icon">🔄</span>
+        </button>
+        <button id="taetpaa-btn" aria-label="Observationer i nærheden" title="Observationer i nærheden" type="button"
+                onclick="window.location.href='./taetpaa.html'">
+          <span id="taetpaa-icon">📍</span>
+        </button>
+        <button id="info-btn" aria-label="Info" title="Info" type="button"
+                onclick="window.location.href='./info.html'">
+          <span id="info-icon">ℹ️</span>
+        </button>
+        <button id="settings-btn" aria-label="Indstillinger" title="Indstillinger" type="button"
+                onclick="window.location.href='./settings.html'">
+          <span id="settings-icon">⚙️</span>
+        </button>
+        <button id="theme-toggle" aria-label="Skift tema" onclick="this.blur()">
+          <span id="theme-icon">☀️</span>
+        </button>
+      </div>
+    </header>
+  
+    <div class="wrap main-content">
+      <h1 class="page-title">Observationer i nærheden</h1>
+      <div id="front-controls"></div>
+      <div id="map-container">
+        <div class="card" id="map" style="width:100%;height:320px;margin-bottom:1em;display:none;"></div>
+      </div>
+      <div id="threads-status"></div>
+      <div id="threads-cards"></div>
+    </div>
+    
+    <script src="taetpaa.js?v=4.9.70"></script> 
+    <script src="app.js?v=4.9.70"></script>
+    <footer class="footer">
+      <a href="https://dofbasen.dk" target="_blank" rel="noopener" class="footer-link">
+        <div class="footer-content">
+          DOFbasen &copy; 2026 <br> Dansk Ornitologisk Forening<br>
+        </div>
+      </a>
+    </footer>
+  </body>
+</html>
