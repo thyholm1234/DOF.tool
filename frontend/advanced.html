@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="da">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="stylesheet" href="/styles.css" /><title>Avancerede artsfiltre · DOF.tool</title></head>
+  <body>
+    <main class="app advanced-page">
+      <nav class="module-nav"><a href="/">DOF.tool</a><a href="/notifications.html">Notifikationer</a><a href="/settings.html">Indstillinger</a></nav>
+      <header><p class="eyebrow">Notifikationer</p><h1>Avancerede artsfiltre</h1><p>Udeluk arter eller kræv et minimumsantal, før de vises i dine varsler.</p></header>
+      <section class="notification-toolbar"><label>Bruger-id<input id="user-id" placeholder="Dit bruger-id" /></label><label>Søg art<input id="species-search" type="search" placeholder="Søg..." /></label><button class="button button-dark" id="save-filters" type="button">Gem filtre</button><button class="button button-quiet" id="reset-filters" type="button">Nulstil</button><button class="button button-quiet" id="export-filters" type="button">Eksportér</button><label class="file-button">Importér<input id="import-filters" type="file" accept="application/json" /></label></section>
+      <p class="notification-status" id="filter-status">Henter arter...</p>
+      <section class="filter-list" id="filter-list"></section>
+    </main>
+    <script type="module" src="/advanced.js"></script>
+  </body>
+</html>

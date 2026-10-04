@@ -1,5 +1,28 @@
-const CACHE_NAME = "dof-tool-v2";
-const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest"];
+const CACHE_NAME = "dof-tool-v4";
+const CORE_ASSETS = [
+  "/",
+  "/index.html",
+  "/community.html",
+  "/hub.js",
+  "/module.html",
+  "/styles.css",
+  "/app.js",
+  "/module.js",
+  "/notifications.html",
+  "/notifications.js",
+  "/advanced.html",
+  "/advanced.js",
+  "/settings.html",
+  "/settings.js",
+  "/thread.html",
+  "/thread.js",
+  "/nearby.html",
+  "/nearby.js",
+  "/admin.html",
+  "/admin.js",
+  "/samtykke.html",
+  "/manifest.webmanifest",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,4 +61,9 @@ self.addEventListener("fetch", (event) => {
       })
       .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
   );
+});
+
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() || { title: "Fællesskabet", body: "Du har nyt fra fællesskabet." };
+  event.waitUntil(self.registration.showNotification(data.title, { body: data.body, icon: "/icon.svg" }));
 });

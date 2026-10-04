@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>Notifikationer · DOF.tool</title>
+  </head>
+  <body>
+    <main class="app notification-page">
+      <nav class="module-nav" aria-label="Modulnavigation"><a href="/">DOF.tool</a><a href="/community.html">Fællesskabet</a><a href="/module.html?module=notifications">Notifikationer</a><a href="/settings.html">Indstillinger</a><a href="/advanced.html">Artsfiltre</a><a href="/nearby.html">Tæt på</a></nav>
+      <header class="notification-header"><p class="eyebrow">DOFbasen</p><h1>Observationer</h1><p>Følg dagens fund og åbn en tråd for at se alle observationer på samme art og sted.</p></header>
+      <section class="notification-toolbar" aria-label="Observationsfiltre"><label>Dag<select id="day-select"><option value="today">I dag</option><option value="yesterday">I går</option></select></label><label>Søg art eller sted<input id="thread-search" type="search" placeholder="Søg..." /></label><label>Kategori<select id="category-select"><option value="all">Alle kategorier</option><option value="SU">SU</option><option value="SUB">SUB</option><option value="bemaerk">Bemærk</option><option value="alm">Almindelig</option></select></label><button class="button button-dark" id="refresh-threads" type="button">Opdater</button></section>
+      <p class="notification-status" id="thread-status">Henter observationer...</p>
+      <section class="thread-list" id="thread-list" aria-live="polite"></section>
+      <dialog class="event-dialog" id="thread-dialog"><button class="dialog-close" id="thread-dialog-close" type="button" aria-label="Luk">×</button><div id="thread-detail"></div></dialog>
+    </main>
+    <script type="module" src="/notifications.js"></script>
+  </body>
+</html>

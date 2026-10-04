@@ -1,7 +1,7 @@
 {
-  "name": "DOF.tool",
-  "short_name": "DOF.tool",
-  "description": "Samlet PWA for DOF-notifikationer, ranglister, trends, ture og læring.",
+  "name": "Fællesskabet",
+  "short_name": "Fællesskabet",
+  "description": "Arrangementer, nyheder og fællesskab samlet ét sted.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f7fb",

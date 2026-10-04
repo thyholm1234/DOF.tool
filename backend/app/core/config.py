@@ -14,12 +14,16 @@ class Settings(BaseSettings):
     )
     redis_dsn: str = "redis://localhost:6379/0"
 
-    dof_api_base_url: AnyHttpUrl = "https://api.dofbasen.dk/"
-    dof_api_login_path: str = "/auth/login"
+    dof_api_base_url: AnyHttpUrl = "https://krydslister.dofbasen.dk/"
+    dof_api_login_path: str = "/api/v1/login"
     dof_excel_base_url: AnyHttpUrl = "https://dofbasen.dk/excel/search_result1.php"
 
     admin_api_key: str = "dev-admin-key"
     superadmin_api_key: str = "dev-superadmin-key"
+    session_cookie_name: str = "dof_session"
+    session_days: int = Field(default=30, ge=1, le=365)
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

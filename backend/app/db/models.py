@@ -49,9 +49,13 @@ class Observation(Base):
     species_latin: Mapped[str | None] = mapped_column(String(180), nullable=True)
     species_code: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
     category: Mapped[str] = mapped_column(String(24), default="alm", index=True)
+    enriched_class: Mapped[str] = mapped_column(String(32), default="ALM", index=True)
+    remarkable_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     observer_code: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
     location_name: Mapped[str] = mapped_column(String(180), index=True)
     location_id: Mapped[str | None] = mapped_column(String(40), index=True, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(nullable=True)
+    longitude: Mapped[float | None] = mapped_column(nullable=True)
     dof_afdeling: Mapped[str | None] = mapped_column(String(120), index=True, nullable=True)
     count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -60,6 +64,18 @@ class Observation(Base):
     source_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class DailySync(Base):
+    __tablename__ = "daily_syncs"
+
+    sync_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    status: Mapped[str] = mapped_column(String(24), default="pending")
+    processed_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
 
@@ -142,4 +158,181 @@ class PageViewEvent(Base):
     device_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class CommunityUser(Base):
+    __tablename__ = "community_users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(120))
+    password_hash: Mapped[str] = mapped_column(String(256))
+    role: Mapped[str] = mapped_column(String(24), default="user", index=True)
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class CommunityEvent(Base):
+    __tablename__ = "community_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    title: Mapped[str] = mapped_column(String(180), index=True)
+    description: Mapped[str] = mapped_column(Text)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    location: Mapped[str] = mapped_column(String(180))
+    category: Mapped[str] = mapped_column(String(60), default="fællesskab", index=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    signup_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    max_participants: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    recurrence_rule: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    recurrence_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class EventRegistration(Base):
+    __tablename__ = "event_registrations"
+    __table_args__ = (UniqueConstraint("event_id", "user_id", name="uq_event_registration"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    event_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class EventComment(Base):
+    __tablename__ = "event_comments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    event_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class CommunityNews(Base):
+    __tablename__ = "community_news"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    title: Mapped[str] = mapped_column(String(180), index=True)
+    body_markdown: Mapped[str] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(60), default="nyt", index=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(36))
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class CommunityContact(Base):
+    __tablename__ = "community_contacts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class CommunityDocument(Base):
+    __tablename__ = "community_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    title: Mapped[str] = mapped_column(String(180))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str] = mapped_column(String(60), default="dokument")
+    file_url: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    endpoint: Mapped[str] = mapped_column(Text, unique=True)
+    p256dh: Mapped[str] = mapped_column(Text)
+    auth: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ObservationComment(Base):
+    __tablename__ = "observation_comments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    day: Mapped[date] = mapped_column(Date, index=True)
+    thread_id: Mapped[str] = mapped_column(String(240), index=True)
+    user_id: Mapped[str] = mapped_column(String(80), index=True)
+    display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class ObservationThreadSubscription(Base):
+    __tablename__ = "observation_thread_subscriptions"
+    __table_args__ = (UniqueConstraint("day", "thread_id", "user_id", name="uq_thread_subscription"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    day: Mapped[date] = mapped_column(Date, index=True)
+    thread_id: Mapped[str] = mapped_column(String(240), index=True)
+    user_id: Mapped[str] = mapped_column(String(80), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class SpeciesFilter(Base):
+    __tablename__ = "species_filters"
+    __table_args__ = (UniqueConstraint("user_id", "species", name="uq_species_filter"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(String(80), index=True)
+    species: Mapped[str] = mapped_column(String(180), index=True)
+    minimum_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    excluded: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ObservationSubscription(Base):
+    __tablename__ = "observation_subscriptions"
+    __table_args__ = (UniqueConstraint("user_id", "obsid", name="uq_observation_subscription"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(String(80), index=True)
+    obsid: Mapped[str] = mapped_column(String(32), index=True)
+    subscribed: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )

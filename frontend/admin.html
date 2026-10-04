@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>Administration · DOF.tool</title>
+  </head>
+  <body>
+    <header class="site-header"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>DOF.tool</span></a><span class="hub-label">Administration</span><a class="button button-quiet" href="/">Til modulhub</a></header>
+    <main class="admin-shell">
+      <p class="eyebrow">Redaktion</p><h1>Administration</h1><p class="admin-intro">Opret arrangementer, opslag og det indhold, fællesskabet skal kunne finde.</p>
+      <p class="form-message" id="admin-message"></p>
+      <section class="admin-toolbar" aria-label="Adminværktøjer">
+        <button class="button button-quiet" id="refresh-admin" type="button">Opdater overblik</button>
+        <button class="button button-dark" id="sync-today" type="button">Sync dagens data</button>
+        <button class="button button-quiet" data-panel="users-panel" type="button">Brugere</button>
+        <button class="button button-quiet" data-panel="blacklist-panel" type="button">Blacklist</button>
+        <button class="button button-quiet" data-panel="comments-panel" type="button">Moderation</button>
+        <button class="button button-quiet" data-panel="traffic-panel" type="button">Trafik</button>
+      </section>
+      <section class="admin-overview" id="admin-overview"><p class="muted">Henter status...</p></section>
+      <section class="admin-panel" id="users-panel" hidden><h2>Brugere</h2><div id="users-list"></div></section>
+      <section class="admin-panel" id="blacklist-panel" hidden><h2>Blacklist</h2><form id="blacklist-form" class="inline-form"><input name="user_id" placeholder="Bruger-id" required /><input name="reason" placeholder="Årsag" /><button class="button button-dark" type="submit">Blacklist</button></form><div id="blacklist-list"></div></section>
+      <section class="admin-panel" id="comments-panel" hidden><h2>Kommentar-moderation</h2><div id="comments-list"></div></section>
+      <section class="admin-panel" id="traffic-panel" hidden><h2>Trafik</h2><div id="traffic-list"></div></section>
+      <div class="admin-grid">
+        <form class="admin-form" data-endpoint="/api/v1/community/admin/events"><h2>Nyt arrangement</h2><label>Titel<input name="title" required /></label><label>Beskrivelse <small>Markdown er understøttet</small><textarea name="description" rows="5" required></textarea></label><label>Dato og tid<input name="starts_at" type="datetime-local" required /></label><label>Sted<input name="location" required /></label><label>Kategori<input name="category" value="fællesskab" required /></label><label>Maks. pladser<input name="max_participants" type="number" min="1" /></label><label>Flyer eller billede (URL)<input name="image_url" type="url" /></label><label>Eksternt tilmeldingslink<input name="signup_url" type="url" /></label><label>Gentagelse<select name="recurrence_rule"><option value="">Ingen gentagelse</option><option value="weekly">Hver uge</option><option value="monthly">Hver måned</option></select></label><label>Gentag indtil<input name="recurrence_until" type="datetime-local" /></label><button class="button button-dark" type="submit">Opret arrangement</button></form>
+        <form class="admin-form" data-endpoint="/api/v1/community/admin/news"><h2>Nyt opslag</h2><label>Overskrift<input name="title" required /></label><label>Tekst <small>Markdown er understøttet</small><textarea name="body_markdown" rows="7" required></textarea></label><label>Kategori<input name="category" value="nyt" required /></label><button class="button button-dark" type="submit">Udgiv opslag</button></form>
+        <form class="admin-form" data-endpoint="/api/v1/community/admin/documents"><h2>Nyt dokument</h2><label>Titel<input name="title" required /></label><label>Beskrivelse<input name="description" /></label><label>Link til dokument<input name="file_url" type="url" required /></label><label>Kategori<input name="category" value="dokument" required /></label><button class="button button-dark" type="submit">Gem dokument</button></form>
+        <form class="admin-form" data-endpoint="/api/v1/community/admin/contacts"><h2>Kontaktperson</h2><label>Navn<input name="name" required /></label><label>Rolle<input name="role" required /></label><label>E-mail<input name="email" type="email" /></label><label>Telefon<input name="phone" /></label><button class="button button-dark" type="submit">Gem kontakt</button></form>
+      </div>
+      <section class="superadmin-panel" id="superadmin-panel" hidden><h2>Superadmin</h2><form class="admin-form" id="new-admin-form"><label>Admin e-mail<input name="email" type="email" required /></label><label>Navn<input name="display_name" required /></label><label>Midlertidig adgangskode<input name="password" type="password" minlength="8" required /></label><button class="button button-dark" type="submit">Opret admin</button></form></section>
+    </main>
+    <script type="module" src="/admin.js"></script>
+  </body>
+</html>

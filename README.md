@@ -24,12 +24,26 @@ docker compose up --build
 API kører på `http://localhost:8000/api/v1`  
 Frontend kører på `http://localhost:8000/`
 
+Første bruger, der registrerer sig, bliver `superadmin`. Derefter kan superadmin
+oprette admins fra `http://localhost:8000/admin.html`. Community-forsiden indeholder
+offentlig agenda, nyhedsboard, kommentarer, tilmeldinger, dokumentlinks og kontaktpersoner.
+Efter backendændringer skal stacken genbygges, så de nye routes kommer i den kørende container:
+
+```bash
+docker compose down
+docker compose up --build
+```
+
 Hvis API ikke svarer med det samme, følg containeren til health bliver `healthy`:
 
 ```bash
 docker compose ps
 docker compose logs -f api
 ```
+
+Ved API-opstart oprettes databaseskemaet automatisk. Dagens observationer synkroniseres
+med det samme og igen ved næste UTC-midnat. Resultatet kan ses i API-loggen som
+`Daily observation sync completed` eller `Daily observation sync failed`.
 
 ## Lokalt uden Docker
 
