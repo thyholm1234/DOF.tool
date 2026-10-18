@@ -23,6 +23,7 @@ const ROUTES = [
   [/^\/profil$/, () => import("./views/profile.js")],
   [/^\/admin$/, () => import("./views/admin.js")],
   [/^\/login$/, () => import("./views/login.js")],
+  [/^\/indtast(?:\/tur\/(\d+))?$/, () => import("./views/report.js")],
 ];
 
 let cleanup = null;
@@ -36,12 +37,16 @@ function renderNav() {
   $("#bottomnav").replaceChildren(...items.map(a => a.cloneNode(true)));
   const side = [...items];
   if (state.user) {
+    side.splice(1, 0, h("a", { href: "#/indtast", class: path.startsWith("#/indtast") ? "active" : "", html: `${icon("plus")}<span>Indtast</span>` }));
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: path.startsWith("#/profil") ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     if (["admin", "superadmin"].includes(state.user.role))
       side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
+  let fab = $("#fab");
+  if (!fab) { fab = h("a", { id: "fab", class: "fab", href: "#/indtast", html: `${icon("plus")}<span>Indtast</span>` }); document.body.append(fab); }
+  fab.classList.toggle("hide", !state.user || !["#/", "#", "#/kort"].includes(path));
 }
 
 function renderUser() {

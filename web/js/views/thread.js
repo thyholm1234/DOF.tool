@@ -1,6 +1,7 @@
 import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, errorBox, KAT } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
+import { reportCard, statusBadge } from "../reportui.js";
 
 export async function render(view, [date, artnr, loknr]) {
   view.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } }));
@@ -9,8 +10,16 @@ export async function render(view, [date, artnr, loknr]) {
   catch (err) { view.replaceChildren(errorBox(err), h("p", {}, h("a", { href: "#/" }, "← Tilbage til feedet"))); return; }
 
   const obs = t.observations;
-  const best = ["SU", "SUB", "bemaerk"].find(k => obs.some(o => o.kategori === k)) || "alm";
-  const maxAntal = Math.max(...Object.values(obs.reduce((acc, o) => { acc[o.turid] = (acc[o.turid] || 0) + o.antal; return acc; }, {})));
+  const reps = t.reports || [];
+  const best = ["SU", "SUB", "bemaerk"].find(k => obs.some(o => o.kategori === k) || reps.some(r => r.kategori === k)) || "alm";
+  const maxAntal = Math.max(0, ...Object.values(obs.reduce((acc, o) => { acc[o.turid] = (acc[o.turid] || 0) + o.antal; return acc; }, {})), ...reps.map(r => r.antal));
+  const liveRep = reps.find(r => r.live) || reps.find(r => r.status !== "ukendt");
+  const repList = h("div", { class: "stack" });
+  const drawReports = () => repList.replaceChildren(...reps.map(r => reportCard(r, {
+    onChange: (upd) => { Object.assign(r, upd); drawReports(); },
+    onEdit: r.own ? () => { location.hash = `#/indtast/tur/${r.trip_id}`; } : null,
+  })));
+  drawReports();
   const followBtn = h("button", { class: `btn ${t.following ? "primary" : ""}` });
   const drawFollow = () => { followBtn.innerHTML = `${icon("bell")} ${t.following ? "Følger tråden" : "Følg tråden"}`; followBtn.className = `btn ${t.following ? "primary" : ""}`; };
   drawFollow();
@@ -34,15 +43,18 @@ export async function render(view, [date, artnr, loknr]) {
     h("p", {}, h("a", { href: "#/" }, "← Feed")),
     h("div", { class: "page-head" },
       h("div", {},
-        h("div", { class: "row" }, tag(best, KAT[best]), h("span", { class: "muted" }, fmtDate(date))),
+        h("div", { class: "row" }, tag(best, KAT[best]), liveRep ? statusBadge(liveRep.status, liveRep.live, liveRep.status_at) : null, h("span", { class: "muted" }, fmtDate(date))),
         h("h1", { style: { marginTop: "6px" } }, `${fmtN(maxAntal)} ${t.art}`),
         h("p", { class: "lead" }, h("a", { href: `#/lok/${loknr}` }, t.lok), t.kommune ? ` · ${t.kommune} Kommune` : "",
           " · ", h("a", { href: `#/art/${artnr}` }, "om arten"), t.latin ? h("i", { class: "muted" }, ` (${t.latin})`) : null)),
       h("span", { class: "spacer" }),
       h("div", { class: "row" }, followBtn, h("button", { class: "btn", onclick: share }, "Del"))),
     h("div", { class: "grid-2" },
-      h("div", { class: "card" }, h("h3", {}, `${obs.length} observation${obs.length === 1 ? "" : "er"}`),
-        h("div", { class: "stack" }, ...obs.map(o => obsRow(o)))),
+      h("div", { class: "stack" },
+        reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
+          h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, "Indtastet direkte i portalen. Står du ved fuglen, så meld om den stadig er der."), repList) : null,
+        h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
+          obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
       h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
         h("div", { class: "card" }, h("h3", {}, "Kommentarer"), commentsEl))));
 
@@ -69,13 +81,21 @@ export async function render(view, [date, artnr, loknr]) {
   const map = baseMap(mapEl, { zoom: 11, center: t.lat ? [t.lat, t.lon] : [56, 10.5] });
   if (t.lat) L.circleMarker([t.lat, t.lon], { radius: 9, color: "#fff", weight: 2, fillColor: katColor(best), fillOpacity: 1 }).addTo(map).bindPopup(t.lok);
   for (const o of obs) if (o.obs_lat) L.circleMarker([o.obs_lat, o.obs_lon], { radius: 5, weight: 1, color: "#333", fillOpacity: .8 }).addTo(map).bindPopup(`${o.antal} · ${o.observer}`);
+  for (const r of reps) if (r.obs_lat) {
+    if (r.radius_m) L.circle([r.obs_lat, r.obs_lon], { radius: r.radius_m, weight: 1, color: katColor(r.kategori), fillOpacity: .12 }).addTo(map);
+    L.circleMarker([r.obs_lat, r.obs_lon], { radius: 6, weight: 2, color: "#fff", fillColor: katColor(r.kategori), fillOpacity: 1 }).addTo(map).bindPopup(`${r.antal} · ${r.observer} (portal)`);
+  }
 
   const off = live.on("comment", (c) => {
     if (c.thread !== `${date}/${artnr}/${loknr}` || t.comments.some(x => x.id === c.id)) return;
     t.comments.push({ ...c, user_id: null });
     drawComments();
   });
-  return () => { off(); map.remove(); };
+  const offFeed = live.on("feed", async (e) => {
+    if (!e.portal || !reps.length) return;
+    try { const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`); reps.splice(0, reps.length, ...(fresh.reports || [])); drawReports(); } catch { /* ignore */ }
+  });
+  return () => { off(); offFeed(); map.remove(); };
 }
 
 function obsRow(o) {

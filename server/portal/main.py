@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from portal.api import admin, alerts, auth, feed, geo, learn, lists, science
+from portal.api import admin, alerts, auth, feed, geo, learn, lists, reports, science
 from portal.bootstrap import init_db
 from portal.cache import kv
 from portal.config import get_settings
@@ -59,7 +59,7 @@ async def health():
     return {"ok": True}
 
 
-for module in (auth, feed, geo, alerts, lists, science, learn, admin):
+for module in (auth, feed, geo, alerts, lists, science, learn, reports, admin):
     app.include_router(module.router)
 
 media = Path(get_settings().media_dir)

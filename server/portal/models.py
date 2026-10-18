@@ -450,6 +450,80 @@ class QuizResult(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+# ---------------------------------------------------------------- egne indtastninger (feltmeldinger)
+
+
+class FieldTrip(Base):
+    """En tur i portalen: lokalitet + dato, som i DOFbasens indtastning."""
+
+    __tablename__ = "field_trips"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    obserkode: Mapped[str] = mapped_column(String(16))
+    dato: Mapped[date] = mapped_column(Date, index=True)
+    loknr: Mapped[int] = mapped_column(Integer, index=True)
+    turtidfra: Mapped[str | None] = mapped_column(String(5))
+    turtidtil: Mapped[str | None] = mapped_column(String(5))
+    medobser: Mapped[str | None] = mapped_column(String(300))
+    turnoter: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FieldReport(Base):
+    """Én observation indtastet i portalen. Felterne følger DOFbasen; status og sikkerhed er portalens egne."""
+
+    __tablename__ = "field_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(ForeignKey("field_trips.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    obserkode: Mapped[str] = mapped_column(String(16))
+    dato: Mapped[date] = mapped_column(Date, index=True)
+    loknr: Mapped[int] = mapped_column(Integer)
+    afdelinger: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), default=list)
+    artnr: Mapped[int] = mapped_column(Integer)
+    antal: Mapped[int] = mapped_column(Integer, default=1)
+    koen: Mapped[str | None] = mapped_column(String(4))
+    adfkode: Mapped[str | None] = mapped_column(String(16))
+    alderkode: Mapped[str | None] = mapped_column(String(8))
+    dragtkode: Mapped[str | None] = mapped_column(String(8))
+    metode: Mapped[str | None] = mapped_column(String(80))
+    obstidfra: Mapped[str | None] = mapped_column(String(5))
+    obstidtil: Mapped[str | None] = mapped_column(String(5))
+    obs_lat: Mapped[float | None] = mapped_column(Float)
+    obs_lon: Mapped[float | None] = mapped_column(Float)
+    radius_m: Mapped[int | None] = mapped_column(Integer)
+    fuglnoter: Mapped[str | None] = mapped_column(Text)
+    hemmelig: Mapped[bool] = mapped_column(Boolean, default=False)
+    skjul_position: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Sikkerhed: hvor sikker er bestemmelsen, og hvad bygger den på
+    sikkerhed: Mapped[str] = mapped_column(String(12), default="sikker")
+    grundlag: Mapped[list[str]] = mapped_column(ARRAY(String(12)), default=list)
+    # Under observation: til_stede / fløjet / ikke_genfundet / ukendt (seneste statusopdatering)
+    status: Mapped[str] = mapped_column(String(16), default="ukendt")
+    status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    media: Mapped[list] = mapped_column(JSONB, default=list)
+    kategori: Mapped[str] = mapped_column(String(8), default="alm")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (Index("ix_field_reports_thread", "dato", "artnr", "loknr"),)
+
+
+class FieldReportUpdate(Base):
+    """Statusmeldinger på en feltmelding – fra indtasteren eller andre, der står ved fuglen."""
+
+    __tablename__ = "field_report_updates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    report_id: Mapped[int] = mapped_column(ForeignKey("field_reports.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(16))
+    note: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # Ekstra DDL der ikke kan udtrykkes pænt i modellerne
 EXTRA_DDL = [
     "ALTER TABLE notifications ALTER COLUMN pushed SET DEFAULT false",

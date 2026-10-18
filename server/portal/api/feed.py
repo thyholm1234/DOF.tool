@@ -15,7 +15,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.jobs import media_for
 from portal.models import Area, ThreadComment, ThreadFollow, User
-from portal.services import feed
+from portal.services import feed, reports
 from portal.services.areas import Scope, parse_scope
 from portal.timeutil import dk_today
 
@@ -49,7 +49,8 @@ async def get_feed(
     sc = await resolve_scope(db, scope, user)
     if level == "all" and sc.kind == "dk":
         raise HTTPException(400, "'Alle' kræver et afgrænset område")
-    threads = await feed.threads(db, day, scope=sc, level=level, local_max=local_max)
+    threads = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max)]
+    threads = await reports.merge_feed(db, threads, day, sc, level, local_max, user)
     return {"date": day.isoformat(), "scope": sc.key, "level": level, "threads": threads}
 
 
@@ -66,8 +67,12 @@ async def summary(day: date | None = Query(None, alias="date"), db: AsyncSession
 async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(optional_user),
                  db: AsyncSession = Depends(get_session)):
     data = await feed.thread_detail(db, day, artnr, loknr)
-    if data is None:
+    portal = await reports.thread_reports(db, day, artnr, loknr, user)
+    if data is None and not portal:
         raise HTTPException(404, "Tråden findes ikke (længere)")
+    if data is None:
+        data = await feed.thread_meta(db, day, artnr, loknr)
+    data["reports"] = portal
     comments = (await db.execute(text("""
         SELECT c.id, c.body, c.created_at, u.navn, u.obserkode, c.user_id FROM thread_comments c JOIN users u ON u.id = c.user_id
         WHERE c.dato = :d AND c.artnr = :a AND c.loknr = :l AND NOT c.hidden ORDER BY c.created_at

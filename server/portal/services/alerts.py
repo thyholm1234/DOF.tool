@@ -43,24 +43,33 @@ class Event:
     observer: str
     adf: str | None
     tid: str | None
+    source: str = "dofbasen"  # dofbasen / portal (feltmelding indtastet i portalen)
+    sikkerhed: str = "sikker"
 
     @property
     def thread(self) -> tuple:
         return (self.dato, self.artnr, self.loknr)
 
 
-async def process(session: AsyncSession, new_obsids: list[int], changed: list[tuple[int, int, int]]) -> int:
+async def process(session: AsyncSession, new_obsids: list[int], changed: list[tuple[int, int, int]],
+                  extra: list[Event] | None = None) -> int:
+    """extra: feltmeldinger fra portalen (negative obsid'er), som behandles som nye observationer."""
     ids = list({*new_obsids, *(c[0] for c in changed)})
-    if not ids:
+    if not ids and not extra:
         return 0
     today = dk_today()
-    events = await _load_events(session, ids)
+    events = (await _load_events(session, ids) if ids else []) + list(extra or [])
     events = [e for e in events if e.dato == today and e.loknr is not None]
     if not events:
         return 0
+    new_ids = {*new_obsids, *(e.obsid for e in extra or [])}
 
     threads = {e.thread for e in events}
     thread_max, thread_observers = await _thread_state(session, threads)
+    for e in extra or []:
+        thread_max[e.thread] = max(thread_max.get(e.thread, 0), e.antal)
+        if e.obserkode:
+            thread_observers.setdefault(e.thread, set()).add(e.obserkode)
 
     # Tråde hvor max-antal er steget siden sidste notifikation
     r = kv()
@@ -105,7 +114,7 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
     # 2) Fulgte tråde – alle nye observationer
     follows = await _follows(session, threads)
     for e in events:
-        if e.obsid not in new_obsids:
+        if e.obsid not in new_ids:
             continue
         for user_id in follows.get(e.thread, ()):
             user = users.get(user_id)
@@ -115,8 +124,19 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
             if not any(k[0] == user_id and k[1].startswith(f"t:{e.dato}:{e.artnr}:{e.loknr}:") for k in outbox):
                 outbox[key] = _message(e, thread_max.get(e.thread, e.antal), None, followed=True)
 
+    sent = await deliver(session, users, outbox)
+    if outbox:
+        log.info("Notifikationer: %s kandidater, %s push", len(outbox), sent)
+    return sent
+
+
+async def deliver(session: AsyncSession, users: dict[int, dict] | None, outbox: dict[tuple[int, str], dict]) -> int:
+    """Gem notifikationer (dedupliceret pr. bruger), send dem live via SSE og som push."""
+    users = users if users is not None else await _users(session)
     sent = 0
     for (user_id, dedup), msg in outbox.items():
+        if user_id not in users:
+            continue
         inserted = (await session.execute(text("""
             INSERT INTO notifications (user_id, dedup_key, rule_id, title, body, url, kategori)
             VALUES (:u, :d, :r, :t, :b, :url, :k) ON CONFLICT (user_id, dedup_key) DO NOTHING RETURNING id
@@ -135,8 +155,6 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
                 await session.execute(text("UPDATE notifications SET pushed = true WHERE id = :id"), {"id": inserted})
                 sent += 1
         await session.commit()
-    if outbox:
-        log.info("Notifikationer: %s kandidater, %s push", len(outbox), sent)
     return sent
 
 
@@ -185,7 +203,8 @@ def _message(e: Event, max_antal: int, rule: dict | None, followed: bool = False
     if rule and rule["level"] == "local" and e.kategori in ("alm", "bemaerk"):
         kat = "Lokalt hit"
     title = f"{max_antal or e.antal} {e.art}, {e.lok or 'ukendt lokalitet'}"
-    bits = [b for b in (kat, e.adf, e.observer, e.tid) if b]
+    certainty = e.sikkerhed if e.sikkerhed != "sikker" else None
+    bits = [b for b in (kat, "Portal" if e.source == "portal" else None, certainty, e.adf, e.observer, e.tid) if b]
     return {
         "title": title[:240],
         "body": (" · ".join(bits) + (" (fulgt tråd)" if followed else ""))[:480],
@@ -291,3 +310,10 @@ async def _follows(session: AsyncSession, threads: set[tuple]) -> dict[tuple, li
         if (day, artnr, loknr) in threads:
             out[(day, artnr, loknr)].append(user_id)
     return out
+
+
+async def follower_ids(session: AsyncSession, thread: tuple) -> list[int]:
+    rows = (await session.execute(text("""
+        SELECT user_id FROM thread_follows WHERE dato = :d AND artnr = :a AND loknr = :l AND NOT muted
+    """), {"d": thread[0], "a": thread[1], "l": thread[2]})).all()
+    return [r[0] for r in rows]

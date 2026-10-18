@@ -1,3 +1,4 @@
+import { statusBadge, certaintyTag } from "../reportui.js";
 import { api, state, h, icon, fmtN, fmtDate, ago, tag, todayISO, params, setParams, loadRef, store, empty, errorBox, modal, toast, KAT } from "../core.js";
 import { live } from "../live.js";
 
@@ -148,7 +149,10 @@ export function threadCard(t, level, fresh = false) {
     h("div", {},
       h("div", { class: "title" }, h("span", { class: "count" }, fmtN(t.max_antal)), h("span", {}, t.art)),
       h("div", { class: "meta" }, h("span", { class: "lok", title: t.lok || "" }, t.lok || "Ukendt lokalitet"), t.kommune ? h("span", { class: "muted" }, `\u00a0· ${t.kommune}`) : null),
-      h("div", { class: "meta2" }, [last.adf, last.observer, last.tid].filter(Boolean).join(" · "))),
+      h("div", { class: "meta2" }, [last.adf, last.observer, last.tid].filter(Boolean).join(" · ")),
+      t.portal ? h("div", { class: "row", style: { gap: "5px", marginTop: "5px" } },
+        statusBadge(t.portal.status, t.portal.live, t.portal.status_at), t.source === "portal" ? h("span", { class: "tag portal" }, "Portal") : null,
+        certaintyTag(t.portal.sikkerhed)) : null),
     h("div", { class: "side" }, tag(kat, KAT[kat]), h("span", { title: "Først set i portalen " + ago(t.first_seen) }, Date.now() - new Date(t.last_seen) < 45 * 60000 ? ago(t.last_seen) : (last.tid || ago(t.last_seen))),
       t.n_observers > 1 ? h("span", { title: "observatører" }, `${t.n_observers} obs.`) : null));
 }

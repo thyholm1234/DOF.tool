@@ -99,15 +99,17 @@ async def thread_detail(session: AsyncSession, day: date, artnr: int, loknr: int
     """), {"d": day, "a": artnr, "l": loknr})).mappings().all()
     if not rows:
         return None
+    return {**await thread_meta(session, day, artnr, loknr),
+            "observations": [{**dict(r), "first_seen": r["first_seen"].isoformat()} for r in rows]}
+
+
+async def thread_meta(session: AsyncSession, day: date, artnr: int, loknr: int) -> dict:
     meta = (await session.execute(text("""
         SELECT s.navn AS art, s.latin, s.klass, l.navn AS lok, l.lat, l.lon, k.navn AS kommune
         FROM species s, locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         WHERE s.artnr = :a AND l.loknr = :l
     """), {"a": artnr, "l": loknr})).mappings().first() or {}
-    return {
-        "dato": day.isoformat(), "artnr": artnr, "loknr": loknr, **dict(meta),
-        "observations": [{**dict(r), "first_seen": r["first_seen"].isoformat()} for r in rows],
-    }
+    return {"dato": day.isoformat(), "artnr": artnr, "loknr": loknr, **dict(meta), "observations": []}
 
 
 async def day_summary(session: AsyncSession, day: date) -> dict:

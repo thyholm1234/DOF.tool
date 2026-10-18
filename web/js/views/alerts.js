@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, params, setParams, seg, loadRef, requireLogin, empty, errorBox, modal, toast, ago } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, params, setParams, seg, loadRef, requireLogin, empty, errorBox, modal, toast, ago, searchSpecies } from "../core.js";
 import { baseMap, drawTool, cssVar } from "../maps.js";
 
 const LEVELS = { SU: "Kun SU", SUB: "SU + SUB", bemaerk: "SU + SUB + Bemærk", local: "Lokale hits", all: "Alle observationer" };
@@ -109,21 +109,21 @@ async function editRule(rule, areasList, done) {
 
 export function speciesPicker(initial, label) {
   const selected = new Map();
-  const chips = h("div", { class: "row" });
-  const input = h("input", { type: "search", placeholder: "Søg art…", autocomplete: "off" });
-  const results = h("div", { class: "chips", style: { flexWrap: "wrap" } });
-  const draw = () => chips.replaceChildren(...[...selected].map(([id, navn]) => h("span", { class: "chip on" }, navn, h("span", { style: { cursor: "pointer", marginLeft: "4px" }, onclick: () => { selected.delete(id); draw(); } }, "×"))));
-  if (initial?.length) api(`/api/species?limit=1000`).then(all => { for (const s of all) if (initial.includes(s.artnr)) selected.set(s.artnr, s.navn); draw(); });
-  let t;
-  input.addEventListener("input", () => {
-    clearTimeout(t);
-    t = setTimeout(async () => {
-      if (input.value.length < 2) { results.replaceChildren(); return; }
-      const res = await api(`/api/species?q=${encodeURIComponent(input.value)}&limit=12`);
-      results.replaceChildren(...res.map(s => h("button", { type: "button", class: "chip", onclick: () => { selected.set(s.artnr, s.navn); input.value = ""; results.replaceChildren(); draw(); } }, s.navn)));
-    }, 200);
-  });
-  return { el: h("label", { class: "field" }, h("span", {}, label), input, results, chips), value: () => [...selected.keys()] };
+  let all = [];
+  const chosen = h("div", { class: "chips wrap" });
+  const input = h("input", { type: "search", placeholder: "Søg art…", autocomplete: "off", spellcheck: "false" });
+  const results = h("div", { class: "suggest" });
+  const draw = () => chosen.replaceChildren(...[...selected].map(([id, navn]) => h("span", { class: "chip on" }, navn,
+    h("button", { type: "button", class: "chip-x", "aria-label": `Fjern ${navn}`, html: icon("x"), onclick: () => { selected.delete(id); draw(); } }))));
+  const ready = api("/api/reports/species").then(list => { all = list; for (const s of list) if (initial?.includes(s.artnr)) selected.set(s.artnr, s.navn); draw(); });
+  const show = () => {
+    const hits = searchSpecies(all, input.value).filter(s => !selected.has(s.artnr));
+    results.replaceChildren(...hits.map(s => h("button", { type: "button", onclick: () => { selected.set(s.artnr, s.navn); input.value = ""; results.replaceChildren(); draw(); input.focus(); } },
+      h("span", {}, s.navn), s.latin ? h("i", { class: "muted" }, s.latin) : null)));
+  };
+  input.addEventListener("input", () => ready.then(show));
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); results.querySelector("button")?.click(); } });
+  return { el: h("div", { class: "field" }, h("span", { class: "label" }, label), input, results, chosen), value: () => [...selected.keys()] };
 }
 
 // ---------------------------------------------------------------- områder

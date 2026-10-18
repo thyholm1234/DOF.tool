@@ -1,5 +1,5 @@
 // DOF.tool service worker: app-shell offline, netværk-først for API, push-notifikationer.
-const VERSION = "doftool-v2";
+const VERSION = "doftool-v4";
 const SHELL = [
   "/", "/index.html", "/css/app.css", "/js/app.js", "/js/core.js", "/js/live.js", "/js/maps.js", "/js/charts.js",
   "/js/views/feed.js", "/js/views/thread.js", "/js/views/map.js", "/js/views/lists.js", "/js/views/pheno.js",

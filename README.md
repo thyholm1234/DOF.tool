@@ -74,6 +74,16 @@ Opdateres live via server-sent events. Dagens største træklokaliteter. *Tæt p
 **Tråd.** Alle observationer med adfærd, dragt, tider, noter; kort; kommentarer i realtid; følg tråden
 for besked om hver ny observation; billeder/lyd fra DOFbasen hentes på forespørgsel (køes, caches 7 dage).
 
+**Indtast (feltmeldinger).** Ture (lokalitet + dato) med observationer i DOFbasens felter: art, antal,
+adfærd, køn, alder, dragt, metode, obs.-tider, position med radius, fuglenoter, hemmelig, foto/lyd.
+Kodelister bygges fra DOFbasen-data. Portalen tilføjer **status** (er fuglen under observation? – andre
+kan melde "stadig til stede", "fløjet" eller "ikke genfundet", og trådens følgere får besked) og
+**sikkerhed** (sikker/sandsynlig/mulig + grundlag: set, hørt, foto, lyd, i hånden, beskrevet; samt
+*hemmelig* = kun synlig for indtasteren og *skjul præcis position*). Meldingerne klassificeres som
+DOFbasen-data, vises i de samme tråde og kører gennem de samme alarmregler. De sendes **ikke** til
+dofbasen.dk; brug CSV-eksporten (DOFbasens kolonnenavne) eller indtast også i DOFbasen – meldingen
+markeres, når fundet dukker op dér.
+
 **Kategorier** (samme regler som DOF.not): SU/SUB fra artsklassifikationen → bemærk-vindue
 (sommer-/vinterforekomst) → afdelingens bemærk-tærskel. **Lokalt hit**: arten har færre end N
 observationer i området i hele databasen (beregnes hver nat pr. afdeling, kommune og eget område).

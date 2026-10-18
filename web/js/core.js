@@ -185,3 +185,25 @@ export function compass(deg) {
   const d = ["N", "NNØ", "NØ", "ØNØ", "Ø", "ØSØ", "SØ", "SSØ", "S", "SSV", "SV", "VSV", "V", "VNV", "NV", "NNV"];
   return d[Math.round(deg / 22.5) % 16];
 }
+
+// Artssøgning i browseren: ord i det danske navn matches fra ordstart (alle ord skal passe; fra 4 tegn også
+// inde i sammensatte navne),
+// latinske navne kun fra starten af slægts- eller artsnavnet. Danske navnetræf sorteres først.
+const fold = (s) => (s || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+export function searchSpecies(list, query, n = 8) {
+  const q = fold(query.trim());
+  if (q.length < 2) return [];
+  const words = q.split(/\s+/);
+  const scored = [];
+  for (const s of list) {
+    const parts = fold(s.navn).split(/[\s,()/-]+/).filter(Boolean);
+    const nameHit = words.every(w => parts.some(p => p.startsWith(w)));
+    // Sammensatte navne (Skovsneppe, Dobbeltbekkasin): fra 4 tegn må ordet også stå inde i navnet
+    const innerHit = !nameHit && words.every(w => w.length >= 4 && parts.some(p => p.includes(w)));
+    const latinHit = !nameHit && !innerHit && s.latin && fold(s.latin).split(/\s+/).some(p => p.startsWith(q));
+    if (!nameHit && !innerHit && !latinHit) continue;
+    const score = (fold(s.navn).startsWith(q) ? 0 : nameHit ? 1 : innerHit ? 2 : 3) + (s.art_type === "art" ? 0 : 1.5);
+    scored.push([score, s]);
+  }
+  return scored.sort((a, b) => a[0] - b[0] || a[1].navn.localeCompare(b[1].navn, "da")).slice(0, n).map(x => x[1]);
+}
