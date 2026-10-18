@@ -7,11 +7,14 @@ const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 const NAV = [
   ["#/", "now", "Nu"],
   ["#/kort", "map", "Kort"],
+  ["#/kalender", "calendar", "Kalender"],
+  ["#/ture", "flag", "Ture"],
   ["#/lister", "list", "Lister"],
   ["#/traek", "trend", "Træk"],
   ["#/laer", "learn", "Læring"],
   ["#/alarmer", "bell", "Alarmer"],
 ];
+const navItem = (href) => NAV.find(n => n[0] === href);
 
 const ROUTES = [
   [/^\/?$/, () => import("./views/feed.js")],
@@ -28,6 +31,8 @@ const ROUTES = [
   [/^\/login$/, () => import("./views/login.js")],
   [/^\/indtast(?:\/tur\/(\d+))?$/, () => import("./views/report.js")],
   [/^\/support$/, () => import("./views/support.js")],
+  [/^\/ture(?:\/(\d+))?$/, () => import("./views/events.js")],
+  [/^\/kalender(?:\/(\d+|mine))?$/, () => import("./views/calendar.js")],
 ];
 
 let cleanup = null;
@@ -40,11 +45,13 @@ function renderNav() {
     return h("a", { href, class: `${cls} ${active ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
   };
   const items = NAV.map(n => link(n));
-  // Mobil: logget ind får "Indtast" som fremhævet midterknap; Alarmer findes via klokken og brugermenuen
-  const bottom = state.user
-    ? [link(NAV[0]), link(NAV[1]), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(NAV[2]), link(NAV[3]), link(NAV[4])]
-    : items.map(a => a.cloneNode(true));
-  $("#bottomnav").replaceChildren(...bottom);
+  document.body.classList.toggle("anon", !state.user);
+  // Mobil: Nu · Kort · [Indtast] · Kalender · Mere (resten samlet i et ark)
+  const inMore = ["#/ture", "#/lister", "#/traek", "#/laer", "#/alarmer", "#/profil", "#/support", "#/admin"].some(p => path.startsWith(p));
+  const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
+  $("#bottomnav").replaceChildren(...(state.user
+    ? [link(navItem("#/")), link(navItem("#/kort")), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
+    : []));
   const side = [...items];
   if (state.user) {
     side.unshift(link(["#/indtast?ny=1", "plus", "Indtast"], "cta"));
@@ -55,6 +62,22 @@ function renderNav() {
       side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
+}
+
+function openMore() {
+  document.querySelector(".more-sheet")?.remove();
+  const close = () => sheet.remove();
+  const tile = (href, ic, label, badge) => h("a", { href, class: "more-tile", onclick: close, html: `${icon(ic)}<span>${label}${badge ? ` <span class="badge-inline">${badge}</span>` : ""}</span>` });
+  const u = state.user;
+  const sheet = h("div", { class: "more-sheet", onclick: (e) => { if (e.target === sheet) close(); } },
+    h("div", { class: "more-panel" },
+      h("div", { class: "more-grid" },
+        tile("#/ture", "flag", "DOF-ture"), tile("#/lister", "list", "Lister"), tile("#/traek", "trend", "Træk"), tile("#/laer", "learn", "Læring"),
+        tile("#/indtast", "edit", "Mine indtastninger"), tile("#/kalender/mine", "calendar", "Mine planer"), tile("#/alarmer", "bell", "Alarmer"),
+        tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
+        u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread) : null),
+      h("button", { class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
+  document.body.append(sheet);
 }
 
 function renderUser() {
@@ -100,7 +123,7 @@ function openMenu() {
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     ["admin", "superadmin"].includes(u.role) ? h("a", { href: "#/admin", onclick: close, html: `${icon("shield")} Administration` }) : null,
-    h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; renderUser(); renderNav(); live.restart(); location.hash = "#/"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
+    h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; renderUser(); renderNav(); live.stop(); location.hash = "#/login"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
   document.body.append(menu);
   setTimeout(() => document.addEventListener("click", outside, true));
@@ -121,8 +144,14 @@ async function openNotifications() {
 
 async function route() {
   const [path] = (location.hash.slice(1) || "/").split("?");
+  document.querySelector(".more-sheet")?.remove();
+  // Hele portalen kræver login – uden login vises kun forsiden med login
+  if (!state.user && path !== "/login") {
+    location.replace("#/login" + (path && path !== "/" ? `?next=${encodeURIComponent("#" + location.hash.slice(1))}` : ""));
+    return;
+  }
   renderNav();
-  trackView(path);
+  if (state.user) trackView(path);
   document.querySelector(".menu")?.remove();
   for (const [re, loader] of ROUTES) {
     const m = path.match(re);
@@ -149,7 +178,7 @@ async function boot() {
   $("#bell").addEventListener("click", openNotifications);
   window.addEventListener("hashchange", route);
   await refreshUser();
-  live.start();
+  if (state.user) live.start();
   live.on("notification", (d) => { state.unread += 1; renderUser(); toast(`🔔 ${d.title}`); });
   live.onStatus((on) => $("#live").classList.toggle("on", on));
   await route();

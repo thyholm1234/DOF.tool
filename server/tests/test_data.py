@@ -61,3 +61,47 @@ def test_parse_member_aggregates_local_day(tmp_path):
     merged = weather_archive.finalize(acc[(622056, "2026-01-15")])
     assert merged["temp_max"] == 10.0 and merged["temp"] == round(20.0 / 3, 2)
     assert weather_archive.cell_code("10km_617_57") == 617057
+
+
+def test_dof_events_parsing():
+    from pathlib import Path
+
+    from portal.services import dof_events
+    fx = Path(__file__).parent / "fixtures"
+    events = dof_events.parse_list((fx / "dof_list.html").read_text(encoding="utf-8"))
+    assert len(events) > 50 and all(e["lat"] and e["dato"] for e in events)
+    d = dof_events.parse_detail((fx / "dof_event.html").read_text(encoding="utf-8"))
+    assert d["arrangoer"] == "DOF København" and d["commune"] == "Egedal Kommune"
+    assert (d["tid_fra"], d["tid_til"]) == ("09:00", "11:00") and d["types"] == ["Fugletur", "Begyndertur"]
+    assert d["moedested"].startswith("P-pladsen") and "()" not in d["turleder"]
+    assert dof_events.match_afdeling("Ørneklubben, DOF FYN", [(574, "dof københavn"), (577, "dof fyn")]) == 577
+
+
+def test_ics_feed():
+    from datetime import date
+
+    from portal.services.calendars import ics
+    body = ics("Test, kalender", [
+        {"uid": "a@x", "start": date(2026, 10, 24), "tid_fra": "07:00", "tid_til": "11:30", "summary": "Hyllekrog; træk",
+         "location": "Hyllekrog", "lat": 54.58, "lon": 11.48, "description": "Med: Jens\nTag teleskop"},
+        {"uid": "b@x", "start": date(2026, 10, 25), "summary": "Heldag " + "ø" * 60}])
+    assert body.startswith("BEGIN:VCALENDAR\r\n") and body.endswith("END:VCALENDAR\r\n")
+    assert "DTSTART:20261024T050000Z" in body and "DTEND:20261024T093000Z" in body  # dansk sommertid → UTC
+    assert "SUMMARY:Hyllekrog\\; træk" in body and "X-WR-CALNAME:Test\\, kalender" in body
+    assert "DTSTART;VALUE=DATE:20261025" in body
+    assert all(len(line.encode()) <= 75 for line in body.split("\r\n"))
+
+
+def test_event_location_pick():
+    from portal.services.dof_events import pick_location
+    cands = [(1, "Saltrup", 277), (2, "Søborg Sø", 900), (3, "Søborg by", 3500)]
+    assert pick_location("Søborg Sø", cands) == (2, 900)  # navnematch slår nærmeste
+    assert pick_location("Fugletur i området", cands) == (1, 277)
+    assert pick_location("Fugletur", [(9, "Langt væk", 4000)]) is None
+
+
+def test_event_types_split():
+    from portal.services.dof_events import split_types
+    assert split_types("Foredrag/møder") == ["Foredrag/møder"]
+    assert split_types("Fugletur/Begyndertur/Børn og unge") == ["Fugletur", "Begyndertur", "Børn og unge"]
+    assert split_types("Fugletur/Noget nyt") == ["Fugletur", "Noget nyt"]

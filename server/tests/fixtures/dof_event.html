@@ -1,0 +1,78 @@
+<html><body><div class="eventvisning"><h1>Ganløse Ore</h1><div class=eventvisning-division>DOF K&oslash;benhavn, Egedal Kommune</div><div class="eventoversigt-dato">SøNDAG 18. OKTOBER 2026 </div><div class="eventshow-tid">&nbsp;KL. 09:00 - 11:00</div><div class="eventshow-triptype">&nbsp;Fugletur/Begyndertur</div><div style="float=none;"></div><p>Maglemosen ligger midt i den gamle skov Ganl&oslash;se Ore, lige vest for Farum. Maglemosen har v&aelig;ret dr&aelig;net i en lang &aring;rr&aelig;kke, men i 2018 p&aring;begyndte Naturstyrelsen genskabelsen af mosen til gavn for planter og dyr. Omr&aring;det er meget flot og fredfyldt uden forstyrrende larm fra n&aelig;rliggende veje. Vi g&aring;r en tur i skoven og rundt om Maglemosen, og ser og h&oslash;rer hvad der r&oslash;rer sig. Sortsp&aelig;tte, Ravn, Musv&aring;ge og Dueh&oslash;g yngler her og er mulige arter. Husk praktisk fodt&oslash;j, og lidt til pausen. Turens l&aelig;ngde er ca. 5 km.</p>
+<span class="event-show-title">TILMELDING</span>&nbsp;<span class="event-show-title-right"><p>Ingen</p>
+</span><br><br><span class="event-show-title">TURLEDER</span>&nbsp;Morten Rasmussen,  () og Henning Bach Christensen,  ()<br><br><span class="event-show-title">KONTAKT</span>&nbsp;., .<br><br><span class="event-show-title">MØDESTED</span>&nbsp;<span class="event-show-title-right"><p>P-pladsen i skoven p&aring; Farumvej 127 (Syd&oslash;st for vejen)</p>
+</span><br /><br /><span style="class="event-show-title">GPS&nbsp;</span>55.4829, 12.1723<br />
+
+
+<!--<div id="mapheader" class="google-map" ></div>-->
+
+
+
+<div id="mapid" style="height: 450px; width: 100%;"></div>
+
+
+<script type="text/javascript">
+
+$(document).ready(function() {
+
+	// Brug turens GPS direkte
+	var coords = [55.4829, 12.1723];
+
+	// Mere naturligt zoom-niveau
+	var zoomLevel = 15;
+
+	// initialize map
+	var datalayerTureOgAktiviteter = L.layerGroup();
+
+	var mapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	    maxZoom: 19,
+	    attribution: '&copy; OpenStreetMap contributors'
+	});
+
+	var map = L.map('mapid', {
+		center: coords,
+		zoom: zoomLevel,
+		layers: [mapLayer, datalayerTureOgAktiviteter]
+	});
+
+	var marker = L.marker([55.4829, 12.1723]).addTo(map);
+	var popup = marker.bindPopup('<b>Ganløse Ore</b><br />søndag 18. oktober 2026 &nbsp;kl. 09:00 - 11:00');
+
+});
+
+
+/*
+			function mapinitializeheader() {
+				var latlng = new google.maps.LatLng(55.4829, 12.1723);
+				var myOptions = {
+					zoom: 15,
+					center: latlng,
+					scrollwheel: false,
+					scaleControl: false,
+					disableDefaultUI: false,
+					mapTypeId: google.maps.MapTypeId.ROADMAP
+				};
+				var map = new google.maps.Map(document.getElementById("mapheader"),myOptions);
+					
+				var marker = new google.maps.Marker({
+					map: map, 					
+					position: map.getCenter()
+				});
+				
+				var contentString = "GPS: " + "55.4829, 12.1723";
+
+				var infowindow = new google.maps.InfoWindow({
+					content: contentString
+				});
+							
+				google.maps.event.addListener(marker, "click", function() {
+				  infowindow.open(map,marker);
+				});
+								
+					
+			}
+			mapinitializeheader();
+*/
+</script>
+			<a href="https://www.google.dk/maps/place/55.4829, 12.1723" target="_blank">SE STORT KORT</a><br><ul id="gallery-event" class="gallery"></ul><ul id="gallery-rapport" class="gallery"></ul><br><div class="event-bottom">&nbsp;</div>
+	</body></html>

@@ -118,6 +118,23 @@ og morgenen kl. 4–10 (vektormiddel af vindretning). Lokaliteter får deres kva
 og tråde viser "Vejret den dag". Samme planer som for DOFbasen; zip-filerne slettes efter parsing
 (volumen `weather`).
 
+**Login.** Hele portalen kræver login: uden session vises kun forsiden med login, og API'et svarer 401
+(undtagen login, `/api/me`, sundhedstjek og personlige ICS-feeds).
+
+**DOF-ture** (`#/ture`). Kommende ture og aktiviteter hentes fra dof.dk (oversigtens `DOFKommendeTure` + hver
+turs side, med pause mellem kaldene) flere gange i døgnet. Hver tur kodes med lokalafdeling (fra arrangøren),
+kommune (GPS i kommunepolygon) og lokalitet (DOFbasen-lokalitet med navnematch inden for 5 km, ellers nærmeste
+inden for 2 km). Filtre: mine afdelinger, afdeling, kommune, type; sortering efter dato eller afstand; kort;
+ICS-download pr. tur.
+
+**Kalendere for lokaliteter** (`#/kalender`) – planlægning af indsats på trækposter. Én fælles kalender pr.
+lokalitet; hver bruger kan oprette højst 5, alle kan se og bruge dem. Oversigten sorteres efter næste aktivitet,
+afstand eller navn. Månedsvisning: tryk på en dag, se hvem der kommer, og meld dig til med forventet tidsrum,
+offentligt eller privat, medobservatører, note og evt. telefonnummer fra profilen. Andre med offentlige planer
+samme dag får besked. Kalenderen viser trækvejr (DMI HARMONIE for punktet, morgen kl. 5–12), DOF-ture på stedet og
+"typisk på denne tid" (arter set ±10 dage omkring datoen de seneste 15 år). *Mine planer* viser egne besøg uge for
+uge. Abonnement i Google/Outlook/Apple via personlig ICS-adresse (egne planer eller en kalender).
+
 **Kategorier** (samme regler som DOF.not): SU/SUB fra artsklassifikationen → bemærk-vindue
 (sommer-/vinterforekomst) → afdelingens bemærk-tærskel. **Lokalt hit**: arten har færre end N
 observationer i området i hele databasen (beregnes hver nat pr. afdeling, kommune og eget område).

@@ -16,7 +16,7 @@ from portal.bootstrap import init_db
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, phenology, weather_archive
+from portal.services import areas, datasync, dmi, dof_events, phenology, weather_archive
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -62,6 +62,10 @@ async def scheduler() -> None:
     if not has_metrics:
         await kv().rpush(COMMANDS, json.dumps({"cmd": "compute"}))
     async with SessionLocal() as s:
+        has_events = (await s.execute(text("SELECT count(*) FROM dof_events"))).scalar()
+    if not has_events:
+        await run_safely("DOF-ture", dof_events.sync())
+    async with SessionLocal() as s:
         await datasync.apply_live_interval((await datasync.get_plan(s, "dof"))["tiers"]["today"])
     while True:
         now = dk_now()
@@ -77,6 +81,8 @@ async def scheduler() -> None:
                 await jobs.enqueue_reference_refresh()
             if now.weekday() == 0 and now.hour == 5 and await _once("climate", day):
                 await run_safely("klima", refresh_climate())
+            if now.hour % 6 == 1 and now.minute >= 20 and await _once("dof_events", hour):
+                await run_safely("DOF-ture", dof_events.sync())
             if now.hour % 6 == 0 and await _once("gap", hour):
                 await jobs.enqueue_gap_fill()
         except Exception:  # noqa: BLE001
@@ -143,6 +149,8 @@ async def command_listener() -> None:
                     scope = areas.parse_scope(cmd["scope"])
                     await areas.refresh_area_counts(s, scope)
                     await s.commit()
+            elif name == "events":
+                await run_safely("DOF-ture", dof_events.sync())
             elif name == "run_plan":
                 await run_safely("plan", run_plans({cmd["source"]: [cmd["tier"]]}))
             elif name == "weather_months":

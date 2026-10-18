@@ -12,7 +12,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from portal.api import admin, alerts, auth, feed, geo, learn, lists, reports, science, social
+from portal.api import admin, alerts, auth, calendar, feed, geo, learn, lists, reports, science, social
+from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
 from portal.config import get_settings
@@ -33,14 +34,23 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=get_settings().app_name, lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 
+PUBLIC_API = ("/api/auth/", "/api/health", "/api/me", "/api/settings/public", "/api/ics/", "/api/docs", "/api/openapi.json")
+
+
 @app.middleware("http")
 async def guard(request: Request, call_next):
     # CSRF-værn: ændrende API-kald skal komme fra vores egen fetch-klient (custom header kræver CORS-preflight)
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH", "DELETE"):
         if request.headers.get("x-requested-with") != "fetch":
             return JSONResponse({"detail": "Mangler X-Requested-With"}, status_code=403)
-    response = await call_next(request)
+    # Portalen er kun for indloggede brugere: alt under /api kræver en gyldig session, undtagen login,
+    # sundhedstjek, /api/me (svarer user=null) og ICS-feeds (personligt token i adressen).
     path = request.url.path
+    if path.startswith("/api/") and not path.startswith(PUBLIC_API):
+        token = request.cookies.get(COOKIE)
+        if not token or not await kv().exists(f"sess:{token}"):
+            return JSONResponse({"detail": "Log ind for at bruge portalen"}, status_code=401)
+    response = await call_next(request)
     if not path.startswith(("/api/", "/media/", "/vendor/", "/icons/", "/v/")):
         # App-filer (html/js/css/sw): browseren skal altid tjekke for ny version (billigt via etag)
         response.headers["Cache-Control"] = "no-cache"
@@ -62,7 +72,7 @@ async def health():
     return {"ok": True}
 
 
-for module in (auth, feed, geo, alerts, lists, science, learn, reports, social, admin):
+for module in (auth, feed, geo, alerts, lists, science, learn, reports, social, calendar, admin):
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer

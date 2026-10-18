@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -71,7 +72,7 @@ async def me(user: User | None = Depends(optional_user)):
 
 
 ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "push_enabled", "quiet_hours", "theme", "home",
-                 "feed_level", "feed_scope", "local_max"}
+                 "feed_level", "feed_scope", "local_max", "phone"}
 
 
 @router.patch("/me")
@@ -86,6 +87,10 @@ async def update_me(prefs: dict[str, Any], user: User = Depends(require_user), d
             continue
         if k in ("afdelinger", "kommuner"):
             v = [str(x) for x in (v or [])][:5]
+        if k == "phone":
+            v = re.sub(r"[^0-9+ ]", "", str(v or "")).strip()[:20]
+            if v and len(re.sub(r"\D", "", v)) < 8:
+                raise HTTPException(400, "Telefonnummeret skal have mindst 8 cifre")
         new[k] = v
     if len(json.dumps(new)) > 8000:
         raise HTTPException(400, "For store indstillinger")

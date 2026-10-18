@@ -20,6 +20,7 @@ function connect() {
 export const live = {
   start: connect,
   restart: connect,
+  stop() { es?.close(); es = null; statusHandlers.forEach(f => f(false)); },
   on(type, fn) {
     if (!handlers.has(type)) handlers.set(type, new Set());
     handlers.get(type).add(fn);

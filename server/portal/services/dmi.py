@@ -120,45 +120,64 @@ def migration_score(month: int, speed: float, direction: float, rain: float, spo
             "reason": ", ".join(reason)}
 
 
+async def _point_hours(client: httpx.AsyncClient, spot: dict) -> list[dict] | None:
+    """HARMONIE-prognose (timer) for et punkt med trækvurdering pr. time."""
+    base = f"{get_settings().dmi_base}/v1/forecastedr/collections/harmonie_dini_sf/position"
+    data = await _get(client, base, {
+        "coords": f"POINT({spot['lon']} {spot['lat']})",
+        "parameter-name": "wind-10m-u,wind-10m-v,temperature-2m,total-precipitation,fraction-of-cloud-cover",
+        "crs": "crs84", "f": "CoverageJSON",
+    })
+    if not data:
+        return None
+    times = data["domain"]["axes"]["t"]["values"]
+    rng = {k: v["values"] for k, v in data["ranges"].items()}
+    clouds = rng.get("fraction-of-cloud-cover") or [None] * len(times)
+    hours = []
+    prev_precip = None
+    for i, t in enumerate(times):
+        u, v = rng["wind-10m-u"][i], rng["wind-10m-v"][i]
+        if u is None or v is None:
+            continue
+        speed, direction = _wind(u, v)
+        acc = rng.get("total-precipitation", [None] * len(times))[i] or 0.0
+        rain = max(0.0, acc - prev_precip) if prev_precip is not None else 0.0
+        prev_precip = acc
+        ts = datetime.fromisoformat(t.replace("Z", "+00:00"))
+        hours.append({"t": t, "speed": round(speed, 1), "dir": round(direction),
+                      "temp": round(rng["temperature-2m"][i] - 273.15, 1) if rng.get("temperature-2m") else None,
+                      "rain": round(rain, 1), "cloud": round(clouds[i] * 100) if clouds[i] is not None else None,
+                      **migration_score(ts.month, speed, direction, rain, spot)})
+    return hours
+
+
 async def forecast() -> list[dict]:
     hit = await get_json("dmi:forecast")
     if hit is not None:
         return hit
-    base = f"{get_settings().dmi_base}/v1/forecastedr/collections/harmonie_dini_sf/position"
     out = []
     async with httpx.AsyncClient(timeout=60, headers=UA) as client:
         for spot in HOTSPOTS:
-            data = await _get(client, base, {
-                "coords": f"POINT({spot['lon']} {spot['lat']})",
-                "parameter-name": "wind-10m-u,wind-10m-v,temperature-2m,total-precipitation,fraction-of-cloud-cover",
-                "crs": "crs84", "f": "CoverageJSON",
-            })
-            if not data:
+            hours = await _point_hours(client, spot)
+            if hours is None:
                 continue
-            times = data["domain"]["axes"]["t"]["values"]
-            rng = {k: v["values"] for k, v in data["ranges"].items()}
-            hours = []
-            prev_precip = None
-            for i, t in enumerate(times):
-                u, v = rng["wind-10m-u"][i], rng["wind-10m-v"][i]
-                if u is None or v is None:
-                    continue
-                speed, direction = _wind(u, v)
-                acc = rng.get("total-precipitation", [None] * len(times))[i] or 0.0
-                rain = max(0.0, acc - prev_precip) if prev_precip is not None else 0.0
-                prev_precip = acc
-                ts = datetime.fromisoformat(t.replace("Z", "+00:00"))
-                hours.append({"t": t, "speed": round(speed, 1), "dir": round(direction),
-                              "temp": round(rng["temperature-2m"][i] - 273.15, 1) if rng.get("temperature-2m") else None,
-                              "rain": round(rain, 1),
-                              "cloud": round((rng.get("fraction-of-cloud-cover") or [None] * len(times))[i] * 100)
-                              if (rng.get("fraction-of-cloud-cover") or [None] * len(times))[i] is not None else None,
-                              **migration_score(ts.month, speed, direction, rain, spot)})
             out.append({**{k: v for k, v in spot.items() if k != "onshore"}, "hours": hours})
             await asyncio.sleep(0.5)
     if out:
         await set_json("dmi:forecast", out, 3600)
     return out
+
+
+async def point_forecast(key: str, lat: float, lon: float) -> list[dict]:
+    """Prognose for et vilkårligt punkt (fx en kalenders lokalitet), cachet 1 time."""
+    hit = await get_json(f"dmi:fc:{key}")
+    if hit is not None:
+        return hit
+    async with httpx.AsyncClient(timeout=60, headers=UA) as client:
+        hours = await _point_hours(client, {"lat": lat, "lon": lon, "sea": False})
+    if hours:
+        await set_json(f"dmi:fc:{key}", hours, 3600)
+    return hours or []
 
 
 async def climate_months(since_year: int = 2000) -> list[tuple[int, int, float]]:
