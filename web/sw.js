@@ -1,12 +1,7 @@
 // DOF.tool service worker: app-shell offline, netværk-først for API, push-notifikationer.
-const VERSION = "doftool-v8";
-const SHELL = [
-  "/", "/index.html", "/css/app.css", "/js/app.js", "/js/core.js", "/js/live.js", "/js/maps.js", "/js/charts.js",
-  "/js/views/feed.js", "/js/views/thread.js", "/js/views/map.js", "/js/views/lists.js", "/js/views/pheno.js",
-  "/js/views/species.js", "/js/views/location.js", "/js/views/learn.js", "/js/views/alerts.js", "/js/views/profile.js",
-  "/js/views/admin.js", "/js/views/login.js", "/js/views/report.js", "/js/reportui.js", "/vendor/leaflet/leaflet.js", "/vendor/leaflet/leaflet.css",
-  "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png",
-];
+const VERSION = "doftool-v9";
+// App-filerne ligger under /v/<build>/ og caches løbende af fetch-handleren nedenfor
+const SHELL = ["/", "/vendor/leaflet/leaflet.js", "/vendor/leaflet/leaflet.css", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
@@ -43,7 +38,7 @@ self.addEventListener("fetch", (e) => {
       if (r.ok) c.put(e.request, r.clone());
       return r;
     } catch {
-      return (await c.match(e.request, { ignoreSearch: true })) || (await c.match("/index.html")) || Response.error();
+      return (await c.match(e.request, { ignoreSearch: true })) || (await c.match("/")) || Response.error();
     }
   }));
 });

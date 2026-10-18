@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
@@ -39,7 +41,7 @@ async def guard(request: Request, call_next):
             return JSONResponse({"detail": "Mangler X-Requested-With"}, status_code=403)
     response = await call_next(request)
     path = request.url.path
-    if not path.startswith(("/api/", "/media/", "/vendor/", "/icons/")):
+    if not path.startswith(("/api/", "/media/", "/vendor/", "/icons/", "/v/")):
         # App-filer (html/js/css/sw): browseren skal altid tjekke for ny version (billigt via etag)
         response.headers["Cache-Control"] = "no-cache"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -62,6 +64,40 @@ async def health():
 
 for module in (auth, feed, geo, alerts, lists, science, learn, reports, admin):
     app.include_router(module.router)
+
+# ---------------------------------------------------------------- versionerede app-filer
+# index.html peger på /v/<build>/js/app.js osv. Build-id er en hash af app-filerne, så en ny deploy giver
+# nye adresser – CDN'er (fx Cloudflare) og browsere kan cache filerne for evigt uden at levere gammel kode.
+
+_build = {"at": 0.0, "id": ""}
+
+
+def build_id() -> str:
+    now = time.monotonic()
+    if not _build["id"] or now - _build["at"] > 5:
+        h = hashlib.sha1()
+        for f in sorted(p for d in ("js", "css") for p in (WEB_DIR / d).rglob("*") if p.is_file()):
+            st = f.stat()
+            h.update(f"{f.relative_to(WEB_DIR)}:{st.st_size}:{st.st_mtime_ns}".encode())
+        _build.update(at=now, id=h.hexdigest()[:10])
+    return _build["id"]
+
+
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/index.html", methods=["GET", "HEAD"], include_in_schema=False)
+async def index():
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8").replace("__BUILD__", build_id())
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+
+
+@app.api_route("/v/{build}/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+async def versioned(build: str, path: str):
+    root = WEB_DIR.resolve()
+    target = (root / path).resolve()
+    if root not in target.parents or not target.is_file():
+        raise HTTPException(404)
+    return FileResponse(target, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
 
 media = Path(get_settings().media_dir)
 media.mkdir(parents=True, exist_ok=True)

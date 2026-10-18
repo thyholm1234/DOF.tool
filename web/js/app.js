@@ -1,8 +1,8 @@
 import { api, state, h, $, icon, toast, ago } from "./core.js";
 import { live } from "./live.js";
 
-// Skal følge VERSION i sw.js – vises i brugermenuen, så man kan se om browseren kører nyeste kode
-const BUILD = "doftool-v8";
+// Build-id fra den versionerede sti (/v/<build>/js/app.js) – vises i brugermenuen
+const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 
 const NAV = [
   ["#/", "now", "Nu"],
@@ -96,7 +96,7 @@ function openMenu() {
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     ["admin", "superadmin"].includes(u.role) ? h("a", { href: "#/admin", onclick: close, html: `${icon("shield")} Administration` }) : null,
     h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; renderUser(); renderNav(); live.restart(); location.hash = "#/"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
-    h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD.replace("doftool-", "")}`));
+    h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
   document.body.append(menu);
   setTimeout(() => document.addEventListener("click", outside, true));
 }
