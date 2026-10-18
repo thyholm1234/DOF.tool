@@ -74,19 +74,23 @@ Opdateres live via server-sent events. Dagens største træklokaliteter. *Tæt p
 **Tråd.** Alle observationer med adfærd, dragt, tider, noter; kort; kommentarer i realtid; følg tråden
 for besked om hver ny observation; billeder/lyd fra DOFbasen hentes på forespørgsel (køes, caches 7 dage).
 
-**Indtast (feltmeldinger).** Ture (lokalitet + dato) med observationer i DOFbasens felter: art, antal,
-adfærd, køn, alder, dragt, metode, obs.-tider, position med radius, fuglenoter, hemmelig, foto/lyd.
+**Indtast (feltmeldinger).** Modulet *Mine indtastninger* viser egne fugle som én liste med sortering
+(dato/tid, art, systematik, antal, lokalitet, kategori) og filtre. *Ny observation*: vælg en DOFbasen-lokalitet
+og dato; derefter art (dropdown med dine seneste arter), antal, tidspunkt og adfærd (påkrævet), noter, fuglens
+position på kortet, køn/alder/dragt/metode og foto/lyd. Afkrydsning af DOF's retningslinjer *Når du ser en
+sjælden fugl* er påkrævet for SU/SUB-arter.
 Kodelister bygges fra DOFbasen-data. Portalen tilføjer **status** (er fuglen under observation? – andre
 kan melde "stadig til stede", "fløjet" eller "ikke genfundet", og trådens følgere får besked) og
 **sikkerhed** (sikker/sandsynlig/mulig + grundlag: set, hørt, foto, lyd, i hånden, beskrevet; samt
-*hemmelig* = kun synlig for indtasteren og *skjul præcis position*). Meldingerne klassificeres som
+). Meldingerne klassificeres som
 DOFbasen-data, vises i de samme tråde og kører gennem de samme alarmregler. De sendes **ikke** til
 dofbasen.dk; brug CSV-eksporten (DOFbasens kolonnenavne) eller indtast også i DOFbasen – meldingen
 markeres, når fundet dukker op dér.
 
-**Likes.** Man kan synes godt om en fugl (tråden: art + lokalitet + dag) og om kommentarer. Feedet viser
-antal, tråden viser "X, Y og N andre", og et klik viser alle, der har liket. Kommentarens forfatter får
-besked i indbakken.
+**Tommel op og kommentarer.** Man kan give tommel op til en fugl (tråden: art + lokalitet + dag) og til
+kommentarer. Feedet viser antal, tråden "X, Y og N andre", og et klik viser alle. Fuglens ejere (portalbrugere
+med observationer i tråden eller egne feltmeldinger) får notifikation om tommel op og nye kommentarer; trådens
+følgere får besked om kommentarer, og kommentarens forfatter om tommel op.
 
 **Billeder.** Store billeder skaleres i browseren før upload: længste side højst 2048 px, JPEG 60 %
 (indtastning og e-læring). GIF og lyd sendes uændret.

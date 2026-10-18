@@ -500,6 +500,7 @@ class FieldReport(Base):
     # Sikkerhed: hvor sikker er bestemmelsen, og hvad bygger den på
     sikkerhed: Mapped[str] = mapped_column(String(12), default="sikker")
     grundlag: Mapped[list[str]] = mapped_column(ARRAY(String(12)), default=list)
+    retningslinjer: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # Under observation: til_stede / fløjet / ikke_genfundet / ukendt (seneste statusopdatering)
     status: Mapped[str] = mapped_column(String(16), default="ukendt")
     status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -677,6 +678,7 @@ EXTRA_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_trips_bbtag ON trips (obserkode, dato) WHERE turnoter LIKE '%#%'",
     # 10 km-kvadrat (DKN, EPSG:25832) for hver lokalitet – nøgle til vejrarkivet
     "ALTER TABLE locations ADD COLUMN IF NOT EXISTS cell10 integer",
+    "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS retningslinjer boolean NOT NULL DEFAULT false",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"
     " + floor(ST_X(ST_Transform(geom, 25832)) / 10000)::int) WHERE cell10 IS NULL AND geom IS NOT NULL",
 ]

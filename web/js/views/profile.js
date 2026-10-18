@@ -58,7 +58,7 @@ export async function render(view) {
         h("h3", { class: "mt" }, "Udseende"), theme)),
     h("div", { class: "row mt" }, h("button", { class: "btn primary", onclick: save }, "Gem indstillinger")),
     h("section", { id: "matrikler", class: "mt2" },
-      h("div", { class: "row between" }, h("h2", { style: { margin: 0 } }, "Matrikler (boligbirding)"),
+      h("div", { class: "row between" }, h("h2", { style: { margin: 0 } }, "Boligbirding"),
         h("a", { class: "btn sm ghost", href: "#/lister?tab=mine&m=1" }, "Se matrikellisten →")),
       matrikelBody),
     h("div", { class: "card mt2" }, h("h3", {}, "Data"),

@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, tag, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, tag, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store, sortBar } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 
 const YEAR = new Date().getFullYear();
@@ -28,7 +28,7 @@ async function mine(body) {
   const st = { scope: p.scope || "dk", year: p.year || String(YEAR), matrikel: p.m ? Number(p.m) : 0, sort: "dato" };
   const scopeSel = h("select", { style: { width: "auto" } });
   for (const sc of meta.scopes) scopeSel.append(h("option", { value: sc.scope }, sc.label));
-  for (const m of meta.matrikler) scopeSel.append(h("option", { value: `matrikel:${m.nummer}` }, `Matrikel ${m.nummer} · ${m.navn} (${m.tag})`));
+  for (const m of meta.matrikler) scopeSel.append(h("option", { value: `matrikel:${m.nummer}` }, m.nummer === 1 ? `Boligbirding (${m.tag})` : `Matrikel ${m.nummer} · ${m.navn} (${m.tag})`));
   scopeSel.value = st.matrikel ? `matrikel:${st.matrikel}` : st.scope;
   const yearSel = h("select", { style: { width: "auto" } }, h("option", { value: "all" }, "Livsliste (alle år)"),
     ...[...new Set([YEAR, ...meta.years])].sort((a, b) => b - a).map(y => h("option", { value: y }, y)));
@@ -98,10 +98,16 @@ export function drawList(out, data, year) {
   const items = data.items;
   const isYear = year && year !== "all";
   const pts = items.map((it, i) => [isYear ? dayOfYear(it.dato) : new Date(it.dato).getFullYear(), i + 1]);
-  let sort = "dato";
+  const sort = store("listsort") || { key: "dato", dir: 1 };
   const tbody = h("tbody");
+  const cmp = {
+    dato: (a, b) => a.dato.localeCompare(b.dato) || a.obsid - b.obsid,
+    navn: (a, b) => a.art.localeCompare(b.art, "da"),
+    sys: (a, b) => (a.sortering || 0) - (b.sortering || 0),
+    lok: (a, b) => (a.lok || "").localeCompare(b.lok || "", "da"),
+  };
   const drawRows = () => {
-    const sorted = [...items].sort(sort === "navn" ? (a, b) => a.art.localeCompare(b.art, "da") : sort === "sys" ? (a, b) => (a.sortering || 0) - (b.sortering || 0) : (a, b) => a.dato.localeCompare(b.dato));
+    const sorted = [...items].sort((a, b) => sort.dir * (cmp[sort.key] || cmp.dato)(a, b));
     tbody.replaceChildren(...sorted.map((it) => h("tr", {},
       h("td", { class: "num muted" }, items.indexOf(it) + 1),
       h("td", {}, h("a", { href: `#/art/${it.artnr}` }, it.art), it.klass !== "Alm" ? [" ", tag(it.klass)] : null),
@@ -109,25 +115,28 @@ export function drawList(out, data, year) {
       h("td", {}, it.loknr ? h("a", { href: `#/lok/${it.loknr}` }, it.lok) : "–"))));
   };
   drawRows();
-  const th = (label, key) => h("th", { style: { cursor: "pointer" }, onclick: () => { sort = key; drawRows(); } }, label);
+  const th = (label, key) => h("th", { style: { cursor: "pointer" }, onclick: () => { sort.dir = sort.key === key ? -sort.dir : 1; sort.key = key; store("listsort", sort); drawRows(); } }, label);
+  const bar = sortBar([["dato", "Dato"], ["navn", "Navn"], ["sys", "Systematik"], ["lok", "Lokalitet"]], sort, () => { store("listsort", sort); drawRows(); });
   out.replaceChildren(
     h("div", { class: "card" },
       h("div", { class: "row between" }, h("div", {}, h("div", { class: "muted" }, data.navn), h("div", { style: { fontSize: "2.4rem", fontWeight: 800, letterSpacing: "-0.03em" } }, fmtN(data.count), h("span", { class: "muted", style: { fontSize: "1rem", fontWeight: 600 } }, " arter"))),
         items.length ? h("div", { class: "right muted" }, "Seneste: ", h("b", {}, items[items.length - 1].art), h("br"), fmtDate(items[items.length - 1].dato)) : null),
       items.length > 1 ? lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], step: true, height: 200,
         xFormat: isYear ? monthName : String, xTicks: isYear ? monthTicks : undefined, yFormat: (v) => fmtN(Math.round(v)) }) : null),
-    items.length ? h("div", { class: "card table-wrap" }, h("table", { class: "data list-table" },
+    items.length ? h("div", { class: "card table-wrap" }, h("div", { class: "mb" }, bar), h("table", { class: "data list-table" },
       h("thead", {}, h("tr", {}, h("th", {}, "#"), th("Art", "navn"), th("Første dato", "dato"), h("th", {}, "Lokalitet"))), tbody))
       : empty("Ingen arter på denne liste endnu", "Data kommer fra DOFbasen – nye observationer tæller med inden for få minutter."));
 }
 
 // ---------------------------------------------------------------- matrikler: navne, perioder og flytning
 
+const mName = (m) => m.nummer === 1 ? "Boligbirding" : `Matrikel ${m.nummer}`;
+
 export async function matrikler(body) {
   if (requireLogin(body)) return;
   const out = h("div", { class: "stack" }, h("div", { class: "skeleton", style: { height: "200px" } }));
   body.append(h("div", { class: "row between mb" },
-    h("p", { class: "muted", style: { margin: 0, maxWidth: "62ch" } }, "Matrikel 1 tæller på scoreboards; matrikel 2 og op er kun dine. Har en matrikel ligget flere steder, deler perioder listen op – ved flytning starter en ny periode, og fremgangen nulstilles fra flyttedatoen."),
+    h("p", { class: "muted", style: { margin: 0, maxWidth: "62ch" } }, "Boligbirding (matrikel 1) tæller på scoreboards; matrikel 2 og op er kun dine. Har en matrikel ligget flere steder, deler perioder listen op – ved flytning starter en ny periode, og fremgangen nulstilles fra flyttedatoen."),
     h("button", { class: "btn primary", onclick: () => newMatrikel(), html: `${icon("plus")} Ny matrikel` })), out);
   let data;
   const reload = (d) => { data = d; draw(); };
@@ -140,7 +149,7 @@ export async function matrikler(body) {
     const name = h("input", { value: m.navn, maxlength: 120, "aria-label": "Navn" });
     return h("div", { class: "card stack" },
       h("div", { class: "row between" },
-        h("div", { class: "row", style: { gap: "8px" } }, h("h2", { style: { margin: 0 } }, `Matrikel ${m.nummer}`),
+        h("div", { class: "row", style: { gap: "8px" } }, h("h2", { style: { margin: 0 } }, mName(m)),
           h("span", { class: "tag plain" }, m.tag), m.scoreboard ? h("span", { class: "tag portal" }, "Scoreboard") : h("span", { class: "tag plain", html: `${icon("lock")} Privat` }))),
       h("p", { class: "muted", style: { margin: 0 } }, m.n_trips
         ? `${fmtN(m.n_trips)} ture med tagget · ${fmtDate(m.first)} – ${fmtDate(m.last)}`
@@ -161,7 +170,7 @@ export async function matrikler(body) {
         h("button", { class: "btn primary", onclick: () => moveModal(m), html: `${icon("pin")} Flyt matrikel…` }),
         h("button", { class: "btn", onclick: () => periodModal(m, null), html: `${icon("plus")} Tilføj periode` }),
         m.defined ? h("button", { class: "btn ghost danger", style: { marginLeft: "auto" }, onclick: async () => {
-          if (confirm(`Nulstil navn og perioder for matrikel ${m.nummer}? Dine tags i DOFbasen røres ikke.`)) await call(`/api/lists/matrikler/${m.nummer}`, "DELETE");
+          if (confirm(`Nulstil navn og perioder for ${mName(m)}? Dine tags i DOFbasen røres ikke.`)) await call(`/api/lists/matrikler/${m.nummer}`, "DELETE");
         } }, "Nulstil") : null));
   }));
 
@@ -172,7 +181,7 @@ export async function matrikler(body) {
     const open = h("input", { type: "checkbox", checked: p ? !p.slut : true });
     const syncOpen = () => { slut.disabled = open.checked; if (open.checked) slut.value = ""; };
     open.onchange = syncOpen; syncOpen();
-    const dlg = modal(p ? "Redigér periode" : `Ny periode – matrikel ${m.nummer}`, h("form", { class: "stack", onsubmit: async (e) => {
+    const dlg = modal(p ? "Redigér periode" : `Ny periode – ${mName(m)}`, h("form", { class: "stack", onsubmit: async (e) => {
       e.preventDefault();
       const payload = { navn: navn.value, start: start.value, slut: open.checked ? null : slut.value || null };
       const ok = p ? await call(`/api/lists/perioder/${p.id}`, "PATCH", { ...payload, aaben: open.checked })
@@ -198,11 +207,11 @@ export async function matrikler(body) {
         h("div", {}, h("b", {}, gammel.value || "Tidligere adresse"), ` slutter ${fmtDate(dayBefore(dato.value))}`,
           current ? "" : m.first ? ` (startet ved første fund ${fmtDate(m.first)})` : ""),
         h("div", {}, h("b", {}, ny.value || "Ny adresse"), ` starter ${fmtDate(dato.value)}`),
-        h("div", { class: "muted mt", style: { fontSize: ".85rem" } }, `Matrikel ${m.nummer}-listen tæller fra flyttedatoen${m.scoreboard ? ", også på scoreboardet" : ""}. Fund fra den gamle adresse kan ses under 'Alle perioder'. Brug fortsat ${m.tag} i turnoten.`));
+        h("div", { class: "muted mt", style: { fontSize: ".85rem" } }, `${mName(m)}-listen tæller fra flyttedatoen${m.scoreboard ? ", også på scoreboardet" : ""}. Fund fra den gamle adresse kan ses under 'Alle perioder'. Brug fortsat ${m.tag} i turnoten.`));
     };
     for (const el of [dato, ny, gammel]) el.oninput = update;
     update();
-    const dlg = modal(`Flyt matrikel ${m.nummer}`, h("form", { class: "stack", onsubmit: async (e) => {
+    const dlg = modal(`Flyt ${mName(m).toLowerCase()}`, h("form", { class: "stack", onsubmit: async (e) => {
       e.preventDefault();
       if (await call(`/api/lists/matrikler/${m.nummer}/flyt`, "POST", { dato: dato.value, ny_navn: ny.value, gammel_navn: gammel.value || null })) { dlg.close(); toast("Flytningen er registreret"); }
     } },
@@ -240,7 +249,7 @@ async function scoreboard(body) {
   const p = params();
   const st = { scope: p.scope || "dk", year: p.year || String(YEAR), m: Number(p.m || 0), group: p.group || "" };
   const scopeSel = h("select", { style: { width: "auto" } },
-    h("option", { value: "dk" }, "Danmark"), h("option", { value: "m1" }, "Matrikel 1 (boligbirding)"),
+    h("option", { value: "dk" }, "Danmark"), h("option", { value: "m1" }, "Boligbirding"),
     h("optgroup", { label: "Lokalafdelinger" }, ...state.afdelinger.map(a => h("option", { value: `afd:${a.id}` }, a.navn))),
     h("optgroup", { label: "Kommuner" }, ...state.kommuner.map(k => h("option", { value: `kom:${k.kode}` }, k.navn))));
   scopeSel.value = st.m ? `m${st.m}` : st.scope;

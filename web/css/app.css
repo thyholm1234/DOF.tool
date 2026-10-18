@@ -463,13 +463,13 @@ details.more > summary { cursor: pointer; font-weight: 650; color: var(--text-2)
 /* Likes */
 .like-btn { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2);
   height: 34px; padding: 0 12px; border-radius: 99px; font: inherit; font-weight: 650; font-size: .88rem; cursor: pointer; }
-.like-btn.on { color: var(--su); border-color: color-mix(in srgb, var(--su) 45%, transparent); background: var(--su-soft); }
+.like-btn.on { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, transparent); background: var(--brand-soft); }
 .like-btn svg { width: 18px; height: 18px; }
-.like-btn.on svg { fill: currentColor; }
+.like-btn.on svg { fill: color-mix(in srgb, currentColor 30%, transparent); }
 .like-btn.sm { height: 26px; padding: 0 8px; font-size: .78rem; }
 .like-btn.sm svg { width: 14px; height: 14px; }
 .like-who { background: none; border: 0; padding: 0; color: var(--text-2); font: inherit; font-size: .84rem; cursor: pointer; text-decoration: underline dotted; }
-.thread .likes { color: var(--su); font-weight: 700; }
+.thread .likes { color: var(--brand); font-weight: 700; }
 
 /* Datapanel: måned-gitter */
 table.month-grid { border-collapse: separate; border-spacing: 3px; font-size: .74rem; }
@@ -495,3 +495,28 @@ i.mg-key { display: inline-block; min-width: 14px; width: 14px; height: 14px; bo
 .support-msg { padding: 10px 12px; border-radius: 12px; background: var(--bg-2); max-width: 92%; }
 .support-msg.admin { background: var(--brand-soft); justify-self: end; }
 .loc-item.active { border-color: var(--brand); }
+.sort-bar { flex: 1 1 260px; min-width: 0; max-width: 100%; flex-wrap: wrap; }
+.sort-bar .seg { min-width: 0; max-width: 100%; }
+.sort-bar .seg button { padding: 5px 10px; }
+
+/* Indtastning: påkrævede felter, art-dropdown, liste over egne fugle */
+.req { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 99px; background: var(--su-soft); color: var(--su); font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; vertical-align: 1px; }
+.report-form select.required:invalid, .report-form select.required[value=""] { border-color: color-mix(in srgb, var(--su) 40%, var(--line-strong)); }
+.report-form .invalid { border-color: var(--su) !important; box-shadow: 0 0 0 3px var(--su-soft); }
+.report-form label.check.guide { align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.report-form label.check.guide input { margin-top: 3px; }
+.report-form label.check.guide.invalid { border-color: var(--su); }
+.dd-wrap { position: relative; }
+.suggest.dropdown { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: 12px; box-shadow: var(--shadow-lg); padding: 4px; max-height: 320px; overflow: auto; }
+.suggest.dropdown button { border: 0; }
+.suggest.dropdown button:hover, .suggest.dropdown button:focus { background: var(--bg-2); }
+.suggest.dropdown .dd-head { display: block; padding: 6px 10px 2px; }
+.myobs { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--line); border-left: 4px solid var(--line-strong); background: var(--surface); color: var(--text); text-decoration: none; }
+.myobs:hover { text-decoration: none; box-shadow: var(--shadow); }
+.myobs.SU { border-left-color: var(--su); } .myobs.SUB { border-left-color: var(--sub); } .myobs.bemaerk { border-left-color: var(--bem); }
+.myobs-when { display: flex; flex-direction: column; font-size: .86rem; }
+.myobs-sub { font-size: .84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.myobs-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+@media (max-width: 520px) { .myobs { grid-template-columns: 54px minmax(0, 1fr); } .myobs-side { grid-column: 2; flex-direction: row; gap: 8px; align-items: center; } }

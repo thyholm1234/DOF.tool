@@ -35,18 +35,19 @@ let cleanup = null;
 function renderNav() {
   const path = "#" + (location.hash.slice(1).split("?")[0] || "/");
   const link = ([href, ic, label], cls = "") => {
-    const active = href === "#/" ? path === "#/" || path === "#" : path.startsWith(href);
+    const base = href.split("?")[0];
+    const active = base === "#/" ? path === "#/" || path === "#" : path.startsWith(base);
     return h("a", { href, class: `${cls} ${active ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
   };
   const items = NAV.map(n => link(n));
   // Mobil: logget ind får "Indtast" som fremhævet midterknap; Alarmer findes via klokken og brugermenuen
   const bottom = state.user
-    ? [link(NAV[0]), link(NAV[1]), link(["#/indtast", "plus", "Indtast"], "cta"), link(NAV[2]), link(NAV[3]), link(NAV[4])]
+    ? [link(NAV[0]), link(NAV[1]), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(NAV[2]), link(NAV[3]), link(NAV[4])]
     : items.map(a => a.cloneNode(true));
   $("#bottomnav").replaceChildren(...bottom);
   const side = [...items];
   if (state.user) {
-    side.unshift(link(["#/indtast", "plus", "Indtast"], "cta"));
+    side.unshift(link(["#/indtast?ny=1", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: path.startsWith("#/profil") ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     side.push(h("a", { href: "#/support", class: path.startsWith("#/support") ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
@@ -93,7 +94,7 @@ function openMenu() {
   const outside = (e) => { if (!menu.contains(e.target) && e.target !== $("#userbtn")) close(); };
   const menu = h("div", { class: "menu" },
     h("div", { class: "who" }, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, `${u.obserkode} · ${u.role}`)),
-    h("a", { href: "#/indtast", onclick: close, html: `${icon("plus")} Indtast observationer` }),
+    h("a", { href: "#/indtast", onclick: close, html: `${icon("list")} Mine indtastninger` }),
     h("a", { href: "#/alarmer", onclick: close, html: `${icon("bell")} Alarmer og områder` }),
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),

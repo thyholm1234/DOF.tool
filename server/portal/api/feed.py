@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -15,7 +15,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.jobs import media_for
 from portal.models import Area, ThreadComment, ThreadFollow, User
-from portal.api.social import like_summary
+from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, reports
 from portal.services.areas import Scope, parse_scope
 from portal.timeutil import dk_today
@@ -111,14 +111,15 @@ class CommentIn(BaseModel):
 
 
 @router.post("/thread/{day}/{artnr}/{loknr}/comments")
-async def comment(day: date, artnr: int, loknr: int, body: CommentIn, user: User = Depends(require_user),
-                  db: AsyncSession = Depends(get_session)):
+async def comment(day: date, artnr: int, loknr: int, body: CommentIn, tasks: BackgroundTasks,
+                  user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     if not await kv().set(f"comment:rl:{user.id}", "1", nx=True, ex=5):
         raise HTTPException(429, "Vent et øjeblik før næste kommentar")
     c = ThreadComment(dato=day, artnr=artnr, loknr=loknr, user_id=user.id, body=body.body.strip())
     db.add(c)
     await db.commit()
     await activity.track(user.id, "comment", None, {"thread": f"{day}/{artnr}/{loknr}"})
+    tasks.add_task(notify_comment, c.id)
     payload = {"type": "comment", "thread": f"{day}/{artnr}/{loknr}", "id": c.id, "body": c.body,
                "navn": user.navn, "obserkode": user.obserkode, "created_at": c.created_at.isoformat()}
     await publish("feed", payload)

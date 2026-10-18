@@ -27,9 +27,9 @@ export function likeWidget(kind, key, likes, { small = false, names = !small, ti
   const draw = () => {
     btn.classList.toggle("on", st.liked);
     btn.setAttribute("aria-pressed", String(st.liked));
-    btn.setAttribute("aria-label", st.liked ? "Fjern synes godt om" : "Synes godt om");
+    btn.setAttribute("aria-label", st.liked ? "Fjern tommel op" : "Giv tommel op");
     // Stor variant: tal i knappen + "X og Y" ved siden af. Lille variant (kommentarer): tallet er selv linket til listen.
-    btn.innerHTML = `${icon("heart")}<span>${names && st.count ? st.count : ""}</span>`;
+    btn.innerHTML = `${icon("thumb")}<span>${names && st.count ? st.count : ""}</span>`;
     who.textContent = !st.count ? "" : names ? fmtNames(st.names, st.count) : String(st.count);
     who.title = st.count ? "Se hvem der synes godt om" : "";
     who.classList.toggle("hide", !st.count);

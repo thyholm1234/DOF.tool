@@ -75,6 +75,7 @@ class ReportIn(BaseModel):
     sikkerhed: str = Field("sikker", pattern="^(sikker|sandsynlig|mulig)$")
     grundlag: list[str] = Field(default_factory=list, max_length=6)
     status: str = Field("ukendt", pattern="^(til_stede|fløjet|ikke_genfundet|ukendt)$")
+    retningslinjer: bool = False  # DOF: "Når du ser en sjælden fugl" – påkrævet for SU/SUB
 
     @field_validator("grundlag")
     @classmethod
@@ -118,6 +119,11 @@ def _remove_files(media: list | None) -> None:
         path = root / Path(m.get("url", "")).name
         if path.is_file():
             path.unlink()
+
+
+def _check_guidelines(r: FieldReport) -> None:
+    if r.kategori in ("SU", "SUB") and not r.retningslinjer:
+        raise HTTPException(400, "Bekræft at du følger DOF's retningslinjer for sjældne fugle")
 
 
 async def _one(db: AsyncSession, r: FieldReport, user: User) -> dict:
@@ -165,6 +171,12 @@ async def recent(user: User = Depends(require_user), db: AsyncSession = Depends(
 
 
 # ---------------------------------------------------------------- ture
+
+
+@router.get("/mine")
+async def mine(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Alle egne indtastede fugle som én liste (sorteres i browseren)."""
+    return await reports.my_reports(db, user)
 
 
 @router.get("/trips")
@@ -223,11 +235,14 @@ async def create_report(trip_id: int, body: ReportIn, tasks: BackgroundTasks, us
                         db: AsyncSession = Depends(get_session)):
     trip = await _own_trip(db, trip_id, user)
     await _validate_codes(db, body)
+    if not body.obstidfra:
+        raise HTTPException(400, "Angiv tidspunkt for observationen")
     data = body.model_dump()
     status = data.pop("status")
     r = FieldReport(trip_id=trip.id, user_id=user.id, obserkode=user.obserkode, dato=trip.dato, loknr=trip.loknr,
                     **{**data, "obstidfra": _hhmm(body.obstidfra), "obstidtil": _hhmm(body.obstidtil)})
     await reports.classify(db, r)
+    _check_guidelines(r)
     db.add(r)
     await db.flush()
     if status != "ukendt":
@@ -254,6 +269,7 @@ async def patch_report(report_id: int, body: dict, user: User = Depends(require_
             continue
         setattr(r, k, _hhmm(v) if k in ("obstidfra", "obstidtil") else v)
     await reports.classify(db, r)
+    _check_guidelines(r)
     r.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await publish("feed", {"type": "feed", "portal": True})

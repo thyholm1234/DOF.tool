@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -75,7 +75,42 @@ async def toggle_like(body: LikeIn, tasks: BackgroundTasks, user: User = Depends
         tasks.add_task(activity.track, user.id, "like", None, {"kind": body.kind, "key": body.key})
         if comment is not None and comment.user_id != user.id:
             tasks.add_task(_notify_comment_like, comment.id, comment.user_id, user.id)
+        if body.kind == "thread":
+            tasks.add_task(_notify_thread_like, body.key, user.id)
     return {"liked": liked, **summary}
+
+
+# ---------------------------------------------------------------- notifikationer om likes og kommentarer
+
+
+async def thread_owners(s: AsyncSession, day, artnr: int, loknr: int) -> set[int]:
+    """Portalbrugere der har fuglen: observationer i tråden (DOFbasen) eller egne feltmeldinger."""
+    rows = (await s.execute(text("""
+        SELECT u.id FROM users u WHERE NOT u.blocked AND u.obserkode IN (
+            SELECT obserkode FROM observations WHERE dato = :d AND artnr = :a AND loknr = :l)
+        UNION SELECT user_id FROM field_reports WHERE dato = :d AND artnr = :a AND loknr = :l AND NOT hemmelig
+    """), {"d": day, "a": artnr, "l": loknr})).all()
+    return {r[0] for r in rows}
+
+
+async def _thread_meta(s: AsyncSession, artnr: int, loknr: int) -> tuple[str, str]:
+    row = (await s.execute(text("SELECT (SELECT navn FROM species WHERE artnr = :a), (SELECT navn FROM locations WHERE loknr = :l)"),
+                           {"a": artnr, "l": loknr})).first()
+    return (row[0] or "fugl", row[1] or "ukendt lokalitet") if row else ("fugl", "ukendt lokalitet")
+
+
+async def _notify_thread_like(key: str, liker_id: int) -> None:
+    d, a, l = key.split("/")
+    day, artnr, loknr = date.fromisoformat(d), int(a), int(l)
+    async with SessionLocal() as s:
+        owners = await thread_owners(s, day, artnr, loknr) - {liker_id}
+        who = await s.get(User, liker_id)
+        if not owners or who is None:
+            return
+        art, lok = await _thread_meta(s, artnr, loknr)
+        msg = {"title": f"👍 {who.navn or who.obserkode} synes godt om din {art}", "body": f"{lok} · {day:%d.%m.%Y}",
+               "url": f"/#/traad/{key}", "tag": f"like-{key}", "kategori": None, "rule_id": None, "push": True}
+        await deliver(s, None, {(u, f"like:t:{key}:{liker_id}"): msg for u in owners})
 
 
 async def _notify_comment_like(comment_id: int, owner_id: int, liker_id: int) -> None:
@@ -84,10 +119,31 @@ async def _notify_comment_like(comment_id: int, owner_id: int, liker_id: int) ->
         who = await s.get(User, liker_id)
         if c is None or who is None:
             return
-        msg = {"title": f"{who.navn or who.obserkode} synes godt om din kommentar", "body": c.body[:200],
+        msg = {"title": f"👍 {who.navn or who.obserkode} synes godt om din kommentar", "body": c.body[:200],
                "url": f"/#/traad/{c.dato}/{c.artnr}/{c.loknr}", "tag": f"like-c{c.id}", "kategori": None,
-               "rule_id": None, "push": False}
+               "rule_id": None, "push": True}
         await deliver(s, None, {(owner_id, f"like:c{c.id}:{liker_id}"): msg})
+
+
+async def notify_comment(comment_id: int) -> None:
+    """Ny kommentar → fuglens ejere og trådens følgere (ikke kommentatoren selv)."""
+    from portal.services.alerts import follower_ids
+    async with SessionLocal() as s:
+        c = await s.get(ThreadComment, comment_id)
+        if c is None:
+            return
+        who = await s.get(User, c.user_id)
+        owners = await thread_owners(s, c.dato, c.artnr, c.loknr)
+        followers = set(await follower_ids(s, (c.dato, c.artnr, c.loknr)))
+        recipients = (owners | followers) - {c.user_id}
+        if not recipients:
+            return
+        art, lok = await _thread_meta(s, c.artnr, c.loknr)
+        name = (who.navn or who.obserkode) if who else "Nogen"
+        msg = {"title": f"💬 {name} kommenterede {art}, {lok}", "body": c.body[:300],
+               "url": f"/#/traad/{c.dato}/{c.artnr}/{c.loknr}", "tag": f"comment-{c.dato}-{c.artnr}-{c.loknr}",
+               "kategori": None, "rule_id": None, "push": True}
+        await deliver(s, None, {(u, f"c:{c.id}"): msg for u in recipients})
 
 
 @router.get("/likes")

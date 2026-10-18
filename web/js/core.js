@@ -172,7 +172,7 @@ const P = {
   check: '<path d="M4 12l5 5L20 6"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5 6.5-5s5.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5c2.6 0 4.6 1.4 5.5 4.5"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
-  heart: '<path d="M12 20.5s-7.4-4.5-9.4-9C1.1 7.8 3.4 4 7 4c2.1 0 3.6 1.1 5 3 1.4-1.9 2.9-3 5-3 3.6 0 5.9 3.8 4.4 7.5-2 4.5-9.4 9-9.4 9z"/>',
+  thumb: '<path d="M7 10.5V20H4v-9.5h3z"/><path d="M7 10.5 11 3.6c1.3 0 2.3 1.1 2 2.4l-.8 3.5h5.6c1.3 0 2.3 1.2 2 2.5l-1.3 6.2c-.2.9-1 1.6-2 1.6H7"/>',
 };
 export function icon(name) {
   return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ""}</svg>`;
@@ -232,4 +232,14 @@ export async function compressImage(file, { max = 2048, quality = 0.6, minBytes 
 export function trackView(path) {
   fetch("/api/activity", { method: "POST", credentials: "same-origin", keepalive: true,
     headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" }, body: JSON.stringify({ path }) }).catch(() => {});
+}
+
+/** Sorteringsbjælke: knapper for felter + retning. st = {key, dir: 1|-1}; onChange kaldes ved ændring. */
+export function sortBar(options, st, onChange, { label = "Sortér" } = {}) {
+  const dirBtn = h("button", { type: "button", class: "btn sm", "aria-label": "Skift retning" });
+  const drawDir = () => { dirBtn.textContent = st.dir === 1 ? "↑ Stigende" : "↓ Faldende"; };
+  dirBtn.onclick = () => { st.dir = -st.dir; drawDir(); onChange(st); };
+  drawDir();
+  return h("div", { class: "row sort-bar", style: { gap: "8px" } }, h("small", { class: "muted" }, label),
+    seg(options, st.key, (v) => { st.key = v; onChange(st); }), dirBtn);
 }

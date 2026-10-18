@@ -163,6 +163,23 @@ async def my_trips(session: AsyncSession, user: User, limit: int = 60) -> list[d
     return [{**dict(r), "dato": r["dato"].isoformat()} for r in rows]
 
 
+async def my_reports(session: AsyncSession, user: User, limit: int = 2000) -> list[dict]:
+    rows = (await session.execute(text("""
+        SELECT r.id, r.trip_id, r.dato, coalesce(r.obstidfra, t.turtidfra) AS tid, r.artnr, s.navn AS art, s.sortering,
+               r.antal, ca.text AS adf, r.loknr, l.navn AS lok, k.navn AS kommune, r.kategori, r.sikkerhed, r.status,
+               r.status_at, jsonb_array_length(coalesce(r.media, '[]'::jsonb)) AS n_media, r.created_at,
+               EXISTS (SELECT 1 FROM observations o WHERE o.dato = r.dato AND o.artnr = r.artnr AND o.loknr = r.loknr
+                       AND o.obserkode = r.obserkode) AS i_dofbasen
+        FROM field_reports r JOIN field_trips t ON t.id = r.trip_id JOIN species s ON s.artnr = r.artnr
+        JOIN locations l ON l.loknr = r.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
+        LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
+        WHERE r.user_id = :u ORDER BY r.dato DESC, tid DESC NULLS LAST, r.id DESC LIMIT :n
+    """), {"u": user.id, "n": limit})).mappings().all()
+    return [{**dict(r), "dato": r["dato"].isoformat(), "live": is_live(r["status"], r["status_at"]),
+             "status_at": r["status_at"].isoformat() if r["status_at"] else None, "created_at": r["created_at"].isoformat()}
+            for r in rows]
+
+
 async def classify(session: AsyncSession, report: FieldReport) -> None:
     loc = (await session.execute(text("SELECT afdeling_id FROM locations WHERE loknr = :l"), {"l": report.loknr})).first()
     report.afdelinger = [loc[0]] if loc and loc[0] else []
@@ -216,7 +233,7 @@ async def _report_rows(session: AsyncSession, where: str, params: dict, viewer: 
         own = viewer is not None and r["user_id"] == viewer.id
         d = {k: r[k] for k in ("id", "trip_id", "artnr", "art", "latin", "antal", "koen", "adfkode", "adf", "alderkode",
                                 "dragtkode", "dragt", "metode", "obstidfra", "obstidtil", "fuglnoter", "hemmelig",
-                                "skjul_position", "sikkerhed", "grundlag", "status", "kategori", "media", "obserkode",
+                                "skjul_position", "sikkerhed", "grundlag", "retningslinjer", "status", "kategori", "media", "obserkode",
                                 "observer", "loknr", "turtidfra", "medobser", "i_dofbasen")}
         d.update(dato=r["dato"].isoformat(), status_at=r["status_at"].isoformat() if r["status_at"] else None,
                  created_at=r["created_at"].isoformat(), live=is_live(r["status"], r["status_at"]), own=own,
