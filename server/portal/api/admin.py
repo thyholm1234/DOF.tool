@@ -23,6 +23,7 @@ from portal.services.auth import ROLES
 router = APIRouter(prefix="/api", tags=["admin"])
 admin = require_role("admin")
 superadmin = require_role("superadmin")
+moderator = require_role("moderator")
 
 SETTINGS = {"live_enabled": True, "matrikel_tag": "#BB", "welcome": ""}
 
@@ -197,19 +198,27 @@ async def update_species(artnr: int, body: dict[str, Any], user: User = Depends(
 
 
 @router.get("/admin/comments")
-async def comments(user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def comments(status: str = "alle", q: str = "", user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    """Kommentarer til moderation (moderator og op). status: alle / skjulte / synlige."""
     rows = (await db.execute(text("""
-        SELECT c.id, c.dato, c.artnr, c.loknr, c.body, c.hidden, c.created_at, u.obserkode, u.navn, s.navn AS art
+        SELECT c.id, c.dato, c.artnr, c.loknr, c.body, c.hidden, c.created_at, u.obserkode, u.navn, s.navn AS art, l.navn AS lok,
+               (SELECT count(*) FROM likes k WHERE k.kind = 'comment' AND k.key = c.id::text) AS likes
         FROM thread_comments c JOIN users u ON u.id = c.user_id LEFT JOIN species s ON s.artnr = c.artnr
-        ORDER BY c.created_at DESC LIMIT 200
-    """))).mappings().all()
+        LEFT JOIN locations l ON l.loknr = c.loknr
+        WHERE (:st = 'alle' OR (:st = 'skjulte' AND c.hidden) OR (:st = 'synlige' AND NOT c.hidden))
+          AND (:q = '' OR c.body ILIKE :like OR u.navn ILIKE :like OR u.obserkode ILIKE :like OR s.navn ILIKE :like)
+        ORDER BY c.created_at DESC LIMIT 300
+    """), {"st": status, "q": q, "like": f"%{q}%"})).mappings().all()
     return [dict(r) for r in rows]
 
 
 @router.patch("/admin/comments/{cid}")
-async def moderate(cid: int, body: dict, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
-    await db.execute(text("UPDATE thread_comments SET hidden = :h WHERE id = :id"), {"h": bool(body.get("hidden")), "id": cid})
+async def moderate(cid: int, body: dict, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    hidden = bool(body.get("hidden"))
+    await db.execute(text("UPDATE thread_comments SET hidden = :h WHERE id = :id"), {"h": hidden, "id": cid})
     await db.commit()
+    from portal.services import activity
+    await activity.track(user.id, "moderation", None, {"comment": cid, "hidden": hidden})
     return {"ok": True}
 
 

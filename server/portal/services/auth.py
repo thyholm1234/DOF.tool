@@ -23,7 +23,8 @@ from portal.models import User
 
 ph = PasswordHasher()
 OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
-ROLES = ("user", "editor", "admin", "superadmin")
+# Stigende rettigheder: moderator (kommentarer, portalens egne ture) < editor (e-læring) < admin < superadmin
+ROLES = ("user", "moderator", "editor", "admin", "superadmin")
 
 
 class AuthError(Exception):

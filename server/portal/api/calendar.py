@@ -10,15 +10,21 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import require_user
+from portal.api.deps import require_role, require_user
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
-from portal.models import CalendarVisit, SiteCalendar, User
-from portal.services import activity, calendars
+from portal.models import CalendarVisit, DofEvent, SiteCalendar, User
+from portal.services import activity, calendars, dof_events
 from portal.services.alerts import deliver
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["calendar"])
+moderator = require_role("moderator")
+DOF_URL = "https://www.dof.dk/oplev-fuglene/ture-og-aktiviter?event_id={}"
+
+
+def _event_url(row) -> str | None:
+    return DOF_URL.format(row["id"]) if row["source"] == "dof" else None
 TIME = r"^([01]\d|2[0-3])[:.][0-5]\d$"
 
 
@@ -38,25 +44,28 @@ async def events(past: bool = False, user: User = Depends(require_user), db: Asy
     rows = (await db.execute(text("""
         SELECT e.id, e.title, e.dato, e.tid_fra, e.tid_til, e.types, e.arrangoer, e.afdeling_id, a.navn AS afdeling,
                e.kommune_kode, coalesce(k.navn, regexp_replace(coalesce(e.commune, ''), ' Kommune$', '')) AS kommune,
-               e.lat, e.lon, e.loknr, l.navn AS lok, e.lok_dist_m, e.tilmelding, e.moedested, c.id AS calendar_id
+               e.lat, e.lon, e.loknr, l.navn AS lok, e.lok_dist_m, e.tilmelding, e.moedested, c.id AS calendar_id,
+               e.source, coalesce(u.navn, u.obserkode) AS created_by_navn
         FROM dof_events e LEFT JOIN afdelinger a ON a.id = e.afdeling_id LEFT JOIN kommuner k ON k.kode = e.kommune_kode
         LEFT JOIN locations l ON l.loknr = e.loknr LEFT JOIN site_calendars c ON c.loknr = e.loknr
+        LEFT JOIN users u ON u.id = e.created_by
         WHERE (:past OR (e.listed AND e.dato >= :today)) ORDER BY e.dato, e.tid_fra NULLS LAST, e.title
     """), {"past": past, "today": dk_today()})).mappings().all()
-    return [{**dict(r), "dato": r["dato"].isoformat(), "url": f"https://www.dof.dk/oplev-fuglene/ture-og-aktiviter?event_id={r['id']}"}
-            for r in rows]
+    return [{**dict(r), "dato": r["dato"].isoformat(), "url": _event_url(r)} for r in rows]
 
 
 @router.get("/events/{event_id}")
 async def event(event_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     row = (await db.execute(text("""
-        SELECT e.*, a.navn AS afdeling, k.navn AS kommune, l.navn AS lok, c.id AS calendar_id FROM dof_events e
+        SELECT e.*, a.navn AS afdeling, k.navn AS kommune, l.navn AS lok, c.id AS calendar_id,
+               coalesce(u.navn, u.obserkode) AS created_by_navn FROM dof_events e
         LEFT JOIN afdelinger a ON a.id = e.afdeling_id LEFT JOIN kommuner k ON k.kode = e.kommune_kode
-        LEFT JOIN locations l ON l.loknr = e.loknr LEFT JOIN site_calendars c ON c.loknr = e.loknr WHERE e.id = :id
+        LEFT JOIN locations l ON l.loknr = e.loknr LEFT JOIN site_calendars c ON c.loknr = e.loknr
+        LEFT JOIN users u ON u.id = e.created_by WHERE e.id = :id
     """), {"id": event_id})).mappings().first()
     if not row:
         raise HTTPException(404, "Turen findes ikke")
-    return {**dict(row), "url": f"https://www.dof.dk/oplev-fuglene/ture-og-aktiviter?event_id={event_id}"}
+    return {**dict(row), "url": _event_url(row)}
 
 
 @router.get("/events/{event_id}/ics")
@@ -69,6 +78,81 @@ async def event_ics(event_id: int, user: User = Depends(require_user), db: Async
         "location": e["moedested"] or e["lok"], "lat": e["lat"], "lon": e["lon"], "url": e["url"]}])
     return Response(body, media_type="text/calendar; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="dof-tur-{event_id}.ics"'})
+
+
+class EventIn(BaseModel):
+    title: str = Field(min_length=3, max_length=300)
+    dato: date
+    tid_fra: str | None = Field(None, pattern=TIME)
+    tid_til: str | None = Field(None, pattern=TIME)
+    types: list[str] = Field(default_factory=list, max_length=6)
+    arrangoer: str | None = Field(None, max_length=300)
+    afdeling_id: int | None = None
+    loknr: int
+    moedested: str | None = Field(None, max_length=1000)
+    beskrivelse: str | None = Field(None, max_length=8000)
+    tilmelding: str | None = Field(None, max_length=1000)
+    turleder: str | None = Field(None, max_length=1000)
+
+
+async def _save_event(db: AsyncSession, e: DofEvent, body: EventIn) -> None:
+    loc = (await db.execute(text("SELECT lat, lon, afdeling_id FROM locations WHERE loknr = :l"), {"l": body.loknr})).first()
+    if not loc or loc[0] is None:
+        raise HTTPException(400, "Vælg en lokalitet med koordinater")
+    clean = lambda v: (v or "").strip() or None  # noqa: E731
+    e.title, e.dato = body.title.strip(), body.dato
+    e.tid_fra, e.tid_til = _hhmm(body.tid_fra), _hhmm(body.tid_til)
+    e.types = [t.strip() for t in body.types if t.strip()][:6]
+    e.afdeling_id = body.afdeling_id or loc[2]
+    e.arrangoer = clean(body.arrangoer) or (await db.execute(text("SELECT navn FROM afdelinger WHERE id = :a"), {"a": e.afdeling_id})).scalar()
+    e.loknr, e.lok_dist_m, e.lat, e.lon = body.loknr, 0, loc[0], loc[1]
+    e.moedested, e.beskrivelse = clean(body.moedested), clean(body.beskrivelse)
+    e.tilmelding, e.turleder = clean(body.tilmelding), clean(body.turleder)
+    e.listed, e.detail_at = True, datetime.now(timezone.utc)
+    await db.flush()
+    await dof_events._code_location(db, e.id, keep_loknr=True)  # kommune ud fra punktet
+
+
+async def _portal_event(db: AsyncSession, event_id: int) -> DofEvent:
+    e = await db.get(DofEvent, event_id)
+    if e is None:
+        raise HTTPException(404, "Turen findes ikke")
+    if e.source != "portal":
+        raise HTTPException(403, "DOF's ture rettes på dof.dk")
+    return e
+
+
+@router.get("/event-types")
+async def event_types(user: User = Depends(require_user)):
+    return dof_events.KNOWN_TYPES
+
+
+@router.post("/events")
+async def create_event(body: EventIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    """Moderatorer kan oprette ture og begivenheder, der vises sammen med DOF's officielle ture."""
+    new_id = (await db.execute(text("SELECT nextval('portal_event_seq')"))).scalar()
+    e = DofEvent(id=new_id, source="portal", created_by=user.id, title=body.title, dato=body.dato, types=[])
+    db.add(e)
+    await _save_event(db, e, body)
+    await db.commit()
+    await activity.track(user.id, "event", None, {"event": e.id})
+    return {"id": e.id}
+
+
+@router.put("/events/{event_id}")
+async def update_event(event_id: int, body: EventIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    e = await _portal_event(db, event_id)
+    await _save_event(db, e, body)
+    await db.commit()
+    return {"id": e.id}
+
+
+@router.delete("/events/{event_id}")
+async def delete_event(event_id: int, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    e = await _portal_event(db, event_id)
+    await db.delete(e)
+    await db.commit()
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------- kalendere

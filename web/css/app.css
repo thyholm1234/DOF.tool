@@ -591,3 +591,14 @@ body.anon main#view { padding-bottom: 32px; max-width: 1080px; }
 .week-head { display: flex; justify-content: space-between; text-transform: capitalize; }
 .week-visit { display: flex; flex-direction: column; padding: 6px 8px; border-radius: 8px; background: var(--brand-soft); color: var(--text); text-decoration: none; }
 .week-visit:hover { text-decoration: none; filter: brightness(.97); }
+/* Lokalitet: "Seneste 30 dage" og "Arter på lokaliteten" slutter samme sted og scroller hver for sig */
+.lok-col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.lok-col > .card + .card { margin-top: 0; }
+.lok-fill { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.lok-scroll { overflow: auto; min-height: 0; max-height: 420px; }
+@media (min-width: 720px) {
+  .lok-grid { height: clamp(620px, calc(100dvh - 240px), 960px); align-items: stretch; }
+  .lok-grid > * { min-height: 0; }
+  .lok-fill { flex: 1; }
+  .lok-scroll { flex: 1; max-height: none; }
+}

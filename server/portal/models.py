@@ -695,6 +695,8 @@ class DofEvent(Base):
     listed: Mapped[bool] = mapped_column(Boolean, default=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     detail_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str] = mapped_column(String(8), default="dof", server_default="dof")  # dof / portal (oprettet af moderator)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
 
 class SiteCalendar(Base):
@@ -745,6 +747,10 @@ EXTRA_DDL = [
     # 10 km-kvadrat (DKN, EPSG:25832) for hver lokalitet – nøgle til vejrarkivet
     "ALTER TABLE locations ADD COLUMN IF NOT EXISTS cell10 integer",
     "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS retningslinjer boolean NOT NULL DEFAULT false",
+    "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS source varchar(8) NOT NULL DEFAULT 'dof'",
+    "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS created_by integer REFERENCES users(id) ON DELETE SET NULL",
+    # Portalens egne ture får id'er langt fra dof.dk's event_id'er
+    "CREATE SEQUENCE IF NOT EXISTS portal_event_seq START 900000000",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"
     " + floor(ST_X(ST_Transform(geom, 25832)) / 10000)::int) WHERE cell10 IS NULL AND geom IS NOT NULL",
 ]

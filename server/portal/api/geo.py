@@ -15,6 +15,7 @@ from portal.cache import cached, worker_command
 from portal.db import get_session
 from portal.models import Area, Species, User
 from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geometry
+from portal.services.feed import KAT_RANK
 
 router = APIRouter(prefix="/api", tags=["geo"])
 
@@ -61,22 +62,28 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
         raise HTTPException(404)
 
     async def produce():
+        # Flere turlister samme dag tæller ikke dobbelt: én observation pr. art pr. dag med det største antal
         top = (await db.execute(text("""
-            SELECT s.navn, count(*) AS n_obs, count(DISTINCT o.dato) AS n_days, max(o.dato) AS last_date
-            FROM observations o JOIN species s ON s.artnr = o.artnr
-            WHERE o.loknr = :l AND o.hemmelig = 0 GROUP BY s.navn ORDER BY n_obs DESC LIMIT 600
+            SELECT s.navn, count(*) AS n_obs, max(d.dato) AS last_date
+            FROM (SELECT DISTINCT dato, artnr FROM observations WHERE loknr = :l AND hemmelig = 0) d
+            JOIN species s ON s.artnr = d.artnr GROUP BY s.navn ORDER BY n_obs DESC LIMIT 600
         """), {"l": loknr})).mappings().all()
-        recent = (await db.execute(text("""
-            SELECT o.dato, s.navn AS art, o.antal, o.kategori, o.artnr FROM observations o JOIN species s ON s.artnr = o.artnr
-            WHERE o.loknr = :l AND o.hemmelig = 0 AND o.dato > current_date - 30 ORDER BY o.dato DESC, o.kategori LIMIT 200
+        recent = (await db.execute(text(f"""
+            SELECT o.dato, o.artnr, s.navn AS art, max(o.antal) AS antal, max({KAT_RANK}) AS rank
+            FROM observations o JOIN species s ON s.artnr = o.artnr
+            WHERE o.loknr = :l AND o.hemmelig = 0 AND o.dato > current_date - 30
+            GROUP BY o.dato, o.artnr, s.navn ORDER BY o.dato DESC, rank DESC, s.navn LIMIT 1500
         """), {"l": loknr})).mappings().all()
         stats = (await db.execute(text("""
             SELECT count(*) AS n_obs, count(DISTINCT artnr) AS n_taxa, min(dato) AS first, max(dato) AS last
-            FROM observations WHERE loknr = :l
+            FROM (SELECT DISTINCT dato, artnr FROM observations WHERE loknr = :l) d
         """), {"l": loknr})).mappings().first()
-        return {"species": [dict(r) for r in top], "recent": [dict(r) for r in recent], "stats": dict(stats)}
+        kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
+        return {"species": [dict(r) for r in top],
+                "recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kat[r["rank"]]} for r in recent],
+                "stats": dict(stats)}
 
-    data = await cached(f"lok:{loknr}", 900, produce)
+    data = await cached(f"lok2:{loknr}", 900, produce)
     return {**dict(loc), **data}
 
 

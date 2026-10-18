@@ -136,7 +136,7 @@ def pick_location(title: str, candidates: list[tuple[int, str, int]]) -> tuple[i
     return None
 
 
-async def _code_location(s, ev_id: int) -> None:
+async def _code_location(s, ev_id: int, keep_loknr: bool = False) -> None:
     ev = (await s.execute(text("SELECT title, lat, lon, commune FROM dof_events WHERE id = :id"), {"id": ev_id})).mappings().first()
     if not ev or ev["lat"] is None:
         return
@@ -151,6 +151,9 @@ async def _code_location(s, ev_id: int) -> None:
             SELECT loknr, navn, geom FROM locations WHERE geom IS NOT NULL ORDER BY geom <-> {pt} LIMIT 60) x
         WHERE ST_DWithin(geom::geography, {pt}::geography, 5000)
     """), {"lat": ev["lat"], "lon": ev["lon"]})).all()
+    if keep_loknr:  # valgt af den der oprettede turen
+        await s.execute(text("UPDATE dof_events SET kommune_kode = :k WHERE id = :id"), {"id": ev_id, "k": kode})
+        return
     best = pick_location(ev["title"], [(r[0], r[1], r[2]) for r in cands])
     await s.execute(text("UPDATE dof_events SET kommune_kode = :k, loknr = :l, lok_dist_m = :d WHERE id = :id"),
                     {"id": ev_id, "k": kode, "l": best[0] if best else None, "d": best[1] if best else None})
@@ -159,7 +162,7 @@ async def _code_location(s, ev_id: int) -> None:
 async def recode_all() -> int:
     """Kod alle ture igen (fx efter forbedret matchning) – uden at hente noget fra dof.dk."""
     async with SessionLocal() as s:
-        ids = (await s.execute(text("SELECT id FROM dof_events WHERE lat IS NOT NULL"))).scalars().all()
+        ids = (await s.execute(text("SELECT id FROM dof_events WHERE lat IS NOT NULL AND source = 'dof'"))).scalars().all()
         for i in ids:
             await _code_location(s, i)
         await s.commit()
@@ -181,10 +184,10 @@ async def sync() -> dict:
                     ON CONFLICT (id) DO UPDATE SET title = :title, dato = :dato, lat = :lat, lon = :lon,
                       commune = coalesce(:commune, dof_events.commune), listed = true, fetched_at = now()
                 """), e)
-            await s.execute(text("UPDATE dof_events SET listed = false WHERE NOT (id = ANY(:ids))"), {"ids": ids})
+            await s.execute(text("UPDATE dof_events SET listed = false WHERE source = 'dof' AND NOT (id = ANY(:ids))"), {"ids": ids})
             await s.commit()
             stale = (await s.execute(text("""
-                SELECT id FROM dof_events WHERE listed AND dato >= :today AND (detail_at IS NULL OR detail_at < :old)
+                SELECT id FROM dof_events WHERE source = 'dof' AND listed AND dato >= :today AND (detail_at IS NULL OR detail_at < :old)
                 ORDER BY detail_at NULLS FIRST, dato
             """), {"today": dk_today(), "old": datetime.now(timezone.utc) - DETAIL_MAX_AGE})).scalars().all()
             afd = await _afdelinger(s)

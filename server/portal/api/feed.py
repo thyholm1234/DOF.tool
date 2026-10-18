@@ -17,6 +17,7 @@ from portal.dof.jobs import media_for
 from portal.models import Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, reports
+from portal.services.auth import role_at_least
 from portal.services.areas import Scope, parse_scope
 from portal.timeutil import dk_today
 
@@ -131,7 +132,7 @@ async def delete_comment(comment_id: int, user: User = Depends(require_user), db
     c = await db.get(ThreadComment, comment_id)
     if c is None:
         raise HTTPException(404)
-    if c.user_id != user.id and user.role not in ("admin", "superadmin"):
+    if c.user_id != user.id and not role_at_least(user, "moderator"):
         raise HTTPException(403)
     c.hidden = True
     await db.commit()
