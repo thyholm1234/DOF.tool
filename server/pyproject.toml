@@ -21,6 +21,7 @@ dependencies = [
   "numpy>=2.1",
   "python-multipart>=0.0.18",
   "tzdata>=2024.2",
+  "orjson>=3.10",
 ]
 
 [project.optional-dependencies]

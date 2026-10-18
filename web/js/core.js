@@ -172,6 +172,7 @@ const P = {
   check: '<path d="M4 12l5 5L20 6"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5 6.5-5s5.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5c2.6 0 4.6 1.4 5.5 4.5"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+  heart: '<path d="M12 20.5s-7.4-4.5-9.4-9C1.1 7.8 3.4 4 7 4c2.1 0 3.6 1.1 5 3 1.4-1.9 2.9-3 5-3 3.6 0 5.9 3.8 4.4 7.5-2 4.5-9.4 9-9.4 9z"/>',
 };
 export function icon(name) {
   return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ""}</svg>`;
@@ -206,4 +207,29 @@ export function searchSpecies(list, query, n = 8) {
     scored.push([score, s]);
   }
   return scored.sort((a, b) => a[0] - b[0] || a[1].navn.localeCompare(b[1].navn, "da")).slice(0, n).map(x => x[1]);
+}
+
+// Store billeder skaleres i browseren før upload: længste side højst 2048 px, JPEG 60 %.
+// GIF (animation) og små filer sendes uændret; lyd røres ikke.
+export async function compressImage(file, { max = 2048, quality = 0.6, minBytes = 400_000 } = {}) {
+  if (!file.type?.startsWith("image/") || file.type === "image/gif") return file;
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); } catch { return file; }
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  if (scale === 1 && file.size <= minBytes && file.type === "image/jpeg") { bmp.close?.(); return file; }
+  const w = Math.round(bmp.width * scale), h2 = Math.round(bmp.height * scale);
+  const canvas = Object.assign(document.createElement("canvas"), { width: w, height: h2 });
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h2);  // PNG med gennemsigtighed → hvid baggrund i JPEG
+  ctx.drawImage(bmp, 0, 0, w, h2);
+  bmp.close?.();
+  const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", quality));
+  if (!blob || (blob.size >= file.size && scale === 1)) return file;
+  return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg", lastModified: Date.now() });
+}
+
+// Sidevisning til aktivitetsloggen (fejl ignoreres – må aldrig forstyrre brugeren)
+export function trackView(path) {
+  fetch("/api/activity", { method: "POST", credentials: "same-origin", keepalive: true,
+    headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" }, body: JSON.stringify({ path }) }).catch(() => {});
 }

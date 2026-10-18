@@ -142,7 +142,12 @@ class Gateway:
         if job:
             return "job", job
         live_on = await self.live_enabled()
-        live_due = live_on and time.time() - self.last_live >= self.settings.dof_min_interval - 1
+        # Planens interval for "dagen i dag" (0 = slået fra); aldrig under minimumsintervallet
+        planned = await kv().get("dof:live_interval")
+        if planned is not None and int(float(planned)) == 0:
+            live_on = False
+        interval = max(self.settings.dof_min_interval, int(float(planned or 0)))
+        live_due = live_on and time.time() - self.last_live >= interval - 1
         pending = await kv().zcard(Q) > 0
         if live_due and (not pending or not self.last_was_live or time.time() - self.last_live > 150):
             return "live", None

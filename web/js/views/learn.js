@@ -1,4 +1,4 @@
-import { api, state, h, icon, empty, errorBox, modal, toast, loadRef } from "../core.js";
+import { api, state, h, icon, empty, errorBox, modal, toast, loadRef, compressImage } from "../core.js";
 
 const TOPIC = { id: "Artsbestemmelse", kald: "Kald og stemmer", saeson: "Årstid og træk", andet: "Andet" };
 const isEditor = () => state.user && ["editor", "admin", "superadmin"].includes(state.user.role);
@@ -171,7 +171,7 @@ function editQuestion(slug, q, done) {
       h("button", { type: "button", class: "btn sm ghost danger", onclick: () => { media.url = null; media.kind = null; drawMedia(); } }, "Fjern")));
   drawMedia();
   const file = h("input", { type: "file", accept: "image/*,audio/*", onchange: async (e) => {
-    const fd = new FormData(); fd.append("file", e.target.files[0]);
+    const fd = new FormData(); fd.append("file", await compressImage(e.target.files[0]));
     try { const r = await api("/api/learn/media", { method: "POST", form: fd }); media.url = r.url; media.kind = r.kind; drawMedia(); }
     catch (err) { toast(err.message, "err"); }
   } });

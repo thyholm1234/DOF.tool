@@ -123,7 +123,7 @@ export function drawList(out, data, year) {
 
 // ---------------------------------------------------------------- matrikler: navne, perioder og flytning
 
-async function matrikler(body) {
+export async function matrikler(body) {
   if (requireLogin(body)) return;
   const out = h("div", { class: "stack" }, h("div", { class: "skeleton", style: { height: "200px" } }));
   body.append(h("div", { class: "row between mb" },

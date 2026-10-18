@@ -16,6 +16,7 @@ x-app: &app
     TZ: Europe/Copenhagen
   volumes:
     - media:/data/media
+    - weather:/data/weather
     - ${DOF_ARCHIVE_DIR:-./data/archive}:/archive:ro
     - ./web:/app/web:ro
   depends_on:
@@ -78,3 +79,4 @@ volumes:
   pgdata:
   valkeydata:
   media:
+  weather:

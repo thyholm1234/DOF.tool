@@ -218,3 +218,9 @@ async def assign_kommuner(session: AsyncSession, loknrs: list[int] | None = None
             SELECT k.kode FROM kommuner k WHERE ST_DWithin(k.geom, l.geom, 0.04) ORDER BY k.geom <-> l.geom LIMIT 1)
         WHERE l.kommune_kode IS NULL AND l.geom IS NOT NULL {where}
     """), params)
+    # 10 km-kvadrat i Det Danske Kvadratnet (nøgle til vejrarkivet)
+    await session.execute(text(f"""
+        UPDATE locations l SET cell10 = floor(ST_Y(ST_Transform(l.geom, 25832)) / 10000)::int * 1000
+                                        + floor(ST_X(ST_Transform(l.geom, 25832)) / 10000)::int
+        WHERE l.cell10 IS NULL AND l.geom IS NOT NULL {where}
+    """), params)

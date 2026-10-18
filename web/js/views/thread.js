@@ -1,7 +1,8 @@
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, errorBox, KAT } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, errorBox, windArrow, compass, KAT } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
 import { reportCard, statusBadge } from "../reportui.js";
+import { likeWidget } from "../likes.js";
 
 export async function render(view, [date, artnr, loknr]) {
   view.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } }));
@@ -31,6 +32,9 @@ export async function render(view, [date, artnr, loknr]) {
     toast(t.following ? "Du får besked om nye observationer i tråden" : "Du følger ikke længere tråden");
   };
 
+  const threadKey = `${date}/${artnr}/${loknr}`;
+  const likeEl = likeWidget("thread", threadKey, t.likes, { title: `Synes godt om ${t.art}` });
+  const weatherEl = h("div", {});
   const mapEl = h("div", { class: "map small" });
   const commentsEl = h("div", { class: "stack" });
   const share = async () => {
@@ -49,6 +53,7 @@ export async function render(view, [date, artnr, loknr]) {
           " · ", h("a", { href: `#/art/${artnr}` }, "om arten"), t.latin ? h("i", { class: "muted" }, ` (${t.latin})`) : null)),
       h("span", { class: "spacer" }),
       h("div", { class: "row" }, followBtn, h("button", { class: "btn", onclick: share }, "Del"))),
+    h("div", { class: "mb" }, likeEl),
     h("div", { class: "grid-2" },
       h("div", { class: "stack" },
         reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
@@ -56,12 +61,15 @@ export async function render(view, [date, artnr, loknr]) {
         h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
           obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
       h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
+        weatherEl,
         h("div", { class: "card" }, h("h3", {}, "Kommentarer"), commentsEl))));
+  api(`/api/weather/day?loknr=${loknr}&date=${date}`).then(w => { if (w) weatherEl.replaceChildren(weatherCard(w)); }).catch(() => {});
 
   const drawComments = () => {
     commentsEl.replaceChildren(
       ...(t.comments.length ? t.comments.map(c => h("div", {},
         h("div", { class: "row" }, h("b", {}, c.navn || c.obserkode), h("small", {}, ago(c.created_at)),
+          c.id ? likeWidget("comment", String(c.id), c.likes, { small: true, title: "Synes godt om kommentaren" }) : null,
           state.user && (state.user.id === c.user_id || ["admin", "superadmin"].includes(state.user.role))
             ? h("button", { class: "btn sm ghost danger", onclick: async () => { await api(`/api/comments/${c.id}`, { method: "DELETE" }); t.comments = t.comments.filter(x => x.id !== c.id); drawComments(); } }, "Slet") : null),
         h("p", { style: { margin: "2px 0 0", whiteSpace: "pre-wrap" } }, c.body))) : [h("p", { class: "muted" }, "Ingen kommentarer endnu – del status fra stedet, fx om fuglen stadig er der.")]),
@@ -91,11 +99,15 @@ export async function render(view, [date, artnr, loknr]) {
     t.comments.push({ ...c, user_id: null });
     drawComments();
   });
+  const offLike = live.on("like", (e) => {
+    if (e.kind === "thread" && e.key === threadKey) api(`/api/likes?kind=thread&key=${encodeURIComponent(threadKey)}`)
+      .then(d => likeEl.update({ count: d.count, names: d.users.slice(-3).reverse().map(u => u.navn) })).catch(() => {});
+  });
   const offFeed = live.on("feed", async (e) => {
     if (!e.portal || !reps.length) return;
     try { const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`); reps.splice(0, reps.length, ...(fresh.reports || [])); drawReports(); } catch { /* ignore */ }
   });
-  return () => { off(); offFeed(); map.remove(); };
+  return () => { off(); offFeed(); offLike(); map.remove(); };
 }
 
 function obsRow(o) {
@@ -132,4 +144,18 @@ function obsRow(o) {
     o.turnoter ? h("p", { class: "muted", style: { margin: "4px 0 0", fontSize: ".85rem" } }, "Tur: ", o.turnoter) : null,
     h("div", { class: "row mt" }, btn, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` })),
     media);
+}
+
+function weatherCard(w) {
+  const n = (v, unit, d = 1) => v == null ? "–" : `${String(Math.round(v * 10 ** d) / 10 ** d).replace(".", ",")}${unit === "°" ? "" : " "}${unit}`;
+  const cell = (label, value) => h("div", {}, h("small", { class: "muted", style: { display: "block" } }, label), h("b", {}, value));
+  return h("div", { class: "card" }, h("h3", { style: { marginTop: 0 } }, "Vejret den dag"),
+    h("div", { class: "grid-3", style: { gap: "10px" } },
+      cell("Temperatur", `${n(w.temp, "°")} (${n(w.temp_min, "°", 0)}–${n(w.temp_max, "°", 0)})`),
+      cell("Vind (maks. stød)", `${n(w.wind, "m/s")} (${n(w.gust, "m/s", 0)})`),
+      cell("Nedbør", n(w.precip, "mm")),
+      cell("Morgen kl. 4–10", h("span", {}, n(w.m_temp, "°"), " · ", w.m_dir != null ? h("span", { html: windArrow(w.m_dir, 14) }) : null, ` ${n(w.m_wind, "m/s")} ${w.m_dir != null ? compass(w.m_dir) : ""}`)),
+      cell("Skydække", n(w.cloud, "%", 0)),
+      cell("Solskin", w.sun == null ? "–" : `${String(Math.round(w.sun / 6) / 10).replace(".", ",")} t`)),
+    h("small", { class: "muted", style: { display: "block", marginTop: "8px" } }, "DMI's 10 km-grid for kvadratet omkring lokaliteten (vejrarkivet)."));
 }

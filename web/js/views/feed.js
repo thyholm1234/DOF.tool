@@ -154,7 +154,8 @@ export function threadCard(t, level, fresh = false) {
         statusBadge(t.portal.status, t.portal.live, t.portal.status_at), t.source === "portal" ? h("span", { class: "tag portal" }, "Portal") : null,
         certaintyTag(t.portal.sikkerhed)) : null),
     h("div", { class: "side" }, tag(kat, KAT[kat]), h("span", { title: "Først set i portalen " + ago(t.first_seen) }, Date.now() - new Date(t.last_seen) < 45 * 60000 ? ago(t.last_seen) : (last.tid || ago(t.last_seen))),
-      t.n_observers > 1 ? h("span", { title: "observatører" }, `${t.n_observers} obs.`) : null));
+      t.n_observers > 1 ? h("span", { title: "observatører" }, `${t.n_observers} obs.`) : null,
+      t.likes ? h("span", { class: "likes", title: "synes godt om" }, `♥ ${t.likes}`) : null));
 }
 
 async function nearby() {

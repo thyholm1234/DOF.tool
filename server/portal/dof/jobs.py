@@ -114,6 +114,8 @@ async def job_month(client: httpx.AsyncClient, p: dict) -> dict:
             await s.execute(text("""INSERT INTO day_sync (dato, rows, source) VALUES (:d, 0, 'month')
                                     ON CONFLICT (dato) DO UPDATE SET fetched_at = now(), source = 'month'"""), {"d": d})
             d += timedelta(days=1)
+        from portal.services.datasync import record_month
+        await record_month(s, y, m, "måned", len(rows))
         await s.commit()
     await after_ingest(res, notify=False)
     return {"year": y, "month": m, "rows": len(rows), "deleted": res.deleted}
@@ -246,6 +248,15 @@ async def enqueue_reference_refresh() -> int:
     return n
 
 
+async def enqueue_day(d: date, priority: int = gateway.NORMAL) -> str:
+    return await gateway.enqueue("day", {"date": d.isoformat()}, priority=priority, dedupe=f"day:{d.isoformat()}")
+
+
+async def enqueue_month(y: int, m: int, priority: int = gateway.BULK) -> str:
+    return await gateway.enqueue("month", {"year": int(y), "month": int(m)}, priority=priority,
+                                 dedupe=f"month:{int(y)}-{int(m):02d}")
+
+
 async def enqueue_gap_fill(max_days: int = 45) -> int:
     """Dage uden komplet hentning (hverken arkiv, måned eller live) lægges i kø – nyeste først."""
     from portal.cache import kv
@@ -261,6 +272,6 @@ async def enqueue_gap_fill(max_days: int = 45) -> int:
     for i in range(1, max_days + 1):
         d = today - timedelta(days=i)
         if d not in synced:
-            await gateway.enqueue("day", {"date": d.isoformat()}, priority=gateway.BULK, dedupe=f"day:{d}")
+            await enqueue_day(d, gateway.BULK)
             n += 1
     return n

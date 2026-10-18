@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, get_json
 from portal.db import get_session
-from portal.services import dmi, phenology
+from portal.services import dmi, phenology, weather_archive
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["science"])
@@ -58,3 +60,9 @@ async def weather_forecast():
         "Tommelfingerregler: forår (mar–maj) giver sydlige/østlige vinde medvind til nordgående trækfugle; "
         "efterår (aug–nov) giver nordlige vinde medvind mod syd. Regn og hård vind trækker ned. "
         "Seawatch-tallet stiger med pålandsvind på kystlokaliteterne. Data: DMI HARMONIE (frie data).")}
+
+
+@router.get("/weather/day")
+async def weather_day(loknr: int, day: date = Query(alias="date"), db: AsyncSession = Depends(get_session)):
+    """Dagsvejr i lokalitetens 10 km-kvadrat fra vejrarkivet (DMI's grid). null hvis måneden ikke er hentet."""
+    return await weather_archive.day_for_location(db, loknr, day)

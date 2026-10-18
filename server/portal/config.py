@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     archive_dir: str = "/archive"
 
     media_dir: str = "/data/media"
+    weather_dir: str = "/data/weather"  # midlertidige DMI-månedsfiler (≈0,5 GB, slettes efter parsing)
 
     vapid_subject: str = "mailto:admin@example.org"
 

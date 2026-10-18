@@ -403,7 +403,7 @@ table.data tr.click:hover td { background: var(--surface-2); }
 .field > .label { display: block; font-size: .8rem; font-weight: 650; color: var(--text-2); margin-bottom: 6px; }
 .chips.wrap { flex-wrap: wrap; overflow: visible; margin-top: 6px; }
 .loc-list { display: grid; gap: 4px; }
-.loc-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+.loc-item { display: flex; width: 100%; max-width: 100%; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
   border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; text-decoration: none; min-width: 0; }
 .loc-item:hover { border-color: var(--brand-2); text-decoration: none; }
 .loc-item > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -457,3 +457,41 @@ details.more > summary { cursor: pointer; font-weight: 650; color: var(--text-2)
 .periods { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .periods li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
 .periods li.active { border-color: var(--brand); background: var(--brand-soft); }
+
+.badge-inline { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px; border-radius: 99px;
+  background: var(--su); color: #fff; font-size: .68rem; font-weight: 800; vertical-align: 1px; }
+/* Likes */
+.like-btn { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2);
+  height: 34px; padding: 0 12px; border-radius: 99px; font: inherit; font-weight: 650; font-size: .88rem; cursor: pointer; }
+.like-btn.on { color: var(--su); border-color: color-mix(in srgb, var(--su) 45%, transparent); background: var(--su-soft); }
+.like-btn svg { width: 18px; height: 18px; }
+.like-btn.on svg { fill: currentColor; }
+.like-btn.sm { height: 26px; padding: 0 8px; font-size: .78rem; }
+.like-btn.sm svg { width: 14px; height: 14px; }
+.like-who { background: none; border: 0; padding: 0; color: var(--text-2); font: inherit; font-size: .84rem; cursor: pointer; text-decoration: underline dotted; }
+.thread .likes { color: var(--su); font-weight: 700; }
+
+/* Datapanel: måned-gitter */
+table.month-grid { border-collapse: separate; border-spacing: 3px; font-size: .74rem; }
+table.month-grid th { color: var(--text-3); font-weight: 650; padding: 0 4px; text-align: center; }
+table.month-grid tbody th { text-align: right; font-variant-numeric: tabular-nums; }
+.mg-cell { min-width: 38px; height: 24px; text-align: center; border-radius: 5px; cursor: pointer; font-variant-numeric: tabular-nums; color: var(--text); background: var(--bg-2); }
+.mg-cell.future { background: transparent; cursor: default; }
+.mg-cell.missing { background: var(--bg-2); color: var(--text-3); }
+.mg-cell.f1 { background: color-mix(in srgb, var(--ok) 70%, var(--surface)); color: #fff; }
+.mg-cell.f7 { background: color-mix(in srgb, var(--ok) 48%, var(--surface)); }
+.mg-cell.f31 { background: color-mix(in srgb, var(--ok) 28%, var(--surface)); }
+.mg-cell.f365 { background: color-mix(in srgb, var(--ok) 14%, var(--surface)); }
+.mg-cell.fold { background: color-mix(in srgb, var(--text-3) 18%, var(--surface)); }
+.mg-cell.partial, .mg-cell.empty { background: color-mix(in srgb, var(--sub) 30%, var(--surface)); }
+.mg-cell.error { background: color-mix(in srgb, var(--su) 45%, var(--surface)); color: #fff; }
+.mg-cell.unavailable { background: repeating-linear-gradient(45deg, var(--bg-2) 0 4px, transparent 4px 8px); color: var(--text-3); }
+.mg-cell.queued { box-shadow: inset 0 0 0 2px var(--bem); }
+.mg-cell.live { box-shadow: inset 0 0 0 2px var(--accent); animation: pulse 1.6s infinite; }
+.mg-cell:hover:not(.future) { outline: 2px solid var(--brand-2); }
+i.mg-key { display: inline-block; min-width: 14px; width: 14px; height: 14px; border-radius: 4px; cursor: default; }
+/* Support */
+.support-msgs { display: grid; gap: 8px; max-height: 55vh; overflow: auto; }
+.support-msg { padding: 10px 12px; border-radius: 12px; background: var(--bg-2); max-width: 92%; }
+.support-msg.admin { background: var(--brand-soft); justify-self: end; }
+.loc-item.active { border-color: var(--brand); }

@@ -84,6 +84,36 @@ DOFbasen-data, vises i de samme tråde og kører gennem de samme alarmregler. De
 dofbasen.dk; brug CSV-eksporten (DOFbasens kolonnenavne) eller indtast også i DOFbasen – meldingen
 markeres, når fundet dukker op dér.
 
+**Likes.** Man kan synes godt om en fugl (tråden: art + lokalitet + dag) og om kommentarer. Feedet viser
+antal, tråden viser "X, Y og N andre", og et klik viser alle, der har liket. Kommentarens forfatter får
+besked i indbakken.
+
+**Billeder.** Store billeder skaleres i browseren før upload: længste side højst 2048 px, JPEG 60 %
+(indtastning og e-læring). GIF og lyd sendes uændret.
+
+**Feedback og support.** Brugere skriver til administratorerne (feedback, hjælp, fejl, idé) og får svar
+i samme samtale. Side, appversion og browser sendes med. Admins får notifikation om nye beskeder,
+brugeren om svar (Admin → Support).
+
+**Aktivitet.** Sidevisninger (højst én pr. side pr. minut) og handlinger (login, feltmelding, kommentar,
+like, supportbesked) logges og vises under Admin → Aktivitet: aktive brugere, mest besøgte sider,
+handlinger og den enkelte brugers forløb. Slettes efter 180 dage.
+
+**Datapanel og opdateringsplaner** (Admin → Data / Vejr, inspireret af DML-Bird-Populations). Et år ×
+måned-gitter viser for hver måned antal observationer og hvornår den sidst er hentet komplet
+(månedsudtræk, arkivfil eller alle dage enkeltvis); klik henter måneden igen. For vinduerne *dagen i dag,
+de sidste 3 dage, den sidste uge, den sidste måned, det sidste år* og *alle data* vælges, om og hvor ofte
+de hentes igen. DOFbasen: i dag = live-intervallet, 3 dage/uge = dagsudtræk, måned/år/alle = månedsudtræk –
+alt gennem gatewayen (ét kald i minuttet), og panelet regner belastningen ud.
+
+**Vejrarkiv.** DMI's 10 km-grid (Det Danske Kvadratnet) hentes som månedsfiler fra
+`opendataapi.dmi.dk/v2/climateData/bulk/10kmgridValue` (≈0,5 GB, én ad gangen, ingen nøgle), parses
+direkte fra zip i flere processer (kun ønskede timeparametre; dubletter afgøres af `calculatedAt`) og
+gemmes pr. kvadrat og dansk døgn: temperatur (middel/min/maks), vind, vindstød, nedbør, skydække, solskin
+og morgenen kl. 4–10 (vektormiddel af vindretning). Lokaliteter får deres kvadrat (`locations.cell10`),
+og tråde viser "Vejret den dag". Samme planer som for DOFbasen; zip-filerne slettes efter parsing
+(volumen `weather`).
+
 **Kategorier** (samme regler som DOF.not): SU/SUB fra artsklassifikationen → bemærk-vindue
 (sommer-/vinterforekomst) → afdelingens bemærk-tærskel. **Lokalt hit**: arten har færre end N
 observationer i området i hele databasen (beregnes hver nat pr. afdeling, kommune og eget område).

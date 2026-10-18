@@ -1,5 +1,5 @@
 // Indtastning: ture og observationer med DOFbasens felter + status (under observation) og sikkerhed.
-import { api, state, h, icon, fmtN, fmtDate, todayISO, tag, toast, modal, empty, errorBox, seg, requireLogin, searchSpecies, KAT } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, todayISO, tag, toast, modal, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, KAT } from "../core.js";
 import { baseMap } from "../maps.js";
 import { reportCard, SIKKERHED, GRUNDLAG } from "../reportui.js";
 
@@ -295,7 +295,7 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
         ? await api(`/api/reports/${initial.id}`, { method: "PATCH", body })
         : await api(`/api/reports/trips/${trip.id}/reports`, { method: "POST", body: { ...body, status: v.status } });
       for (const f of files) {
-        const fd = new FormData(); fd.append("file", f);
+        const fd = new FormData(); fd.append("file", await compressImage(f));
         try { const m = await api(`/api/reports/${r.id}/media`, { method: "POST", form: fd }); r = { ...r, media: m.media, grundlag: m.grundlag }; }
         catch (err) { toast(`${f.name}: ${err.message}`, "err"); }
       }

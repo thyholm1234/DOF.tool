@@ -1,4 +1,4 @@
-import { api, state, h, $, icon, toast, ago } from "./core.js";
+import { api, state, h, $, icon, toast, ago, trackView } from "./core.js";
 import { live } from "./live.js";
 
 // Build-id fra den versionerede sti (/v/<build>/js/app.js) – vises i brugermenuen
@@ -27,6 +27,7 @@ const ROUTES = [
   [/^\/admin$/, () => import("./views/admin.js")],
   [/^\/login$/, () => import("./views/login.js")],
   [/^\/indtast(?:\/tur\/(\d+))?$/, () => import("./views/report.js")],
+  [/^\/support$/, () => import("./views/support.js")],
 ];
 
 let cleanup = null;
@@ -48,8 +49,9 @@ function renderNav() {
     side.unshift(link(["#/indtast", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: path.startsWith("#/profil") ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
+    side.push(h("a", { href: "#/support", class: path.startsWith("#/support") ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
     if (["admin", "superadmin"].includes(state.user.role))
-      side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin</span>` }));
+      side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
 }
@@ -75,6 +77,7 @@ export async function refreshUser() {
 
 export async function refreshUnread() {
   try { state.unread = (await api("/api/notifications?limit=1")).unread; renderUser(); } catch { /* offline */ }
+  try { const s = await api("/api/support/unread"); state.supportUnread = s.user || 0; state.adminSupportUnread = s.admin || 0; renderNav(); } catch { /* ignore */ }
 }
 
 function applyTheme() {
@@ -92,7 +95,8 @@ function openMenu() {
     h("div", { class: "who" }, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, `${u.obserkode} · ${u.role}`)),
     h("a", { href: "#/indtast", onclick: close, html: `${icon("plus")} Indtast observationer` }),
     h("a", { href: "#/alarmer", onclick: close, html: `${icon("bell")} Alarmer og områder` }),
-    h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil og indstillinger` }),
+    h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
+    h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     ["admin", "superadmin"].includes(u.role) ? h("a", { href: "#/admin", onclick: close, html: `${icon("shield")} Administration` }) : null,
     h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; renderUser(); renderNav(); live.restart(); location.hash = "#/"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
@@ -117,6 +121,7 @@ async function openNotifications() {
 async function route() {
   const [path] = (location.hash.slice(1) || "/").split("?");
   renderNav();
+  trackView(path);
   document.querySelector(".menu")?.remove();
   for (const [re, loader] of ROUTES) {
     const m = path.match(re);

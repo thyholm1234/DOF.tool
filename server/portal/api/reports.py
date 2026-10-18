@@ -19,7 +19,7 @@ from portal.cache import kv, publish
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, FieldTrip, ThreadFollow, User
-from portal.services import reports
+from portal.services import activity, reports
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.reports")
@@ -236,6 +236,7 @@ async def create_report(trip_id: int, body: ReportIn, tasks: BackgroundTasks, us
     if not await db.get(ThreadFollow, (user.id, r.dato, r.artnr, r.loknr)):
         db.add(ThreadFollow(user_id=user.id, dato=r.dato, artnr=r.artnr, loknr=r.loknr))
     await db.commit()
+    tasks.add_task(activity.track, user.id, "report", None, {"artnr": r.artnr, "loknr": r.loknr, "kategori": r.kategori})
     if not r.hemmelig:
         tasks.add_task(_in_background, reports.notify_new, [r.id])
         await publish("feed", {"type": "feed", "portal": True, "new": 1})

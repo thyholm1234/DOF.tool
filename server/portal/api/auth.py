@@ -15,7 +15,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import archive_files
 from portal.models import User
-from portal.services import auth
+from portal.services import activity, auth
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -44,6 +44,7 @@ async def login(body: LoginIn, request: Request, response: Response, db: AsyncSe
         await enqueue_history(user.obserkode)
     if new:
         await bump("lists")
+    await activity.track(user.id, "login", None, {"new": new})
     return {"user": user_out(user), "new": new}
 
 

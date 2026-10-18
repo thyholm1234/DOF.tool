@@ -17,6 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import PROGRESS, archive_files, pending_files
 from portal.models import NewsPost, Setting, Species, User
+from portal.services import datasync, weather_archive
 from portal.services.auth import ROLES
 
 router = APIRouter(prefix="/api", tags=["admin"])
@@ -87,15 +88,15 @@ class EnqueueIn(BaseModel):
 
 @router.post("/admin/gateway/enqueue")
 async def enqueue(body: EnqueueIn, user: User = Depends(admin)):
-    from portal.dof.jobs import enqueue_reference_refresh
+    from portal.dof.jobs import enqueue_day, enqueue_month, enqueue_reference_refresh
 
     if body.kind == "reference":
         return {"queued": await enqueue_reference_refresh()}
     p = body.params
     if body.kind == "day":
-        date.fromisoformat(p["date"])
+        return {"job": await enqueue_day(date.fromisoformat(p["date"]), gateway.HIGH)}
     if body.kind == "month":
-        p = {"year": int(p["year"]), "month": int(p["month"])}
+        return {"job": await enqueue_month(int(p["year"]), int(p["month"]), gateway.NORMAL)}
     if body.kind == "history":
         p = {"obserkode": str(p["obserkode"]).upper(), "year_from": int(p.get("year_from", 1900)),
              "year_to": int(p.get("year_to", date.today().year))}
@@ -243,3 +244,79 @@ async def delete_news(nid: int, user: User = Depends(admin), db: AsyncSession = 
     await db.execute(delete(NewsPost).where(NewsPost.id == nid))
     await db.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- datapaneler: DOFbasen og vejrarkiv
+
+
+
+class PlanIn(BaseModel):
+    tiers: dict[str, dict] = Field(default_factory=dict)
+    start_year: int | None = None
+    workers: int | None = None
+
+
+async def _panel(db: AsyncSession, source: str) -> dict:
+    plan = await datasync.get_plan(db, source)
+    data = await datasync.dof_status(db) if source == "dof" else await weather_archive.status(db)
+    extra = {}
+    if source == "dof":
+        g = await gateway.status()
+        extra = {"queue_length": g.get("queue_length"), "calls_today": g.get(f"calls:{date.today().isoformat()}", 0),
+                 "min_interval": g.get("min_interval")}
+    return datasync.jsonable({**data, **extra, "plan": plan, "tiers": datasync.TIERS,
+                              "last_runs": await datasync.last_runs(source),
+                              "per_day": datasync.calls_per_day(source, plan["tiers"])})
+
+
+@router.get("/admin/data/{source}")
+async def data_panel(source: str, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+    if source not in ("dof", "weather"):
+        raise HTTPException(404)
+    return await _panel(db, source)
+
+
+@router.put("/admin/data/{source}/plan")
+async def save_plan(source: str, body: PlanIn, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+    if source not in ("dof", "weather"):
+        raise HTTPException(404)
+    try:
+        await datasync.save_plan(db, source, body.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return await _panel(db, source)
+
+
+@router.post("/admin/data/{source}/run/{tier}")
+async def run_tier(source: str, tier: str, user: User = Depends(admin)):
+    if source not in ("dof", "weather") or tier not in dict(datasync.TIERS) or (source == "dof" and tier == "today"):
+        raise HTTPException(400, "Ukendt vindue")
+    await worker_command("run_plan", source=source, tier=tier)
+    return {"queued": True}
+
+
+class MonthIn(BaseModel):
+    year: int
+    month: int = Field(ge=1, le=12)
+
+
+@router.post("/admin/data/dof/month")
+async def dof_month(body: MonthIn, user: User = Depends(admin)):
+    from portal.dof.jobs import enqueue_month
+
+    return {"job": await enqueue_month(body.year, body.month, gateway.NORMAL)}
+
+
+class WeatherMonthsIn(BaseModel):
+    months: list[tuple[int, int]] = Field(default_factory=list, max_length=600)
+    only_missing: bool = False
+
+
+@router.post("/admin/data/weather/months")
+async def weather_months(body: WeatherMonthsIn, user: User = Depends(admin)):
+    return {"queued": await weather_archive.enqueue(body.months, only_missing=body.only_missing)}
+
+
+@router.delete("/admin/data/weather/queue")
+async def weather_clear(user: User = Depends(admin)):
+    return {"removed": await weather_archive.clear_queue()}

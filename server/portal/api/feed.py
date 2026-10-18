@@ -15,7 +15,8 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.jobs import media_for
 from portal.models import Area, ThreadComment, ThreadFollow, User
-from portal.services import feed, reports
+from portal.api.social import like_summary
+from portal.services import activity, feed, reports
 from portal.services.areas import Scope, parse_scope
 from portal.timeutil import dk_today
 
@@ -51,6 +52,9 @@ async def get_feed(
         raise HTTPException(400, "'Alle' kræver et afgrænset område")
     threads = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max)]
     threads = await reports.merge_feed(db, threads, day, sc, level, local_max, user)
+    likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
+    for t in threads:
+        t["likes"] = likes.get(t["id"], {}).get("count", 0)
     return {"date": day.isoformat(), "scope": sc.key, "level": level, "threads": threads}
 
 
@@ -78,6 +82,11 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
         WHERE c.dato = :d AND c.artnr = :a AND c.loknr = :l AND NOT c.hidden ORDER BY c.created_at
     """), {"d": day, "a": artnr, "l": loknr})).mappings().all()
     data["comments"] = [dict(c) for c in comments]
+    key = f"{day.isoformat()}/{artnr}/{loknr}"
+    data["likes"] = (await like_summary(db, "thread", [key], user)).get(key) or {"count": 0, "liked": False, "names": []}
+    clikes = await like_summary(db, "comment", [str(c["id"]) for c in data["comments"]], user)
+    for c in data["comments"]:
+        c["likes"] = clikes.get(str(c["id"])) or {"count": 0, "liked": False, "names": []}
     data["following"] = False
     if user:
         f = await db.get(ThreadFollow, (user.id, day, artnr, loknr))
@@ -109,6 +118,7 @@ async def comment(day: date, artnr: int, loknr: int, body: CommentIn, user: User
     c = ThreadComment(dato=day, artnr=artnr, loknr=loknr, user_id=user.id, body=body.body.strip())
     db.add(c)
     await db.commit()
+    await activity.track(user.id, "comment", None, {"thread": f"{day}/{artnr}/{loknr}"})
     payload = {"type": "comment", "thread": f"{day}/{artnr}/{loknr}", "id": c.id, "body": c.body,
                "navn": user.navn, "obserkode": user.obserkode, "created_at": c.created_at.isoformat()}
     await publish("feed", payload)
