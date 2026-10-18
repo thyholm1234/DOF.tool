@@ -1,5 +1,5 @@
 // DOF.tool service worker: app-shell offline, netværk-først for API, push-notifikationer.
-const VERSION = "doftool-v7";
+const VERSION = "doftool-v8";
 const SHELL = [
   "/", "/index.html", "/css/app.css", "/js/app.js", "/js/core.js", "/js/live.js", "/js/maps.js", "/js/charts.js",
   "/js/views/feed.js", "/js/views/thread.js", "/js/views/map.js", "/js/views/lists.js", "/js/views/pheno.js",
@@ -9,7 +9,7 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -36,11 +36,15 @@ self.addEventListener("fetch", (e) => {
     }).catch(() => caches.match(e.request).then((r) => r || new Response(JSON.stringify({ detail: "Offline" }), { status: 503, headers: { "Content-Type": "application/json" } }))));
     return;
   }
-  // App-shell: stale-while-revalidate
+  // App-shell: netværk først (altid nyeste kode online), cache kun som offline-nødløsning
   e.respondWith(caches.open(VERSION).then(async (c) => {
-    const hit = await c.match(e.request, { ignoreSearch: true });
-    const net = fetch(e.request).then((r) => { if (r.ok) c.put(e.request, r.clone()); return r; }).catch(() => hit);
-    return hit || net;
+    try {
+      const r = await fetch(e.request, { cache: "no-cache" });
+      if (r.ok) c.put(e.request, r.clone());
+      return r;
+    } catch {
+      return (await c.match(e.request, { ignoreSearch: true })) || (await c.match("/index.html")) || Response.error();
+    }
   }));
 });
 

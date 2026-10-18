@@ -39,7 +39,8 @@ async def guard(request: Request, call_next):
             return JSONResponse({"detail": "Mangler X-Requested-With"}, status_code=403)
     response = await call_next(request)
     path = request.url.path
-    if path == "/" or path.endswith((".html", "sw.js", ".webmanifest")):
+    if not path.startswith(("/api/", "/media/", "/vendor/", "/icons/")):
+        # App-filer (html/js/css/sw): browseren skal altid tjekke for ny version (billigt via etag)
         response.headers["Cache-Control"] = "no-cache"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
