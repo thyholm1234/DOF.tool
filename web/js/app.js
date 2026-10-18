@@ -30,23 +30,25 @@ let cleanup = null;
 
 function renderNav() {
   const path = "#" + (location.hash.slice(1).split("?")[0] || "/");
-  const items = NAV.map(([href, ic, label]) => {
+  const link = ([href, ic, label], cls = "") => {
     const active = href === "#/" ? path === "#/" || path === "#" : path.startsWith(href);
-    return h("a", { href, class: active ? "active" : "", html: `${icon(ic)}<span>${label}</span>` });
-  });
-  $("#bottomnav").replaceChildren(...items.map(a => a.cloneNode(true)));
+    return h("a", { href, class: `${cls} ${active ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
+  };
+  const items = NAV.map(n => link(n));
+  // Mobil: logget ind får "Indtast" som fremhævet midterknap; Alarmer findes via klokken og brugermenuen
+  const bottom = state.user
+    ? [link(NAV[0]), link(NAV[1]), link(["#/indtast", "plus", "Indtast"], "cta"), link(NAV[2]), link(NAV[3]), link(NAV[4])]
+    : items.map(a => a.cloneNode(true));
+  $("#bottomnav").replaceChildren(...bottom);
   const side = [...items];
   if (state.user) {
-    side.splice(1, 0, h("a", { href: "#/indtast", class: path.startsWith("#/indtast") ? "active" : "", html: `${icon("plus")}<span>Indtast</span>` }));
+    side.unshift(link(["#/indtast", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: path.startsWith("#/profil") ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     if (["admin", "superadmin"].includes(state.user.role))
       side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
-  let fab = $("#fab");
-  if (!fab) { fab = h("a", { id: "fab", class: "fab", href: "#/indtast", html: `${icon("plus")}<span>Indtast</span>` }); document.body.append(fab); }
-  fab.classList.toggle("hide", !state.user || !["#/", "#", "#/kort"].includes(path));
 }
 
 function renderUser() {
@@ -85,6 +87,8 @@ function openMenu() {
   const outside = (e) => { if (!menu.contains(e.target) && e.target !== $("#userbtn")) close(); };
   const menu = h("div", { class: "menu" },
     h("div", { class: "who" }, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, `${u.obserkode} · ${u.role}`)),
+    h("a", { href: "#/indtast", onclick: close, html: `${icon("plus")} Indtast observationer` }),
+    h("a", { href: "#/alarmer", onclick: close, html: `${icon("bell")} Alarmer og områder` }),
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil og indstillinger` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     ["admin", "superadmin"].includes(u.role) ? h("a", { href: "#/admin", onclick: close, html: `${icon("shield")} Administration` }) : null,
@@ -140,7 +144,12 @@ async function boot() {
   live.onStatus((on) => $("#live").classList.toggle("on", on));
   await route();
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.register("/sw.js").then((reg) => reg.update()).catch(() => {});
+    // Ny version installeret: genindlæs én gang, så man ikke kører på gammel kode fra cachen
+    if (navigator.serviceWorker.controller) {
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded) { reloaded = true; location.reload(); } });
+    }
     navigator.serviceWorker.addEventListener("message", (e) => { if (e.data?.type === "navigate") location.hash = e.data.url.replace(/^.*#/, "#"); });
   }
 }
