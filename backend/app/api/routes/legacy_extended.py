@@ -17,6 +17,7 @@ from backend.app.db.models import (
     AdminUser,
     BlacklistedUser,
     CommunityNews,
+    CommunityUser,
     Observation,
     ObservationComment,
     PageViewEvent,
@@ -26,7 +27,9 @@ from backend.app.db.models import (
 from backend.app.db.session import SessionLocal, get_db
 from backend.app.services.observation_store import upsert_rows
 from backend.app.api.routes.observations import legacy_row_to_ingest
-from backend.app.services.dof_enrichment import enrich_observations, load_dof_enrichment
+from backend.app.services.community_auth import require_admin
+from backend.app.services.dof_enrichment import enrich_observations, load_dof_enrichment, invalidate_dof_enrichment_cache
+from backend.app.services.reference_data import fetch_bemaerk_csv, fetch_faenologi_csv
 
 router = APIRouter(tags=["legacy-extended"])
 FRONTEND_DIR = Path(__file__).resolve().parents[4] / "frontend"
@@ -314,20 +317,31 @@ async def admin_csv(payload: dict[str, Any], db: AsyncSession = Depends(get_db))
 
 
 @router.api_route("/api/admin/fetch-arter-csv", methods=["GET", "POST"])
-@router.api_route("/api/admin/fetch-faenologi-csv", methods=["GET", "POST"])
-@router.api_route("/api/admin/fetch-all-bemaerk-csv", methods=["GET", "POST"])
-async def fetch_legacy_csv() -> dict[str, Any]:
+async def fetch_legacy_species_csv() -> dict[str, Any]:
     try:
         enrichment = await load_dof_enrichment()
     except httpx.HTTPError as error:
         raise HTTPException(status_code=502, detail=f"Kunne ikke hente DOF-data: {error}")
-    return {
-        "ok": True,
-        "processed": len(enrichment.su) + len(enrichment.sub) + len(enrichment.remarkable),
-        "su": len(enrichment.su),
-        "sub": len(enrichment.sub),
-        "bemaerk": len(enrichment.remarkable),
-    }
+    return {"ok": True, "processed": len(enrichment.su) + len(enrichment.sub), "su": len(enrichment.su), "sub": len(enrichment.sub)}
+
+
+@router.api_route("/api/admin/fetch-faenologi-csv", methods=["GET", "POST"])
+async def fetch_legacy_faenologi_csv(_: CommunityUser = Depends(require_admin)) -> dict[str, Any]:
+    try:
+        result = await fetch_faenologi_csv()
+    except (httpx.HTTPError, ValueError) as error:
+        raise HTTPException(status_code=502, detail=f"Kunne ikke hente fænologi fra DOFbasen: {error}")
+    invalidate_dof_enrichment_cache()
+    return result
+
+
+@router.api_route("/api/admin/fetch-all-bemaerk-csv", methods=["GET", "POST"])
+async def fetch_legacy_bemaerk_csv(_: CommunityUser = Depends(require_admin)) -> dict[str, Any]:
+    result = await fetch_bemaerk_csv()
+    if not result["results"]:
+        raise HTTPException(status_code=502, detail="Kunne ikke hente bemærkelsesdata fra DOFbasen.")
+    invalidate_dof_enrichment_cache()
+    return result
 
 
 @router.get("/api/dofbasen")

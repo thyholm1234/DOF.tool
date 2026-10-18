@@ -1,53 +1,80 @@
+# DOF.tool – portal for feltornitologer
+# Start:  cp .env.example .env  (ret værdier)  &&  docker compose up -d --build
+name: doftool
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: server/Dockerfile
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
+    REDIS_DSN: redis://valkey:6379/0
+    ARCHIVE_DIR: /archive
+    MEDIA_DIR: /data/media
+    TZ: Europe/Copenhagen
+  volumes:
+    - media:/data/media
+    - ${DOF_ARCHIVE_DIR:-./data/archive}:/archive:ro
+    - ./web:/app/web:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+    valkey:
+      condition: service_healthy
+
 services:
   postgres:
-    image: postgres:16
+    image: postgis/postgis:17-3.5
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: dof_tool
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-portal}
+      POSTGRES_USER: ${POSTGRES_USER:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
+      TZ: Europe/Copenhagen
+    command: >
+      postgres -c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB
+               -c effective_cache_size=4GB -c max_wal_size=4GB -c random_page_cost=1.1
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d dof_tool"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portal} -d ${POSTGRES_DB:-portal}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+  valkey:
+    image: valkey/valkey:8.1
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "volatile-lru"]
+    volumes:
+      - valkeydata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
 
   api:
-    image: python:3.12-slim
-    working_dir: /app
-    command: sh -c "pip install -e . && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"
-    volumes:
-      - ./:/app
+    <<: *app
     ports:
-      - "8000:8000"
-    environment:
-      POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@postgres:5432/dof_tool
-      REDIS_DSN: redis://redis:6379/0
-      ADMIN_API_KEY: dev-admin-key
-      SUPERADMIN_API_KEY: dev-superadmin-key
+      - "${PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
-      interval: 10s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=4)"]
+      interval: 15s
       timeout: 5s
-      retries: 12
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      retries: 10
+      start_period: 30s
+
+  # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 kald/minut)
+  worker:
+    <<: *app
+    command: ["python", "-m", "portal.worker"]
+    deploy:
+      replicas: 1
 
 volumes:
-  postgres_data:
+  pgdata:
+  valkeydata:
+  media:

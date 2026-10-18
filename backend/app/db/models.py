@@ -67,15 +67,44 @@ class Observation(Base):
     )
 
 
+class ObservationChange(Base):
+    __tablename__ = "observation_changes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    obsid: Mapped[str] = mapped_column(String(32), index=True)
+    change_type: Mapped[str] = mapped_column(String(16), index=True)
+    species: Mapped[str] = mapped_column(String(180))
+    location_name: Mapped[str] = mapped_column(String(180))
+    old_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    new_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    changed_fields: Mapped[str] = mapped_column(Text)
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class DailySync(Base):
     __tablename__ = "daily_syncs"
 
     sync_date: Mapped[date] = mapped_column(Date, primary_key=True)
     status: Mapped[str] = mapped_column(String(24), default="pending")
     processed_count: Mapped[int] = mapped_column(Integer, default=0)
+    new_count: Mapped[int] = mapped_column(Integer, default=0)
+    updated_count: Mapped[int] = mapped_column(Integer, default=0)
+    changed_count: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+
+class SyncSettings(Base):
+    __tablename__ = "sync_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    interval_seconds: Mapped[int] = mapped_column(Integer, default=60)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -276,6 +305,7 @@ class PushSubscription(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), index=True)
+    device_id: Mapped[str | None] = mapped_column(String(120), index=True, nullable=True)
     endpoint: Mapped[str] = mapped_column(Text, unique=True)
     p256dh: Mapped[str] = mapped_column(Text)
     auth: Mapped[str] = mapped_column(Text)

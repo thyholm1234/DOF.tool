@@ -1,0 +1,700 @@
+{
+ "courses": [
+  {
+   "slug": "loevsanger-gransanger",
+   "title": "Løvsanger eller gransanger?",
+   "topic": "id",
+   "level": "begynder",
+   "summary": "De to klassiske Phylloscopus-sangere: sang, kald, ben, vinger og fænologi.",
+   "intro": "Løvsanger og gransanger er næsten ens i felten. Brug flere karakterer på én gang: sang, kald, benfarve, vingelængde (håndsvingfremspring) og tidspunkt på året.",
+   "questions": [
+    {
+     "prompt": "Hvilken sang hører til gransanger?",
+     "choices": [
+      {
+       "text": "Et monotont 'zilp-zalp-zilp-zalp'",
+       "correct": true
+      },
+      {
+       "text": "En blød, faldende og melodisk strofe",
+       "correct": false
+      },
+      {
+       "text": "En hurtig, skrattende strofe med mange efterligninger",
+       "correct": false
+      },
+      {
+       "text": "En tør, hurtig trille",
+       "correct": false
+      }
+     ],
+     "explanation": "Gransangerens navn på mange sprog (Chiffchaff, Zilpzalp) kommer af den tostavede, monotone sang. Løvsangeren synger en blød, faldende strofe."
+    },
+    {
+     "prompt": "Typisk benfarve hos en adult løvsanger?",
+     "choices": [
+      {
+       "text": "Lyse, kødfarvede til lysebrune ben",
+       "correct": true
+      },
+      {
+       "text": "Sortbrune ben",
+       "correct": false
+      },
+      {
+       "text": "Klart gule ben",
+       "correct": false
+      }
+     ],
+     "explanation": "Løvsanger har normalt lyse ben, gransanger mørke. Der er overlap, så kombinér med andre karakterer."
+    },
+    {
+     "prompt": "Hvilken art har det længste håndsvingfremspring (synlige håndsvingfjer forbi armsvingfjerene)?",
+     "choices": [
+      {
+       "text": "Løvsanger",
+       "correct": true
+      },
+      {
+       "text": "Gransanger",
+       "correct": false
+      },
+      {
+       "text": "De er ens",
+       "correct": false
+      }
+     ],
+     "explanation": "Løvsangeren er langdistancetrækker (Afrika syd for Sahara) og har længere vinger end gransangeren, der overvintrer tættere på."
+    },
+    {
+     "prompt": "En lille grøn sanger vipper gentagne gange halen nedad, mens den fouragerer. Hvad peger det mod?",
+     "choices": [
+      {
+       "text": "Gransanger",
+       "correct": true
+      },
+      {
+       "text": "Løvsanger",
+       "correct": false
+      }
+     ],
+     "explanation": "Halevip er en god adfærdskarakter for gransanger."
+    },
+    {
+     "prompt": "Du ser en Phylloscopus-sanger i Danmark i midten af december. Hvilken er langt mest sandsynlig?",
+     "choices": [
+      {
+       "text": "Gransanger",
+       "correct": true
+      },
+      {
+       "text": "Løvsanger",
+       "correct": false
+      }
+     ],
+     "explanation": "Gransanger overvintrer fåtalligt i Danmark og Vesteuropa; løvsanger overvintrer i Afrika og er ekstremt sjælden om vinteren."
+    },
+    {
+     "prompt": "Hvilken art ankommer normalt først til Danmark om foråret?",
+     "choices": [
+      {
+       "text": "Gransanger (slutningen af marts)",
+       "correct": true
+      },
+      {
+       "text": "Løvsanger (slutningen af marts)",
+       "correct": false
+      },
+      {
+       "text": "De ankommer samtidig",
+       "correct": false
+      }
+     ],
+     "explanation": "Gransanger kommer typisk i sidste halvdel af marts, løvsanger fra midten af april. Se også fænologisiden for de aktuelle tal."
+    },
+    {
+     "prompt": "Hvordan beskrives kaldet bedst?",
+     "choices": [
+      {
+       "text": "Løvsanger: tostavet 'hu-it'; gransanger: mere enstavet 'hvit'",
+       "correct": true
+      },
+      {
+       "text": "Løvsanger: hårdt 'tæk'; gransanger: rullende 'trrr'",
+       "correct": false
+      },
+      {
+       "text": "Begge er tavse uden for yngletiden",
+       "correct": false
+      }
+     ],
+     "explanation": "Kaldene ligner hinanden, men løvsangerens er tydeligere tostavet."
+    }
+   ]
+  },
+  {
+   "slug": "roersanger-kaersanger",
+   "title": "Rørsanger, kærsanger og sivsanger",
+   "topic": "id",
+   "level": "øvet",
+   "summary": "Acrocephalus-sangerne i rørskoven og urterne – sang, habitat og fænologi.",
+   "intro": "De ensfarvede Acrocephalus-sangere bestemmes oftest på sang. Habitat og ankomsttid er gode støttekarakterer.",
+   "questions": [
+    {
+     "prompt": "En sanger efterligner mange andre arter (fx svaler, mejser og afrikanske arter) i en hurtig, varieret sang fra brændenælder og pil. Hvilken art?",
+     "choices": [
+      {
+       "text": "Kærsanger",
+       "correct": true
+      },
+      {
+       "text": "Rørsanger",
+       "correct": false
+      },
+      {
+       "text": "Græshoppesanger",
+       "correct": false
+      },
+      {
+       "text": "Gulbug",
+       "correct": false
+      }
+     ],
+     "explanation": "Kærsangeren er en mester-imitator og synger fra høje urter, ofte uden for selve rørskoven."
+    },
+    {
+     "prompt": "Hvilken sang passer bedst på rørsanger?",
+     "choices": [
+      {
+       "text": "Rytmisk, gentaget 'tjirre-tjirre-tret-tret-tret' i jævnt tempo",
+       "correct": true
+      },
+      {
+       "text": "En lang, ensformig summen som en græshoppe",
+       "correct": false
+      },
+      {
+       "text": "Klare fløjtetoner i korte strofer",
+       "correct": false
+      }
+     ],
+     "explanation": "Rørsangeren synger i et roligt, 'snakkende' tempo med gentagne motiver."
+    },
+    {
+     "prompt": "Hvilken art har tydelig lys øjenbrynsstribe og stribet ryg?",
+     "choices": [
+      {
+       "text": "Sivsanger",
+       "correct": true
+      },
+      {
+       "text": "Rørsanger",
+       "correct": false
+      },
+      {
+       "text": "Kærsanger",
+       "correct": false
+      }
+     ],
+     "explanation": "Sivsangeren er den eneste af de tre med kraftig supercilium og stribet overside."
+    },
+    {
+     "prompt": "Hvilken af arterne ankommer normalt senest til Danmark?",
+     "choices": [
+      {
+       "text": "Kærsanger (sidst i maj)",
+       "correct": true
+      },
+      {
+       "text": "Sivsanger",
+       "correct": false
+      },
+      {
+       "text": "Rørsanger",
+       "correct": false
+      }
+     ],
+     "explanation": "Kærsangeren er en af de seneste ankomne arter; mange synger først fra sidste uge af maj."
+    },
+    {
+     "prompt": "En Acrocephalus-sanger ses i ren, høj tagrørsskov ved vand. Hvilken er mest sandsynlig?",
+     "choices": [
+      {
+       "text": "Rørsanger",
+       "correct": true
+      },
+      {
+       "text": "Kærsanger",
+       "correct": false
+      }
+     ],
+     "explanation": "Rørsangeren er knyttet til tagrør; kærsangeren foretrækker urter og buske."
+    }
+   ]
+  },
+  {
+   "slug": "lommer-lappedykkere-vinter",
+   "title": "Lommer og lappedykkere i vinterdragt",
+   "topic": "id",
+   "level": "øvet",
+   "summary": "Rødstrubet/sortstrubet lom og toppet/gråstrubet lappedykker på havet om vinteren.",
+   "intro": "Om vinteren er dragterne grå og hvide. Næbform, hovedholdning og flankemønster er nøglerne.",
+   "questions": [
+    {
+     "prompt": "En lom i vinterdragt har tyndt, let opadvendt næb, holder hovedet løftet og har fine hvide prikker på ryggen. Art?",
+     "choices": [
+      {
+       "text": "Rødstrubet lom",
+       "correct": true
+      },
+      {
+       "text": "Sortstrubet lom",
+       "correct": false
+      },
+      {
+       "text": "Islom",
+       "correct": false
+      }
+     ],
+     "explanation": "Rødstrubet lom: opadvendt næb, 'næsen i vejret' og prikket ryg."
+    },
+    {
+     "prompt": "Hvilken karakter er bedst for sortstrubet lom på vandet?",
+     "choices": [
+      {
+       "text": "En hvid plet på bagflanken lige over vandlinjen",
+       "correct": true
+      },
+      {
+       "text": "Gult næb",
+       "correct": false
+      },
+      {
+       "text": "Hvid nakke",
+       "correct": false
+      }
+     ],
+     "explanation": "Den hvide flankeplet ved vandlinjen er karakteristisk for sortstrubet lom."
+    },
+    {
+     "prompt": "Lappedykker i vinterdragt: hvid kind der når op over øjet og lyserødt næb. Art?",
+     "choices": [
+      {
+       "text": "Toppet lappedykker",
+       "correct": true
+      },
+      {
+       "text": "Gråstrubet lappedykker",
+       "correct": false
+      },
+      {
+       "text": "Nordisk lappedykker",
+       "correct": false
+      }
+     ],
+     "explanation": "Toppet lappedykker er den største og lyseste, med hvidt over øjet."
+    },
+    {
+     "prompt": "Mellemstor lappedykker med mørk kasket ned til øjet, gråt halsparti og gul næbrod. Art?",
+     "choices": [
+      {
+       "text": "Gråstrubet lappedykker",
+       "correct": true
+      },
+      {
+       "text": "Toppet lappedykker",
+       "correct": false
+      },
+      {
+       "text": "Sorthalset lappedykker",
+       "correct": false
+      }
+     ],
+     "explanation": "Den gule næbrod og det grålige halsparti peger på gråstrubet lappedykker."
+    }
+   ]
+  },
+  {
+   "slug": "saedgaes-og-kortnaebbet",
+   "title": "Sædgæs og kortnæbbet gås",
+   "topic": "id",
+   "level": "øvet",
+   "summary": "Tajgasædgås, tundrasædgås og kortnæbbet gås – næb, hals og farver.",
+   "intro": "De 'grå' gæs med orange eller lyserøde ben bestemmes på næb, proportioner og oversidens farve.",
+   "questions": [
+    {
+     "prompt": "Gås med lyserødt bånd på næbbet, lyserøde ben og lys, blågrå overside. Art?",
+     "choices": [
+      {
+       "text": "Kortnæbbet gås",
+       "correct": true
+      },
+      {
+       "text": "Tundrasædgås",
+       "correct": false
+      },
+      {
+       "text": "Grågås",
+       "correct": false
+      }
+     ],
+     "explanation": "Kortnæbbet gås har lyserøde bløddele, mens sædgæssene har orange."
+    },
+    {
+     "prompt": "Hvad adskiller typisk tajgasædgås fra tundrasædgås?",
+     "choices": [
+      {
+       "text": "Længere, slankere hals og langt næb med meget orange",
+       "correct": true
+      },
+      {
+       "text": "Hvid pande",
+       "correct": false
+      },
+      {
+       "text": "Lyserøde ben",
+       "correct": false
+      }
+     ],
+     "explanation": "Tajgasædgåsen er større og mere 'svanelignende'; tundrasædgåsen er kompakt med kort, kraftigt næb, der oftest er mest sort."
+    },
+    {
+     "prompt": "Hvilken af de to sædgæs er langt den talrigeste i Danmark om vinteren?",
+     "choices": [
+      {
+       "text": "Tundrasædgås",
+       "correct": true
+      },
+      {
+       "text": "Tajgasædgås",
+       "correct": false
+      }
+     ],
+     "explanation": "Tajgasædgås er fåtallig med få faste overvintringsområder (fx Nordjylland); tundrasædgås er langt mere udbredt. Tjek artssiden for tal fra databasen."
+    }
+   ]
+  },
+  {
+   "slug": "pibere",
+   "title": "Piberne: eng-, skov-, rødstrubet og skærpiber",
+   "topic": "kald",
+   "level": "øvet",
+   "summary": "Kaldene er nøglen – især på trækket.",
+   "intro": "Pibere bestemmes oftest på kald, når de flyver over. Lær de fire almindeligste kald, så er det nemmere at opdage det afvigende.",
+   "questions": [
+    {
+     "prompt": "Tynd, ofte gentaget 'ist-ist-ist' fra flok i oktober. Art?",
+     "choices": [
+      {
+       "text": "Engpiber",
+       "correct": true
+      },
+      {
+       "text": "Skovpiber",
+       "correct": false
+      },
+      {
+       "text": "Rødstrubet piber",
+       "correct": false
+      }
+     ],
+     "explanation": "Engpiberens kald er tyndt og ofte gentaget i serier."
+    },
+    {
+     "prompt": "Et hæst, enkelt 'spiz' fra en overflyvende piber i august. Art?",
+     "choices": [
+      {
+       "text": "Skovpiber",
+       "correct": true
+      },
+      {
+       "text": "Engpiber",
+       "correct": false
+      },
+      {
+       "text": "Skærpiber",
+       "correct": false
+      }
+     ],
+     "explanation": "Skovpiberens trækkald er hæst og kraftigt. Skovpiber trækker især august–september."
+    },
+    {
+     "prompt": "Langt, skarpt og udtrukket 'psiiih', der svinder ud. Art?",
+     "choices": [
+      {
+       "text": "Rødstrubet piber",
+       "correct": true
+      },
+      {
+       "text": "Engpiber",
+       "correct": false
+      },
+      {
+       "text": "Bjergpiber",
+       "correct": false
+      }
+     ],
+     "explanation": "Det lange, rene kald er den bedste måde at finde rødstrubet piber på trækket."
+    },
+    {
+     "prompt": "Mørk, gråbrun piber med mørke ben på stenstrand om vinteren. Art?",
+     "choices": [
+      {
+       "text": "Skærpiber",
+       "correct": true
+      },
+      {
+       "text": "Engpiber",
+       "correct": false
+      },
+      {
+       "text": "Skovpiber",
+       "correct": false
+      }
+     ],
+     "explanation": "Skærpiberen er mørk med mørke ben og knyttet til klippe- og stenkyster."
+    },
+    {
+     "prompt": "Hvilken bagtå-klo passer på skovpiber?",
+     "choices": [
+      {
+       "text": "Kort og krummet",
+       "correct": true
+      },
+      {
+       "text": "Lang og næsten lige",
+       "correct": false
+      }
+     ],
+     "explanation": "Skovpiberen sidder i træer og har kort, krum bagklo; engpiberens er lang."
+    }
+   ]
+  },
+  {
+   "slug": "nattraek-vadefugle-kald",
+   "title": "Kald i mørket: drosler og vadefugle",
+   "topic": "kald",
+   "level": "øvet",
+   "summary": "Nattræk og vadefugle over hovedet – onomatopoietikon for de vigtigste kald.",
+   "intro": "Brug lydfiler (uploades af redaktører) eller lyt i felten. Her trænes de klassiske beskrivelser.",
+   "questions": [
+    {
+     "prompt": "Højt, tyndt og udtrukket 'tsiiih' fra himlen en oktobernat. Art?",
+     "choices": [
+      {
+       "text": "Rødvinget drossel",
+       "correct": true
+      },
+      {
+       "text": "Sangdrossel",
+       "correct": false
+      },
+      {
+       "text": "Sjagger",
+       "correct": false
+      }
+     ],
+     "explanation": "Rødvinget drossels nattrækkald er det mest hørte lyd fra efterårsnætter."
+    },
+    {
+     "prompt": "Kort, skarpt 'tsip' fra en trækkende drossel. Art?",
+     "choices": [
+      {
+       "text": "Sangdrossel",
+       "correct": true
+      },
+      {
+       "text": "Rødvinget drossel",
+       "correct": false
+      },
+      {
+       "text": "Misteldrossel",
+       "correct": false
+      }
+     ],
+     "explanation": "Sangdroslens kald er kort og tørt."
+    },
+    {
+     "prompt": "Tre ens, klare toner 'tju-tju-tju'. Art?",
+     "choices": [
+      {
+       "text": "Hvidklire",
+       "correct": true
+      },
+      {
+       "text": "Svaleklire",
+       "correct": false
+      },
+      {
+       "text": "Tinksmed",
+       "correct": false
+      },
+      {
+       "text": "Rødben",
+       "correct": false
+      }
+     ],
+     "explanation": "Hvidklire (Tringa nebularia) siger 'tju-tju-tju' i tre ens, klare toner. Svaleklire siger et stigende 'tluit-uit', tinksmed 'jiff-jiff-jiff' og rødben et mere klagende 'tjy-hu-hu'."
+    },
+    {
+     "prompt": "Syv hurtige, ens toner 'bi-bi-bi-bi-bi-bi-bi'. Art?",
+     "choices": [
+      {
+       "text": "Småspove",
+       "correct": true
+      },
+      {
+       "text": "Storspove",
+       "correct": false
+      },
+      {
+       "text": "Lille kobbersneppe",
+       "correct": false
+      }
+     ],
+     "explanation": "Småspoven (Numenius phaeopus) siger en serie på ca. syv toner – kendt som 'syvfløjteren'. Storspoven siger 'kur-li'."
+    },
+    {
+     "prompt": "Melankolsk, fløjtende 'tlyy' fra flok om foråret på marker. Art?",
+     "choices": [
+      {
+       "text": "Hjejle",
+       "correct": true
+      },
+      {
+       "text": "Strandhjejle",
+       "correct": false
+      },
+      {
+       "text": "Vibe",
+       "correct": false
+      }
+     ],
+     "explanation": "Hjejlens kald er et klagende, rent 'tlyy'."
+    },
+    {
+     "prompt": "Stigende, tostavet 'tluit' – ofte fra en mørk klire, der letter fra en grøft. Art?",
+     "choices": [
+      {
+       "text": "Svaleklire",
+       "correct": true
+      },
+      {
+       "text": "Tinksmed",
+       "correct": false
+      },
+      {
+       "text": "Rødben",
+       "correct": false
+      }
+     ],
+     "explanation": "Svaleklire (Tringa ochropus, Green Sandpiper) har et klart 'tluit-uit'. Tinksmed siger et gentaget 'jiff-jiff'."
+    }
+   ]
+  },
+  {
+   "slug": "aarstidens-fugle",
+   "title": "Årstiden: hvornår kommer og går de?",
+   "topic": "saeson",
+   "level": "begynder",
+   "summary": "Ankomst og afrejse for almindelige træk- og vintergæster.",
+   "intro": "Prøv også de automatiske quizzer 'Årstidens fugle' og 'Hvornår trækker de?', der genereres direkte fra 15+ års DOFbasen-data.",
+   "questions": [
+    {
+     "prompt": "Hvornår ankommer de første mursejlere normalt til Danmark?",
+     "choices": [
+      {
+       "text": "Starten af maj",
+       "correct": true
+      },
+      {
+       "text": "Midten af marts",
+       "correct": false
+      },
+      {
+       "text": "Midten af juni",
+       "correct": false
+      }
+     ],
+     "explanation": "Mursejleren kommer omkring 1. maj og forlader landet igen allerede i august."
+    },
+    {
+     "prompt": "Hvilken art er en udpræget vintergæst fra Skandinavien/Rusland, der kan optræde invasionsagtigt i oktober–november?",
+     "choices": [
+      {
+       "text": "Silkehale",
+       "correct": true
+      },
+      {
+       "text": "Hvepsevåge",
+       "correct": false
+      },
+      {
+       "text": "Rødrygget tornskade",
+       "correct": false
+      }
+     ],
+     "explanation": "Silkehalen kommer i varierende antal afhængigt af bærår i nord."
+    },
+    {
+     "prompt": "Hvilken af disse arter er normalt den første trækfugl, der ankommer om foråret?",
+     "choices": [
+      {
+       "text": "Sanglærke (februar)",
+       "correct": true
+      },
+      {
+       "text": "Gøg",
+       "correct": false
+      },
+      {
+       "text": "Rødrygget tornskade",
+       "correct": false
+      },
+      {
+       "text": "Pirol",
+       "correct": false
+      }
+     ],
+     "explanation": "Sanglærker ankommer allerede i februar; gøg i slutningen af april og pirol midt i maj."
+    },
+    {
+     "prompt": "Hvornår er hvepsevågen i Danmark?",
+     "choices": [
+      {
+       "text": "Maj–september",
+       "correct": true
+      },
+      {
+       "text": "Oktober–marts",
+       "correct": false
+      },
+      {
+       "text": "Hele året",
+       "correct": false
+      }
+     ],
+     "explanation": "Hvepsevågen lever af hvepselarver og er kun her i sommerhalvåret; trækket topper i maj og august/september."
+    },
+    {
+     "prompt": "Hvilken finke trækker i store tal over Danmark i september–oktober og overvintrer især i bøgeskove i oldenår?",
+     "choices": [
+      {
+       "text": "Kvækerfinke",
+       "correct": true
+      },
+      {
+       "text": "Stillits",
+       "correct": false
+      },
+      {
+       "text": "Grønirisk",
+       "correct": false
+      }
+     ],
+     "explanation": "Kvækerfinken er en klassisk efterårstrækker og samles i bøgeskove, når der er bog."
+    }
+   ]
+  }
+ ]
+}

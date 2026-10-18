@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.schemas import AdminUserRequest, BlacklistRequest, PageViewRequest
+from backend.app.api.schemas import AdminUserRequest, BlacklistRequest, PageViewRequest, SyncSettingsPayload
 from backend.app.core.config import get_settings
 from backend.app.db.models import (
     AdminUser,
@@ -17,10 +17,12 @@ from backend.app.db.models import (
     EventComment,
     FlashcardModel,
     Observation,
+    ObservationChange,
     ObservationComment,
     PageViewEvent,
     Trip,
     UserPreference,
+    SyncSettings,
 )
 from backend.app.db.session import get_db
 from backend.app.services.community_auth import require_admin, require_superadmin
@@ -215,15 +217,42 @@ async def session_dashboard(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     latest_sync = await db.scalar(select(DailySync).order_by(DailySync.sync_date.desc()).limit(1))
+    sync_settings = await db.get(SyncSettings, 1)
+    changes = await db.execute(select(ObservationChange).order_by(ObservationChange.detected_at.desc()).limit(20))
     return {
         "overview": await admin_overview(db),
         "latest_sync": {
             "date": latest_sync.sync_date if latest_sync else None,
             "status": latest_sync.status if latest_sync else "never",
             "processed_count": latest_sync.processed_count if latest_sync else 0,
+            "new_count": latest_sync.new_count if latest_sync else 0,
+            "updated_count": latest_sync.updated_count if latest_sync else 0,
+            "changed_count": latest_sync.changed_count if latest_sync else 0,
             "error": latest_sync.error if latest_sync else None,
         },
+        "sync_settings": {"interval_seconds": sync_settings.interval_seconds if sync_settings else 60},
+        "recent_changes": [
+            {"obsid": item.obsid, "change_type": item.change_type, "species": item.species,
+             "location": item.location_name, "old_count": item.old_count, "new_count": item.new_count,
+             "changed_fields": item.changed_fields, "detected_at": item.detected_at}
+            for item in changes.scalars().all()
+        ],
     }
+
+
+@router.put("/session/sync-settings")
+async def update_sync_settings(
+    payload: SyncSettingsPayload,
+    _: CommunityUser = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    settings = await db.get(SyncSettings, 1)
+    if settings is None:
+        settings = SyncSettings(id=1)
+        db.add(settings)
+    settings.interval_seconds = payload.interval_seconds
+    await db.commit()
+    return {"status": "ok", "interval_seconds": settings.interval_seconds}
 
 
 @router.get("/session/users")

@@ -42,6 +42,17 @@ async def lifespan(_: FastAPI):
                 "ADD COLUMN IF NOT EXISTS remarkable_count INTEGER"
             )
         )
+        await connection.execute(
+            text("ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS device_id VARCHAR(120)")
+        )
+        await connection.execute(
+            text(
+                "ALTER TABLE daily_syncs "
+                "ADD COLUMN IF NOT EXISTS new_count INTEGER DEFAULT 0, "
+                "ADD COLUMN IF NOT EXISTS updated_count INTEGER DEFAULT 0, "
+                "ADD COLUMN IF NOT EXISTS changed_count INTEGER DEFAULT 0"
+            )
+        )
 
     async with SessionLocal() as session:
         existing = await session.scalar(select(FlashcardModel.id).limit(1))

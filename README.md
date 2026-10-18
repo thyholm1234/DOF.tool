@@ -1,117 +1,118 @@
-# DOF.tool
+# DOF.tool – feltornitologernes portal
 
-Samlet PWA + API-platform, der forener:
+Én PWA med fælles login og fælles database, der samler de tidligere apps:
 
-- DOF.not (sjældenhedsnotifikationer + admin)
-- Fugleliga (års-ranglister)
-- Trend-modul (nu vs. historik)
-- Turmodul (opret/join fugleture)
-- Læringsportal (flashcards for udseende/kald)
+| Tidligere app | I DOF.tool |
+|---|---|
+| **DOF.not** (notifikationer) | *Nu*-feedet med tråde, kort, kommentarer, følg tråd, push-notifikationer, stille timer |
+| **Boligbirding / Fugleliga** | *Lister*: årslister, matrikellister (`#BB26`, `#BB26-2`), afdelinger, kommuner, egne områder, scoreboards, kapløbsgraf, matrix, unikke arter, grupper |
+| **Trækfugl** | *Træk*: tidligere/senere end normalt, ankomster, trækvejr (DMI), klima |
+| (nyt) | *Alarmer* for afdeling, kommune, lokalitet, tegnet polygon eller radius – SU, SUB, Bemærk, **lokale hits** (< N obs. i området) eller alle |
+| (nyt) | *Læring*: kurser med multiple choice (billede/lyd), spaced repetition og datadrevne quizzer |
 
-## Stack
+## Arkitektur
 
-- FastAPI + Uvicorn
-- Redis
-- PostgreSQL
-- PWA frontend (manifest + service worker)
-
-## Hurtig opstart
-
-```bash
-docker compose up --build
+```
+docker compose
+├── postgres  (PostGIS 17)  – al data: observationer (1960'erne →), lokaliteter, kommunepolygoner, brugere …
+├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, scoreboards, pub/sub til live-opdateringer
+├── api       (FastAPI)  – REST + server-sent events + statisk PWA (web/)
+└── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
 ```
 
-API kører på `http://localhost:8000/api/v1`  
-Frontend kører på `http://localhost:8000/`
+### Hensyn til dofbasen.dk: højst ét kald i minuttet
 
-Første bruger, der registrerer sig, bliver `superadmin`. Derefter kan superadmin
-oprette admins fra `http://localhost:8000/admin.html`. Community-forsiden indeholder
-offentlig agenda, nyhedsboard, kommentarer, tilmeldinger, dokumentlinks og kontaktpersoner.
-Efter backendændringer skal stacken genbygges, så de nye routes kommer i den kørende container:
+**Alt**, der går til dofbasen.dk, går gennem én kø i Valkey og udføres af worker-processen
+(`server/portal/dof/gateway.py`). Der går altid mindst 60 sekunder fra ét kald er færdigt til det
+næste starter. Det gælder live-hentning, login-tjek, referencedata, historik og billeder. Grænsen kan
+ikke sættes lavere end 60 sekunder (`DOF_MIN_INTERVAL`), og den håndhæves med et globalt tidsstempel
+og en lås, så den også holder på tværs af genstarter.
 
-```bash
-docker compose down
-docker compose up --build
-```
+Prioritering pr. ledigt minut:
+1. interaktive job (første login, billeder/lyd som en bruger har bedt om)
+2. live-hentning af dagens observationer
+3. øvrige job (i går hver time, sidste 7 dage om natten, referencedata kl. 3, huller i data).
+   Er der ventende job, skiftes der mellem live og kø, så feedet opdateres mindst hvert 2. minut.
 
-Hvis API ikke svarer med det samme, følg containeren til health bliver `healthy`:
+Hvad sparer kald:
+* Én dagsliste dækker *alle* moduler: notifikationer, lister, scoreboards og fænologi læser samme data.
+* Historik kommer fra det lokale arkiv (`dofbasen_ÅÅÅÅ_MM.csv`), der importeres automatisk.
+* Login tjekkes kun hos DOFbasen første gang (eller ved ændret kode); derefter bruges en argon2-hash.
+* Kommunetilhørsforhold beregnes med kommunepolygoner i PostGIS, ikke med opslag hos DOFbasen.
 
-```bash
-docker compose ps
-docker compose logs -f api
-```
+Status, kø og log kan ses under **Admin → Drift**.
 
-Ved API-opstart oprettes databaseskemaet automatisk. Dagens observationer synkroniseres
-med det samme og igen ved næste UTC-midnat. Resultatet kan ses i API-loggen som
-`Daily observation sync completed` eller `Daily observation sync failed`.
-
-## Lokalt uden Docker
-
-Kræver Python 3.11+, samt kørende PostgreSQL og Redis (fx `docker compose up -d postgres redis`).
+## Kom i gang
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-uvicorn backend.app.main:app --reload
+cp .env.example .env        # ret adgangskoder, superadmin og stien til arkivet
+docker compose up -d --build
 ```
 
-## Tests
+Åbn `http://localhost:8090` (porten styres af `PORT`). Første opstart:
+
+1. Databasen oprettes, referencedata (arter, SU/SUB, bemærk-tærskler, fænologivinduer, 99 kommuner)
+   indlæses fra `server/portal/seed/`.
+2. Worker importerer alle månedsfiler i `DOF_ARCHIVE_DIR` (≈ 30 mio. observationer tager ca. en halv time)
+   og genberegner derefter fænologi og lokale artstal. Fremdrift ses under Admin → Drift.
+3. Live-hentningen går i gang med det samme.
+
+Superadmin oprettes ud fra `SUPERADMIN_OBSERKODE`/`SUPERADMIN_PASSWORD` ved hver opstart.
+
+### Push-notifikationer
+
+Web Push kræver HTTPS (undtagen `localhost`). Sæt portalen bag en reverse proxy med TLS
+(fx Caddy/Traefik/nginx) og sæt `COOKIE_SECURE=true` og `PUBLIC_URL`. VAPID-nøgler genereres
+automatisk og gemmes i databasen. På iPhone skal appen føjes til hjemmeskærmen før push virker.
+
+## Funktioner i detaljer
+
+**Nu (feed).** Dagens observationer samlet i tråde (art + lokalitet + dag). Filtre: SU, SUB+, Bemærk+,
+*Lokale hits* og *Alle* (kræver område). Område: hele landet, lokalafdeling, egne kommuner og områder.
+Opdateres live via server-sent events. Dagens største træklokaliteter. *Tæt på mig* bruger din position.
+
+**Tråd.** Alle observationer med adfærd, dragt, tider, noter; kort; kommentarer i realtid; følg tråden
+for besked om hver ny observation; billeder/lyd fra DOFbasen hentes på forespørgsel (køes, caches 7 dage).
+
+**Kategorier** (samme regler som DOF.not): SU/SUB fra artsklassifikationen → bemærk-vindue
+(sommer-/vinterforekomst) → afdelingens bemærk-tærskel. **Lokalt hit**: arten har færre end N
+observationer i området i hele databasen (beregnes hver nat pr. afdeling, kommune og eget område).
+
+**Notifikationer.** En tråd udløser regel-notifikationer, når den er ny, eller når max-antallet stiger.
+Nye observationer i en eksisterende tråd går kun til dem der følger den. Egne observationer og tråde
+man selv har observeret i, giver aldrig besked. Alt lander i indbakken (klokken), push respekterer
+stille timer.
+
+**Lister.** Første fund pr. art (underarter tæller som nominatarten; sp./hybrider/tamformer tæller ikke).
+Scopes: Danmark, matrikel 1/2 (tag i tur- eller fuglenoter med årets to cifre), lokalafdeling,
+kommune, egne områder; år eller livsliste. Scoreboards caches i Valkey og invalideres når nye
+observationer fra deltagere kommer ind.
+
+**Træk & fænologi.** Indsatskorrigeret rapporteringsrate pr. dag (andel af alle ture med arten),
+sæsonens 10/50/90 %-datoer pr. år, Theil–Sen-trend med Kendalls τ, "i år"-forskydning ved
+kurvetilpasning, sammenhæng med DMI's forårstemperatur. Trækvejr fra DMI HARMONIE for klassiske
+træksteder med enkle tommelfingerregler. Se fanen *Metode* i appen.
+
+**Læring.** Redaktører (rolle *editor*) opretter kurser og spørgsmål med billede/lyd-upload.
+Forkerte svar kommer igen (Leitner-kasser). Fire automatiske quizzer genereres af portalens egne data.
+
+## Udvikling
 
 ```bash
-pytest
+docker compose run --rm --no-deps -v ./server:/app/server -w /app/server api \
+  sh -c "pip install -q pytest pytest-asyncio && python -m pytest -q"
 ```
 
-## API-endpoints (v1)
+`web/` er mountet ind i api-containeren, så frontend-ændringer kræver ikke rebuild.
+Backend-ændringer: `docker compose up -d --build api worker`.
 
-- `GET /api/v1/health`
-- `POST /api/v1/auth/dof/login`
-- `POST /api/v1/observations/ingest`
-- `POST /api/v1/observations/legacy-update` (kompatibel med gammel DOF.not watcher payload)
-- `POST /api/v1/observations/sync/dof`
-- `POST /api/v1/observations/preferences`
-- `GET /api/v1/observations/alerts?user_id=...`
-- `GET /api/v1/observations/threads`
-- `GET /api/v1/observations/thread/{day}/{thread_id}`
-- `GET /api/v1/observations/summary`
-- `GET /api/v1/rankings/yearly`
-- `GET /api/v1/rankings/matrix`
-- `GET /api/v1/trends/signals`
-- `GET /api/v1/trips`
-- `POST /api/v1/trips?creator_user_id=...`
-- `POST /api/v1/trips/{trip_id}/join`
-- `GET /api/v1/learning/flashcards`
-- `POST /api/v1/learning/flashcards`
-- `GET /api/v1/learning/flashcards/quiz`
-- `GET /api/v1/admin/overview`
-- `POST /api/v1/admin/blacklist` (`X-Admin-Key`)
-- `DELETE /api/v1/admin/blacklist/{user_id}` (`X-Admin-Key`)
-- `GET /api/v1/admin/blacklist` (`X-Admin-Key`)
-- `GET /api/v1/admin/traffic/summary` (`X-Admin-Key`)
-- `GET /api/v1/admin/admins` (`X-Superadmin-Key`)
-- `POST /api/v1/admin/admins` (`X-Superadmin-Key`)
-- `DELETE /api/v1/admin/admins/{user_id}` (`X-Superadmin-Key`)
-- `POST /api/v1/admin/pageviews`
-
-## Legacy watcher-integration
-
-Eksisterende watcher kan pege på:
-
-```bash
-SERVER_URL=http://localhost:8000/api/v1/observations/legacy-update
+```
+server/portal/
+  dof/        gateway (rate limit), jobs (ét kald hver), parse, classify, ingest (COPY), archive, reference
+  services/   feed, alerts, push, lists, areas (PostGIS), phenology, dmi, learning, auth
+  api/        FastAPI-routere
+  seed/       referencedata, kommunepolygoner, kursusindhold
+web/          PWA uden build-trin (ES-moduler), Leaflet vendoreret
 ```
 
-eller du kan trigge DOF-hentning direkte i backend:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/observations/sync/dof \
-  -H 'content-type: application/json' \
-  -d '{"target_date":"2026-08-13"}'
-```
-
-## Næste skridt
-
-1. Koble `watcher`-flowet fra gamle DOF.not direkte på `/api/v1/observations/ingest`.
-2. Tilføj scheduler-jobs (Redis) til løbende sync af observationer/phenologi.
-3. Udbyg login/auth med server-side session/JWT + roller (admin/superadmin).
-4. Migrér gamle adminhandlinger (blacklist, trafik, brugeradministration) trinvis.
+De gamle apps ligger i `Old Apps/` (inkl. `DOF.tool-v0.1`) til reference.

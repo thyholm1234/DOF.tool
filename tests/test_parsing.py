@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 
 from backend.app.api.routes.observations import _thread_id, legacy_row_to_ingest
+from backend.app.services.dof_auth import extract_dof_observer_name
 from backend.app.services.dof_sync import _to_ingest_row
 
 
@@ -56,3 +57,8 @@ def test_dof_sync_row_uses_observation_time_and_defaults():
 def test_thread_id_prefers_location_id():
     assert _thread_id("Lille Kjove", "42", "Skagen") == "lille-kjove-42"
     assert _thread_id("Lille Kjove", None, "Skagen Nord") == "lille-kjove-skagen-nord"
+
+
+def test_dof_observer_name_decodes_danish_characters():
+    markup = '<td>Navn</acronym>:</td><td>Christian Helligs&#248;</td>'
+    assert extract_dof_observer_name(markup) == "Christian Helligsø"

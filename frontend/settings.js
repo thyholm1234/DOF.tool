@@ -10,7 +10,16 @@ async function request(url, options = {}) {
   if (!response.ok) throw new Error(body.detail || `Anmodningen fejlede (${response.status})`);
   return body;
 }
-function userId() { return user?.id || localStorage.getItem("userid") || ""; }
+function userId() {
+  let id = user?.id || localStorage.getItem("userid");
+  if (!id) { id = `user-${Math.random().toString(36).slice(2)}`; localStorage.setItem("userid", id); }
+  return id;
+}
+function deviceId() {
+  let id = localStorage.getItem("deviceid");
+  if (!id) { id = `device-${Math.random().toString(36).slice(2)}`; localStorage.setItem("deviceid", id); }
+  return id;
+}
 function render() {
   $("#department-list").innerHTML = departments.map((name) => {
     const selected = preferences.afdelinger.find((item) => item.name === name)?.level || "Ingen";
@@ -72,8 +81,9 @@ $("#dof-login-form").addEventListener("submit", async (event) => {
   const values = Object.fromEntries(new FormData(event.currentTarget).entries());
   $("#dof-login-status").textContent = "Validerer login og henter navn...";
   try {
-    const result = await request("/api/v1/auth/dof/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: id, username: values.obserkode, password: values.adgangskode }) });
-    showDofConnection(result.observer_code, result.display_name);
+    const result = await request("/api/validate-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: id, device_id: deviceId(), obserkode: values.obserkode, adgangskode: values.adgangskode }) });
+    if (!result.ok) throw new Error(result.error || "Login fejlede");
+    showDofConnection(values.obserkode.toUpperCase(), result.navn);
     event.currentTarget.reset();
     $("#dof-login-status").textContent = "DOFbasen-forbindelse gemt.";
   } catch (error) { $("#dof-login-status").textContent = error.message; }

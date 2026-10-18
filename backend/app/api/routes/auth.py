@@ -22,7 +22,7 @@ from backend.app.services.community_auth import (
     new_session,
     verify_password,
 )
-from backend.app.services.dof_auth import authenticate_dof_user, fetch_dof_observer_name
+from backend.app.services.dof_auth import _clean_observer_name, authenticate_dof_user, fetch_dof_observer_name
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -44,17 +44,18 @@ async def login_with_dof(credentials: DofLoginRequest) -> DofLoginResponse:
 @router.post("/dof/connect", response_model=dict)
 async def connect_dof_user(
     credentials: DofConnectionRequest,
+    current_user: CommunityUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     result = await authenticate_dof_user(credentials.username, credentials.password)
-    name = str(result.user.get("name") or result.user.get("display_name") or "").strip()
-    if not name:
+    name = _clean_observer_name(str(result.user.get("name") or result.user.get("display_name") or ""))
+    if not name or "�" in name:
         name = await fetch_dof_observer_name(credentials.username)
-    name = name or credentials.username.upper()
+    name = _clean_observer_name(name) or credentials.username.upper()
 
-    preference = await db.get(UserPreference, credentials.user_id)
+    preference = await db.get(UserPreference, current_user.id)
     if preference is None:
-        preference = UserPreference(user_id=credentials.user_id)
+        preference = UserPreference(user_id=current_user.id)
         db.add(preference)
     preference.observer_code = credentials.username.upper()
     preference.display_name = name

@@ -1,0 +1,22 @@
+{
+  "name": "DOF.tool – feltornitologernes portal",
+  "short_name": "DOF.tool",
+  "description": "Live-observationer, notifikationer, årslister, fænologi og læring for feltornitologer.",
+  "lang": "da",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f2ec",
+  "theme_color": "#1f5a44",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nu", "url": "/#/" },
+    { "name": "Kort", "url": "/#/kort" },
+    { "name": "Mine lister", "url": "/#/lister" }
+  ]
+}

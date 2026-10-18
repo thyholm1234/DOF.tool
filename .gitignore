@@ -12,3 +12,5 @@ coverage/
 .env
 
 *.egg-info/
+
+data/

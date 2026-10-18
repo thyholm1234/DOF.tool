@@ -14,12 +14,19 @@
       <section class="admin-toolbar" aria-label="Adminværktøjer">
         <button class="button button-quiet" id="refresh-admin" type="button">Opdater overblik</button>
         <button class="button button-dark" id="sync-today" type="button">Sync dagens data</button>
+        <button class="button button-quiet" id="fetch-faenologi" type="button">Opdater fænologi</button>
+        <button class="button button-quiet" id="fetch-bemaerk" type="button">Opdater bemærk-data</button>
+        <form class="admin-sync-settings" id="sync-settings-form">
+          <label>Sync-interval i sekunder<input id="sync-interval" name="interval_seconds" type="number" min="10" max="86400" required /></label>
+          <button class="button button-quiet" type="submit">Gem interval</button>
+        </form>
         <button class="button button-quiet" data-panel="users-panel" type="button">Brugere</button>
         <button class="button button-quiet" data-panel="blacklist-panel" type="button">Blacklist</button>
         <button class="button button-quiet" data-panel="comments-panel" type="button">Moderation</button>
         <button class="button button-quiet" data-panel="traffic-panel" type="button">Trafik</button>
       </section>
       <section class="admin-overview" id="admin-overview"><p class="muted">Henter status...</p></section>
+      <section class="admin-panel" id="sync-status-panel"><h2>Observationer</h2><div id="sync-changes-list"><p class="muted">Henter ændringsstatus...</p></div></section>
       <section class="admin-panel" id="users-panel" hidden><h2>Brugere</h2><div id="users-list"></div></section>
       <section class="admin-panel" id="blacklist-panel" hidden><h2>Blacklist</h2><form id="blacklist-form" class="inline-form"><input name="user_id" placeholder="Bruger-id" required /><input name="reason" placeholder="Årsag" /><button class="button button-dark" type="submit">Blacklist</button></form><div id="blacklist-list"></div></section>
       <section class="admin-panel" id="comments-panel" hidden><h2>Kommentar-moderation</h2><div id="comments-list"></div></section>

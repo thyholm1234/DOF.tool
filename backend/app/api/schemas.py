@@ -15,7 +15,7 @@ class DofLoginRequest(BaseModel):
 
 
 class DofConnectionRequest(DofLoginRequest):
-    user_id: str = Field(min_length=2, max_length=80)
+    pass
 
 
 class DofLoginResponse(BaseModel):
@@ -147,6 +147,10 @@ class LegacyObservationUpdateRequest(BaseModel):
 
 class DofSyncRequest(BaseModel):
     target_date: str | None = None
+
+
+class SyncSettingsPayload(BaseModel):
+    interval_seconds: int = Field(default=60, ge=10, le=86400)
 
 
 class BlacklistRequest(BaseModel):

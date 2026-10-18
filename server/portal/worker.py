@@ -1,0 +1,149 @@
+"""Worker: DOFbasen-gateway, planlagte opgaver, arkivimport og beregninger.
+
+Kør præcis én instans (docker compose-servicen `worker`).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from datetime import timedelta
+
+from sqlalchemy import text
+
+from portal.bootstrap import init_db
+from portal.cache import COMMANDS, bump, kv
+from portal.db import SessionLocal
+from portal.dof import archive, gateway, jobs
+from portal.services import areas, dmi, phenology
+from portal.timeutil import dk_now, dk_today
+
+log = logging.getLogger("portal.worker")
+
+
+async def _once(name: str, period_key: str) -> bool:
+    """True første gang i en periode (fx dato eller dato+time)."""
+    return bool(await kv().set(f"sched:{name}:{period_key}", "1", nx=True, ex=3 * 86400))
+
+
+async def nightly_compute() -> None:
+    async with SessionLocal() as s:
+        await phenology.refresh_aggregates(s, dk_today() - timedelta(days=14))
+    async with SessionLocal() as s:
+        await areas.refresh_all_area_counts(s)
+    async with SessionLocal() as s:
+        await phenology.recompute_metrics(s)
+    async with SessionLocal() as s:
+        await s.execute(text("DELETE FROM notifications WHERE created_at < now() - interval '90 days'"))
+        await s.execute(text("DELETE FROM thread_follows WHERE dato < current_date - 7"))
+        await s.commit()
+    await bump("lists")
+
+
+async def refresh_climate() -> None:
+    rows = await dmi.climate_months(2000)
+    if rows:
+        async with SessionLocal() as s:
+            await phenology.import_climate(s, rows)
+        log.info("DMI klimadata: %s måneder", len(rows))
+
+
+async def scheduler() -> None:
+    await asyncio.sleep(20)
+    # Efter opstart: udfyld huller og sørg for klimadata
+    await jobs.enqueue_gap_fill()
+    async with SessionLocal() as s:
+        has_climate = (await s.execute(text("SELECT count(*) FROM climate_month"))).scalar()
+        has_metrics = (await s.execute(text("SELECT count(*) FROM pheno_metrics"))).scalar()
+    if not has_climate:
+        await run_safely("klima", refresh_climate())
+    if not has_metrics:
+        await kv().rpush(COMMANDS, json.dumps({"cmd": "compute"}))
+    while True:
+        now = dk_now()
+        day = now.date().isoformat()
+        hour = f"{day}T{now.hour:02d}"
+        try:
+            if now.minute >= 5 and await _once("yesterday", hour):
+                y = now.date() - timedelta(days=1)
+                await gateway.enqueue("day", {"date": y.isoformat()}, priority=gateway.HIGH, dedupe=f"day:{y}")
+            if now.minute >= 15 and await _once("forecast", hour):
+                await run_safely("prognose", dmi.forecast())
+            if now.hour == 1 and now.minute >= 30 and await _once("late", day):
+                for i in range(2, 8):
+                    d = now.date() - timedelta(days=i)
+                    await gateway.enqueue("day", {"date": d.isoformat()}, priority=gateway.BULK, dedupe=f"day:{d}")
+            if now.hour == 2 and now.minute >= 30 and await _once("compute", day):
+                await run_safely("natlig beregning", nightly_compute())
+            if now.hour == 3 and await _once("reference", day):
+                await jobs.enqueue_reference_refresh()
+            if now.day == 3 and now.hour == 4 and await _once("month", day):
+                prev = (now.date().replace(day=1) - timedelta(days=1))
+                await gateway.enqueue("month", {"year": prev.year, "month": prev.month}, priority=gateway.BULK,
+                                      dedupe=f"month:{prev.year}-{prev.month}")
+            if now.weekday() == 0 and now.hour == 5 and await _once("climate", day):
+                await run_safely("klima", refresh_climate())
+            if now.hour % 6 == 0 and await _once("gap", hour):
+                await jobs.enqueue_gap_fill()
+        except Exception:  # noqa: BLE001
+            log.exception("Planlægger-fejl")
+        await asyncio.sleep(30)
+
+
+async def run_safely(label: str, coro) -> None:
+    try:
+        await coro
+    except Exception:  # noqa: BLE001
+        log.exception("Opgave fejlede: %s", label)
+
+
+async def command_listener() -> None:
+    """Kommandoer fra admin-panelet (API-processen) via Valkey-liste."""
+    r = kv()
+    while True:
+        try:
+            item = await r.blpop([COMMANDS], timeout=2)
+            if not item:
+                continue
+            cmd = json.loads(item[1])
+            name = cmd.get("cmd")
+            await r.hset("worker:last_command", mapping={"cmd": name, "at": dk_now().isoformat()})
+            if name == "archive_import":
+                await run_safely("arkivimport", archive.run_import())
+            elif name == "compute":
+                await run_safely("beregning", nightly_compute())
+            elif name == "climate":
+                await run_safely("klima", refresh_climate())
+            elif name == "area_counts":
+                async with SessionLocal() as s:
+                    scope = areas.parse_scope(cmd["scope"])
+                    await areas.refresh_area_counts(s, scope)
+                    await s.commit()
+            elif name == "aggregates":
+                async with SessionLocal() as s:
+                    await phenology.refresh_aggregates(s, dk_today() - timedelta(days=int(cmd.get("days", 30))))
+        except Exception:  # noqa: BLE001
+            log.exception("Kommando-fejl")
+            await asyncio.sleep(2)
+
+
+async def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    await init_db()
+    # Kun én worker kører: låse fra en afbrudt proces er forældede
+    await kv().delete("archive:lock", "dof:lock")
+    gw = gateway.Gateway(jobs.HANDLERS, jobs.live, jobs.live_enabled)
+    tasks = [
+        asyncio.create_task(gw.run(), name="gateway"),
+        asyncio.create_task(scheduler(), name="scheduler"),
+        asyncio.create_task(command_listener(), name="commands"),
+    ]
+    if await archive.pending_files():
+        log.info("Nye arkivfiler fundet – starter import i baggrunden")
+        await kv().rpush(COMMANDS, json.dumps({"cmd": "archive_import"}))
+    await asyncio.gather(*tasks)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

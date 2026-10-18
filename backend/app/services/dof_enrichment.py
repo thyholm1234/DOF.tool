@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import csv
 import re
 import time
 import unicodedata
@@ -99,12 +100,38 @@ _CACHE: DofEnrichment | None = None
 _CACHE_EXPIRES_AT = 0.0
 
 
+def invalidate_dof_enrichment_cache() -> None:
+    global _CACHE, _CACHE_EXPIRES_AT
+    _CACHE = None
+    _CACHE_EXPIRES_AT = 0.0
+
+
+def _load_local_remarkable() -> dict[str, dict[str, int]]:
+    from backend.app.services.reference_data import REFERENCE_DATA_DIR, REGION_FILES
+
+    result: dict[str, dict[str, int]] = {}
+    for region, filename in REGION_FILES.items():
+        path = REFERENCE_DATA_DIR / filename
+        if not path.exists():
+            continue
+        with path.open(encoding="utf-8-sig", newline="") as file:
+            values = {}
+            for row in csv.DictReader(file, delimiter=";"):
+                try:
+                    values[normalize_name(row.get("artsnavn"))] = int(row.get("bemaerk_antal") or 0)
+                except (TypeError, ValueError):
+                    continue
+            result[region] = values
+    return result
+
+
 async def load_dof_enrichment() -> DofEnrichment:
     global _CACHE, _CACHE_EXPIRES_AT
     if _CACHE is not None and time.monotonic() < _CACHE_EXPIRES_AT:
         return _CACHE
     enrichment = DofEnrichment()
     headers = {"User-Agent": "DOF.tool enrichment/1.0"}
+    local_remarkable = _load_local_remarkable()
     async with httpx.AsyncClient(timeout=30, headers=headers, follow_redirects=True) as client:
         for endpoint, target in (("https://dofbasen.dk/opslag/sudata.php", enrichment.su), ("https://dofbasen.dk/opslag/subdata.php", enrichment.sub)):
             try:
@@ -114,6 +141,11 @@ async def load_dof_enrichment() -> DofEnrichment:
             except httpx.HTTPError:
                 continue
         for region in set(REGION_LISTS.values()):
+            if region in local_remarkable:
+                enrichment.remarkable_by_region[region] = local_remarkable[region]
+                for species, count in local_remarkable[region].items():
+                    enrichment.remarkable.setdefault(species, count)
+                continue
             try:
                 response = await client.get(f"https://dofbasen.dk/opslag/bemaerk.php?list={region}")
                 response.raise_for_status()

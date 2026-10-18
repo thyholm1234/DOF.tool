@@ -1,0 +1,144 @@
+import { api, state, h, $, icon, toast, ago } from "./core.js";
+import { live } from "./live.js";
+
+const NAV = [
+  ["#/", "now", "Nu"],
+  ["#/kort", "map", "Kort"],
+  ["#/lister", "list", "Lister"],
+  ["#/traek", "trend", "Træk"],
+  ["#/laer", "learn", "Læring"],
+  ["#/alarmer", "bell", "Alarmer"],
+];
+
+const ROUTES = [
+  [/^\/?$/, () => import("./views/feed.js")],
+  [/^\/kort$/, () => import("./views/map.js")],
+  [/^\/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)$/, () => import("./views/thread.js")],
+  [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
+  [/^\/traek$/, () => import("./views/pheno.js")],
+  [/^\/art\/(\d+)$/, () => import("./views/species.js")],
+  [/^\/lok\/(\d+)$/, () => import("./views/location.js")],
+  [/^\/laer(?:\/(.+))?$/, () => import("./views/learn.js")],
+  [/^\/alarmer$/, () => import("./views/alerts.js")],
+  [/^\/profil$/, () => import("./views/profile.js")],
+  [/^\/admin$/, () => import("./views/admin.js")],
+  [/^\/login$/, () => import("./views/login.js")],
+];
+
+let cleanup = null;
+
+function renderNav() {
+  const path = "#" + (location.hash.slice(1).split("?")[0] || "/");
+  const items = NAV.map(([href, ic, label]) => {
+    const active = href === "#/" ? path === "#/" || path === "#" : path.startsWith(href);
+    return h("a", { href, class: active ? "active" : "", html: `${icon(ic)}<span>${label}</span>` });
+  });
+  $("#bottomnav").replaceChildren(...items.map(a => a.cloneNode(true)));
+  const side = [...items];
+  if (state.user) {
+    side.push(h("div", { class: "sep" }));
+    side.push(h("a", { href: "#/profil", class: path.startsWith("#/profil") ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
+    if (["admin", "superadmin"].includes(state.user.role))
+      side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin</span>` }));
+  }
+  $("#sidenav").replaceChildren(...side);
+}
+
+function renderUser() {
+  const u = state.user;
+  $("#loginbtn").classList.toggle("hide", !!u);
+  $("#userbtn").classList.toggle("hide", !u);
+  $("#bell").classList.toggle("hide", !u);
+  if (!u) return;
+  const initials = (u.navn || u.obserkode).split(/\s+/).map(s => s[0]).join("").slice(0, 2).toUpperCase();
+  $("#userbtn").textContent = initials;
+  $("#bell").innerHTML = icon("bell") + (state.unread ? `<span class="badge">${state.unread > 99 ? "99+" : state.unread}</span>` : "");
+}
+
+export async function refreshUser() {
+  try { state.user = (await api("/api/me")).user; } catch { state.user = null; }
+  applyTheme();
+  renderUser();
+  renderNav();
+  if (state.user) refreshUnread();
+}
+
+export async function refreshUnread() {
+  try { state.unread = (await api("/api/notifications?limit=1")).unread; renderUser(); } catch { /* offline */ }
+}
+
+function applyTheme() {
+  const t = state.user?.prefs?.theme || localStorage.getItem("theme") || "auto";
+  if (t === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+}
+
+function openMenu() {
+  document.querySelector(".menu")?.remove();
+  const u = state.user;
+  const close = () => { menu.remove(); document.removeEventListener("click", outside, true); };
+  const outside = (e) => { if (!menu.contains(e.target) && e.target !== $("#userbtn")) close(); };
+  const menu = h("div", { class: "menu" },
+    h("div", { class: "who" }, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, `${u.obserkode} · ${u.role}`)),
+    h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil og indstillinger` }),
+    h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
+    ["admin", "superadmin"].includes(u.role) ? h("a", { href: "#/admin", onclick: close, html: `${icon("shield")} Administration` }) : null,
+    h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; renderUser(); renderNav(); live.restart(); location.hash = "#/"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }));
+  document.body.append(menu);
+  setTimeout(() => document.addEventListener("click", outside, true));
+}
+
+async function openNotifications() {
+  const { modal } = await import("./core.js");
+  const list = h("div", { class: "notif-list" }, h("div", { class: "skeleton" }));
+  const m = modal("Notifikationer", h("div", {},
+    h("div", { class: "row between mb" }, h("a", { href: "#/alarmer", onclick: () => m.close() }, "Indstil alarmer →"),
+      h("button", { class: "btn sm", onclick: async () => { await api("/api/notifications/read", { method: "POST" }); state.unread = 0; renderUser(); m.close(); } }, "Markér alle som læst")),
+    list));
+  const data = await api("/api/notifications?limit=80");
+  list.replaceChildren(...(data.items.length ? data.items.map(n => h("a", { class: `notif ${n.read ? "" : "unread"}`, href: n.url, onclick: () => m.close() },
+    h("b", {}, n.title), h("span", {}, n.body), h("small", {}, ago(n.created_at) + (n.pushed ? " · push" : "")))) :
+    [h("p", { class: "muted" }, "Ingen notifikationer endnu. Opret en alarm for at få besked om sjældne fugle.")]));
+}
+
+async function route() {
+  const [path] = (location.hash.slice(1) || "/").split("?");
+  renderNav();
+  document.querySelector(".menu")?.remove();
+  for (const [re, loader] of ROUTES) {
+    const m = path.match(re);
+    if (!m) continue;
+    if (typeof cleanup === "function") { try { cleanup(); } catch { /* ignore */ } }
+    cleanup = null;
+    const view = $("#view");
+    try {
+      const mod = await loader();
+      view.replaceChildren();
+      cleanup = await mod.render(view, m.slice(1));
+    } catch (err) {
+      console.error(err);
+      view.replaceChildren(h("div", { class: "notice err" }, "Siden kunne ikke vises: " + err.message));
+    }
+    window.scrollTo(0, 0);
+    return;
+  }
+  location.hash = "#/";
+}
+
+async function boot() {
+  $("#userbtn").addEventListener("click", openMenu);
+  $("#bell").addEventListener("click", openNotifications);
+  window.addEventListener("hashchange", route);
+  await refreshUser();
+  live.start();
+  live.on("notification", (d) => { state.unread += 1; renderUser(); toast(`🔔 ${d.title}`); });
+  live.onStatus((on) => $("#live").classList.toggle("on", on));
+  await route();
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.addEventListener("message", (e) => { if (e.data?.type === "navigate") location.hash = e.data.url.replace(/^.*#/, "#"); });
+  }
+}
+
+export { renderUser, renderNav, applyTheme };
+boot();

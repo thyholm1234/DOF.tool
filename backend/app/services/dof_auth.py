@@ -24,7 +24,20 @@ def extract_dof_observer_name(page: str) -> str:
     )
     if not match:
         return ""
-    return html.unescape(re.sub(r"<[^>]+>", "", match.group(1))).strip()
+    value = html.unescape(re.sub(r"<[^>]+>", "", match.group(1)))
+    return _clean_observer_name(value)
+
+
+def _clean_observer_name(value: str) -> str:
+    value = html.unescape(value or "").replace("\xa0", " ").strip()
+    if "�" not in value and any(marker in value for marker in ("Ã", "Â", "â")):
+        try:
+            repaired = value.encode("latin-1").decode("utf-8")
+            if "�" not in repaired:
+                value = repaired
+        except UnicodeError:
+            pass
+    return value.strip(" \t\r\n\"'“”")
 
 
 async def fetch_dof_observer_name(observer_code: str) -> str:
@@ -37,7 +50,9 @@ async def fetch_dof_observer_name(observer_code: str) -> str:
     except httpx.HTTPError:
         return ""
 
-    return extract_dof_observer_name(response.text)
+    # DOFbasen deklarerer ISO-8859-1 i HTML'en, mens HTTP-headeren ikke altid gør.
+    page = response.content.decode("iso-8859-1", errors="replace")
+    return extract_dof_observer_name(page)
 
 
 async def authenticate_dof_user(username: str, password: str) -> DofLoginResult:

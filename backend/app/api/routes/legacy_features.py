@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import time
+from collections import defaultdict
 from datetime import date, datetime, timezone
 from math import atan2, cos, radians, sin, sqrt
 
@@ -25,6 +27,7 @@ from backend.app.db.session import get_db
 from backend.app.services.dof_auth import authenticate_dof_user, fetch_dof_observer_name
 
 router = APIRouter(tags=["legacy-compatibility"])
+login_attempts: defaultdict[str, list[float]] = defaultdict(list)
 
 
 def _distance_km(latitude: float, longitude: float, target_latitude: float, target_longitude: float) -> float:
@@ -38,11 +41,32 @@ def _distance_km(latitude: float, longitude: float, target_latitude: float, targ
 @router.post("/api/validate-login")
 async def legacy_validate_login(payload: dict, db: AsyncSession = Depends(get_db)) -> dict:
     user_id = str(payload.get("user_id") or "").strip()
+    device_id = str(payload.get("device_id") or "").strip()
     username = str(payload.get("obserkode") or "").strip()
     password = str(payload.get("adgangskode") or "")
-    if not user_id or not username or not password:
-        raise HTTPException(status_code=400, detail="user_id, obserkode og adgangskode kræves")
-    result = await authenticate_dof_user(username, password)
+    if not user_id or not device_id or not username or not password:
+        return {"ok": False, "error": "user_id, device_id, obserkode og adgangskode kræves"}
+
+    registered_device = await db.scalar(
+        select(PushSubscription.device_id)
+        .where(PushSubscription.user_id == user_id, PushSubscription.device_id.is_not(None))
+        .limit(1)
+    )
+    if registered_device and device_id != registered_device:
+        raise HTTPException(status_code=403, detail="Forkert device_id for bruger")
+
+    now = time.time()
+    attempts = [timestamp for timestamp in login_attempts[user_id] if now - timestamp < 600]
+    if len(attempts) >= 5:
+        login_attempts[user_id] = attempts
+        return {"ok": False, "error": "For mange loginforsøg. Prøv igen om 10 minutter."}
+    attempts.append(now)
+    login_attempts[user_id] = attempts
+
+    try:
+        result = await authenticate_dof_user(username, password)
+    except Exception:
+        return {"ok": False, "error": "Login fejlede"}
     pref = await db.get(UserPreference, user_id)
     if pref is None:
         pref = UserPreference(user_id=user_id)
@@ -229,9 +253,10 @@ async def legacy_subscribe(payload: dict, db: AsyncSession = Depends(get_db)) ->
         raise HTTPException(status_code=400, detail="user_id, device_id og subscription kræves")
     existing = await db.scalar(select(PushSubscription).where(PushSubscription.endpoint == endpoint))
     if existing is None:
-        db.add(PushSubscription(user_id=user_id, endpoint=endpoint, p256dh=str(keys.get("p256dh") or ""), auth=str(keys.get("auth") or "")))
+        db.add(PushSubscription(user_id=user_id, device_id=device_id, endpoint=endpoint, p256dh=str(keys.get("p256dh") or ""), auth=str(keys.get("auth") or "")))
     else:
         existing.user_id = user_id
+        existing.device_id = device_id
         existing.p256dh = str(keys.get("p256dh") or "")
         existing.auth = str(keys.get("auth") or "")
     await db.commit()

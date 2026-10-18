@@ -1,4 +1,4 @@
-const CACHE_NAME = "dof-tool-v4";
+const CACHE_NAME = "dof-tool-v5";
 const CORE_ASSETS = [
   "/",
   "/index.html",

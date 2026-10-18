@@ -50,7 +50,10 @@ async function initialise() {
 async function loadAdminDashboard() {
   const data = await request("/api/v1/admin/session/dashboard");
   const overview = data.overview;
-  document.querySelector("#admin-overview").innerHTML = `<div class="admin-stat"><strong>${overview.active_users}</strong><span>aktive brugere</span></div><div class="admin-stat"><strong>${overview.alerts_queue_size}</strong><span>varsler</span></div><div class="admin-stat"><strong>${overview.flashcards}</strong><span>flashcards</span></div><div class="admin-stat"><strong>${data.latest_sync.processed_count}</strong><span>senest syncede rækker</span><small>${data.latest_sync.date || "Ingen sync"} · ${data.latest_sync.status}</small></div>`;
+  document.querySelector("#admin-overview").innerHTML = `<div class="admin-stat"><strong>${overview.active_users}</strong><span>aktive brugere</span></div><div class="admin-stat"><strong>${overview.alerts_queue_size}</strong><span>varsler</span></div><div class="admin-stat"><strong>${overview.flashcards}</strong><span>flashcards</span></div><div class="admin-stat"><strong>${data.latest_sync.processed_count}</strong><span>senest syncede rækker</span><small>${data.latest_sync.date || "Ingen sync"} · ${data.latest_sync.status}</small></div><div class="admin-stat"><strong>${data.latest_sync.new_count} nye · ${data.latest_sync.updated_count} ændrede</strong><span>sidste sync</span><small>${data.latest_sync.error || "Ingen fejl"}</small></div>`;
+  document.querySelector("#sync-interval").value = data.sync_settings.interval_seconds;
+  const changes = data.recent_changes;
+  document.querySelector("#sync-changes-list").innerHTML = changes.length ? changes.map((item) => `<div class="admin-row"><span><strong>${item.change_type === "new" ? "Ny" : "Ændret"}: ${item.species}</strong><small>${item.location} · obsid ${item.obsid} · antal ${item.old_count ?? "-"} → ${item.new_count ?? "-"}</small></span><time>${new Date(item.detected_at).toLocaleString("da-DK")}</time></div>`).join("") : '<p class="muted">Ingen ændringer registreret endnu.</p>';
 }
 
 async function loadPanel(panelId) {
@@ -79,6 +82,32 @@ async function loadPanel(panelId) {
 }
 
 document.querySelector("#refresh-admin")?.addEventListener("click", () => loadAdminDashboard().catch((error) => { message.textContent = error.message; }));
+async function fetchReferenceData(button, endpoint, label) {
+  button.disabled = true;
+  const originalLabel = button.textContent;
+  button.textContent = "Henter...";
+  try {
+    const result = await request(endpoint, { method: "POST" });
+    message.textContent = `${label}: ${result.changed ? "opdateret" : "ingen ændringer"}.`;
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
+}
+document.querySelector("#fetch-faenologi")?.addEventListener("click", (event) => fetchReferenceData(event.currentTarget, "/api/admin/fetch-faenologi-csv", "Fænologi"));
+document.querySelector("#fetch-bemaerk")?.addEventListener("click", (event) => fetchReferenceData(event.currentTarget, "/api/admin/fetch-all-bemaerk-csv", "Bemærk-data"));
+document.querySelector("#sync-settings-form")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+    payload.interval_seconds = Number(payload.interval_seconds);
+    await request("/api/v1/admin/session/sync-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    message.textContent = "Sync-interval gemt.";
+    await loadAdminDashboard();
+  } catch (error) { message.textContent = error.message; }
+});
 document.querySelector("#sync-today")?.addEventListener("click", async () => { try { const result = await request("/api/v1/admin/session/sync/today", { method: "POST" }); message.textContent = `Sync færdig: ${result.processed} rækker.`; await loadAdminDashboard(); } catch (error) { message.textContent = error.message; } });
 document.querySelectorAll("[data-panel]").forEach((button) => button.addEventListener("click", async () => { const panel = document.querySelector(`#${button.dataset.panel}`); panel.hidden = !panel.hidden; if (!panel.hidden) await loadPanel(button.dataset.panel); }));
 document.querySelector("#blacklist-form")?.addEventListener("submit", async (event) => { event.preventDefault(); try { await request("/api/v1/admin/session/blacklist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget).entries())) }); event.currentTarget.reset(); await loadPanel("blacklist-panel"); } catch (error) { message.textContent = error.message; } });
