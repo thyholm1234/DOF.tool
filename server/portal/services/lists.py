@@ -3,6 +3,11 @@
 Lister: DK, lokalafdeling, kommune, matrikel (#BB-tag i tur-/fuglenoter), lokalitet og
 brugerens egne områder (polygon/radius). År kan være et årstal eller 'all' (livsliste).
 Scoreboards caches i Valkey og invalideres når nye observationer for deltagere kommer ind.
+
+Matrikler (som i Boligbirding): matrikel 1 tæller på scoreboards (#BB26 eller #BB26-1), matrikel 2+
+er private (#BB26-2 ...). Hver matrikel kan have perioder (adresse, start, evt. slut). Flytter man,
+afsluttes den gamle periode og en ny starter; listen tæller kun den aktive periode, så fremgangen
+nulstilles ved flytning, mens tidligere perioder kan vælges (eller 'alle perioder' som historik).
 """
 
 from __future__ import annotations
@@ -10,6 +15,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date
+
+from portal.timeutil import dk_today
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +48,86 @@ async def matrikel_prefix(session: AsyncSession) -> str:
     return re.sub(r"[^#A-Za-z0-9]", "", str(value)).upper() or "#BB"
 
 
-def _where(spec: ListSpec, prefix: str) -> tuple[str, dict]:
+# ---------------------------------------------------------------- matrikelperioder
+
+MIN_DATE = date(1900, 1, 1)
+MAX_DATE = date(9999, 12, 31)
+
+
+@dataclass(frozen=True)
+class Period:
+    id: int
+    navn: str
+    start: date
+    slut: date | None
+
+    def contains(self, d: date) -> bool:
+        return self.start <= d and (self.slut is None or d <= self.slut)
+
+    def overlaps(self, a: date, b: date) -> bool:
+        return self.start <= b and (self.slut or MAX_DATE) >= a
+
+    def as_dict(self) -> dict:
+        return {"id": self.id, "navn": self.navn, "start": self.start.isoformat(),
+                "slut": self.slut.isoformat() if self.slut else None}
+
+
+def list_range(year: int | None) -> tuple[date, date]:
+    today = dk_today()
+    if year is None:
+        return MIN_DATE, today
+    return date(year, 1, 1), min(date(year, 12, 31), today)
+
+
+def select_active(periods: list[Period], start: date, end: date, ref: date | None = None) -> Period | None:
+    """Den periode der gælder for listen [start, end]: den der dækker referencedatoen (i dag, klemt ind i
+    intervallet), ellers den senest startede før den, ellers den første i intervallet."""
+    if ref is None:
+        ref = min(max(dk_today(), start), end)
+    overlapping = [p for p in periods if p.overlaps(start, end)]
+    if not overlapping:
+        return None
+    covering = [p for p in overlapping if p.contains(ref)]
+    if covering:
+        return max(covering, key=lambda p: p.start)
+    before = [p for p in overlapping if p.start <= ref]
+    if before:
+        return max(before, key=lambda p: p.start)
+    return min(overlapping, key=lambda p: p.start)
+
+
+def period_windows(periods: list[Period], year: int | None, choice: str | None = None
+                   ) -> tuple[list[tuple[date, date]] | None, dict]:
+    """Datovinduer for en matrikelliste. None = ingen begrænsning (matriklen har ingen perioder).
+    choice: None (aktiv periode), 'alle' (alle perioder = historik) eller et periode-id."""
+    if not periods:
+        return None, {"options": [], "selected": None, "active": None}
+    start, end = list_range(year)
+    options = sorted((p for p in periods if p.overlaps(start, end)), key=lambda p: p.start)
+    active = select_active(options, start, end)
+    info = {"options": [p.as_dict() for p in options], "active": active.id if active else None}
+    if choice == "alle":
+        return [(p.start, p.slut or MAX_DATE) for p in periods], {**info, "selected": "alle"}
+    chosen = next((p for p in options if str(p.id) == str(choice)), None) if choice else None
+    chosen = chosen or active
+    if chosen is None:
+        return [], {**info, "selected": None}
+    return [(chosen.start, chosen.slut or MAX_DATE)], {**info, "selected": chosen.id}
+
+
+async def load_periods(session: AsyncSession, codes: list[str], nummer: int) -> dict[str, list[Period]]:
+    rows = (await session.execute(text("""
+        SELECT u.obserkode, p.id, p.navn, p.start, p.slut FROM matrikel_perioder p
+        JOIN matrikler m ON m.id = p.matrikel_id JOIN users u ON u.id = m.user_id
+        WHERE m.nummer = :n AND u.obserkode = ANY(:codes) ORDER BY p.start
+    """), {"n": nummer, "codes": codes})).all()
+    out: dict[str, list[Period]] = {}
+    for kode, pid, navn, start, slut in rows:
+        out.setdefault(kode, []).append(Period(pid, navn, start, slut))
+    return out
+
+
+def _where(spec: ListSpec, prefix: str, windows: list[tuple[date, date]] | None = None) -> tuple[str, dict]:
     pred, params = spec.scope.predicate("o")
     parts = [pred, "s.list_artnr IS NOT NULL", "NOT ls.excluded", "o.antal > 0"]
     if spec.year:
@@ -56,12 +142,30 @@ def _where(spec: ListSpec, prefix: str) -> tuple[str, dict]:
             "~ ('(^|[^A-Z0-9])' || :mprefix || to_char(o.dato, 'YY') || :mtag || '([^A-Z0-9-]|$)')"
         )
         params.update({"mprefix": prefix.replace("#", "#"), "mtag": tag})
+    if windows is not None:
+        if not windows:
+            parts.append("FALSE")
+        else:
+            ors = []
+            for i, (ws, we) in enumerate(windows):
+                ors.append(f"o.dato BETWEEN :w{i}s AND :w{i}e")
+                params.update({f"w{i}s": ws, f"w{i}e": we})
+            parts.append("(" + " OR ".join(ors) + ")")
     return " AND ".join(parts), params
 
 
-async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec) -> list[dict]:
+async def matrikel_windows(session: AsyncSession, obserkode: str, spec: ListSpec, choice: str | None = None
+                           ) -> tuple[list[tuple[date, date]] | None, dict | None]:
+    if not spec.matrikel:
+        return None, None
+    periods = (await load_periods(session, [obserkode], spec.matrikel)).get(obserkode, [])
+    return period_windows(periods, spec.year, choice)
+
+
+async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
+                    windows: list[tuple[date, date]] | None = None) -> list[dict]:
     prefix = await matrikel_prefix(session)
-    where, params = _where(spec, prefix)
+    where, params = _where(spec, prefix, windows)
     sql = f"""
         SELECT DISTINCT ON (s.list_artnr) s.list_artnr AS artnr, ls.navn AS art, ls.klass, ls.sortering,
                o.dato, o.loknr, l.navn AS lok, o.obsid
@@ -112,10 +216,22 @@ async def scoreboard(session: AsyncSession, spec: ListSpec, group_id: int | None
             return {"rows": [], "species": {}, "spec": spec.key}
         prefix = await matrikel_prefix(session)
         where, params = _where(spec, prefix)
+        window_join = ""
+        if spec.matrikel:
+            # Hver deltager tæller kun sin aktive matrikelperiode (ingen perioder = alle fund med tagget)
+            periods = await load_periods(session, codes, spec.matrikel)
+            wk, ws, we = [], [], []
+            for c in codes:
+                windows, _ = period_windows(periods.get(c, []), spec.year)
+                for a, b in (windows if windows is not None else [(MIN_DATE, MAX_DATE)]):
+                    wk.append(c); ws.append(a); we.append(b)
+            window_join = ("JOIN unnest(CAST(:wk AS text[]), CAST(:ws AS date[]), CAST(:we AS date[])) AS w(kode, s, e) "
+                           "ON w.kode = o.obserkode AND o.dato BETWEEN w.s AND w.e")
+            params.update(wk=wk, ws=ws, we=we)
         firsts = (await session.execute(text(f"""
             SELECT o.obserkode, s.list_artnr AS artnr, min(o.dato) AS d
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
-            LEFT JOIN trips t ON t.turid = o.turid
+            LEFT JOIN trips t ON t.turid = o.turid {window_join}
             WHERE o.obserkode = ANY(:codes) AND {where}
             GROUP BY o.obserkode, s.list_artnr
         """), {"codes": codes, **params})).all()
@@ -163,11 +279,41 @@ async def available_years(session: AsyncSession, obserkode: str) -> list[int]:
     return [r[0] for r in rows]
 
 
-async def matrikel_numbers(session: AsyncSession, obserkode: str) -> list[int]:
+async def _tag_stats(session: AsyncSession, obserkode: str) -> dict[int, dict]:
+    """Matrikelnumre fundet i brugerens turnoter (#BB26 / #BB26-1 = 1, #BB26-3 = 3) med antal ture og datoer."""
     prefix = await matrikel_prefix(session)
     rows = (await session.execute(text("""
-        SELECT DISTINCT coalesce(nullif(substring(upper(t.turnoter) FROM :rx), ''), '1')
-        FROM trips t WHERE t.obserkode = :k AND upper(t.turnoter) LIKE :like
-    """), {"k": obserkode, "rx": f"{re.escape(prefix)}[0-9]{{2}}-([0-9])", "like": f"%{prefix}%"})).all()
-    nums = sorted({int(r[0]) for r in rows if r[0] and r[0].isdigit()})
-    return nums or [1]
+        SELECT coalesce(m[1], '1') AS n, count(DISTINCT t.turid), min(t.dato), max(t.dato)
+        FROM trips t, regexp_matches(upper(coalesce(t.turnoter, '')), :rx, 'g') AS m
+        WHERE t.obserkode = :k AND upper(t.turnoter) LIKE :like GROUP BY 1
+    """), {"k": obserkode, "rx": f"{prefix}[0-9]{{2}}(?:-([0-9]+))?(?![A-Z0-9])", "like": f"%{prefix}%"})).all()
+    return {int(n): {"n_trips": c, "first": a.isoformat(), "last": b.isoformat()} for n, c, a, b in rows if str(n).isdigit()}
+
+
+async def matrikel_numbers(session: AsyncSession, obserkode: str) -> list[int]:
+    stats = await _tag_stats(session, obserkode)
+    defined = (await session.execute(text("""
+        SELECT m.nummer FROM matrikler m JOIN users u ON u.id = m.user_id WHERE u.obserkode = :k
+    """), {"k": obserkode})).scalars().all()
+    return sorted({1, *stats, *defined})
+
+
+async def matrikel_overview(session: AsyncSession, user_id: int, obserkode: str) -> dict:
+    prefix = await matrikel_prefix(session)
+    stats = await _tag_stats(session, obserkode)
+    defined = {r[0]: {"id": r[1], "navn": r[2]} for r in (await session.execute(text(
+        "SELECT nummer, id, navn FROM matrikler WHERE user_id = :u"), {"u": user_id})).all()}
+    yy = str(dk_today().year)[2:]
+    today = dk_today()
+    out = []
+    for n in sorted({1, *stats, *defined}):
+        plist = (await load_periods(session, [obserkode], n)).get(obserkode, [])
+        active = select_active(plist, MIN_DATE, today, ref=today)
+        out.append({
+            "nummer": n, "navn": defined.get(n, {}).get("navn") or ("Hjemme" if n == 1 else f"Matrikel {n}"),
+            "defined": n in defined, "scoreboard": n == 1,
+            "tag": f"{prefix}{yy}" if n == 1 else f"{prefix}{yy}-{n}",
+            **stats.get(n, {"n_trips": 0, "first": None, "last": None}),
+            "perioder": [p.as_dict() for p in plist], "active": active.id if active else None,
+        })
+    return {"prefix": prefix, "matrikler": out}

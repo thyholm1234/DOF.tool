@@ -78,6 +78,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
 }
 .brand { display: flex; align-items: center; gap: .55rem; font-weight: 800; color: var(--text); font-size: 1.05rem; }
 .brand:hover { text-decoration: none; }
+svg.ic { width: 1.2em; height: 1.2em; flex: none; vertical-align: -.2em; }
 .brand svg { width: 30px; height: 30px; }
 .brand small { font-weight: 500; color: var(--text-3); font-size: .78rem; display: block; margin-top: -3px; }
 .topbar .spacer { flex: 1; }
@@ -345,6 +346,7 @@ table.data tr.click:hover td { background: var(--surface-2); }
 .menu { position: absolute; right: 12px; top: calc(var(--top-h) - 4px); z-index: 120; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); min-width: 230px; padding: 6px; }
 .menu a, .menu button { display: flex; width: 100%; gap: .6rem; align-items: center; padding: 9px 10px; border-radius: 9px; color: var(--text); font: inherit; font-size: .92rem; background: none; border: 0; cursor: pointer; text-align: left; }
 .menu a:hover, .menu button:hover { background: var(--bg-2); text-decoration: none; }
+.menu svg { width: 20px; height: 20px; color: var(--text-2); }
 .menu .who { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 .notif-list { max-height: 70dvh; overflow: auto; }
 .notif { display: block; padding: 10px; border-radius: 10px; color: var(--text); }
@@ -448,3 +450,8 @@ details.more > summary { cursor: pointer; font-weight: 650; color: var(--text-2)
 .fab:hover { text-decoration: none; filter: brightness(1.07); }
 .fab svg { width: 22px; height: 22px; }
 @media (min-width: 900px) { .fab { display: none; } }
+
+/* Matrikelperioder */
+.periods { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.periods li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.periods li.active { border-color: var(--brand); background: var(--brand-soft); }

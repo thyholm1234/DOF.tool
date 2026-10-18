@@ -158,3 +158,24 @@ def test_popobs_media_links():
         "https://service.dofbasen.dk/media/image/o/40440230_20261018071730_173677254.jpg",
     ]
     assert res["sounds"] == ["https://dofbasen.dk/sound_proxy.php?file=abc.mp3"]
+
+
+def test_matrikel_period_selection():
+    from portal.services.lists import MAX_DATE, Period, period_windows, select_active
+
+    old = Period(1, "Vestergade 3", date(2020, 1, 1), date(2026, 5, 14))
+    new = Period(2, "Skovvej 8", date(2026, 5, 15), None)
+    year = (date(2026, 1, 1), date(2026, 12, 31))
+    # Efter flytningen er den nye adresse aktiv; før den var den gamle
+    assert select_active([old, new], *year, ref=date(2026, 8, 1)) == new
+    assert select_active([old, new], *year, ref=date(2026, 3, 1)) == old
+    # Et tidligere år viser den periode der gjaldt ved årets udgang
+    assert select_active([old, new], date(2024, 1, 1), date(2024, 12, 31)) == old
+    # Ingen perioder = ingen begrænsning; 'alle' = historik over alle perioder
+    assert period_windows([], 2026)[0] is None
+    wins, info = period_windows([old, new], 2026, "alle")
+    assert wins == [(old.start, old.slut), (new.start, MAX_DATE)] and info["selected"] == "alle"
+    wins, info = period_windows([old, new], 2026, "1")
+    assert wins == [(old.start, old.slut)] and info["selected"] == 1
+    # Perioder der ikke rører året giver en tom liste (fremgangen er nulstillet)
+    assert period_windows([old], 2027)[0] == []

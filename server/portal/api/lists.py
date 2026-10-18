@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import optional_user, require_user
 from portal.cache import bump
 from portal.db import get_session
-from portal.models import Area, ListGroup, ListGroupMember, User
+from portal.models import Area, ListGroup, ListGroupMember, Matrikel, MatrikelPeriode, User
 from portal.services import lists
 from portal.services.areas import scope_for_area
 from portal.services.auth import normalize
@@ -42,13 +43,17 @@ async def meta(user: User = Depends(require_user), db: AsyncSession = Depends(ge
     scopes += [{"scope": f"afd:{a}", "label": afd.get(int(a), a)} for a in prefs.get("afdelinger", []) if str(a).isdigit()]
     scopes += [{"scope": f"kom:{k}", "label": kom.get(k, k)} for k in prefs.get("kommuner", [])]
     scopes += [{"scope": scope_for_area(a).key, "label": a.name, "own": True} for a in areas]
-    return {"years": await lists.available_years(db, user.obserkode), "matrikler": await lists.matrikel_numbers(db, user.obserkode),
+    overview = await lists.matrikel_overview(db, user.id, user.obserkode)
+    return {"years": await lists.available_years(db, user.obserkode),
+            "matrikler": [{"nummer": m["nummer"], "navn": m["navn"], "tag": m["tag"], "scoreboard": m["scoreboard"]}
+                          for m in overview["matrikler"]],
             "scopes": scopes, "matrikel_prefix": await lists.matrikel_prefix(db)}
 
 
 @router.get("/user/{obserkode}")
 async def user_list(obserkode: str, scope: str | None = None, year: str | None = None, matrikel: int | None = None,
-                    user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)):
+                    user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session),
+                    periode: str | None = None):
     kode = normalize(obserkode)
     own = user is not None and user.obserkode == kode
     if not own:
@@ -62,13 +67,18 @@ async def user_list(obserkode: str, scope: str | None = None, year: str | None =
             raise HTTPException(403, "Listen er ikke offentlig")
         if scope and scope.startswith("area:"):
             raise HTTPException(403, "Egne områder er private")
+        if matrikel and matrikel > 1:
+            raise HTTPException(403, "Matrikel 2 og op er private")
+        periode = None  # andre ser altid den aktive periode
     spec = await _spec(db, scope, year, matrikel, user)
-    items = await lists.year_list(db, kode, spec)
+    windows, period_info = await lists.matrikel_windows(db, kode, spec, periode)
+    items = await lists.year_list(db, kode, spec, windows)
     navn = (await db.execute(text("""
         SELECT coalesce(u.navn, trim(coalesce(o.fornavn,'') || ' ' || coalesce(o.efternavn,''))) FROM observers o
         FULL JOIN users u ON u.obserkode = o.obserkode WHERE coalesce(o.obserkode, u.obserkode) = :k
     """), {"k": kode})).scalar()
-    return {"obserkode": kode, "navn": navn or kode, "spec": spec.key, "count": len(items), "items": items}
+    return {"obserkode": kode, "navn": navn or kode, "spec": spec.key, "count": len(items), "items": items,
+            "periode": period_info}
 
 
 @router.get("/scoreboard")
@@ -77,6 +87,8 @@ async def scoreboard(scope: str | None = None, year: str | None = None, matrikel
     spec = await _spec(db, scope, year, matrikel, user)
     if spec.scope.kind == "area":
         raise HTTPException(400, "Egne områder har ingen fælles scoreboard – brug en gruppe")
+    if spec.matrikel and spec.matrikel > 1:
+        raise HTTPException(400, "Kun matrikel 1 har scoreboard – matrikel 2 og op er private")
     if group:
         g = await db.get(ListGroup, group)
         if g is None:
@@ -186,3 +198,144 @@ async def compare(a: str, b: str, scope: str | None = None, year: str | None = N
             "b": {"obserkode": right["obserkode"], "navn": right["navn"], "count": right["count"]},
             "only_a": [la[k] for k in la.keys() - rb.keys()], "only_b": [rb[k] for k in rb.keys() - la.keys()],
             "both": len(la.keys() & rb.keys())}
+
+
+# ---------------------------------------------------------------- matrikler og perioder
+
+
+class MatrikelIn(BaseModel):
+    navn: str = Field(min_length=1, max_length=120)
+
+
+class PeriodeIn(BaseModel):
+    navn: str = Field(min_length=1, max_length=160)
+    start: date
+    slut: date | None = None
+
+
+class PeriodePatch(BaseModel):
+    navn: str | None = Field(None, min_length=1, max_length=160)
+    start: date | None = None
+    slut: date | None = None
+    aaben: bool = False  # True = fjern slutdato
+
+
+class FlytIn(BaseModel):
+    dato: date
+    ny_navn: str = Field(min_length=1, max_length=160)
+    gammel_navn: str | None = Field(None, max_length=160)
+
+
+async def _matrikel(db: AsyncSession, user: User, nummer: int, create: bool = False) -> Matrikel | None:
+    if not 1 <= nummer <= 20:
+        raise HTTPException(400, "Matrikelnummer skal være 1–20")
+    m = (await db.execute(select(Matrikel).where(Matrikel.user_id == user.id, Matrikel.nummer == nummer))).scalar_one_or_none()
+    if m is None and create:
+        m = Matrikel(user_id=user.id, nummer=nummer, navn="Hjemme" if nummer == 1 else f"Matrikel {nummer}")
+        db.add(m)
+        await db.flush()
+    return m
+
+
+async def _check_period(db: AsyncSession, m: Matrikel, start: date, slut: date | None, exclude: int | None = None) -> None:
+    if slut and slut < start:
+        raise HTTPException(400, "Slutdatoen ligger før startdatoen")
+    others = (await db.execute(select(MatrikelPeriode).where(MatrikelPeriode.matrikel_id == m.id))).scalars().all()
+    for p in others:
+        if p.id == exclude:
+            continue
+        if p.start <= (slut or date.max) and (p.slut or date.max) >= start:
+            raise HTTPException(400, f"Perioden overlapper '{p.navn}' ({p.start:%d/%m/%Y}–{p.slut:%d/%m/%Y})" if p.slut
+                                else f"Perioden overlapper '{p.navn}' (fra {p.start:%d/%m/%Y})")
+
+
+async def _own_period(db: AsyncSession, user: User, periode_id: int) -> tuple[MatrikelPeriode, Matrikel]:
+    p = await db.get(MatrikelPeriode, periode_id)
+    m = await db.get(Matrikel, p.matrikel_id) if p else None
+    if p is None or m is None or m.user_id != user.id:
+        raise HTTPException(404, "Perioden findes ikke")
+    return p, m
+
+
+@router.get("/matrikler")
+async def matrikler(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    return await lists.matrikel_overview(db, user.id, user.obserkode)
+
+
+@router.put("/matrikler/{nummer}")
+async def save_matrikel(nummer: int, body: MatrikelIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    m = await _matrikel(db, user, nummer, create=True)
+    m.navn = body.navn.strip()
+    await db.commit()
+    return await lists.matrikel_overview(db, user.id, user.obserkode)
+
+
+@router.delete("/matrikler/{nummer}")
+async def delete_matrikel(nummer: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Sletter navn og perioder. Tags i DOFbasen-noterne er urørte, så listen findes stadig (uden perioder)."""
+    m = await _matrikel(db, user, nummer)
+    if m:
+        await db.delete(m)
+        await db.commit()
+        await bump("lists")
+    return await lists.matrikel_overview(db, user.id, user.obserkode)
+
+
+@router.post("/matrikler/{nummer}/perioder")
+async def add_period(nummer: int, body: PeriodeIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    m = await _matrikel(db, user, nummer, create=True)
+    await _check_period(db, m, body.start, body.slut)
+    db.add(MatrikelPeriode(matrikel_id=m.id, navn=body.navn.strip(), start=body.start, slut=body.slut))
+    await db.commit()
+    await bump("lists")
+    return await lists.matrikel_overview(db, user.id, user.obserkode)
+
+
+@router.patch("/perioder/{periode_id}")
+async def patch_period(periode_id: int, body: PeriodePatch, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    p, m = await _own_period(db, user, periode_id)
+    start = body.start or p.start
+    slut = None if body.aaben else (body.slut if body.slut is not None else p.slut)
+    await _check_period(db, m, start, slut, exclude=p.id)
+    p.start, p.slut = start, slut
+    if body.navn:
+        p.navn = body.navn.strip()
+    await db.commit()
+    await bump("lists")
+    return await lists.matrikel_overview(db, user.id, user.obserkode)
+
+
+@router.delete("/perioder/{periode_id}")
+async def delete_period(periode_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    p, _ = await _own_period(db, user, periode_id)
+    await db.delete(p)
+    await db.commit()
+    await bump("lists")
+    return await lists.matrikel_overview(db, user.id, user.obserkode)
+
+
+@router.post("/matrikler/{nummer}/flyt")
+async def move(nummer: int, body: FlytIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Flytning: den periode der gælder dagen før flyttedatoen afsluttes dér, og en ny periode starter.
+    Har matriklen ingen perioder, oprettes den gamle adresse fra første fund med tagget."""
+    m = await _matrikel(db, user, nummer, create=True)
+    periods = (await db.execute(select(MatrikelPeriode).where(MatrikelPeriode.matrikel_id == m.id)
+                                .order_by(MatrikelPeriode.start))).scalars().all()
+    if any(p.start >= body.dato for p in periods):
+        raise HTTPException(400, "Der findes allerede en periode, der starter på eller efter flyttedatoen – ret den i stedet")
+    split = body.dato - timedelta(days=1)
+    if not periods:
+        stats = (await lists._tag_stats(db, user.obserkode)).get(nummer)
+        first = date.fromisoformat(stats["first"]) if stats else date(body.dato.year, 1, 1)
+        first = min(first, split)
+        db.add(MatrikelPeriode(matrikel_id=m.id, navn=(body.gammel_navn or "Tidligere adresse").strip(), start=first, slut=split))
+    else:
+        current = next((p for p in reversed(periods) if p.start <= split and (p.slut is None or p.slut >= split)), None)
+        if current is not None:
+            current.slut = split
+            if body.gammel_navn:
+                current.navn = body.gammel_navn.strip()
+    db.add(MatrikelPeriode(matrikel_id=m.id, navn=body.ny_navn.strip(), start=body.dato, slut=None))
+    await db.commit()
+    await bump("lists")
+    return await lists.matrikel_overview(db, user.id, user.obserkode)

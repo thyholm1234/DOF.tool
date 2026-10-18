@@ -117,7 +117,7 @@ export function seg(options, value, onChange) {
 export function requireLogin(view) {
   if (state.user) return false;
   view.replaceChildren(h("div", { class: "card", style: { maxWidth: "520px", margin: "8vh auto", textAlign: "center" } },
-    h("div", { html: icon("lock"), style: { width: "40px", margin: "0 auto 8px", color: "var(--brand)" } }),
+    h("div", { html: icon("lock"), style: { fontSize: "34px", lineHeight: 1, margin: "0 auto 8px", color: "var(--brand)" } }),
     h("h2", {}, "Log ind med din DOFbasen-obserkode"),
     h("p", { class: "muted" }, "Denne side bruger dine egne data, områder eller notifikationer."),
     h("a", { class: "btn primary", href: "#/login?next=" + encodeURIComponent(location.hash) }, "Log ind")));
@@ -174,7 +174,7 @@ const P = {
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
 };
 export function icon(name) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ""}</svg>`;
+  return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ""}</svg>`;
 }
 
 export function windArrow(deg, size = 18) {

@@ -98,6 +98,12 @@ Scopes: Danmark, matrikel 1/2 (tag i tur- eller fuglenoter med årets to cifre),
 kommune, egne områder; år eller livsliste. Scoreboards caches i Valkey og invalideres når nye
 observationer fra deltagere kommer ind.
 
+**Matrikler** (Lister → Matrikler, som i Boligbirding). Matrikel 1 (#BB26 / #BB26-1) tæller på
+scoreboards; matrikel 2+ (#BB26-2 …) er private. Matrikler kan navngives og have perioder (adresse,
+fra, evt. til). *Flyt matrikel* afslutter perioden dagen før flyttedatoen og starter en ny – listen og
+scoreboardet tæller kun den aktive periode, så fremgangen nulstilles ved flytning; tidligere perioder og
+"alle perioder" kan vælges på listen. Uden perioder tæller alle fund med tagget.
+
 **Træk & fænologi.** Indsatskorrigeret rapporteringsrate pr. dag (andel af alle ture med arten),
 sæsonens 10/50/90 %-datoer pr. år, Theil–Sen-trend med Kendalls τ, "i år"-forskydning ved
 kurvetilpasning, sammenhæng med DMI's forårstemperatur. Trækvejr fra DMI HARMONIE for klassiske
