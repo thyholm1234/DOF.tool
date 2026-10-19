@@ -198,6 +198,50 @@ async def participants(session: AsyncSession, group_id: int | None = None) -> li
     return [{"obserkode": r[0], "navn": r[1] or r[0]} for r in rows]
 
 
+async def _list_filter(session: AsyncSession, spec: ListSpec, codes: list[str]) -> tuple[str, dict, str]:
+    """WHERE-udtryk, parametre og evt. join på matrikelperioder for deltagernes observationer."""
+    prefix = await matrikel_prefix(session)
+    where, params = _where(spec, prefix)
+    window_join = ""
+    if spec.matrikel:
+        # Hver deltager tæller kun sin aktive matrikelperiode (ingen perioder = alle fund med tagget)
+        periods = await load_periods(session, codes, spec.matrikel)
+        wk, ws, we = [], [], []
+        for c in codes:
+            windows, _ = period_windows(periods.get(c, []), spec.year)
+            for a, b in (windows if windows is not None else [(MIN_DATE, MAX_DATE)]):
+                wk.append(c); ws.append(a); we.append(b)
+        window_join = ("JOIN unnest(CAST(:wk AS text[]), CAST(:ws AS date[]), CAST(:we AS date[])) AS w(kode, s, e) "
+                       "ON w.kode = o.obserkode AND o.dato BETWEEN w.s AND w.e")
+        params.update(wk=wk, ws=ws, we=we)
+    return where, params, window_join
+
+
+async def matrikel_home(session: AsyncSession, year: int | None) -> dict[str, str]:
+    """obserkode → kommunekode for matriklen (matrikel 1): kommunen hvor flest matrikelobservationer i perioden er gjort.
+    Matriklen har ingen gemt placering, så den aflæses af lokaliteterne man har tagget fra."""
+    async def produce() -> dict[str, str]:
+        spec = ListSpec(parse_scope("dk"), year, 1)
+        codes = [p["obserkode"] for p in await participants(session, None)]
+        if not codes:
+            return {}
+        where, params, window_join = await _list_filter(session, spec, codes)
+        rows = (await session.execute(text(f"""
+            SELECT o.obserkode, l.kommune_kode, count(*) AS n
+            FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
+            JOIN locations l ON l.loknr = o.loknr LEFT JOIN trips t ON t.turid = o.turid {window_join}
+            WHERE o.obserkode = ANY(:codes) AND l.kommune_kode IS NOT NULL AND {where}
+            GROUP BY o.obserkode, l.kommune_kode
+        """), {"codes": codes, **params})).all()
+        home: dict[str, tuple[str, int]] = {}
+        for kode, kom, n in rows:
+            if kode not in home or n > home[kode][1]:
+                home[kode] = (kom, n)
+        return {k: v[0] for k, v in home.items()}
+
+    return await cached(f"mhome:{year or 'all'}:{await version('lists')}", 6 * 3600, produce)
+
+
 async def scoreboard(session: AsyncSession, spec: ListSpec, group_id: int | None = None) -> dict:
     """Rangliste + hver deltagers 'firsts' (til race-graf, matrix og unikke arter)."""
     key = f"sb:{spec.key}:{group_id or 0}:{await version('lists')}"
@@ -214,20 +258,7 @@ async def scoreboard(session: AsyncSession, spec: ListSpec, group_id: int | None
         codes = [p["obserkode"] for p in people]
         if not codes:
             return {"rows": [], "species": {}, "spec": spec.key}
-        prefix = await matrikel_prefix(session)
-        where, params = _where(spec, prefix)
-        window_join = ""
-        if spec.matrikel:
-            # Hver deltager tæller kun sin aktive matrikelperiode (ingen perioder = alle fund med tagget)
-            periods = await load_periods(session, codes, spec.matrikel)
-            wk, ws, we = [], [], []
-            for c in codes:
-                windows, _ = period_windows(periods.get(c, []), spec.year)
-                for a, b in (windows if windows is not None else [(MIN_DATE, MAX_DATE)]):
-                    wk.append(c); ws.append(a); we.append(b)
-            window_join = ("JOIN unnest(CAST(:wk AS text[]), CAST(:ws AS date[]), CAST(:we AS date[])) AS w(kode, s, e) "
-                           "ON w.kode = o.obserkode AND o.dato BETWEEN w.s AND w.e")
-            params.update(wk=wk, ws=ws, we=we)
+        where, params, window_join = await _list_filter(session, spec, codes)
         firsts = (await session.execute(text(f"""
             SELECT o.obserkode, s.list_artnr AS artnr, min(o.dato) AS d
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
@@ -332,15 +363,18 @@ def rerank(rows: list[dict]) -> list[dict]:
 
 
 async def matrikel_board(session: AsyncSession, year: int | None, scope: str = "dk", group_id: int | None = None) -> dict:
-    """Boligbirding-scoreboard (matrikel 1). Afdelings- og kommuneboards er deltagerne der har valgt
-    området under profil – listen er stadig deres matrikel, uanset hvor den ligger."""
+    """Boligbirding-scoreboard (matrikel 1). Afdelingsboards er deltagerne der har valgt afdelingen under profil;
+    kommuneboards er deltagerne hvis matrikel ligger i kommunen (uanset hvilke kommuner de følger)."""
     spec = ListSpec(parse_scope("dk"), year, 1)
     board = await scoreboard(session, spec, group_id)
     kind, _, ref = scope.partition(":")
     rows = board["rows"]
-    if kind in ("afd", "kom") and not group_id:
-        opted = await _opted(session, "afdelinger" if kind == "afd" else "kommuner", ref)
+    if kind == "afd" and not group_id:
+        opted = await _opted(session, "afdelinger", ref)
         rows = [r for r in rows if r["obserkode"] in opted]
+    elif kind == "kom" and not group_id:
+        home = await matrikel_home(session, year)
+        rows = [r for r in rows if home.get(r["obserkode"]) == ref]
     # Kun deltagere med matrikelobservationer i perioden
     return {**board, "rows": rerank([r for r in rows if r["antal"] > 0])}
 
@@ -372,10 +406,11 @@ async def matrikel_summary(session: AsyncSession, user_id: int, obserkode: str, 
         if str(a).isdigit() and int(a) in afd:
             board = await matrikel_board(session, year, f"afd:{a}")
             standings.append(_standing(afd[int(a)], "afd", f"afd:{a}", board["rows"], obserkode, n))
-    for k in prefs.get("kommuner", []):
-        if k in kom:
-            board = await matrikel_board(session, year, f"kom:{k}")
-            standings.append(_standing(f"{kom[k]} Kommune", "kom", f"kom:{k}", board["rows"], obserkode, n))
+    # Kun kommunen hvor matriklen ligger
+    k = (await matrikel_home(session, year)).get(obserkode)
+    if k in kom:
+        board = await matrikel_board(session, year, f"kom:{k}")
+        standings.append(_standing(f"{kom[k]} Kommune", "kom", f"kom:{k}", board["rows"], obserkode, n))
     groups = (await session.execute(text("""
         SELECT g.id, g.name FROM list_groups g JOIN list_group_members m ON m.group_id = g.id
         WHERE m.obserkode = :k ORDER BY g.name

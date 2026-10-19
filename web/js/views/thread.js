@@ -191,11 +191,11 @@ function weatherCard(w) {
     h("small", { class: "muted", style: { display: "block", marginTop: "8px" } }, "DMI's 10 km-grid for kvadratet omkring lokaliteten (vejrarkivet)."));
 }
 
-// Estimeret fund (SU/SUB): observationer < 15 km og højst 1 dag fra hinanden er samme fund
+// Estimeret fund (SU/SUB): < 15 km og højst 1 dag fra hinanden, eller samme lokalitet med højst 7 dages hul (ikke trækkende)
 function findNotice(f, artnr) {
   if (!f) return null;
   const span = f.first === f.last ? fmtDate(f.first, false) : `${fmtDate(f.first, false)} – ${fmtDate(f.last, false)}`;
-  return h("div", { class: "notice mb", title: `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden regnes som samme fund` },
+  return h("div", { class: "notice mb", title: `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden er samme fund – og på samme lokalitet også med op til ${f.site_gap_days ?? 7} dages hul, medmindre fuglen var trækkende` },
     h("b", {}, `${f.year_no}. fund i ${f.year}`), ` (estimeret) · ${fmtN(f.year_total)} fund i ${f.year}${f.year === new Date().getFullYear() ? " til dato" : ""}, ${fmtN(f.total)} siden ${f.since}`,
     h("div", { class: "muted", style: { fontSize: ".85rem" } }, `Fundet: ${span} · ${f.n_days} ${f.n_days === 1 ? "dag" : "dage"} · ${fmtN(f.n_obs)} obs.${f.n_sites > 1 ? ` på ${f.n_sites} lokaliteter` : ""} · `,
       h("a", { href: `#/art/${artnr}` }, "alle fund af arten")));

@@ -1,8 +1,11 @@
 """Estimeret antal fund af SU- og SUB-arter.
 
-Observationer af samme art hører til samme fund, når de ligger under 15 km fra hinanden og højst én dag
-fra hinanden – så en fugl der bliver på stedet i flere dage, eller ses af flere på samme dag, tæller én
-gang. Sammenhængen er kædet: A–B og B–C giver ét fund, selvom A og C ligger længere fra hinanden.
+Observationer af samme art hører til samme fund, når
+  1. de ligger under 15 km fra hinanden og højst én dag fra hinanden, eller
+  2. de er fra samme lokalitet med højst 7 dage siden arten sidst blev set der (en fugl der bliver på
+     stedet, men ikke ses hver dag). Et hul på mere end 7 dage deler serien i to fund; en serie kan have
+     flere huller. Reglen gælder ikke trækkende fugle – en trækkende fugl er videre og kommer ikke igen.
+Sammenhængen er kædet: A–B og B–C giver ét fund, selvom A og C ligger længere fra hinanden.
 """
 
 from __future__ import annotations
@@ -18,7 +21,12 @@ from portal.cache import cached, kv, version
 
 LINK_KM = 15.0
 LINK_DAYS = 1
+SITE_GAP_DAYS = 7
 CLASSES = ("SU", "SUB")
+# Adfærd hvor fuglen er trukket videre: sidste led er en trækretning eller T/TU/TF/OF (fx "N", "R SV", "FU T").
+# Ender koden på rast/fouragering ("N R", "T FU"), er fuglen blevet på stedet.
+MIGRATING = ("N", "NNØ", "NØ", "ØNØ", "Ø", "ØSØ", "SØ", "SSØ", "S", "SSV", "SV", "VSV", "V", "VNV", "NV", "NNV",
+             "T", "TU", "TF", "OF")
 
 
 def _km(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -27,8 +35,8 @@ def _km(a: tuple[float, float], b: tuple[float, float]) -> float:
     return 12742 * math.asin(math.sqrt(h))
 
 
-def cluster(points: list[tuple[date, float, float]]) -> list[int]:
-    """Fund-id for hvert punkt (dato, lat, lon). Punkterne skal være sorteret efter dato."""
+def cluster(points: list[tuple]) -> list[int]:
+    """Fund-id for hvert punkt (dato, lat, lon[, loknr, trækkende]). Punkterne skal være sorteret efter dato."""
     parent = list(range(len(points)))
 
     def find(i: int) -> int:
@@ -38,13 +46,25 @@ def cluster(points: list[tuple[date, float, float]]) -> list[int]:
         return i
 
     by_day: dict[date, list[int]] = defaultdict(list)
-    for i, (d, lat, lon) in enumerate(points):
+    last_at_site: dict[int, int] = {}  # loknr → seneste ikke-trækkende punkt
+    for i, (d, lat, lon, *rest) in enumerate(points):
+        loknr, migrating = (rest + [None, False])[:2]
         for k in range(LINK_DAYS + 1):
             for j in by_day.get(d - timedelta(days=k), ()):
-                if find(i) != find(j) and _km((lat, lon), points[j][1:]) < LINK_KM:
+                if find(i) != find(j) and _km((lat, lon), points[j][1:3]) < LINK_KM:
                     parent[find(i)] = find(j)
+        if loknr is not None and not migrating:
+            j = last_at_site.get(loknr)
+            if j is not None and (d - points[j][0]).days <= SITE_GAP_DAYS and find(i) != find(j):
+                parent[find(i)] = find(j)
+            last_at_site[loknr] = i
         by_day[d].append(i)
     return [find(i) for i in range(len(points))]
+
+
+def is_migrating(adfkode: str | None) -> bool:
+    parts = [p for p in (adfkode or "").split() if p != "HØ"]  # "T HØ" = trækkende, kun hørt
+    return bool(parts) and parts[-1] in MIGRATING
 
 
 async def _species(session: AsyncSession, artnr: int) -> tuple[int, str] | None:
@@ -64,12 +84,14 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
     async def produce() -> dict:
         rows = (await session.execute(text("""
             SELECT o.dato, o.loknr, avg(coalesce(o.obs_lat, l.lat)) AS lat, avg(coalesce(o.obs_lon, l.lon)) AS lon,
-                   max(o.antal) AS antal, count(*) AS n, bool_or(o.hemmelig <> 0) AS secret
+                   max(o.antal) AS antal, count(*) AS n, bool_or(o.hemmelig <> 0) AS secret,
+                   array_agg(DISTINCT coalesce(o.adfkode, '')) AS adf
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
             WHERE s.list_artnr = :a AND o.antal > 0 AND o.dato <= current_date AND l.lat IS NOT NULL
             GROUP BY o.dato, o.loknr ORDER BY o.dato, o.loknr
         """), {"a": list_artnr})).all()
-        roots = cluster([(r.dato, r.lat, r.lon) for r in rows])
+        # Trækkende den dag på stedet = alle observationer har en trækadfærd
+        roots = cluster([(r.dato, r.lat, r.lon, r.loknr, all(is_migrating(a) for a in r.adf)) for r in rows])
         groups: dict[int, list] = defaultdict(list)
         for r, root in zip(rows, roots):
             groups[root].append(r)
@@ -92,10 +114,11 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
             f["year_no"] = per_year[y]
         index = {root: i for i, (root, _) in enumerate(ordered)}
         members = {f"{r.dato.isoformat()}|{r.loknr}": index[root] for r, root in zip(rows, roots)}
-        return {"artnr": list_artnr, "klass": klass, "link_km": LINK_KM, "link_days": LINK_DAYS, "total": len(finds),
+        return {"artnr": list_artnr, "klass": klass, "link_km": LINK_KM, "link_days": LINK_DAYS, "site_gap_days": SITE_GAP_DAYS,
+                "total": len(finds),
                 "per_year": [{"year": y, "n": n} for y, n in sorted(per_year.items())], "finds": finds, "members": members}
 
-    key = f"finds:{list_artnr}:{await version('finds')}"
+    key = f"finds2:{list_artnr}:{await version('finds')}"
     if fresh:
         await kv().delete(key)
     return await cached(key, 1800, produce)
@@ -116,7 +139,7 @@ async def thread_find(session: AsyncSession, day: date, artnr: int, loknr: int) 
     y = int(f["first"][:4])
     return {**f, "year": y, "year_total": next(p["n"] for p in data["per_year"] if p["year"] == y),
             "total": data["total"], "since": data["finds"][0]["first"][:4] if data["finds"] else None,
-            "link_km": LINK_KM, "link_days": LINK_DAYS}
+            "link_km": LINK_KM, "link_days": LINK_DAYS, "site_gap_days": SITE_GAP_DAYS}
 
 
 def public(data: dict | None, limit: int = 400) -> dict | None:

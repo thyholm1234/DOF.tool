@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, tag, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store, sortBar, todayISO } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, tag, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store, sortBar } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 
 const YEAR = new Date().getFullYear();
@@ -81,17 +81,8 @@ async function regionsTab(body) {
       ...[...d.per_year].reverse().map(x => h("option", { value: x.year, selected: x.year === st.y }, `${x.year} (${fmtN(x.n)} arter)`)));
     if (st.y && !d.per_year.some(x => x.year === st.y)) yearSel.append(h("option", { value: st.y, selected: true }, `${st.y} (0 arter)`));
     const all = !st.y;
-    // Kapløb for det valgte år mod året før og rekordåret (akkumulerede arter pr. dag i året)
-    let raceSeries = [];
-    if (!all) {
-      const cum = (species) => [...species].map(s => s.first_date).sort().map((dt, i) => [dayOfYear(dt), i + 1]);
-      const bestYear = d.per_year.reduce((a, b) => b.n > a.n ? b : a).year;
-      const others = [...new Set([st.y - 1, bestYear])].filter(y => y !== st.y && d.per_year.some(x => x.year === y));
-      const extra = await Promise.all(others.map(y => api(`/api/lists/regions/${encodeURIComponent(st.r)}?year=${y}`).catch(() => null)));
-      raceSeries = [{ name: String(st.y), points: cum(d.species), color: PALETTE[0], width: 2.5 },
-        ...others.map((y, i) => extra[i] && { name: y === bestYear ? `${y} (rekord)` : String(y), points: cum(extra[i].species), color: PALETTE[i + 1], width: 1.5, dash: "4 3" })]
-        .filter(x => x && x.points.length);
-    }
+    // Årsvisning: akkumulerede arter pr. dag i året
+    const racePts = all ? [] : [...d.species].map(s => s.first_date).sort().map((dt, i) => [dayOfYear(dt), i + 1]);
     const nNew = d.species.filter(s => s.new).length;
     const best = d.per_year.reduce((a, b) => b.n > a.n ? b : a);
     const pts = d.per_year.map(x => [x.year, x.n]);
@@ -126,10 +117,9 @@ async function regionsTab(body) {
         all && pts.length > 1 ? h("div", { class: "mt" }, h("h3", { style: { margin: "0 0 .25rem" } }, "Arter pr. år"),
           lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], height: 220, xFormat: String,
             yFormat: (v) => fmtN(Math.round(v)) })) : null,
-        !all && raceSeries.length ? h("div", { class: "mt" }, h("h3", { style: { margin: "0 0 .25rem" } }, `Kapløb ${st.y} – arter gennem året`),
-          lineChart({ series: raceSeries, step: true, height: 260, xFormat: monthName, xTicks: monthTicks, yFormat: (v) => fmtN(Math.round(v)),
-            markers: st.y === YEAR ? [{ x: dayOfYear(todayISO()), label: "i dag" }] : [] }),
-          raceSeries.length > 1 ? seriesLegend(raceSeries) : null) : null),
+        racePts.length > 1 ? h("div", { class: "mt" }, h("h3", { style: { margin: "0 0 .25rem" } }, `Arter gennem ${st.y}`),
+          lineChart({ series: [{ name: "Arter", points: racePts, color: PALETTE[0] }], step: true, height: 240, xFormat: monthName, xTicks: monthTicks,
+            yFormat: (v) => fmtN(Math.round(v)) })) : null),
       h("div", { class: "card table-wrap mt" }, h("div", { class: "mb" }, bar), h("table", { class: "data" },
         h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Art"), h("th", { class: "right" }, "Obs."), all ? h("th", { class: "right" }, "År") : null, h("th", {}, all ? "Første fund" : "Første"), h("th", {}, all ? "Seneste fund" : "Sidste"))), tbody)),
       d.missing.length ? h("details", { class: "more mt" }, h("summary", {}, `${d.missing.length} arter set i ${st.y - 1}, men ikke i ${st.y}${st.y === YEAR ? " (endnu)" : ""}`),

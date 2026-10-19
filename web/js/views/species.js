@@ -96,7 +96,7 @@ function recentList(rows) {
     h("span", {}, fmtDate(r.dato, false), " · ", h("a", { href: `#/lok/${r.loknr}` }, r.lok)), h("span", {}, r.kategori !== "alm" ? tag(r.kategori, KAT[r.kategori]) : null, " ", h("b", { class: "num" }, fmtN(r.antal))))));
 }
 
-// Estimeret antal fund for SU/SUB-arter (observationer < 15 km og højst 1 dag fra hinanden = ét fund)
+// Estimeret antal fund for SU/SUB-arter (< 15 km og højst 1 dag, eller samme lokalitet med højst 7 dages hul = ét fund)
 function findsCard(f, artnr) {
   const year = new Date().getFullYear();
   const byYear = Object.fromEntries(f.per_year.map(p => [p.year, p.n]));
@@ -119,7 +119,9 @@ function findsCard(f, artnr) {
           h("td", {}, x.loknr ? h("a", { href: `#/lok/${x.loknr}` }, x.lok) : h("span", { class: "muted" }, "Skjult lokalitet"), x.n_sites > 1 ? h("span", { class: "muted" }, ` +${x.n_sites - 1}`) : null),
           h("td", { class: "right num" }, fmtN(x.max_antal)), h("td", { class: "right num" }, fmtN(x.n_obs)))))))),
     h("p", { class: "muted", style: { fontSize: ".82rem", marginBottom: 0 } },
-      `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden regnes som samme fund (kædet), så en fugl der bliver flere dage eller ses af mange tæller én gang.`));
+      `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden regnes som samme fund (kædet). `,
+      `På samme lokalitet er det også samme fugl, selvom den ikke ses i op til ${f.site_gap_days ?? 7} dage – et længere hul deler serien i to fund. `,
+      `Det gælder ikke trækkende fugle (adfærd der ender på en trækretning, T, TU, TF eller OF).`));
 }
 
 // ---------------------------------------------------------------- punkttællinger (DOF's bestandsindeks)

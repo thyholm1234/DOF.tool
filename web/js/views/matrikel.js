@@ -135,7 +135,7 @@ async function scoreboard(body) {
   const view = seg([["rank", "Rangliste"], ["race", "Kapløb"], ["matrix", "Matrix"], ["unique", "Unikke"]], mode.v, (v) => { mode.v = v; store("mbview", v); draw(); });
   const out = h("div", { class: "mt" });
   body.append(h("div", { class: "card" }, h("div", { class: "row" }, scopeSel, ySel, groupSel, h("span", { style: { flex: 1 } }), view),
-    h("p", { class: "muted mt", style: { fontSize: ".85rem", marginBottom: 0 } }, "Boligbirding (matrikel 1). Lokalafdelinger og kommuner viser deltagere, der har valgt området under profil. En gruppe viser kun gruppens medlemmer.")), out);
+    h("p", { class: "muted mt", style: { fontSize: ".85rem", marginBottom: 0 } }, "Boligbirding (matrikel 1). Kommuner viser deltagere, hvis matrikel ligger i kommunen (aflæst af hvor matrikelobservationerne er gjort). Lokalafdelinger viser deltagere, der har valgt afdelingen under profil. En gruppe viser kun gruppens medlemmer.")), out);
   let data = null;
   const load = async () => {
     st.scope = scopeSel.value; st.group = groupSel.value;
