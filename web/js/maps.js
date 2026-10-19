@@ -46,3 +46,8 @@ export function drawTool(map, { mode, radius = 2000, onChange }) {
 export function legend(items) {
   return h("div", { class: "legend" }, ...items.map(([color, label]) => h("span", {}, h("i", { style: { background: color, height: "10px", width: "10px", borderRadius: "50%" } }), label)));
 }
+
+/** Pil der peger i retning `deg` (grader, 0 = nord) – til trækretning. */
+export const arrowSvg = (deg, size, color) =>
+  `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform: rotate(${deg}deg); filter: drop-shadow(0 0 1px rgba(0,0,0,.6))">` +
+  `<path d="M12 2 L19 20 L12 15.5 L5 20 Z" fill="${color}" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg>`;

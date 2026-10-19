@@ -53,6 +53,7 @@ async def get_feed(
             raise HTTPException(401, "Log ind for at bruge dine filtre")
         threads = await _my_filter_threads(db, day, user)
         await _attach_media(db, day, threads)
+        await _attach_comments(db, day, threads)
         likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
         for t in threads:
             t["likes"] = likes.get(t["id"], {}).get("count", 0)
@@ -64,10 +65,19 @@ async def get_feed(
     threads = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max)]
     threads = await reports.merge_feed(db, threads, day, sc, level, local_max, user)
     await _attach_media(db, day, threads)
+    await _attach_comments(db, day, threads)
     likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
     for t in threads:
         t["likes"] = likes.get(t["id"], {}).get("count", 0)
     return {"date": day.isoformat(), "scope": sc.key, "level": level, "threads": threads}
+
+
+async def _attach_comments(db: AsyncSession, day: date, threads: list[dict]) -> None:
+    counts = {f"{day.isoformat()}/{a}/{l}": n for a, l, n in (await db.execute(text("""
+        SELECT artnr, loknr, count(*) FROM thread_comments WHERE dato = :d AND NOT hidden GROUP BY artnr, loknr
+    """), {"d": day})).all()}
+    for t in threads:
+        t["n_comments"] = counts.get(t["id"], 0)
 
 
 async def _attach_media(db: AsyncSession, day: date, threads: list[dict]) -> None:

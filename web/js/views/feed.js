@@ -35,12 +35,12 @@ export async function render(view) {
     scope: p.scope || saved.scope || state.user?.prefs?.feed_scope || (state.user ? "mine" : "dk"),
     autoScope: !p.scope && !saved.scope && !state.user?.prefs?.feed_scope,
     localMax: Number(p.n || saved.localMax || state.user?.prefs?.local_max || 10),
-    q: "",
+    prevScope: saved.prevScope || "dk",
+    onlySU: !!saved.onlySU, sort: saved.sort || "nyeste", comments: !!saved.comments,
   };
   if (st.level === "all" && st.scope === "dk") st.level = "bemaerk";
 
   const listEl = h("div", { class: "threads" });
-  const statsEl = h("div", { class: "stats" });
   const sideEl = h("div", { class: "stack" });
   const updatedEl = h("small", { class: "muted" });
   const scopeSel = h("select", { "aria-label": "Område", style: { width: "auto", maxWidth: "240px" } });
@@ -49,20 +49,35 @@ export async function render(view) {
   const localRange = h("input", { type: "range", min: 1, max: 100, value: st.localMax, style: { width: "130px" } });
   localWrap.append("Færre end", localVal, "obs. historisk", localRange);
 
+  // Værktøjslinje som i DOF.not: to-tilstandsknapper; kategori og område kun når egne filtre er slået fra
+  const toggles = h("div", { class: "toolbar" });
   const chips = h("div", { class: "chips" });
-  const drawChips = () => chips.replaceChildren(...(st.scope === "mine"
-    ? [h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Kategorier og områder fra dine ", h("a", { href: "#/alarmer" }, "alarmregler"))]
-    : LEVELS.map(([v, l]) => h("button", {
-    class: `chip ${st.level === v ? "on" : ""}`, onclick: () => {
-      if (v === "all" && st.scope === "dk") { toast("Vælg et område for at se alle observationer"); return; }
-      st.level = v; drawChips(); load();
-    } }, l))));
-  drawChips();
+  const filterRow = h("div", { class: "row between wrap", style: { gap: "8px" } }, chips, h("div", { class: "row", style: { gap: "8px" } }, localWrap, scopeSel));
+  const tw = (label, on, onclick, title) => h("button", { type: "button", class: `twostate ${on ? "on" : ""}`, title, onclick }, label);
+  const drawChips = () => {
+    const mine = st.scope === "mine";
+    toggles.replaceChildren(
+      state.user ? tw("Mine filtre", mine, () => {
+        if (mine) st.scope = st.prevScope || "dk"; else { st.prevScope = st.scope; st.scope = "mine"; }
+        st.autoScope = false; scopeSel.value = st.scope; drawChips(); load();
+      }, mine ? "Viser dine alarmregler – klik for at vælge kategori og område selv" : "Brug dine alarmregler som filter") : null,
+      tw("Kun SU", st.onlySU, () => { st.onlySU = !st.onlySU; drawChips(); draw(); }, "Vis kun SU-arter"),
+      tw(st.sort === "nyeste" ? "Nyeste" : "Alfabet", true, () => { st.sort = st.sort === "nyeste" ? "alfabet" : "nyeste"; drawChips(); draw(); }, "Skift sortering"),
+      tw("Indlæg", st.comments, () => { st.comments = !st.comments; drawChips(); draw(); }, "Tråde med kommentarer øverst"),
+      h("span", { class: "spacer" }), updatedEl);
+    filterRow.classList.toggle("hide", mine);
+    chips.replaceChildren(...LEVELS.map(([v, l]) => h("button", {
+      class: `chip ${st.level === v ? "on" : ""}`, onclick: () => {
+        if (v === "all" && st.scope === "dk") { toast("Vælg et område for at se alle observationer"); return; }
+        st.level = v; drawChips(); load();
+      } }, l)));
+    saveState();
+  };
+  const saveState = () => store("feed", { v: 2, level: st.level, scope: st.autoScope ? "" : st.scope, localMax: st.localMax,
+    prevScope: st.prevScope, onlySU: st.onlySU, sort: st.sort, comments: st.comments });
 
   const dateInput = h("input", { type: "date", value: st.date, max: todayISO(), style: { width: "auto" }, onchange: (e) => { st.date = e.target.value; load(); } });
   const shiftDay = (n) => { const d = new Date(st.date + "T12:00:00"); d.setDate(d.getDate() + n); const iso = d.toISOString().slice(0, 10); if (iso > todayISO()) return; st.date = iso; dateInput.value = iso; load(); };
-
-  const search = h("input", { type: "search", placeholder: "Filtrér art eller lokalitet…", oninput: (e) => { st.q = e.target.value.toLowerCase(); draw(); } });
 
   view.append(
     h("div", { class: "page-head" },
@@ -74,18 +89,15 @@ export async function render(view) {
         h("button", { class: "btn sm", onclick: nearby, html: `${icon("pin")} Tæt på mig` }))),
     h("div", { class: "feed-layout" },
       h("div", { class: "stack" },
-        statsEl,
-        h("div", { class: "card", style: { padding: "12px" } },
-          h("div", { class: "row between" }, chips, h("div", { class: "row" }, scopeSel)),
-          h("div", { class: "row between mt" }, localWrap, search),
-          h("div", { class: "row mt" }, updatedEl)),
+        h("div", { class: "card toolbox" }, toggles, filterRow),
         listEl),
       sideEl));
 
-  const opts = await scopeOptions();
+  const opts = (await scopeOptions()).filter(o => o[0] !== "mine");
   for (const [v, l] of opts) scopeSel.append(h("option", { value: v, selected: v === st.scope }, l));
-  if (!opts.some(o => o[0] === st.scope)) st.scope = "dk";
-  scopeSel.addEventListener("change", () => { st.scope = scopeSel.value; st.autoScope = false; if (st.level === "all" && st.scope === "dk") st.level = "bemaerk"; drawChips(); load(); });
+  if (st.scope !== "mine" && !opts.some(o => o[0] === st.scope)) st.scope = "dk";
+  drawChips();
+  scopeSel.addEventListener("change", () => { st.scope = scopeSel.value; st.prevScope = st.scope; st.autoScope = false; if (st.level === "all" && st.scope === "dk") st.level = "bemaerk"; drawChips(); load(); });
   localRange.addEventListener("input", () => { localVal.textContent = localRange.value; });
   localRange.addEventListener("change", () => { st.localMax = Number(localRange.value); load(); });
 
@@ -94,7 +106,9 @@ export async function render(view) {
   let first = true;
 
   function draw() {
-    const items = threads.filter(t => !st.q || (t.art || "").toLowerCase().includes(st.q) || (t.lok || "").toLowerCase().includes(st.q));
+    const items = threads.filter(t => !st.onlySU || t.kategori === "SU");
+    if (st.sort === "alfabet") items.sort((a, b) => (a.art || "").localeCompare(b.art || "", "da"));
+    if (st.comments) items.sort((a, b) => (b.n_comments > 0) - (a.n_comments > 0));
     if (!items.length) { listEl.replaceChildren(empty("Ingen tråde med dette filter", st.date === todayISO() ? "Listen opdateres automatisk, når nye observationer kommer ind." : "")); return; }
     listEl.replaceChildren(...items.map(t => threadCard(t, st.scope === "mine" ? (t.local_hit ? "local" : "") : st.level, !first && !known.has(t.id + t.max_antal))));
     known = new Set(threads.map(t => t.id + t.max_antal));
@@ -105,7 +119,7 @@ export async function render(view) {
     const mine = st.scope === "mine";
     setParams({ date: st.date === todayISO() ? "" : st.date, level: mine ? "" : st.level, scope: st.autoScope || st.scope === "dk" ? "" : st.scope,
       n: !mine && st.level === "local" ? st.localMax : "" });
-    store("feed", { v: 2, level: st.level, scope: st.autoScope ? "" : st.scope, localMax: st.localMax });
+    saveState();
     localWrap.classList.toggle("hide", mine || st.level !== "local");
     if (first) listEl.replaceChildren(...Array.from({ length: 5 }, () => h("div", { class: "skeleton" })));
     try {
@@ -113,23 +127,19 @@ export async function render(view) {
       const [data, sum] = await Promise.all([api(`/api/feed?${q}`), api(`/api/feed/summary?date=${st.date}`)]);
       if (mine && data.n_rules === 0) {
         // Ingen regler endnu: standardvisningen falder tilbage til hele landet, et aktivt valg viser en vejledning
-        if (st.autoScope) { st.scope = "dk"; scopeSel.value = "dk"; drawChips(); return load(); }
+        if (st.autoScope) { st.scope = "dk"; scopeSel.value = "dk"; st.autoScope = false; drawChips(); return load(); }
         listEl.replaceChildren(empty("Du har ingen aktive alarmregler", "Opret regler under Alarmer – så viser forsiden det, du får besked om."),
           h("p", { style: { textAlign: "center" } }, h("a", { class: "btn primary", href: "#/alarmer" }, "Opret alarmregel")));
-        drawStats(sum); updatedEl.textContent = ""; return;
+        drawSide(sum); updatedEl.textContent = ""; return;
       }
       threads = data.threads;
       draw();
-      drawStats(sum);
-      updatedEl.textContent = `${threads.length} tråde · ${sum.last_update ? "DOFbasen hentet " + ago(sum.last_update) : ""}`;
+      drawSide(sum);
+      updatedEl.textContent = `${threads.length} tråde${sum.last_update ? " · hentet " + ago(sum.last_update) : ""}`;
     } catch (err) { listEl.replaceChildren(errorBox(err)); }
   }
 
-  function drawStats(sum) {
-    const s = sum.summary;
-    statsEl.replaceChildren(
-      stat(fmtN(s.n_obs), "observationer"), stat(fmtN(s.n_species), "arter/taxa"),
-      stat(fmtN(s.n_observers), "observatører"), stat(`${s.n_su}/${s.n_sub}`, "SU / SUB obs."));
+  function drawSide(sum) {
     sideEl.replaceChildren(
       h("div", { class: "card" }, h("div", { class: "card-head" }, h("h3", {}, "Største træk i dag")),
         sum.migration.length ? h("ul", { class: "mini-list" }, ...sum.migration.map(m => h("li", {},
@@ -154,8 +164,6 @@ export async function render(view) {
   return () => { off(); clearInterval(poll); clearTimeout(timer); };
 }
 
-function stat(v, label) { return h("div", { class: "stat" }, h("b", {}, v), h("span", {}, label)); }
-
 export function threadCard(t, level, fresh = false) {
   const kat = level === "local" && !["SU", "SUB"].includes(t.kategori) ? "local" : t.kategori;
   const last = t.last || {};
@@ -172,6 +180,7 @@ export function threadCard(t, level, fresh = false) {
     h("div", { class: "side" }, tag(kat, KAT[kat]), h("span", { title: "Først set i portalen " + ago(t.first_seen) }, Date.now() - new Date(t.last_seen) < 45 * 60000 ? ago(t.last_seen) : (last.tid || ago(t.last_seen))),
       t.n_observers > 1 ? h("span", { title: "observatører" }, `${t.n_observers} obs.`) : null,
       t.likes ? h("span", { class: "likes", title: "tommel op" }, `👍 ${t.likes}`) : null,
+      t.n_comments ? h("span", { title: "kommentarer" }, `💬 ${t.n_comments}`) : null,
       t.media?.images || t.media?.sounds ? h("span", { title: "Billeder og lyd i DOFbasen" },
         [t.media.images ? `📷 ${t.media.images}` : "", t.media.sounds ? `🔊 ${t.media.sounds}` : ""].filter(Boolean).join(" ")) : null,
       t.media?.dku?.length ? h("span", { class: "tag plain", title: "Status hos DKU" }, `DKU: ${t.media.dku.join(", ")}`) : null));
