@@ -317,3 +317,72 @@ async def matrikel_overview(session: AsyncSession, user_id: int, obserkode: str)
             "perioder": [p.as_dict() for p in plist], "active": active.id if active else None,
         })
     return {"prefix": prefix, "matrikler": out}
+
+
+# ---------------------------------------------------------------- matrikelbirding (eget modul)
+
+def rerank(rows: list[dict]) -> list[dict]:
+    """Ny placering efter filtrering (lige mange arter = samme placering)."""
+    out, place, prev = [], 0, None
+    for i, r in enumerate(rows, start=1):
+        if r["antal"] != prev:
+            place, prev = i, r["antal"]
+        out.append({**r, "placering": place})
+    return out
+
+
+async def matrikel_board(session: AsyncSession, year: int | None, scope: str = "dk", group_id: int | None = None) -> dict:
+    """Boligbirding-scoreboard (matrikel 1). Afdelings- og kommuneboards er deltagerne der har valgt
+    området under profil – listen er stadig deres matrikel, uanset hvor den ligger."""
+    spec = ListSpec(parse_scope("dk"), year, 1)
+    board = await scoreboard(session, spec, group_id)
+    kind, _, ref = scope.partition(":")
+    if kind in ("afd", "kom") and not group_id:
+        opted = await _opted(session, "afdelinger" if kind == "afd" else "kommuner", ref)
+        board = {**board, "rows": rerank([r for r in board["rows"] if r["obserkode"] in opted])}
+    return board
+
+
+def _standing(label: str, kind: str, ref: str, rows: list[dict], me: str, my_count: int) -> dict:
+    lean = [{k: r[k] for k in ("obserkode", "navn", "antal", "placering", "sidste_art", "sidste_dato")} for r in rows]
+    mine = next((r for r in lean if r["obserkode"] == me), None)
+    # Er listen ikke offentlig, vises den placering man ville have haft
+    place = mine["placering"] if mine else 1 + sum(1 for r in lean if r["antal"] > my_count)
+    above = next((r for r in reversed(lean) if r["antal"] > my_count), None)
+    below = next((r for r in lean if r["antal"] < my_count), None)
+    return {"label": label, "kind": kind, "ref": ref, "n": len(lean) + (0 if mine else 1), "placering": place,
+            "public": mine is not None, "leader": lean[0] if lean else None,
+            "above": {**above, "gap": above["antal"] - my_count} if above else None,
+            "below": {**below, "gap": my_count - below["antal"]} if below else None,
+            "top": lean[:5]}
+
+
+async def matrikel_summary(session: AsyncSession, user_id: int, obserkode: str, prefs: dict, year: int | None) -> dict:
+    spec = ListSpec(parse_scope("dk"), year, 1)
+    windows, period = await matrikel_windows(session, obserkode, spec)
+    items = await year_list(session, obserkode, spec, windows)
+    n = len(items)
+    dk = await scoreboard(session, spec)
+    standings = [_standing("Danmark", "dk", "dk", dk["rows"], obserkode, n)]
+    afd = {r[0]: r[1] for r in (await session.execute(text("SELECT id, navn FROM afdelinger"))).all()}
+    kom = {r[0]: r[1] for r in (await session.execute(text("SELECT kode, navn FROM kommuner"))).all()}
+    for a in prefs.get("afdelinger", []):
+        if str(a).isdigit() and int(a) in afd:
+            board = await matrikel_board(session, year, f"afd:{a}")
+            standings.append(_standing(afd[int(a)], "afd", f"afd:{a}", board["rows"], obserkode, n))
+    for k in prefs.get("kommuner", []):
+        if k in kom:
+            board = await matrikel_board(session, year, f"kom:{k}")
+            standings.append(_standing(f"{kom[k]} Kommune", "kom", f"kom:{k}", board["rows"], obserkode, n))
+    groups = (await session.execute(text("""
+        SELECT g.id, g.name FROM list_groups g JOIN list_group_members m ON m.group_id = g.id
+        WHERE m.obserkode = :k ORDER BY g.name
+    """), {"k": obserkode})).all()
+    for gid, name in groups:
+        board = await scoreboard(session, spec, gid)
+        standings.append(_standing(name, "group", str(gid), board["rows"], obserkode, n))
+    overview = await matrikel_overview(session, user_id, obserkode)
+    m1 = next(m for m in overview["matrikler"] if m["nummer"] == 1)
+    return {"year": year, "count": n, "items": items, "periode": period, "standings": standings,
+            "tag": m1["tag"], "navn": m1["navn"], "n_trips": m1["n_trips"], "first": m1["first"], "last": m1["last"],
+            "matrikler": [{k: m[k] for k in ("nummer", "navn", "tag", "n_trips")} for m in overview["matrikler"]]}

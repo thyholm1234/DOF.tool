@@ -613,3 +613,5 @@ body.anon main#view { padding-bottom: 32px; max-width: 1080px; }
 blockquote.quote { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--line-strong); background: var(--surface); border-radius: 0 8px 8px 0; white-space: pre-wrap; }
 blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; }
 .comment-ban { font-size: .9rem; }
+.mig-arrow { background: none; border: 0; }
+.mig-arrow svg { display: block; }

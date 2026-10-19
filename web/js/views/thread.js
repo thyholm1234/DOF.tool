@@ -54,6 +54,7 @@ export async function render(view, [date, artnr, loknr]) {
       h("span", { class: "spacer" }),
       h("div", { class: "row" }, followBtn, h("button", { class: "btn", onclick: share }, "Del"))),
     h("div", { class: "mb" }, likeEl),
+    findNotice(t.find, artnr),
     h("div", { class: "grid-2" },
       h("div", { class: "stack" },
         reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
@@ -180,4 +181,14 @@ function weatherCard(w) {
       cell("Skydække", n(w.cloud, "%", 0)),
       cell("Solskin", w.sun == null ? "–" : `${String(Math.round(w.sun / 6) / 10).replace(".", ",")} t`)),
     h("small", { class: "muted", style: { display: "block", marginTop: "8px" } }, "DMI's 10 km-grid for kvadratet omkring lokaliteten (vejrarkivet)."));
+}
+
+// Estimeret fund (SU/SUB): observationer < 15 km og højst 1 dag fra hinanden er samme fund
+function findNotice(f, artnr) {
+  if (!f) return null;
+  const span = f.first === f.last ? fmtDate(f.first, false) : `${fmtDate(f.first, false)} – ${fmtDate(f.last, false)}`;
+  return h("div", { class: "notice mb", title: `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden regnes som samme fund` },
+    h("b", {}, `${f.year_no}. fund i ${f.year}`), ` (estimeret) · ${fmtN(f.year_total)} fund i ${f.year}${f.year === new Date().getFullYear() ? " til dato" : ""}, ${fmtN(f.total)} siden ${f.since}`,
+    h("div", { class: "muted", style: { fontSize: ".85rem" } }, `Fundet: ${span} · ${f.n_days} ${f.n_days === 1 ? "dag" : "dage"} · ${fmtN(f.n_obs)} obs.${f.n_sites > 1 ? ` på ${f.n_sites} lokaliteter` : ""} · `,
+      h("a", { href: `#/art/${artnr}` }, "alle fund af arten")));
 }

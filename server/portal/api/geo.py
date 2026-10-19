@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import cached, worker_command
 from portal.db import get_session
 from portal.models import Area, Species, User
+from portal.services import dofext, finds
 from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geometry
 from portal.services.feed import KAT_RANK
 
@@ -121,7 +123,34 @@ async def species_detail(artnr: int, db: AsyncSession = Depends(get_session)):
                 "total": dict(total) if total else None}
 
     data = await cached(f"sp:{artnr}", 900, produce)
-    return {"artnr": sp.artnr, "navn": sp.navn, "latin": sp.latin, "klass": sp.klass, "art_type": sp.art_type, **data}
+    return {"artnr": sp.artnr, "navn": sp.navn, "latin": sp.latin, "klass": sp.klass, "art_type": sp.art_type, **data,
+            "finds": finds.public(await finds.species_finds(db, artnr))}
+
+
+async def _list_artnr(db: AsyncSession, artnr: int) -> int:
+    ls = (await db.execute(text("SELECT list_artnr FROM species WHERE artnr = :a"), {"a": artnr})).scalar()
+    if ls is None:
+        raise HTTPException(404)
+    return ls
+
+
+@router.get("/species/{artnr}/atlas")
+async def species_atlas(artnr: int, db: AsyncSession = Depends(get_session)):
+    return await dofext.atlas(await _list_artnr(db, artnr))
+
+
+@router.get("/species/{artnr}/punkttaelling")
+async def species_point_counts(artnr: int, db: AsyncSession = Depends(get_session)):
+    return await dofext.point_counts(await _list_artnr(db, artnr))
+
+
+@router.get("/atlas/squares")
+async def atlas_squares():
+    try:
+        data = await dofext.atlas_squares()
+    except Exception as exc:  # noqa: BLE001 – ekstern tjeneste nede
+        raise HTTPException(502, "Atlaskvadraterne kunne ikke hentes fra DOF") from exc
+    return JSONResponse(data, headers={"Cache-Control": "public, max-age=604800"})
 
 
 # ---------------------------------------------------------------- områder

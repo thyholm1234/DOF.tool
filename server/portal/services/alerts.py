@@ -22,7 +22,6 @@ from portal.timeutil import dk_today, in_quiet_hours
 
 log = logging.getLogger("portal.alerts")
 
-LEVEL_KATS = {"SU": {"SU"}, "SUB": {"SU", "SUB"}, "bemaerk": {"SU", "SUB", "bemaerk"}}
 KAT_LABEL = {"SU": "SU", "SUB": "SUB", "bemaerk": "Bemærk", "alm": ""}
 
 
@@ -189,12 +188,10 @@ def _rule_matches(rule: dict, e: Event, members: dict[int, set[int]], counts: di
         return False
     if kind in ("polygon", "radius") and e.loknr not in members.get(rule["area_id"], set()):
         return False
-    level = rule["level"]
-    if level in LEVEL_KATS:
-        return e.kategori in LEVEL_KATS[level]
-    if level == "local":
-        if e.kategori in ("SU", "SUB"):
-            return True
+    levels = rule["levels"]
+    if "all" in levels or e.kategori in levels:
+        return True
+    if "local" in levels and e.kategori in ("alm", "bemaerk"):
         if e.art_type not in ("art", "underart"):
             return False
         if rule["kommuner"] or rule["afdelinger"]:
@@ -203,12 +200,12 @@ def _rule_matches(rule: dict, e: Event, members: dict[int, set[int]], counts: di
             keys += [f"afd:{a}" for a in e.afdelinger if a in rule["afdelinger"]]
             return min(counts.get((k, e.artnr), 0) for k in keys) < rule["local_max"]
         return counts.get((rule["count_key"], e.artnr), 0) < rule["local_max"]
-    return level == "all"
+    return False
 
 
 def _message(e: Event, max_antal: int, rule: dict | None, followed: bool = False) -> dict:
     kat = KAT_LABEL.get(e.kategori, "")
-    if rule and rule["level"] == "local" and e.kategori in ("alm", "bemaerk"):
+    if rule and "local" in rule["levels"] and e.kategori not in rule["levels"] and e.kategori in ("alm", "bemaerk"):
         kat = "Lokalt hit"
     title = f"{max_antal or e.antal} {e.art}, {e.lok or 'ukendt lokalitet'}"
     certainty = e.sikkerhed if e.sikkerhed != "sikker" else None
@@ -275,6 +272,7 @@ async def _rules(session: AsyncSession) -> list[dict]:
     for r in rows:
         d = dict(r)
         d["kommuner"], d["afdelinger"] = list(d["kommuner"] or []), list(d["afdelinger"] or [])
+        d["levels"] = set(d["level"].split(","))
         kind = d["area_kind"]
         d["count_key"] = ("dk" if kind is None else f"afd:{d['area_ref']}" if kind == "afdeling"
                           else f"kom:{d['area_ref']}" if kind == "kommune" else f"lok:{d['area_ref']}" if kind == "lokalitet"
@@ -300,7 +298,7 @@ async def _area_members(session: AsyncSession, rules: list[dict], loknrs: set) -
 async def _local_counts(session: AsyncSession, rules: list[dict], events: list[Event]) -> dict[tuple[str, int], int]:
     keys = set()
     for r in rules:
-        if r["level"] == "local":
+        if "local" in r["levels"]:
             keys |= {r["count_key"], *(f"kom:{k}" for k in r["kommuner"]), *(f"afd:{a}" for a in r["afdelinger"])}
     keys = list(keys)
     if not keys:

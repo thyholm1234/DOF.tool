@@ -14,13 +14,15 @@ from portal.services.push import ensure_vapid, send_to_user
 
 router = APIRouter(prefix="/api", tags=["alerts"])
 
+LEVEL_ORDER = ("SU", "SUB", "bemaerk", "local")
+
 
 class RuleIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     area_id: int | None = None
     kommuner: list[str] = Field(default_factory=list, max_length=98)
     afdelinger: list[int] = Field(default_factory=list, max_length=30)
-    level: str = Field("SUB", pattern="^(SU|SUB|bemaerk|local|all)$")
+    level: str = Field("SU,SUB", pattern="^(all|(SU|SUB|bemaerk|local)(,(SU|SUB|bemaerk|local))*)$")
     local_max: int = Field(5, ge=1, le=1000)
     min_antal: int = Field(1, ge=1, le=100000)
     species_include: list[int] = Field(default_factory=list, max_length=200)
@@ -45,6 +47,8 @@ async def _region_names(db: AsyncSession) -> dict[str, str]:
 
 
 async def _check_area(db: AsyncSession, user: User, body: RuleIn) -> Area | None:
+    if body.level != "all":
+        body.level = ",".join(k for k in LEVEL_ORDER if k in body.level.split(","))
     body.kommuner = sorted(set(body.kommuner))
     body.afdelinger = sorted(set(body.afdelinger))
     if body.kommuner or body.afdelinger:
@@ -55,7 +59,7 @@ async def _check_area(db: AsyncSession, user: User, body: RuleIn) -> Area | None
             raise HTTPException(400, "Ukendt kommune eller lokalafdeling")
         return None
     if body.area_id is None:
-        if body.level in ("local", "all") and not body.species_include:
+        if ("local" in body.level or body.level == "all") and not body.species_include:
             raise HTTPException(400, "Lokale hits og 'alle' kræver et område (eller en artsliste)")
         return None
     area = await db.get(Area, body.area_id)

@@ -16,7 +16,7 @@ from portal.dof import gateway
 from portal.dof.jobs import media_for
 from portal.models import Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
-from portal.services import activity, feed, moderation, reports
+from portal.services import activity, feed, finds, moderation, reports
 from portal.services.auth import role_at_least
 from portal.services.areas import Scope, parse_scope
 from portal.timeutil import dk_today
@@ -78,6 +78,7 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
     if data is None:
         data = await feed.thread_meta(db, day, artnr, loknr)
     data["reports"] = portal
+    data["find"] = await finds.thread_find(db, day, artnr, loknr)
     data["comments"] = await _comments(db, day, artnr, loknr, user)
     key = f"{day.isoformat()}/{artnr}/{loknr}"
     data["likes"] = (await like_summary(db, "thread", [key], user)).get(key) or {"count": 0, "liked": False, "names": []}

@@ -5,6 +5,13 @@ const NS = "http://www.w3.org/2000/svg";
 const s = (tag, attrs = {}) => { const el = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); return el; };
 export const PALETTE = ["#2f7a5d", "#c8862a", "#2a6fb0", "#c0392b", "#7b4bb7", "#3d9aa6", "#a3527a", "#6b8e23", "#8c6d46", "#4a5bc4"];
 
+// Én fælles tooltip for alle grafer; fjernes ved sideskift, så den ikke hænger, når grafen forsvinder under musen
+let tip = null;
+const hideTip = () => { tip?.remove(); tip = null; };
+addEventListener("hashchange", hideTip);
+addEventListener("popstate", hideTip);
+document.addEventListener("click", hideTip, true);
+
 function niceTicks(min, max, n = 5) {
   if (max <= min) max = min + 1;
   const span = max - min;
@@ -61,7 +68,6 @@ export function lineChart({ series, band, height = 260, xFormat = String, yForma
   // tooltip
   const cursor = s("line", { y1: m.t, y2: H - m.b, stroke: "currentColor", opacity: 0, "stroke-width": 1 });
   svg.append(cursor);
-  let tip = null;
   svg.addEventListener("pointermove", (e) => {
     const r = svg.getBoundingClientRect();
     const px = (e.clientX - r.left) / r.width * W;

@@ -1,7 +1,6 @@
 import { api, state, h, fmtN, fmtDate, loadRef, requireLogin, toast, seg } from "../core.js";
 import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
-import { matrikler } from "./lists.js";
 
 export async function render(view) {
   if (requireLogin(view)) return;
@@ -40,7 +39,6 @@ export async function render(view) {
     } catch (err) { toast(err.message, "err"); }
   };
 
-  const matrikelBody = h("div", { class: "mt" });
   view.append(
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, u.navn || u.obserkode), h("p", { class: "lead" }, `${u.obserkode} · ${u.role}`))),
     stats ? h("div", { class: "stats" },
@@ -61,10 +59,9 @@ export async function render(view) {
         h("label", { class: "check" }, pub, "Vis mig på scoreboards og lad andre se mine lister"),
         h("h3", { class: "mt" }, "Udseende"), theme)),
     h("div", { class: "row mt" }, h("button", { class: "btn primary", onclick: save }, "Gem indstillinger")),
-    h("section", { id: "matrikler", class: "mt2" },
-      h("div", { class: "row between" }, h("h2", { style: { margin: 0 } }, "Boligbirding"),
-        h("a", { class: "btn sm ghost", href: "#/lister?tab=mine&m=1" }, "Se matrikellisten →")),
-      matrikelBody),
+    h("div", { class: "card mt2 row between" }, h("div", {}, h("h3", { style: { margin: 0 } }, "Boligbirding"),
+        h("p", { class: "muted", style: { margin: 0 } }, "Matrikler, perioder, flytning og placeringer har deres eget modul.")),
+      h("a", { class: "btn", href: "#/matrikel" }, "Gå til Matrikel →")),
     h("div", { class: "card mt2" }, h("h3", {}, "Data"),
       h("p", { class: "muted" }, "Dine observationer kommer fra DOFbasen: historik fra det lokale arkiv, ældre år hentes én gang ved første login, og nye observationer kommer automatisk med live-hentningen.",
         u.history_synced_at ? ` Historik hentet ${fmtDate(u.history_synced_at)}.` : " Historik er i kø."),
@@ -75,8 +72,7 @@ export async function render(view) {
           if (!confirm("Slet din konto i portalen? Dine områder, regler og grupper slettes. Dine data i DOFbasen påvirkes ikke.")) return;
           await api("/api/me", { method: "DELETE" }); location.hash = "#/"; location.reload();
         } }, "Slet min konto") : null)));
-  await matrikler(matrikelBody);
-  if (location.hash.includes("matrikler")) document.getElementById("matrikler")?.scrollIntoView();
+  if (location.hash.includes("matrikler")) location.hash = "#/matrikel?tab=matrikler";
 }
 
 const st = (v, l) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l));

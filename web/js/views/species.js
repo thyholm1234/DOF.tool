@@ -1,4 +1,4 @@
-import { api, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, KAT } from "../core.js";
+import { api, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, seg, KAT } from "../core.js";
 import { lineChart, seriesLegend, yearDots, PALETTE } from "../charts.js";
 import { baseMap, katColor } from "../maps.js";
 
@@ -11,6 +11,9 @@ export async function render(view, [artnr]) {
   try { [sp, ph] = await Promise.all([api(`/api/species/${artnr}`), api(`/api/pheno/species/${artnr}`)]); }
   catch (err) { view.replaceChildren(errorBox(err)); return; }
   const mapEl = h("div", { class: "map small" });
+  const pttEl = h("div", {});
+  const atlasEl = h("div", {});
+  const cleanups = [];
   view.replaceChildren(
     h("p", {}, h("a", { href: "javascript:history.back()" }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {},
@@ -18,15 +21,24 @@ export async function render(view, [artnr]) {
       h("h1", {}, sp.navn), sp.latin ? h("p", { class: "lead" }, h("i", {}, sp.latin)) : null)),
     h("div", { class: "stats", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
       stat(fmtN(sp.total?.n_obs), "observationer i alt"), stat(fmtN(sp.total?.n_days), "dage med fund"), stat(sp.total?.last_date ? fmtDate(sp.total.last_date) : "–", "senest før i dag")),
+    sp.finds ? findsCard(sp.finds, artnr) : null,
     h("div", { class: "card mt" }, h("h2", {}, "Forekomst gennem året"), phenoChart(ph), summaryBox(ph.summary)),
     h("div", { class: "grid-2 mt" },
       h("div", { class: "card" }, h("h3", {}, "Fund de seneste 30 dage"), mapEl, recentList(sp.recent)),
       h("div", { class: "card" }, h("h3", {}, "Mediandato pr. år"), yearChart(ph), h("h3", { class: "mt2" }, "Observationer pr. lokalafdeling"),
-        sp.by_afdeling.length ? h("ul", { class: "mini-list" }, ...sp.by_afdeling.map(a => h("li", {}, a.navn, h("b", { class: "num" }, fmtN(a.n_obs))))) : h("p", { class: "muted" }, "–"))));
+        sp.by_afdeling.length ? h("ul", { class: "mini-list" }, ...sp.by_afdeling.map(a => h("li", {}, a.navn, h("b", { class: "num" }, fmtN(a.n_obs))))) : h("p", { class: "muted" }, "–"))),
+    pttEl, atlasEl);
   const map = baseMap(mapEl, { zoom: 6, center: [56.1, 11] });
   for (const r of sp.recent) L.circleMarker([r.lat, r.lon], { radius: 5, color: "#fff", weight: 1, fillColor: katColor(r.kategori), fillOpacity: .9 }).addTo(map)
     .bindPopup(`${fmtN(r.antal)} · ${r.lok}<br>${fmtDate(r.dato)}<br><a href="#/traad/${r.dato}/${artnr}/${r.loknr}">Åbn</a>`);
-  return () => map.remove();
+  // DOF's punkttællinger og Atlas hentes efter siden er vist (eksterne tjenester, caches på serveren)
+  api(`/api/species/${artnr}/punkttaelling`).then(d => pttEl.replaceChildren(pointCountCard(d, sp.navn) || "")).catch(() => {});
+  api(`/api/species/${artnr}/atlas`).then(async d => {
+    if (!d.available) return;
+    const squares = await api("/api/atlas/squares");
+    atlasEl.replaceChildren(atlasCard(d, squares, cleanups));
+  }).catch(() => {});
+  return () => { map.remove(); cleanups.forEach(f => f()); };
 }
 
 const stat = (v, l) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l));
@@ -82,4 +94,103 @@ function recentList(rows) {
   if (!rows.length) return h("p", { class: "muted" }, "Ingen fund de seneste 30 dage.");
   return h("ul", { class: "mini-list", style: { maxHeight: "260px", overflow: "auto", marginTop: "8px" } }, ...rows.slice(0, 60).map(r => h("li", {},
     h("span", {}, fmtDate(r.dato, false), " · ", h("a", { href: `#/lok/${r.loknr}` }, r.lok)), h("span", {}, r.kategori !== "alm" ? tag(r.kategori, KAT[r.kategori]) : null, " ", h("b", { class: "num" }, fmtN(r.antal))))));
+}
+
+// Estimeret antal fund for SU/SUB-arter (observationer < 15 km og højst 1 dag fra hinanden = ét fund)
+function findsCard(f, artnr) {
+  const year = new Date().getFullYear();
+  const byYear = Object.fromEntries(f.per_year.map(p => [p.year, p.n]));
+  const first = f.per_year[0]?.year ?? year;
+  const pts = Array.from({ length: year - first + 1 }, (_, i) => [first + i, byYear[first + i] || 0]);
+  const best = f.per_year.reduce((a, b) => (b.n > (a?.n ?? -1) ? b : a), null);
+  const span = (x) => x.first === x.last ? fmtDate(x.first, false) : `${fmtDate(x.first, false)} – ${fmtDate(x.last, false)}`;
+  const rows = f.finds.slice(0, 40);
+  return h("div", { class: "card mt" },
+    h("h2", {}, "Fund (estimeret)"),
+    h("div", { class: "stats", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
+      stat(fmtN(byYear[year] || 0), `fund i ${year} til dato`), stat(fmtN(f.total), `fund siden ${first}`), stat(best ? fmtN(best.n) : "–", best ? `flest (${best.year})` : "flest")),
+    pts.length > 1 ? h("div", { class: "mt" }, lineChart({ series: [{ name: "Fund", points: pts, color: PALETTE[3] }], height: 200, xFormat: String, yFormat: (v) => fmtN(Math.round(v)) })) : null,
+    h("details", { class: "more mt" }, h("summary", {}, `Seneste ${rows.length} fund`),
+      h("div", { class: "table-wrap mt" }, h("table", { class: "data" },
+        h("thead", {}, h("tr", {}, h("th", {}, "Fund"), h("th", {}, "Periode"), h("th", {}, "Lokalitet"), h("th", { class: "right" }, "Maks."), h("th", { class: "right" }, "Obs."))),
+        h("tbody", {}, ...rows.map(x => h("tr", {},
+          h("td", { class: "nowrap muted" }, `${x.year_no}. i ${x.first.slice(0, 4)}`),
+          h("td", { class: "nowrap" }, x.loknr ? h("a", { href: `#/traad/${x.first}/${artnr}/${x.loknr}` }, span(x)) : span(x)),
+          h("td", {}, x.loknr ? h("a", { href: `#/lok/${x.loknr}` }, x.lok) : h("span", { class: "muted" }, "Skjult lokalitet"), x.n_sites > 1 ? h("span", { class: "muted" }, ` +${x.n_sites - 1}`) : null),
+          h("td", { class: "right num" }, fmtN(x.max_antal)), h("td", { class: "right num" }, fmtN(x.n_obs)))))))),
+    h("p", { class: "muted", style: { fontSize: ".82rem", marginBottom: 0 } },
+      `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden regnes som samme fund (kædet), så en fugl der bliver flere dage eller ses af mange tæller én gang.`));
+}
+
+// ---------------------------------------------------------------- punkttællinger (DOF's bestandsindeks)
+
+const pct = (v) => `${v > 0 ? "+" : ""}${String(v).replace(".", ",")} %`;
+const trendText = (t) => t ? `${pct(t.pct_per_year)} pr. år (${pct(t.pct_total)} ${t.from}–${t.to})${t.significant ? "" : " – ikke statistisk sikker"}` : "–";
+
+function pointCountCard(d, navn) {
+  if (!d?.available || !d.seasons.length) return null;
+  const series = d.seasons.map(s => ({ name: s.summer ? "Sommer (1/5–15/6)" : "Vinter (20/12–20/1)", color: s.summer ? "#e0673c" : "#4779ae",
+    points: s.points.map(p => [p.year, p.index]) }));
+  const facts = Object.values(d.facts || {});
+  const red = (d.redlists || []).find(r => /dansk/i.test(r.title || ""));
+  return h("div", { class: "card mt" },
+    h("div", { class: "row between" }, h("h2", { style: { margin: 0 } }, "Bestandsudvikling (punkttællinger)"),
+      h("a", { class: "btn sm ghost", href: d.source, target: "_blank", rel: "noopener" }, "Danmarksfugle ↗")),
+    h("p", { class: "muted", style: { fontSize: ".85rem" } }, `Indeks for ${navn.toLowerCase()} fra DOF's punkttællingsprogram; første år = 100. Trends er beregnet her med log-lineær regression.`),
+    lineChart({ series, height: 240, xFormat: String, yMin: 0, yFormat: (v) => fmtN(Math.round(v)) }), seriesLegend(series),
+    h("div", { class: "grid-2 mt" }, ...d.seasons.map(s => h("div", { class: "card", style: { boxShadow: "none", background: "var(--surface-2)" } },
+      h("h3", { style: { marginTop: 0 } }, s.summer ? "Sommerbestand" : "Vinterbestand"),
+      h("p", { style: { margin: ".2rem 0" } }, "Seneste 12 år: ", h("b", {}, s.trend_12 ? s.trend_12.direction : "–"), h("span", { class: "muted" }, ` · ${trendText(s.trend_12)}`)),
+      h("p", { style: { margin: ".2rem 0" } }, "Hele perioden: ", h("b", {}, s.trend_all ? s.trend_all.direction : "–"), h("span", { class: "muted" }, ` · ${trendText(s.trend_all)}`)),
+      h("p", { class: "muted", style: { margin: ".2rem 0", fontSize: ".85rem" } },
+        s.last ? `Seneste indeks ${fmtN(s.last.index)} (${s.last.year})` : "", s.max ? ` · højest ${fmtN(s.max.index)} (${s.max.year}) · lavest ${fmtN(s.min.index)} (${s.min.year})` : "")))),
+    facts.length || red ? h("div", { class: "stats mt", style: { gridTemplateColumns: `repeat(${facts.length + (red ? 1 : 0)}, 1fr)` } },
+      ...facts.map(f => stat(f.text, f.title)), red ? stat(red.classification || "–", "Dansk rødliste") : null) : null,
+    facts.length ? h("p", { class: "muted", style: { fontSize: ".78rem", marginBottom: 0 } }, "Nøgletal fra DOF's Danmarksfugle.") : null);
+}
+
+// ---------------------------------------------------------------- Atlas (yngleudbredelse i 5×5 km-kvadrater)
+
+const ATLAS_COLORS = { sikker: "#1f7a3f", sandsynlig: "#e09a1f", mulig: "#f2d64b", kun_2: "#c0392b", kun_3: "#2e9e4f", begge: "#8a8f98" };
+const ATLAS_LABEL = { sikker: "Sikker", sandsynlig: "Sandsynlig", mulig: "Mulig", kun_2: "Kun Atlas II (forsvundet)", kun_3: "Kun Atlas III (ny)", begge: "Begge" };
+
+function atlasCard(d, squares, cleanups) {
+  const mapEl = h("div", { class: "map", style: { height: "460px" } });
+  const legend = h("div", { class: "legend mt" });
+  const info = h("p", { class: "muted", style: { fontSize: ".85rem" } });
+  const total = (p) => Object.values(d.counts[p]).reduce((a, b) => a + b, 0);
+  const bars = h("div", { class: "stats mt", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
+    ...[1, 2, 3].map(p => stat(fmtN(total(p)), `${d.names[p]} · ${fmtN(d.counts[p].sikker)} sikre`)));
+  const card = h("div", { class: "card mt" },
+    h("div", { class: "row between" }, h("h2", { style: { margin: 0 } }, "Atlas – yngleudbredelse"),
+      h("a", { class: "btn sm ghost", href: `https://dofbasen.dk/atlas/arter/${d.artnr}`, target: "_blank", rel: "noopener" }, "DOF Atlas ↗")),
+    seg([["3", "Atlas III"], ["2", "Atlas II"], ["1", "Atlas I"], ["diff", "Ændring II → III"]], "3", (v) => draw(v)),
+    info, mapEl, legend, bars);
+  const map = baseMap(mapEl, { zoom: 6, center: [56.15, 11.2] });
+  cleanups.push(() => map.remove());
+  const layer = L.layerGroup().addTo(map);
+  const renderer = L.canvas();
+  const poly = (kode, color, title) => {
+    const sq = squares[kode];
+    if (!sq) return;
+    L.polygon(sq[1], { renderer, color, weight: .6, fillColor: color, fillOpacity: .7 }).bindTooltip(`${kode} ${sq[0]}<br>${title}`).addTo(layer);
+  };
+  const draw = (v) => {
+    layer.clearLayers();
+    if (v === "diff") {
+      const p2 = d.periods[2], p3 = d.periods[3];
+      for (const k of Object.keys({ ...p2, ...p3 })) {
+        const key = k in p2 && k in p3 ? "begge" : k in p3 ? "kun_3" : "kun_2";
+        poly(k, ATLAS_COLORS[key], ATLAS_LABEL[key]);
+      }
+      info.textContent = `Kvadrater med mulig, sandsynlig eller sikker ynglen: ${fmtN(d.change.kun_3)} nye, ${fmtN(d.change.kun_2)} forsvundne og ${fmtN(d.change.begge)} i begge atlas.`;
+      legend.replaceChildren(...["kun_3", "kun_2", "begge"].map(k => h("span", {}, h("i", { style: { background: ATLAS_COLORS[k], height: "10px" } }), ATLAS_LABEL[k])));
+    } else {
+      for (const [k, s] of Object.entries(d.periods[v])) poly(k, ATLAS_COLORS[s], ATLAS_LABEL[s]);
+      info.textContent = `${d.names[v]}: ${fmtN(total(v))} kvadrater med ynglefund. Hvert kvadrat er 5×5 km.`;
+      legend.replaceChildren(...["sikker", "sandsynlig", "mulig"].map(k => h("span", {}, h("i", { style: { background: ATLAS_COLORS[k], height: "10px" } }), `${ATLAS_LABEL[k]} (${fmtN(d.counts[v][k])})`)));
+    }
+  };
+  draw("3");
+  return card;
 }

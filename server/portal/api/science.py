@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import cached, get_json
+from portal.cache import cached, get_json, version
 from portal.db import get_session
-from portal.services import dmi, phenology, weather_archive
+from portal.services import dmi, migration, phenology, weather_archive
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["science"])
@@ -20,6 +20,15 @@ router = APIRouter(prefix="/api", tags=["science"])
 async def overview():
     data = await get_json("pheno:overview")
     return data or {"generated": None, "species": []}
+
+
+@router.get("/pheno/migration")
+async def migration_map(days_back: int = Query(0, ge=0, le=2), db: AsyncSession = Depends(get_session)):
+    """Trækretning pr. fuglegruppe og vind kl. 12 for i dag eller op til 2 dage tilbage."""
+    day = dk_today() - timedelta(days=days_back)
+    data = await cached(f"mig:day:{day}:{await version('feed') if not days_back else 0}", 600 if not days_back else 6 * 3600,
+                        lambda: migration.migration_day(db, day))
+    return {**data, "wind": await migration.wind_noon(day)}
 
 
 @router.get("/pheno/species/{artnr}")

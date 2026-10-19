@@ -96,6 +96,31 @@ async def scoreboard(scope: str | None = None, year: str | None = None, matrikel
     return await lists.scoreboard(db, spec, group)
 
 
+# ---------------------------------------------------------------- matrikelbirding
+
+
+def _year(year: str | None) -> int | None:
+    try:
+        return None if year in (None, "", "all") else int(year)
+    except ValueError as exc:
+        raise HTTPException(400, "Ugyldigt år") from exc
+
+
+@router.get("/matrikel/summary")
+async def matrikel_summary(year: str | None = None, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    return await lists.matrikel_summary(db, user.id, user.obserkode, user.prefs or {}, _year(year))
+
+
+@router.get("/matrikel/scoreboard")
+async def matrikel_scoreboard(scope: str = "dk", year: str | None = None, group: int | None = None,
+                              db: AsyncSession = Depends(get_session)):
+    if scope != "dk" and not scope.startswith(("afd:", "kom:")):
+        raise HTTPException(400, "Ukendt område")
+    if group and await db.get(ListGroup, group) is None:
+        raise HTTPException(404)
+    return await lists.matrikel_board(db, _year(year), scope, group)
+
+
 # ---------------------------------------------------------------- arter pr. år for regioner
 
 
@@ -108,7 +133,7 @@ async def region_overview(level: str = "afd", db: AsyncSession = Depends(get_ses
 
 
 @router.get("/regions/{region}")
-async def region_detail(region: str, year: int, db: AsyncSession = Depends(get_session)):
+async def region_detail(region: str, year: int | None = None, db: AsyncSession = Depends(get_session)):
     if region != "dk" and not region.startswith(("afd:", "kom:")):
         raise HTTPException(400, "Ukendt region")
     return await regions.detail(db, region, year)

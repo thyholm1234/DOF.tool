@@ -94,13 +94,15 @@ async def overview(session: AsyncSession, level: str) -> dict:
     return await cached(f"regions:ov:{level}:{await version('regions')}", 86400, produce)
 
 
-async def detail(session: AsyncSession, region: str, year: int) -> dict:
-    """Artsliste for en region i et år + antal arter pr. år til grafen."""
+async def detail(session: AsyncSession, region: str, year: int | None) -> dict:
+    """Artsliste for en region i et år (None = alle år samlet) + antal arter pr. år til grafen."""
 
     async def produce():
         per_year = (await session.execute(text("""
             SELECT year, count(*) FROM region_year_species WHERE region = :r GROUP BY year ORDER BY year
         """), {"r": region})).all()
+        if year is None:
+            return await _all_years(session, region, per_year)
         rows = (await session.execute(text("""
             SELECT r.artnr, s.navn, s.klass, s.sortering, r.n_obs, r.first_date, r.last_date,
                    (SELECT max(p.year) FROM region_year_species p
@@ -124,4 +126,22 @@ async def detail(session: AsyncSession, region: str, year: int) -> dict:
             "missing": [dict(m) for m in missing],
         }
 
-    return await cached(f"regions:d:{region}:{year}:{await version('regions')}", 86400, produce)
+    return await cached(f"regions:d:{region}:{year or 'alle'}:{await version('regions')}", 86400, produce)
+
+
+async def _all_years(session: AsyncSession, region: str, per_year: list) -> dict:
+    """Samlet liste over alle år: hver art med antal år, første/sidste fund og observationer i alt."""
+    rows = (await session.execute(text("""
+        SELECT r.artnr, s.navn, s.klass, s.sortering, sum(r.n_obs)::int AS n_obs, min(r.first_date) AS first_date,
+               max(r.last_date) AS last_date, count(*)::int AS n_years, max(r.year) AS last_year
+        FROM region_year_species r JOIN species s ON s.artnr = r.artnr
+        WHERE r.region = :r GROUP BY r.artnr, s.navn, s.klass, s.sortering ORDER BY s.sortering NULLS LAST, s.navn
+    """), {"r": region})).mappings().all()
+    names = await _names(session)
+    return {
+        "region": region, "label": names.get(region, region), "year": None,
+        "per_year": [{"year": y, "n": n} for y, n in per_year],
+        "species": [{**dict(r), "first_date": r["first_date"].isoformat(), "last_date": r["last_date"].isoformat(), "new": False}
+                    for r in rows],
+        "missing": [],
+    }

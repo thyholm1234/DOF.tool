@@ -9,13 +9,15 @@ const monthName = (doy) => ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "au
 export async function render(view) {
   const p = params();
   const tab = p.tab || "mine";
+  // Matrikler er flyttet til eget modul
+  if (tab === "matrikler") { location.hash = "#/matrikel?tab=matrikler"; return; }
   view.append(h("div", { class: "page-head" },
-    h("div", {}, h("h1", {}, "Lister & scoreboards"), h("p", { class: "lead" }, "Årslister, matrikellister, kommuner, egne områder – beregnet direkte fra DOFbasen-data.")),
+    h("div", {}, h("h1", {}, "Lister & scoreboards"), h("p", { class: "lead" }, "Årslister, kommuner, egne områder og arter pr. år – beregnet direkte fra DOFbasen-data. Matrikelbirding har sit eget modul.")),
     h("span", { class: "spacer" }),
-    seg([["mine", "Mine"], ["score", "Scoreboard"], ["regioner", "Arter pr. år"], ["grupper", "Grupper"], ["matrikler", "Matrikler"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
+    seg([["mine", "Mine"], ["score", "Scoreboard"], ["regioner", "Arter pr. år"], ["grupper", "Grupper"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
   const body = h("div", {});
   view.append(body);
-  const draw = (t) => t === "score" ? scoreboard(body) : t === "regioner" ? regionsTab(body) : t === "grupper" ? groups(body) : t === "matrikler" ? matrikler(body) : mine(body);
+  const draw = (t) => t === "score" ? scoreboard(body) : t === "regioner" ? regionsTab(body) : t === "grupper" ? groups(body) : mine(body);
   await draw(tab);
 }
 
@@ -25,14 +27,15 @@ const SHOW_YEARS = 12;
 
 async function regionsTab(body) {
   const p = params();
-  const st = { lv: p.lv || "afd", r: p.r || "", y: p.y ? Number(p.y) : YEAR, sort: p.sort || "label", q: "" };
+  // y = 0: alle år samlet (standard)
+  const st = { lv: p.lv || "dk", r: p.r || "", y: p.y ? Number(p.y) : 0, sort: p.sort || "label", q: "" };
   if (st.lv === "dk") st.r = "dk";
   const out = h("div", { class: "mt" });
   const levelSeg = seg([["dk", "Danmark"], ["afd", "Lokalafdelinger"], ["kom", "Kommuner"]], st.lv, (v) => { st.lv = v; st.r = v === "dk" ? "dk" : ""; load(); });
   body.append(h("div", { class: "card" }, h("div", { class: "row" }, levelSeg),
     h("p", { class: "muted mt", style: { fontSize: ".85rem", marginBottom: 0 } },
       "Antal arter registreret i DOFbasen pr. år. Samme regler som årslisterne: underarter tæller som arten, udelukkede arter og antal 0 tæller ikke. Indeværende år er til dato. Opdateres hver nat.")), out);
-  const save = () => setParams({ tab: "regioner", lv: st.lv, r: st.lv === "dk" ? "" : st.r, y: st.r ? st.y : "", sort: st.sort === "label" ? "" : st.sort });
+  const save = () => setParams({ tab: "regioner", lv: st.lv, r: st.lv === "dk" ? "" : st.r, y: st.r && st.y ? st.y : "", sort: st.sort === "label" ? "" : st.sort });
   const load = () => { save(); return st.r ? detail() : overview(); };
 
   async function overview() {
@@ -52,7 +55,7 @@ async function regionsTab(body) {
       const k = st.sort === "label" || st.sort === "total" ? st.sort : Number(st.sort);
       const rows = d.regions.filter(r => !q || r.label.toLowerCase().includes(q))
         .sort((a, b) => k === "label" ? a.label.localeCompare(b.label, "da") : val(b, k) - val(a, k) || a.label.localeCompare(b.label, "da"));
-      const open = (r, y) => { st.r = r.key; st.y = y || years[0]; load(); };
+      const open = (r, y) => { st.r = r.key; st.y = y || 0; load(); };
       wrap.replaceChildren(h("table", { class: "data" },
         h("thead", {}, h("tr", {}, th(st.lv === "kom" ? "Kommune" : "Lokalafdeling", "label", ""), th("Alle år", "total"),
           ...years.map(y => th(y === YEAR ? `${y}*` : String(y), y)))),
@@ -71,25 +74,28 @@ async function regionsTab(body) {
   async function detail() {
     out.replaceChildren(h("div", { class: "skeleton", style: { height: "420px" } }));
     let d;
-    try { d = await api(`/api/lists/regions/${encodeURIComponent(st.r)}?year=${st.y}`); } catch (err) { out.replaceChildren(errorBox(err)); return; }
+    try { d = await api(`/api/lists/regions/${encodeURIComponent(st.r)}${st.y ? `?year=${st.y}` : ""}`); } catch (err) { out.replaceChildren(errorBox(err)); return; }
     if (!d.per_year.length) { out.replaceChildren(empty("Ikke beregnet endnu", "Tallene beregnes i baggrunden – kom tilbage om lidt.")); return; }
     const yearSel = h("select", { style: { width: "auto" }, onchange: () => { st.y = Number(yearSel.value); load(); } },
+      h("option", { value: 0, selected: !st.y }, "Alle år"),
       ...[...d.per_year].reverse().map(x => h("option", { value: x.year, selected: x.year === st.y }, `${x.year} (${fmtN(x.n)} arter)`)));
-    if (!d.per_year.some(x => x.year === st.y)) yearSel.prepend(h("option", { value: st.y, selected: true }, `${st.y} (0 arter)`));
+    if (st.y && !d.per_year.some(x => x.year === st.y)) yearSel.append(h("option", { value: st.y, selected: true }, `${st.y} (0 arter)`));
+    const all = !st.y;
     const nNew = d.species.filter(s => s.new).length;
     const best = d.per_year.reduce((a, b) => b.n > a.n ? b : a);
     const pts = d.per_year.map(x => [x.year, x.n]);
     const sortSt = { key: store("rgsort") || "sortering", dir: 1 };
-    const bar = sortBar([["sortering", "Systematisk"], ["navn", "Navn"], ["first_date", "Første dato"], ["n_obs", "Obs."]], sortSt, () => { store("rgsort", sortSt.key); drawList(); });
+    const bar = sortBar([["sortering", "Systematisk"], ["navn", "Navn"], ["first_date", "Første dato"], ["n_obs", "Obs."], ...(all ? [["n_years", "Antal år"]] : [])], sortSt, () => { store("rgsort", sortSt.key); drawList(); });
     const tbody = h("tbody");
     const drawList = () => {
       const k = sortSt.key;
       const rows = [...d.species].sort((a, b) => sortSt.dir * (k === "navn" ? a.navn.localeCompare(b.navn, "da") : k === "first_date" ? a.first_date.localeCompare(b.first_date)
-        : k === "n_obs" ? a.n_obs - b.n_obs : (a.sortering ?? 1e9) - (b.sortering ?? 1e9)));
+        : k === "n_obs" ? a.n_obs - b.n_obs : k === "n_years" ? (a.n_years || 0) - (b.n_years || 0) : (a.sortering ?? 1e9) - (b.sortering ?? 1e9)));
       tbody.replaceChildren(...rows.map((s, i) => h("tr", {},
         h("td", { class: "muted num" }, i + 1),
         h("td", {}, h("a", { href: `#/art/${s.artnr}` }, s.navn), " ", s.klass !== "Alm" ? tag(s.klass) : null, s.new ? h("span", { class: "tag local", title: "Første gang registreret i regionen" }, "ny") : null),
         h("td", { class: "right num" }, fmtN(s.n_obs)),
+        all ? h("td", { class: "right num", title: `Senest set ${s.last_year}` }, fmtN(s.n_years)) : null,
         h("td", { class: "nowrap" }, fmtDate(s.first_date, false)),
         h("td", { class: "nowrap muted" }, fmtDate(s.last_date, false)))));
     };
@@ -98,14 +104,19 @@ async function regionsTab(body) {
       h("div", { class: "card" },
         h("div", { class: "row" }, st.lv !== "dk" ? h("button", { class: "btn sm ghost", onclick: () => { st.r = ""; load(); } }, "← Alle") : null,
           h("h2", { style: { margin: 0 } }, d.label), h("span", { style: { flex: 1 } }), yearSel),
-        h("div", { class: "stats mt" }, h("div", { class: "stat" }, h("b", {}, fmtN(d.species.length)), h("span", {}, st.y === YEAR ? "arter til dato" : "arter")),
+        all ? h("div", { class: "stats mt" }, h("div", { class: "stat" }, h("b", {}, fmtN(d.species.length)), h("span", {}, "arter i alt")),
+          h("div", { class: "stat" }, h("b", {}, fmtN(d.per_year.length)), h("span", {}, `år med data (${d.per_year[0].year}–${d.per_year.at(-1).year})`)),
+          h("div", { class: "stat" }, h("b", {}, fmtN(d.per_year.at(-1).n)), h("span", {}, `arter i ${d.per_year.at(-1).year}${d.per_year.at(-1).year === YEAR ? " til dato" : ""}`)),
+          h("div", { class: "stat" }, h("b", {}, fmtN(best.n)), h("span", {}, `rekord (${best.year})`)))
+        : h("div", { class: "stats mt" }, h("div", { class: "stat" }, h("b", {}, fmtN(d.species.length)), h("span", {}, st.y === YEAR ? "arter til dato" : "arter")),
           h("div", { class: "stat" }, h("b", {}, fmtN(nNew)), h("span", {}, "nye for regionen")),
           h("div", { class: "stat" }, h("b", {}, fmtN(d.missing.length)), h("span", {}, `set i ${st.y - 1}, ikke i ${st.y}`)),
           h("div", { class: "stat" }, h("b", {}, fmtN(best.n)), h("span", {}, `rekord (${best.year})`))),
-        pts.length > 1 ? h("div", { class: "mt" }, lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], height: 220, xFormat: String,
-          yFormat: (v) => fmtN(Math.round(v)), markers: [{ x: st.y, label: String(st.y) }] })) : null),
+        pts.length > 1 ? h("div", { class: "mt" }, h("h3", { style: { margin: "0 0 .25rem" } }, "Arter pr. år"),
+          lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], height: 220, xFormat: String,
+            yFormat: (v) => fmtN(Math.round(v)), markers: st.y ? [{ x: st.y, label: String(st.y) }] : [] })) : null),
       h("div", { class: "card table-wrap mt" }, h("div", { class: "mb" }, bar), h("table", { class: "data" },
-        h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Art"), h("th", { class: "right" }, "Obs."), h("th", {}, "Første"), h("th", {}, "Sidste"))), tbody)),
+        h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Art"), h("th", { class: "right" }, "Obs."), all ? h("th", { class: "right" }, "År") : null, h("th", {}, all ? "Første fund" : "Første"), h("th", {}, all ? "Seneste fund" : "Sidste"))), tbody)),
       d.missing.length ? h("details", { class: "more mt" }, h("summary", {}, `${d.missing.length} arter set i ${st.y - 1}, men ikke i ${st.y}${st.y === YEAR ? " (endnu)" : ""}`),
         h("div", { class: "chips wrap mt" }, ...d.missing.map(m => h("a", { class: "chip", href: `#/art/${m.artnr}` }, m.navn)))) : null);
   }
@@ -119,56 +130,34 @@ async function mine(body) {
   if (requireLogin(body)) return;
   const meta = await api("/api/lists/meta");
   const p = params();
-  const st = { scope: p.scope || "dk", year: p.year || String(YEAR), matrikel: p.m ? Number(p.m) : 0, sort: "dato" };
+  const st = { scope: p.scope || "dk", year: p.year || String(YEAR), sort: "dato" };
   const scopeSel = h("select", { style: { width: "auto" } });
   for (const sc of meta.scopes) scopeSel.append(h("option", { value: sc.scope }, sc.label));
-  for (const m of meta.matrikler) scopeSel.append(h("option", { value: `matrikel:${m.nummer}` }, m.nummer === 1 ? `Boligbirding (${m.tag})` : `Matrikel ${m.nummer} · ${m.navn} (${m.tag})`));
-  scopeSel.value = st.matrikel ? `matrikel:${st.matrikel}` : st.scope;
+  scopeSel.value = st.scope;
   const yearSel = h("select", { style: { width: "auto" } }, h("option", { value: "all" }, "Livsliste (alle år)"),
     ...[...new Set([YEAR, ...meta.years])].sort((a, b) => b - a).map(y => h("option", { value: y }, y)));
   yearSel.value = st.year;
   const out = h("div", { class: "stack mt" });
-  const periodSel = h("select", { style: { width: "auto" }, class: "hide" });
   const addArea = h("a", { class: "btn sm ghost", href: "#/alarmer?tab=omraader", html: `${icon("plus")} Nyt område` });
   body.append(h("div", { class: "card" },
-    h("div", { class: "row" }, scopeSel, yearSel, periodSel, h("span", { class: "spacer", style: { flex: 1 } }), addArea,
+    h("div", { class: "row" }, scopeSel, yearSel, h("span", { class: "spacer", style: { flex: 1 } }), addArea,
       h("button", { class: "btn sm", onclick: compare, html: `${icon("users")} Sammenlign` })),
     h("p", { class: "muted mt", style: { marginBottom: 0, fontSize: ".85rem" } },
-      `Matrikellister: skriv ${meta.matrikel_prefix}${String(YEAR).slice(2)} i turnoten (matrikel 2: ${meta.matrikel_prefix}${String(YEAR).slice(2)}-2). Navne, flytning og perioder under `,
-      h("a", { href: "#/lister?tab=matrikler" }, "Matrikler"), ". ",
+      "Matrikellister finder du under ", h("a", { href: "#/matrikel" }, "Matrikel"), ". ",
       "Afdelinger og kommuner vælges under ", h("a", { href: "#/profil" }, "profil"), ", egne områder (polygon/radius) under ", h("a", { href: "#/alarmer?tab=omraader" }, "Alarmer → Områder"), ".")),
     out);
 
-  st.periode = p.periode || "";
   const load = async () => {
-    const v = scopeSel.value;
-    st.matrikel = v.startsWith("matrikel:") ? Number(v.split(":")[1]) : 0;
-    st.scope = st.matrikel ? "dk" : v;
+    st.scope = scopeSel.value;
     st.year = yearSel.value;
-    if (!st.matrikel) st.periode = "";
-    setParams({ scope: st.scope === "dk" ? "" : st.scope, year: st.year, m: st.matrikel || "", periode: st.periode });
+    setParams({ scope: st.scope === "dk" ? "" : st.scope, year: st.year });
     out.replaceChildren(h("div", { class: "skeleton", style: { height: "220px" } }));
     try {
       const q = new URLSearchParams({ scope: st.scope, year: st.year });
-      if (st.matrikel) q.set("matrikel", st.matrikel);
-      if (st.periode) q.set("periode", st.periode);
-      const data = await api(`/api/lists/user/${state.user.obserkode}?${q}`);
-      drawPeriods(data.periode);
-      drawList(out, data, st.year);
+      drawList(out, await api(`/api/lists/user/${state.user.obserkode}?${q}`), st.year);
     } catch (err) { out.replaceChildren(errorBox(err)); }
   };
-  // Periodevælger for matrikler med flere adresser: aktiv periode (standard), en tidligere eller alle
-  const drawPeriods = (info) => {
-    const opts = info?.options || [];
-    periodSel.classList.toggle("hide", !opts.length);
-    if (!opts.length) return;
-    const span = (o) => `${fmtDate(o.start, true)} – ${o.slut ? fmtDate(o.slut, true) : "nu"}`;
-    periodSel.replaceChildren(...opts.map(o => h("option", { value: o.id }, `${o.navn}${o.id === info.active ? " (aktiv)" : ""} · ${span(o)}`)),
-      h("option", { value: "alle" }, "Alle perioder (historik)"));
-    periodSel.value = String(info.selected ?? "");
-  };
-  periodSel.onchange = () => { st.periode = periodSel.value; load(); };
-  scopeSel.onchange = () => { st.periode = ""; load(); }; yearSel.onchange = () => { st.periode = ""; load(); };
+  scopeSel.onchange = load; yearSel.onchange = load;
   await load();
 
   async function compare() {
@@ -222,131 +211,17 @@ export function drawList(out, data, year) {
       : empty("Ingen arter på denne liste endnu", "Data kommer fra DOFbasen – nye observationer tæller med inden for få minutter."));
 }
 
-// ---------------------------------------------------------------- matrikler: navne, perioder og flytning
-
-const mName = (m) => m.nummer === 1 ? "Boligbirding" : `Matrikel ${m.nummer}`;
-
-export async function matrikler(body) {
-  if (requireLogin(body)) return;
-  const out = h("div", { class: "stack" }, h("div", { class: "skeleton", style: { height: "200px" } }));
-  body.append(h("div", { class: "row between mb" },
-    h("p", { class: "muted", style: { margin: 0, maxWidth: "62ch" } }, "Boligbirding (matrikel 1) tæller på scoreboards; matrikel 2 og op er kun dine. Har en matrikel ligget flere steder, deler perioder listen op – ved flytning starter en ny periode, og fremgangen nulstilles fra flyttedatoen."),
-    h("button", { class: "btn primary", onclick: () => newMatrikel(), html: `${icon("plus")} Ny matrikel` })), out);
-  let data;
-  const reload = (d) => { data = d; draw(); };
-  const call = async (path, method = "GET", payload) => {
-    try { reload(await api(path, { method, body: payload })); return true; } catch (err) { toast(err.message, "err"); return false; }
-  };
-  const span = (p) => `${fmtDate(p.start)} – ${p.slut ? fmtDate(p.slut) : "nu"}`;
-
-  const draw = () => out.replaceChildren(...data.matrikler.map(m => {
-    const name = h("input", { value: m.navn, maxlength: 120, "aria-label": "Navn" });
-    return h("div", { class: "card stack" },
-      h("div", { class: "row between" },
-        h("div", { class: "row", style: { gap: "8px" } }, h("h2", { style: { margin: 0 } }, mName(m)),
-          h("span", { class: "tag plain" }, m.tag), m.scoreboard ? h("span", { class: "tag portal" }, "Scoreboard") : h("span", { class: "tag plain", html: `${icon("lock")} Privat` }))),
-      h("p", { class: "muted", style: { margin: 0 } }, m.n_trips
-        ? `${fmtN(m.n_trips)} ture med tagget · ${fmtDate(m.first)} – ${fmtDate(m.last)}`
-        : `Ingen ture med tagget endnu – skriv ${m.tag} i turnoten i DOFbasen.`),
-      h("form", { class: "row", onsubmit: async (e) => { e.preventDefault(); if (await call(`/api/lists/matrikler/${m.nummer}`, "PUT", { navn: name.value })) toast("Navnet er gemt"); } },
-        h("div", { style: { flex: 1, minWidth: "160px" } }, name), h("button", { class: "btn" }, "Gem navn")),
-      h("div", {}, h("h3", { style: { margin: "4px 0 8px" } }, "Perioder"),
-        m.perioder.length ? h("ul", { class: "periods" }, ...[...m.perioder].reverse().map(p => h("li", { class: p.id === m.active ? "active" : "" },
-          h("div", { style: { minWidth: 0 } }, h("b", {}, p.navn), p.id === m.active ? h("span", { class: "tag portal", style: { marginLeft: "6px" } }, "Aktiv") : null,
-            h("div", { class: "muted", style: { fontSize: ".86rem" } }, span(p))),
-          h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
-            h("button", { class: "btn sm ghost", onclick: () => periodModal(m, p), html: icon("edit"), "aria-label": "Redigér" }),
-            h("button", { class: "btn sm ghost danger", "aria-label": "Slet", html: icon("trash"), onclick: async () => {
-              if (confirm(`Slet perioden '${p.navn}'?`)) await call(`/api/lists/perioder/${p.id}`, "DELETE");
-            } })))))
-          : h("p", { class: "muted", style: { margin: 0 } }, "Ingen perioder – alle fund med tagget tæller. Tilføj perioder, hvis matriklen har ligget flere steder.")),
-      h("div", { class: "row" },
-        h("button", { class: "btn primary", onclick: () => moveModal(m), html: `${icon("pin")} Flyt matrikel…` }),
-        h("button", { class: "btn", onclick: () => periodModal(m, null), html: `${icon("plus")} Tilføj periode` }),
-        m.defined ? h("button", { class: "btn ghost danger", style: { marginLeft: "auto" }, onclick: async () => {
-          if (confirm(`Nulstil navn og perioder for ${mName(m)}? Dine tags i DOFbasen røres ikke.`)) await call(`/api/lists/matrikler/${m.nummer}`, "DELETE");
-        } }, "Nulstil") : null));
-  }));
-
-  function periodModal(m, p) {
-    const navn = h("input", { value: p?.navn || "", maxlength: 160, placeholder: "Adresse eller navn", required: true });
-    const start = h("input", { type: "date", value: p?.start || "", required: true });
-    const slut = h("input", { type: "date", value: p?.slut || "" });
-    const open = h("input", { type: "checkbox", checked: p ? !p.slut : true });
-    const syncOpen = () => { slut.disabled = open.checked; if (open.checked) slut.value = ""; };
-    open.onchange = syncOpen; syncOpen();
-    const dlg = modal(p ? "Redigér periode" : `Ny periode – ${mName(m)}`, h("form", { class: "stack", onsubmit: async (e) => {
-      e.preventDefault();
-      const payload = { navn: navn.value, start: start.value, slut: open.checked ? null : slut.value || null };
-      const ok = p ? await call(`/api/lists/perioder/${p.id}`, "PATCH", { ...payload, aaben: open.checked })
-        : await call(`/api/lists/matrikler/${m.nummer}/perioder`, "POST", payload);
-      if (ok) { dlg.close(); toast("Perioden er gemt"); }
-    } },
-      h("label", { class: "field" }, h("span", {}, "Navn/adresse"), navn),
-      h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Fra"), start), h("label", { class: "field" }, h("span", {}, "Til"), slut)),
-      h("label", { class: "check" }, open, "Stadig aktiv (ingen slutdato)"),
-      h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => dlg.close() }, "Annullér"))));
-  }
-
-  function moveModal(m) {
-    const current = m.perioder.find(p => p.id === m.active);
-    const dato = h("input", { type: "date", value: new Date().toISOString().slice(0, 10), required: true });
-    const ny = h("input", { maxlength: 160, placeholder: "Ny adresse", required: true });
-    const gammel = h("input", { maxlength: 160, value: current?.navn || "", placeholder: "Tidligere adresse" });
-    const preview = h("div", { class: "notice" });
-    const dayBefore = (iso) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
-    const update = () => {
-      if (!dato.value) { preview.textContent = ""; return; }
-      preview.replaceChildren(
-        h("div", {}, h("b", {}, gammel.value || "Tidligere adresse"), ` slutter ${fmtDate(dayBefore(dato.value))}`,
-          current ? "" : m.first ? ` (startet ved første fund ${fmtDate(m.first)})` : ""),
-        h("div", {}, h("b", {}, ny.value || "Ny adresse"), ` starter ${fmtDate(dato.value)}`),
-        h("div", { class: "muted mt", style: { fontSize: ".85rem" } }, `${mName(m)}-listen tæller fra flyttedatoen${m.scoreboard ? ", også på scoreboardet" : ""}. Fund fra den gamle adresse kan ses under 'Alle perioder'. Brug fortsat ${m.tag} i turnoten.`));
-    };
-    for (const el of [dato, ny, gammel]) el.oninput = update;
-    update();
-    const dlg = modal(`Flyt ${mName(m).toLowerCase()}`, h("form", { class: "stack", onsubmit: async (e) => {
-      e.preventDefault();
-      if (await call(`/api/lists/matrikler/${m.nummer}/flyt`, "POST", { dato: dato.value, ny_navn: ny.value, gammel_navn: gammel.value || null })) { dlg.close(); toast("Flytningen er registreret"); }
-    } },
-      h("label", { class: "field" }, h("span", {}, "Flyttedato (første dag på den nye adresse)"), dato),
-      h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Ny adresse"), ny), h("label", { class: "field" }, h("span", {}, "Tidligere adresse"), gammel)),
-      preview,
-      h("div", { class: "row" }, h("button", { class: "btn primary" }, "Registrér flytning"), h("button", { type: "button", class: "btn ghost", onclick: () => dlg.close() }, "Annullér"))));
-  }
-
-  function newMatrikel() {
-    const used = new Set(data.matrikler.map(m => m.nummer));
-    let next = 2; while (used.has(next)) next++;
-    const nr = h("input", { type: "number", min: 1, max: 20, value: next });
-    const navn = h("input", { maxlength: 120, placeholder: "Fx Sommerhus, Kolonihave", required: true });
-    const hint = h("p", { class: "muted", style: { margin: 0 } });
-    const yy = String(new Date().getFullYear()).slice(2);
-    const sync = () => { const n = Number(nr.value); hint.textContent = `Tag i turnoten: ${data.prefix}${yy}${n > 1 ? "-" + n : ""}${n === 1 ? " (tæller på scoreboards)" : " (privat liste)"}`; };
-    nr.oninput = sync; sync();
-    const dlg = modal("Ny matrikel", h("form", { class: "stack", onsubmit: async (e) => {
-      e.preventDefault();
-      if (await call(`/api/lists/matrikler/${Number(nr.value)}`, "PUT", { navn: navn.value })) { dlg.close(); toast("Matriklen er oprettet"); }
-    } },
-      h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Nummer"), nr), h("label", { class: "field" }, h("span", {}, "Navn"), navn)),
-      hint,
-      h("div", { class: "row" }, h("button", { class: "btn primary" }, "Opret"), h("button", { type: "button", class: "btn ghost", onclick: () => dlg.close() }, "Annullér"))));
-  }
-
-  try { reload(await api("/api/lists/matrikler")); } catch (err) { out.replaceChildren(errorBox(err)); }
-}
-
 // ---------------------------------------------------------------- scoreboard
 
 async function scoreboard(body) {
   await loadRef();
   const p = params();
-  const st = { scope: p.scope || "dk", year: p.year || String(YEAR), m: Number(p.m || 0), group: p.group || "" };
+  const st = { scope: p.scope || "dk", year: p.year || String(YEAR), m: 0, group: p.group || "" };
   const scopeSel = h("select", { style: { width: "auto" } },
-    h("option", { value: "dk" }, "Danmark"), h("option", { value: "m1" }, "Boligbirding"),
+    h("option", { value: "dk" }, "Danmark"),
     h("optgroup", { label: "Lokalafdelinger" }, ...state.afdelinger.map(a => h("option", { value: `afd:${a.id}` }, a.navn))),
     h("optgroup", { label: "Kommuner" }, ...state.kommuner.map(k => h("option", { value: `kom:${k.kode}` }, k.navn))));
-  scopeSel.value = st.m ? `m${st.m}` : st.scope;
+  scopeSel.value = st.scope;
   const yearSel = h("select", { style: { width: "auto" } }, h("option", { value: "all" }, "Alle år"),
     ...Array.from({ length: 12 }, (_, i) => YEAR - i).map(y => h("option", { value: y }, y)));
   yearSel.value = st.year;
@@ -359,15 +234,12 @@ async function scoreboard(body) {
     h("p", { class: "muted mt", style: { fontSize: ".85rem", marginBottom: 0 } }, "Afdelings- og kommuneboards viser brugere, der har valgt området under profil. Grupper kan indeholde alle obserkoder.")), out);
   let data = null;
   const load = async () => {
-    const v = scopeSel.value;
-    st.m = v.startsWith("m") && !v.startsWith("matrikel") && v.length === 2 ? Number(v[1]) : 0;
-    st.scope = st.m ? "dk" : v;
+    st.scope = scopeSel.value;
     st.year = yearSel.value; st.group = groupSel.value;
-    setParams({ tab: "score", scope: st.scope === "dk" ? "" : st.scope, year: st.year, m: st.m || "", group: st.group });
+    setParams({ tab: "score", scope: st.scope === "dk" ? "" : st.scope, year: st.year, group: st.group });
     out.replaceChildren(h("div", { class: "skeleton", style: { height: "300px" } }));
     try {
       const q = new URLSearchParams({ scope: st.scope, year: st.year });
-      if (st.m) q.set("matrikel", st.m);
       if (st.group) q.set("group", st.group);
       data = await api(`/api/lists/scoreboard?${q}`);
       draw();
@@ -387,7 +259,8 @@ async function scoreboard(body) {
   await load();
 }
 
-function ranking(rows, st) {
+export function ranking(rows, st) {
+  if (!rows.length) return empty("Ingen deltagere endnu");
   const top = rows[0]?.antal || 1;
   return h("div", { class: "rank" }, ...rows.map(r => h("div", { class: `rank-row ${state.user?.obserkode === r.obserkode ? "me" : ""}`, onclick: () => showUser(r, st) },
     h("div", { class: "place" }, r.placering),
@@ -396,7 +269,7 @@ function ranking(rows, st) {
     h("div", { class: "score" }, fmtN(r.antal)))));
 }
 
-async function showUser(r, st) {
+export async function showUser(r, st) {
   const out = h("div", {}, h("div", { class: "skeleton" }));
   modal(r.navn, out, { wide: true });
   try {
@@ -406,7 +279,7 @@ async function showUser(r, st) {
   } catch (err) { out.replaceChildren(errorBox(err)); }
 }
 
-function race(rows, year) {
+export function race(rows, year) {
   const isYear = year !== "all";
   const series = rows.map((r, i) => ({ name: r.navn, color: PALETTE[i % PALETTE.length],
     points: r.firsts.map(([, d], j) => [isYear ? dayOfYear(d) : new Date(d).getFullYear() + dayOfYear(d) / 366, j + 1]) }));
@@ -415,7 +288,7 @@ function race(rows, year) {
     seriesLegend(series));
 }
 
-function matrix(rows, names) {
+export function matrix(rows, names) {
   const sets = rows.map(r => new Map(r.firsts.map(([a, d]) => [a, d])));
   const species = [...new Set(rows.flatMap(r => r.firsts.map(f => f[0])))].sort((a, b) => (names[a] || "").localeCompare(names[b] || "", "da"));
   return h("table", { class: "matrix" },
@@ -427,7 +300,7 @@ function matrix(rows, names) {
     })));
 }
 
-function unique(rows, names) {
+export function unique(rows, names) {
   const count = new Map();
   rows.forEach(r => r.firsts.forEach(([a]) => count.set(a, (count.get(a) || 0) + 1)));
   const items = rows.map(r => ({ r, only: r.firsts.filter(([a]) => count.get(a) === 1) })).filter(x => x.only.length);

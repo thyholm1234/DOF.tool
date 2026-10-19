@@ -319,8 +319,8 @@ class AlertRule(Base):
     # Alternativ til area_id: en eller flere kommuner/lokalafdelinger direkte (reglen gælder i dem alle)
     kommuner: Mapped[list[str]] = mapped_column(ARRAY(String(4)), default=list)
     afdelinger: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), default=list)
-    # SU / SUB / bemaerk / local / all
-    level: Mapped[str] = mapped_column(String(8), default="SUB")
+    # Kommasepareret valg af SU, SUB, bemaerk, local – eller "all"
+    level: Mapped[str] = mapped_column(String(32), default="SU,SUB")
     local_max: Mapped[int] = mapped_column(Integer, default=5)
     min_antal: Mapped[int] = mapped_column(Integer, default=1)
     species_include: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)
@@ -787,6 +787,10 @@ EXTRA_DDL = [
     "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lon double precision",
     "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS kommuner varchar(4)[] NOT NULL DEFAULT '{}'",
     "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS afdelinger smallint[] NOT NULL DEFAULT '{}'",
+    # Alarmniveau som afkrydsninger: de gamle trinvise niveauer omskrives til deres kategorier
+    "ALTER TABLE alert_rules ALTER COLUMN level TYPE varchar(32)",
+    "UPDATE alert_rules SET level = CASE level WHEN 'SUB' THEN 'SU,SUB' WHEN 'bemaerk' THEN 'SU,SUB,bemaerk'"
+    " WHEN 'local' THEN 'SU,SUB,local' ELSE level END WHERE level IN ('SUB', 'bemaerk', 'local')",
     # Portalens egne ture får id'er langt fra dof.dk's event_id'er
     "CREATE SEQUENCE IF NOT EXISTS portal_event_seq START 900000000",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"

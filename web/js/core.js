@@ -176,6 +176,7 @@ const P = {
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>',
   thumb: '<path d="M7 10.5V20H4v-9.5h3z"/><path d="M7 10.5 11 3.6c1.3 0 2.3 1.1 2 2.4l-.8 3.5h5.6c1.3 0 2.3 1.2 2 2.5l-1.3 6.2c-.2.9-1 1.6-2 1.6H7"/>',
 };
 export function icon(name) {
