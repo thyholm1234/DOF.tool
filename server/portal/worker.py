@@ -17,7 +17,7 @@ from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, dof_events, phenology, weather_archive
+from portal.services import areas, datasync, dmi, dof_events, phenology, regions, weather_archive
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -29,16 +29,19 @@ async def _once(name: str, period_key: str) -> bool:
 
 
 async def nightly_compute() -> None:
-    await jobstatus.step("Dagsaggregater (14 dage)", 0, 4)
+    await jobstatus.step("Dagsaggregater (14 dage)", 0, 5)
     async with SessionLocal() as s:
         await phenology.refresh_aggregates(s, dk_today() - timedelta(days=14))
-    await jobstatus.step("Lokale tal (DK, afdelinger, kommuner)", 1, 4)
+    await jobstatus.step("Lokale tal (DK, afdelinger, kommuner)", 1, 5)
     async with SessionLocal() as s:
         await areas.refresh_all_area_counts(s)
-    await jobstatus.step("Fænologi", 2, 4)
+    await jobstatus.step("Fænologi", 2, 5)
     async with SessionLocal() as s:
         await phenology.recompute_metrics(s)
-    await jobstatus.step("Oprydning", 3, 4)
+    await jobstatus.step("Arter pr. år", 3, 5)
+    async with SessionLocal() as s:
+        await regions.ensure(s)
+    await jobstatus.step("Oprydning", 4, 5)
     async with SessionLocal() as s:
         await s.execute(text("DELETE FROM notifications WHERE created_at < now() - interval '90 days'"))
         await s.execute(text("DELETE FROM thread_follows WHERE dato < current_date - 7"))
@@ -62,11 +65,15 @@ async def scheduler() -> None:
     async with SessionLocal() as s:
         has_climate = (await s.execute(text("SELECT count(*) FROM climate_month"))).scalar()
         has_metrics = (await s.execute(text("SELECT count(*) FROM pheno_metrics"))).scalar()
+        has_regions = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM region_year_species)"))).scalar()
     if not has_climate:
         await run_safely("climate", refresh_climate())
     if not has_metrics:
         await kv().rpush(COMMANDS, json.dumps({"cmd": "compute"}))
         await jobstatus.queued("compute")
+    elif not has_regions:
+        await kv().rpush(COMMANDS, json.dumps({"cmd": "regions"}))
+        await jobstatus.queued("regions")
     async with SessionLocal() as s:
         has_events = (await s.execute(text("SELECT count(*) FROM dof_events"))).scalar()
     if not has_events:
@@ -142,6 +149,11 @@ async def area_counts(scope_ref: str) -> None:
         await s.commit()
 
 
+async def region_years(from_year: int | None) -> None:
+    async with SessionLocal() as s:
+        await regions.refresh(s, from_year)
+
+
 async def aggregates(days: int) -> None:
     await jobstatus.step(f"Seneste {days} dage")
     async with SessionLocal() as s:
@@ -169,6 +181,8 @@ async def command_listener() -> None:
                 await run_safely("area_counts", area_counts(cmd["scope"]))
             elif name == "events":
                 await run_safely("events", dof_events.sync())
+            elif name == "regions":
+                await run_safely("regions", region_years(cmd.get("from_year")))
             elif name == "run_plan":
                 await run_safely("plan", run_plans({cmd["source"]: [cmd["tier"]]}))
             elif name == "weather_months":

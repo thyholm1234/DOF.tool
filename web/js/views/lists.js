@@ -12,11 +12,105 @@ export async function render(view) {
   view.append(h("div", { class: "page-head" },
     h("div", {}, h("h1", {}, "Lister & scoreboards"), h("p", { class: "lead" }, "Årslister, matrikellister, kommuner, egne områder – beregnet direkte fra DOFbasen-data.")),
     h("span", { class: "spacer" }),
-    seg([["mine", "Mine"], ["score", "Scoreboard"], ["grupper", "Grupper"], ["matrikler", "Matrikler"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
+    seg([["mine", "Mine"], ["score", "Scoreboard"], ["regioner", "Arter pr. år"], ["grupper", "Grupper"], ["matrikler", "Matrikler"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
   const body = h("div", {});
   view.append(body);
-  const draw = (t) => t === "score" ? scoreboard(body) : t === "grupper" ? groups(body) : t === "matrikler" ? matrikler(body) : mine(body);
+  const draw = (t) => t === "score" ? scoreboard(body) : t === "regioner" ? regionsTab(body) : t === "grupper" ? groups(body) : t === "matrikler" ? matrikler(body) : mine(body);
   await draw(tab);
+}
+
+// ---------------------------------------------------------------- arter pr. år: Danmark, lokalafdelinger, kommuner
+
+const SHOW_YEARS = 12;
+
+async function regionsTab(body) {
+  const p = params();
+  const st = { lv: p.lv || "afd", r: p.r || "", y: p.y ? Number(p.y) : YEAR, sort: p.sort || "label", q: "" };
+  if (st.lv === "dk") st.r = "dk";
+  const out = h("div", { class: "mt" });
+  const levelSeg = seg([["dk", "Danmark"], ["afd", "Lokalafdelinger"], ["kom", "Kommuner"]], st.lv, (v) => { st.lv = v; st.r = v === "dk" ? "dk" : ""; load(); });
+  body.append(h("div", { class: "card" }, h("div", { class: "row" }, levelSeg),
+    h("p", { class: "muted mt", style: { fontSize: ".85rem", marginBottom: 0 } },
+      "Antal arter registreret i DOFbasen pr. år. Samme regler som årslisterne: underarter tæller som arten, udelukkede arter og antal 0 tæller ikke. Indeværende år er til dato. Opdateres hver nat.")), out);
+  const save = () => setParams({ tab: "regioner", lv: st.lv, r: st.lv === "dk" ? "" : st.r, y: st.r ? st.y : "", sort: st.sort === "label" ? "" : st.sort });
+  const load = () => { save(); return st.r ? detail() : overview(); };
+
+  async function overview() {
+    out.replaceChildren(h("div", { class: "skeleton", style: { height: "320px" } }));
+    let d;
+    try { d = await api(`/api/lists/regions?level=${st.lv}`); } catch (err) { out.replaceChildren(errorBox(err)); return; }
+    if (!d.regions.length) { out.replaceChildren(empty("Ikke beregnet endnu", "Tallene beregnes i baggrunden – kom tilbage om lidt.")); return; }
+    const years = d.years.slice(0, SHOW_YEARS);
+    const max = Object.fromEntries(years.map(y => [y, Math.max(...d.regions.map(r => r.years[y] || 0))]));
+    const search = h("input", { type: "search", placeholder: st.lv === "kom" ? "Søg kommune…" : "Søg lokalafdeling…", value: st.q, style: { maxWidth: "260px" } });
+    const wrap = h("div", { class: "table-wrap", style: { maxHeight: "70vh" } });
+    const val = (r, k) => k === "label" ? r.label : k === "total" ? r.total || 0 : r.years[k] || 0;
+    const th = (label, key, cls = "right") => h("th", { class: `${cls} click`, style: { cursor: "pointer" }, onclick: () => { st.sort = String(key); save(); draw(); } },
+      label, String(st.sort) === String(key) ? (key === "label" ? " ↑" : " ↓") : "");
+    const draw = () => {
+      const q = st.q.toLowerCase();
+      const k = st.sort === "label" || st.sort === "total" ? st.sort : Number(st.sort);
+      const rows = d.regions.filter(r => !q || r.label.toLowerCase().includes(q))
+        .sort((a, b) => k === "label" ? a.label.localeCompare(b.label, "da") : val(b, k) - val(a, k) || a.label.localeCompare(b.label, "da"));
+      const open = (r, y) => { st.r = r.key; st.y = y || years[0]; load(); };
+      wrap.replaceChildren(h("table", { class: "data" },
+        h("thead", {}, h("tr", {}, th(st.lv === "kom" ? "Kommune" : "Lokalafdeling", "label", ""), th("Alle år", "total"),
+          ...years.map(y => th(y === YEAR ? `${y}*` : String(y), y)))),
+        h("tbody", {}, ...rows.map(r => h("tr", {},
+          h("td", { class: "nowrap" }, h("a", { href: "javascript:void 0", onclick: () => open(r) }, r.label)),
+          h("td", { class: "right num muted" }, fmtN(r.total)),
+          ...years.map(y => h("td", { class: "right num", style: { cursor: "pointer", fontWeight: r.years[y] && r.years[y] === max[y] ? 800 : null }, title: `${r.label} ${y}`,
+            onclick: () => open(r, y) }, r.years[y] ? fmtN(r.years[y]) : "–")))))));
+    };
+    let t; search.oninput = () => { clearTimeout(t); t = setTimeout(() => { st.q = search.value; draw(); }, 150); };
+    out.replaceChildren(h("div", { class: "card" }, h("div", { class: "row between mb" }, search,
+      h("span", { class: "muted", style: { fontSize: ".85rem" } }, `Seneste ${years.length} år · * = til dato · fed = flest i året · klik for artsliste`)), wrap));
+    draw();
+  }
+
+  async function detail() {
+    out.replaceChildren(h("div", { class: "skeleton", style: { height: "420px" } }));
+    let d;
+    try { d = await api(`/api/lists/regions/${encodeURIComponent(st.r)}?year=${st.y}`); } catch (err) { out.replaceChildren(errorBox(err)); return; }
+    if (!d.per_year.length) { out.replaceChildren(empty("Ikke beregnet endnu", "Tallene beregnes i baggrunden – kom tilbage om lidt.")); return; }
+    const yearSel = h("select", { style: { width: "auto" }, onchange: () => { st.y = Number(yearSel.value); load(); } },
+      ...[...d.per_year].reverse().map(x => h("option", { value: x.year, selected: x.year === st.y }, `${x.year} (${fmtN(x.n)} arter)`)));
+    if (!d.per_year.some(x => x.year === st.y)) yearSel.prepend(h("option", { value: st.y, selected: true }, `${st.y} (0 arter)`));
+    const nNew = d.species.filter(s => s.new).length;
+    const best = d.per_year.reduce((a, b) => b.n > a.n ? b : a);
+    const pts = d.per_year.map(x => [x.year, x.n]);
+    const sortSt = { key: store("rgsort") || "sortering", dir: 1 };
+    const bar = sortBar([["sortering", "Systematisk"], ["navn", "Navn"], ["first_date", "Første dato"], ["n_obs", "Obs."]], sortSt, () => { store("rgsort", sortSt.key); drawList(); });
+    const tbody = h("tbody");
+    const drawList = () => {
+      const k = sortSt.key;
+      const rows = [...d.species].sort((a, b) => sortSt.dir * (k === "navn" ? a.navn.localeCompare(b.navn, "da") : k === "first_date" ? a.first_date.localeCompare(b.first_date)
+        : k === "n_obs" ? a.n_obs - b.n_obs : (a.sortering ?? 1e9) - (b.sortering ?? 1e9)));
+      tbody.replaceChildren(...rows.map((s, i) => h("tr", {},
+        h("td", { class: "muted num" }, i + 1),
+        h("td", {}, h("a", { href: `#/art/${s.artnr}` }, s.navn), " ", s.klass !== "Alm" ? tag(s.klass) : null, s.new ? h("span", { class: "tag local", title: "Første gang registreret i regionen" }, "ny") : null),
+        h("td", { class: "right num" }, fmtN(s.n_obs)),
+        h("td", { class: "nowrap" }, fmtDate(s.first_date, false)),
+        h("td", { class: "nowrap muted" }, fmtDate(s.last_date, false)))));
+    };
+    drawList();
+    out.replaceChildren(
+      h("div", { class: "card" },
+        h("div", { class: "row" }, st.lv !== "dk" ? h("button", { class: "btn sm ghost", onclick: () => { st.r = ""; load(); } }, "← Alle") : null,
+          h("h2", { style: { margin: 0 } }, d.label), h("span", { style: { flex: 1 } }), yearSel),
+        h("div", { class: "stats mt" }, h("div", { class: "stat" }, h("b", {}, fmtN(d.species.length)), h("span", {}, st.y === YEAR ? "arter til dato" : "arter")),
+          h("div", { class: "stat" }, h("b", {}, fmtN(nNew)), h("span", {}, "nye for regionen")),
+          h("div", { class: "stat" }, h("b", {}, fmtN(d.missing.length)), h("span", {}, `set i ${st.y - 1}, ikke i ${st.y}`)),
+          h("div", { class: "stat" }, h("b", {}, fmtN(best.n)), h("span", {}, `rekord (${best.year})`))),
+        pts.length > 1 ? h("div", { class: "mt" }, lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], height: 220, xFormat: String,
+          yFormat: (v) => fmtN(Math.round(v)), markers: [{ x: st.y, label: String(st.y) }] })) : null),
+      h("div", { class: "card table-wrap mt" }, h("div", { class: "mb" }, bar), h("table", { class: "data" },
+        h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Art"), h("th", { class: "right" }, "Obs."), h("th", {}, "Første"), h("th", {}, "Sidste"))), tbody)),
+      d.missing.length ? h("details", { class: "more mt" }, h("summary", {}, `${d.missing.length} arter set i ${st.y - 1}, men ikke i ${st.y}${st.y === YEAR ? " (endnu)" : ""}`),
+        h("div", { class: "chips wrap mt" }, ...d.missing.map(m => h("a", { class: "chip", href: `#/art/${m.artnr}` }, m.navn)))) : null);
+  }
+
+  await load();
 }
 
 // ---------------------------------------------------------------- mine lister

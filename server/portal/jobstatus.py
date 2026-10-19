@@ -25,6 +25,7 @@ LABELS = {
     "events": "DOF-ture",
     "forecast": "DMI-prognose",
     "area_counts": "Områdetal",
+    "regions": "Arter pr. år (regioner)",
     "plan": "Opdateringsplan",
 }
 

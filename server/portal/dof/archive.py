@@ -126,6 +126,10 @@ async def run_import(stop_after: int | None = None) -> dict:
             from portal.services.phenology import refresh_aggregates
             async with SessionLocal() as s:
                 await refresh_aggregates(s, earliest)
+            await jobstatus.step("Arter pr. år", len(files), len(files))
+            from portal.services.regions import refresh as refresh_regions
+            async with SessionLocal() as s:
+                await refresh_regions(s, earliest.year)
         await bump("lists")
         await bump("feed")
         await r.hset(PROGRESS, mapping={"status": "done", "finished": time.time()})

@@ -115,7 +115,7 @@ async def cancel_job(job_id: str, user: User = Depends(admin)):
 
 @router.post("/admin/worker/{cmd}")
 async def worker(cmd: str, body: dict | None = None, user: User = Depends(admin)):
-    if cmd not in ("archive_import", "compute", "climate", "aggregates", "events"):
+    if cmd not in ("archive_import", "compute", "climate", "aggregates", "events", "regions"):
         raise HTTPException(400)
     await worker_command(cmd, **(body or {}))
     return {"queued": cmd}

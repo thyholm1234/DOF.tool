@@ -14,7 +14,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import bump
 from portal.db import get_session
 from portal.models import Area, ListGroup, ListGroupMember, Matrikel, MatrikelPeriode, User
-from portal.services import lists
+from portal.services import lists, regions
 from portal.services.areas import scope_for_area
 from portal.services.auth import normalize
 
@@ -94,6 +94,24 @@ async def scoreboard(scope: str | None = None, year: str | None = None, matrikel
         if g is None:
             raise HTTPException(404)
     return await lists.scoreboard(db, spec, group)
+
+
+# ---------------------------------------------------------------- arter pr. år for regioner
+
+
+@router.get("/regions")
+async def region_overview(level: str = "afd", db: AsyncSession = Depends(get_session)):
+    try:
+        return await regions.overview(db, level)
+    except ValueError as exc:
+        raise HTTPException(400, "Ukendt niveau") from exc
+
+
+@router.get("/regions/{region}")
+async def region_detail(region: str, year: int, db: AsyncSession = Depends(get_session)):
+    if region != "dk" and not region.startswith(("afd:", "kom:")):
+        raise HTTPException(400, "Ukendt region")
+    return await regions.detail(db, region, year)
 
 
 # ---------------------------------------------------------------- grupper

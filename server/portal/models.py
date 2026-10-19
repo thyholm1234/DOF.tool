@@ -245,6 +245,20 @@ class AreaSpeciesCount(Base):
     last_date: Mapped[date | None] = mapped_column(Date)
 
 
+class RegionYearSpecies(Base):
+    """Listearter pr. region (dk / afd:N / kom:KODE) og år – grundlag for 'Arter pr. år'."""
+
+    __tablename__ = "region_year_species"
+    __table_args__ = (Index("ix_rys_region_art", "region", "artnr", "year"),)
+
+    region: Mapped[str] = mapped_column(String(12), primary_key=True)
+    year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    artnr: Mapped[int] = mapped_column(Integer, primary_key=True)
+    n_obs: Mapped[int] = mapped_column(Integer)
+    first_date: Mapped[date] = mapped_column(Date)
+    last_date: Mapped[date] = mapped_column(Date)
+
+
 # ---------------------------------------------------------------- brugere
 
 
