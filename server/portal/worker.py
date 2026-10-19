@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import text
 
@@ -36,8 +36,8 @@ async def _aggregate_since(s) -> date:
     since = dk_today() - timedelta(days=14)
     last = await kv().get(AGG_MARK)
     if last:
-        q = text("SELECT min(make_date(year, month, 1)) FROM month_sync WHERE fetched_at > CAST(:t AS timestamptz)")
-        first = (await s.execute(q, {"t": last})).scalar()
+        q = text("SELECT min(make_date(year, month, 1)) FROM month_sync WHERE fetched_at > :t")
+        first = (await s.execute(q, {"t": datetime.fromisoformat(last)})).scalar()
     else:
         first = (await s.execute(text("SELECT min(dato) FROM observations"))).scalar()
     return min(since, first) if first else since
