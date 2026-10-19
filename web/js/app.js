@@ -4,18 +4,23 @@ import { live } from "./live.js";
 // Build-id fra den versionerede sti (/v/<build>/js/app.js) – vises i brugermenuen
 const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 
-const NAV = [
-  ["#/", "now", "Nu"],
-  ["#/kalender", "calendar", "Kalender"],
-  ["#/ture", "flag", "Ture"],
-  ["#/lister", "list", "Lister"],
-  ["#/matrikel", "home", "Matrikel"],
-  ["#/traek", "trend", "Træk"],
-  ["#/arter", "bird", "Arter"],
-  ["#/laer", "learn", "Læring"],
-  ["#/alarmer", "bell", "Alarmer"],
+// Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
+const SECTIONS = [
+  ["Nu og her", [["#/", "now", "Nu"], ["#/traek", "trend", "Træk"], ["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
+  ["Fugle", [["#/arter", "bird", "Arter"], ["#/laer", "learn", "Læring"]]],
+  ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
+  ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/kalender/mine", "calendar", "Mine planer"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
+const NAV = SECTIONS.flatMap(([, items]) => items);
 const navItem = (href) => NAV.find(n => n[0] === href);
+const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
+
+/** Det mest specifikke menupunkt der matcher stien (så #/kalender/mine ikke også markerer Kalender). */
+function activeHref(path, hrefs) {
+  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path;  // en arts side hører under Arter
+  return hrefs.filter(href => href === "#/" ? p === "#/" : p === href || p.startsWith(href + "/") || p.startsWith(href + "?"))
+    .sort((a, b) => b.length - a.length)[0];
+}
 
 const ROUTES = [
   [/^\/?$/, () => import("./views/feed.js")],
@@ -41,29 +46,27 @@ let cleanup = null;
 
 function renderNav() {
   const path = "#" + (location.hash.slice(1).split("?")[0] || "/");
-  const link = ([href, ic, label], cls = "") => {
-    const base = href.split("?")[0];
-    const active = base === "#/" ? path === "#/" || path === "#" : path.startsWith(base);
-    return h("a", { href, class: `${cls} ${active ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
-  };
-  const items = NAV.map(n => link(n));
+  const current = activeHref(path, [...NAV.map(n => n[0]), "#/profil", "#/support", "#/admin"]);
+  const link = ([href, ic, label], cls = "") =>
+    h("a", { href, class: `${cls} ${href === current ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
   document.body.classList.toggle("anon", !state.user);
-  // Mobil: Nu · Kort · [Indtast] · Kalender · Mere (resten samlet i et ark)
-  const inMore = ["#/ture", "#/lister", "#/arter", "#/laer", "#/alarmer", "#/profil", "#/support", "#/admin"].some(p => path.startsWith(p));
+  // Mobil: Nu · Træk · [Indtast] · Kalender · Mere (resten i arket, i samme grupper som sidepanelet)
+  const inMore = current && !BOTTOM.includes(current);
   const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
     ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
     : []));
-  const side = [...items];
+  const side = [];
+  for (const [title, items] of SECTIONS) side.push(h("div", { class: "nav-h" }, title), ...items.map(n => link(n)));
   if (state.user) {
     side.unshift(link(["#/indtast?ny=1", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
-    side.push(h("a", { href: "#/profil", class: path.startsWith("#/profil") ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
-    side.push(h("a", { href: "#/support", class: path.startsWith("#/support") ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
+    side.push(h("a", { href: "#/profil", class: current === "#/profil" ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
+    side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
     if (["admin", "superadmin"].includes(state.user.role))
-      side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
+      side.push(h("a", { href: "#/admin", class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>Admin${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
     else if (["moderator", "editor"].includes(state.user.role))
-      side.push(h("a", { href: "#/admin?tab=moderation", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Moderation${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
+      side.push(h("a", { href: "#/admin?tab=moderation", class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>Moderation${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
 }
@@ -75,9 +78,12 @@ function openMore() {
   const u = state.user;
   const sheet = h("div", { class: "more-sheet", onclick: (e) => { if (e.target === sheet) close(); } },
     h("div", { class: "more-panel" },
+      // Samme grupper som sidepanelet; punkterne fra bundmenuen er udeladt
+      ...SECTIONS.map(([title, items]) => items.filter(n => !BOTTOM.includes(n[0])))
+        .map((items, i) => items.length ? [h("div", { class: "more-h" }, SECTIONS[i][0]), h("div", { class: "more-grid" }, ...items.map(([href, ic, label]) => tile(href, ic, label)))] : [])
+        .flat(),
+      h("div", { class: "more-h" }, "Konto"),
       h("div", { class: "more-grid" },
-        tile("#/ture", "flag", "DOF-ture"), tile("#/lister", "list", "Lister"), tile("#/matrikel", "home", "Matrikel"), tile("#/arter", "bird", "Arter"), tile("#/laer", "learn", "Læring"),
-        tile("#/indtast", "edit", "Mine indtastninger"), tile("#/kalender/mine", "calendar", "Mine planer"), tile("#/alarmer", "bell", "Alarmer"),
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
         u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread)
           : u && ["moderator", "editor"].includes(u.role) ? tile("#/admin?tab=moderation", "shield", "Moderation", state.adminSupportUnread) : null),
@@ -105,7 +111,11 @@ export async function refreshUser() {
 }
 
 export async function refreshUnread() {
-  try { state.unread = (await api("/api/notifications?limit=1")).unread; renderUser(); } catch { /* offline */ }
+  try {
+    state.unread = (await api("/api/notifications?limit=1")).unread; renderUser();
+    // Åbnet fra en push-notifikation: siden vises før antallet er hentet
+    if (state.unread) markSeen("/#" + ((location.hash.slice(1) || "/").split("?")[0]));
+  } catch { /* offline */ }
   try { const s = await api("/api/support/unread"); state.supportUnread = s.user || 0; state.adminSupportUnread = s.admin || 0; renderNav(); } catch { /* ignore */ }
 }
 
@@ -135,6 +145,14 @@ function openMenu() {
   setTimeout(() => document.addEventListener("click", outside, true));
 }
 
+/** Notifikationer der peger på siden man står på (fx tråden) markeres som læst i indbakken. */
+async function markSeen(url, ids) {
+  try {
+    const r = await api("/api/notifications/read", { method: "POST", body: ids ? { ids } : { url } });
+    if (r.changed) { state.unread = r.unread; renderUser(); }
+  } catch { /* offline */ }
+}
+
 async function openNotifications() {
   const { modal } = await import("./core.js");
   const list = h("div", { class: "notif-list" }, h("div", { class: "skeleton" }));
@@ -143,7 +161,7 @@ async function openNotifications() {
       h("button", { class: "btn sm", onclick: async () => { await api("/api/notifications/read", { method: "POST" }); state.unread = 0; renderUser(); m.close(); } }, "Markér alle som læst")),
     list));
   const data = await api("/api/notifications?limit=80");
-  list.replaceChildren(...(data.items.length ? data.items.map(n => h("a", { class: `notif ${n.read ? "" : "unread"}`, href: n.url, onclick: () => m.close() },
+  list.replaceChildren(...(data.items.length ? data.items.map(n => h("a", { class: `notif ${n.read ? "" : "unread"}`, href: n.url, onclick: () => { m.close(); if (!n.read) markSeen(null, [n.id]); } },
     h("b", {}, n.title), h("span", {}, n.body), h("small", {}, ago(n.created_at) + (n.pushed ? " · push" : "")))) :
     [h("p", { class: "muted" }, "Ingen notifikationer endnu. Opret en alarm for at få besked om sjældne fugle.")]));
 }
@@ -160,6 +178,7 @@ async function route() {
   if (path === "/kort") { location.replace("#/traek?tab=kort"); return; }
   renderNav();
   if (state.user) trackView(path);
+  if (state.user && state.unread) markSeen("/#" + path);
   document.querySelector(".menu")?.remove();
   for (const [re, loader] of ROUTES) {
     const m = path.match(re);

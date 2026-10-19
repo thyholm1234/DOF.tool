@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
@@ -118,11 +118,30 @@ async def notifications(limit: int = 50, user: User = Depends(require_user), db:
          "pushed": n.pushed, "created_at": n.created_at.isoformat()} for n in rows]}
 
 
+class ReadIn(BaseModel):
+    ids: list[int] | None = Field(None, max_length=500)
+    url: str | None = Field(None, max_length=300)
+
+
 @router.post("/notifications/read")
-async def mark_read(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    await db.execute(update(Notification).where(Notification.user_id == user.id, Notification.read.is_(False)).values(read=True))
+async def mark_read(body: ReadIn | None = None, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Uden indhold: alle læst. Med `ids`: de valgte. Med `url`: notifikationer der peger på siden man har åbnet
+    (fx tråden) – adressen sammenlignes uden ?-parametre."""
+    q = update(Notification).where(Notification.user_id == user.id, Notification.read.is_(False))
+    if body and body.ids is not None:
+        q = q.where(Notification.id.in_(body.ids))
+    elif body and body.url:
+        path = body.url.split("?")[0]
+        q = q.where(func.split_part(Notification.url, "?", 1) == path)
+    elif body and (body.ids is not None or body.url is not None):
+        return {"ok": True, "changed": 0, "unread": await _unread(db, user)}
+    res = await db.execute(q.values(read=True))
     await db.commit()
-    return {"ok": True}
+    return {"ok": True, "changed": res.rowcount or 0, "unread": await _unread(db, user)}
+
+
+async def _unread(db: AsyncSession, user: User) -> int:
+    return (await db.execute(text("SELECT count(*) FROM notifications WHERE user_id = :u AND NOT read"), {"u": user.id})).scalar() or 0
 
 
 @router.get("/push/key")

@@ -679,3 +679,17 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .seg-n button { border: 0; background: transparent; color: var(--text-2); padding: 5px 11px; font: 600 .82rem/1.2 inherit; cursor: pointer; }
 .seg-n button + button { border-left: 1px solid var(--line); }
 .seg-n button.on { background: var(--brand); color: #fff; }
+
+/* gruppeoverskrifter i navigationen */
+.sidenav .nav-h { display: none; }
+@media (min-width: 900px) {
+  .sidenav .nav-h { display: block; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-3); padding: 12px 12px 4px; }
+  .sidenav a.cta + .nav-h { padding-top: 4px; }
+}
+.more-h { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin: 12px 4px 6px; }
+.more-panel .more-h:first-child { margin-top: 0; }
+@media (min-width: 900px) {
+  .sidenav { gap: 2px; overflow-y: auto; scrollbar-width: thin; }
+  .sidenav a { padding: 8px 12px; }
+}
