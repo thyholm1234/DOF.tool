@@ -53,10 +53,11 @@ async def refresh(session: AsyncSession, first_year: int | None = None) -> int:
     return len(years)
 
 
-async def ensure(session: AsyncSession) -> None:
-    """Fuld beregning første gang (tom tabel), ellers de to seneste år."""
+async def ensure(session: AsyncSession, since_year: int | None = None) -> None:
+    """Fuld beregning første gang (tom tabel), ellers fra since_year (højst de to seneste år)."""
     empty = not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_year_species)"))).scalar()
-    await refresh(session, None if empty else dk_today().year - 1)
+    last = dk_today().year - 1
+    await refresh(session, None if empty else min(since_year or last, last))
 
 
 async def _names(session: AsyncSession) -> dict[str, str]:

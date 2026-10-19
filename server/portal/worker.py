@@ -28,10 +28,28 @@ async def _once(name: str, period_key: str) -> bool:
     return bool(await kv().set(f"sched:{name}:{period_key}", "1", nx=True, ex=3 * 86400))
 
 
+AGG_MARK = "agg:last"
+
+
+async def _aggregate_since(s) -> date:
+    """Seneste 14 dage + alle måneder hentet fra DOFbasen siden sidste aggregering (første gang: alt)."""
+    since = dk_today() - timedelta(days=14)
+    last = await kv().get(AGG_MARK)
+    if last:
+        q = text("SELECT min(make_date(year, month, 1)) FROM month_sync WHERE fetched_at > CAST(:t AS timestamptz)")
+        first = (await s.execute(q, {"t": last})).scalar()
+    else:
+        first = (await s.execute(text("SELECT min(dato) FROM observations"))).scalar()
+    return min(since, first) if first else since
+
+
 async def nightly_compute() -> None:
-    await jobstatus.step("Dagsaggregater (14 dage)", 0, 5)
     async with SessionLocal() as s:
-        await phenology.refresh_aggregates(s, dk_today() - timedelta(days=14))
+        mark = dk_now().isoformat()
+        since = await _aggregate_since(s)
+        await jobstatus.step(f"Dagsaggregater fra {since}", 0, 5)
+        await phenology.refresh_aggregates(s, since)
+    await kv().set(AGG_MARK, mark)
     await jobstatus.step("Lokale tal (DK, afdelinger, kommuner)", 1, 5)
     async with SessionLocal() as s:
         await areas.refresh_all_area_counts(s)
@@ -40,7 +58,7 @@ async def nightly_compute() -> None:
         await phenology.recompute_metrics(s)
     await jobstatus.step("Arter pr. år", 3, 5)
     async with SessionLocal() as s:
-        await regions.ensure(s)
+        await regions.ensure(s, since.year)
     await jobstatus.step("Oprydning", 4, 5)
     async with SessionLocal() as s:
         await s.execute(text("DELETE FROM notifications WHERE created_at < now() - interval '90 days'"))
