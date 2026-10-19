@@ -47,9 +47,9 @@ function rose(dirs, deg, color, main) {
 
 export async function render(view, { embedded = false } = {}) {
   const saved = store("mapst") || {};
-  const st = { days: ["1", "y", "sum"].includes(saved.days) ? saved.days : "1", n: SUM_DAYS.includes(saved.n) ? saved.n : 3, on: new Set(saved.on || ["SU", "SUB", "bemaerk", "alm"]), migOnly: !!saved.migOnly, wind: saved.wind !== false,
+  const st = { days: ["1", "y", "sum"].includes(saved.days) ? saved.days : "1", n: SUM_DAYS.includes(saved.n) ? saved.n : 3, on: new Set(saved.on || ["SU", "SUB", "bemaerk", "alm"]), migOnly: !!saved.migOnly, wind: saved.windOn === true,
     group: saved.group || "all" };
-  const save = () => store("mapst", { days: st.days, n: st.n, on: [...st.on], migOnly: st.migOnly, wind: st.wind, group: st.group });
+  const save = () => store("mapst", { days: st.days, n: st.n, on: [...st.on], migOnly: st.migOnly, windOn: st.wind, group: st.group });  // vind er slået fra, til man selv tænder den
   const mapEl = h("div", { class: "map full" });
   const chips = h("div", { class: "chips wrap", style: { marginTop: 0 } });
   const viewChips = h("div", { class: "chips wrap", style: { marginTop: 0 } });
