@@ -1,10 +1,12 @@
-import { api, h, fmtN, esc, KAT, store, seg, windArrow, compass } from "../core.js";
+import { api, h, fmtN, fmtDate, esc, KAT, store, seg, compass, ago } from "../core.js";
 import { baseMap, katColor, cssVar, arrowSvg, GROUP_COLORS } from "../maps.js";
 import { live } from "../live.js";
+import { windLayer, speedLegend } from "../wind.js";
 
 // Klasser som i DOFbasen; almindelige arter vises kun når de er trækkende med retning
 const CLASSES = [["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"], ["alm", "Alm. (trækkende)"]];
-const DAYS = [["1", "I dag"], ["y", "I går"], ["2", "2 døgn"]];
+const DAYS = [["1", "I dag"], ["y", "I går"], ["sum", "Sum"]];
+const SUM_DAYS = [2, 3, 5, 7];
 const COMPASS = ["N", "NØ", "Ø", "SØ", "S", "SV", "V", "NV"];
 
 /** Vægtet middelretning (grader mod) og enighed 0–1 for {N: antal, NØ: antal, …}. */
@@ -45,11 +47,20 @@ function rose(dirs, deg, color, main) {
 
 export async function render(view) {
   const saved = store("mapst") || {};
-  const st = { days: saved.days || "1", on: new Set(saved.on || ["SU", "SUB", "bemaerk", "alm"]), migOnly: !!saved.migOnly, wind: saved.wind !== false,
+  const st = { days: ["1", "y", "sum"].includes(saved.days) ? saved.days : "1", n: SUM_DAYS.includes(saved.n) ? saved.n : 3, on: new Set(saved.on || ["SU", "SUB", "bemaerk", "alm"]), migOnly: !!saved.migOnly, wind: saved.wind !== false,
     group: saved.group || "all" };
-  const save = () => store("mapst", { days: st.days, on: [...st.on], migOnly: st.migOnly, wind: st.wind, group: st.group });
+  const save = () => store("mapst", { days: st.days, n: st.n, on: [...st.on], migOnly: st.migOnly, wind: st.wind, group: st.group });
   const mapEl = h("div", { class: "map full" });
   const chips = h("div", { class: "chips wrap", style: { marginTop: 0 } });
+  const viewChips = h("div", { class: "chips wrap", style: { marginTop: 0 } });
+  const periodEl = h("div", { class: "row wrap", style: { gap: "8px" } });
+  // Periode: i dag (aktuel vind), i går eller sum af N døgn (observationer + middelvind kl. 6–18)
+  const range = () => st.days === "1" ? { days: 1, back: 0 } : st.days === "y" ? { days: 1, back: 1 } : { days: st.n, back: 0 };
+  const periodText = () => st.days === "1" ? "i dag" : st.days === "y" ? "i går" : `de sidste ${st.n} døgn`;
+  const drawPeriod = () => periodEl.replaceChildren(
+    seg(DAYS, st.days, (v) => { st.days = v; save(); drawPeriod(); load(); wind(); }),
+    st.days === "sum" ? h("div", { class: "seg-n" }, ...SUM_DAYS.map(n => h("button", { type: "button", class: st.n === n ? "on" : "",
+      onclick: () => { st.n = n; save(); drawPeriod(); load(); wind(); } }, `${n} døgn`))) : null);
   const info = h("small", { class: "muted" });
   const panel = h("div", { class: "card mig-panel" });
   let items = [], groups = {}, deg = {};
@@ -58,7 +69,7 @@ export async function render(view) {
   const inGroup = (t) => st.group === "all" || t.group === st.group;
   const groupColor = () => st.group === "all" ? cssVar("--brand") : GROUP_COLORS[st.group];
 
-  const drawChips = () => chips.replaceChildren(
+  const drawChips = () => { chips.replaceChildren(
     ...CLASSES.map(([k, label]) => {
       const n = items.filter(t => t.kategori === k && inGroup(t) && (!st.migOnly || t.dir != null)).length;
       const solo = st.on.size === 1 && st.on.has(k);
@@ -67,18 +78,25 @@ export async function render(view) {
         h("i", { class: "dot", style: { background: katColor(k) } }), label, h("span", { class: "n" }, ` ${fmtN(n)}`),
         h("button", { type: "button", class: `solo ${solo ? "active" : ""}`, title: solo ? "Vis alle klasser igen" : "Vis kun denne klasse",
           onclick: (e) => { e.stopPropagation(); st.on = solo ? new Set(CLASSES.map(c => c[0])) : new Set([k]); update(); } }, "S"));
-    }),
-    h("button", { class: `chip ${st.migOnly ? "on" : ""}`, title: "Skjul fund uden trækretning", onclick: () => { st.migOnly = !st.migOnly; update(); } }, "Kun trækkende"),
-    h("button", { class: `chip ${st.wind ? "on" : ""}`, onclick: () => { st.wind = !st.wind; save(); drawChips(); wind(); } }, "Vind nu (DMI)"));
+    }));
+    viewChips.replaceChildren(
+      h("button", { class: `chip ${st.migOnly ? "on" : ""}`, title: "Skjul fund uden trækretning", onclick: () => { st.migOnly = !st.migOnly; update(); } }, "Kun trækkende"),
+      h("button", { class: `chip ${st.wind ? "on" : ""}`, title: st.days === "1" ? "Aktuel vind" : "Middelvind kl. 6–18 i perioden",
+        onclick: () => { st.wind = !st.wind; save(); drawChips(); wind(); } }, st.days === "1" ? "Vind nu" : "Middelvind"));
+  };
+  const windInfo = h("div", { class: "row between wrap", style: { gap: "8px" } });
+  const tool = (label, ...content) => h("div", { class: "map-tool" }, h("span", { class: "map-tool-label" }, label), h("div", {}, ...content));
 
-  view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Kort over fund og træk"), info), h("span", { class: "spacer" }),
-      seg(DAYS, st.days, (v) => { st.days = v; save(); load(); })),
-    h("div", { class: "card", style: { padding: "8px" } }, h("div", { style: { padding: "2px 4px 8px" } }, chips), mapEl),
+  view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Kort over fund og træk"), info)),
+    h("div", { class: "card", style: { padding: "8px" } }, mapEl),
+    h("div", { class: "card map-toolbar" },
+      tool("Periode", periodEl), tool("Klasser", chips), tool("Visning", viewChips), tool("Vind", windInfo)),
     panel);
+  drawPeriod();
   const map = baseMap(mapEl, { center: [56.0, 11.0], zoom: 7 });
   const dotLayer = L.layerGroup().addTo(map);
   const arrowLayer = L.layerGroup().addTo(map);
-  const windLayer = L.layerGroup().addTo(map);
+  let windAnim = null;
   const renderer = L.canvas();
 
   /** Én pil pr. lokalitet: retningerne summeres og vægtes med antal individer. */
@@ -98,12 +116,10 @@ export async function render(view) {
     dotLayer.clearLayers(); arrowLayer.clearLayers();
     const order = { alm: 0, bemaerk: 1, SUB: 2, SU: 3 };
     const shown = items.filter(t => inClass(t) && inGroup(t));
-    const latest = items.reduce((m, t) => t.dato > m ? t.dato : m, "");
     // Prikker: fund uden retning (klassefarve)
     if (!st.migOnly) for (const t of shown.filter(t => t.dir == null).sort((a, b) => order[a.kategori] - order[b.kategori])) {
-      const old = st.days === "2" && t.dato !== latest;
       L.circleMarker([t.lat, t.lon], { renderer, radius: { SU: 9, SUB: 7, bemaerk: 5, alm: 4 }[t.kategori], color: "#fff", weight: 1.5,
-        fillColor: katColor(t.kategori), fillOpacity: old ? .45 : .95, opacity: old ? .5 : 1 })
+        fillColor: katColor(t.kategori), fillOpacity: .95 })
         .bindPopup(`<b>${fmtN(t.max_antal)} ${esc(t.art)}</b><br>${esc(t.lok || "")}<br><small>${KAT[t.kategori] || "Alm."} · ${esc(t.dato)}</small><br><a href="#/traad/${t.id}">Åbn tråd →</a>`)
         .addTo(dotLayer);
     }
@@ -141,7 +157,7 @@ export async function render(view) {
     const topSp = Object.entries(species).sort((a, b) => b[1] - a[1]).slice(0, 8);
     const topSites = [...ss].sort((a, b) => b.n - a.n).slice(0, 8);
     const bar = (n, max) => h("div", { class: "bar-inline" }, h("i", { style: { width: `${Math.max(3, n / max * 100)}%`, background: color } }));
-    const dayText = { "1": "i dag", y: "i går", "2": "de sidste 2 døgn" }[st.days];
+    const dayText = periodText();
 
     panel.replaceChildren(
       h("div", { class: "row between wrap", style: { gap: "8px" } }, h("h2", { style: { margin: 0 } }, "Træk ", dayText),
@@ -170,30 +186,32 @@ export async function render(view) {
 
   async function load() {
     try {
-      const d = await api(`/api/map/days?days=${st.days === "1" ? 1 : 2}`);
-      groups = d.groups; deg = d.dirs;
-      const today = d.items.reduce((m, t) => t.dato > m ? t.dato : m, "");
-      items = st.days === "y" ? d.items.filter(t => t.dato !== today) : d.items;
+      const r = range();
+      const d = await api(`/api/map/days?days=${r.days}&back=${r.back}`);
+      groups = d.groups; deg = d.dirs; items = d.items;
     } catch { items = []; }
     if (st.group !== "all" && !groups[st.group]) st.group = "all";
     drawChips(); draw();
   }
 
+  // Vind som partikler (Windy-agtigt) over et farvelag for vindstyrken; feltet er DMI's HARMONIE-model
   async function wind() {
-    windLayer.clearLayers();
+    windAnim?.remove(); windAnim = null;
+    windInfo.replaceChildren();
     if (!st.wind) return;
     try {
-      for (const s of await api("/api/weather/current")) {
-        if (s.dir == null) continue;
-        const icon = L.divIcon({ className: "wind-arrow", iconSize: [34, 34], html: `<div style="text-align:center;line-height:1">${windArrow(s.dir, 22)}<div style="font-size:10px;font-weight:700;color:var(--text)">${Math.round(s.speed)}</div></div>` });
-        L.marker([s.lat, s.lon], { icon, keyboard: false }).addTo(windLayer)
-          .bindPopup(`Station ${esc(s.id)}<br>${compass(s.dir)} ${s.speed?.toFixed(1)} m/s${s.gust ? ` (vindstød ${s.gust.toFixed(1)})` : ""}<br>${s.temp != null ? s.temp.toFixed(1) + " °C" : ""}`);
-      }
-    } catch { /* DMI utilgængelig */ }
+      const r = range();
+      const g = await api(st.days === "1" ? "/api/weather/grid" : `/api/weather/grid?days=${r.days}&back=${r.back}`);
+      if (!st.wind || !g.u?.length) { windInfo.replaceChildren(h("small", { class: "muted" }, "Vinddata er ikke tilgængelige lige nu.")); return; }
+      windAnim = windLayer(map, g);
+      const when = g.mean ? `middel kl. 6–18, ${fmtDate(g.start, false)}${g.end !== g.start ? `–${fmtDate(g.end, false)}` : ""}` : (g.time ? `målt ${ago(g.time + "Z")}` : "aktuel");
+      windInfo.replaceChildren(speedLegend(), h("small", { class: "muted" }, `10 m over jorden · ${when} · ${g.source}`));
+    } catch { /* vinddata utilgængelige */ }
   }
 
   await Promise.all([load(), wind()]);
   let t;
   const off = live.on("feed", () => { if (st.days !== "y") { clearTimeout(t); t = setTimeout(load, 1500); } });
-  return () => { off(); clearTimeout(t); map.remove(); };
+  const windTimer = setInterval(() => { if (st.wind && document.visibilityState === "visible") wind(); }, 15 * 60000);
+  return () => { off(); clearTimeout(t); clearInterval(windTimer); windAnim?.remove(); map.remove(); };
 }

@@ -244,8 +244,8 @@ async def area_species(area_id: int, user: User = Depends(require_user), db: Asy
 
 
 @router.get("/map/days")
-async def map_days(days: int = Query(1, ge=1, le=2), db: AsyncSession = Depends(get_session)):
-    """Tråde (art + lokalitet + dag) for i dag eller de sidste to døgn med trækretning.
+async def map_days(days: int = Query(1, ge=1, le=7), back: int = Query(0, ge=0, le=1), db: AsyncSession = Depends(get_session)):
+    """Tråde (art + lokalitet + dag) med trækretning for `days` døgn, der slutter `back` døgn før i dag.
     Bemærk/SUB/SU altid; almindelige arter kun når de er trækkende med retning (ellers bliver kortet uoverskueligt)."""
     from portal.services.migration import DIRS, GROUPS, _vec, species_groups
     from portal.timeutil import dk_today
@@ -253,7 +253,7 @@ async def map_days(days: int = Query(1, ge=1, le=2), db: AsyncSession = Depends(
     today = dk_today()
     groups = await species_groups(db)
     out = []
-    for day in [today - timedelta(days=i) for i in range(days)]:
+    for day in [today - timedelta(days=i) for i in range(back, back + days)]:
         async def produce(day=day):
             rows = (await db.execute(text(f"""
                 SELECT o.artnr, s.list_artnr, s.navn AS art, o.loknr, l.navn AS lok, l.lat, l.lon, split_part(coalesce(o.adfkode, ''), ' ', 1) AS d,

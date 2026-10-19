@@ -63,6 +63,15 @@ async def weather_current():
     return await dmi.current_weather()
 
 
+@router.get("/weather/grid")
+async def weather_grid(days: int = Query(0, ge=0, le=7), back: int = Query(0, ge=0, le=1)):
+    """Uden `days`: aktuel vind. Med `days`: middelvind kl. 6–18 for de døgn kortet viser."""
+    if not days:
+        return await dmi.wind_grid() or {"u": [], "v": []}
+    end = dk_today() - timedelta(days=back)
+    return await dmi.wind_grid_period(end - timedelta(days=days - 1), end) or {"u": [], "v": []}
+
+
 @router.get("/weather/forecast")
 async def weather_forecast():
     return {"spots": await dmi.forecast(), "explain": (

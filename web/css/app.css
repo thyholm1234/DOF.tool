@@ -660,3 +660,22 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .mini-list li.bar-row { display: grid; grid-template-columns: 1fr auto; column-gap: .5rem; align-items: baseline; }
 .mini-list li.bar-row .bar-inline { grid-column: 1 / -1; margin-top: 3px; }
 .mini-list li.bar-row b span svg { vertical-align: -2px; }
+
+/* vindstyrke-forklaring under kortet */
+.wind-legend { display: flex; align-items: center; gap: 8px; font-size: .75rem; color: var(--text-3); font-weight: 600; }
+.wind-legend .scale { display: grid; gap: 2px; width: 180px; }
+.wind-legend i { display: block; height: 8px; border-radius: 4px; }
+.wind-legend .ticks { position: relative; height: 11px; }
+.wind-legend .ticks b { position: absolute; transform: translateX(-50%); font-weight: 600; font-size: .66rem; }
+.leaflet-image-layer.wind-speed { image-rendering: auto; }
+
+/* værktøjslinje under kortet */
+.map-toolbar { margin-top: 12px; padding: 4px 14px; display: grid; }
+.map-tool { display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px dashed var(--line); }
+.map-tool:last-child { border-bottom: 0; }
+.map-tool-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); }
+@media (max-width: 560px) { .map-tool { grid-template-columns: 1fr; gap: 6px; } }
+.seg-n { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 99px; overflow: hidden; }
+.seg-n button { border: 0; background: transparent; color: var(--text-2); padding: 5px 11px; font: 600 .82rem/1.2 inherit; cursor: pointer; }
+.seg-n button + button { border-left: 1px solid var(--line); }
+.seg-n button.on { background: var(--brand); color: #fff; }

@@ -47,6 +47,84 @@ async def _get(client: httpx.AsyncClient, url: str, params: dict) -> dict | None
     return None
 
 
+# Vindfelt til partikelanimationen: DMI's HARMONIE-model (2 km) i et regulært gitter via Open-Meteo (frit, én
+# forespørgsel med alle punkter). DMI's egen EDR-cube er for langsom/grov til formålet; stationerne er for spredte.
+GRID = {"lat0": 54.25, "lon0": 7.5, "step": 0.25, "ny": 16, "nx": 33}
+OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
+
+
+async def wind_grid() -> dict | None:
+    """{lat0, lon0, step, nx, ny, u: [...], v: [...], time} – rækker fra syd mod nord, u/v i m/s (retning vinden blæser hen)."""
+    hit = await get_json("wind:grid")
+    if hit is not None:
+        return hit
+    g = GRID
+    pts = [(round(g["lat0"] + j * g["step"], 3), round(g["lon0"] + i * g["step"], 3)) for j in range(g["ny"]) for i in range(g["nx"])]
+    body = {"latitude": ",".join(str(a) for a, _ in pts), "longitude": ",".join(str(o) for _, o in pts),
+            "current": "wind_speed_10m,wind_direction_10m", "wind_speed_unit": "ms", "models": "dmi_seamless"}
+    try:
+        async with httpx.AsyncClient(timeout=30, headers=UA) as client:
+            r = await client.post(OPEN_METEO, data=body)
+            r.raise_for_status()
+            rows = r.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        log.warning("Vindgitter fejlede: %s", exc)
+        return None
+    u, v = [], []
+    for row in rows:
+        c = row.get("current") or {}
+        sp, d = c.get("wind_speed_10m"), c.get("wind_direction_10m")
+        if sp is None or d is None:
+            u.append(0.0); v.append(0.0)
+            continue
+        rad = math.radians(d)  # retning vinden kommer FRA
+        u.append(round(-sp * math.sin(rad), 2)); v.append(round(-sp * math.cos(rad), 2))
+    out = {**g, "u": u, "v": v, "time": (rows[0].get("current") or {}).get("time") if rows else None,
+           "source": "DMI HARMONIE via Open-Meteo"}
+    await set_json("wind:grid", out, 900)
+    return out
+
+
+async def wind_grid_period(start, end) -> dict | None:
+    """Middelvind (vektormiddel af u/v) kl. 6–18 dansk tid fra `start` til og med `end` – til at summere flere døgn.
+    Dagtimerne, fordi det er dem observationerne (og det synlige træk) stammer fra."""
+    key = f"wind:grid:{start}:{end}"
+    hit = await get_json(key)
+    if hit is not None:
+        return hit
+    g = GRID
+    pts = [(round(g["lat0"] + j * g["step"], 3), round(g["lon0"] + i * g["step"], 3)) for j in range(g["ny"]) for i in range(g["nx"])]
+    body = {"latitude": ",".join(str(a) for a, _ in pts), "longitude": ",".join(str(o) for _, o in pts),
+            "hourly": "wind_speed_10m,wind_direction_10m", "wind_speed_unit": "ms", "models": "dmi_seamless",
+            "timezone": "Europe/Copenhagen", "start_date": start.isoformat(), "end_date": end.isoformat()}
+    try:
+        async with httpx.AsyncClient(timeout=60, headers=UA) as client:
+            r = await client.post(OPEN_METEO, data=body)
+            r.raise_for_status()
+            rows = r.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        log.warning("Vindgitter %s–%s fejlede: %s", start, end, exc)
+        return None
+    u, v, hours = [], [], 0
+    for row in rows:
+        hr = row.get("hourly") or {}
+        su = sv = 0.0
+        n = 0
+        for t, sp, d in zip(hr.get("time", []), hr.get("wind_speed_10m", []), hr.get("wind_direction_10m", [])):
+            if sp is None or d is None or not 6 <= int(t[11:13]) <= 18:
+                continue
+            rad = math.radians(d)
+            su -= sp * math.sin(rad); sv -= sp * math.cos(rad); n += 1
+        u.append(round(su / n, 2) if n else 0.0); v.append(round(sv / n, 2) if n else 0.0)
+        hours = max(hours, n)
+    out = {**g, "u": u, "v": v, "start": start.isoformat(), "end": end.isoformat(), "hours": hours,
+           "source": "DMI HARMONIE via Open-Meteo", "mean": True}
+    done = end < datetime.now(timezone.utc).date()
+    if hours:
+        await set_json(key, out, 7 * 86400 if done else 3600)
+    return out
+
+
 async def current_weather() -> list[dict]:
     hit = await get_json("dmi:current")
     if hit is not None:
