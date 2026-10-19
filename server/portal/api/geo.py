@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -99,6 +99,33 @@ async def species_search(q: str = Query("", max_length=60), limit: int = Query(3
         ORDER BY (navn ILIKE :p) DESC, art_type <> 'art', navn LIMIT :n
     """), {"q": q, "like": f"%{q}%", "p": f"{q}%", "n": limit})).mappings().all()
     return [dict(r) for r in rows]
+
+
+@router.get("/species/index")
+async def species_index(db: AsyncSession = Depends(get_session)):
+    """Artsindeks: alle taxa med årets tal (dagsaggregater + dagens observationer)."""
+    from portal.timeutil import dk_today
+
+    async def produce():
+        today = dk_today()
+        rows = (await db.execute(text("""
+            WITH yr AS (
+                SELECT artnr, sum(n_obs) AS n_year, min(dato) AS first_year, max(dato) AS last_year,
+                       sum(n_obs) FILTER (WHERE dato > :d30) AS n_30
+                FROM species_day WHERE dato >= :y0 AND dato < :today GROUP BY artnr),
+            td AS (SELECT artnr, count(*) AS n_today FROM observations WHERE dato = :today GROUP BY artnr),
+            ever AS (SELECT artnr, max(dato) AS last_date FROM species_day GROUP BY artnr)
+            SELECT s.artnr, s.navn, s.latin, s.klass, s.art_type, s.sortering,
+                   coalesce(yr.n_year, 0) + coalesce(td.n_today, 0) AS n_year, coalesce(yr.n_30, 0) + coalesce(td.n_today, 0) AS n_30,
+                   coalesce(td.n_today, 0) AS n_today, CASE WHEN td.n_today > 0 THEN :today ELSE greatest(yr.last_year, ever.last_date) END AS last_date,
+                   CASE WHEN yr.first_year IS NOT NULL THEN yr.first_year WHEN td.n_today > 0 THEN :today END AS first_year
+            FROM species s LEFT JOIN yr USING (artnr) LEFT JOIN td USING (artnr) LEFT JOIN ever USING (artnr)
+            WHERE NOT s.excluded
+        """), {"y0": date(today.year, 1, 1), "today": today, "d30": today - timedelta(days=30)})).mappings().all()
+        return [{**dict(r), "last_date": r["last_date"].isoformat() if r["last_date"] else None,
+                 "first_year": r["first_year"].isoformat() if r["first_year"] else None} for r in rows]
+
+    return await cached(f"species:index:{await version('feed')}", 900, produce)
 
 
 @router.get("/species/{artnr}")

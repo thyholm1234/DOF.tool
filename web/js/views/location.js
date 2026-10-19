@@ -10,7 +10,7 @@ export async function render(view, [loknr]) {
   const drawSpecies = () => tbody.replaceChildren(...d.species.filter(s => !q || s.navn.toLowerCase().includes(q)).map(s => h("tr", {},
     h("td", {}, s.navn), h("td", { class: "right num" }, fmtN(s.n_obs)), h("td", { class: "nowrap" }, fmtDate(s.last_date)))));
   view.append(
-    h("p", {}, h("a", { href: "javascript:history.back()" }, "← Tilbage")),
+    h("p", {}, h("a", { href: "#/", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn), h("p", { class: "lead" }, [d.kommune && `${d.kommune} Kommune`, d.afdeling].filter(Boolean).join(" · ")))),
     h("div", { class: "stats", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
       h("div", { class: "stat", title: "Én pr. art pr. dag – flere turlister samme dag tæller ikke dobbelt" }, h("b", {}, fmtN(d.stats.n_obs)), h("span", {}, "observationer")),

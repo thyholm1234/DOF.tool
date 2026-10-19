@@ -15,7 +15,7 @@ export async function render(view, [artnr]) {
   const atlasEl = h("div", {});
   const cleanups = [];
   view.replaceChildren(
-    h("p", {}, h("a", { href: "javascript:history.back()" }, "← Tilbage")),
+    h("p", {}, h("a", { href: "#/arter", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {},
       h("div", { class: "row" }, sp.klass !== "Alm" ? tag(sp.klass) : null, h("span", { class: "muted" }, ({ sommer: "sommergæst", vinter: "vintergæst", passage: "gennemtrækker/standfugl" })[ph.summary?.profile] || ph.type || "")),
       h("h1", {}, sp.navn), sp.latin ? h("p", { class: "lead" }, h("i", {}, sp.latin)) : null)),

@@ -11,6 +11,7 @@ const NAV = [
   ["#/lister", "list", "Lister"],
   ["#/matrikel", "home", "Matrikel"],
   ["#/traek", "trend", "Træk"],
+  ["#/arter", "bird", "Arter"],
   ["#/laer", "learn", "Læring"],
   ["#/alarmer", "bell", "Alarmer"],
 ];
@@ -22,6 +23,7 @@ const ROUTES = [
   [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
   [/^\/matrikel$/, () => import("./views/matrikel.js")],
   [/^\/traek$/, () => import("./views/pheno.js")],
+  [/^\/arter$/, () => import("./views/arter.js")],
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
   [/^\/lok\/(\d+)$/, () => import("./views/location.js")],
   [/^\/laer(?:\/(.+))?$/, () => import("./views/learn.js")],
@@ -47,7 +49,7 @@ function renderNav() {
   const items = NAV.map(n => link(n));
   document.body.classList.toggle("anon", !state.user);
   // Mobil: Nu · Kort · [Indtast] · Kalender · Mere (resten samlet i et ark)
-  const inMore = ["#/ture", "#/lister", "#/laer", "#/alarmer", "#/profil", "#/support", "#/admin"].some(p => path.startsWith(p));
+  const inMore = ["#/ture", "#/lister", "#/arter", "#/laer", "#/alarmer", "#/profil", "#/support", "#/admin"].some(p => path.startsWith(p));
   const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
     ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
@@ -74,7 +76,7 @@ function openMore() {
   const sheet = h("div", { class: "more-sheet", onclick: (e) => { if (e.target === sheet) close(); } },
     h("div", { class: "more-panel" },
       h("div", { class: "more-grid" },
-        tile("#/ture", "flag", "DOF-ture"), tile("#/lister", "list", "Lister"), tile("#/matrikel", "home", "Matrikel"), tile("#/laer", "learn", "Læring"),
+        tile("#/ture", "flag", "DOF-ture"), tile("#/lister", "list", "Lister"), tile("#/matrikel", "home", "Matrikel"), tile("#/arter", "bird", "Arter"), tile("#/laer", "learn", "Læring"),
         tile("#/indtast", "edit", "Mine indtastninger"), tile("#/kalender/mine", "calendar", "Mine planer"), tile("#/alarmer", "bell", "Alarmer"),
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
         u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread)
