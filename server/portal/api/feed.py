@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import optional_user, require_user
@@ -14,11 +14,11 @@ from portal.cache import kv
 from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.jobs import media_for
-from portal.models import Area, ThreadComment, ThreadFollow, User
+from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, reports
 from portal.services.auth import role_at_least
-from portal.services.areas import Scope, parse_scope
+from portal.services.areas import Scope, parse_scope, scope_for_area
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["feed"])
@@ -48,6 +48,15 @@ async def get_feed(
     db: AsyncSession = Depends(get_session),
 ):
     day = day or dk_today()
+    if scope == "mine":
+        if user is None:
+            raise HTTPException(401, "Log ind for at bruge dine filtre")
+        threads = await _my_filter_threads(db, day, user)
+        likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
+        for t in threads:
+            t["likes"] = likes.get(t["id"], {}).get("count", 0)
+        return {"date": day.isoformat(), "scope": "mine", "level": "mine", "threads": threads,
+                "n_rules": await _n_rules(db, user)}
     sc = await resolve_scope(db, scope, user)
     if level == "all" and sc.kind == "dk":
         raise HTTPException(400, "'Alle' kræver et afgrænset område")
@@ -57,6 +66,56 @@ async def get_feed(
     for t in threads:
         t["likes"] = likes.get(t["id"], {}).get("count", 0)
     return {"date": day.isoformat(), "scope": sc.key, "level": level, "threads": threads}
+
+
+async def _n_rules(db: AsyncSession, user: User) -> int:
+    return (await db.execute(select(func.count()).select_from(AlertRule)
+                             .where(AlertRule.user_id == user.id, AlertRule.enabled))).scalar() or 0
+
+
+async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[dict]:
+    """Dagens tråde der matcher mindst én af brugerens aktive alarmregler (samme regler som notifikationerne)."""
+    rules = (await db.execute(select(AlertRule).where(AlertRule.user_id == user.id, AlertRule.enabled))).scalars().all()
+    fetched: dict[tuple, list[dict]] = {}
+
+    async def fetch(sc: Scope, level: str, local_max: int) -> list[dict]:
+        key = (sc.key, level, local_max if level == "local" else 0)
+        if key not in fetched:
+            ts = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max)]
+            fetched[key] = await reports.merge_feed(db, ts, day, sc, level, local_max, user)
+        return fetched[key]
+
+    out: dict[str, dict] = {}
+    for r in rules:
+        if r.kommuner or r.afdelinger:
+            scopes = [Scope("kommune", k) for k in r.kommuner] + [Scope("afdeling", str(a)) for a in r.afdelinger]
+        elif r.area_id:
+            scopes = [scope_for_area(await db.get(Area, r.area_id))]
+        else:
+            scopes = [Scope("dk")]
+        levels = set(r.level.split(","))
+        kats = levels & {"SU", "SUB", "bemaerk"}
+        wanted: list[tuple[str, set[str]]] = []  # (feed-niveau, kategorier der tæller)
+        if "all" in levels:
+            wanted.append(("all", {"SU", "SUB", "bemaerk", "alm"}))
+        else:
+            if kats:
+                wanted.append(("bemaerk" if "bemaerk" in kats else "SUB" if "SUB" in kats else "SU", kats))
+            if "local" in levels:
+                wanted.append(("local", {"alm", "bemaerk"}))
+        for sc in scopes:
+            for level, ok in wanted:
+                for t in await fetch(sc, level, r.local_max):
+                    if t["kategori"] not in ok or ((r.min_antal or 1) > 1 and t["max_antal"] < r.min_antal):
+                        continue
+                    if (r.species_include and t["artnr"] not in r.species_include) or t["artnr"] in (r.species_exclude or ()):
+                        continue
+                    hit = out.setdefault(t["id"], {**t, "rules": []})
+                    if r.name not in hit["rules"]:
+                        hit["rules"].append(r.name)
+                    if level == "local" and t["kategori"] not in levels:
+                        hit["local_hit"] = True
+    return sorted(out.values(), key=lambda t: t["last_seen"], reverse=True)
 
 
 @router.get("/feed/summary")

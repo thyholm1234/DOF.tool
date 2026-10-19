@@ -6,7 +6,9 @@ const LEVELS = [["SU", "SU"], ["SUB", "SUB+"], ["bemaerk", "Bemærk+"], ["local"
 
 export async function scopeOptions() {
   await loadRef();
-  const opts = [["dk", "Hele Danmark"]];
+  const opts = [];
+  if (state.user) opts.push(["mine", "★ Mine filtre (alarmregler)"]);
+  opts.push(["dk", "Hele Danmark"]);
   const prefs = state.user?.prefs || {};
   const mine = new Set((prefs.afdelinger || []).map(String));
   const afd = [...state.afdelinger].sort((a, b) => mine.has(String(b.id)) - mine.has(String(a.id)));
@@ -25,11 +27,13 @@ export async function scopeOptions() {
 
 export async function render(view) {
   const p = params();
-  const saved = store("feed") || {};
+  // v2: "Mine filtre" er ny standard for indloggede – ældre gemte valg nulstilles én gang
+  const saved = (store("feed") || {}).v === 2 ? store("feed") : {};
   const st = {
     date: p.date || todayISO(),
     level: p.level || saved.level || state.user?.prefs?.feed_level || "bemaerk",
-    scope: p.scope || saved.scope || state.user?.prefs?.feed_scope || "dk",
+    scope: p.scope || saved.scope || state.user?.prefs?.feed_scope || (state.user ? "mine" : "dk"),
+    autoScope: !p.scope && !saved.scope && !state.user?.prefs?.feed_scope,
     localMax: Number(p.n || saved.localMax || state.user?.prefs?.local_max || 10),
     q: "",
   };
@@ -46,11 +50,13 @@ export async function render(view) {
   localWrap.append("Færre end", localVal, "obs. historisk", localRange);
 
   const chips = h("div", { class: "chips" });
-  const drawChips = () => chips.replaceChildren(...LEVELS.map(([v, l]) => h("button", {
+  const drawChips = () => chips.replaceChildren(...(st.scope === "mine"
+    ? [h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Kategorier og områder fra dine ", h("a", { href: "#/alarmer" }, "alarmregler"))]
+    : LEVELS.map(([v, l]) => h("button", {
     class: `chip ${st.level === v ? "on" : ""}`, onclick: () => {
       if (v === "all" && st.scope === "dk") { toast("Vælg et område for at se alle observationer"); return; }
       st.level = v; drawChips(); load();
-    } }, l)));
+    } }, l))));
   drawChips();
 
   const dateInput = h("input", { type: "date", value: st.date, max: todayISO(), style: { width: "auto" }, onchange: (e) => { st.date = e.target.value; load(); } });
@@ -79,7 +85,7 @@ export async function render(view) {
   const opts = await scopeOptions();
   for (const [v, l] of opts) scopeSel.append(h("option", { value: v, selected: v === st.scope }, l));
   if (!opts.some(o => o[0] === st.scope)) st.scope = "dk";
-  scopeSel.addEventListener("change", () => { st.scope = scopeSel.value; if (st.level === "all" && st.scope === "dk") st.level = "bemaerk"; drawChips(); load(); });
+  scopeSel.addEventListener("change", () => { st.scope = scopeSel.value; st.autoScope = false; if (st.level === "all" && st.scope === "dk") st.level = "bemaerk"; drawChips(); load(); });
   localRange.addEventListener("input", () => { localVal.textContent = localRange.value; });
   localRange.addEventListener("change", () => { st.localMax = Number(localRange.value); load(); });
 
@@ -90,19 +96,28 @@ export async function render(view) {
   function draw() {
     const items = threads.filter(t => !st.q || (t.art || "").toLowerCase().includes(st.q) || (t.lok || "").toLowerCase().includes(st.q));
     if (!items.length) { listEl.replaceChildren(empty("Ingen tråde med dette filter", st.date === todayISO() ? "Listen opdateres automatisk, når nye observationer kommer ind." : "")); return; }
-    listEl.replaceChildren(...items.map(t => threadCard(t, st.level, !first && !known.has(t.id + t.max_antal))));
+    listEl.replaceChildren(...items.map(t => threadCard(t, st.scope === "mine" ? (t.local_hit ? "local" : "") : st.level, !first && !known.has(t.id + t.max_antal))));
     known = new Set(threads.map(t => t.id + t.max_antal));
     first = false;
   }
 
   async function load() {
-    setParams({ date: st.date === todayISO() ? "" : st.date, level: st.level, scope: st.scope === "dk" ? "" : st.scope, n: st.level === "local" ? st.localMax : "" });
-    store("feed", { level: st.level, scope: st.scope, localMax: st.localMax });
-    localWrap.classList.toggle("hide", st.level !== "local");
+    const mine = st.scope === "mine";
+    setParams({ date: st.date === todayISO() ? "" : st.date, level: mine ? "" : st.level, scope: st.autoScope || st.scope === "dk" ? "" : st.scope,
+      n: !mine && st.level === "local" ? st.localMax : "" });
+    store("feed", { v: 2, level: st.level, scope: st.autoScope ? "" : st.scope, localMax: st.localMax });
+    localWrap.classList.toggle("hide", mine || st.level !== "local");
     if (first) listEl.replaceChildren(...Array.from({ length: 5 }, () => h("div", { class: "skeleton" })));
     try {
       const q = new URLSearchParams({ date: st.date, level: st.level, scope: st.scope, local_max: st.localMax });
       const [data, sum] = await Promise.all([api(`/api/feed?${q}`), api(`/api/feed/summary?date=${st.date}`)]);
+      if (mine && data.n_rules === 0) {
+        // Ingen regler endnu: standardvisningen falder tilbage til hele landet, et aktivt valg viser en vejledning
+        if (st.autoScope) { st.scope = "dk"; scopeSel.value = "dk"; drawChips(); return load(); }
+        listEl.replaceChildren(empty("Du har ingen aktive alarmregler", "Opret regler under Alarmer – så viser forsiden det, du får besked om."),
+          h("p", { style: { textAlign: "center" } }, h("a", { class: "btn primary", href: "#/alarmer" }, "Opret alarmregel")));
+        drawStats(sum); updatedEl.textContent = ""; return;
+      }
       threads = data.threads;
       draw();
       drawStats(sum);
@@ -150,6 +165,7 @@ export function threadCard(t, level, fresh = false) {
       h("div", { class: "title" }, h("span", { class: "count" }, fmtN(t.max_antal)), h("span", {}, t.art)),
       h("div", { class: "meta" }, h("span", { class: "lok", title: t.lok || "" }, t.lok || "Ukendt lokalitet"), t.kommune ? h("span", { class: "muted" }, `\u00a0· ${t.kommune}`) : null),
       h("div", { class: "meta2" }, [last.adf, last.observer, last.tid].filter(Boolean).join(" · ")),
+      t.rules?.length ? h("div", { class: "meta2" }, `Regel: ${t.rules.join(", ")}`) : null,
       t.portal ? h("div", { class: "row", style: { gap: "5px", marginTop: "5px" } },
         statusBadge(t.portal.status, t.portal.live, t.portal.status_at), t.source === "portal" ? h("span", { class: "tag portal" }, "Portal") : null,
         certaintyTag(t.portal.sikkerhed)) : null),
