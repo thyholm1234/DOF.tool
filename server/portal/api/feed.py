@@ -13,7 +13,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import kv
 from portal.db import get_session
 from portal.dof import gateway
-from portal.dof.jobs import media_for
+from portal.dof.jobs import media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, reports
@@ -52,6 +52,7 @@ async def get_feed(
         if user is None:
             raise HTTPException(401, "Log ind for at bruge dine filtre")
         threads = await _my_filter_threads(db, day, user)
+        await _attach_media(db, day, threads)
         likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
         for t in threads:
             t["likes"] = likes.get(t["id"], {}).get("count", 0)
@@ -62,10 +63,29 @@ async def get_feed(
         raise HTTPException(400, "'Alle' kræver et afgrænset område")
     threads = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max)]
     threads = await reports.merge_feed(db, threads, day, sc, level, local_max, user)
+    await _attach_media(db, day, threads)
     likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
     for t in threads:
         t["likes"] = likes.get(t["id"], {}).get("count", 0)
     return {"date": day.isoformat(), "scope": sc.key, "level": level, "threads": threads}
+
+
+async def _attach_media(db: AsyncSession, day: date, threads: list[dict]) -> None:
+    """Billeder, lyd og DKU-status fra medie-scannerens cache på trådene (ingen kald til DOFbasen her)."""
+    if not threads:
+        return
+    rows = (await db.execute(text("""
+        SELECT artnr, loknr, array_agg(obsid) FROM observations
+        WHERE dato = :d AND hemmelig = 0 AND artnr = ANY(:a) AND loknr = ANY(:l) GROUP BY artnr, loknr
+    """), {"d": day, "a": list({t["artnr"] for t in threads}), "l": list({t["loknr"] for t in threads if t["loknr"]})})).all()
+    ids = {(a, l): list(o) for a, l, o in rows}
+    found = await media_many([o for v in ids.values() for o in v])
+    for t in threads:
+        ms = [found[o] for o in ids.get((t["artnr"], t["loknr"]), []) if o in found]
+        if ms:
+            t["media"] = {"images": sum(len(m["images"]) for m in ms), "sounds": sum(len(m["sounds"]) for m in ms),
+                          "dku": sorted({m["dku"] for m in ms if m.get("dku")}),
+                          "image": next((m["images"][0] for m in ms if m["images"]), None)}
 
 
 async def _n_rules(db: AsyncSession, user: User) -> int:
@@ -137,6 +157,9 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
     if data is None:
         data = await feed.thread_meta(db, day, artnr, loknr)
     data["reports"] = portal
+    found = await media_many([o["obsid"] for o in data.get("observations", [])])
+    for o in data.get("observations", []):
+        o["media"] = found.get(o["obsid"])
     data["find"] = await finds.thread_find(db, day, artnr, loknr)
     data["comments"] = await _comments(db, day, artnr, loknr, user)
     key = f"{day.isoformat()}/{artnr}/{loknr}"

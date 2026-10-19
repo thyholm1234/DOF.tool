@@ -224,6 +224,7 @@ async def main() -> None:
         asyncio.create_task(scheduler(), name="scheduler"),
         asyncio.create_task(command_listener(), name="commands"),
         asyncio.create_task(weather_archive.loop(), name="weather"),
+        asyncio.create_task(jobs.media_scanner(), name="media"),
     ]
     if await archive.pending_files():
         log.info("Nye arkivfiler fundet – starter import i baggrunden")

@@ -171,7 +171,10 @@ export function threadCard(t, level, fresh = false) {
         certaintyTag(t.portal.sikkerhed)) : null),
     h("div", { class: "side" }, tag(kat, KAT[kat]), h("span", { title: "Først set i portalen " + ago(t.first_seen) }, Date.now() - new Date(t.last_seen) < 45 * 60000 ? ago(t.last_seen) : (last.tid || ago(t.last_seen))),
       t.n_observers > 1 ? h("span", { title: "observatører" }, `${t.n_observers} obs.`) : null,
-      t.likes ? h("span", { class: "likes", title: "tommel op" }, `👍 ${t.likes}`) : null));
+      t.likes ? h("span", { class: "likes", title: "tommel op" }, `👍 ${t.likes}`) : null,
+      t.media?.images || t.media?.sounds ? h("span", { title: "Billeder og lyd i DOFbasen" },
+        [t.media.images ? `📷 ${t.media.images}` : "", t.media.sounds ? `🔊 ${t.media.sounds}` : ""].filter(Boolean).join(" ")) : null,
+      t.media?.dku?.length ? h("span", { class: "tag plain", title: "Status hos DKU" }, `DKU: ${t.media.dku.join(", ")}`) : null));
 }
 
 async function nearby() {

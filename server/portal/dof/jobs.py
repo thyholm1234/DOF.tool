@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import calendar
 import html
+import json
 import logging
 import re
+import time
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select, text
 
-from portal.cache import bump, get_json, publish, set_json
+from portal.cache import bump, get_json, kv, publish, set_json
 from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dof import gateway, reference
@@ -165,19 +168,128 @@ def parse_popobs(page: str) -> dict:
     sounds = [u if u.startswith("http") else "https://dofbasen.dk" + (u if u.startswith("/") else "/" + u)
               for u in dict.fromkeys(_SOUND.findall(page))]
     m = _STATUS.search(page)
-    return {"status": m.group(1) if m else "", "images": images, "sounds": sounds}
+    return {"dku": m.group(1) if m else "", "images": images, "sounds": sounds}
+
+
+async def _store_media(obsid: int, parsed: dict) -> bool:
+    """Gem billeder/lyd/DKU for en observation. Returnerer True hvis noget er ændret."""
+    old = await media_for(obsid)
+    data = {"obsid": obsid, **parsed, "fetched": datetime.now(timezone.utc).isoformat()}
+    await set_json(f"media:{obsid}", data, 7 * 86400)
+    return old is None or any(old.get(k) != data[k] for k in ("dku", "images", "sounds"))
+
+
+async def _fetch_media(client: httpx.AsyncClient, obsid: int) -> dict:
+    raw = await _get(client, "https://dofbasen.dk/popobs.php", {"obsid": obsid, "summering": "tur", "obs": "obs"})
+    parsed = parse_popobs(decode(raw))
+    if await _store_media(obsid, parsed):
+        await publish("feed", {"type": "feed", "media": obsid})
+    return parsed
 
 
 async def job_media(client: httpx.AsyncClient, p: dict) -> dict:
-    obsid = int(p["obsid"])
-    raw = await _get(client, "https://dofbasen.dk/popobs.php", {"obsid": obsid, "summering": "tur", "obs": "obs"})
-    data = {"obsid": obsid, **parse_popobs(decode(raw)), "fetched": datetime.now(timezone.utc).isoformat()}
-    await set_json(f"media:{obsid}", data, 7 * 86400)
+    data = await _fetch_media(client, int(p["obsid"]))
     return {"images": len(data["images"]), "sounds": len(data["sounds"])}
 
 
+def _norm(d: dict | None) -> dict | None:
+    # Ældre cache havde DKU-status under "status"
+    if d is not None and "dku" not in d:
+        d["dku"] = d.pop("status", "")
+    return d
+
+
 async def media_for(obsid: int) -> dict | None:
-    return await get_json(f"media:{obsid}")
+    return _norm(await get_json(f"media:{obsid}"))
+
+
+async def media_many(obsids: list[int]) -> dict[int, dict]:
+    if not obsids:
+        return {}
+    raw = await kv().mget([f"media:{o}" for o in obsids])
+    return {o: _norm(json.loads(v)) for o, v in zip(obsids, raw) if v}
+
+
+# ---------------------------------------------------------------- medie-scanner
+# "Dagens observationer" (observationer/index.php) har pr. observation både billedlinks, lydlinks og DKU-status,
+# så ét opslag dækker mange observationer. Højst ét opslag pr. interval (standard 60 s): som regel de sjældne
+# (visning=sufugle, ~200 kB), hver N'te gang alle fugle (allfugle, flere MB sidst på dagen). Efter midnat får
+# gårsdagen én sidste fuld gennemgang. Kørslen deler låsen med gatewayen (aldrig to kald samtidig).
+
+OBS_PAGE = "https://dofbasen.dk/observationer/index.php"
+_ROW = re.compile(r"<tr>(.*?)</tr>", re.S | re.IGNORECASE)
+_ROW_OBSID = re.compile(r"popobs\.php\?obsid=(\d+)")
+_ROW_SOUND = re.compile(r"""(?:href|src)=['"]([^'"]*sound_proxy\.php[^'"]+)['"]""", re.IGNORECASE)
+_ROW_STATUS = re.compile(r"""<acronym[^>]*class=["'](?:behandl|dku|su)["'][^>]*title=["']([^"']+)["']""", re.IGNORECASE)
+
+
+def parse_obs_page(page: str) -> dict[int, dict]:
+    """obsid → {dku, images, sounds} for hver observationsrække på siden."""
+    out: dict[int, dict] = {}
+    for row in _ROW.findall(html.unescape(page)):
+        m = _ROW_OBSID.search(row)
+        if not m:
+            continue
+        d = out.setdefault(int(m.group(1)), {"dku": "", "images": [], "sounds": []})
+        for f in _IMG.findall(row):
+            if SERVICE_IMAGE + f not in d["images"]:
+                d["images"].append(SERVICE_IMAGE + f)
+        for u in _ROW_SOUND.findall(row):
+            u = u if u.startswith("http") else "https://dofbasen.dk" + (u if u.startswith("/") else "/" + u)
+            if u not in d["sounds"]:
+                d["sounds"].append(u)
+        st = _ROW_STATUS.search(row)
+        if st:
+            d["dku"] = st.group(1)
+    return out
+
+
+async def scan_media(client: httpx.AsyncClient, day: date, visning: str = "sufugle") -> int:
+    raw = await _get(client, OBS_PAGE, {"visning": visning, "visidag": day.strftime("%d-%m-%Y")})
+    changed = [o for o, d in parse_obs_page(decode(raw)).items() if await _store_media(o, d)]
+    if changed:
+        await publish("feed", {"type": "feed", "media": len(changed)})
+    return len(changed)
+
+
+async def media_scanner() -> None:
+    settings = get_settings()
+    interval = settings.dof_media_interval
+    if not interval:
+        log.info("Medie-scanner slået fra")
+        return
+    r = kv()
+    every_all = max(1, int(settings.dof_media_all_every))
+    runs = 0
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120, connect=20), follow_redirects=True,
+                                 headers={"User-Agent": settings.dof_user_agent}) as client:
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                # Følger live-hentningen: slået fra i admin eller af opdateringsplanen = ingen opslag
+                planned = await r.get("dof:live_interval")
+                if not settings.dof_enabled or not await live_enabled() or (planned is not None and int(float(planned)) == 0):
+                    continue
+                today = dk_today()
+                last_day = await r.get("media:scan_day")
+                if last_day and last_day < today.isoformat():
+                    day, visning = date.fromisoformat(last_day), "allfugle"  # gårsdagens sidste fulde gennemgang
+                else:
+                    day, visning = today, "allfugle" if runs % every_all == 0 else "sufugle"
+                while not await r.set(gateway.LOCK, "media", nx=True, ex=180):
+                    await asyncio.sleep(2)
+                try:
+                    runs += 1
+                    await r.set("media:scan_day", today.isoformat())  # også ved fejl: gårsdagen forsøges kun én gang
+                    n = await scan_media(client, day, visning)
+                    await r.set("media:scan_last", json.dumps({"at": datetime.now(timezone.utc).isoformat(), "day": day.isoformat(),
+                                                               "visning": visning, "changed": n}))
+                finally:
+                    await r.delete(gateway.LOCK)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 – løkken må aldrig dø
+                log.exception("Medie-scanner fejlede")
 
 
 # ---------------------------------------------------------------- referencedata
