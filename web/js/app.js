@@ -60,6 +60,8 @@ function renderNav() {
     side.push(h("a", { href: "#/support", class: path.startsWith("#/support") ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
     if (["admin", "superadmin"].includes(state.user.role))
       side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
+    else if (["moderator", "editor"].includes(state.user.role))
+      side.push(h("a", { href: "#/admin?tab=moderation", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Moderation</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
 }
@@ -75,7 +77,8 @@ function openMore() {
         tile("#/ture", "flag", "DOF-ture"), tile("#/lister", "list", "Lister"), tile("#/traek", "trend", "Træk"), tile("#/laer", "learn", "Læring"),
         tile("#/indtast", "edit", "Mine indtastninger"), tile("#/kalender/mine", "calendar", "Mine planer"), tile("#/alarmer", "bell", "Alarmer"),
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
-        u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread) : null),
+        u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread)
+          : u && ["moderator", "editor"].includes(u.role) ? tile("#/admin?tab=moderation", "shield", "Moderation") : null),
       h("button", { class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
   document.body.append(sheet);
 }
@@ -122,6 +125,7 @@ function openMenu() {
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
+    ["moderator", "editor"].includes(u.role) ? h("a", { href: "#/admin?tab=moderation", onclick: close, html: `${icon("shield")} Moderation` }) : null,
     ["admin", "superadmin"].includes(u.role) ? h("a", { href: "#/admin", onclick: close, html: `${icon("shield")} Administration` }) : null,
     h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; renderUser(); renderNav(); live.stop(); location.hash = "#/login"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));

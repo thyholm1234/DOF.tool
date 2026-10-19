@@ -602,3 +602,7 @@ body.anon main#view { padding-bottom: 32px; max-width: 1080px; }
   .lok-fill { flex: 1; }
   .lok-scroll { flex: 1; max-height: none; }
 }
+
+/* Moderation */
+.mod-item { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.mod-item.hidden { opacity: .6; background: var(--bg-2); }

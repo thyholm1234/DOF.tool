@@ -1,13 +1,21 @@
 import { api, state, h, icon, fmtN, fmtDate, ago, seg, params, setParams, toast, errorBox, empty, modal } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { conversation, KINDS } from "./support.js";
+import { eventForm, isModerator } from "./events.js";
 
 export async function render(view) {
-  if (!state.user || !["admin", "superadmin"].includes(state.user.role)) { view.append(errorBox(new Error("Kræver administratorrettigheder"))); return; }
-  const tab = params().tab || "drift";
+  const role = state.user?.role;
+  const isAdmin = ["admin", "superadmin"].includes(role);
+  if (!state.user || !(isAdmin || isModerator())) { view.append(errorBox(new Error("Kræver moderator- eller administratorrettigheder"))); return; }
+  // Moderatorer ser kun moderation og portalens egne ture
+  const tabs = isAdmin
+    ? [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"], ["moderation", "Moderation"], ["ture", "Ture"], ["brugere", "Brugere"], ["arter", "Arter"], ["indhold", "Nyheder"]]
+    : [["moderation", "Moderation"], ["ture", "Ture"]];
+  let tab = params().tab || tabs[0][0];
+  if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
   const body = h("div", {});
-  view.append(h("div", { class: "page-head" }, h("h1", {}, "Administration"), h("span", { class: "spacer" }),
-    seg([["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"], ["brugere", "Brugere"], ["arter", "Arter"], ["indhold", "Nyheder & moderation"]], tab, (v) => { setParams({ tab: v, t: "" }); body.replaceChildren(); clearInterval(timer); draw(v); })), body);
+  view.append(h("div", { class: "page-head" }, h("h1", {}, isAdmin ? "Administration" : "Moderation"), h("span", { class: "spacer" }),
+    seg(tabs, tab, (v) => { setParams({ tab: v, t: "" }); body.replaceChildren(); clearInterval(timer); draw(v); })), body);
   let timer;
   const every = (fn, ms) => { fn(); timer = setInterval(fn, ms); };
   const draw = (t) => ({
@@ -15,6 +23,7 @@ export async function render(view) {
     data: () => dataPanel(body, "dof", (f) => every(f, 20000)),
     vejr: () => dataPanel(body, "weather", (f) => every(f, 5000)),
     aktivitet: () => activityPanel(body), support: () => supportPanel(body),
+    moderation: () => moderation(body), ture: () => portalEvents(body),
     brugere: () => users(body), arter: () => species(body), indhold: () => content(body),
   }[t] || ops)();
   draw(tab);
@@ -82,7 +91,7 @@ async function users(body) {
         h("td", {}, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, u.obserkode, u.blocked ? " · spærret" : "")),
         h("td", { class: "wide", "data-label": "Rolle" }, h("select", { style: { width: "auto", height: "32px" }, disabled: u.role === "superadmin" && state.user.role !== "superadmin", onchange: async (e) => {
           try { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { role: e.target.value } }); toast("Rolle ændret"); } catch (err) { toast(err.message, "err"); load(); }
-        } }, ...["user", "editor", "admin", "superadmin"].map(r => h("option", { selected: r === u.role }, r)))),
+        } }, ...["user", "moderator", "editor", "admin", "superadmin"].map(r => h("option", { selected: r === u.role }, r)))),
         h("td", { class: "muted", "data-label": "Sidst set" }, u.last_seen ? ago(u.last_seen) : "aldrig"),
         h("td", { class: "right num", "data-label": "Enh./regler" }, `${u.devices} / ${u.rules}`),
         h("td", { class: "right nowrap wide" }, u.role !== "superadmin" ? [
@@ -114,18 +123,62 @@ async function content(body) {
   const title = h("input", { placeholder: "Overskrift" });
   const text = h("textarea", { placeholder: "Tekst" });
   const news = h("div", { class: "stack" });
-  const comments = h("div", { class: "table-wrap" });
-  body.append(h("div", { class: "grid-2" },
-    h("form", { class: "card stack", onsubmit: async (e) => { e.preventDefault(); try { await api("/api/admin/news", { method: "POST", body: { title: title.value, body: text.value } }); title.value = text.value = ""; load(); toast("Publiceret"); } catch (err) { toast(err.message, "err"); } } },
-      h("h3", {}, "Ny nyhed"), title, text, h("button", { class: "btn primary" }, "Publicér"), news),
-    h("div", { class: "card" }, h("h3", {}, "Seneste kommentarer"), comments)));
+  body.append(h("form", { class: "card stack", style: { maxWidth: "720px" }, onsubmit: async (e) => { e.preventDefault(); try { await api("/api/admin/news", { method: "POST", body: { title: title.value, body: text.value } }); title.value = text.value = ""; load(); toast("Publiceret"); } catch (err) { toast(err.message, "err"); } } },
+    h("h3", {}, "Ny nyhed"), title, text, h("button", { class: "btn primary" }, "Publicér"), news));
   const load = async () => {
-    const [n, c] = await Promise.all([api("/api/news?limit=20"), api("/api/admin/comments")]);
+    const n = await api("/api/news?limit=20");
     news.replaceChildren(...n.map(x => h("div", { class: "row between" }, h("span", {}, h("b", {}, x.title), h("small", { class: "muted" }, ` ${fmtDate(x.created_at)}`)),
       h("button", { class: "btn sm ghost danger", onclick: async () => { await api(`/api/admin/news/${x.id}`, { method: "DELETE" }); load(); } }, "Slet"))));
-    comments.replaceChildren(c.length ? h("table", { class: "data" }, h("tbody", {}, ...c.map(x => h("tr", { style: { opacity: x.hidden ? .5 : 1 } },
-      h("td", {}, h("b", {}, x.navn || x.obserkode), h("div", {}, x.body), h("small", { class: "muted" }, `${x.art} · ${fmtDate(x.dato)} · `, h("a", { href: `#/traad/${x.dato}/${x.artnr}/${x.loknr}` }, "tråd"))),
-      h("td", { class: "right" }, h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/comments/${x.id}`, { method: "PATCH", body: { hidden: !x.hidden } }); load(); } }, x.hidden ? "Vis" : "Skjul")))))) : empty("Ingen kommentarer"));
+  };
+  await load();
+}
+
+// ---------------------------------------------------------------- moderation af kommentarer (moderator og op)
+
+async function moderation(body) {
+  let status = "alle", q = "";
+  const list = h("div", { class: "stack" });
+  const search = h("input", { type: "search", placeholder: "Søg i tekst, navn eller art…", style: { maxWidth: "280px" } });
+  let t;
+  search.oninput = () => { clearTimeout(t); t = setTimeout(() => { q = search.value.trim(); load(); }, 300); };
+  body.append(h("div", { class: "card stack" },
+    h("div", { class: "row between" }, seg([["alle", "Alle"], ["synlige", "Synlige"], ["skjulte", "Skjulte"]], status, (v) => { status = v; load(); }), search),
+    h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } }, "Skjulte kommentarer ses ikke af andre brugere. Handlingerne logges under Aktivitet."),
+    list));
+  const load = async () => {
+    try {
+      const rows = await api(`/api/admin/comments?status=${status}&q=${encodeURIComponent(q)}`);
+      list.replaceChildren(...(rows.length ? rows.map(x => h("div", { class: `mod-item ${x.hidden ? "hidden" : ""}` },
+        h("div", { style: { minWidth: 0 } },
+          h("div", { class: "row", style: { gap: "6px" } }, h("b", {}, x.navn || x.obserkode), h("small", { class: "muted" }, `${x.obserkode} · ${ago(x.created_at)}`),
+            x.hidden ? h("span", { class: "tag SU" }, "skjult") : null, x.likes ? h("small", { class: "muted" }, `👍 ${x.likes}`) : null),
+          h("p", { style: { margin: "4px 0", whiteSpace: "pre-wrap" } }, x.body),
+          h("small", { class: "muted" }, `${x.art || "?"} · ${x.lok || ""} · ${fmtDate(x.dato)} · `, h("a", { href: `#/traad/${x.dato}/${x.artnr}/${x.loknr}` }, "åbn tråden"))),
+        h("button", { class: `btn sm ${x.hidden ? "" : "danger"}`, onclick: async () => {
+          await api(`/api/admin/comments/${x.id}`, { method: "PATCH", body: { hidden: !x.hidden } }); toast(x.hidden ? "Kommentaren vises igen" : "Kommentaren er skjult"); load();
+        } }, x.hidden ? "Vis igen" : "Skjul"))) : [empty("Ingen kommentarer")]));
+    } catch (err) { list.replaceChildren(errorBox(err)); }
+  };
+  await load();
+}
+
+// ---------------------------------------------------------------- portalens egne ture (moderator og op)
+
+async function portalEvents(body) {
+  const list = h("div", { class: "stack" });
+  body.append(h("div", { class: "card stack" },
+    h("div", { class: "row between" }, h("p", { class: "muted", style: { margin: 0 } }, "Ture og begivenheder oprettet i portalen. De vises under Ture sammen med DOF's officielle ture."),
+      h("button", { class: "btn primary", html: `${icon("plus")} Ny tur`, onclick: () => eventForm(null, () => load()) })), list));
+  const load = async () => {
+    const rows = (await api("/api/events?past=true")).filter(e => e.source === "portal").sort((a, b) => b.dato.localeCompare(a.dato));
+    list.replaceChildren(...(rows.length ? rows.map(e => h("div", { class: "mod-item" },
+      h("div", { style: { minWidth: 0 } }, h("a", { href: `#/ture/${e.id}` }, h("b", {}, e.title)),
+        h("div", { class: "muted", style: { fontSize: ".86rem" } }, [fmtDate(e.dato), e.tid_fra, e.lok, e.afdeling, e.created_by_navn && `oprettet af ${e.created_by_navn}`].filter(Boolean).join(" · "))),
+      h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
+        h("button", { class: "btn sm ghost", html: icon("edit"), "aria-label": "Ret", onclick: async () => eventForm(await api(`/api/events/${e.id}`), () => load()) }),
+        h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Slet", onclick: async () => {
+          if (!confirm(`Slet "${e.title}"?`)) return; await api(`/api/events/${e.id}`, { method: "DELETE" }); load();
+        } })))) : [empty("Ingen egne ture endnu")]));
   };
   await load();
 }

@@ -70,7 +70,7 @@ export async function render(view, [date, artnr, loknr]) {
       ...(t.comments.length ? t.comments.map(c => h("div", {},
         h("div", { class: "row" }, h("b", {}, c.navn || c.obserkode), h("small", {}, ago(c.created_at)),
           c.id ? likeWidget("comment", String(c.id), c.likes, { small: true, title: "Synes godt om kommentaren" }) : null,
-          state.user && (state.user.id === c.user_id || ["admin", "superadmin"].includes(state.user.role))
+          state.user && (state.user.id === c.user_id || ["moderator", "editor", "admin", "superadmin"].includes(state.user.role))
             ? h("button", { class: "btn sm ghost danger", onclick: async () => { await api(`/api/comments/${c.id}`, { method: "DELETE" }); t.comments = t.comments.filter(x => x.id !== c.id); drawComments(); } }, "Slet") : null),
         h("p", { style: { margin: "2px 0 0", whiteSpace: "pre-wrap" } }, c.body))) : [h("p", { class: "muted" }, "Ingen kommentarer endnu – del status fra stedet, fx om fuglen stadig er der.")]),
       state.user ? commentForm() : h("p", {}, h("a", { href: "#/login?next=" + encodeURIComponent(location.hash) }, "Log ind for at kommentere")));
