@@ -90,10 +90,19 @@ async def scoreboard(scope: str | None = None, year: str | None = None, matrikel
     if spec.matrikel and spec.matrikel > 1:
         raise HTTPException(400, "Kun matrikel 1 har scoreboard – matrikel 2 og op er private")
     if group:
-        g = await db.get(ListGroup, group)
-        if g is None:
-            raise HTTPException(404)
+        await _group_access(db, group, user)
     return await lists.scoreboard(db, spec, group)
+
+
+async def _group_access(db: AsyncSession, group_id: int, user: User | None) -> ListGroup:
+    """Grupper er private: kun ejeren og medlemmerne (og administratorer) kan se deres scoreboard."""
+    g = await db.get(ListGroup, group_id)
+    if g is None or user is None:
+        raise HTTPException(404)
+    if g.owner_id != user.id and user.role not in ("admin", "superadmin") \
+            and not await db.get(ListGroupMember, (group_id, user.obserkode)):
+        raise HTTPException(404)
+    return g
 
 
 # ---------------------------------------------------------------- matrikelbirding
@@ -113,11 +122,11 @@ async def matrikel_summary(year: str | None = None, user: User = Depends(require
 
 @router.get("/matrikel/scoreboard")
 async def matrikel_scoreboard(scope: str = "dk", year: str | None = None, group: int | None = None,
-                              db: AsyncSession = Depends(get_session)):
+                              user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     if scope != "dk" and not scope.startswith(("afd:", "kom:")):
         raise HTTPException(400, "Ukendt område")
-    if group and await db.get(ListGroup, group) is None:
-        raise HTTPException(404)
+    if group:
+        await _group_access(db, group, user)
     return await lists.matrikel_board(db, _year(year), scope, group)
 
 

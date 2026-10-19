@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, text, update
@@ -133,9 +135,24 @@ class SubIn(BaseModel):
     keys: dict[str, str]
 
 
+# Browserens push-tjenester – serveren POSTer til endpointet, så andre værter afvises (SSRF)
+PUSH_HOSTS = ("fcm.googleapis.com", "android.googleapis.com", ".push.services.mozilla.com", ".notify.windows.com",
+              "web.push.apple.com", ".push.apple.com")
+
+
+def _push_host_ok(endpoint: str) -> bool:
+    try:
+        u = urlsplit(endpoint)
+        host, port = (u.hostname or "").lower(), u.port
+    except ValueError:
+        return False
+    return u.scheme == "https" and port in (None, 443) and any(
+        host == h.lstrip(".") or (h.startswith(".") and host.endswith(h)) for h in PUSH_HOSTS)
+
+
 @router.post("/push/subscribe")
 async def subscribe(body: SubIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    if not body.endpoint.startswith("https://") or "p256dh" not in body.keys or "auth" not in body.keys:
+    if not _push_host_ok(body.endpoint) or "p256dh" not in body.keys or "auth" not in body.keys:
         raise HTTPException(400, "Ugyldigt abonnement")
     existing = (await db.execute(select(PushSubscription).where(PushSubscription.endpoint == body.endpoint))).scalar_one_or_none()
     if existing:

@@ -155,6 +155,8 @@ async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(a
     if "blocked" in body:
         if target.role == "superadmin":
             raise HTTPException(400)
+        if target.role == "admin" and user.role != "superadmin":
+            raise HTTPException(403, "Kun superadmin kan spærre administratorer")
         target.blocked = bool(body["blocked"])
         if target.blocked:
             async for key in kv().scan_iter("sess:*"):

@@ -1,5 +1,5 @@
 // Indtastning: ture og observationer med DOFbasens felter + status (under observation) og sikkerhed.
-import { api, state, h, icon, fmtN, fmtDate, todayISO, tag, toast, modal, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, todayISO, tag, toast, modal, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, params, setParams, store, sortBar, KAT, esc } from "../core.js";
 import { baseMap } from "../maps.js";
 import { reportCard, statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
 
@@ -286,7 +286,7 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
   setTimeout(() => {  // kortet oprettes når formularen er sat ind på siden
     if (map || !mapEl.isConnected) return;
     map = baseMap(mapEl, { center: v.obs_lat ? [v.obs_lat, v.obs_lon] : trip.lat ? [trip.lat, trip.lon] : [56, 10.5], zoom: 14 });
-    if (trip.lat) L.circleMarker([trip.lat, trip.lon], { radius: 6, color: "#fff", weight: 2, fillColor: "#555", fillOpacity: 1 }).addTo(map).bindTooltip(trip.lok);
+    if (trip.lat) L.circleMarker([trip.lat, trip.lon], { radius: 6, color: "#fff", weight: 2, fillColor: "#555", fillOpacity: 1 }).addTo(map).bindTooltip(esc(trip.lok));
     map.on("click", (e) => setPos(e.latlng.lat, e.latlng.lng));
     setPos(v.obs_lat, v.obs_lon);
   }, 80);

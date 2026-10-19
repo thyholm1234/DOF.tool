@@ -1,4 +1,4 @@
-import { api, h, fmtN, fmtDate, doyLabel, params, setParams, seg, empty, errorBox, windArrow, compass } from "../core.js";
+import { api, h, fmtN, fmtDate, doyLabel, params, setParams, seg, empty, errorBox, windArrow, compass, esc } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
 import { baseMap } from "../maps.js";
 import { windLayer } from "../wind.js";
@@ -201,8 +201,8 @@ async function migrationMap(body) {
       const size = Math.round(Math.min(46, 14 + 7 * Math.log10(s.n + 1)));
       const g = data.groups.find(x => x.group === s.group);
       L.marker([s.lat, s.lon], { icon: L.divIcon({ className: "mig-arrow", html: arrowSvg(s.dir, size, GROUP_COLORS[s.group]), iconSize: [size, size], iconAnchor: [size / 2, size / 2] }) })
-        .bindPopup(`<b>${s.lok}</b><br>${g.label}: ${fmtN(s.n)} ind. mod ${compass(s.dir)} (${s.dir}°)` +
-          `<br><small>${s.species.map(([n, c]) => `${n} ${fmtN(c)}`).join(", ")}</small>`)
+        .bindPopup(`<b>${esc(s.lok)}</b><br>${g.label}: ${fmtN(s.n)} ind. mod ${compass(s.dir)} (${s.dir}°)` +
+          `<br><small>${s.species.map(([n, c]) => `${esc(n)} ${fmtN(c)}`).join(", ")}</small>`)
         .addTo(arrows);
     }
   };

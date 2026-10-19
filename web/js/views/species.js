@@ -1,4 +1,4 @@
-import { api, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, seg, KAT } from "../core.js";
+import { api, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, seg, KAT, esc } from "../core.js";
 import { lineChart, seriesLegend, yearDots, PALETTE } from "../charts.js";
 import { baseMap, katColor } from "../maps.js";
 
@@ -30,7 +30,7 @@ export async function render(view, [artnr]) {
     pttEl, atlasEl);
   const map = baseMap(mapEl, { zoom: 6, center: [56.1, 11] });
   for (const r of sp.recent) L.circleMarker([r.lat, r.lon], { radius: 5, color: "#fff", weight: 1, fillColor: katColor(r.kategori), fillOpacity: .9 }).addTo(map)
-    .bindPopup(`${fmtN(r.antal)} · ${r.lok}<br>${fmtDate(r.dato)}<br><a href="#/traad/${r.dato}/${artnr}/${r.loknr}">Åbn</a>`);
+    .bindPopup(`${fmtN(r.antal)} · ${esc(r.lok)}<br>${fmtDate(r.dato)}<br><a href="#/traad/${r.dato}/${artnr}/${r.loknr}">Åbn</a>`);
   // DOF's punkttællinger og Atlas hentes efter siden er vist (eksterne tjenester, caches på serveren)
   api(`/api/species/${artnr}/punkttaelling`).then(d => pttEl.replaceChildren(pointCountCard(d, sp.navn) || "")).catch(() => {});
   api(`/api/species/${artnr}/atlas`).then(async d => {
@@ -173,7 +173,7 @@ function atlasCard(d, squares, cleanups) {
   const poly = (kode, color, title) => {
     const sq = squares[kode];
     if (!sq) return;
-    L.polygon(sq[1], { renderer, color, weight: .6, fillColor: color, fillOpacity: .7 }).bindTooltip(`${kode} ${sq[0]}<br>${title}`).addTo(layer);
+    L.polygon(sq[1], { renderer, color, weight: .6, fillColor: color, fillOpacity: .7 }).bindTooltip(`${esc(kode)} ${esc(sq[0])}<br>${title}`).addTo(layer);
   };
   const draw = (v) => {
     layer.clearLayers();

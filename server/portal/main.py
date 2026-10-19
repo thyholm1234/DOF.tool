@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import logging
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -56,7 +58,33 @@ async def guard(request: Request, call_next):
         response.headers["Cache-Control"] = "no-cache"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), payment=(), usb=(), geolocation=(self)")
+    if path.startswith("/media/"):
+        # Uploadede filer åbnet direkte må aldrig kunne køre noget
+        response.headers.setdefault("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; sandbox")
+    elif not path.startswith("/api/"):
+        response.headers.setdefault("Content-Security-Policy", csp())
     return response
+
+
+def csp() -> str:
+    """Kun egne scripts (plus det inline splash-script i index.html via hash); kort-fliser og DOFbasen-medier via https."""
+    index = WEB_DIR / "index.html"
+    stamp = index.stat().st_mtime_ns if index.is_file() else 0
+    if _csp["at"] != stamp:
+        html = index.read_text(encoding="utf-8") if stamp else ""
+        hashes = " ".join(f"'sha256-{base64.b64encode(hashlib.sha256(m.encode()).digest()).decode()}'"
+                          for m in re.findall(r"<script>(.*?)</script>", html, re.S))
+        _csp.update(at=stamp, value="; ".join([
+            "default-src 'self'", f"script-src 'self' {hashes}".strip(), "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob: https:", "media-src 'self' blob: https:",
+            "connect-src 'self' https://tile.openstreetmap.org", "font-src 'self' data:", "object-src 'none'",
+            "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'", "worker-src 'self'", "manifest-src 'self'"]))
+    return _csp["value"]
+
+
+_csp = {"at": None, "value": ""}
 
 
 @app.exception_handler(AuthError)
@@ -97,7 +125,7 @@ def build_id() -> str:
 @app.api_route("/index.html", methods=["GET", "HEAD"], include_in_schema=False)
 async def index():
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8").replace("__BUILD__", build_id())
-    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache", "Content-Security-Policy": csp()})
 
 
 @app.api_route("/v/{build}/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)

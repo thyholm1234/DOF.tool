@@ -1,5 +1,5 @@
 // DOF's ture og aktiviteter (fra dof.dk), kodet med lokalafdeling, kommune og lokalitet.
-import { api, state, h, icon, fmtDate, params, setParams, loadRef, empty, errorBox, seg, store, toast, modal, todayISO } from "../core.js";
+import { api, state, h, icon, fmtDate, params, setParams, loadRef, empty, errorBox, seg, store, toast, modal, todayISO, esc } from "../core.js";
 
 export const isModerator = () => !!state.user && ["moderator", "editor", "admin", "superadmin"].includes(state.user.role);
 import { baseMap, cssVar } from "../maps.js";
@@ -82,7 +82,7 @@ async function list(view) {
       for (const r of items.filter(x => x.lat)) {
         pts.push([r.lat, r.lon]);
         L.circleMarker([r.lat, r.lon], { radius: 7, color: "#fff", weight: 2, fillColor: cssVar("--brand"), fillOpacity: 1 }).addTo(map)
-          .bindPopup(`<b>${r.title}</b><br>${fmtDate(r.dato, false)} ${r.tid_fra || ""}<br>${r.arrangoer || ""}<br><a href="#/ture/${r.id}">Vis turen</a>`);
+          .bindPopup(`<b>${esc(r.title)}</b><br>${fmtDate(r.dato, false)} ${esc(r.tid_fra)}<br>${esc(r.arrangoer)}<br><a href="#/ture/${r.id}">Vis turen</a>`);
       }
       if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 10 });
       return;
@@ -154,7 +154,7 @@ async function detail(view, id) {
           e.calendar_id ? h("a", { class: "btn", href: `#/kalender/${e.calendar_id}`, html: `${icon("calendar")} Lokalitetens kalender` }) : null))));
   if (!e.lat) return;
   const map = baseMap(mapEl, { center: [e.lat, e.lon], zoom: 12 });
-  L.marker([e.lat, e.lon]).addTo(map).bindPopup(e.moedested || e.title);
+  L.marker([e.lat, e.lon]).addTo(map).bindPopup(esc(e.moedested || e.title));
   return () => map.remove();
 }
 

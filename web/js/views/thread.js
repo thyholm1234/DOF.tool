@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, errorBox, windArrow, compass, KAT } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
 import { reportCard, statusBadge } from "../reportui.js";
@@ -109,11 +109,11 @@ export async function render(view, [date, artnr, loknr]) {
   const offStatus = live.onStatus((on) => { if (on) refreshComments(); });  // genopkoblet: hent det, vi kan have misset
 
   const map = baseMap(mapEl, { zoom: 11, center: t.lat ? [t.lat, t.lon] : [56, 10.5] });
-  if (t.lat) L.circleMarker([t.lat, t.lon], { radius: 9, color: "#fff", weight: 2, fillColor: katColor(best), fillOpacity: 1 }).addTo(map).bindPopup(t.lok);
-  for (const o of obs) if (o.obs_lat) L.circleMarker([o.obs_lat, o.obs_lon], { radius: 5, weight: 1, color: "#333", fillOpacity: .8 }).addTo(map).bindPopup(`${o.antal} · ${o.observer}`);
+  if (t.lat) L.circleMarker([t.lat, t.lon], { radius: 9, color: "#fff", weight: 2, fillColor: katColor(best), fillOpacity: 1 }).addTo(map).bindPopup(esc(t.lok));
+  for (const o of obs) if (o.obs_lat) L.circleMarker([o.obs_lat, o.obs_lon], { radius: 5, weight: 1, color: "#333", fillOpacity: .8 }).addTo(map).bindPopup(`${esc(o.antal)} · ${esc(o.observer)}`);
   for (const r of reps) if (r.obs_lat) {
     if (r.radius_m) L.circle([r.obs_lat, r.obs_lon], { radius: r.radius_m, weight: 1, color: katColor(r.kategori), fillOpacity: .12 }).addTo(map);
-    L.circleMarker([r.obs_lat, r.obs_lon], { radius: 6, weight: 2, color: "#fff", fillColor: katColor(r.kategori), fillOpacity: 1 }).addTo(map).bindPopup(`${r.antal} · ${r.observer} (portal)`);
+    L.circleMarker([r.obs_lat, r.obs_lon], { radius: 6, weight: 2, color: "#fff", fillColor: katColor(r.kategori), fillOpacity: 1 }).addTo(map).bindPopup(`${esc(r.antal)} · ${esc(r.observer)} (portal)`);
   }
 
   const off = live.on("comment", (c) => {

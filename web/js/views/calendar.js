@@ -1,5 +1,5 @@
 // Kalendere for lokaliteter: planlæg indsatsen på trækposter – hvem kommer hvornår, trækvejr og typisk træk.
-import { api, state, h, icon, fmtN, fmtDate, todayISO, params, setParams, empty, errorBox, seg, store, toast, modal, windArrow, compass } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, todayISO, params, setParams, empty, errorBox, seg, store, toast, modal, windArrow, compass, esc } from "../core.js";
 import { refreshUser } from "../app.js";
 import { baseMap, cssVar } from "../maps.js";
 
@@ -206,7 +206,7 @@ async function calendarPage(view, id) {
       v.note ? h("div", {}, v.note) : null,
       v.lat != null ? h("a", { href: `https://www.openstreetmap.org/?mlat=${v.lat}&mlon=${v.lon}#map=16/${v.lat}/${v.lon}`, target: "_blank", rel: "noopener",
         html: `${icon("pin")} ${v.lat.toFixed(5)}, ${v.lon.toFixed(5)}` }) : null,
-      v.phone ? h("a", { href: `tel:${v.phone.replace(/\s/g, "")}`, html: `${icon("phone")} ${v.phone}` }) : null,
+      v.phone ? h("a", { href: `tel:${v.phone.replace(/\s/g, "")}`, html: `${icon("phone")} ${esc(v.phone)}` }) : null,
       v.own && v.private ? h("small", { class: "muted" }, "Privat – kun du kan se detaljerne") : null))),
       nPrivate ? h("p", { class: "muted", style: { margin: 0 } }, `+ ${nPrivate} privat${nPrivate === 1 ? "" : "e"} besøg`) : null,
       !vs.length ? h("p", { class: "muted", style: { margin: 0 } }, "Ingen har meldt sig endnu.") : null);
@@ -279,7 +279,7 @@ function posPicker(c, own) {
   const box = h("details", { class: "more", open: !!cur, ontoggle: () => {
     if (!box.open || map) return;
     map = baseMap(mapEl, { center: cur || (c.lat ? [c.lat, c.lon] : undefined), zoom: 14 });
-    if (c.lat) L.circleMarker([c.lat, c.lon], { radius: 6, color: "#fff", weight: 2, fillColor: cssVar("--text-3"), fillOpacity: 1 }).addTo(map).bindTooltip(c.lok);
+    if (c.lat) L.circleMarker([c.lat, c.lon], { radius: 6, color: "#fff", weight: 2, fillColor: cssVar("--text-3"), fillOpacity: 1 }).addTo(map).bindTooltip(esc(c.lok));
     map.on("click", (e) => set([e.latlng.lat, e.latlng.lng]));
     set(cur);
   } }, h("summary", {}, "Præcis position / mødested (valgfri)"),
