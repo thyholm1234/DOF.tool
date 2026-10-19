@@ -1,20 +1,18 @@
-import { api, h, fmtN, fmtDate, doyLabel, params, setParams, seg, empty, errorBox, windArrow, compass, esc } from "../core.js";
+import { api, h, fmtN, fmtDate, doyLabel, params, setParams, seg, empty, errorBox, windArrow, compass } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
-import { baseMap, arrowSvg, GROUP_COLORS } from "../maps.js";
-import { windLayer } from "../wind.js";
 
 // Oprydning for den aktive fane (kort og animation)
 let tabCleanup = null;
 const cleanupTab = () => { try { tabCleanup?.(); } catch { /* ignore */ } tabCleanup = null; };
 
 export async function render(view) {
-  const tab = params().tab || "status";
+  const tab = params().tab || "kort";
   const body = h("div", {});
   view.append(h("div", { class: "page-head" },
     h("div", {}, h("h1", {}, "Træk & fænologi"), h("p", { class: "lead" }, "Kommer fuglene tidligere eller senere end normalt? Baseret på indsatskorrigerede DOFbasen-data og DMI's klimadata.")),
     h("span", { class: "spacer" }),
-    seg([["status", "Tidligere/senere"], ["ankomst", "Ankomster i år"], ["kort", "Trækkort"], ["vejr", "Trækvejr"], ["klima", "Klima"], ["metode", "Metode"]], tab, (v) => { setParams({ tab: v }); cleanupTab(); body.replaceChildren(); draw(v); })), body);
-  const draw = (t) => ({ status, ankomst: arrivals, kort: migrationMap, vejr: weather, klima: climate, metode: method }[t] || status)(body);
+    seg([["kort", "Kort"], ["status", "Tidligere/senere"], ["ankomst", "Ankomster i år"], ["vejr", "Trækvejr"], ["klima", "Klima"], ["metode", "Metode"]], tab, (v) => { setParams({ tab: v }); cleanupTab(); body.replaceChildren(); draw(v); })), body);
+  const draw = (t) => ({ status, ankomst: arrivals, kort: mapTab, vejr: weather, klima: climate, metode: method }[t] || mapTab)(body);
   await draw(tab);
   return cleanupTab;
 }
@@ -152,81 +150,9 @@ function method(body) {
     h("p", { class: "muted" }, "Begrænsninger: Rapporteringsrater påvirkes af kampagner, nye lokaliteter og ændret indtastningspraksis. Arter med få observationer giver usikre datoer.")));
 }
 
-// ---------------------------------------------------------------- trækkort: vind kl. 12 + trækretning pr. fuglegruppe
+// ---------------------------------------------------------------- kort over fund og træk (views/map.js)
 
-const DAY_LABEL = ["I dag", "I går", "I forgårs"];
-
-
-async function migrationMap(body) {
-  const p = params();
-  const st = { back: Math.min(2, Number(p.d || 0)), groups: new Set((p.g || "").split(",").filter(Boolean)), wind: p.w !== "0" };
-  const mapEl = h("div", { class: "map", style: { height: "min(70vh, 640px)" } });
-  const chips = h("div", { class: "chips wrap" });
-  const summary = h("div", { class: "mt" });
-  const info = h("p", { class: "muted", style: { fontSize: ".85rem", margin: ".4rem 0 0" } });
-  const windBox = h("input", { type: "checkbox", checked: st.wind });
-  body.append(h("div", { class: "card" },
-    h("div", { class: "row" }, seg(DAY_LABEL.map((l, i) => [String(i), l]), String(st.back), (v) => { st.back = Number(v); load(); }),
-      h("label", { class: "check", style: { marginLeft: "auto" } }, windBox, "Vindanimation (kl. 12)")),
-    h("div", { class: "mt" }, chips), info),
-    h("div", { class: "card mt", style: { padding: 0, overflow: "hidden" } }, mapEl), summary);
-  const map = baseMap(mapEl, { zoom: 7, center: [56.1, 10.9] });
-  const arrows = L.layerGroup().addTo(map);
-  let wind = null, data = null;
-  tabCleanup = () => { wind?.remove(); map.remove(); };
-  const save = () => setParams({ tab: "kort", d: st.back || "", g: [...st.groups].join(","), w: st.wind ? "" : "0" });
-  const shown = (g) => !st.groups.size || st.groups.has(g);
-
-  const drawWind = () => {
-    wind?.remove(); wind = null;
-    if (st.wind && data?.wind?.stations?.length) wind = windLayer(map, data.wind.stations);
-  };
-  windBox.onchange = () => { st.wind = windBox.checked; save(); drawWind(); };
-
-  const drawChips = () => chips.replaceChildren(
-    h("button", { class: `chip ${!st.groups.size ? "on" : ""}`, onclick: () => { st.groups.clear(); redraw(); } }, "Alle grupper"),
-    ...(data?.groups || []).map(g => h("button", { class: `chip ${st.groups.has(g.group) ? "on" : ""}`, onclick: () => {
-      st.groups.has(g.group) ? st.groups.delete(g.group) : st.groups.add(g.group); redraw();
-    } }, h("i", { style: { display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", background: GROUP_COLORS[g.group], marginRight: "6px" } }),
-      g.label, h("span", { class: "muted" }, ` ${fmtN(g.n)}`))));
-
-  const drawArrows = () => {
-    arrows.clearLayers();
-    for (const s of data.sites) {
-      if (!shown(s.group)) continue;
-      const size = Math.round(Math.min(46, 14 + 7 * Math.log10(s.n + 1)));
-      const g = data.groups.find(x => x.group === s.group);
-      L.marker([s.lat, s.lon], { icon: L.divIcon({ className: "mig-arrow", html: arrowSvg(s.dir, size, GROUP_COLORS[s.group]), iconSize: [size, size], iconAnchor: [size / 2, size / 2] }) })
-        .bindPopup(`<b>${esc(s.lok)}</b><br>${g.label}: ${fmtN(s.n)} ind. mod ${compass(s.dir)} (${s.dir}°)` +
-          `<br><small>${s.species.map(([n, c]) => `${esc(n)} ${fmtN(c)}`).join(", ")}</small>`)
-        .addTo(arrows);
-    }
-  };
-
-  const drawSummary = () => {
-    const rows = data.groups.filter(g => shown(g.group));
-    summary.replaceChildren(h("div", { class: "card" }, h("h3", { style: { marginTop: 0 } }, `Hele landet – ${DAY_LABEL[st.back].toLowerCase()}`),
-      h("div", { class: "table-wrap" }, h("table", { class: "data" },
-        h("thead", {}, h("tr", {}, h("th", {}, "Gruppe"), h("th", { class: "right" }, "Individer"), h("th", {}, "Retning (vægtet)"), h("th", { class: "right", title: "1 = alle samme vej, 0 = spredt" }, "Enighed"), h("th", {}, "Flest"))),
-        h("tbody", {}, ...rows.map(g => h("tr", {},
-          h("td", { class: "nowrap" }, h("i", { style: { display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", background: GROUP_COLORS[g.group], marginRight: "6px" } }), g.label),
-          h("td", { class: "right num" }, fmtN(g.n)),
-          h("td", { class: "nowrap" }, g.dir == null ? "–" : h("span", { html: `${arrowSvg(g.dir, 16, GROUP_COLORS[g.group])} mod ${compass(g.dir)} (${g.dir}°)` })),
-          h("td", { class: "right num" }, g.n ? String(g.r).replace(".", ",") : "–"),
-          h("td", { class: "muted", style: { fontSize: ".85rem" } }, g.species.slice(0, 4).map(([n, c]) => `${n} ${fmtN(c)}`).join(", "))))))),
-      h("p", { class: "muted", style: { fontSize: ".82rem", marginBottom: 0 } },
-        "Retning fra adfærdskoden (trækkende mod N, NØ … NV) vægtet med antal individer. Pilene på kortet er pr. lokalitet og gruppe; størrelsen følger antallet. ",
-        "Grupper efter slægt: rovfugle deles i svævere (fx våger, glenter, ørne) og aktive flyvere (høge, falke, kærhøge, fiskeørn); havfugle omfatter også havænder og terner. ",
-        "Vind: DMI-stationernes middelvind kl. 12 (i dag før kl. 12: seneste time), interpoleret mellem stationerne.")));
-  };
-
-  const redraw = () => { save(); drawChips(); drawArrows(); drawSummary(); };
-  const load = async () => {
-    info.textContent = "Henter…";
-    try { data = await api(`/api/pheno/migration?days_back=${st.back}`); } catch (err) { summary.replaceChildren(errorBox(err)); return; }
-    const total = data.groups.reduce((a, g) => a + g.n, 0);
-    info.textContent = `${fmtDate(data.date)} · ${fmtN(total)} trækkende individer med retning på ${fmtN(new Set(data.sites.map(s => s.loknr)).size)} lokaliteter · vind ${data.wind.time} fra ${data.wind.stations.length} DMI-stationer`;
-    redraw(); drawWind();
-  };
-  await load();
+async function mapTab(body) {
+  const { render: renderMap } = await import("./map.js");
+  tabCleanup = await renderMap(body, { embedded: true });
 }

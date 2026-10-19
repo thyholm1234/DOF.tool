@@ -45,7 +45,7 @@ function rose(dirs, deg, color, main) {
   return svg;
 }
 
-export async function render(view) {
+export async function render(view, { embedded = false } = {}) {
   const saved = store("mapst") || {};
   const st = { days: ["1", "y", "sum"].includes(saved.days) ? saved.days : "1", n: SUM_DAYS.includes(saved.n) ? saved.n : 3, on: new Set(saved.on || ["SU", "SUB", "bemaerk", "alm"]), migOnly: !!saved.migOnly, wind: saved.wind !== false,
     group: saved.group || "all" };
@@ -87,7 +87,7 @@ export async function render(view) {
   const windInfo = h("div", { class: "row between wrap", style: { gap: "8px" } });
   const tool = (label, ...content) => h("div", { class: "map-tool" }, h("span", { class: "map-tool-label" }, label), h("div", {}, ...content));
 
-  view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Kort over fund og træk"), info)),
+  view.append(embedded ? h("div", { style: { margin: "0 0 6px 2px" } }, info) : h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Kort over fund og træk"), info)),
     h("div", { class: "card", style: { padding: "8px" } }, mapEl),
     h("div", { class: "card map-toolbar" },
       tool("Periode", periodEl), tool("Klasser", chips), tool("Visning", viewChips), tool("Vind", windInfo)),

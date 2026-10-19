@@ -47,82 +47,101 @@ async def _get(client: httpx.AsyncClient, url: str, params: dict) -> dict | None
     return None
 
 
-# Vindfelt til partikelanimationen: DMI's HARMONIE-model (2 km) i et regulært gitter via Open-Meteo (frit, én
-# forespørgsel med alle punkter). DMI's egen EDR-cube er for langsom/grov til formålet; stationerne er for spredte.
-GRID = {"lat0": 54.25, "lon0": 7.5, "step": 0.25, "ny": 16, "nx": 33}
+# Vindfelt til partikelanimationen: DMI's HARMONIE-model i et regulært gitter via Open-Meteo (frit, én forespørgsel
+# med alle punkter). DMI's egen EDR-cube er for langsom/grov til formålet; stationerne er for spredte.
+# Open-Meteo tæller hvert punkt som et kald (gratis: 600/min, 10.000/døgn), så gitteret er 0,5° (153 punkter), og
+# timeværdierne hentes pr. døgn: afsluttede døgn én gang, i dag højst hvert 45. minut. "Nu" og middelvind deler data.
+GRID = {"lat0": 54.0, "lon0": 7.5, "step": 0.5, "ny": 9, "nx": 17}
 OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
+DAY_HOURS = range(6, 19)  # kl. 6–18: dagtimerne, hvor observationerne (og det synlige træk) kommer fra
 
 
-async def wind_grid() -> dict | None:
-    """{lat0, lon0, step, nx, ny, u: [...], v: [...], time} – rækker fra syd mod nord, u/v i m/s (retning vinden blæser hen)."""
-    hit = await get_json("wind:grid")
-    if hit is not None:
-        return hit
+def _grid_points() -> list[tuple[float, float]]:
     g = GRID
-    pts = [(round(g["lat0"] + j * g["step"], 3), round(g["lon0"] + i * g["step"], 3)) for j in range(g["ny"]) for i in range(g["nx"])]
-    body = {"latitude": ",".join(str(a) for a, _ in pts), "longitude": ",".join(str(o) for _, o in pts),
-            "current": "wind_speed_10m,wind_direction_10m", "wind_speed_unit": "ms", "models": "dmi_seamless"}
-    try:
-        async with httpx.AsyncClient(timeout=30, headers=UA) as client:
-            r = await client.post(OPEN_METEO, data=body)
-            r.raise_for_status()
-            rows = r.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        log.warning("Vindgitter fejlede: %s", exc)
-        return None
-    u, v = [], []
-    for row in rows:
-        c = row.get("current") or {}
-        sp, d = c.get("wind_speed_10m"), c.get("wind_direction_10m")
-        if sp is None or d is None:
-            u.append(0.0); v.append(0.0)
-            continue
-        rad = math.radians(d)  # retning vinden kommer FRA
-        u.append(round(-sp * math.sin(rad), 2)); v.append(round(-sp * math.cos(rad), 2))
-    out = {**g, "u": u, "v": v, "time": (rows[0].get("current") or {}).get("time") if rows else None,
-           "source": "DMI HARMONIE via Open-Meteo"}
-    await set_json("wind:grid", out, 900)
-    return out
+    return [(round(g["lat0"] + j * g["step"], 3), round(g["lon0"] + i * g["step"], 3)) for j in range(g["ny"]) for i in range(g["nx"])]
 
 
-async def wind_grid_period(start, end) -> dict | None:
-    """Middelvind (vektormiddel af u/v) kl. 6–18 dansk tid fra `start` til og med `end` – til at summere flere døgn.
-    Dagtimerne, fordi det er dem observationerne (og det synlige træk) stammer fra."""
-    key = f"wind:grid:{start}:{end}"
-    hit = await get_json(key)
-    if hit is not None:
-        return hit
-    g = GRID
-    pts = [(round(g["lat0"] + j * g["step"], 3), round(g["lon0"] + i * g["step"], 3)) for j in range(g["ny"]) for i in range(g["nx"])]
+async def _days_hours(start, end) -> dict | None:
+    """{dato: {"u": [[24 timer] pr. punkt], "v": [...]}} for alle døgn start..end (dansk tid). None ved fejl.
+    Manglende døgn hentes i ét kald (Open-Meteo tæller pr. punkt, ikke pr. døgn, op til 2 uger)."""
+    from portal.timeutil import dk_today
+    days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+    out = {}
+    for d in days:
+        hit = await get_json(f"wind:day:{d.isoformat()}")
+        if hit is not None:
+            out[d] = hit
+    missing = [d for d in days if d not in out]
+    if not missing:
+        return out
+    pts = _grid_points()
     body = {"latitude": ",".join(str(a) for a, _ in pts), "longitude": ",".join(str(o) for _, o in pts),
             "hourly": "wind_speed_10m,wind_direction_10m", "wind_speed_unit": "ms", "models": "dmi_seamless",
-            "timezone": "Europe/Copenhagen", "start_date": start.isoformat(), "end_date": end.isoformat()}
+            "timezone": "Europe/Copenhagen", "start_date": missing[0].isoformat(), "end_date": missing[-1].isoformat()}
     try:
         async with httpx.AsyncClient(timeout=60, headers=UA) as client:
             r = await client.post(OPEN_METEO, data=body)
             r.raise_for_status()
             rows = r.json()
     except (httpx.HTTPError, ValueError) as exc:
-        log.warning("Vindgitter %s–%s fejlede: %s", start, end, exc)
+        log.warning("Vind for %s–%s fejlede: %s", missing[0], missing[-1], exc)
         return None
-    u, v, hours = [], [], 0
-    for row in rows:
-        hr = row.get("hourly") or {}
-        su = sv = 0.0
-        n = 0
-        for t, sp, d in zip(hr.get("time", []), hr.get("wind_speed_10m", []), hr.get("wind_direction_10m", [])):
-            if sp is None or d is None or not 6 <= int(t[11:13]) <= 18:
-                continue
-            rad = math.radians(d)
-            su -= sp * math.sin(rad); sv -= sp * math.cos(rad); n += 1
-        u.append(round(su / n, 2) if n else 0.0); v.append(round(sv / n, 2) if n else 0.0)
-        hours = max(hours, n)
-    out = {**g, "u": u, "v": v, "start": start.isoformat(), "end": end.isoformat(), "hours": hours,
-           "source": "DMI HARMONIE via Open-Meteo", "mean": True}
-    done = end < datetime.now(timezone.utc).date()
-    if hours:
-        await set_json(key, out, 7 * 86400 if done else 3600)
+    rows = rows if isinstance(rows, list) else [rows]
+    today = dk_today()
+    for di, d in enumerate(d for d in days if missing[0] <= d <= missing[-1]):
+        us, vs = [], []
+        for row in rows:
+            hr = row.get("hourly") or {}
+            sp_all, dir_all = hr.get("wind_speed_10m", []), hr.get("wind_direction_10m", [])
+            u, v = [], []
+            for h in range(di * 24, di * 24 + 24):
+                sp = sp_all[h] if h < len(sp_all) else None
+                dd = dir_all[h] if h < len(dir_all) else None
+                if sp is None or dd is None:
+                    u.append(None); v.append(None)
+                    continue
+                rad = math.radians(dd)  # retning vinden kommer FRA → u/v mod
+                u.append(round(-sp * math.sin(rad), 2)); v.append(round(-sp * math.cos(rad), 2))
+            us.append(u); vs.append(v)
+        out[d] = {"u": us, "v": vs}
+        await set_json(f"wind:day:{d.isoformat()}", out[d], 45 * 60 if d >= today else 30 * 86400)
     return out
+
+
+async def wind_grid() -> dict | None:
+    """Aktuel vind: {lat0, lon0, step, nx, ny, u: [...], v: [...], time} – rækker fra syd mod nord, u/v i m/s."""
+    from portal.timeutil import dk_now
+    now = dk_now()
+    days = await _days_hours(now.date(), now.date())
+    if not days:
+        return None
+    data = days[now.date()]
+    h = now.hour
+    u = [(row[h] if h < len(row) and row[h] is not None else 0.0) for row in data["u"]]
+    v = [(row[h] if h < len(row) and row[h] is not None else 0.0) for row in data["v"]]
+    return {**GRID, "u": u, "v": v, "time": f"{now.date().isoformat()}T{h:02d}:00", "source": "DMI HARMONIE via Open-Meteo"}
+
+
+async def wind_grid_period(start, end) -> dict | None:
+    """Middelvind (vektormiddel af u/v) kl. 6–18 dansk tid fra `start` til og med `end` – til at summere flere døgn."""
+    from portal.timeutil import dk_now
+    now = dk_now()
+    n_pts = GRID["nx"] * GRID["ny"]
+    su, sv, n = [0.0] * n_pts, [0.0] * n_pts, [0] * n_pts
+    days = await _days_hours(start, end)
+    if days is None:
+        return None
+    for day, data in sorted(days.items()):
+        last = now.hour if day == now.date() else 23  # i dag: kun timer der er gået
+        for k in range(min(n_pts, len(data["u"]))):
+            for hr in DAY_HOURS:
+                if hr > last or hr >= len(data["u"][k]) or data["u"][k][hr] is None:
+                    continue
+                su[k] += data["u"][k][hr]; sv[k] += data["v"][k][hr]; n[k] += 1
+    return {**GRID, "u": [round(a / c, 2) if c else 0.0 for a, c in zip(su, n)],
+            "v": [round(b / c, 2) if c else 0.0 for b, c in zip(sv, n)],
+            "start": start.isoformat(), "end": end.isoformat(), "hours": max(n, default=0),
+            "source": "DMI HARMONIE via Open-Meteo", "mean": True}
 
 
 async def current_weather() -> list[dict]:

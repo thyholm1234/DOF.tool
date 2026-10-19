@@ -6,7 +6,6 @@ const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 
 const NAV = [
   ["#/", "now", "Nu"],
-  ["#/kort", "map", "Kort"],
   ["#/kalender", "calendar", "Kalender"],
   ["#/ture", "flag", "Ture"],
   ["#/lister", "list", "Lister"],
@@ -19,7 +18,6 @@ const navItem = (href) => NAV.find(n => n[0] === href);
 
 const ROUTES = [
   [/^\/?$/, () => import("./views/feed.js")],
-  [/^\/kort$/, () => import("./views/map.js")],
   [/^\/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)$/, () => import("./views/thread.js")],
   [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
   [/^\/matrikel$/, () => import("./views/matrikel.js")],
@@ -49,10 +47,10 @@ function renderNav() {
   const items = NAV.map(n => link(n));
   document.body.classList.toggle("anon", !state.user);
   // Mobil: Nu · Kort · [Indtast] · Kalender · Mere (resten samlet i et ark)
-  const inMore = ["#/ture", "#/lister", "#/traek", "#/laer", "#/alarmer", "#/profil", "#/support", "#/admin"].some(p => path.startsWith(p));
+  const inMore = ["#/ture", "#/lister", "#/laer", "#/alarmer", "#/profil", "#/support", "#/admin"].some(p => path.startsWith(p));
   const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
-    ? [link(navItem("#/")), link(navItem("#/kort")), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
+    ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
     : []));
   const side = [...items];
   if (state.user) {
@@ -76,7 +74,7 @@ function openMore() {
   const sheet = h("div", { class: "more-sheet", onclick: (e) => { if (e.target === sheet) close(); } },
     h("div", { class: "more-panel" },
       h("div", { class: "more-grid" },
-        tile("#/ture", "flag", "DOF-ture"), tile("#/lister", "list", "Lister"), tile("#/matrikel", "home", "Matrikel"), tile("#/traek", "trend", "Træk"), tile("#/laer", "learn", "Læring"),
+        tile("#/ture", "flag", "DOF-ture"), tile("#/lister", "list", "Lister"), tile("#/matrikel", "home", "Matrikel"), tile("#/laer", "learn", "Læring"),
         tile("#/indtast", "edit", "Mine indtastninger"), tile("#/kalender/mine", "calendar", "Mine planer"), tile("#/alarmer", "bell", "Alarmer"),
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
         u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread)
@@ -156,6 +154,8 @@ async function route() {
     location.replace("#/login" + (path && path !== "/" ? `?next=${encodeURIComponent("#" + location.hash.slice(1))}` : ""));
     return;
   }
+  // Kortet bor nu under Træk
+  if (path === "/kort") { location.replace("#/traek?tab=kort"); return; }
   renderNav();
   if (state.user) trackView(path);
   document.querySelector(".menu")?.remove();
