@@ -68,7 +68,7 @@ async def scheduler() -> None:
         has_regions = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM region_year_species)"))).scalar()
     if not has_climate:
         await run_safely("climate", refresh_climate())
-    if not has_metrics:
+    if not has_metrics or not await kv().exists("pheno:overview"):
         await kv().rpush(COMMANDS, json.dumps({"cmd": "compute"}))
         await jobstatus.queued("compute")
     elif not has_regions:
