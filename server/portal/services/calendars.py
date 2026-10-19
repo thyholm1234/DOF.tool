@@ -66,7 +66,7 @@ def _visit_json(r, viewer: User) -> dict:
     return {"id": r["id"], "private": r["visibility"] == "private", "own": own, "dato": r["dato"].isoformat(),
             "tid_fra": r["tid_fra"], "tid_til": r["tid_til"], "navn": r["navn"] or r["obserkode"], "obserkode": r["obserkode"],
             "companions": r["companions"], "note": r["note"], "visibility": r["visibility"], "show_phone": r["show_phone"],
-            "phone": (r["prefs"] or {}).get("phone") if r["show_phone"] else None}
+            "phone": (r["prefs"] or {}).get("phone") if r["show_phone"] else None, "lat": r["lat"], "lon": r["lon"]}
 
 
 async def visits(session: AsyncSession, viewer: User, calendar_id: int, start: date, end: date) -> list[dict]:

@@ -179,6 +179,8 @@ class VisitIn(BaseModel):
     companions: str | None = Field(None, max_length=300)
     note: str | None = Field(None, max_length=500)
     show_phone: bool = False
+    lat: float | None = Field(None, ge=-90, le=90)
+    lon: float | None = Field(None, ge=-180, le=180)
 
 
 @router.get("/calendars")
@@ -294,6 +296,14 @@ async def save_visit(cid: int, body: VisitIn, tasks: BackgroundTasks, user: User
     v.visibility, v.show_phone = body.visibility, body.show_phone
     v.companions = (body.companions or "").strip() or None
     v.note = (body.note or "").strip() or None
+    v.lat, v.lon = (None, None)
+    if body.lat is not None and body.lon is not None:
+        far = (await db.execute(text("""
+            SELECT ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 25000) FROM locations WHERE loknr = :l
+        """), {"lat": body.lat, "lon": body.lon, "l": c.loknr})).scalar()
+        if far is False:
+            raise HTTPException(400, "Positionen ligger mere end 25 km fra lokaliteten")
+        v.lat, v.lon = round(body.lat, 6), round(body.lon, 6)
     v.updated_at = datetime.now(timezone.utc)
     await db.commit()
     if new and body.visibility == "public":
@@ -338,7 +348,7 @@ async def my_visits(start: date = Query(alias="from"), end: date = Query(alias="
     if (end - start).days > 120:
         raise HTTPException(400, "For stort interval")
     rows = (await db.execute(text("""
-        SELECT v.id, v.calendar_id, v.dato, v.tid_fra, v.tid_til, v.visibility, v.companions, v.note, c.title, c.kind, c.loknr,
+        SELECT v.id, v.calendar_id, v.dato, v.tid_fra, v.tid_til, v.visibility, v.companions, v.note, v.lat, v.lon, c.title, c.kind, c.loknr,
                l.navn AS lok, k.navn AS kommune,
                (SELECT count(*) FROM calendar_visits o WHERE o.calendar_id = v.calendar_id AND o.dato = v.dato AND o.user_id <> v.user_id) AS others
         FROM calendar_visits v JOIN site_calendars c ON c.id = v.calendar_id JOIN locations l ON l.loknr = c.loknr
@@ -379,7 +389,8 @@ async def ics_mine(token: str, db: AsyncSession = Depends(get_session)):
     """Egne planlagte besøg – til abonnement i Google/Outlook/Apple (kræver ikke login, kun token)."""
     u = await _ics_user(db, token)
     rows = (await db.execute(text("""
-        SELECT v.id, v.dato, v.tid_fra, v.tid_til, v.companions, v.note, c.id AS cid, c.title, l.navn AS lok, l.lat, l.lon
+        SELECT v.id, v.dato, v.tid_fra, v.tid_til, v.companions, v.note, c.id AS cid, c.title, l.navn AS lok,
+               coalesce(v.lat, l.lat) AS lat, coalesce(v.lon, l.lon) AS lon
         FROM calendar_visits v JOIN site_calendars c ON c.id = v.calendar_id JOIN locations l ON l.loknr = c.loknr
         WHERE v.user_id = :u AND v.dato >= current_date - 60 ORDER BY v.dato
     """), {"u": u.id})).mappings().all()
@@ -397,7 +408,7 @@ async def ics_calendar(token: str, cid: int, db: AsyncSession = Depends(get_sess
     c = await _calendar(db, cid)
     rows = (await db.execute(text("""
         SELECT v.id, v.dato, v.tid_fra, v.tid_til, v.companions, v.visibility, v.user_id, coalesce(us.navn, us.obserkode) AS navn,
-               l.navn AS lok, l.lat, l.lon
+               l.navn AS lok, coalesce(v.lat, l.lat) AS lat, coalesce(v.lon, l.lon) AS lon
         FROM calendar_visits v JOIN users us ON us.id = v.user_id JOIN locations l ON l.loknr = :l
         WHERE v.calendar_id = :c AND v.dato >= current_date - 60 AND (v.visibility = 'public' OR v.user_id = :u) ORDER BY v.dato
     """), {"c": c.id, "u": u.id, "l": c.loknr})).mappings().all()

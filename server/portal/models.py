@@ -612,6 +612,21 @@ class SupportMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class CommentBan(Base):
+    """Udelukkelse fra at kommentere (som blacklisten i DOF.not). Kan være tidsbegrænset; med hide_comments
+    ses brugerens kommentarer kun af brugeren selv, så længe udelukkelsen gælder."""
+
+    __tablename__ = "comment_bans"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    reason: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str | None] = mapped_column(Text)  # kommentaren der førte til udelukkelsen
+    hide_comments: Mapped[bool] = mapped_column(Boolean, default=True)
+    until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ---------------------------------------------------------------- datastatus: DOFbasen-måneder og vejrarkiv
 
 
@@ -728,6 +743,8 @@ class CalendarVisit(Base):
     companions: Mapped[str | None] = mapped_column(String(300))
     note: Mapped[str | None] = mapped_column(String(500))
     show_phone: Mapped[bool] = mapped_column(Boolean, default=False)
+    lat: Mapped[float | None] = mapped_column(Float)  # præcis position/mødested (valgfri)
+    lon: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -749,6 +766,8 @@ EXTRA_DDL = [
     "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS retningslinjer boolean NOT NULL DEFAULT false",
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS source varchar(8) NOT NULL DEFAULT 'dof'",
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS created_by integer REFERENCES users(id) ON DELETE SET NULL",
+    "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lat double precision",
+    "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lon double precision",
     # Portalens egne ture får id'er langt fra dof.dk's event_id'er
     "CREATE SEQUENCE IF NOT EXISTS portal_event_seq START 900000000",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"

@@ -1,6 +1,7 @@
 // Kalendere for lokaliteter: planlæg indsatsen på trækposter – hvem kommer hvornår, trækvejr og typisk træk.
 import { api, state, h, icon, fmtN, fmtDate, todayISO, params, setParams, empty, errorBox, seg, store, toast, modal, windArrow, compass } from "../core.js";
 import { refreshUser } from "../app.js";
+import { baseMap, cssVar } from "../maps.js";
 
 const MONTHS = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"];
 const WD = ["man", "tir", "ons", "tor", "fre", "lør", "søn"];
@@ -203,6 +204,8 @@ async function calendarPage(view, id) {
       h("div", { class: "row between" }, h("b", {}, v.own ? "Dig" : v.navn), h("span", { class: "num" }, `${v.tid_fra}${v.tid_til ? "–" + v.tid_til : ""}`)),
       v.companions ? h("div", { class: "muted" }, `Med: ${v.companions}`) : null,
       v.note ? h("div", {}, v.note) : null,
+      v.lat != null ? h("a", { href: `https://www.openstreetmap.org/?mlat=${v.lat}&mlon=${v.lon}#map=16/${v.lat}/${v.lon}`, target: "_blank", rel: "noopener",
+        html: `${icon("pin")} ${v.lat.toFixed(5)}, ${v.lon.toFixed(5)}` }) : null,
       v.phone ? h("a", { href: `tel:${v.phone.replace(/\s/g, "")}`, html: `${icon("phone")} ${v.phone}` }) : null,
       v.own && v.private ? h("small", { class: "muted" }, "Privat – kun du kan se detaljerne") : null))),
       nPrivate ? h("p", { class: "muted", style: { margin: 0 } }, `+ ${nPrivate} privat${nPrivate === 1 ? "" : "e"} besøg`) : null,
@@ -228,11 +231,12 @@ function visitForm(c, day, own, done) {
   const comp = h("input", { maxlength: 300, placeholder: "Navne – fx Jens og Mette", value: own?.companions || "" });
   const note = h("input", { maxlength: 500, placeholder: "Fx 'tager scope med', 'tæller for DOF-træktælling'", value: own?.note || "" });
   const showPhone = h("input", { type: "checkbox", checked: own ? own.show_phone : !!phone, disabled: !phone });
+  const pos = posPicker(c, own);
   return h("form", { class: "card stack", style: { boxShadow: "none", background: "var(--surface-2)" }, onsubmit: async (e) => {
     e.preventDefault();
     try {
       await api(`/api/calendars/${c.id}/visits`, { method: "POST", body: { dato: day, tid_fra: fra.value, tid_til: til.value || null, visibility: vis,
-        companions: comp.value || null, note: note.value || null, show_phone: showPhone.checked } });
+        companions: comp.value || null, note: note.value || null, show_phone: showPhone.checked, ...pos.value() } });
       store("calvis", vis);
       toast(own ? "Dit besøg er opdateret" : `Du er meldt til ${c.title} ${fmtDate(day, false)}`);
       done();
@@ -244,10 +248,51 @@ function visitForm(c, day, own, done) {
       h("small", { class: "muted", style: { display: "block", marginTop: "4px" } }, "Privat: andre ser kun, at der kommer nogen.")),
     h("label", { class: "field" }, h("span", {}, "Hvem kommer med?"), comp),
     h("label", { class: "field" }, h("span", {}, "Note"), note),
+    pos.el,
     h("label", { class: "check" }, showPhone, h("span", {}, phone ? `Vis mit telefonnummer (${phone})` : h("span", {}, "Vis telefonnummer – ", h("a", { href: "#/profil" }, "tilføj det under Profil")))),
     h("div", { class: "row between" },
       own ? h("button", { type: "button", class: "btn ghost danger", onclick: async () => { await api(`/api/visits/${own.id}`, { method: "DELETE" }); toast("Afmeldt"); done(); } }, "Afmeld") : h("span"),
       h("button", { class: "btn primary" }, own ? "Gem" : "Meld mig til")));
+}
+
+// Præcis position/mødested på lokaliteten: tryk på kortet, brug egen position eller skriv koordinater
+function posPicker(c, own) {
+  let cur = own?.lat != null ? [own.lat, own.lon] : null;
+  const inp = h("input", { inputmode: "decimal", placeholder: "Fx 54.58312, 11.48021", value: cur ? `${cur[0]}, ${cur[1]}` : "" });
+  const mapEl = h("div", { class: "map small", style: { height: "220px" } });
+  let map = null, marker = null;
+  const set = (ll, fromInput = false) => {
+    cur = ll;
+    if (!fromInput) inp.value = ll ? `${ll[0].toFixed(5)}, ${ll[1].toFixed(5)}` : "";
+    inp.classList.remove("invalid");
+    if (!map) return;
+    marker?.remove(); marker = null;
+    if (ll) { marker = L.marker(ll).addTo(map); map.panTo(ll); }
+  };
+  inp.oninput = () => {
+    const t = inp.value.includes(".") ? inp.value : inp.value.replace(/,(\d)/g, ".$1");  // dansk decimalkomma
+    const m = t.match(/(-?\d+(?:\.\d+)?)[\s;,]+(-?\d+(?:\.\d+)?)/);
+    if (!inp.value.trim()) set(null, true);
+    else if (m) set([Number(m[1]), Number(m[2])], true);
+    else inp.classList.add("invalid");
+  };
+  const box = h("details", { class: "more", open: !!cur, ontoggle: () => {
+    if (!box.open || map) return;
+    map = baseMap(mapEl, { center: cur || (c.lat ? [c.lat, c.lon] : undefined), zoom: 14 });
+    if (c.lat) L.circleMarker([c.lat, c.lon], { radius: 6, color: "#fff", weight: 2, fillColor: cssVar("--text-3"), fillOpacity: 1 }).addTo(map).bindTooltip(c.lok);
+    map.on("click", (e) => set([e.latlng.lat, e.latlng.lng]));
+    set(cur);
+  } }, h("summary", {}, "Præcis position / mødested (valgfri)"),
+    h("div", { class: "stack", style: { gap: "8px", marginTop: "8px" } },
+      h("small", { class: "muted" }, "Tryk på kortet, hvor du står eller mødes – fx et bestemt punkt på trækposten. Vises for de andre og i kalenderabonnementet."),
+      mapEl,
+      h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, inp,
+        h("button", { type: "button", class: "btn sm", title: "Brug min position", html: icon("pin"), onclick: () => {
+          navigator.geolocation?.getCurrentPosition((p) => set([p.coords.latitude, p.coords.longitude]),
+            (err) => toast("Position ikke tilgængelig: " + err.message, "err"), { timeout: 15000, enableHighAccuracy: true });
+        } }),
+        h("button", { type: "button", class: "btn sm ghost", onclick: () => set(null) }, "Ryd"))));
+  return { el: box, value: () => cur ? { lat: cur[0], lon: cur[1] } : { lat: null, lon: null } };
 }
 
 function editCalendar(c, done) {

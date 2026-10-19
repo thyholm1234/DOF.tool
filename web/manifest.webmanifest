@@ -1,22 +1,50 @@
 {
-  "name": "DOF.tool – feltornitologernes portal",
+  "name": "DOF.tool",
   "short_name": "DOF.tool",
   "description": "Live-observationer, notifikationer, årslister, fænologi og læring for feltornitologer.",
   "lang": "da",
   "start_url": "/#/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f4f2ec",
+  "background_color": "#1f5a44",
   "theme_color": "#1f5a44",
   "icons": [
-    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
   ],
   "shortcuts": [
-    { "name": "Nu", "url": "/#/" },
-    { "name": "Kort", "url": "/#/kort" },
-    { "name": "Mine lister", "url": "/#/lister" }
+    {
+      "name": "Nu",
+      "url": "/#/"
+    },
+    {
+      "name": "Kort",
+      "url": "/#/kort"
+    },
+    {
+      "name": "Mine lister",
+      "url": "/#/lister"
+    }
   ]
 }

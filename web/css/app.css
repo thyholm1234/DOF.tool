@@ -30,7 +30,8 @@
   --radius: 14px;
   --radius-sm: 9px;
   --nav-h: 64px;
-  --top-h: 56px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --top-h: calc(56px + var(--safe-top));
   --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: light;
@@ -73,7 +74,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
 /* ---------- shell ---------- */
 .topbar {
   position: sticky; top: 0; z-index: 50; height: var(--top-h); display: flex; align-items: center; gap: .75rem;
-  padding: 0 max(16px, env(safe-area-inset-left)); background: color-mix(in srgb, var(--bg) 88%, transparent);
+  padding: var(--safe-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: .55rem; font-weight: 800; color: var(--text); font-size: 1.05rem; }
@@ -186,7 +187,7 @@ input, select, textarea {
   padding: 0 12px; height: 40px; width: 100%; min-width: 0;
 }
 textarea { padding: 10px 12px; height: auto; min-height: 90px; resize: vertical; }
-input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; accent-color: var(--brand); }
+input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; flex: none; accent-color: var(--brand); }
 input[type="range"] { padding: 0; accent-color: var(--brand); }
 label.field { display: block; }
 label.field > span { display: block; font-size: .8rem; font-weight: 650; color: var(--text-2); margin-bottom: 4px; }
@@ -504,7 +505,8 @@ i.mg-key { display: inline-block; min-width: 14px; width: 14px; height: 14px; bo
 .report-form select.required:invalid, .report-form select.required[value=""] { border-color: color-mix(in srgb, var(--su) 40%, var(--line-strong)); }
 .report-form .invalid { border-color: var(--su) !important; box-shadow: 0 0 0 3px var(--su-soft); }
 .report-form label.check.guide { align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
-.report-form label.check.guide input { margin-top: 3px; }
+.report-form label.check.guide { gap: .75rem; }
+.report-form label.check.guide input { width: 24px; height: 24px; margin: 1px 0 0; }
 .report-form label.check.guide.invalid { border-color: var(--su); }
 .dd-wrap { position: relative; }
 .suggest.dropdown { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); background: var(--surface); border: 1px solid var(--line-strong);
@@ -606,3 +608,8 @@ body.anon main#view { padding-bottom: 32px; max-width: 1080px; }
 /* Moderation */
 .mod-item { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .mod-item.hidden { opacity: .6; background: var(--bg-2); }
+.mod-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; flex: none; max-width: 50%; }
+@media (max-width: 560px) { .mod-item { flex-direction: column; } .mod-actions { max-width: none; justify-content: flex-start; } }
+blockquote.quote { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--line-strong); background: var(--surface); border-radius: 0 8px 8px 0; white-space: pre-wrap; }
+blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; }
+.comment-ban { font-size: .9rem; }

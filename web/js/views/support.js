@@ -2,7 +2,8 @@
 import { api, state, h, icon, ago, fmtDate, params, setParams, requireLogin, toast, empty, errorBox, seg } from "../core.js";
 import { refreshUnread } from "../app.js";
 
-export const KINDS = { feedback: "Feedback", support: "Hjælp", fejl: "Fejl", ide: "Idé" };
+export const KINDS = { feedback: "Feedback", support: "Hjælp", fejl: "Fejl", ide: "Idé", moderation: "Moderation" };
+const NEW_KINDS = Object.entries(KINDS).filter(([k]) => k !== "moderation");
 
 export async function render(view) {
   if (requireLogin(view)) return;
@@ -10,7 +11,7 @@ export async function render(view) {
   const detail = h("div", {});
   view.append(
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Feedback og support"),
-      h("p", { class: "lead" }, "Skriv til portalens administratorer – ros, fejl, ønsker eller spørgsmål. Du får svar her og som notifikation."))),
+      h("p", { class: "lead" }, "Skriv til portalens administratorer – ros, fejl, ønsker eller spørgsmål. Du får svar her og som notifikation. Beskeder fra moderatorerne lander også her."))),
     h("div", { class: "report-layout" }, h("div", { class: "stack" }, newForm(() => load()), list), detail));
 
   const load = async () => {
@@ -52,7 +53,7 @@ function newForm(done) {
     } catch (err) { toast(err.message, "err"); }
   } },
     h("h2", { style: { margin: 0 } }, "Ny besked"),
-    seg(Object.entries(KINDS), kind, (v) => { kind = v; }),
+    seg(NEW_KINDS, kind, (v) => { kind = v; }),
     h("label", { class: "field" }, h("span", {}, "Emne"), subject),
     h("label", { class: "field" }, h("span", {}, "Besked"), body),
     h("small", { class: "muted" }, "Siden du er på, appversion og browser sendes med, så vi lettere kan finde fejl."),
@@ -70,9 +71,11 @@ export function conversation(t, onChange, { admin = false } = {}) {
         catch (err) { toast(err.message, "err"); }
       } }, t.status === "closed" ? "Genåbn" : "Luk samtalen")),
     h("div", { class: "support-msgs" }, ...t.messages.map(m => h("div", { class: `support-msg ${m.from_admin ? "admin" : "user"}` },
-      h("div", { class: "row between" }, h("b", {}, m.from_admin ? `${m.navn || "Admin"} (admin)` : (m.navn || "Bruger")), h("small", { class: "muted" }, ago(m.created_at))),
+      h("div", { class: "row between" }, h("b", {}, m.from_admin ? `${m.navn || "Admin"} (${t.kind === "moderation" ? "moderator" : "admin"})` : (m.navn || "Bruger")), h("small", { class: "muted" }, ago(m.created_at))),
+      m.context?.comment ? h("blockquote", { class: "quote" }, h("small", { class: "muted" }, "Om din kommentar"), h("div", {}, m.context.comment),
+        m.context.path ? h("a", { href: m.context.path }, "åbn tråden") : null) : null,
       h("p", { style: { margin: "4px 0 0", whiteSpace: "pre-wrap" } }, m.body),
-      admin && m.context ? h("small", { class: "muted", style: { display: "block", marginTop: "4px", wordBreak: "break-all" } },
+      admin && m.context && !m.context.comment ? h("small", { class: "muted", style: { display: "block", marginTop: "4px", wordBreak: "break-all" } },
         [m.context.path, m.context.version && `v ${m.context.version}`, m.context.screen, m.context.browser].filter(Boolean).join(" · ")) : null))),
     h("form", { class: "stack", onsubmit: async (e) => {
       e.preventDefault();

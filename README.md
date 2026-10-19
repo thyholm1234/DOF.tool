@@ -163,6 +163,13 @@ træksteder med enkle tommelfingerregler. Se fanen *Metode* i appen.
 **Læring.** Redaktører (rolle *editor*) opretter kurser og spørgsmål med billede/lyd-upload.
 Forkerte svar kommer igen (Leitner-kasser). Fire automatiske quizzer genereres af portalens egne data.
 
+**Moderation** (rolle *moderator* og op). Admin → Moderation har tre faner: *Kommentarer* (skjul/vis,
+skriv til brugeren, udeluk), *Beskeder* (samtaler startet af moderatorer – de ligger i brugerens
+Feedback og support, og alle moderatorer kan svare) og *Udelukkede*. En udelukkelse (som DOF.not's
+blacklist) har en påkrævet årsag, varighed (1/7/30 dage eller indtil videre) og kan skjule brugerens
+kommentarer for andre, mens den gælder. Moderatorer opretter også portalens egne ture under Ture.
+Kommentarspor opdateres live (SSE): ved enhver ændring henter åbne tråde den aktuelle version.
+
 ## Udvikling
 
 ```bash

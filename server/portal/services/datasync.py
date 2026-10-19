@@ -226,6 +226,21 @@ async def queued_months() -> set[str]:
     return out
 
 
+async def delete_month(session: AsyncSession, y: int, m: int) -> int:
+    """Slet en måneds observationer og ture fra DOFbasen samt hentestatus, så måneden kan hentes på ny."""
+    start = date(y, m, 1)
+    end = date(y + (m == 12), m % 12 + 1, 1)
+    p = {"a": start, "b": end}
+    n = (await session.execute(text("DELETE FROM observations WHERE dato >= :a AND dato < :b"), p)).rowcount
+    await session.execute(text("DELETE FROM trips WHERE dato >= :a AND dato < :b"), p)
+    await session.execute(text("DELETE FROM day_sync WHERE dato >= :a AND dato < :b"), p)
+    await session.execute(text("DELETE FROM month_sync WHERE year = :y AND month = :m"), {"y": y, "m": m})
+    await session.execute(text("DELETE FROM archive_files WHERE name = :n"), {"n": f"dofbasen_{y}_{m:02d}.csv"})
+    await session.commit()
+    await kv().delete("datastat:dof:counts")
+    return n or 0
+
+
 async def record_month(session: AsyncSession, y: int, m: int, source: str, rows: int) -> None:
     await session.execute(text("""
         INSERT INTO month_sync (year, month, source, rows, fetched_at) VALUES (:y, :m, :s, :r, now())

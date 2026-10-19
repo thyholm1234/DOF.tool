@@ -366,6 +366,22 @@ async def loop() -> None:
 # ---------------------------------------------------------------- status og opslag
 
 
+async def delete_month(session, y: int, m: int) -> int:
+    """Slet en måneds vejrdata (døgnværdier + status), så måneden står som ikke hentet."""
+    live = await kv().hgetall(LIVE)
+    if live and live.get("month") == month_key(y, m):
+        raise ValueError("Måneden er ved at blive hentet – vent til den er færdig")
+    start = date(y, m, 1)
+    end = date(y + (m == 12), m % 12 + 1, 1)
+    n = (await session.execute(text("DELETE FROM weather_cell_day WHERE dato >= :a AND dato < :b"), {"a": start, "b": end})).rowcount
+    await session.execute(text("DELETE FROM weather_months WHERE year = :y AND month = :m"), {"y": y, "m": m})
+    k = month_key(y, m)
+    await kv().lrem(QUEUE, 0, k)
+    await kv().srem(QUEUED, k)
+    await session.commit()
+    return n or 0
+
+
 async def status(session) -> dict:
     months = {}
     for y, m, st, rows, cells, b, sec, err, at in (await session.execute(text("""

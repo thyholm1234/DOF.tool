@@ -19,7 +19,11 @@ async function list(view) {
   await loadRef();
   const p = params();
   const myAfd = (state.user?.prefs?.afdelinger || []).map(Number);
-  const st = { afd: p.afd ?? (myAfd.length ? "mine" : ""), kom: p.kom || "", type: p.type || "", q: "", sort: store("evsort") || "dato", mode: p.vis || "liste", pos: null };
+  // Filtrene huskes (lokalt i browseren), så de er der igen, når man går til en tur og tilbage
+  const saved = store("evfilter") || {};
+  const pick = (k, def) => p[k] ?? saved[k] ?? def;
+  const st = { afd: pick("afd", myAfd.length ? "mine" : "").replace("alle", ""), kom: pick("kom", ""), type: pick("type", ""), q: saved.q || "",
+    sort: store("evsort") || "dato", mode: pick("vis", "liste"), pos: null };
   const out = h("div", {}, h("div", { class: "skeleton", style: { height: "240px" } }));
   view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "DOF-ture og aktiviteter"),
     h("p", { class: "lead" }, "Kommende ture, foredrag og kurser fra ", h("a", { href: "https://www.dof.dk/oplev-fuglene/ture-og-aktiviter", target: "_blank", rel: "noopener" }, "dof.dk"),
@@ -40,7 +44,7 @@ async function list(view) {
   komSel.value = st.kom;
   const typeSel = h("select", { style: { width: "auto" } }, h("option", { value: "" }, "Alle typer"), ...types.map(t => h("option", { value: t }, t)));
   typeSel.value = st.type;
-  const search = h("input", { type: "search", placeholder: "Søg titel, sted, arrangør…", style: { maxWidth: "260px" } });
+  const search = h("input", { type: "search", placeholder: "Søg titel, sted, arrangør…", value: st.q, style: { maxWidth: "260px" } });
   const body = h("div", { class: "mt" });
   let map = null;
 
@@ -65,7 +69,8 @@ async function list(view) {
       st.sort === "afstand" ? h("small", { class: "muted" }, fmtDate(r.dato, false)) : null));
 
   const draw = () => {
-    setParams({ afd: st.afd, kom: st.kom, type: st.type, vis: st.mode === "kort" ? "kort" : "" });
+    setParams({ afd: st.afd || "alle", kom: st.kom, type: st.type, vis: st.mode === "kort" ? "kort" : "" });
+    store("evfilter", { afd: st.afd, kom: st.kom, type: st.type, q: st.q, vis: st.mode });
     const items = filtered();
     if (map) { map.remove(); map = null; }
     if (!items.length) { body.replaceChildren(empty("Ingen ture matcher filtrene")); return; }
@@ -108,7 +113,10 @@ async function list(view) {
       seg([["liste", "Liste"], ["kort", "Kort"]], st.mode, (v) => { st.mode = v; draw(); }))), body);
   if (st.sort === "afstand") { st.sort = "dato"; setSort("afstand"); }
   draw();
-  return () => map?.remove();
+  // Tilbage fra en tur: hop til samme sted i listen
+  const y = Number(sessionStorage.getItem("evscroll") || 0);
+  if (y) setTimeout(() => window.scrollTo(0, y), 0);
+  return () => { sessionStorage.setItem("evscroll", String(window.scrollY)); map?.remove(); };
 }
 
 async function detail(view, id) {

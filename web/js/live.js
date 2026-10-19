@@ -26,5 +26,5 @@ export const live = {
     handlers.get(type).add(fn);
     return () => handlers.get(type).delete(fn);
   },
-  onStatus(fn) { statusHandlers.add(fn); },
+  onStatus(fn) { statusHandlers.add(fn); return () => statusHandlers.delete(fn); },
 };

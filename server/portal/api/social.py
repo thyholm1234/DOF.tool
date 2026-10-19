@@ -16,9 +16,11 @@ from portal.db import SessionLocal, get_session
 from portal.models import Like, SupportMessage, SupportThread, ThreadComment, User
 from portal.services import activity
 from portal.services.alerts import deliver
+from portal.services.auth import role_at_least
 
 router = APIRouter(prefix="/api", tags=["social"])
 admin = require_role("admin")
+moderator = require_role("moderator")
 
 THREAD_KEY = re.compile(r"^\d{4}-\d{2}-\d{2}/\d+/\d+$")
 
@@ -177,7 +179,7 @@ async def page_view(body: ViewIn, request: Request, user: User | None = Depends(
 
 # ---------------------------------------------------------------- support og feedback
 
-KINDS = {"feedback": "Feedback", "support": "Hjælp/support", "fejl": "Fejl", "ide": "Idé"}
+KINDS = {"feedback": "Feedback", "support": "Hjælp/support", "fejl": "Fejl", "ide": "Idé", "moderation": "Moderation"}
 
 
 class NewThreadIn(BaseModel):
@@ -197,10 +199,16 @@ def _ctx(ctx: dict | None, request: Request) -> dict:
     return out
 
 
-async def _admins(db: AsyncSession, exclude: int | None = None) -> list[int]:
-    """Administratorer, der skal have besked – aldrig afsenderen selv."""
-    return [r[0] for r in (await db.execute(text(
-        "SELECT id FROM users WHERE role IN ('admin', 'superadmin') AND NOT blocked"))).all() if r[0] != exclude]
+async def _admins(db: AsyncSession, exclude: int | None = None, kind: str | None = None) -> list[int]:
+    """Dem der skal have besked – aldrig afsenderen selv. Moderationssamtaler går til alle moderatorer."""
+    roles = ("moderator", "editor", "admin", "superadmin") if kind == "moderation" else ("admin", "superadmin")
+    return [r[0] for r in (await db.execute(text("SELECT id FROM users WHERE role = ANY(:r) AND NOT blocked"),
+                                            {"r": list(roles)})).all() if r[0] != exclude]
+
+
+def _staff(t: SupportThread, user: User) -> bool:
+    """Må svare som 'admin' i samtalen: administratorer altid, moderatorer i moderationssamtaler."""
+    return role_at_least(user, "admin") or (t.kind == "moderation" and role_at_least(user, "moderator"))
 
 
 async def _thread_json(db: AsyncSession, t: SupportThread, viewer: User) -> dict:
@@ -209,10 +217,11 @@ async def _thread_json(db: AsyncSession, t: SupportThread, viewer: User) -> dict
         FROM support_messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.thread_id = :t ORDER BY m.created_at
     """), {"t": t.id})).mappings().all()
     owner = await db.get(User, t.user_id)
-    is_admin = viewer.role in ("admin", "superadmin")
+    is_admin = _staff(t, viewer) and viewer.id != t.user_id
     return {"id": t.id, "subject": t.subject, "kind": t.kind, "status": t.status, "created_at": t.created_at,
             "updated_at": t.updated_at, "user": {"navn": owner.navn if owner else None, "obserkode": owner.obserkode if owner else None},
-            "messages": [{**dict(m), "context": m["context"] if is_admin else None} for m in msgs]}
+            "messages": [{**dict(m), "context": m["context"] if is_admin or (m["from_admin"] and t.kind == "moderation") else None}
+                         for m in msgs]}
 
 
 async def _notify(user_ids: list[int], title: str, body: str, url: str, dedup: str) -> None:
@@ -236,8 +245,9 @@ async def unread(user: User = Depends(require_user), db: AsyncSession = Depends(
     mine = (await db.execute(text("SELECT count(*) FROM support_threads WHERE user_id = :u AND unread_user"),
                              {"u": user.id})).scalar()
     out = {"user": mine}
-    if user.role in ("admin", "superadmin"):
-        out["admin"] = (await db.execute(text("SELECT count(*) FROM support_threads WHERE unread_admin"))).scalar()
+    if role_at_least(user, "moderator"):
+        out["admin"] = (await db.execute(text("SELECT count(*) FROM support_threads WHERE unread_admin AND (:all OR kind = 'moderation')"),
+                                         {"all": role_at_least(user, "admin")})).scalar()
     return out
 
 
@@ -261,7 +271,7 @@ async def new_thread(body: NewThreadIn, request: Request, tasks: BackgroundTasks
 
 async def _visible_thread(db: AsyncSession, thread_id: int, user: User) -> SupportThread:
     t = await db.get(SupportThread, thread_id)
-    if t is None or (t.user_id != user.id and user.role not in ("admin", "superadmin")):
+    if t is None or (t.user_id != user.id and not _staff(t, user)):
         raise HTTPException(404, "Samtalen findes ikke")
     return t
 
@@ -271,7 +281,7 @@ async def get_thread(thread_id: int, user: User = Depends(require_user), db: Asy
     t = await _visible_thread(db, thread_id, user)
     if t.user_id == user.id and t.unread_user:
         t.unread_user = False
-    elif user.role in ("admin", "superadmin") and t.user_id != user.id and t.unread_admin:
+    elif _staff(t, user) and t.user_id != user.id and t.unread_admin:
         t.unread_admin = False
     await db.commit()
     return await _thread_json(db, t, user)
@@ -294,11 +304,13 @@ async def reply(thread_id: int, body: MessageIn, request: Request, tasks: Backgr
     await db.commit()
     who = user.navn or user.obserkode
     if from_admin:
-        tasks.add_task(_notify, [t.user_id], f"Svar fra DOF.tool: {t.subject}", body.body, f"/#/support?t={t.id}",
+        sender = "moderator" if t.kind == "moderation" else "DOF.tool"
+        tasks.add_task(_notify, [t.user_id], f"Svar fra {sender}: {t.subject}", body.body, f"/#/support?t={t.id}",
                        f"support:{t.id}:{m.id}")
     else:
-        tasks.add_task(_notify, await _admins(db, user.id), f"Nyt svar fra {who}: {t.subject}", body.body,
-                       f"/#/admin?tab=support&t={t.id}", f"support:{t.id}:{m.id}")
+        tab = "moderation&vis=beskeder" if t.kind == "moderation" else "support"
+        tasks.add_task(_notify, await _admins(db, user.id, t.kind), f"Nyt svar fra {who}: {t.subject}", body.body,
+                       f"/#/admin?tab={tab}&t={t.id}", f"support:{t.id}:{m.id}")
     return await _thread_json(db, t, user)
 
 
@@ -315,14 +327,17 @@ async def set_status(thread_id: int, body: StatusIn, user: User = Depends(requir
 
 
 @router.get("/admin/support")
-async def admin_threads(status: str = "open", user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def admin_threads(status: str = "open", kind: str = "", user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    if not role_at_least(user, "admin"):
+        kind = "moderation"  # moderatorer ser kun moderationssamtaler
     rows = (await db.execute(text("""
         SELECT t.id, t.subject, t.kind, t.status, t.unread_admin AS unread, t.updated_at, t.created_at,
                coalesce(u.navn, u.obserkode) AS navn, u.obserkode,
                (SELECT count(*) FROM support_messages m WHERE m.thread_id = t.id) AS n
         FROM support_threads t JOIN users u ON u.id = t.user_id
-        WHERE (:s = 'all' OR t.status = :s) ORDER BY t.unread_admin DESC, t.updated_at DESC LIMIT 200
-    """), {"s": status})).mappings().all()
+        WHERE (:s = 'all' OR t.status = :s) AND (:k = '' OR t.kind = :k)
+        ORDER BY t.unread_admin DESC, t.updated_at DESC LIMIT 200
+    """), {"s": status, "k": kind})).mappings().all()
     return [dict(r) for r in rows]
 
 

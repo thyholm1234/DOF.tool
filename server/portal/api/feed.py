@@ -10,13 +10,13 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import optional_user, require_user
-from portal.cache import kv, publish
+from portal.cache import kv
 from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.jobs import media_for
 from portal.models import Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
-from portal.services import activity, feed, reports
+from portal.services import activity, feed, moderation, reports
 from portal.services.auth import role_at_least
 from portal.services.areas import Scope, parse_scope
 from portal.timeutil import dk_today
@@ -78,21 +78,35 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
     if data is None:
         data = await feed.thread_meta(db, day, artnr, loknr)
     data["reports"] = portal
-    comments = (await db.execute(text("""
-        SELECT c.id, c.body, c.created_at, u.navn, u.obserkode, c.user_id FROM thread_comments c JOIN users u ON u.id = c.user_id
-        WHERE c.dato = :d AND c.artnr = :a AND c.loknr = :l AND NOT c.hidden ORDER BY c.created_at
-    """), {"d": day, "a": artnr, "l": loknr})).mappings().all()
-    data["comments"] = [dict(c) for c in comments]
+    data["comments"] = await _comments(db, day, artnr, loknr, user)
     key = f"{day.isoformat()}/{artnr}/{loknr}"
     data["likes"] = (await like_summary(db, "thread", [key], user)).get(key) or {"count": 0, "liked": False, "names": []}
-    clikes = await like_summary(db, "comment", [str(c["id"]) for c in data["comments"]], user)
-    for c in data["comments"]:
-        c["likes"] = clikes.get(str(c["id"])) or {"count": 0, "liked": False, "names": []}
     data["following"] = False
+    data["comment_ban"] = None
     if user:
         f = await db.get(ThreadFollow, (user.id, day, artnr, loknr))
         data["following"] = bool(f and not f.muted)
+        data["comment_ban"] = await moderation.active_ban(db, user.id)
     return data
+
+
+async def _comments(db: AsyncSession, day: date, artnr: int, loknr: int, user: User | None) -> list[dict]:
+    rows = (await db.execute(text(f"""
+        SELECT c.id, c.body, c.created_at, u.navn, u.obserkode, c.user_id FROM thread_comments c JOIN users u ON u.id = c.user_id
+        WHERE c.dato = :d AND c.artnr = :a AND c.loknr = :l AND NOT c.hidden AND {moderation.VISIBLE} ORDER BY c.created_at
+    """), {"d": day, "a": artnr, "l": loknr, "viewer": user.id if user else -1})).mappings().all()
+    out = [dict(c) for c in rows]
+    likes = await like_summary(db, "comment", [str(c["id"]) for c in out], user)
+    for c in out:
+        c["likes"] = likes.get(str(c["id"])) or {"count": 0, "liked": False, "names": []}
+    return out
+
+
+@router.get("/thread/{day}/{artnr}/{loknr}/comments")
+async def thread_comments(day: date, artnr: int, loknr: int, user: User = Depends(require_user),
+                          db: AsyncSession = Depends(get_session)):
+    """Kun kommentarsporet – hentes igen, når tråden får besked om ændringer."""
+    return {"comments": await _comments(db, day, artnr, loknr, user), "comment_ban": await moderation.active_ban(db, user.id)}
 
 
 @router.post("/thread/{day}/{artnr}/{loknr}/follow")
@@ -114,6 +128,10 @@ class CommentIn(BaseModel):
 @router.post("/thread/{day}/{artnr}/{loknr}/comments")
 async def comment(day: date, artnr: int, loknr: int, body: CommentIn, tasks: BackgroundTasks,
                   user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    ban = await moderation.active_ban(db, user.id)
+    if ban:
+        until = f" til {date.fromisoformat(ban['until'][:10]).strftime('%d.%m.%Y')}" if ban["until"] else ""
+        raise HTTPException(403, f"Du er udelukket fra at kommentere{until}. Årsag: {ban['reason']}")
     if not await kv().set(f"comment:rl:{user.id}", "1", nx=True, ex=5):
         raise HTTPException(429, "Vent et øjeblik før næste kommentar")
     c = ThreadComment(dato=day, artnr=artnr, loknr=loknr, user_id=user.id, body=body.body.strip())
@@ -121,10 +139,9 @@ async def comment(day: date, artnr: int, loknr: int, body: CommentIn, tasks: Bac
     await db.commit()
     await activity.track(user.id, "comment", None, {"thread": f"{day}/{artnr}/{loknr}"})
     tasks.add_task(notify_comment, c.id)
-    payload = {"type": "comment", "thread": f"{day}/{artnr}/{loknr}", "id": c.id, "body": c.body,
-               "navn": user.navn, "obserkode": user.obserkode, "created_at": c.created_at.isoformat()}
-    await publish("feed", payload)
-    return payload
+    await moderation.comments_changed(f"{day}/{artnr}/{loknr}", "new", c.id)
+    return {"id": c.id, "body": c.body, "navn": user.navn, "obserkode": user.obserkode, "user_id": user.id,
+            "created_at": c.created_at.isoformat(), "likes": {"count": 0, "liked": False, "names": []}}
 
 
 @router.delete("/comments/{comment_id}")
@@ -136,6 +153,9 @@ async def delete_comment(comment_id: int, user: User = Depends(require_user), db
         raise HTTPException(403)
     c.hidden = True
     await db.commit()
+    if c.user_id != user.id:
+        await activity.track(user.id, "moderation", None, {"comment": c.id, "deleted": True})
+    await moderation.comments_changed(f"{c.dato.isoformat()}/{c.artnr}/{c.loknr}", "removed", c.id)
     return {"ok": True}
 
 

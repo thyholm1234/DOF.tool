@@ -1,5 +1,5 @@
 // DOF.tool service worker: app-shell offline, netværk-først for API, push-notifikationer.
-const VERSION = "doftool-v11";
+const VERSION = "doftool-v12";
 // App-filerne ligger under /v/<build>/ og caches løbende af fetch-handleren nedenfor
 const SHELL = ["/", "/vendor/leaflet/leaflet.js", "/vendor/leaflet/leaflet.css", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png"];
 

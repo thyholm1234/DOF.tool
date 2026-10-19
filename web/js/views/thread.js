@@ -73,18 +73,39 @@ export async function render(view, [date, artnr, loknr]) {
           state.user && (state.user.id === c.user_id || ["moderator", "editor", "admin", "superadmin"].includes(state.user.role))
             ? h("button", { class: "btn sm ghost danger", onclick: async () => { await api(`/api/comments/${c.id}`, { method: "DELETE" }); t.comments = t.comments.filter(x => x.id !== c.id); drawComments(); } }, "Slet") : null),
         h("p", { style: { margin: "2px 0 0", whiteSpace: "pre-wrap" } }, c.body))) : [h("p", { class: "muted" }, "Ingen kommentarer endnu – del status fra stedet, fx om fuglen stadig er der.")]),
-      state.user ? commentForm() : h("p", {}, h("a", { href: "#/login?next=" + encodeURIComponent(location.hash) }, "Log ind for at kommentere")));
+      !state.user ? h("p", {}, h("a", { href: "#/login?next=" + encodeURIComponent(location.hash) }, "Log ind for at kommentere"))
+        : t.comment_ban ? h("div", { class: "notice warn comment-ban" }, `Du er udelukket fra at kommentere${t.comment_ban.until ? ` til ${fmtDate(t.comment_ban.until)}` : ""}. Årsag: ${t.comment_ban.reason}. `,
+          h("a", { href: "#/support" }, "Skriv til os"), " hvis du har spørgsmål.")
+        : form);
   };
-  const commentForm = () => {
-    const ta = h("textarea", { placeholder: "Skriv en kommentar…", maxlength: 1000, style: { minHeight: "70px" } });
-    return h("form", { class: "stack", onsubmit: async (e) => {
-      e.preventDefault();
-      if (!ta.value.trim()) return;
-      try { await api(`/api/thread/${date}/${artnr}/${loknr}/comments`, { method: "POST", body: { body: ta.value } }); ta.value = ""; }
-      catch (err) { toast(err.message, "err"); }
-    } }, ta, h("button", { class: "btn primary", type: "submit" }, "Send"));
-  };
+  // Formularen genbruges, så en halvskrevet kommentar ikke forsvinder, når sporet opdateres live
+  const ta = h("textarea", { placeholder: "Skriv en kommentar…", maxlength: 1000, style: { minHeight: "70px" } });
+  const form = h("form", { class: "stack", onsubmit: async (e) => {
+    e.preventDefault();
+    if (!ta.value.trim()) return;
+    try {
+      const c = await api(`/api/thread/${date}/${artnr}/${loknr}/comments`, { method: "POST", body: { body: ta.value } });
+      ta.value = "";
+      if (!t.comments.some(x => x.id === c.id)) { t.comments.push(c); drawComments(); }
+    } catch (err) { toast(err.message, "err"); if (err.status === 403) refreshComments(); }
+  } }, ta, h("button", { class: "btn primary", type: "submit" }, "Send"));
   drawComments();
+
+  // Live: når sporet ændres (ny, skjult, slettet kommentar eller udelukkelse), hentes den aktuelle version
+  let pending = null;
+  const refreshComments = () => {
+    if (!state.user) return;
+    clearTimeout(pending);
+    pending = setTimeout(async () => {
+      try {
+        const d = await api(`/api/thread/${date}/${artnr}/${loknr}/comments`);
+        t.comments = d.comments; t.comment_ban = d.comment_ban; drawComments();
+      } catch { /* offline – næste hændelse prøver igen */ }
+    }, 150);
+  };
+  const onVisible = () => { if (document.visibilityState === "visible") refreshComments(); };
+  document.addEventListener("visibilitychange", onVisible);
+  const offStatus = live.onStatus((on) => { if (on) refreshComments(); });  // genopkoblet: hent det, vi kan have misset
 
   const map = baseMap(mapEl, { zoom: 11, center: t.lat ? [t.lat, t.lon] : [56, 10.5] });
   if (t.lat) L.circleMarker([t.lat, t.lon], { radius: 9, color: "#fff", weight: 2, fillColor: katColor(best), fillOpacity: 1 }).addTo(map).bindPopup(t.lok);
@@ -95,11 +116,12 @@ export async function render(view, [date, artnr, loknr]) {
   }
 
   const off = live.on("comment", (c) => {
-    if (c.thread !== `${date}/${artnr}/${loknr}` || t.comments.some(x => x.id === c.id)) return;
-    t.comments.push({ ...c, user_id: null });
-    drawComments();
+    if (c.thread !== "*" && c.thread !== threadKey) return;
+    if (c.action === "new" && t.comments.some(x => x.id === c.id)) return;
+    refreshComments();
   });
   const offLike = live.on("like", (e) => {
+    if (e.kind === "comment" && t.comments.some(c => String(c.id) === e.key)) { refreshComments(); return; }
     if (e.kind === "thread" && e.key === threadKey) api(`/api/likes?kind=thread&key=${encodeURIComponent(threadKey)}`)
       .then(d => likeEl.update({ count: d.count, names: d.users.slice(-3).reverse().map(u => u.navn) })).catch(() => {});
   });
@@ -107,7 +129,7 @@ export async function render(view, [date, artnr, loknr]) {
     if (!e.portal || !reps.length) return;
     try { const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`); reps.splice(0, reps.length, ...(fresh.reports || [])); drawReports(); } catch { /* ignore */ }
   });
-  return () => { off(); offFeed(); offLike(); map.remove(); };
+  return () => { off(); offFeed(); offLike(); offStatus(); clearTimeout(pending); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
 }
 
 function obsRow(o) {

@@ -8,6 +8,17 @@
   <meta name="description" content="Portal for feltornitologer: live-observationer fra DOFbasen, notifikationer, årslister, fænologi og læring.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DOF.tool">
+  <style>
+    #splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; align-content: center; gap: 18px; background: #1f5a44; color: #fff; font: 600 15px system-ui, -apple-system, sans-serif; transition: opacity .25s ease; }
+    #splash svg { width: 88px; height: 88px; }
+    #splash b { font-size: 22px; letter-spacing: -.01em; }
+    #splash span { opacity: .75; font-weight: 500; margin-top: -12px; }
+    #splash i { width: 36px; height: 3px; border-radius: 2px; background: rgb(255 255 255 / 25%); overflow: hidden; position: relative; }
+    #splash i::after { content: ""; position: absolute; inset: 0; width: 40%; background: #fff; border-radius: 2px; animation: splash 1s ease-in-out infinite alternate; }
+    @keyframes splash { to { transform: translateX(150%); } }
+    #splash.out { opacity: 0; pointer-events: none; }
+  </style>
   <title>DOF.tool</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
@@ -16,6 +27,8 @@
   <link rel="stylesheet" href="/v/__BUILD__/css/app.css">
 </head>
 <body>
+  <div id="splash" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 19c3.5-1 6-3.6 7.6-7.2.4-.9 1.6-1 2.1-.1l1 1.8 4.6-1.3c.6-.2 1 .5.6 1l-3.2 3.4c-1.4 4.3-5 6.9-9.6 6.9H7.6c-.9 0-1.2-1.2-.6-1.5z" fill="#fff"/><circle cx="17.6" cy="13.2" r=".9" fill="#1f5a44"/></svg><b>DOF.tool</b><span>feltornitologernes portal</span><i></i></div>
+  <script>setTimeout(function () { var s = document.getElementById("splash"); if (s) s.remove(); }, 8000);</script>
   <header class="topbar">
     <a class="brand" href="#/">
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--brand)"/><path d="M7 19c3.5-1 6-3.6 7.6-7.2.4-.9 1.6-1 2.1-.1l1 1.8 4.6-1.3c.6-.2 1 .5.6 1l-3.2 3.4c-1.4 4.3-5 6.9-9.6 6.9H7.6c-.9 0-1.2-1.2-.6-1.5z" fill="#fff"/><circle cx="17.6" cy="13.2" r=".9" fill="var(--brand)"/></svg>

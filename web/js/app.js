@@ -61,7 +61,7 @@ function renderNav() {
     if (["admin", "superadmin"].includes(state.user.role))
       side.push(h("a", { href: "#/admin", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Admin${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
     else if (["moderator", "editor"].includes(state.user.role))
-      side.push(h("a", { href: "#/admin?tab=moderation", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Moderation</span>` }));
+      side.push(h("a", { href: "#/admin?tab=moderation", class: path.startsWith("#/admin") ? "active" : "", html: `${icon("shield")}<span>Moderation${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
 }
@@ -78,7 +78,7 @@ function openMore() {
         tile("#/indtast", "edit", "Mine indtastninger"), tile("#/kalender/mine", "calendar", "Mine planer"), tile("#/alarmer", "bell", "Alarmer"),
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
         u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread)
-          : u && ["moderator", "editor"].includes(u.role) ? tile("#/admin?tab=moderation", "shield", "Moderation") : null),
+          : u && ["moderator", "editor"].includes(u.role) ? tile("#/admin?tab=moderation", "shield", "Moderation", state.adminSupportUnread) : null),
       h("button", { class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
   document.body.append(sheet);
 }
@@ -186,6 +186,8 @@ async function boot() {
   live.on("notification", (d) => { state.unread += 1; renderUser(); toast(`🔔 ${d.title}`); });
   live.onStatus((on) => $("#live").classList.toggle("on", on));
   await route();
+  const splash = $("#splash");
+  if (splash) { splash.classList.add("out"); setTimeout(() => splash.remove(), 300); }
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").then((reg) => reg.update()).catch(() => {});
     // Ny version installeret: genindlæs én gang, så man ikke kører på gammel kode fra cachen
