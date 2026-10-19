@@ -1,23 +1,66 @@
-import { api, h, fmtN, ago, esc, KAT, store, seg, windArrow, compass } from "../core.js";
-import { baseMap, katColor, arrowSvg } from "../maps.js";
+import { api, h, fmtN, esc, KAT, store, seg, windArrow, compass } from "../core.js";
+import { baseMap, katColor, cssVar, arrowSvg, GROUP_COLORS } from "../maps.js";
 import { live } from "../live.js";
 
 // Klasser som i DOFbasen; almindelige arter vises kun når de er trækkende med retning
 const CLASSES = [["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"], ["alm", "Alm. (trækkende)"]];
 const DAYS = [["1", "I dag"], ["y", "I går"], ["2", "2 døgn"]];
+const COMPASS = ["N", "NØ", "Ø", "SØ", "S", "SV", "V", "NV"];
+
+/** Vægtet middelretning (grader mod) og enighed 0–1 for {N: antal, NØ: antal, …}. */
+function vector(dirs, deg) {
+  let x = 0, y = 0, n = 0;
+  for (const [d, c] of Object.entries(dirs)) {
+    const r = deg[d] * Math.PI / 180;
+    x += c * Math.sin(r); y += c * Math.cos(r); n += c;
+  }
+  if (!n || (Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9)) return { dir: null, r: 0, n };
+  return { dir: Math.round((Math.atan2(x, y) * 180 / Math.PI + 360) % 360), r: Math.hypot(x, y) / n, n };
+}
+const addDirs = (into, dirs) => { for (const [d, c] of Object.entries(dirs || {})) into[d] = (into[d] || 0) + c; return into; };
+
+/** Kompasrose: en søjle pr. retning, længden efter antal individer. */
+function rose(dirs, deg, color, main) {
+  const S = 220, c = S / 2, R = 84, max = Math.max(1, ...COMPASS.map(d => dirs[d] || 0));
+  const ns = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, text) => { const e = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (text) e.textContent = text; return e; };
+  const svg = el("svg", { viewBox: `0 0 ${S} ${S}`, class: "rose", role: "img", "aria-label": "Fordeling af trækretninger" });
+  for (const f of [.33, .66, 1]) svg.append(el("circle", { cx: c, cy: c, r: R * f, class: "rose-ring" }));
+  for (const d of COMPASS) {
+    const a = deg[d] * Math.PI / 180, len = R * Math.sqrt((dirs[d] || 0) / max), w = 0.33;
+    if (len > 0) {
+      const p = (ang, r) => `${c + r * Math.sin(ang)},${c - r * Math.cos(ang)}`;
+      svg.append(el("path", { d: `M${c},${c} L${p(a - w, len)} A${len},${len} 0 0 1 ${p(a + w, len)} Z`, fill: color, opacity: .85 }));
+    }
+    const lx = c + (R + 14) * Math.sin(a), ly = c - (R + 14) * Math.cos(a);
+    svg.append(el("text", { x: lx, y: ly + 4, "text-anchor": "middle", class: "rose-label" }, d));
+  }
+  if (main != null) {
+    const a = main * Math.PI / 180;
+    svg.append(el("line", { x1: c, y1: c, x2: c + R * .95 * Math.sin(a), y2: c - R * .95 * Math.cos(a), class: "rose-main" }));
+  }
+  svg.append(el("circle", { cx: c, cy: c, r: 3, class: "rose-hub" }));
+  return svg;
+}
 
 export async function render(view) {
   const saved = store("mapst") || {};
-  const st = { days: saved.days || "1", on: new Set(saved.on || ["SU", "SUB", "bemaerk"]), migOnly: !!saved.migOnly, wind: saved.wind !== false };
-  const save = () => store("mapst", { days: st.days, on: [...st.on], migOnly: st.migOnly, wind: st.wind });
+  const st = { days: saved.days || "1", on: new Set(saved.on || ["SU", "SUB", "bemaerk", "alm"]), migOnly: !!saved.migOnly, wind: saved.wind !== false,
+    group: saved.group || "all" };
+  const save = () => store("mapst", { days: st.days, on: [...st.on], migOnly: st.migOnly, wind: st.wind, group: st.group });
   const mapEl = h("div", { class: "map full" });
   const chips = h("div", { class: "chips wrap", style: { marginTop: 0 } });
   const info = h("small", { class: "muted" });
-  let items = [];
+  const panel = h("div", { class: "card mig-panel" });
+  let items = [], groups = {}, deg = {};
+
+  const inClass = (t) => st.on.has(t.kategori);
+  const inGroup = (t) => st.group === "all" || t.group === st.group;
+  const groupColor = () => st.group === "all" ? cssVar("--brand") : GROUP_COLORS[st.group];
 
   const drawChips = () => chips.replaceChildren(
     ...CLASSES.map(([k, label]) => {
-      const n = items.filter(t => t.kategori === k && (!st.migOnly || t.dir != null)).length;
+      const n = items.filter(t => t.kategori === k && inGroup(t) && (!st.migOnly || t.dir != null)).length;
       const solo = st.on.size === 1 && st.on.has(k);
       return h("span", { class: `chip toggle ${st.on.has(k) ? "on" : ""}`, role: "button", tabindex: 0, title: "Slå til/fra",
         onclick: () => { st.on.has(k) ? st.on.delete(k) : st.on.add(k); update(); } },
@@ -25,52 +68,114 @@ export async function render(view) {
         h("button", { type: "button", class: `solo ${solo ? "active" : ""}`, title: solo ? "Vis alle klasser igen" : "Vis kun denne klasse",
           onclick: (e) => { e.stopPropagation(); st.on = solo ? new Set(CLASSES.map(c => c[0])) : new Set([k]); update(); } }, "S"));
     }),
-    h("button", { class: `chip ${st.migOnly ? "on" : ""}`, title: "Vis kun observationer med trækretning", onclick: () => { st.migOnly = !st.migOnly; update(); } }, "Kun trækkende"),
+    h("button", { class: `chip ${st.migOnly ? "on" : ""}`, title: "Skjul fund uden trækretning", onclick: () => { st.migOnly = !st.migOnly; update(); } }, "Kun trækkende"),
     h("button", { class: `chip ${st.wind ? "on" : ""}`, onclick: () => { st.wind = !st.wind; save(); drawChips(); wind(); } }, "Vind nu (DMI)"));
 
   view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Kort over fund og træk"), info), h("span", { class: "spacer" }),
       seg(DAYS, st.days, (v) => { st.days = v; save(); load(); })),
-    h("div", { class: "card", style: { padding: "8px" } }, h("div", { style: { padding: "2px 4px 8px" } }, chips), mapEl,
-      h("small", { class: "muted", style: { display: "block", padding: "6px 6px 2px" } },
-        "Pile viser trækretning (vægtet med antal; størrelse efter antal trækkende). Prikker er fund uden retning. ",
-        "Klik på en klasse for at slå den til/fra – S viser kun den klasse. I går vises lidt svagere ved 2 døgn.")));
+    h("div", { class: "card", style: { padding: "8px" } }, h("div", { style: { padding: "2px 4px 8px" } }, chips), mapEl),
+    panel);
   const map = baseMap(mapEl, { center: [56.0, 11.0], zoom: 7 });
-  const obsLayer = L.layerGroup().addTo(map);
+  const dotLayer = L.layerGroup().addTo(map);
+  const arrowLayer = L.layerGroup().addTo(map);
   const windLayer = L.layerGroup().addTo(map);
   const renderer = L.canvas();
 
-  function draw() {
-    obsLayer.clearLayers();
-    const order = { alm: 0, bemaerk: 1, SUB: 2, SU: 3 };
-    const shown = items.filter(t => st.on.has(t.kategori) && (!st.migOnly || t.dir != null)).sort((a, b) => order[a.kategori] - order[b.kategori]);
-    const latest = items.reduce((m, t) => t.dato > m ? t.dato : m, "");
-    for (const t of shown) {
-      const old = st.days === "2" && t.dato !== latest;
-      const color = katColor(t.kategori);
-      const popup = `<b>${fmtN(t.max_antal)} ${esc(t.art)}</b><br>${esc(t.lok || "")}<br><small>${KAT[t.kategori] || "Alm."} · ${esc(t.dato)}` +
-        (t.dir != null ? `<br>${fmtN(t.n_dir)} trækkende mod ${compass(t.dir)} (${t.dir}°)` : "") + `</small><br><a href="#/traad/${t.id}">Åbn tråd →</a>`;
-      if (t.dir != null) {
-        const size = Math.round(Math.min(36, (t.kategori === "alm" ? 12 : 16) + 5 * Math.log10(t.n_dir + 1)));
-        L.marker([t.lat, t.lon], { opacity: old ? .55 : 1, zIndexOffset: order[t.kategori] * 1000,
-          icon: L.divIcon({ className: "mig-arrow", html: arrowSvg(t.dir, size, color), iconSize: [size, size], iconAnchor: [size / 2, size / 2] }) })
-          .bindPopup(popup).addTo(obsLayer);
-      } else {
-        const r = { SU: 9, SUB: 7, bemaerk: 5, alm: 4 }[t.kategori];
-        L.circleMarker([t.lat, t.lon], { renderer, radius: r, color: "#fff", weight: 1.5, fillColor: color, fillOpacity: old ? .5 : .95, opacity: old ? .5 : 1 })
-          .bindPopup(popup).addTo(obsLayer);
-      }
+  /** Én pil pr. lokalitet: retningerne summeres og vægtes med antal individer. */
+  function sites(list) {
+    const by = new Map();
+    for (const t of list) {
+      if (!t.dirs || !Object.keys(t.dirs).length) continue;
+      const s = by.get(t.loknr) || by.set(t.loknr, { loknr: t.loknr, lok: t.lok, lat: t.lat, lon: t.lon, dirs: {}, species: {} }).get(t.loknr);
+      addDirs(s.dirs, t.dirs);
+      const n = Object.values(t.dirs).reduce((a, b) => a + b, 0);
+      s.species[t.art] = (s.species[t.art] || 0) + n;
     }
-    info.textContent = `${fmtN(shown.length)} tråde · ${fmtN(shown.filter(t => t.dir != null).length)} med trækretning`;
+    return [...by.values()].map(s => ({ ...s, ...vector(s.dirs, deg) })).filter(s => s.dir != null);
+  }
+
+  function draw() {
+    dotLayer.clearLayers(); arrowLayer.clearLayers();
+    const order = { alm: 0, bemaerk: 1, SUB: 2, SU: 3 };
+    const shown = items.filter(t => inClass(t) && inGroup(t));
+    const latest = items.reduce((m, t) => t.dato > m ? t.dato : m, "");
+    // Prikker: fund uden retning (klassefarve)
+    if (!st.migOnly) for (const t of shown.filter(t => t.dir == null).sort((a, b) => order[a.kategori] - order[b.kategori])) {
+      const old = st.days === "2" && t.dato !== latest;
+      L.circleMarker([t.lat, t.lon], { renderer, radius: { SU: 9, SUB: 7, bemaerk: 5, alm: 4 }[t.kategori], color: "#fff", weight: 1.5,
+        fillColor: katColor(t.kategori), fillOpacity: old ? .45 : .95, opacity: old ? .5 : 1 })
+        .bindPopup(`<b>${fmtN(t.max_antal)} ${esc(t.art)}</b><br>${esc(t.lok || "")}<br><small>${KAT[t.kategori] || "Alm."} · ${esc(t.dato)}</small><br><a href="#/traad/${t.id}">Åbn tråd →</a>`)
+        .addTo(dotLayer);
+    }
+    // Pile: én pr. lokalitet
+    const color = groupColor();
+    const ss = sites(shown);
+    for (const s of ss) {
+      const size = Math.round(Math.min(44, 14 + 7 * Math.log10(s.n + 1)));
+      const top = Object.entries(s.species).sort((a, b) => b[1] - a[1]);
+      L.marker([s.lat, s.lon], { zIndexOffset: Math.round(s.n), icon: L.divIcon({ className: "mig-arrow", html: arrowSvg(s.dir, size, color), iconSize: [size, size], iconAnchor: [size / 2, size / 2] }) })
+        .bindPopup(`<b>${esc(s.lok)}</b><br>${fmtN(s.n)} trækkende mod ${compass(s.dir)} (${s.dir}°) · enighed ${Math.round(s.r * 100)} %` +
+          `<br><small>${top.slice(0, 6).map(([n, c]) => `${esc(n)} ${fmtN(c)}`).join(", ")}${top.length > 6 ? ` + ${top.length - 6} arter` : ""}</small>` +
+          `<br><a href="#/lok/${s.loknr}">Lokaliteten →</a>`)
+        .addTo(arrowLayer);
+    }
+    info.textContent = `${fmtN(shown.length)} tråde · træk på ${fmtN(ss.length)} lokaliteter`;
+    drawPanel(ss);
+  }
+
+  function drawPanel(ss) {
+    // Gruppevalg tæller individer med retning inden for de valgte klasser
+    const byGroup = { all: {} };
+    for (const t of items.filter(inClass)) {
+      if (!t.dirs) continue;
+      addDirs(byGroup.all, t.dirs);
+      if (t.group) addDirs(byGroup[t.group] ||= {}, t.dirs);
+    }
+    const total = (d) => Object.values(d || {}).reduce((a, b) => a + b, 0);
+    const opts = [["all", "Alle fugle"], ...Object.entries(groups)];
+    const dirs = byGroup[st.group] || {};
+    const v = vector(dirs, deg);
+    const color = groupColor();
+    const species = {};
+    for (const t of items.filter(t => inClass(t) && inGroup(t) && t.dirs)) species[t.art] = (species[t.art] || 0) + total(t.dirs);
+    const topSp = Object.entries(species).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const topSites = [...ss].sort((a, b) => b.n - a.n).slice(0, 8);
+    const bar = (n, max) => h("div", { class: "bar-inline" }, h("i", { style: { width: `${Math.max(3, n / max * 100)}%`, background: color } }));
+    const dayText = { "1": "i dag", y: "i går", "2": "de sidste 2 døgn" }[st.days];
+
+    panel.replaceChildren(
+      h("div", { class: "row between wrap", style: { gap: "8px" } }, h("h2", { style: { margin: 0 } }, "Træk ", dayText),
+        h("small", { class: "muted" }, "Retning fra adfærdskoden, vægtet med antal individer")),
+      h("div", { class: "chips wrap" }, ...opts.map(([k, label]) => h("button", { class: `chip ${st.group === k ? "on" : ""}`, onclick: () => { st.group = k; update(); } },
+        k !== "all" ? h("i", { class: "dot", style: { background: GROUP_COLORS[k], marginRight: "5px" } }) : null, label,
+        h("span", { class: "n" }, ` ${fmtN(total(byGroup[k]))}`)))),
+      !v.n ? h("p", { class: "muted mt" }, "Ingen trækkende fugle med retning i det valgte udsnit.") : h("div", { class: "mig-grid mt" },
+        h("div", { class: "mig-rose" }, rose(dirs, deg, color, v.dir)),
+        h("div", { class: "stack", style: { gap: "10px" } },
+          h("div", { class: "stats", style: { gridTemplateColumns: "repeat(2, 1fr)" } },
+            h("div", { class: "stat" }, h("b", {}, fmtN(v.n)), h("span", {}, "trækkende individer")),
+            h("div", { class: "stat" }, h("b", {}, fmtN(ss.length)), h("span", {}, "lokaliteter med træk")),
+            h("div", { class: "stat" }, h("b", { style: { display: "flex", alignItems: "center", gap: "6px" } }, v.dir == null ? "–" : [h("span", { html: arrowSvg(v.dir, 20, color) }), `${compass(v.dir)}`]),
+              h("span", {}, v.dir == null ? "hovedretning" : `hovedretning (${v.dir}°)`)),
+            h("div", { class: "stat" }, h("b", {}, `${Math.round(v.r * 100)} %`), h("span", { title: "100 % = alle samme vej, 0 % = spredt" }, "enighed om retning"))),
+          h("div", { class: "grid-2" },
+            h("div", {}, h("h3", { class: "mig-h" }, "Flest trækkende"),
+              h("ul", { class: "mini-list" }, ...topSp.map(([n, c]) => h("li", { class: "bar-row" }, h("span", {}, n), h("b", { class: "num" }, fmtN(c)), bar(c, topSp[0][1]))))),
+            h("div", {}, h("h3", { class: "mig-h" }, "Største træksteder"),
+              h("ul", { class: "mini-list" }, ...topSites.map(s => h("li", { class: "bar-row" },
+                h("a", { href: `#/lok/${s.loknr}` }, s.lok), h("b", { class: "num" }, h("span", { html: arrowSvg(s.dir, 13, color) }), ` ${fmtN(s.n)}`), bar(s.n, topSites[0].n)))))))));
   }
 
   function update() { save(); drawChips(); draw(); }
 
   async function load() {
     try {
-      const all = await api(`/api/map/days?days=${st.days === "1" ? 1 : 2}`);
-      const today = all.reduce((m, t) => t.dato > m ? t.dato : m, "");
-      items = st.days === "y" ? all.filter(t => t.dato !== today) : all;
+      const d = await api(`/api/map/days?days=${st.days === "1" ? 1 : 2}`);
+      groups = d.groups; deg = d.dirs;
+      const today = d.items.reduce((m, t) => t.dato > m ? t.dato : m, "");
+      items = st.days === "y" ? d.items.filter(t => t.dato !== today) : d.items;
     } catch { items = []; }
+    if (st.group !== "all" && !groups[st.group]) st.group = "all";
     drawChips(); draw();
   }
 

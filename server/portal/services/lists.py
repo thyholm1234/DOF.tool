@@ -337,10 +337,12 @@ async def matrikel_board(session: AsyncSession, year: int | None, scope: str = "
     spec = ListSpec(parse_scope("dk"), year, 1)
     board = await scoreboard(session, spec, group_id)
     kind, _, ref = scope.partition(":")
+    rows = board["rows"]
     if kind in ("afd", "kom") and not group_id:
         opted = await _opted(session, "afdelinger" if kind == "afd" else "kommuner", ref)
-        board = {**board, "rows": rerank([r for r in board["rows"] if r["obserkode"] in opted])}
-    return board
+        rows = [r for r in rows if r["obserkode"] in opted]
+    # Kun deltagere med matrikelobservationer i perioden
+    return {**board, "rows": rerank([r for r in rows if r["antal"] > 0])}
 
 
 def _standing(label: str, kind: str, ref: str, rows: list[dict], me: str, my_count: int) -> dict:

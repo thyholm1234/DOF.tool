@@ -645,3 +645,18 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .twostate.on { background: var(--brand); border-color: var(--brand); color: #fff; }
 .twostate:hover:not(.on) { border-color: var(--text-3); color: var(--text); }
 .row.wrap { flex-wrap: wrap; }
+
+/* trækpanel under kortet */
+.mig-panel { margin-top: 12px; }
+.mig-grid { display: grid; gap: 18px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 760px) { .mig-grid { grid-template-columns: 240px 1fr; } }
+.mig-rose { display: grid; place-items: center; }
+.rose { width: 100%; max-width: 240px; height: auto; }
+.rose-ring { fill: none; stroke: var(--line); stroke-width: 1; }
+.rose-label { fill: var(--text-3); font: 700 11px system-ui, sans-serif; }
+.rose-main { stroke: var(--text); stroke-width: 2; stroke-dasharray: 4 3; stroke-linecap: round; }
+.rose-hub { fill: var(--text); }
+.mig-h { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin: 0 0 2px; }
+.mini-list li.bar-row { display: grid; grid-template-columns: 1fr auto; column-gap: .5rem; align-items: baseline; }
+.mini-list li.bar-row .bar-inline { grid-column: 1 / -1; margin-top: 3px; }
+.mini-list li.bar-row b span svg { vertical-align: -2px; }

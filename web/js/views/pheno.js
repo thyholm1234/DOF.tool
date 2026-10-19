@@ -1,6 +1,6 @@
 import { api, h, fmtN, fmtDate, doyLabel, params, setParams, seg, empty, errorBox, windArrow, compass, esc } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
-import { baseMap, arrowSvg } from "../maps.js";
+import { baseMap, arrowSvg, GROUP_COLORS } from "../maps.js";
 import { windLayer } from "../wind.js";
 
 // Oprydning for den aktive fane (kort og animation)
@@ -154,7 +154,6 @@ function method(body) {
 
 // ---------------------------------------------------------------- trækkort: vind kl. 12 + trækretning pr. fuglegruppe
 
-const GROUP_COLORS = { rov_svaev: "#c0392b", rov_aktiv: "#e67e22", vade: "#16a085", gaes: "#8e5a2b", hav: "#2a6fb0", spurv: "#7b4bb7", drossel: "#d35485" };
 const DAY_LABEL = ["I dag", "I går", "I forgårs"];
 
 

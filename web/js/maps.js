@@ -51,3 +51,6 @@ export function legend(items) {
 export const arrowSvg = (deg, size, color) =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform: rotate(${deg}deg); filter: drop-shadow(0 0 1px rgba(0,0,0,.6))">` +
   `<path d="M12 2 L19 20 L12 15.5 L5 20 Z" fill="${color}" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+
+/** Farver for trækgrupperne (trækkort og kort over fund). */
+export const GROUP_COLORS = { rov_svaev: "#c0392b", rov_aktiv: "#e67e22", vade: "#16a085", gaes: "#8e5a2b", hav: "#2a6fb0", spurv: "#7b4bb7", drossel: "#d35485" };
