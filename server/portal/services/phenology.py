@@ -22,6 +22,7 @@ import numpy as np
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from portal import jobstatus
 from portal.cache import get_json, kv, set_json
 from portal.timeutil import dk_today
 
@@ -251,7 +252,9 @@ async def recompute_metrics(session: AsyncSession) -> int:
     overview = []
     weekly: dict[int, dict] = {}
     await session.execute(text("DELETE FROM pheno_metrics"))
-    for artnr, navn in species:
+    for i, (artnr, navn) in enumerate(species):
+        if i % 10 == 0:
+            await jobstatus.step(f"Fænologi: {navn}", i, len(species))
         years = await species_rr(session, artnr, effort)
         complete = {y: v for y, v in years.items() if y < today.year}
         if len(complete) < 3:
@@ -274,6 +277,7 @@ async def recompute_metrics(session: AsyncSession) -> int:
         summary = summarize(navn, artnr, rows, years, today, climate, prof)
         if summary:
             overview.append(summary)
+    await jobstatus.step("Fænologi: gemmer", len(species), len(species))
     await session.commit()
     await set_json("pheno:overview", {"generated": today.isoformat(), "species": overview})
     await set_json("pheno:weekly", weekly)

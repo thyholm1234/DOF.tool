@@ -35,6 +35,8 @@ Q = "dof:q"
 LAST_CALL = "dof:last_call"
 LOCK = "dof:lock"
 STATUS = "dof:status"
+RUNNING = "dof:running"  # id på jobbet der udføres lige nu (genoptages hvis workeren dør undervejs)
+MAX_ATTEMPTS = 3
 PRIO_STEP = 1e14  # skal være større end tidsstempler i ms (~1,8e12)
 
 Handler = Callable[[httpx.AsyncClient, dict], Awaitable[Any]]
@@ -48,7 +50,11 @@ async def enqueue(kind: str, params: dict | None = None, *, priority: int = NORM
     if dedupe:
         ok = await r.set(f"dof:dedupe:{dedupe}", job_id, nx=True, ex=7 * 86400)
         if not ok:
-            return await r.get(f"dof:dedupe:{dedupe}") or job_id
+            existing = await r.get(f"dof:dedupe:{dedupe}")
+            if existing and existing in await pending_ids():
+                return existing
+            # Forældet nøgle: jobbet er tabt (fx afbrudt worker) – læg det i kø igen
+            await r.set(f"dof:dedupe:{dedupe}", job_id, ex=7 * 86400)
     job = {"id": job_id, "kind": kind, "params": params or {}, "dedupe": dedupe,
            "priority": priority, "created": time.time()}
     pipe = r.pipeline()
@@ -59,6 +65,16 @@ async def enqueue(kind: str, params: dict | None = None, *, priority: int = NORM
     pipe.zadd(Q, {job_id: priority * PRIO_STEP + time.time() * 1000})
     await pipe.execute()
     return job_id
+
+
+async def pending_ids() -> set[str]:
+    """Id'er på job der venter i køen eller udføres lige nu."""
+    r = kv()
+    ids = set(await r.zrange(Q, 0, -1))
+    running = await r.get(RUNNING)
+    if running:
+        ids.add(running)
+    return ids
 
 
 async def wait_result(job_id: str, timeout: float) -> dict | None:
@@ -90,6 +106,9 @@ async def status() -> dict:
     r = kv()
     data = await r.hgetall(STATUS)
     data["queue_length"] = await r.zcard(Q)
+    running = await r.get(RUNNING)
+    raw = await r.get(f"dof:job:{running}") if running else None
+    data["running"] = {k: v for k, v in json.loads(raw).items() if k in ("id", "kind", "params")} if raw else None
     data["min_interval"] = get_settings().dof_min_interval
     last = await r.get(LAST_CALL)
     data["seconds_since_last_call"] = round(time.time() - float(last), 1) if last else None
@@ -130,6 +149,7 @@ class Gateway:
             raw = await r.get(f"dof:job:{job_id}")
             if not raw:
                 continue
+            await r.set(RUNNING, job_id)
             job = json.loads(raw)
             secret = await r.get(f"dof:secret:{job_id}")
             if secret:
@@ -167,8 +187,36 @@ class Gateway:
                 return
             await asyncio.sleep(min(remaining, 1.0))
 
+    async def _recover(self) -> None:
+        """Ved opstart: genoptag et job der blev afbrudt midt i kaldet, og ryd forældede dedupe-nøgler."""
+        r = kv()
+        running = await r.get(RUNNING)
+        raw = await r.get(f"dof:job:{running}") if running else None
+        if raw:
+            job = json.loads(raw)
+            job["attempts"] = job.get("attempts", 0) + 1
+            if job["attempts"] < MAX_ATTEMPTS:
+                await r.set(f"dof:job:{job['id']}", json.dumps(job), ex=7 * 86400)
+                await r.zadd(Q, {job["id"]: job["priority"] * PRIO_STEP + job["created"] * 1000})
+                log.info("Genoptager afbrudt DOFbasen-job %s %s", job["kind"], job["params"])
+            else:
+                log.warning("Opgiver DOFbasen-job %s %s efter %s afbrudte forsøg", job["kind"], job["params"], job["attempts"])
+                await r.delete(f"dof:job:{job['id']}")
+                if job.get("dedupe"):
+                    await r.delete(f"dof:dedupe:{job['dedupe']}")
+        await r.delete(RUNNING)
+        alive = set(await r.zrange(Q, 0, -1))
+        stale = 0
+        async for key in r.scan_iter(match="dof:dedupe:*", count=500):
+            if await r.get(key) not in alive:
+                await r.delete(key)
+                stale += 1
+        if stale:
+            log.info("Ryddede %s forældede dedupe-nøgler", stale)
+
     async def run(self) -> None:
         r = kv()
+        await self._recover()
         # Genberegn køens scores ud fra jobbenes gemte prioritet (robust over for ændret score-skema)
         for job_id in await r.zrange(Q, 0, -1):
             raw = await r.get(f"dof:job:{job_id}")
@@ -193,6 +241,7 @@ class Gateway:
                     if not await r.set(LOCK, "1", nx=True, ex=600):
                         if job:
                             await self._requeue(job)
+                            await r.delete(RUNNING)
                         await asyncio.sleep(2)
                         continue
                     try:
@@ -250,6 +299,7 @@ class Gateway:
                                           "duration": duration, "error": error, "result": _summary(result)}))
         pipe.ltrim("dof:log", 0, 199)
         if job:
+            pipe.delete(RUNNING)
             pipe.delete(f"dof:job:{job['id']}")
             if job.get("dedupe"):
                 pipe.delete(f"dof:dedupe:{job['dedupe']}")

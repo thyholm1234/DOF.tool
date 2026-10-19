@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.db import get_session
-from portal.models import AlertRule, Area, Notification, PushSubscription, User
+from portal.models import Afdeling, AlertRule, Area, Kommune, Notification, PushSubscription, User
 from portal.services.push import ensure_vapid, send_to_user
 
 router = APIRouter(prefix="/api", tags=["alerts"])
@@ -18,6 +18,8 @@ router = APIRouter(prefix="/api", tags=["alerts"])
 class RuleIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     area_id: int | None = None
+    kommuner: list[str] = Field(default_factory=list, max_length=98)
+    afdelinger: list[int] = Field(default_factory=list, max_length=30)
     level: str = Field("SUB", pattern="^(SU|SUB|bemaerk|local|all)$")
     local_max: int = Field(5, ge=1, le=1000)
     min_antal: int = Field(1, ge=1, le=100000)
@@ -27,13 +29,31 @@ class RuleIn(BaseModel):
     enabled: bool = True
 
 
-def rule_out(r: AlertRule, area: Area | None) -> dict:
-    return {"id": r.id, "name": r.name, "area_id": r.area_id, "area_name": area.name if area else "Hele Danmark",
+def rule_out(r: AlertRule, area: Area | None, names: dict[str, str]) -> dict:
+    regions = [names.get(f"kom:{k}", k) for k in r.kommuner or []] + [names.get(f"afd:{a}", str(a)) for a in r.afdelinger or []]
+    area_name = area.name if area else ", ".join(regions) if regions else "Hele Danmark"
+    return {"id": r.id, "name": r.name, "area_id": r.area_id, "kommuner": r.kommuner or [], "afdelinger": r.afdelinger or [],
+            "area_name": area_name,
             "level": r.level, "local_max": r.local_max, "min_antal": r.min_antal, "species_include": r.species_include or [],
             "species_exclude": r.species_exclude or [], "push": r.push, "enabled": r.enabled}
 
 
+async def _region_names(db: AsyncSession) -> dict[str, str]:
+    kom = (await db.execute(select(Kommune.kode, Kommune.navn))).all()
+    afd = (await db.execute(select(Afdeling.id, Afdeling.navn))).all()
+    return {**{f"kom:{k}": n for k, n in kom}, **{f"afd:{i}": n for i, n in afd}}
+
+
 async def _check_area(db: AsyncSession, user: User, body: RuleIn) -> Area | None:
+    body.kommuner = sorted(set(body.kommuner))
+    body.afdelinger = sorted(set(body.afdelinger))
+    if body.kommuner or body.afdelinger:
+        if body.area_id is not None:
+            raise HTTPException(400, "Vælg enten et eget område eller kommuner/lokalafdelinger")
+        names = await _region_names(db)
+        if any(f"kom:{k}" not in names for k in body.kommuner) or any(f"afd:{a}" not in names for a in body.afdelinger):
+            raise HTTPException(400, "Ukendt kommune eller lokalafdeling")
+        return None
     if body.area_id is None:
         if body.level in ("local", "all") and not body.species_include:
             raise HTTPException(400, "Lokale hits og 'alle' kræver et område (eller en artsliste)")
@@ -48,7 +68,8 @@ async def _check_area(db: AsyncSession, user: User, body: RuleIn) -> Area | None
 async def list_rules(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     rules = (await db.execute(select(AlertRule).where(AlertRule.user_id == user.id).order_by(AlertRule.id))).scalars().all()
     areas = {a.id: a for a in (await db.execute(select(Area).where(Area.user_id == user.id))).scalars()}
-    return [rule_out(r, areas.get(r.area_id)) for r in rules]
+    names = await _region_names(db)
+    return [rule_out(r, areas.get(r.area_id), names) for r in rules]
 
 
 @router.post("/alerts/rules")
@@ -59,7 +80,7 @@ async def create_rule(body: RuleIn, user: User = Depends(require_user), db: Asyn
     rule = AlertRule(user_id=user.id, **body.model_dump())
     db.add(rule)
     await db.commit()
-    return rule_out(rule, area)
+    return rule_out(rule, area, await _region_names(db))
 
 
 @router.put("/alerts/rules/{rule_id}")
@@ -71,7 +92,7 @@ async def update_rule(rule_id: int, body: RuleIn, user: User = Depends(require_u
     for k, v in body.model_dump().items():
         setattr(rule, k, v)
     await db.commit()
-    return rule_out(rule, area)
+    return rule_out(rule, area, await _region_names(db))
 
 
 @router.delete("/alerts/rules/{rule_id}")

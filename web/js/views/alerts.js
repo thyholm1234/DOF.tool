@@ -72,12 +72,17 @@ async function rules(body) {
       h("button", { class: "btn sm ghost danger", onclick: async () => { if (!confirm("Slet reglen?")) return; await api(`/api/alerts/rules/${r.id}`, { method: "DELETE" }); body.replaceChildren(); rules(body); } }, "Slet"))))));
 }
 
-const strip = (r) => ({ name: r.name, area_id: r.area_id, level: r.level, local_max: r.local_max, min_antal: r.min_antal, species_include: r.species_include, species_exclude: r.species_exclude, push: r.push, enabled: r.enabled });
+const strip = (r) => ({ name: r.name, area_id: r.area_id, kommuner: r.kommuner || [], afdelinger: r.afdelinger || [], level: r.level, local_max: r.local_max, min_antal: r.min_antal, species_include: r.species_include, species_exclude: r.species_exclude, push: r.push, enabled: r.enabled });
 
 async function editRule(rule, areasList, done) {
-  const r = rule ? strip(rule) : { name: "", area_id: null, level: "SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], push: true, enabled: true };
+  const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], push: true, enabled: true };
   const name = h("input", { value: r.name, placeholder: "Fx 'Lokale hits i Odsherred'", required: true });
-  const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"), ...areasList.map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${KIND_LABEL[a.kind]})`)));
+  const hasRegions = r.kommuner.length || r.afdelinger.length;
+  const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"), h("option", { value: "regions", selected: !r.area_id && hasRegions }, "Kommuner og lokalafdelinger…"),
+    areasList.length ? h("optgroup", { label: "Mine områder" }, ...areasList.map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${KIND_LABEL[a.kind]})`))) : null);
+  const regions = regionPicker(r.kommuner, r.afdelinger);
+  const syncArea = () => regions.el.classList.toggle("hide", area.value !== "regions");
+  area.onchange = syncArea; syncArea();
   const level = h("select", {}, ...Object.entries(LEVELS).map(([v, l]) => h("option", { value: v, selected: v === r.level }, l)));
   const localMax = h("input", { type: "number", min: 1, max: 1000, value: r.local_max });
   const minAntal = h("input", { type: "number", min: 1, value: r.min_antal });
@@ -89,7 +94,9 @@ async function editRule(rule, areasList, done) {
   level.onchange = sync; sync();
   const m = modal(rule ? "Redigér regel" : "Ny regel", h("form", { class: "stack", onsubmit: async (e) => {
     e.preventDefault();
-    const payload = { ...r, name: name.value, area_id: area.value ? Number(area.value) : null, level: level.value, local_max: Number(localMax.value), min_antal: Number(minAntal.value),
+    const reg = area.value === "regions" ? regions.value() : { kommuner: [], afdelinger: [] };
+    if (area.value === "regions" && !reg.kommuner.length && !reg.afdelinger.length) { toast("Vælg mindst én kommune eller lokalafdeling", "err"); return; }
+    const payload = { ...r, name: name.value, area_id: area.value && area.value !== "regions" ? Number(area.value) : null, ...reg, level: level.value, local_max: Number(localMax.value), min_antal: Number(minAntal.value),
       species_include: include.value(), species_exclude: exclude.value(), push: push.checked };
     try {
       if (rule) await api(`/api/alerts/rules/${rule.id}`, { method: "PUT", body: payload });
@@ -99,12 +106,39 @@ async function editRule(rule, areasList, done) {
   } },
     h("label", { class: "field" }, h("span", {}, "Navn"), name),
     h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Område"), area), h("label", { class: "field" }, h("span", {}, "Hvad skal udløse en alarm?"), level)),
+    regions.el,
     localRow,
     h("label", { class: "field" }, h("span", {}, "Mindste antal individer"), minAntal),
     include.el, exclude.el,
     h("label", { class: "check" }, push, "Send push-notifikation (ellers kun indbakke)"),
-    h("p", { class: "muted", style: { fontSize: ".85rem" } }, areasList.length ? "" : "Du har ingen egne områder endnu – opret dem under fanen 'Områder' (kommune, lokalitet, tegnet polygon eller radius)."),
+    h("p", { class: "muted", style: { fontSize: ".85rem" } }, areasList.length ? "" : "Kommuner og lokalafdelinger vælges direkte her. Lokaliteter, tegnede områder og radius oprettes under fanen 'Områder'."),
     h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => m.close() }, "Annullér"))), { wide: true });
+}
+
+// Flere kommuner og lokalafdelinger direkte på reglen – uden at oprette dem som områder først
+function regionPicker(kommuner, afdelinger) {
+  const items = [...state.afdelinger.map(a => ({ key: `afd:${a.id}`, label: a.navn, sub: "lokalafdeling" })),
+    ...state.kommuner.map(k => ({ key: `kom:${k.kode}`, label: `${k.navn} Kommune`, sub: "kommune" }))];
+  const selected = new Set([...kommuner.map(k => `kom:${k}`), ...afdelinger.map(a => `afd:${a}`)]);
+  const byKey = new Map(items.map(i => [i.key, i]));
+  const chosen = h("div", { class: "chips wrap" });
+  const input = h("input", { type: "search", placeholder: "Søg kommune eller lokalafdeling…", autocomplete: "off", spellcheck: "false" });
+  const results = h("div", { class: "suggest" });
+  const draw = () => chosen.replaceChildren(...[...selected].map(k => h("span", { class: "chip on" }, byKey.get(k)?.label || k,
+    h("button", { type: "button", class: "chip-x", "aria-label": `Fjern ${byKey.get(k)?.label || k}`, html: icon("x"), onclick: () => { selected.delete(k); draw(); } }))));
+  const show = () => {
+    const q = input.value.trim().toLowerCase();
+    const hits = q ? items.filter(i => !selected.has(i.key) && i.label.toLowerCase().includes(q)).slice(0, 10) : [];
+    results.replaceChildren(...hits.map(i => h("button", { type: "button", onclick: () => { selected.add(i.key); input.value = ""; results.replaceChildren(); draw(); input.focus(); } },
+      h("span", {}, i.label), h("i", { class: "muted" }, i.sub))));
+  };
+  input.addEventListener("input", show);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); results.querySelector("button")?.click(); } });
+  draw();
+  return {
+    el: h("div", { class: "field" }, h("span", { class: "label" }, "Kommuner og lokalafdelinger (reglen gælder i dem alle)"), input, results, chosen),
+    value: () => ({ kommuner: [...selected].filter(k => k.startsWith("kom:")).map(k => k.slice(4)), afdelinger: [...selected].filter(k => k.startsWith("afd:")).map(k => Number(k.slice(4))) }),
+  };
 }
 
 export function speciesPicker(initial, label) {

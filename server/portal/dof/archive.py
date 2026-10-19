@@ -12,6 +12,7 @@ from pathlib import Path
 
 from sqlalchemy import select, text
 
+from portal import jobstatus
 from portal.cache import bump, kv
 from portal.config import get_settings
 from portal.db import SessionLocal
@@ -99,6 +100,7 @@ async def run_import(stop_after: int | None = None) -> dict:
     """Importér alle nye/ændrede arkivfiler. Fremdrift ligger i Valkey (archive:progress)."""
     r = kv()
     if not await r.set("archive:lock", "1", nx=True, ex=6 * 3600):
+        await jobstatus.step("Kører allerede – springes over")
         return {"started": False, "reason": "kører allerede"}
     try:
         files = await pending_files()
@@ -110,6 +112,7 @@ async def run_import(stop_after: int | None = None) -> dict:
         rows_total = 0
         earliest: date | None = None
         for i, path in enumerate(files, start=1):
+            await jobstatus.step(path.name, i - 1, len(files))
             t0 = time.time()
             n, dmin, _ = await import_file(path)
             rows_total += n
@@ -118,6 +121,7 @@ async def run_import(stop_after: int | None = None) -> dict:
             await r.hset(PROGRESS, mapping={"files_done": i, "rows_total": rows_total, "last_file": path.name})
             log.info("Arkiv %s: %s rækker (%.1fs)", path.name, n, time.time() - t0)
         await r.hset(PROGRESS, mapping={"status": "aggregating"})
+        await jobstatus.step("Dagsaggregater", len(files), len(files))
         if earliest:
             from portal.services.phenology import refresh_aggregates
             async with SessionLocal() as s:

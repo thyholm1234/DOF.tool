@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from sqlalchemy import text
 
 from portal.bootstrap import init_db
+from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
 from portal.dof import archive, gateway, jobs
@@ -28,12 +29,16 @@ async def _once(name: str, period_key: str) -> bool:
 
 
 async def nightly_compute() -> None:
+    await jobstatus.step("Dagsaggregater (14 dage)", 0, 4)
     async with SessionLocal() as s:
         await phenology.refresh_aggregates(s, dk_today() - timedelta(days=14))
+    await jobstatus.step("Lokale tal (DK, afdelinger, kommuner)", 1, 4)
     async with SessionLocal() as s:
         await areas.refresh_all_area_counts(s)
+    await jobstatus.step("Fænologi", 2, 4)
     async with SessionLocal() as s:
         await phenology.recompute_metrics(s)
+    await jobstatus.step("Oprydning", 3, 4)
     async with SessionLocal() as s:
         await s.execute(text("DELETE FROM notifications WHERE created_at < now() - interval '90 days'"))
         await s.execute(text("DELETE FROM thread_follows WHERE dato < current_date - 7"))
@@ -58,13 +63,14 @@ async def scheduler() -> None:
         has_climate = (await s.execute(text("SELECT count(*) FROM climate_month"))).scalar()
         has_metrics = (await s.execute(text("SELECT count(*) FROM pheno_metrics"))).scalar()
     if not has_climate:
-        await run_safely("klima", refresh_climate())
+        await run_safely("climate", refresh_climate())
     if not has_metrics:
         await kv().rpush(COMMANDS, json.dumps({"cmd": "compute"}))
+        await jobstatus.queued("compute")
     async with SessionLocal() as s:
         has_events = (await s.execute(text("SELECT count(*) FROM dof_events"))).scalar()
     if not has_events:
-        await run_safely("DOF-ture", dof_events.sync())
+        await run_safely("events", dof_events.sync())
     async with SessionLocal() as s:
         await datasync.apply_live_interval((await datasync.get_plan(s, "dof"))["tiers"]["today"])
     while True:
@@ -74,15 +80,15 @@ async def scheduler() -> None:
         try:
             await run_plans()
             if now.minute >= 15 and await _once("forecast", hour):
-                await run_safely("prognose", dmi.forecast())
+                await run_safely("forecast", dmi.forecast())
             if now.hour == 2 and now.minute >= 30 and await _once("compute", day):
-                await run_safely("natlig beregning", nightly_compute())
+                await run_safely("compute", nightly_compute())
             if now.hour == 3 and await _once("reference", day):
                 await jobs.enqueue_reference_refresh()
             if now.weekday() == 0 and now.hour == 5 and await _once("climate", day):
-                await run_safely("klima", refresh_climate())
+                await run_safely("climate", refresh_climate())
             if now.hour % 6 == 1 and now.minute >= 20 and await _once("dof_events", hour):
-                await run_safely("DOF-ture", dof_events.sync())
+                await run_safely("events", dof_events.sync())
             if now.hour % 6 == 0 and await _once("gap", hour):
                 await jobs.enqueue_gap_fill()
         except Exception:  # noqa: BLE001
@@ -120,11 +126,26 @@ async def run_plans(force: dict[str, list[str]] | None = None) -> dict:
     return out
 
 
-async def run_safely(label: str, coro) -> None:
+async def run_safely(name: str, coro) -> None:
+    """Kør en opgave med status i admin-panelet (jobstatus); fejl logges men stopper ikke workeren."""
     try:
-        await coro
+        async with jobstatus.track(name):
+            await coro
     except Exception:  # noqa: BLE001
-        log.exception("Opgave fejlede: %s", label)
+        log.exception("Opgave fejlede: %s", jobstatus.LABELS.get(name, name))
+
+
+async def area_counts(scope_ref: str) -> None:
+    await jobstatus.step(scope_ref)
+    async with SessionLocal() as s:
+        await areas.refresh_area_counts(s, areas.parse_scope(scope_ref))
+        await s.commit()
+
+
+async def aggregates(days: int) -> None:
+    await jobstatus.step(f"Seneste {days} dage")
+    async with SessionLocal() as s:
+        await phenology.refresh_aggregates(s, dk_today() - timedelta(days=days))
 
 
 async def command_listener() -> None:
@@ -139,25 +160,21 @@ async def command_listener() -> None:
             name = cmd.get("cmd")
             await r.hset("worker:last_command", mapping={"cmd": name, "at": dk_now().isoformat()})
             if name == "archive_import":
-                await run_safely("arkivimport", archive.run_import())
+                await run_safely("archive_import", archive.run_import())
             elif name == "compute":
-                await run_safely("beregning", nightly_compute())
+                await run_safely("compute", nightly_compute())
             elif name == "climate":
-                await run_safely("klima", refresh_climate())
+                await run_safely("climate", refresh_climate())
             elif name == "area_counts":
-                async with SessionLocal() as s:
-                    scope = areas.parse_scope(cmd["scope"])
-                    await areas.refresh_area_counts(s, scope)
-                    await s.commit()
+                await run_safely("area_counts", area_counts(cmd["scope"]))
             elif name == "events":
-                await run_safely("DOF-ture", dof_events.sync())
+                await run_safely("events", dof_events.sync())
             elif name == "run_plan":
                 await run_safely("plan", run_plans({cmd["source"]: [cmd["tier"]]}))
             elif name == "weather_months":
                 await weather_archive.enqueue([tuple(x) for x in cmd["months"]], only_missing=bool(cmd.get("only_missing")))
             elif name == "aggregates":
-                async with SessionLocal() as s:
-                    await phenology.refresh_aggregates(s, dk_today() - timedelta(days=int(cmd.get("days", 30))))
+                await run_safely("aggregates", aggregates(int(cmd.get("days", 30))))
         except Exception:  # noqa: BLE001
             log.exception("Kommando-fejl")
             await asyncio.sleep(2)
@@ -168,6 +185,7 @@ async def main() -> None:
     await init_db()
     # Kun én worker kører: låse fra en afbrudt proces er forældede
     await kv().delete("archive:lock", "dof:lock")
+    await jobstatus.interrupted()
     gw = gateway.Gateway(jobs.HANDLERS, jobs.live, jobs.live_enabled)
     tasks = [
         asyncio.create_task(gw.run(), name="gateway"),
@@ -178,6 +196,7 @@ async def main() -> None:
     if await archive.pending_files():
         log.info("Nye arkivfiler fundet – starter import i baggrunden")
         await kv().rpush(COMMANDS, json.dumps({"cmd": "archive_import"}))
+        await jobstatus.queued("archive_import")
     await asyncio.gather(*tasks)
 
 

@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, ago, seg, params, setParams, toast, errorBox, empty, modal } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { conversation, KINDS } from "./support.js";
 import { eventForm, isModerator } from "./events.js";
@@ -16,11 +16,17 @@ export async function render(view) {
   if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
   const body = h("div", {});
   view.append(h("div", { class: "page-head" }, h("h1", {}, isAdmin ? "Administration" : "Moderation"), h("span", { class: "spacer" }),
-    seg(tabs, tab, (v) => { setParams({ tab: v, t: "" }); body.replaceChildren(); clearInterval(timer); draw(v); })), body);
-  let timer;
-  const every = (fn, ms) => { fn(); timer = setInterval(fn, ms); };
+    seg(tabs, tab, (v) => { setParams({ tab: v, t: "" }); body.replaceChildren(); stop(); draw(v); })), body);
+  let timers = [];
+  const stop = () => { timers.forEach(clearInterval); timers = []; };
+  const every = (fn, ms) => { fn(); timers.push(setInterval(fn, ms)); };
   const draw = (t) => ({
-    drift: () => { ops(body); timer = setInterval(() => { body.replaceChildren(); ops(body); }, 15000); },
+    drift: () => {
+      const jobsBox = h("div", { class: "card stack" }), opsBox = h("div", { class: "mt" });
+      body.append(jobsBox, opsBox);
+      every(() => jobsCard(jobsBox), 3000);
+      every(() => { opsBox.replaceChildren(); ops(opsBox); }, 15000);
+    },
     data: () => dataPanel(body, "dof", (f) => every(f, 20000)),
     vejr: () => dataPanel(body, "weather", (f) => every(f, 5000)),
     aktivitet: () => activityPanel(body), support: () => supportPanel(body),
@@ -28,7 +34,7 @@ export async function render(view) {
     brugere: () => users(body), arter: () => species(body), indhold: () => content(body),
   }[t] || ops)();
   draw(tab);
-  return () => clearInterval(timer);
+  return stop;
 }
 
 async function ops(body) {
@@ -54,7 +60,8 @@ async function ops(body) {
         h("p", {}, `Højst ét kald pr. ${g.min_interval} s. Seneste: `, h("b", {}, g.last_kind || "–"), ` ${g.last_at ? ago(g.last_at) : ""} (${g.last_duration || "–"} s) `,
           g.last_ok === "0" ? h("span", { class: "tag SU" }, "fejl") : h("span", { class: "tag plain" }, "ok")),
         g.last_error ? h("div", { class: "notice err" }, g.last_error) : null,
-        h("p", { class: "muted" }, `Kald i dag: ${g[`calls:${today}`] || 0} · i kø: ${g.queue_length}`),
+        h("p", { class: "muted" }, `Kald i dag: ${g[`calls:${today}`] || 0} · i kø: ${g.queue_length}`, g.queue_length > d.queue.length ? ` (viser de første ${d.queue.length})` : ""),
+        g.running ? h("p", {}, h("span", { class: "tag local" }, "kører"), " ", h("b", {}, g.running.kind), " ", h("span", { class: "muted" }, JSON.stringify(g.running.params))) : null,
         setting("live_enabled", "Live-hentning af dagens observationer"),
         enqueueForm(),
         d.queue.length ? h("div", { class: "table-wrap", style: { maxHeight: "260px" } }, h("table", { class: "data" }, h("tbody", {}, ...d.queue.map(j => h("tr", {},
@@ -64,9 +71,6 @@ async function ops(body) {
         h("p", {}, `Observationer fra ${fmtDate(c.first_date)} til ${fmtDate(c.last_date)}.`),
         h("p", {}, "Arkiv: ", `${a.files} filer`, a.pending.length ? `, ${a.pending.length} nye/ændrede` : ", alt importeret",
           a.progress?.status ? ` · import: ${a.progress.status} ${a.progress.files_done || 0}/${a.progress.files_total || "?"} filer, ${fmtN(Number(a.progress.rows_total || 0))} rækker` : ""),
-        h("div", { class: "row" }, ...[["archive_import", "Importér arkiv"], ["compute", "Genberegn fænologi/lokale tal"], ["climate", "Hent DMI-klima"], ["aggregates", "Opdatér dagsaggregater"]]
-          .map(([cmd, label]) => h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/worker/${cmd}`, { method: "POST", body: {} }); toast(`${label}: startet`); } }, label))),
-        d.worker?.cmd ? h("p", { class: "muted" }, `Seneste worker-kommando: ${d.worker.cmd} ${ago(d.worker.at)}`) : null,
         h("h3", { class: "mt" }, "Indstillinger"),
         h("div", { class: "row" }, "Matrikel-tag:", tagInput, h("button", { class: "btn sm", onclick: async () => { await api("/api/admin/settings", { method: "PUT", body: { matrikel_tag: tagInput.value } }); toast("Gemt"); } }, "Gem"),
           h("small", { class: "muted" }, "årstal tilføjes automatisk (#BB → #BB26)")))),
@@ -79,6 +83,50 @@ async function ops(body) {
 }
 
 const st = (v, l) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l));
+
+// ---------------------------------------------------------------- worker-opgaver (status opdateres hvert 3. sekund)
+
+const RUNNABLE = ["compute", "archive_import", "aggregates", "climate", "events"];
+const JOB_STATUS = { idle: ["plain", "ikke kørt"], queued: ["bemaerk", "i kø"], running: ["local", "kører"], done: ["plain", "ok"], error: ["SU", "fejl"], interrupted: ["SUB", "afbrudt"] };
+const jobTag = (status) => { const [k, l] = JOB_STATUS[status] || ["plain", status]; return h("span", { class: `tag ${k}` }, l); };
+const dur = (s) => s == null ? "–" : s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} t`;
+
+async function jobsCard(box) {
+  let d;
+  try { d = await api("/api/admin/jobs"); } catch (err) { box.replaceChildren(errorBox(err)); return; }
+  const histOpen = box.querySelector("details")?.open;
+  const run = async (j) => {
+    try { await api(`/api/admin/worker/${j.name}`, { method: "POST", body: {} }); toast(`${j.label}: lagt i kø`); jobsCard(box); } catch (err) { toast(err.message, "err"); }
+  };
+  const progress = (j) => {
+    if (j.status === "running") {
+      const pct = j.total ? Math.round(100 * (j.done || 0) / j.total) : null;
+      return [h("div", {}, j.step || "Starter…", pct != null ? h("span", { class: "muted" }, ` · ${j.done}/${j.total} (${pct} %)`) : null,
+        h("span", { class: "muted" }, ` · startet ${ago(j.started_at)}`)),
+        pct != null ? h("div", { class: "progress", style: { marginTop: "5px" } }, h("i", { style: { width: `${pct}%` } })) : null];
+    }
+    if (j.status === "queued") return h("span", { class: "muted" }, `Venter på worker (lagt i kø ${ago(j.queued_at)})`);
+    if (j.status === "interrupted") return h("span", { class: "muted" }, `Afbrudt ved genstart${j.step ? ` under: ${j.step}` : ""}`);
+    const last = j.last;
+    if (!last) return h("span", { class: "muted" }, "–");
+    return [h("span", { class: "muted" }, `Sidst ${ago(last.finished_at)} · ${dur(last.duration)}`),
+      last.error ? h("div", { style: { color: "var(--err)" } }, last.error) : null];
+  };
+  const jobs = d.jobs.filter(j => j.status !== "idle" || RUNNABLE.includes(j.name));
+  box.replaceChildren(h("h3", {}, "Worker-opgaver"),
+    h("p", { class: "muted" }, "Workeren kører kommandoer én ad gangen; en opgave i kø venter på den der kører."),
+    h("div", { class: "table-wrap" }, h("table", { class: "data" },
+      h("thead", {}, h("tr", {}, h("th", {}, "Opgave"), h("th", {}, "Status"), h("th", {}, "Fremdrift / seneste kørsel"), h("th", {}))),
+      h("tbody", {}, ...jobs.map(j => h("tr", {},
+        h("td", { class: "nowrap" }, h("b", {}, j.label)), h("td", {}, jobTag(j.status)), h("td", { style: { width: "100%" } }, progress(j)),
+        h("td", { class: "right" }, RUNNABLE.includes(j.name)
+          ? h("button", { class: "btn sm", disabled: ["running", "queued"].includes(j.status), onclick: () => run(j) }, "Kør nu") : null)))))),
+    d.history.length ? Object.assign(h("details", { class: "more" }, h("summary", {}, `Seneste ${d.history.length} kørsler`),
+      h("div", { class: "table-wrap mt" }, h("table", { class: "data" }, h("tbody", {}, ...d.history.map(x => h("tr", {},
+        h("td", { class: "nowrap" }, fmtDate(x.finished_at, false), " ", fmtTime(x.finished_at)),
+        h("td", {}, x.label), h("td", {}, jobTag(x.status)), h("td", { class: "right num" }, dur(x.duration)),
+        h("td", { style: { color: "var(--err)" } }, x.error || "")))))))), { open: !!histOpen }) : null);
+}
 
 async function users(body) {
   const q = h("input", { type: "search", placeholder: "Søg obserkode/navn…", style: { maxWidth: "280px" } });

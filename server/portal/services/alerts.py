@@ -177,6 +177,9 @@ def _rule_matches(rule: dict, e: Event, members: dict[int, set[int]], counts: di
         return False
     if e.antal < (rule["min_antal"] or 1):
         return False
+    if rule["kommuner"] or rule["afdelinger"]:
+        if e.kommune_kode not in rule["kommuner"] and not set(e.afdelinger) & set(rule["afdelinger"]):
+            return False
     kind, ref = rule["area_kind"], rule["area_ref"]
     if kind == "afdeling" and int(ref) not in e.afdelinger:
         return False
@@ -194,6 +197,11 @@ def _rule_matches(rule: dict, e: Event, members: dict[int, set[int]], counts: di
             return True
         if e.art_type not in ("art", "underart"):
             return False
+        if rule["kommuner"] or rule["afdelinger"]:
+            # Flere regioner: lokalt hit hvis arten er sjælden i mindst én af de valgte regioner fundet ligger i
+            keys = [f"kom:{e.kommune_kode}"] if e.kommune_kode in rule["kommuner"] else []
+            keys += [f"afd:{a}" for a in e.afdelinger if a in rule["afdelinger"]]
+            return min(counts.get((k, e.artnr), 0) for k in keys) < rule["local_max"]
         return counts.get((rule["count_key"], e.artnr), 0) < rule["local_max"]
     return level == "all"
 
@@ -260,12 +268,13 @@ async def _users(session: AsyncSession) -> dict[int, dict]:
 async def _rules(session: AsyncSession) -> list[dict]:
     rows = (await session.execute(text("""
         SELECT r.id, r.user_id, r.level, r.local_max, r.min_antal, r.species_include, r.species_exclude, r.push,
-               r.area_id, a.kind AS area_kind, a.ref AS area_ref
+               r.area_id, a.kind AS area_kind, a.ref AS area_ref, r.kommuner, r.afdelinger
         FROM alert_rules r LEFT JOIN areas a ON a.id = r.area_id WHERE r.enabled
     """))).mappings().all()
     out = []
     for r in rows:
         d = dict(r)
+        d["kommuner"], d["afdelinger"] = list(d["kommuner"] or []), list(d["afdelinger"] or [])
         kind = d["area_kind"]
         d["count_key"] = ("dk" if kind is None else f"afd:{d['area_ref']}" if kind == "afdeling"
                           else f"kom:{d['area_ref']}" if kind == "kommune" else f"lok:{d['area_ref']}" if kind == "lokalitet"
@@ -289,7 +298,11 @@ async def _area_members(session: AsyncSession, rules: list[dict], loknrs: set) -
 
 
 async def _local_counts(session: AsyncSession, rules: list[dict], events: list[Event]) -> dict[tuple[str, int], int]:
-    keys = list({r["count_key"] for r in rules if r["level"] == "local"})
+    keys = set()
+    for r in rules:
+        if r["level"] == "local":
+            keys |= {r["count_key"], *(f"kom:{k}" for k in r["kommuner"]), *(f"afd:{a}" for a in r["afdelinger"])}
+    keys = list(keys)
     if not keys:
         return {}
     rows = (await session.execute(text("""

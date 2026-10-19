@@ -302,6 +302,9 @@ class AlertRule(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     area_id: Mapped[int | None] = mapped_column(ForeignKey("areas.id", ondelete="CASCADE"))
+    # Alternativ til area_id: en eller flere kommuner/lokalafdelinger direkte (reglen gælder i dem alle)
+    kommuner: Mapped[list[str]] = mapped_column(ARRAY(String(4)), default=list)
+    afdelinger: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), default=list)
     # SU / SUB / bemaerk / local / all
     level: Mapped[str] = mapped_column(String(8), default="SUB")
     local_max: Mapped[int] = mapped_column(Integer, default=5)
@@ -768,6 +771,8 @@ EXTRA_DDL = [
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS created_by integer REFERENCES users(id) ON DELETE SET NULL",
     "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lat double precision",
     "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lon double precision",
+    "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS kommuner varchar(4)[] NOT NULL DEFAULT '{}'",
+    "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS afdelinger smallint[] NOT NULL DEFAULT '{}'",
     # Portalens egne ture får id'er langt fra dof.dk's event_id'er
     "CREATE SEQUENCE IF NOT EXISTS portal_event_seq START 900000000",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"

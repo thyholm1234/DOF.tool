@@ -56,4 +56,9 @@ COMMANDS = "worker:commands"
 
 
 async def worker_command(cmd: str, **params) -> None:
+    from portal import jobstatus
+
     await kv().rpush(COMMANDS, json.dumps({"cmd": cmd, **params}))
+    name = "plan" if cmd == "run_plan" else cmd
+    if name in jobstatus.LABELS:
+        await jobstatus.queued(name)

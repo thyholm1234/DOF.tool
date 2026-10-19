@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from portal import jobstatus
 from portal.api.deps import require_role
 from portal.cache import bump, kv, worker_command
 from portal.db import get_session
@@ -118,6 +119,11 @@ async def worker(cmd: str, body: dict | None = None, user: User = Depends(admin)
         raise HTTPException(400)
     await worker_command(cmd, **(body or {}))
     return {"queued": cmd}
+
+
+@router.get("/admin/jobs")
+async def jobs(user: User = Depends(admin)):
+    return await jobstatus.snapshot()
 
 
 @router.get("/admin/users")

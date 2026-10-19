@@ -19,6 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, kv
+from portal.dof.gateway import pending_ids
 from portal.models import Setting
 from portal.timeutil import dk_today
 
@@ -218,10 +219,13 @@ async def dof_status(session: AsyncSession) -> dict:
 
 
 async def queued_months() -> set[str]:
+    """Måneder med et månedsjob der venter i gatewayens kø eller kører nu (forældede dedupe-nøgler tæller ikke)."""
+    alive = await pending_ids()
+    r = kv()
     out = set()
-    async for k in kv().scan_iter(match="dof:dedupe:month:*", count=500):
+    async for k in r.scan_iter(match="dof:dedupe:month:*", count=500):
         y, _, m = k.rsplit(":", 1)[1].partition("-")
-        if y.isdigit() and m.isdigit():
+        if y.isdigit() and m.isdigit() and await r.get(k) in alive:
             out.add(f"{y}-{int(m):02d}")
     return out
 
