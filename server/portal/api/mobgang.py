@@ -83,6 +83,7 @@ CREDITS = {
     687689: ("Hugo Wieleman", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
     1047896: ("Lars Edenius", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
     1012313: ("Дмитрий К", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1095028: ("Cedric Mroczko", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
     1082575: ("Gustav Haapalahti", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
 }
 
@@ -141,6 +142,7 @@ SPECIES = [
     _sp("roedtoppet", 13150, "Rødtoppet Fuglekonge", "Regulus ignicapilla", "andre",
         (1165095, "roedtoppet-fuglekonge-XC1165095.mp3"), (687689, "roedtoppet-fuglekonge-XC687689.mp3"), start=True),
     _sp("fyrremejse", 14420, "Fyrremejse", "Poecile montanus", "andre", (1047896, "fyrremejse-XC1047896.mp3"), start=True),
+    _sp("sortmejse", 14610, "Sortmejse", "Periparus ater", "andre", (1095028, "sortmejse-XC1095028.mp3")),
     # Azurmejse findes ikke i DOFbasens artsliste – intet artsnummer
     _sp("azurmejse", None, "Azurmejse", "Cyanistes cyanus", "andre", (1012313, "azurmejse-XC1012313.mp3")),
     _sp("noeddekrige", 15570, "Nøddekrige", "Nucifraga caryocatactes", "andre", (1082575, "noeddekrige-XC1082575.mp3")),
