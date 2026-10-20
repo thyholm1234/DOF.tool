@@ -3,7 +3,5 @@ Old Apps
 .venv
 **/__pycache__
 **/.pytest_cache
-backend
-frontend
 data
 *.egg-info
