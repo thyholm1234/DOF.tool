@@ -16,7 +16,7 @@ export async function render(view) {
   const save = () => store("lokaliteter", { kat: st.kat, kommune: st.kommune, afdeling: st.afdeling, active: st.active, sort: st.sort, year: st.year });
   // Navn på perioden: "2026", "2018" eller "i alt"
   const period = () => st.year === "alle" ? "i alt" : st.year || String(YEAR);
-  const out = h("div", {});
+  const out = h("div", { style: { marginTop: "12px" } });
   const countEl = h("small", { class: "muted" });
   const builtEl = h("small", { class: "muted" });
   let items = [], total = 0, all = 0, seq = 0, timer = null;

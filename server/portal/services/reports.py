@@ -1,7 +1,8 @@
 """Feltmeldinger: egne indtastninger i portalen med DOFbasens felter.
 
-En tur (lokalitet + dato) indeholder observationer med de samme felter som DOFbasens indtastning
-(art, antal, adfærd, køn, alder, dragt, metode, tider, position, noter, hemmelig). Portalen tilføjer:
+Hver melding er én fugl med dato, koordinat og lokalitet (foreslået ud fra koordinaten) og de samme felter som
+DOFbasens indtastning (art, antal, adfærd, køn, alder, dragt, metode, tider, noter, hemmelig). Ældre meldinger kan
+høre til en tur med turtider og turnoter. Portalen tilføjer:
 
 - Status – om fuglen er under observation lige nu. Indtasteren og andre brugere, der står ved fuglen,
   kan bekræfte "stadig til stede" eller melde den fløjet/ikke genfundet; følgere af tråden får besked.
@@ -23,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
 from portal.dof.classify import get_classifier
-from portal.models import FieldReport, FieldReportUpdate, FieldTrip, User
+from portal.models import FieldReport, FieldReportUpdate, User
 from portal.services import alerts
 from portal.services.areas import Scope
 from portal.timeutil import TZ
@@ -115,7 +116,7 @@ async def recent(session: AsyncSession, user: User) -> dict:
     """Seneste lokaliteter, arter og adfærd – fra portalen og brugerens egne DOFbasen-ture."""
     locs = (await session.execute(text("""
         SELECT x.loknr, l.navn, k.navn AS kommune, max(x.dato) AS dato FROM (
-            SELECT loknr, dato FROM field_trips WHERE user_id = :u
+            SELECT loknr, dato FROM field_reports WHERE user_id = :u
             UNION ALL SELECT loknr, dato FROM trips WHERE obserkode = :k AND dato > current_date - 400
         ) x JOIN locations l ON l.loknr = x.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         GROUP BY x.loknr, l.navn, k.navn ORDER BY max(x.dato) DESC LIMIT 12
@@ -135,42 +136,17 @@ async def recent(session: AsyncSession, user: User) -> dict:
     return {"locations": [dict(r) for r in locs], "species": [dict(r) for r in species], "adf": [dict(r) for r in adf]}
 
 
-# ---------------------------------------------------------------- ture og meldinger
-
-
-async def trip_dict(session: AsyncSession, trip: FieldTrip, viewer: User | None = None) -> dict:
-    loc = (await session.execute(text("""
-        SELECT l.navn, l.lat, l.lon, k.navn AS kommune, a.navn AS afdeling FROM locations l
-        LEFT JOIN kommuner k ON k.kode = l.kommune_kode LEFT JOIN afdelinger a ON a.id = l.afdeling_id WHERE l.loknr = :l
-    """), {"l": trip.loknr})).mappings().first() or {}
-    reports = await _report_rows(session, "r.trip_id = :t", {"t": trip.id}, viewer, include_hidden=True)
-    return {"id": trip.id, "dato": trip.dato.isoformat(), "loknr": trip.loknr, "lok": loc.get("navn"),
-            "kommune": loc.get("kommune"), "afdeling": loc.get("afdeling"), "lat": loc.get("lat"), "lon": loc.get("lon"),
-            "turtidfra": trip.turtidfra, "turtidtil": trip.turtidtil, "medobser": trip.medobser, "turnoter": trip.turnoter,
-            "obserkode": trip.obserkode, "reports": reports}
-
-
-async def my_trips(session: AsyncSession, user: User, limit: int = 60) -> list[dict]:
-    rows = (await session.execute(text("""
-        SELECT t.id, t.dato, t.loknr, l.navn AS lok, k.navn AS kommune, t.turtidfra, t.turtidtil,
-               count(r.id) AS n, count(DISTINCT r.artnr) AS n_species,
-               count(r.id) FILTER (WHERE r.kategori <> 'alm') AS n_notable,
-               count(r.id) FILTER (WHERE r.status = 'til_stede') AS n_live
-        FROM field_trips t JOIN locations l ON l.loknr = t.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
-        LEFT JOIN field_reports r ON r.trip_id = t.id
-        WHERE t.user_id = :u GROUP BY t.id, l.navn, k.navn ORDER BY t.dato DESC, t.id DESC LIMIT :n
-    """), {"u": user.id, "n": limit})).mappings().all()
-    return [{**dict(r), "dato": r["dato"].isoformat()} for r in rows]
+# ---------------------------------------------------------------- meldinger
 
 
 async def my_reports(session: AsyncSession, user: User, limit: int = 2000) -> list[dict]:
     rows = (await session.execute(text("""
-        SELECT r.id, r.trip_id, r.dato, coalesce(r.obstidfra, t.turtidfra) AS tid, r.artnr, s.navn AS art, s.sortering,
+        SELECT r.id, r.dato, coalesce(r.obstidfra, t.turtidfra) AS tid, r.artnr, s.navn AS art, s.sortering,
                r.antal, ca.text AS adf, r.loknr, l.navn AS lok, k.navn AS kommune, r.kategori, r.sikkerhed, r.status,
                r.status_at, jsonb_array_length(coalesce(r.media, '[]'::jsonb)) AS n_media, r.created_at,
                EXISTS (SELECT 1 FROM observations o WHERE o.dato = r.dato AND o.artnr = r.artnr AND o.loknr = r.loknr
                        AND o.obserkode = r.obserkode) AS i_dofbasen
-        FROM field_reports r JOIN field_trips t ON t.id = r.trip_id JOIN species s ON s.artnr = r.artnr
+        FROM field_reports r LEFT JOIN field_trips t ON t.id = r.trip_id JOIN species s ON s.artnr = r.artnr
         JOIN locations l ON l.loknr = r.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
         WHERE r.user_id = :u ORDER BY r.dato DESC, tid DESC NULLS LAST, r.id DESC LIMIT :n
@@ -208,11 +184,11 @@ async def _report_rows(session: AsyncSession, where: str, params: dict, viewer: 
     vis = "(NOT r.hemmelig OR r.user_id = :viewer)" if not include_hidden else "TRUE"
     rows = (await session.execute(text(f"""
         SELECT r.*, s.navn AS art, s.latin, ca.text AS adf, cd.text AS dragt, u.navn AS observer,
-               t.turtidfra, t.turtidtil, t.medobser,
+               t.turtidfra, t.turtidtil, t.medobser, l.navn AS lok, k.navn AS kommune, l.lat AS lok_lat, l.lon AS lok_lon,
                EXISTS (SELECT 1 FROM observations o WHERE o.dato = r.dato AND o.artnr = r.artnr AND o.loknr = r.loknr
                        AND o.obserkode = r.obserkode) AS i_dofbasen
-        FROM field_reports r JOIN species s ON s.artnr = r.artnr JOIN field_trips t ON t.id = r.trip_id
-        JOIN users u ON u.id = r.user_id
+        FROM field_reports r JOIN species s ON s.artnr = r.artnr LEFT JOIN field_trips t ON t.id = r.trip_id
+        JOIN users u ON u.id = r.user_id JOIN locations l ON l.loknr = r.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
         LEFT JOIN code_texts cd ON cd.kind = 'dragt' AND cd.code = r.dragtkode
         WHERE {where} AND {vis} ORDER BY coalesce(r.obstidfra, t.turtidfra, '99:99'), r.created_at
@@ -231,10 +207,11 @@ async def _report_rows(session: AsyncSession, where: str, params: dict, viewer: 
     out = []
     for r in rows:
         own = viewer is not None and r["user_id"] == viewer.id
-        d = {k: r[k] for k in ("id", "trip_id", "artnr", "art", "latin", "antal", "koen", "adfkode", "adf", "alderkode",
+        d = {k: r[k] for k in ("id", "artnr", "art", "latin", "antal", "koen", "adfkode", "adf", "alderkode",
                                 "dragtkode", "dragt", "metode", "obstidfra", "obstidtil", "fuglnoter", "hemmelig",
                                 "skjul_position", "sikkerhed", "grundlag", "retningslinjer", "status", "kategori", "media", "obserkode",
-                                "observer", "loknr", "turtidfra", "medobser", "i_dofbasen")}
+                                "observer", "loknr", "lok", "kommune", "lok_lat", "lok_lon", "turtidfra", "medobser",
+                                "i_dofbasen")}
         d.update(dato=r["dato"].isoformat(), status_at=r["status_at"].isoformat() if r["status_at"] else None,
                  created_at=r["created_at"].isoformat(), live=is_live(r["status"], r["status_at"]), own=own,
                  observer=r["observer"] or r["obserkode"], updates=by.get(r["id"], []))
@@ -269,7 +246,7 @@ async def merge_feed(session: AsyncSession, threads: list[dict], day: date, scop
                r.obstidfra, r.afdelinger, s.navn AS art, l.navn AS lok, l.lat, l.lon, k.navn AS kommune, u.navn AS observer,
                ca.text AS adf, t.turtidfra
         FROM field_reports r JOIN species s ON s.artnr = r.artnr JOIN locations l ON l.loknr = r.loknr
-        JOIN field_trips t ON t.id = r.trip_id JOIN users u ON u.id = r.user_id
+        LEFT JOIN field_trips t ON t.id = r.trip_id JOIN users u ON u.id = r.user_id
         LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode {joins}
         WHERE {' AND '.join(conds)} ORDER BY r.created_at
@@ -324,9 +301,10 @@ async def events_for(session: AsyncSession, reports: list[FieldReport]) -> list[
             continue
         row = (await session.execute(text("""
             SELECT s.navn, s.art_type, s.list_artnr, l.navn AS lok, l.kommune_kode, u.navn AS observer, c.text AS adf, t.turtidfra
-            FROM species s, locations l, users u, field_trips t
+            FROM species s JOIN locations l ON l.loknr = :l JOIN users u ON u.id = :u
+            LEFT JOIN field_trips t ON t.id = :t
             LEFT JOIN code_texts c ON c.kind = 'adf' AND c.code = :adf
-            WHERE s.artnr = :a AND l.loknr = :l AND u.id = :u AND t.id = :t
+            WHERE s.artnr = :a
         """), {"a": r.artnr, "l": r.loknr, "u": r.user_id, "t": r.trip_id, "adf": r.adfkode})).mappings().first()
         if not row:
             continue
@@ -380,11 +358,11 @@ async def export_csv(session: AsyncSession, user: User) -> str:
     rows = (await session.execute(text("""
         SELECT r.*, t.turtidfra, t.turtidtil, t.medobser, t.turnoter, l.navn AS loknavn, s.navn AS artnavn, s.latin,
                ca.text AS adf, cd.text AS dragt
-        FROM field_reports r JOIN field_trips t ON t.id = r.trip_id JOIN locations l ON l.loknr = r.loknr
+        FROM field_reports r LEFT JOIN field_trips t ON t.id = r.trip_id JOIN locations l ON l.loknr = r.loknr
         JOIN species s ON s.artnr = r.artnr
         LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
         LEFT JOIN code_texts cd ON cd.kind = 'dragt' AND cd.code = r.dragtkode
-        WHERE r.user_id = :u ORDER BY r.dato, t.id, r.id
+        WHERE r.user_id = :u ORDER BY r.dato, r.obstidfra NULLS LAST, r.id
     """), {"u": user.id})).mappings().all()
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")

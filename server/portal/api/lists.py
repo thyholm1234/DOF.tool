@@ -88,7 +88,7 @@ async def scoreboard(scope: str | None = None, year: str | None = None, matrikel
     if spec.scope.kind == "area":
         raise HTTPException(400, "Egne områder har ingen fælles scoreboard – brug en gruppe")
     if spec.matrikel and spec.matrikel > 1:
-        raise HTTPException(400, "Kun matrikel 1 har scoreboard – matrikel 2 og op er private")
+        raise HTTPException(400, "Kun matrikel 1 har en rangliste – matrikel 2 og op er private")
     if group:
         await _group_access(db, group, user)
     return await lists.scoreboard(db, spec, group)

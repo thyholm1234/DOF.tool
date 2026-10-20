@@ -10,7 +10,7 @@ export async function render(view) {
   const st = { q: "", klass: saved.klass || "all", type: saved.type || "art", seen: !!saved.seen };
   const sort = { key: saved.sort || "sortering", dir: saved.dir || 1 };
   const save = () => store("arter", { klass: st.klass, type: st.type, seen: st.seen, sort: sort.key, dir: sort.dir });
-  const out = h("div", {});
+  const out = h("div", { style: { marginTop: "12px" } });
   const countEl = h("small", { class: "muted" });
   const search = h("input", { type: "search", placeholder: "Søg dansk eller latinsk navn…", autofocus: true,
     oninput: () => { st.q = search.value.trim().toLowerCase(); draw(); },

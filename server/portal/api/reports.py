@@ -1,4 +1,4 @@
-"""Feltmeldinger: ture og observationer indtastet i portalen (se services/reports.py)."""
+"""Feltmeldinger: fugle indtastet i portalen – én fugl med dato, koordinat og lokalitet (se services/reports.py)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +18,7 @@ from portal.api.learn import MEDIA_TYPES
 from portal.cache import kv, publish
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
-from portal.models import FieldReport, FieldTrip, ThreadFollow, User
+from portal.models import FieldReport, ThreadFollow, User
 from portal.services import activity, reports
 from portal.timeutil import dk_today
 
@@ -32,32 +32,10 @@ def _hhmm(v: str | None) -> str | None:
     return v.replace(".", ":") if v else None
 
 
-class TripIn(BaseModel):
-    loknr: int
-    dato: date
-    turtidfra: str | None = Field(None, pattern=TIME)
-    turtidtil: str | None = Field(None, pattern=TIME)
-    medobser: str | None = Field(None, max_length=300)
-    turnoter: str | None = Field(None, max_length=2000)
-
-    @field_validator("dato")
-    @classmethod
-    def not_future(cls, v: date) -> date:
-        if v > dk_today():
-            raise ValueError("Datoen ligger i fremtiden")
-        return v
-
-
-class TripPatch(BaseModel):
-    dato: date | None = None
-    turtidfra: str | None = Field(None, pattern=TIME)
-    turtidtil: str | None = Field(None, pattern=TIME)
-    medobser: str | None = Field(None, max_length=300)
-    turnoter: str | None = Field(None, max_length=2000)
-
-
 class ReportIn(BaseModel):
     artnr: int
+    dato: date | None = None  # standard: i dag
+    loknr: int | None = None  # standard: nærmeste lokalitet til fuglens position
     antal: int = Field(1, ge=0, le=9_900_000)
     koen: str | None = Field(None, pattern="^(M|F)$")
     adfkode: str | None = Field(None, max_length=16)
@@ -76,6 +54,13 @@ class ReportIn(BaseModel):
     grundlag: list[str] = Field(default_factory=list, max_length=6)
     status: str = Field("ukendt", pattern="^(til_stede|fløjet|ikke_genfundet|ukendt)$")
     retningslinjer: bool = False  # DOF: "Når du ser en sjælden fugl" – påkrævet for SU/SUB
+
+    @field_validator("dato")
+    @classmethod
+    def not_future(cls, v: date | None) -> date | None:
+        if v and v > dk_today():
+            raise ValueError("Datoen ligger i fremtiden")
+        return v
 
     @field_validator("grundlag")
     @classmethod
@@ -97,13 +82,6 @@ async def _in_background(fn, *args) -> None:
             await fn(s, *args)
         except Exception:  # noqa: BLE001 – en fejlet notifikation må ikke vælte indtastningen
             log.exception("Notifikation for feltmelding fejlede")
-
-
-async def _own_trip(db: AsyncSession, trip_id: int, user: User) -> FieldTrip:
-    trip = await db.get(FieldTrip, trip_id)
-    if trip is None or trip.user_id != user.id:
-        raise HTTPException(404, "Turen findes ikke")
-    return trip
 
 
 async def _own_report(db: AsyncSession, report_id: int, user: User) -> FieldReport:
@@ -147,6 +125,17 @@ async def _location_exists(db: AsyncSession, loknr: int) -> None:
         raise HTTPException(400, "Ukendt lokalitet")
 
 
+async def _location_for(db: AsyncSession, body: ReportIn) -> int:
+    """Den valgte lokalitet, ellers den nærmeste til fuglens position."""
+    if body.loknr is not None:
+        await _location_exists(db, body.loknr)
+        return body.loknr
+    near = await reports.nearest_locations(db, body.obs_lat, body.obs_lon, n=1)
+    if not near:
+        raise HTTPException(400, "Fandt ingen lokalitet nær positionen")
+    return near[0]["loknr"]
+
+
 # ---------------------------------------------------------------- opslag
 
 
@@ -170,7 +159,7 @@ async def recent(user: User = Depends(require_user), db: AsyncSession = Depends(
     return await reports.recent(db, user)
 
 
-# ---------------------------------------------------------------- ture
+# ---------------------------------------------------------------- observationer
 
 
 @router.get("/mine")
@@ -179,68 +168,20 @@ async def mine(user: User = Depends(require_user), db: AsyncSession = Depends(ge
     return await reports.my_reports(db, user)
 
 
-@router.get("/trips")
-async def trips(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    return await reports.my_trips(db, user)
-
-
-@router.post("/trips")
-async def create_trip(body: TripIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    await _location_exists(db, body.loknr)
-    trip = FieldTrip(user_id=user.id, obserkode=user.obserkode, dato=body.dato, loknr=body.loknr,
-                     turtidfra=_hhmm(body.turtidfra), turtidtil=_hhmm(body.turtidtil),
-                     medobser=body.medobser, turnoter=body.turnoter)
-    db.add(trip)
-    await db.commit()
-    return await reports.trip_dict(db, trip, user)
-
-
-@router.get("/trips/{trip_id}")
-async def get_trip(trip_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    return await reports.trip_dict(db, await _own_trip(db, trip_id, user), user)
-
-
-@router.patch("/trips/{trip_id}")
-async def patch_trip(trip_id: int, body: TripPatch, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    trip = await _own_trip(db, trip_id, user)
-    data = body.model_dump(exclude_unset=True)
-    if data.get("dato") and data["dato"] > dk_today():
-        raise HTTPException(400, "Datoen ligger i fremtiden")
-    for k, v in data.items():
-        setattr(trip, k, _hhmm(v) if k.startswith("turtid") else v)
-    if "dato" in data:
-        await db.execute(text("UPDATE field_reports SET dato = :d WHERE trip_id = :t"), {"d": trip.dato, "t": trip.id})
-    await db.commit()
-    await publish("feed", {"type": "feed", "portal": True})
-    return await reports.trip_dict(db, trip, user)
-
-
-@router.delete("/trips/{trip_id}")
-async def delete_trip(trip_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    trip = await _own_trip(db, trip_id, user)
-    media = (await db.execute(text("SELECT media FROM field_reports WHERE trip_id = :t"), {"t": trip.id})).scalars().all()
-    await db.delete(trip)
-    await db.commit()
-    for m in media:
-        _remove_files(m)
-    await publish("feed", {"type": "feed", "portal": True})
-    return {"ok": True}
-
-
-# ---------------------------------------------------------------- observationer
-
-
-@router.post("/trips/{trip_id}/reports")
-async def create_report(trip_id: int, body: ReportIn, tasks: BackgroundTasks, user: User = Depends(require_user),
+@router.post("")
+async def create_report(body: ReportIn, tasks: BackgroundTasks, user: User = Depends(require_user),
                         db: AsyncSession = Depends(get_session)):
-    trip = await _own_trip(db, trip_id, user)
     await _validate_codes(db, body)
+    if body.obs_lat is None or body.obs_lon is None:
+        raise HTTPException(400, "Sæt fuglens position på kortet")
     if not body.obstidfra:
         raise HTTPException(400, "Angiv tidspunkt for observationen")
+    loknr = await _location_for(db, body)
     data = body.model_dump()
     status = data.pop("status")
-    r = FieldReport(trip_id=trip.id, user_id=user.id, obserkode=user.obserkode, dato=trip.dato, loknr=trip.loknr,
-                    **{**data, "obstidfra": _hhmm(body.obstidfra), "obstidtil": _hhmm(body.obstidtil)})
+    r = FieldReport(user_id=user.id, obserkode=user.obserkode,
+                    **{**data, "dato": body.dato or dk_today(), "loknr": loknr,
+                       "obstidfra": _hhmm(body.obstidfra), "obstidtil": _hhmm(body.obstidtil)})
     await reports.classify(db, r)
     _check_guidelines(r)
     db.add(r)
@@ -258,14 +199,24 @@ async def create_report(trip_id: int, body: ReportIn, tasks: BackgroundTasks, us
     return await _one(db, r, user)
 
 
+@router.get("/{report_id:int}")
+async def get_report(report_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    return await _one(db, await _own_report(db, report_id, user), user)
+
+
 @router.patch("/{report_id}")
 async def patch_report(report_id: int, body: dict, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     r = await _own_report(db, report_id, user)
-    merged = ReportIn(**{**{k: getattr(r, k) for k in ReportIn.model_fields if k != "status"}, **body,
-                         "status": "ukendt"})
+    try:
+        merged = ReportIn(**{**{k: getattr(r, k) for k in ReportIn.model_fields if k != "status"}, **body,
+                             "status": "ukendt"})
+    except ValidationError as err:
+        raise HTTPException(400, "; ".join(e["msg"].removeprefix("Value error, ") for e in err.errors())) from None
     await _validate_codes(db, merged)
+    if merged.loknr != r.loknr:
+        await _location_exists(db, merged.loknr)
     for k, v in merged.model_dump().items():
-        if k == "status":
+        if k == "status" or (k in ("dato", "loknr") and v is None):
             continue
         setattr(r, k, _hhmm(v) if k in ("obstidfra", "obstidtil") else v)
     await reports.classify(db, r)

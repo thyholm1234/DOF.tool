@@ -19,7 +19,7 @@ export async function render(view, [date, artnr, loknr]) {
   const repList = h("div", { class: "stack" });
   const drawReports = () => repList.replaceChildren(...reps.map(r => reportCard(r, {
     onChange: (upd) => { Object.assign(r, upd); drawReports(); },
-    onEdit: r.own ? () => { location.hash = `#/indtast/tur/${r.trip_id}`; } : null,
+    onEdit: r.own ? () => { location.hash = `#/indtast/obs/${r.id}`; } : null,
   })));
   drawReports();
   const followBtn = h("button", { class: `btn ${t.following ? "primary" : ""}` });

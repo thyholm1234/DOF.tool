@@ -579,7 +579,7 @@ class QuizResult(Base):
 
 
 class FieldTrip(Base):
-    """En tur i portalen: lokalitet + dato, som i DOFbasens indtastning."""
+    """En tur i portalen: lokalitet + dato, som i DOFbasens indtastning. Bruges kun af ældre meldinger."""
 
     __tablename__ = "field_trips"
 
@@ -601,7 +601,8 @@ class FieldReport(Base):
     __tablename__ = "field_reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    trip_id: Mapped[int] = mapped_column(ForeignKey("field_trips.id", ondelete="CASCADE"), index=True)
+    # Kun ældre meldinger hører til en tur; nye er én fugl med dato, koordinat og lokalitet
+    trip_id: Mapped[int | None] = mapped_column(ForeignKey("field_trips.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     obserkode: Mapped[str] = mapped_column(String(16))
     dato: Mapped[date] = mapped_column(Date, index=True)
@@ -889,6 +890,7 @@ EXTRA_DDL = [
     # 10 km-kvadrat (DKN, EPSG:25832) for hver lokalitet – nøgle til vejrarkivet
     "ALTER TABLE locations ADD COLUMN IF NOT EXISTS cell10 integer",
     "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS retningslinjer boolean NOT NULL DEFAULT false",
+    "ALTER TABLE field_reports ALTER COLUMN trip_id DROP NOT NULL",
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS source varchar(8) NOT NULL DEFAULT 'dof'",
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS created_by integer REFERENCES users(id) ON DELETE SET NULL",
     "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lat double precision",

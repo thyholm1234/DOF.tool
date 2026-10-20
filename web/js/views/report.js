@@ -1,7 +1,8 @@
-// Indtastning: ture og observationer med DOFbasens felter + status (under observation) og sikkerhed.
-import { api, state, h, icon, fmtN, fmtDate, todayISO, tag, toast, modal, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, params, setParams, store, sortBar, KAT, esc } from "../core.js";
+// Indtastning: én fugl ad gangen med dato, koordinat og DOFbasens felter + status (under observation) og sikkerhed.
+// Lokaliteten foreslås ud fra fuglens position (nærmeste i DOFbasen) og kan skiftes.
+import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
 import { baseMap } from "../maps.js";
-import { reportCard, statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
+import { statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
 
 let CODES = null;
 let SPECIES = null;
@@ -11,11 +12,11 @@ async function loadLookups() {
   if (!CODES || !SPECIES) [CODES, SPECIES] = await Promise.all([api("/api/reports/codes"), api("/api/reports/species")]);
 }
 
-export async function render(view, [tripId]) {
+export async function render(view, [reportId]) {
   if (requireLogin(view)) return;
   view.append(h("div", { class: "skeleton", style: { height: "220px" } }));
   try { await loadLookups(); } catch (err) { view.replaceChildren(errorBox(err)); return; }
-  return tripId ? tripPage(view, Number(tripId)) : startPage(view);
+  return reportId ? editPage(view, Number(reportId)) : startPage(view);
 }
 
 // ---------------------------------------------------------------- modul: mine indtastede fugle + ny observation
@@ -25,30 +26,28 @@ const KAT_ORDER = { SU: 0, SUB: 1, bemaerk: 2, alm: 3 };
 async function startPage(view) {
   const p = params();
   const newPanel = h("div", { class: p.ny ? "" : "hide" });
+  const listEl = h("div", {}, h("div", { class: "skeleton", style: { height: "160px" } }));
+  const loadMine = async () => { try { drawMine(listEl, await api("/api/reports/mine")); } catch (err) { listEl.replaceChildren(errorBox(err)); } };
+  let recent = { locations: [], species: [], adf: [] };
+  try { recent = await api("/api/reports/recent"); } catch { /* formularen virker uden */ }
+  const openForm = () => {
+    if (!newPanel.firstChild) newPanel.append(h("div", { class: "card mb" }, h("h2", { style: { marginTop: 0 } }, "Ny observation"),
+      reportForm({ recent, submitLabel: "Gem observation", onSaved: loadMine })));
+  };
   const newBtn = h("button", { class: "btn primary", html: `${icon("plus")} Ny observation`, onclick: () => {
     newPanel.classList.toggle("hide");
     setParams({ ny: newPanel.classList.contains("hide") ? "" : "1" });
-    if (!newPanel.classList.contains("hide")) newPanel.querySelector("input[type=search]")?.focus();
+    if (!newPanel.classList.contains("hide")) { openForm(); newPanel.querySelector("input[type=search]")?.focus(); }
   } });
-  newPanel.append(newTripCard());
-  const listEl = h("div", {}, h("div", { class: "skeleton", style: { height: "160px" } }));
-  const tripsEl = h("div", {});
+  if (p.ny) openForm();
   view.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Mine indtastninger"),
       h("p", { class: "lead" }, "Dine egne fugle indtastet i portalen. De vises med det samme i trådene og alarmerne.")),
       h("span", { class: "spacer" }), newBtn),
     newPanel, listEl,
-    h("details", { class: "more mt" }, h("summary", {}, "Ture og eksport"), tripsEl),
+    h("div", { class: "row mt" }, h("a", { class: "btn sm", href: "/api/reports/export.csv", download: "", html: `${icon("external")} Eksportér CSV (DOFbasens kolonner)` })),
     h("p", { class: "muted mt", style: { fontSize: ".85rem" } }, "Portalen sender ikke data til DOFbasen. Indtast også dine fund i DOFbasen (app.dofbasen.dk), eller brug CSV-eksporten med DOFbasens kolonnenavne. Når fundet dukker op i DOFbasen, markeres det med ✓."));
-
-  try { drawMine(listEl, await api("/api/reports/mine")); } catch (err) { listEl.replaceChildren(errorBox(err)); }
-  try {
-    const rows = await api("/api/reports/trips");
-    tripsEl.replaceChildren(h("div", { class: "row mt mb" }, h("a", { class: "btn sm", href: "/api/reports/export.csv", download: "", html: `${icon("external")} Eksportér CSV (DOFbasens kolonner)` })),
-      rows.length ? h("div", { class: "loc-list" }, ...rows.map(r => h("a", { class: "loc-item", href: `#/indtast/tur/${r.id}` },
-        h("span", {}, h("b", {}, r.lok), h("small", { class: "muted" }, ` · ${fmtDate(r.dato, false)}${r.turtidfra ? " " + r.turtidfra : ""}`)),
-        h("small", { class: "muted num" }, `${r.n} obs. · ${r.n_species} ${r.n_species === 1 ? "art" : "arter"}`)))) : h("p", { class: "muted" }, "Ingen ture endnu."));
-  } catch { /* ikke kritisk */ }
+  await loadMine();
 }
 
 function drawMine(el, rows) {
@@ -71,7 +70,7 @@ function drawMine(el, rows) {
       && (filter.kind === "alle" || (filter.kind === "sjaeldne" && r.kategori !== "alm") || (filter.kind === "live" && r.live)))
       .sort((a, b) => sort.dir * cmp[sort.key](a, b));
     count.textContent = `${shown.length} af ${rows.length}`;
-    list.replaceChildren(...(shown.length ? shown.map(r => h("a", { class: `myobs ${r.kategori}`, href: `#/indtast/tur/${r.trip_id}` },
+    list.replaceChildren(...(shown.length ? shown.map(r => h("a", { class: `myobs ${r.kategori}`, href: `#/indtast/obs/${r.id}` },
       h("div", { class: "myobs-when" }, h("b", {}, fmtDate(r.dato, false)), h("small", { class: "muted" }, r.tid || "")),
       h("div", { class: "myobs-main" },
         h("div", { class: "row", style: { gap: "6px" } }, h("b", { class: "num" }, fmtN(r.antal)), h("b", {}, r.art),
@@ -91,118 +90,24 @@ function drawMine(el, rows) {
   draw();
 }
 
-function newTripCard() {
-  const dato = h("input", { type: "date", value: todayISO(), max: todayISO() });
-  const fra = h("input", { type: "time", value: nowHM() });
-  const results = h("div", { class: "loc-list" });
-  const q = h("input", { type: "search", placeholder: "Søg lokalitet i DOFbasen…", autocomplete: "off" });
-  const choose = async (loc) => {
-    try {
-      const trip = await api("/api/reports/trips", { method: "POST", body: { loknr: loc.loknr, dato: dato.value, turtidfra: fra.value || null } });
-      location.hash = `#/indtast/tur/${trip.id}`;
-    } catch (err) { toast(err.message, "err"); }
-  };
-  const showLocs = (rows, withKm = false) => results.replaceChildren(...(rows.length ? rows.map(l => h("button", { class: "loc-item", type: "button", onclick: () => choose(l) },
-    h("span", {}, h("b", {}, l.navn), l.kommune ? h("small", { class: "muted" }, ` · ${l.kommune}`) : null),
-    withKm ? h("small", { class: "muted num" }, `${String(l.km).replace(".", ",")} km`) : l.dato ? h("small", { class: "muted" }, fmtDate(l.dato, false)) : null))
-    : [h("p", { class: "muted" }, "Ingen lokaliteter fundet.")]));
-  let t;
-  q.oninput = () => {
-    clearTimeout(t);
-    if (q.value.trim().length < 2) return;
-    t = setTimeout(async () => { try { showLocs(await api(`/api/locations?q=${encodeURIComponent(q.value.trim())}`)); } catch (err) { toast(err.message, "err"); } }, 250);
-  };
-  const gps = h("button", { class: "btn", type: "button", html: `${icon("pin")} Nær mig` });
-  gps.onclick = () => {
-    if (!navigator.geolocation) { toast("Din enhed understøtter ikke position", "err"); return; }
-    gps.disabled = true;
-    navigator.geolocation.getCurrentPosition(async (p) => {
-      gps.disabled = false;
-      try { showLocs(await api(`/api/reports/near?lat=${p.coords.latitude}&lon=${p.coords.longitude}`), true); } catch (err) { toast(err.message, "err"); }
-    }, (err) => { gps.disabled = false; toast("Position ikke tilgængelig: " + err.message, "err"); }, { enableHighAccuracy: true, timeout: 15000 });
-  };
-  api("/api/reports/recent").then(recent => {
-    if (!results.children.length && recent.locations.length) { showLocs(recent.locations); results.prepend(h("small", { class: "muted" }, "Dine seneste lokaliteter")); }
-  }).catch(() => {});
-  return h("div", { class: "card stack mb" }, h("h2", { style: { margin: 0 } }, "Hvor og hvornår?"),
-    h("p", { class: "muted", style: { margin: 0 } }, "Vælg en lokalitet fra DOFbasen. Fuglens præcise position sætter du bagefter på kortet."),
-    h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Dato"), dato), h("label", { class: "field" }, h("span", {}, "Turtid fra"), fra)),
-    h("div", { class: "row" }, h("div", { style: { flex: 1, minWidth: "180px" } }, q), gps),
-    results);
-}
+// ---------------------------------------------------------------- redigér én observation
 
-// ---------------------------------------------------------------- tur: oplysninger + observationer
-
-async function tripPage(view, id) {
-  let trip, recent;
-  try { [trip, recent] = await Promise.all([api(`/api/reports/trips/${id}`), api("/api/reports/recent")]); }
+async function editPage(view, id) {
+  let r, recent;
+  try { [r, recent] = await Promise.all([api(`/api/reports/${id}`), api("/api/reports/recent")]); }
   catch (err) { view.replaceChildren(errorBox(err), h("p", {}, h("a", { href: "#/indtast" }, "← Mine indtastninger"))); return; }
-
-  const list = h("div", { class: "stack" });
-  const drawList = () => list.replaceChildren(...(trip.reports.length ? [...trip.reports].reverse().map(r => reportCard(r, {
-    showObserver: false,
-    onChange: (upd) => { Object.assign(r, upd); drawList(); },
-    onEdit: () => editReport(r),
-    onDelete: async () => {
-      if (!confirm(`Slet ${r.antal} ${r.art}?`)) return;
-      await api(`/api/reports/${r.id}`, { method: "DELETE" });
-      trip.reports = trip.reports.filter(x => x.id !== r.id); drawList(); drawHead();
-    },
-  })) : [empty("Ingen observationer på turen endnu")]));
-
-  const editReport = (r) => {
-    const m = modal(`Redigér ${r.art}`, reportForm({ trip, recent, initial: r, submitLabel: "Gem ændringer", onSaved: (upd) => {
-      Object.assign(r, upd); drawList(); m.close();
-    } }), { wide: true });
-  };
-
-  const head = h("div", {});
-  const drawHead = () => head.replaceChildren(h("div", { class: "page-head" },
-    h("div", {}, h("p", { style: { margin: 0 } }, h("a", { href: "#/indtast" }, "← Mine indtastninger")),
-      h("h1", { style: { marginTop: "4px" } }, trip.lok),
-      h("p", { class: "lead" }, [fmtDate(trip.dato), trip.kommune, trip.afdeling].filter(Boolean).join(" · "),
-        ` · ${trip.reports.length} obs.`)),
-    h("span", { class: "spacer" }),
-    h("button", { class: "btn", onclick: () => tripModal(trip, () => { drawHead(); }), html: `${icon("edit")} Turoplysninger` })));
-  drawHead();
-
-  view.replaceChildren(head,
-    h("div", { class: "report-layout" },
-      h("div", { class: "card" }, h("h2", { style: { marginTop: 0 } }, "Ny observation"),
-        reportForm({ trip, recent, submitLabel: "Gem observation", onSaved: (r) => { trip.reports.push(r); drawList(); drawHead(); } })),
-      h("div", {}, h("h2", { style: { marginTop: 0 } }, "Observationer på turen"), list)));
-  drawList();
-}
-
-function tripModal(trip, done) {
-  const f = {
-    dato: h("input", { type: "date", value: trip.dato, max: todayISO() }),
-    turtidfra: h("input", { type: "time", value: trip.turtidfra || "" }),
-    turtidtil: h("input", { type: "time", value: trip.turtidtil || "" }),
-    medobser: h("input", { value: trip.medobser || "", maxlength: 300, placeholder: "Navne eller obserkoder" }),
-    turnoter: h("textarea", { maxlength: 2000, placeholder: "Vejr, dækning, #BB26 …" }, trip.turnoter || ""),
-  };
-  const m = modal("Turoplysninger", h("form", { class: "stack", onsubmit: async (e) => {
-    e.preventDefault();
-    try {
-      const upd = await api(`/api/reports/trips/${trip.id}`, { method: "PATCH", body: { dato: f.dato.value, turtidfra: f.turtidfra.value || null,
-        turtidtil: f.turtidtil.value || null, medobser: f.medobser.value || null, turnoter: f.turnoter.value || null } });
-      Object.assign(trip, upd); m.close(); done(); toast("Turen er gemt");
-    } catch (err) { toast(err.message, "err"); }
-  } },
-    h("div", { class: "form-grid two" },
-      h("label", { class: "field" }, h("span", {}, "Dato"), f.dato),
-      h("div", { class: "row", style: { gap: "8px" } },
-        h("label", { class: "field", style: { flex: 1 } }, h("span", {}, "Turtid fra"), f.turtidfra),
-        h("label", { class: "field", style: { flex: 1 } }, h("span", {}, "til"), f.turtidtil))),
-    h("label", { class: "field" }, h("span", {}, "Medobservatører"), f.medobser),
-    h("label", { class: "field" }, h("span", {}, "Turnoter"), f.turnoter),
-    h("div", { class: "row between" },
-      h("button", { class: "btn ghost danger", type: "button", onclick: async () => {
-        if (!confirm("Slet turen og alle dens observationer?")) return;
-        await api(`/api/reports/trips/${trip.id}`, { method: "DELETE" }); m.close(); location.hash = "#/indtast";
-      } }, "Slet tur"),
-      h("button", { class: "btn primary", type: "submit" }, "Gem"))));
+  const back = () => { location.hash = "#/indtast"; };
+  view.replaceChildren(
+    h("div", { class: "page-head" },
+      h("div", {}, h("p", { style: { margin: 0 } }, h("a", { href: "#/indtast" }, "← Mine indtastninger")),
+        h("h1", { style: { marginTop: "4px" } }, `${fmtN(r.antal)} ${r.art}`),
+        h("p", { class: "lead" }, [fmtDate(r.dato), r.lok, r.kommune].filter(Boolean).join(" · "))),
+      h("span", { class: "spacer" }),
+      h("button", { class: "btn ghost danger", html: `${icon("trash")} Slet`, onclick: async () => {
+        if (!confirm(`Slet ${r.antal} ${r.art}?`)) return;
+        try { await api(`/api/reports/${r.id}`, { method: "DELETE" }); toast("Observationen er slettet"); back(); } catch (err) { toast(err.message, "err"); }
+      } })),
+    h("div", { class: "card" }, reportForm({ recent, initial: r, submitLabel: "Gem ændringer", onSaved: back })));
 }
 
 // ---------------------------------------------------------------- observationsformular
@@ -210,11 +115,12 @@ function tripModal(trip, done) {
 const GUIDE_URL = "https://www.dof.dk/om-dof/aktiv-i-dof/grupper-og-udvalg/feltornitologisk-udvalg/nar-du-ser-en-sjaelden-fugl";
 const req = () => h("span", { class: "req", title: "Påkrævet" }, "påkrævet");
 
-function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
-  const isToday = trip.dato === todayISO();
+function reportForm({ recent, initial = null, submitLabel, onSaved }) {
+  const dato = h("input", { type: "date", value: initial?.dato ?? todayISO(), max: todayISO() });
+  const isToday = () => dato.value === todayISO();
   const v = {
     artnr: initial?.artnr ?? null, klass: null, sikkerhed: initial?.sikkerhed ?? "sikker", grundlag: [...(initial?.grundlag ?? ["set"])],
-    obs_lat: initial?.obs_lat ?? null, obs_lon: initial?.obs_lon ?? null,
+    obs_lat: initial?.obs_lat ?? null, obs_lon: initial?.obs_lon ?? null, loknr: initial?.loknr ?? null,
     status: initial ? null : "ukendt",
   };
   const files = [];
@@ -250,13 +156,13 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
     const rare = sp && ["SU", "SUB"].includes(sp.klass);
     spWarn.replaceChildren(rare ? h("div", { class: "notice warn" }, `${sp.navn} er ${sp.klass}-art. Angiv sikkerhed og grundlag, husk dokumentation (foto/beskrivelse) til ${sp.klass === "SU" ? "Sjældenhedsudvalget" : "den lokale SUB"}, og bekræft DOF's retningslinjer nederst.`) : "");
     guideReq.classList.toggle("hide", !rare);
-    if (rare && isToday && !statusTouched && !initial) { v.status = "til_stede"; drawStatus(); }
+    if (rare && isToday() && !statusTouched && !initial) { v.status = "til_stede"; drawStatus(); }
   };
 
   // --- antal og tidspunkt
   const antal = h("input", { type: "number", min: 0, max: 9900000, value: initial?.antal ?? 1, inputmode: "numeric", style: { maxWidth: "110px" } });
   const bump = (d) => { antal.value = Math.max(0, (Number(antal.value) || 0) + d); };
-  const tfra = h("input", { type: "time", required: true, value: initial?.obstidfra || (isToday ? nowHM() : trip.turtidfra || "") });
+  const tfra = h("input", { type: "time", required: true, value: initial?.obstidfra || nowHM() });
   const ttil = h("input", { type: "time", value: initial?.obstidtil || "" });
 
   // --- adfærd (påkrævet som i DOFbasen)
@@ -271,25 +177,70 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
   // --- noter (altid fremme)
   const noter = h("textarea", { maxlength: 2000, placeholder: "Kendetegn, adfærd, lyd, hvordan fuglen blev fundet …" }, initial?.fuglnoter ?? "");
 
-  // --- kort (altid fremme): fuglens position inden for lokaliteten
+  // --- kort (altid fremme): fuglens position er påkrævet; lokaliteten foreslås som den nærmeste i DOFbasen
   const sel = (opts, value, placeholder) => { const s = h("select", {}, h("option", { value: "" }, placeholder), ...opts.map(o => h("option", { value: o.code ?? o }, o.text ?? o))); s.value = value || ""; return s; };
   const radius = sel([10, 25, 50, 100, 250, 500, 1000].map(n => ({ code: String(n), text: `± ${n} m` })), initial?.radius_m ? String(initial.radius_m) : "", "Nøjagtighed");
   const posText = h("small", { class: "muted" });
   const mapEl = h("div", { class: "map small", style: { height: "240px" } });
-  let map = null, marker = null;
+  const summary = h("small", { class: "muted" });
+  const known = new Map(initial ? [[initial.loknr, initial.lok]] : []);
+  const drawSummary = () => { summary.textContent = [known.get(v.loknr), dato.value ? fmtDate(dato.value, false) : ""].filter(Boolean).join(" · "); };
+  const lokSel = h("select", { "aria-label": "Lokalitet", onchange: () => {
+    v.loknr = Number(lokSel.value) || null; locTouched = true; lokSel.classList.remove("invalid"); drawSummary();
+  } });
+  const fillLocs = (rows) => {
+    rows.forEach(l => known.set(l.loknr, l.navn));
+    const opts = !v.loknr || rows.some(l => l.loknr === v.loknr) ? rows : [{ loknr: v.loknr, navn: known.get(v.loknr) }, ...rows];
+    lokSel.replaceChildren(...(opts.length
+      ? opts.map(l => h("option", { value: l.loknr }, [l.navn, l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune].filter(Boolean).join(" · ")))
+      : [h("option", { value: "" }, "Sæt fuglens position først")]));
+    lokSel.value = v.loknr ? String(v.loknr) : "";
+    drawSummary();
+  };
+  let map = null, marker = null, locTouched = !!initial, nearSeq = 0;
+  const suggestLoc = async () => {
+    if (!v.obs_lat) return;
+    const me = ++nearSeq;
+    try {
+      const rows = (await api(`/api/reports/near?lat=${v.obs_lat}&lon=${v.obs_lon}`)).slice(0, 10);
+      if (me !== nearSeq) return;
+      if (!locTouched && rows[0]) v.loknr = rows[0].loknr;
+      fillLocs(rows);
+    } catch (err) { toast(err.message, "err"); }
+  };
+  const lokQ = h("input", { type: "search", placeholder: "Søg anden lokalitet…", autocomplete: "off" });
+  let lokT;
+  lokQ.oninput = () => {
+    clearTimeout(lokT);
+    const q = lokQ.value.trim();
+    lokT = setTimeout(async () => {
+      if (q.length < 2) { suggestLoc(); return; }
+      const me = ++nearSeq;
+      try { const rows = await api(`/api/locations?q=${encodeURIComponent(q)}`); if (me === nearSeq) fillLocs(rows); } catch (err) { toast(err.message, "err"); }
+    }, 250);
+  };
   const setPos = (lat, lon) => {
     v.obs_lat = lat == null ? null : Math.round(lat * 1e6) / 1e6; v.obs_lon = lon == null ? null : Math.round(lon * 1e6) / 1e6;
-    posText.textContent = v.obs_lat ? `Fuglens position: ${v.obs_lat.toFixed(5)}, ${v.obs_lon.toFixed(5)}` : `Tryk på kortet for fuglens position (ellers bruges ${trip.lok})`;
+    posText.textContent = v.obs_lat ? `Fuglens position: ${v.obs_lat.toFixed(5)}, ${v.obs_lon.toFixed(5)}` : "Tryk på kortet eller brug din position";
     if (map) { marker?.remove(); marker = v.obs_lat ? L.marker([v.obs_lat, v.obs_lon]).addTo(map) : null; }
+    mapEl.classList.remove("invalid");
+    if (!lokQ.value.trim()) suggestLoc();
   };
+  const locate = () => navigator.geolocation?.getCurrentPosition((p) => {
+    setPos(p.coords.latitude, p.coords.longitude); map?.setView([v.obs_lat, v.obs_lon], 15);
+    if (!radius.value) radius.value = String([10, 25, 50, 100, 250].find(n => n >= p.coords.accuracy) || 250);
+  }, (err) => toast("Position ikke tilgængelig: " + err.message, "err"), { enableHighAccuracy: true, timeout: 15000 });
+  fillLocs([]);
   setPos(v.obs_lat, v.obs_lon);
   setTimeout(() => {  // kortet oprettes når formularen er sat ind på siden
     if (map || !mapEl.isConnected) return;
-    map = baseMap(mapEl, { center: v.obs_lat ? [v.obs_lat, v.obs_lon] : trip.lat ? [trip.lat, trip.lon] : [56, 10.5], zoom: 14 });
-    if (trip.lat) L.circleMarker([trip.lat, trip.lon], { radius: 6, color: "#fff", weight: 2, fillColor: "#555", fillOpacity: 1 }).addTo(map).bindTooltip(esc(trip.lok));
+    const center = v.obs_lat ? [v.obs_lat, v.obs_lon] : initial?.lok_lat ? [initial.lok_lat, initial.lok_lon] : null;
+    map = baseMap(mapEl, { center: center || [56, 10.5], zoom: center ? 14 : 7 });
     map.on("click", (e) => setPos(e.latlng.lat, e.latlng.lng));
-    setPos(v.obs_lat, v.obs_lon);
+    if (v.obs_lat) marker = L.marker([v.obs_lat, v.obs_lon]).addTo(map);
+    if (!initial && !v.obs_lat) locate();  // ny observation: start ved din position
   }, 80);
+  dato.onchange = drawSummary;
 
   // --- status (under observation)
   const statusWrap = h("div", {});
@@ -336,11 +287,14 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
   const form = h("form", { class: "stack report-form", novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
     if (!v.artnr) return fail("Vælg en art", spInput);
+    if (!dato.value) return fail("Angiv dato", dato);
     if (!tfra.value) return fail("Angiv tidspunkt for observationen", tfra);
     if (!adf.value) return fail("Vælg adfærd – det er påkrævet", adf);
+    if (!initial && !v.obs_lat) return fail("Sæt fuglens position på kortet", mapEl);
+    if (!v.loknr) return fail("Vælg en lokalitet", lokSel);
     if (["SU", "SUB"].includes(v.klass) && !guide.checked) return fail("Bekræft DOF's retningslinjer for sjældne fugle", guideBox);
     const body = {
-      artnr: v.artnr, antal: Number(antal.value) || 0, adfkode: adf.value, koen: koen.value || null, alderkode: alder.value || null,
+      artnr: v.artnr, dato: dato.value, loknr: v.loknr, antal: Number(antal.value) || 0, adfkode: adf.value, koen: koen.value || null, alderkode: alder.value || null,
       dragtkode: dragt.value || null, metode: metode.value || null, obstidfra: tfra.value, obstidtil: ttil.value || null,
       obs_lat: v.obs_lat, obs_lon: v.obs_lon, radius_m: radius.value ? Number(radius.value) : null, fuglnoter: noter.value.trim() || null,
       sikkerhed: v.sikkerhed, grundlag: v.grundlag, retningslinjer: guide.checked,
@@ -349,7 +303,7 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
     try {
       let r = initial
         ? await api(`/api/reports/${initial.id}`, { method: "PATCH", body })
-        : await api(`/api/reports/trips/${trip.id}/reports`, { method: "POST", body: { ...body, status: v.status } });
+        : await api("/api/reports", { method: "POST", body: { ...body, status: v.status } });
       for (const f of files) {
         const fd = new FormData(); fd.append("file", await compressImage(f));
         try { const m = await api(`/api/reports/${r.id}/media`, { method: "POST", form: fd }); r = { ...r, media: m.media, grundlag: m.grundlag }; }
@@ -357,10 +311,10 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
       }
       toast(initial ? "Ændringer gemt" : `${fmtN(r.antal)} ${r.art} gemt${r.kategori !== "alm" ? ` (${KAT[r.kategori]})` : ""}`);
       onSaved(r);
-      if (!initial) {  // klar til næste art; behold metode, sikkerhed og retningslinje-afkrydsning
+      if (!initial) {  // klar til næste art; behold dato, position, lokalitet, metode, sikkerhed og retningslinje-afkrydsning
         pick(null); antal.value = 1; adf.value = ""; noter.value = ""; koen.value = ""; alder.value = ""; dragt.value = "";
-        tfra.value = isToday ? nowHM() : tfra.value; ttil.value = "";
-        files.length = 0; drawFiles(); v.status = "ukendt"; statusTouched = false; drawStatus(); setPos(null, null); radius.value = "";
+        tfra.value = isToday() ? nowHM() : tfra.value; ttil.value = "";
+        files.length = 0; drawFiles(); v.status = "ukendt"; statusTouched = false; drawStatus();
         v.grundlag = ["set"]; drawBasis();
         spInput.focus();
       }
@@ -368,22 +322,22 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
     finally { submit.disabled = false; }
   } },
     h("div", { class: "field" }, h("span", { class: "label" }, "Art ", req()), chosen, h("div", { class: "dd-wrap" }, spInput, suggest), spWarn),
+    h("label", { class: "field" }, h("span", {}, "Antal"), h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, antal,
+      h("button", { class: "btn sm", type: "button", onclick: () => bump(-1) }, "−1"), h("button", { class: "btn sm", type: "button", onclick: () => bump(1) }, "+1"),
+      h("button", { class: "btn sm", type: "button", onclick: () => bump(10) }, "+10"))),
     h("div", { class: "form-grid two" },
-      h("label", { class: "field" }, h("span", {}, "Antal"), h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, antal,
-        h("button", { class: "btn sm", type: "button", onclick: () => bump(-1) }, "−1"), h("button", { class: "btn sm", type: "button", onclick: () => bump(1) }, "+1"),
-        h("button", { class: "btn sm", type: "button", onclick: () => bump(10) }, "+10"))),
+      h("label", { class: "field" }, h("span", { class: "label" }, "Dato ", req()), dato),
       h("div", { class: "field" }, h("span", { class: "label" }, "Tidspunkt ", req()),
         h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, tfra, h("span", { class: "muted" }, "–"), ttil,
           h("button", { class: "btn sm", type: "button", onclick: () => { tfra.value = nowHM(); tfra.classList.remove("invalid"); } }, "Nu")))),
     h("label", { class: "field" }, h("span", { class: "label" }, "Adfærd ", req()), adf),
     h("label", { class: "field" }, h("span", {}, "Noter om fuglen"), noter),
-    h("div", { class: "field" }, h("span", { class: "label" }, "Hvor sad fuglen?"), mapEl,
+    h("div", { class: "field" }, h("span", { class: "label" }, "Hvor sad fuglen? ", req()), mapEl,
       h("div", { class: "row mt", style: { gap: "6px" } }, posText, h("span", { style: { flex: 1 } }), radius,
-        h("button", { class: "btn sm", type: "button", html: `${icon("pin")} Min position`, onclick: () => navigator.geolocation?.getCurrentPosition((p) => {
-          setPos(p.coords.latitude, p.coords.longitude); map?.setView([v.obs_lat, v.obs_lon], 15);
-          if (!radius.value) radius.value = String([10, 25, 50, 100, 250].find(n => n >= p.coords.accuracy) || 250);
-        }, (err) => toast(err.message, "err"), { enableHighAccuracy: true, timeout: 15000 }) }),
-        h("button", { class: "btn sm ghost", type: "button", onclick: () => setPos(null, null) }, "Fjern"))),
+        h("button", { class: "btn sm", type: "button", html: `${icon("pin")} Min position`, onclick: locate }))),
+    h("div", { class: "field" }, h("span", { class: "label" }, "Lokalitet ", req()),
+      h("div", { class: "row", style: { gap: "6px" } }, h("div", { style: { flex: 1, minWidth: "180px" } }, lokSel), h("div", { style: { flex: 1, minWidth: "160px" } }, lokQ)),
+      h("small", { class: "muted" }, "Foreslås ud fra fuglens position (nærmeste lokalitet i DOFbasen) – vælg en anden, hvis den passer bedre.")),
     initial ? null : h("div", { class: "field" }, h("span", { class: "label" }, "Er fuglen under observation?"), statusWrap,
       h("small", { class: "muted" }, "Andre kan se, om fuglen stadig er der, og melde tilbage. Opdatér status, når den flyver.")),
     h("div", { class: "field" }, h("span", { class: "label" }, "Sikkerhed"),
@@ -395,7 +349,7 @@ function reportForm({ trip, recent, initial = null, submitLabel, onSaved }) {
         h("small", { class: "muted" }, "Store billeder gøres mindre automatisk")),
       fileList, initial?.media?.length ? h("small", { class: "muted" }, `${initial.media.length} fil(er) gemt`) : null),
     guideBox,
-    h("div", { class: "row between" }, h("small", { class: "muted" }, initial ? "" : `${trip.lok} · ${fmtDate(trip.dato, false)}`), submit));
+    h("div", { class: "row between" }, summary, submit));
 
   if (initial) pick(SPECIES.find(s => s.artnr === initial.artnr) || { artnr: initial.artnr, navn: initial.art });
   return form;

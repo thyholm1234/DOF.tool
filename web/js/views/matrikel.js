@@ -1,4 +1,4 @@
-// Matrikelbirding (Boligbirding): eget modul med oversigt over placeringer, liste, scoreboards og matrikler.
+// Matrikelbirding (Boligbirding): eget modul med oversigt over placeringer, liste, ranglister og matrikler.
 import { api, state, h, icon, fmtN, fmtDate, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
 import { drawList, ranking, race, matrix, unique, groups } from "./lists.js";
@@ -14,7 +14,7 @@ export async function render(view) {
   view.append(h("div", { class: "page-head" },
     h("div", {}, h("h1", {}, "Matrikel"), h("p", { class: "lead" }, "Boligbirding: arter set fra din matrikel – og hvor du ligger i landet, din lokalafdeling, din kommune og dine grupper.")),
     h("span", { class: "spacer" }),
-    seg([["oversigt", "Oversigt"], ["liste", "Min liste"], ["score", "Scoreboard"], ["matrikler", "Administrér"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
+    seg([["oversigt", "Oversigt"], ["liste", "Min liste"], ["score", "Rangliste"], ["matrikler", "Administrér"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
   const body = h("div", {});
   view.append(body);
   const draw = (t) => ({ liste: myList, score: scoreboard, matrikler: manage }[t] || landing)(body);
@@ -72,7 +72,7 @@ function standingCard(s, year) {
       s.public ? null : h("div", { style: { fontSize: ".82rem" } }, "Din liste er ikke offentlig – placeringen er beregnet, men du vises ikke for andre.")),
     s.top.length ? h("div", { class: "rank" }, ...s.top.map(r => h("div", { class: `rank-row ${r.obserkode === me ? "me" : ""}`, style: { padding: "6px 10px" } },
       h("div", { class: "place" }, r.placering), h("div", { class: "who" }, r.navn), h("div", { class: "score" }, fmtN(r.antal))))) : null,
-    h("a", { class: "btn sm ghost mt", href }, "Se hele scoreboardet →"));
+    h("a", { class: "btn sm ghost mt", href }, "Se hele ranglisten →"));
 }
 
 // ---------------------------------------------------------------- min liste (alle matrikler, perioder)
@@ -89,7 +89,7 @@ async function myList(body) {
   const out = h("div", { class: "stack mt" });
   body.append(h("div", { class: "card" }, h("div", { class: "row" }, mSel, ySel, periodSel),
     h("p", { class: "muted mt", style: { marginBottom: 0, fontSize: ".85rem" } },
-      `Skriv ${meta.matrikel_prefix}${String(YEAR).slice(2)} i turnoten (matrikel 2: ${meta.matrikel_prefix}${String(YEAR).slice(2)}-2). Matrikel 1 tæller på scoreboards, 2 og op er private. Navne, flytning og perioder under `,
+      `Skriv ${meta.matrikel_prefix}${String(YEAR).slice(2)} i turnoten (matrikel 2: ${meta.matrikel_prefix}${String(YEAR).slice(2)}-2). Matrikel 1 tæller på ranglisterne, 2 og op er private. Navne, flytning og perioder under `,
       h("a", { href: "#/matrikel?tab=matrikler" }, "Matrikler"), ".")), out);
   const load = async () => {
     setParams({ tab: "liste", m: st.m === 1 ? "" : st.m, year: st.year, periode: st.periode });
@@ -117,7 +117,7 @@ async function myList(body) {
   await load();
 }
 
-// ---------------------------------------------------------------- scoreboard (matrikel 1)
+// ---------------------------------------------------------------- rangliste (matrikel 1)
 
 async function scoreboard(body) {
   await loadRef();
@@ -169,7 +169,7 @@ async function manage(body) {
   if (requireLogin(body)) return;
   const mBox = h("div", {}), gBox = h("div", {});
   body.append(h("h2", {}, "Mine matrikler"), mBox, h("h2", { class: "mt2" }, "Grupper"),
-    h("p", { class: "muted", style: { marginTop: 0, maxWidth: "62ch" } }, "Grupper får deres eget scoreboard for boligbirding og årslister. Opret en gruppe og del koden, eller deltag i en andens med koden."), gBox);
+    h("p", { class: "muted", style: { marginTop: 0, maxWidth: "62ch" } }, "Grupper får deres egen rangliste for boligbirding og årslister. Opret en gruppe og del koden, eller deltag i en andens med koden."), gBox);
   await Promise.all([matrikler(mBox), groups(gBox, "#/matrikel")]);
 }
 
@@ -181,7 +181,7 @@ export async function matrikler(body) {
   if (requireLogin(body)) return;
   const out = h("div", { class: "stack" }, h("div", { class: "skeleton", style: { height: "200px" } }));
   body.append(h("div", { class: "row between mb" },
-    h("p", { class: "muted", style: { margin: 0, maxWidth: "62ch" } }, "Boligbirding (matrikel 1) tæller på scoreboards; matrikel 2 og op er kun dine. Har en matrikel ligget flere steder, deler perioder listen op – ved flytning starter en ny periode, og fremgangen nulstilles fra flyttedatoen."),
+    h("p", { class: "muted", style: { margin: 0, maxWidth: "62ch" } }, "Boligbirding (matrikel 1) tæller på ranglisterne; matrikel 2 og op er kun dine. Har en matrikel ligget flere steder, deler perioder listen op – ved flytning starter en ny periode, og fremgangen nulstilles fra flyttedatoen."),
     h("button", { class: "btn primary", onclick: () => newMatrikel(), html: `${icon("plus")} Ny matrikel` })), out);
   let data;
   const reload = (d) => { data = d; draw(); };
@@ -195,7 +195,7 @@ export async function matrikler(body) {
     return h("div", { class: "card stack" },
       h("div", { class: "row between" },
         h("div", { class: "row", style: { gap: "8px" } }, h("h2", { style: { margin: 0 } }, mName(m)),
-          h("span", { class: "tag plain" }, m.tag), m.scoreboard ? h("span", { class: "tag portal" }, "Scoreboard") : h("span", { class: "tag plain", html: `${icon("lock")} Privat` }))),
+          h("span", { class: "tag plain" }, m.tag), m.scoreboard ? h("span", { class: "tag portal" }, "Rangliste") : h("span", { class: "tag plain", html: `${icon("lock")} Privat` }))),
       h("p", { class: "muted", style: { margin: 0 } }, m.n_trips
         ? `${fmtN(m.n_trips)} ture med tagget · ${fmtDate(m.first)} – ${fmtDate(m.last)}`
         : `Ingen ture med tagget endnu – skriv ${m.tag} i turnoten i DOFbasen.`),
@@ -252,7 +252,7 @@ export async function matrikler(body) {
         h("div", {}, h("b", {}, gammel.value || "Tidligere adresse"), ` slutter ${fmtDate(dayBefore(dato.value))}`,
           current ? "" : m.first ? ` (startet ved første fund ${fmtDate(m.first)})` : ""),
         h("div", {}, h("b", {}, ny.value || "Ny adresse"), ` starter ${fmtDate(dato.value)}`),
-        h("div", { class: "muted mt", style: { fontSize: ".85rem" } }, `${mName(m)}-listen tæller fra flyttedatoen${m.scoreboard ? ", også på scoreboardet" : ""}. Fund fra den gamle adresse kan ses under 'Alle perioder'. Brug fortsat ${m.tag} i turnoten.`));
+        h("div", { class: "muted mt", style: { fontSize: ".85rem" } }, `${mName(m)}-listen tæller fra flyttedatoen${m.scoreboard ? ", også på ranglisten" : ""}. Fund fra den gamle adresse kan ses under 'Alle perioder'. Brug fortsat ${m.tag} i turnoten.`));
     };
     for (const el of [dato, ny, gammel]) el.oninput = update;
     update();
@@ -273,7 +273,7 @@ export async function matrikler(body) {
     const navn = h("input", { maxlength: 120, placeholder: "Fx Sommerhus, Kolonihave", required: true });
     const hint = h("p", { class: "muted", style: { margin: 0 } });
     const yy = String(new Date().getFullYear()).slice(2);
-    const sync = () => { const n = Number(nr.value); hint.textContent = `Tag i turnoten: ${data.prefix}${yy}${n > 1 ? "-" + n : ""}${n === 1 ? " (tæller på scoreboards)" : " (privat liste)"}`; };
+    const sync = () => { const n = Number(nr.value); hint.textContent = `Tag i turnoten: ${data.prefix}${yy}${n > 1 ? "-" + n : ""}${n === 1 ? " (tæller på ranglisterne)" : " (privat liste)"}`; };
     nr.oninput = sync; sync();
     const dlg = modal("Ny matrikel", h("form", { class: "stack", onsubmit: async (e) => {
       e.preventDefault();
