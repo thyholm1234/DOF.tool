@@ -33,6 +33,7 @@ export async function render(view, [date, artnr, loknr]) {
   };
 
   const threadKey = `${date}/${artnr}/${loknr}`;
+  const mediaRows = new Map();  // obsid → visning af billeder/lyd/DKU, opdateres når medie-scanneren melder nyt
   const likeEl = likeWidget("thread", threadKey, t.likes, { title: `Synes godt om ${t.art}` });
   const weatherEl = h("div", {});
   const mapEl = h("div", { class: "map small" });
@@ -60,7 +61,7 @@ export async function render(view, [date, artnr, loknr]) {
         reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
           h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, "Indtastet direkte i portalen. Står du ved fuglen, så meld om den stadig er der."), repList) : null,
         h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
-          obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
+          obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, t.media_pending, mediaRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
       h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
         weatherEl,
         h("div", { class: "card" }, h("h3", {}, "Kommentarer"), commentsEl))));
@@ -126,40 +127,44 @@ export async function render(view, [date, artnr, loknr]) {
     if (e.kind === "thread" && e.key === threadKey) api(`/api/likes?kind=thread&key=${encodeURIComponent(threadKey)}`)
       .then(d => likeEl.update({ count: d.count, names: d.users.slice(-3).reverse().map(u => u.navn) })).catch(() => {});
   });
+  let mediaTimer = null;
+  const offMedia = live.on("feed", (e) => {
+    if (!(e.media || e.media_day === date) || !mediaRows.size) return;
+    clearTimeout(mediaTimer);
+    mediaTimer = setTimeout(async () => {
+      try {
+        const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`);
+        for (const o of fresh.observations || []) mediaRows.get(o.obsid)?.(o.media, fresh.media_pending);
+      } catch { /* næste hændelse prøver igen */ }
+    }, 800);
+  });
   const offFeed = live.on("feed", async (e) => {
     if (!e.portal || !reps.length) return;
     try { const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`); reps.splice(0, reps.length, ...(fresh.reports || [])); drawReports(); } catch { /* ignore */ }
   });
-  return () => { off(); offFeed(); offLike(); offStatus(); clearTimeout(pending); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
+  return () => { off(); offFeed(); offMedia(); offLike(); offStatus(); clearTimeout(pending); clearTimeout(mediaTimer); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
 }
 
-function obsRow(o) {
+function obsRow(o, mediaPending, mediaRows) {
   const media = h("div", {});
   const tid = [o.obstidfra || o.turtidfra, o.obstidtil || o.turtidtil].filter(Boolean).join("–");
   const dkuEl = h("span", {});
-  const show = (r) => {
+  // Billeder, lyd og DKU-status hentes automatisk af serverens medie-scanner og følger med tråden
+  const show = (r, pending) => {
+    if (!r) {
+      dkuEl.replaceChildren();
+      media.replaceChildren(pending ? h("small", { class: "muted" }, h("span", { class: "spinner" }), " Billeder og lyd hentes fra DOFbasen…") : "");
+      if (!pending) mediaRows.delete(o.obsid);
+      return;
+    }
+    mediaRows.delete(o.obsid);
     dkuEl.replaceChildren(r.dku ? h("span", { class: "tag plain", title: "Status hos DKU (Danmarks Fugles Sjældenhedskomité)" }, `DKU: ${r.dku}`) : "");
     media.replaceChildren(
       ...(r.images || []).map(src => h("a", { href: src, target: "_blank", rel: "noopener" }, h("img", { src, loading: "lazy", style: { maxWidth: "100%", borderRadius: "10px", marginTop: "6px" }, alt: "Foto fra DOFbasen" }))),
-      ...(r.sounds || []).map(src => h("audio", { controls: true, src, preload: "none", style: { width: "100%", marginTop: "6px" } })),
-      !(r.images?.length || r.sounds?.length) ? h("small", { class: "muted" }, "Ingen billeder eller lyd på observationen.") : null);
+      ...(r.sounds || []).map(src => h("audio", { controls: true, src, preload: "none", style: { width: "100%", marginTop: "6px" } })));
   };
-  const fetchMedia = async (request) => {
-    const r = await api(`/api/obs/${o.obsid}/media?request=${request}`);
-    if (r.status === "ready") { show(r); return true; }
-    return false;
-  };
-  const btn = h("button", { class: "btn sm ghost", onclick: async () => {
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> I kø hos DOFbasen…';
-    try {
-      if (await fetchMedia(true)) { btn.remove(); return; }
-      for (let i = 0; i < 40; i++) { await new Promise(r => setTimeout(r, 4000)); if (await fetchMedia(false)) { btn.remove(); return; } }
-      btn.textContent = "Prøv igen senere";
-    } catch (err) { toast(err.message, "err"); btn.disabled = false; btn.textContent = "Hent billeder/lyd"; }
-  } }, "Hent billeder/lyd");
-  // Dagens SU/SUB slås op af serverens medie-scanner; resultatet følger med tråden
-  if (o.media) { show(o.media); btn.remove(); }
-  else fetchMedia(false).then(ok => { if (ok) btn.remove(); }).catch(() => {});
+  if (!o.media && mediaPending) mediaRows.set(o.obsid, show);
+  show(o.media, mediaPending);
   const rare = ["SU", "SUB"].includes(o.kategori);
   return h("div", { style: { borderBottom: "1px dashed var(--line)", paddingBottom: "10px" } },
     h("div", { class: "row between" },
@@ -171,7 +176,7 @@ function obsRow(o) {
       " · ", h("span", { class: "nowrap" }, `set i portalen ${fmtTime(o.first_seen)}`)),
     o.fuglnoter ? h("p", { style: { margin: "4px 0 0" } }, o.fuglnoter) : null,
     o.turnoter ? h("p", { class: "muted", style: { margin: "4px 0 0", fontSize: ".85rem" } }, "Tur: ", o.turnoter) : null,
-    h("div", { class: "row mt" }, btn, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
+    h("div", { class: "row mt" }, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
       rare ? h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", title: "Indsend dokumentation til DKU (kræver login i DOFbasen)",
         href: `https://dofbasen.dk/mine/sendmailtodku.php?obsid=${o.obsid}`, html: `${icon("external")} DKU` }) : null),
     media);

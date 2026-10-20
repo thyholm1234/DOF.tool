@@ -116,6 +116,11 @@ async def cancel_job(job_id: str, user: User = Depends(admin)):
     return {"ok": True}
 
 
+@router.delete("/admin/gateway/queue")
+async def clear_queue(user: User = Depends(admin)):
+    return {"removed": await gateway.clear()}
+
+
 @router.post("/admin/worker/{cmd}")
 async def worker(cmd: str, body: dict | None = None, user: User = Depends(admin)):
     if cmd not in ("archive_import", "compute", "climate", "aggregates", "events", "regions"):

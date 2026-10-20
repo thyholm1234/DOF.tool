@@ -61,7 +61,12 @@ async function ops(body) {
         h("p", {}, `Højst ét kald pr. ${g.min_interval} s. Seneste: `, h("b", {}, g.last_kind || "–"), ` ${g.last_at ? ago(g.last_at) : ""} (${g.last_duration || "–"} s) `,
           g.last_ok === "0" ? h("span", { class: "tag SU" }, "fejl") : h("span", { class: "tag plain" }, "ok")),
         g.last_error ? h("div", { class: "notice err" }, g.last_error) : null,
-        h("p", { class: "muted" }, `Kald i dag: ${g[`calls:${today}`] || 0} · i kø: ${g.queue_length}`, g.queue_length > d.queue.length ? ` (viser de første ${d.queue.length})` : ""),
+        h("div", { class: "row between" },
+          h("p", { class: "muted", style: { margin: 0 } }, `Kald i dag: ${g[`calls:${today}`] || 0} · i kø: ${g.queue_length}`, g.queue_length > d.queue.length ? ` (viser de første ${d.queue.length})` : ""),
+          g.queue_length ? h("button", { class: "btn sm ghost danger", onclick: async () => {
+            if (!confirm(`Fjern alle ${g.queue_length} ventende kald til DOFbasen? Kaldet, der kører nu, gøres færdigt, og login-forsøg bevares.`)) return;
+            try { const r = await api("/api/admin/gateway/queue", { method: "DELETE" }); toast(`${r.removed} job fjernet fra køen`); body.replaceChildren(); ops(body); } catch (err) { toast(err.message, "err"); }
+          } }, "Tøm kø") : null),
         g.running ? h("p", {}, h("span", { class: "tag local" }, "kører"), " ", h("b", {}, g.running.kind), " ", h("span", { class: "muted" }, JSON.stringify(g.running.params))) : null,
         setting("live_enabled", "Live-hentning af dagens observationer"),
         enqueueForm(),

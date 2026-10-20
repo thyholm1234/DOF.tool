@@ -13,7 +13,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import kv
 from portal.db import get_session
 from portal.dof import gateway
-from portal.dof.jobs import media_for, media_many
+from portal.dof.jobs import ensure_media_day, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, reports
@@ -170,6 +170,10 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
     found = await media_many([o["obsid"] for o in data.get("observations", [])])
     for o in data.get("observations", []):
         o["media"] = found.get(o["obsid"])
+    # Mangler billeder/lyd/DKU: i dag dækker medie-scanneren, tidligere dage får én fuld gennemgang i gatewayen
+    data["media_pending"] = False
+    if any(o["media"] is None for o in data.get("observations", [])):
+        data["media_pending"] = day >= dk_today() or await ensure_media_day(day)
     data["find"] = await finds.thread_find(db, day, artnr, loknr)
     data["comments"] = await _comments(db, day, artnr, loknr, user)
     key = f"{day.isoformat()}/{artnr}/{loknr}"
@@ -253,17 +257,10 @@ async def delete_comment(comment_id: int, user: User = Depends(require_user), db
 
 
 @router.get("/obs/{obsid}/media")
-async def media(obsid: int, request: bool = False, user: User | None = Depends(optional_user)):
-    """Billeder/lyd/DKU-status hentes fra DOFbasen på forespørgsel (køes; svar cachet 7 dage)."""
+async def media(obsid: int):
+    """Billeder/lyd/DKU-status fra medie-scannerens cache (trådene beriges automatisk – intet hentes her)."""
     hit = await media_for(obsid)
-    if hit:
-        return {"status": "ready", **hit}
-    if not request:
-        return {"status": "none"}
-    if user is None:
-        raise HTTPException(401, "Log ind for at hente medier fra DOFbasen")
-    job = await gateway.enqueue("media", {"obsid": obsid}, priority=gateway.INTERACTIVE, dedupe=f"media:{obsid}")
-    return {"status": "queued", "job": job, "queue": await kv().zcard(gateway.Q)}
+    return {"status": "ready", **hit} if hit else {"status": "none"}
 
 
 @router.get("/nearby")

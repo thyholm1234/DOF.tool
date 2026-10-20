@@ -126,6 +126,19 @@ async def cancel(job_id: str) -> None:
     await r.delete(f"dof:job:{job_id}", f"dof:secret:{job_id}")
 
 
+async def clear() -> int:
+    """Fjern alle ventende job (det kørende kald gøres færdigt). Login-job bevares – en bruger venter på svaret."""
+    r = kv()
+    removed = 0
+    for job_id in await r.zrange(Q, 0, -1):
+        raw = await r.get(f"dof:job:{job_id}")
+        if raw and json.loads(raw).get("kind") == "login":
+            continue
+        await cancel(job_id)
+        removed += 1
+    return removed
+
+
 class Gateway:
     def __init__(self, handlers: dict[str, Handler], live_handler: Handler, live_enabled: Callable[[], Awaitable[bool]]):
         self.settings = get_settings()

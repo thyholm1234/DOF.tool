@@ -252,6 +252,28 @@ async def scan_media(client: httpx.AsyncClient, day: date, visning: str = "sufug
     return len(changed)
 
 
+async def job_media_day(client: httpx.AsyncClient, p: dict) -> dict:
+    day = date.fromisoformat(p["date"])
+    n = await scan_media(client, day, "allfugle")
+    # Trådene for dagen venter på svaret – også når intet er ændret (fx skjulte observationer uden række)
+    await publish("feed", {"type": "feed", "media_day": day.isoformat()})
+    return {"date": day.isoformat(), "changed": n}
+
+
+DAYSCAN = "media:dayscan:"
+
+
+async def ensure_media_day(day: date) -> bool:
+    """Læg én fuld medie-gennemgang af en tidligere dag i kø (højst hver 6. time). True mens den venter."""
+    r = kv()
+    job = await r.get(DAYSCAN + day.isoformat())
+    if job is None:
+        job = await gateway.enqueue("media_day", {"date": day.isoformat()}, priority=gateway.HIGH,
+                                    dedupe=f"media_day:{day.isoformat()}")
+        await r.set(DAYSCAN + day.isoformat(), job, ex=6 * 3600)
+    return job in await gateway.pending_ids()
+
+
 async def media_scanner() -> None:
     settings = get_settings()
     interval = settings.dof_media_interval
@@ -336,6 +358,7 @@ HANDLERS = {
     "history": job_history,
     "login": job_login,
     "media": job_media,
+    "media_day": job_media_day,
     "artdata": job_artdata,
     "status": job_status,
     "bemaerk": job_bemaerk,
