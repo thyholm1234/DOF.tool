@@ -20,16 +20,21 @@ docker compose
 └── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
 ```
 
-### Hensyn til dofbasen.dk: højst ét kald i minuttet
+### Hensyn til dofbasen.dk: højst ét udtræk i minuttet
 
-**Alt**, der går til dofbasen.dk, går gennem én kø i Valkey og udføres af worker-processen
-(`server/portal/dof/gateway.py`). Der går altid mindst 60 sekunder fra ét kald er færdigt til det
-næste starter. Det gælder live-hentning, login-tjek, referencedata, historik og billeder. Grænsen kan
-ikke sættes lavere end 60 sekunder (`DOF_MIN_INTERVAL`), og den håndhæves med et globalt tidsstempel
-og en lås, så den også holder på tværs af genstarter.
+**Alt**, der går til dofbasen.dk, går gennem gatewayen i worker-processen
+(`server/portal/dof/gateway.py`). Der er to baner:
 
-Prioritering pr. ledigt minut:
-1. interaktive job (første login, billeder/lyd som en bruger har bedt om)
+* **Udtræk** (live-hentning, login-tjek, referencedata, historik, måneder): én kø i Valkey, og der går
+  altid mindst 60 sekunder fra ét kald er færdigt til det næste starter. Grænsen kan ikke sættes lavere
+  end 60 sekunder (`DOF_MIN_INTERVAL`), og den håndhæves med et globalt tidsstempel og en lås, så den
+  også holder på tværs af genstarter.
+* **Opslag** (billeder, lyd og DKU-status for én observation): små sider, der ikke trækker data ud af
+  DOFbasens database. De har deres egen kø og udføres med det samme, højst fire ad gangen, uden at vente på
+  minimumsintervallet og uden at påvirke det.
+
+Prioritering af udtrækkene pr. ledigt minut:
+1. login-tjek
 2. live-hentning af dagens observationer
 3. øvrige job (i går hver time, sidste 7 dage om natten, referencedata kl. 3, huller i data).
    Er der ventende job, skiftes der mellem live og kø, så feedet opdateres mindst hvert 2. minut.

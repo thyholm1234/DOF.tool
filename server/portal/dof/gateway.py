@@ -1,9 +1,13 @@
 """Den eneste vej ud til dofbasen.dk.
 
-Alle kald – live-observationer, login, referencedata, historik, medier – går gennem én kø i
-Valkey og udføres af én løkke i worker-processen. Mellem afslutningen af ét kald og starten af
-det næste går der altid mindst `dof_min_interval` sekunder (standard 60). Grænsen håndhæves med
-et globalt tidsstempel + lås i Valkey, så den også holder hvis der ved en fejl kører flere workers.
+Alle kald til DOFbasen går gennem gatewayen i worker-processen. Der er to baner:
+
+  * Udtræk (live-observationer, login, referencedata, historik, måneder): én kø og én løkke. Mellem afslutningen af
+    ét kald og starten af det næste går der altid mindst `dof_min_interval` sekunder (standard 60). Grænsen
+    håndhæves med et globalt tidsstempel + lås i Valkey, så den også holder hvis der ved en fejl kører flere workers.
+  * Opslag (LOOKUP_KINDS: billeder, lyd og DKU-status for én observation): små sider der ikke trækker data ud af
+    DOFbasens database. De har deres egen kø og udføres med det samme, uden minimumsinterval, og de tæller ikke
+    med i udtrækkenes interval. Kun et teknisk loft på samtidige opslag (LOOKUP_CONCURRENCY) og på køens længde.
 
 Planlægning pr. ledig plads:
   1. Interaktive job (login, medier) – en bruger venter.
@@ -39,7 +43,12 @@ RUNNING = "dof:running"  # id på jobbet der udføres lige nu (genoptages hvis w
 MAX_ATTEMPTS = 3
 PRIO_STEP = 1e14  # skal være større end tidsstempler i ms (~1,8e12)
 LIVE_MAX_GAP = 150  # sekunder: så længe må interaktive job højst holde live-hentningen tilbage
-MAX_INTERACTIVE_QUEUE = 20  # flere interaktive job lægges ikke i kø (værn mod at fylde køen)
+# Opslagsbanen: små opslag pr. observation uden minimumsinterval
+LQ = "dof:lq"
+LOOKUP_RUNNING = "dof:lq:running"  # id'er på opslag der udføres lige nu
+LOOKUP_KINDS = {"media"}
+LOOKUP_CONCURRENCY = 4  # samtidige opslag (teknisk loft, ikke en hastighedsgrænse)
+MAX_LOOKUP_QUEUE = 200  # værn mod at køen vokser uendeligt
 
 Handler = Callable[[httpx.AsyncClient, dict], Awaitable[Any]]
 
@@ -64,19 +73,20 @@ async def enqueue(kind: str, params: dict | None = None, *, priority: int = NORM
     if secret:
         # Følsomme data (adgangskode ved login) ligger kun kortvarigt og slettes efter brug
         pipe.set(f"dof:secret:{job_id}", json.dumps(secret), ex=180)
-    pipe.zadd(Q, {job_id: priority * PRIO_STEP + time.time() * 1000})
+    pipe.zadd(LQ if kind in LOOKUP_KINDS else Q, {job_id: priority * PRIO_STEP + time.time() * 1000})
     await pipe.execute()
     return job_id
 
 
-async def interactive_depth() -> int:
-    """Antal interaktive job der venter."""
-    return await kv().zcount(Q, 0, (INTERACTIVE + 1) * PRIO_STEP - 1)
+async def lookup_depth() -> int:
+    """Antal opslag der venter eller udføres."""
+    r = kv()
+    return await r.zcard(LQ) + await r.scard(LOOKUP_RUNNING)
 
 
 async def eta(job_ids: list[str]) -> dict:
     """Hvornår de første af jobbene udføres: pending = mindst ét venter, eta = sekunder til det første af dem.
-    Højst ét kald pr. dof_min_interval, så ventetiden er resten af det aktuelle interval + ét interval pr. job foran."""
+    Opslag udføres straks; udtræk højst ét pr. dof_min_interval (resten af intervallet + ét pr. job foran)."""
     r = kv()
     interval = get_settings().dof_min_interval
     last = float(await r.get(LAST_CALL) or 0)
@@ -84,7 +94,11 @@ async def eta(job_ids: list[str]) -> dict:
     running = await r.get(RUNNING)
     best = None
     for job_id in job_ids:
-        if job_id == running:
+        if await r.sismember(LOOKUP_RUNNING, job_id):
+            t = 2.0  # opslaget er i gang
+        elif (lrank := await r.zrank(LQ, job_id)) is not None:
+            t = 2.0 + (lrank // LOOKUP_CONCURRENCY) * 2  # opslag udføres med det samme, nogle få ad gangen
+        elif job_id == running:
             t = 5.0  # kaldet er i gang
         else:
             rank = await r.zrank(Q, job_id)
@@ -98,7 +112,7 @@ async def eta(job_ids: list[str]) -> dict:
 async def pending_ids() -> set[str]:
     """Id'er på job der venter i køen eller udføres lige nu."""
     r = kv()
-    ids = set(await r.zrange(Q, 0, -1))
+    ids = set(await r.zrange(Q, 0, -1)) | set(await r.zrange(LQ, 0, -1)) | set(await r.smembers(LOOKUP_RUNNING))
     running = await r.get(RUNNING)
     if running:
         ids.add(running)
@@ -134,6 +148,8 @@ async def status() -> dict:
     r = kv()
     data = await r.hgetall(STATUS)
     data["queue_length"] = await r.zcard(Q)
+    data["lookup_queue"] = await r.zcard(LQ)
+    data["lookups_running"] = await r.scard(LOOKUP_RUNNING)
     running = await r.get(RUNNING)
     raw = await r.get(f"dof:job:{running}") if running else None
     data["running"] = {k: v for k, v in json.loads(raw).items() if k in ("id", "kind", "params")} if raw else None
@@ -147,6 +163,7 @@ async def cancel(job_id: str) -> None:
     r = kv()
     raw = await r.get(f"dof:job:{job_id}")
     await r.zrem(Q, job_id)
+    await r.zrem(LQ, job_id)
     if raw:
         job = json.loads(raw)
         if job.get("dedupe"):
@@ -162,6 +179,9 @@ async def clear() -> int:
         raw = await r.get(f"dof:job:{job_id}")
         if raw and json.loads(raw).get("kind") == "login":
             continue
+        await cancel(job_id)
+        removed += 1
+    for job_id in await r.zrange(LQ, 0, -1):  # ventende opslag
         await cancel(job_id)
         removed += 1
     return removed
@@ -250,7 +270,14 @@ class Gateway:
                 if job.get("dedupe"):
                     await r.delete(f"dof:dedupe:{job['dedupe']}")
         await r.delete(RUNNING)
-        alive = set(await r.zrange(Q, 0, -1))
+        # Opslag der blev afbrudt midt i kaldet lægges i kø igen (de er små og kan uden skade gentages)
+        for job_id in await r.smembers(LOOKUP_RUNNING):
+            raw = await r.get(f"dof:job:{job_id}")
+            if raw:
+                job = json.loads(raw)
+                await r.zadd(LQ, {job_id: job["priority"] * PRIO_STEP + job["created"] * 1000})
+        await r.delete(LOOKUP_RUNNING)
+        alive = set(await r.zrange(Q, 0, -1)) | set(await r.zrange(LQ, 0, -1))
         stale = 0
         async for key in r.scan_iter(match="dof:dedupe:*", count=500):
             if await r.get(key) not in alive:
@@ -271,6 +298,14 @@ class Gateway:
             else:
                 await r.zrem(Q, job_id)
         headers = {"User-Agent": self.settings.dof_user_agent}
+        lookups = asyncio.create_task(self.run_lookups(), name="dof-lookups")
+        try:
+            await self._run_extracts(headers)
+        finally:
+            lookups.cancel()
+
+    async def _run_extracts(self, headers: dict) -> None:
+        r = kv()
         async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=20), headers=headers, follow_redirects=True) as client:
             while True:
                 try:
@@ -301,6 +336,83 @@ class Gateway:
                 except Exception:  # noqa: BLE001 – løkken må aldrig dø
                     log.exception("Gateway-fejl")
                     await asyncio.sleep(5)
+
+    async def run_lookups(self) -> None:
+        """Opslagsbanen: små opslag udføres straks og samtidigt (højst LOOKUP_CONCURRENCY ad gangen) – uden at vente på
+        minimumsintervallet og uden at påvirke det. Opslagene deler ikke lås med udtrækkene."""
+        r = kv()
+        sem = asyncio.Semaphore(LOOKUP_CONCURRENCY)
+        tasks: set[asyncio.Task] = set()
+        headers = {"User-Agent": self.settings.dof_user_agent}
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60, connect=15), headers=headers, follow_redirects=True) as client:
+            while True:
+                try:
+                    if not self.settings.dof_enabled:
+                        await asyncio.sleep(10)
+                        continue
+                    await sem.acquire()
+                    popped = None
+                    try:
+                        items = await r.zpopmin(LQ)
+                        if items:
+                            popped = items[0][0]
+                            await r.sadd(LOOKUP_RUNNING, popped)
+                    except BaseException:
+                        sem.release()
+                        raise
+                    if popped is None:
+                        sem.release()
+                        await asyncio.sleep(0.25)
+                        continue
+                    task = asyncio.create_task(self._run_lookup(client, popped, sem))
+                    tasks.add(task)
+                    task.add_done_callback(tasks.discard)
+                except asyncio.CancelledError:
+                    for t in tasks:
+                        t.cancel()
+                    raise
+                except Exception:  # noqa: BLE001 – løkken må aldrig dø
+                    log.exception("Opslagsbane-fejl")
+                    await asyncio.sleep(2)
+
+    async def _run_lookup(self, client: httpx.AsyncClient, job_id: str, sem: asyncio.Semaphore) -> None:
+        r = kv()
+        started = time.time()
+        result: Any = None
+        error: str | None = None
+        job: dict | None = None
+        try:
+            raw = await r.get(f"dof:job:{job_id}")
+            if not raw:
+                return  # annulleret imens
+            job = json.loads(raw)
+            handler = self.handlers.get(job["kind"])
+            if handler is None:
+                raise ValueError(f"Ukendt jobtype {job['kind']}")
+            result = await handler(client, dict(job["params"]))
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            error = f"{type(exc).__name__}: {exc}"
+            log.warning("DOFbasen-opslag %s fejlede: %s", job and job["kind"], error)
+        finally:
+            sem.release()
+            if job is not None:
+                duration = round(time.time() - started, 2)
+                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                pipe = r.pipeline()
+                pipe.hincrby(STATUS, f"lookups:{today}", 1)
+                pipe.lpush("dof:log", json.dumps({"kind": job["kind"], "params": _safe_params(job), "at": started,
+                                                  "duration": duration, "error": error, "result": _summary(result), "lane": "opslag"}))
+                pipe.ltrim("dof:log", 0, 199)
+                pipe.delete(f"dof:job:{job_id}")
+                if job.get("dedupe"):
+                    pipe.delete(f"dof:dedupe:{job['dedupe']}")
+                pipe.rpush(f"dof:wait:{job_id}", json.dumps({"ok": error is None, "error": error, "result": result}, default=str))
+                pipe.expire(f"dof:wait:{job_id}", 300)
+                await pipe.execute()
+                log.info("DOFbasen opslag %s (%ss)%s", job["kind"], duration, f" FEJL {error}" if error else "")
+            await r.srem(LOOKUP_RUNNING, job_id)
 
     async def _requeue(self, job: dict) -> None:
         r = kv()

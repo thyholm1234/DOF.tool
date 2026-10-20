@@ -260,16 +260,16 @@ async def job_media_day(client: httpx.AsyncClient, p: dict) -> dict:
     return {"date": day.isoformat(), "changed": n}
 
 
-MAX_THREAD_LOOKUPS = 4  # observationer pr. visning af en tråd (hver er ét kald til DOFbasen)
+MAX_THREAD_LOOKUPS = 12  # observationer pr. visning af en tråd (hver er ét lille opslag hos DOFbasen)
 
 
 async def ensure_media_obs(obsids: list[int]) -> dict:
-    """Læg et opslag pr. observation i kø med interaktiv prioritet – det er næste kald til DOFbasen, uanset hvad der
-    ellers ligger i køen. Ét opslag (popobs for obsid) er en lille side. Højst ét kald i minuttet gælder stadig, så
-    ventetiden er højst resten af det interval. Returnerer {"pending", "eta" (sekunder), "obsids" (dem der venter)}."""
+    """Læg et opslag pr. observation i gatewayens opslagsbane. Et opslag (popobs for obsid) er en lille side og
+    trækker ikke data ud af DOFbasens database, så det udføres med det samme og er ikke underlagt udtrækkenes
+    minimumsinterval. Returnerer {"pending", "eta" (sekunder), "obsids" (dem der venter)}."""
     ids = obsids[:MAX_THREAD_LOOKUPS]
-    if await gateway.interactive_depth() >= gateway.MAX_INTERACTIVE_QUEUE:
-        # Køen er fuld af andre opslag – kun allerede ventende opslag på tråden tæller med
+    if await gateway.lookup_depth() >= gateway.MAX_LOOKUP_QUEUE:
+        # Banen er fyldt (værn): kun allerede ventende opslag på tråden tæller med
         jobs = [await kv().get(f"dof:dedupe:media:{o}") for o in ids]
     else:
         jobs = [await gateway.enqueue("media", {"obsid": o}, priority=gateway.INTERACTIVE, dedupe=f"media:{o}") for o in ids]
