@@ -6,17 +6,24 @@ Modulet er lukket i ynglesæsonen (perioden redigeres af admin), og brugeren ska
 
 from __future__ import annotations
 
+import asyncio
+import html
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import optional_user, require_role, require_user
-from portal.cache import kv
+from portal.cache import get_json, kv, set_json
+from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import MobPreset, Setting, User
 from portal.services.auth import role_at_least
@@ -28,10 +35,58 @@ router = APIRouter(prefix="/api/mobgang", tags=["mobgang"])
 MAX_PRESETS = 100
 OFFICIAL_ROLE = "editor"
 
+# ---------------------------------------------------------------- arter og optagelser
+# Optagelser fra xeno-canto (XC-nummer, fil i web/audio/mobgang). Kataloget sendes til browseren med /status og
+# bruges af middlewaren til at spærre den enkelte arts lydfiler. start = tændt i en ny, tom opsætning.
+
+GROUPS = [("drosler", "Drosler, nattergale og stjerter"), ("sangere", "Sangere og løvsangere"),
+          ("fluesnappere", "Fluesnappere"), ("andre", "Fuglekonger, mejser og krager")]
+
+
+def _sp(id_: str, artnr: int, navn: str, latin: str, group: str, *recs: tuple[int, str], start: bool = False) -> dict:
+    return {"id": id_, "artnr": artnr, "navn": navn, "latin": latin, "group": group, "start": start,
+            "recs": [{"xc": xc, "file": f} for xc, f in recs]}
+
+
+SPECIES = [
+    _sp("solsort", 11870, "Solsort", "Turdus merula", "drosler", (988584, "solsort-XC988584.mp3"), start=True),
+    _sp("sangdrossel", 12000, "Sangdrossel", "Turdus philomelos", "drosler", (747444, "sangdrossel-XC747444.mp3")),
+    _sp("vindrossel", 12010, "Vindrossel", "Turdus iliacus", "drosler", (663553, "vindrossel-XC663553.mp3"), start=True),
+    _sp("stendrossel", 11620, "Stendrossel", "Monticola saxatilis", "drosler", (296007, "stendrossel-XC296007.mp3")),
+    _sp("nattergal", 11030, "Nattergal", "Luscinia luscinia", "drosler", (916831, "nattergal-XC916831.mp3")),
+    _sp("blaahals", 11060, "Blåhals", "Luscinia svecica", "drosler", (1039066, "blaahals-XC1039066.mp3")),
+    _sp("blaastjert", 11130, "Blåstjert", "Tarsiger cyanurus", "drosler", (1168128, "blaastjert-XC1168128.mp3")),
+    _sp("cettisanger", 12200, "Cettisanger", "Cettia cetti", "sangere", (1086047, "cettisanger-XC1086047.mp3")),
+    _sp("gulbug", 12590, "Gulbug", "Hippolais icterina", "sangere", (1011627, "gulbug-XC1011627.mp3"), start=True),
+    _sp("hoegesanger", 12730, "Høgesanger", "Curruca nisoria", "sangere", (575807, "hoegesanger-XC575807.mp3")),
+    _sp("lundsanger", 12930, "Lundsanger", "Phylloscopus trochiloides", "sangere", (325508, "lundsanger-XC325508.mp3")),
+    _sp("hvidbrynet", 13000, "Hvidbrynet Løvsanger", "Phylloscopus inornatus", "sangere",
+        (1147707, "hvidbrynet-loevsanger-XC1147707.mp3"), start=True),
+    _sp("schwarz", 13010, "Schwarz' Løvsanger", "Phylloscopus schwarzi", "sangere", (1147096, "schwarz-loevsanger-XC1147096.mp3")),
+    _sp("brunloevsanger", 13030, "Brun Løvsanger", "Phylloscopus fuscatus", "sangere", (495372, "brun-loevsanger-XC495372.mp3")),
+    _sp("graafluesnapper", 13350, "Grå Fluesnapper", "Muscicapa striata", "fluesnappere",
+        (921935, "graa-fluesnapper-XC921935.mp3"), start=True),
+    _sp("lillefluesnapper", 13430, "Lille Fluesnapper", "Ficedula parva", "fluesnappere", (1151994, "lille-fluesnapper-XC1151994.mp3")),
+    _sp("hvidhalset", 13480, "Hvidhalset Fluesnapper", "Ficedula albicollis", "fluesnappere",
+        (288094, "hvidhalset-fluesnapper-XC288094.mp3")),
+    _sp("brogetfluesnapper", 13490, "Broget Fluesnapper", "Ficedula hypoleuca", "fluesnappere",
+        (918321, "broget-fluesnapper-XC918321.mp3")),
+    _sp("roedtoppet", 13150, "Rødtoppet Fuglekonge", "Regulus ignicapilla", "andre",
+        (1165095, "roedtoppet-fuglekonge-XC1165095.mp3"), (687689, "roedtoppet-fuglekonge-XC687689.mp3"), start=True),
+    _sp("fyrremejse", 14420, "Fyrremejse", "Poecile montanus", "andre", (1047896, "fyrremejse-XC1047896.mp3"), start=True),
+    _sp("noeddekrige", 15570, "Nøddekrige", "Nucifraga caryocatactes", "andre", (1082575, "noeddekrige-XC1082575.mp3")),
+]
+SPECIES_IDS = [s["id"] for s in SPECIES]
+FILE_SPECIES = {r["file"]: s["id"] for s in SPECIES for r in s["recs"]}
+
 # ---------------------------------------------------------------- ynglesæson
+# Hver art har sin egen lukkeperiode (dag og måned, gentages hvert år). Brugernes egne xeno-canto-optagelser af
+# arter uden for kataloget følger "custom"-perioden. Den samlede lukning af hele modulet findes stadig, men er slået
+# fra som standard.
 
 SEASON_KEY = "mobgang_season"
-SEASON_DEFAULT = {"enabled": True, "from": "03-15", "to": "07-31"}  # MM-DD, begge dage inklusive
+PERIOD_DEFAULT = {"enabled": True, "from": "03-15", "to": "07-31"}  # MM-DD, begge dage inklusive
+SEASON_DEFAULT = {"enabled": False, "from": "03-15", "to": "07-31"}
 
 
 def _md(v: str) -> tuple[int, int]:
@@ -41,7 +96,7 @@ def _md(v: str) -> tuple[int, int]:
 
 
 def season_state(cfg: dict, today: date) -> dict:
-    """Er modulet lukket i dag, og hvornår åbner/lukker det næste gang. Perioden må gå hen over nytår."""
+    """Er perioden lukket i dag, og hvornår åbner/lukker den næste gang. Perioden må gå hen over nytår."""
     f, t = _md(cfg["from"]), _md(cfg["to"])
     cur = (today.month, today.day)
     inside = (f <= cur <= t) if f <= t else (cur >= f or cur <= t)
@@ -57,17 +112,23 @@ def season_state(cfg: dict, today: date) -> dict:
                 return d
         return after
 
-    return {**cfg, "closed": closed,
+    return {"enabled": bool(cfg["enabled"]), "from": cfg["from"], "to": cfg["to"], "closed": closed,
             "opens": (next_day(t, today - timedelta(days=1)) + timedelta(days=1)).isoformat() if closed else None,
             "closes": next_day(f, today).isoformat() if cfg["enabled"] and not closed else None}
 
 
 async def season(db: AsyncSession) -> dict:
+    """Hele modulets lukning + hver arts lukning i dag."""
     row = await db.get(Setting, SEASON_KEY)
-    return season_state({**SEASON_DEFAULT, **(row.value if row and isinstance(row.value, dict) else {})}, dk_today())
+    stored = row.value if row and isinstance(row.value, dict) else {}
+    today = dk_today()
+    per = stored.get("species") or {}
+    return {**season_state({**SEASON_DEFAULT, **{k: stored[k] for k in SEASON_DEFAULT if k in stored}}, today),
+            "species": {sid: season_state({**PERIOD_DEFAULT, **(per.get(sid) or {})}, today) for sid in SPECIES_IDS},
+            "custom": season_state({**PERIOD_DEFAULT, **(stored.get("custom") or {})}, today)}
 
 
-class SeasonIn(BaseModel):
+class PeriodIn(BaseModel):
     enabled: bool
     from_: str = Field(alias="from", pattern=r"^\d{2}-\d{2}$")
     to: str = Field(pattern=r"^\d{2}-\d{2}$")
@@ -81,17 +142,172 @@ class SeasonIn(BaseModel):
             raise ValueError("Ugyldig dato") from exc
         return v
 
+    def value(self) -> dict:
+        return {"enabled": self.enabled, "from": self.from_, "to": self.to}
+
+
+class SeasonIn(PeriodIn):
+    species: dict[str, PeriodIn] = Field(default_factory=dict)
+    custom: PeriodIn | None = None
+
 
 @router.put("/season")
 async def put_season(body: SeasonIn, user: User = Depends(require_role("admin")), db: AsyncSession = Depends(get_session)):
-    value = {"enabled": body.enabled, "from": body.from_, "to": body.to}
+    unknown = set(body.species) - set(SPECIES_IDS)
+    if unknown:
+        raise HTTPException(400, f"Ukendte arter: {', '.join(sorted(unknown))}")
     row = await db.get(Setting, SEASON_KEY)
+    stored = row.value if row and isinstance(row.value, dict) else {}
+    value = {**body.value(), "species": {**(stored.get("species") or {}), **{k: v.value() for k, v in body.species.items()}},
+             "custom": body.custom.value() if body.custom else stored.get("custom") or PERIOD_DEFAULT}
     if row is None:
         db.add(Setting(key=SEASON_KEY, value=value))
     else:
         row.value = value
     await db.commit()
     return await season(db)
+
+
+# ---------------------------------------------------------------- egne xeno-canto-optagelser
+# Brugeren indsætter et link eller XC-nummer. Art, optager og licens læses af optagelsens side (xeno-canto's API
+# kræver nøgle); arten kobles til portalens artsliste via det latinske navn. Lydfilen hentes én gang og gemmes
+# lokalt, så etiktest og lukkeperiode også gælder egne optagelser.
+
+XC_REF = re.compile(r"^\s*(?:(?:https?://)?(?:www\.)?xeno-canto\.org/|XC\s*)?(\d{1,9})(?:/download)?/?\s*$", re.IGNORECASE)
+_XC_TITLE = re.compile(r"<title>XC(\d+)\s+(.*?)\s+\(([^)]+)\)\s*::", re.S)
+_XC_REC = re.compile(r"class='jp-xc-recordist'>([^<]+)<")
+_XC_LIC = re.compile(r"<h2>License</h2>\s*<p><a href='(https?://creativecommons\.org/[^']+)'>(?:<img[^>]*>)?\s*([^<]+)</a>")
+XC_MAX_BYTES = 40 * 1024 * 1024
+XC_TYPES = {"audio/mpeg": ".mp3", "audio/mp3": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/wave": ".wav",
+            "audio/ogg": ".ogg", "audio/flac": ".flac", "audio/x-flac": ".flac", "audio/mp4": ".m4a"}
+
+
+def parse_xc_ref(ref: str) -> int:
+    m = XC_REF.match(ref or "")
+    if not m:
+        raise HTTPException(400, "Indsæt et xeno-canto-link (fx https://xeno-canto.org/988584) eller et XC-nummer")
+    return int(m.group(1))
+
+
+def parse_xc_page(page: str) -> dict:
+    t = _XC_TITLE.search(page)
+    if not t:
+        raise ValueError("ukendt sideformat")
+    rec, lic = _XC_REC.search(page), _XC_LIC.search(page)
+    return {"en": html.unescape(t.group(2)).strip(), "latin": html.unescape(t.group(3)).strip(),
+            "recordist": html.unescape(rec.group(1)).strip() if rec else None,
+            "license": html.unescape(lic.group(2)).strip() if lic else None, "license_url": lic.group(1) if lic else None,
+            "downloadable": "og:audio' content=" in page or f"/{t.group(1)}/download" in page}
+
+
+def _client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=httpx.Timeout(60, connect=15), follow_redirects=True,
+                             headers={"User-Agent": get_settings().dof_user_agent})
+
+
+async def xc_meta(db: AsyncSession, nr: int) -> dict:
+    """Optagelsens art, optager og licens (gemt i 30 dage) samt hvilken art i portalen og i kataloget den hører til."""
+    key = f"mobgang:xc:{nr}"
+    meta = await get_json(key)
+    if meta is None:
+        async with _client() as c:
+            try:
+                resp = await c.get(f"https://xeno-canto.org/{nr}")
+            except httpx.HTTPError as exc:
+                raise HTTPException(502, "xeno-canto svarer ikke lige nu – prøv igen senere") from exc
+        if resp.status_code == 404:
+            raise HTTPException(404, f"XC{nr} findes ikke på xeno-canto")
+        if resp.status_code != 200:
+            raise HTTPException(502, f"xeno-canto svarede {resp.status_code}")
+        try:
+            meta = {"xc": nr, **parse_xc_page(resp.text)}
+        except ValueError as exc:
+            raise HTTPException(404, f"Fandt ikke XC{nr} på xeno-canto") from exc
+        row = (await db.execute(text("""
+            SELECT artnr, trim(both '[]' from navn) FROM species WHERE lower(latin) = lower(:l)
+            ORDER BY (art_type = 'art') DESC, artnr LIMIT 1
+        """), {"l": meta["latin"]})).first()
+        meta["artnr"], meta["navn"] = (row[0], row[1]) if row else (None, None)
+        await set_json(key, meta, 30 * 86400)
+    sid = next((s["id"] for s in SPECIES if meta.get("artnr") and s["artnr"] == meta["artnr"]), None)
+    return {**meta, "sid": sid}
+
+
+def xc_closed(st: dict, meta: dict) -> dict:
+    """Lukkeperioden der gælder optagelsen: artens egen, hvis arten er i kataloget, ellers perioden for egne optagelser."""
+    return st["species"][meta["sid"]] if meta.get("sid") else st["custom"]
+
+
+class XcIn(BaseModel):
+    ref: str = Field(min_length=1, max_length=300)
+
+
+@router.post("/xc")
+async def add_xc(body: XcIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    nr = parse_xc_ref(body.ref)
+    if not await kv().set(f"mobgang:xcrl:{user.id}", "1", nx=True, ex=2):
+        raise HTTPException(429, "Vent et øjeblik før næste opslag")
+    meta = await xc_meta(db, nr)
+    if not meta["downloadable"]:
+        raise HTTPException(400, f"XC{nr} kan ikke downloades fra xeno-canto (fx en beskyttet art)")
+    return {**meta, "season": xc_closed(await season(db), meta)}
+
+
+def _xc_dir() -> Path:
+    d = Path(get_settings().media_dir) / "xc"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+async def _xc_file(nr: int) -> Path:
+    """Lydfilen fra xeno-canto – hentes første gang og genbruges derefter (lås mod samtidige hentninger)."""
+    d = _xc_dir()
+    hit = next(d.glob(f"{nr}.*"), None)
+    if hit:
+        return hit
+    r = kv()
+    while not await r.set(f"mobgang:xcdl:{nr}", "1", nx=True, ex=120):
+        await asyncio.sleep(0.5)
+        if hit := next(d.glob(f"{nr}.*"), None):
+            return hit
+    try:
+        async with _client() as c, c.stream("GET", f"https://xeno-canto.org/{nr}/download") as resp:
+            if resp.status_code != 200:
+                raise HTTPException(502, f"xeno-canto leverede ikke lydfilen ({resp.status_code})")
+            ext = XC_TYPES.get(resp.headers.get("content-type", "").split(";")[0].strip().lower())
+            if ext is None:
+                raise HTTPException(502, "xeno-canto leverede ikke en lydfil")
+            tmp = d / f"{nr}.part"
+            size = 0
+            with tmp.open("wb") as f:
+                async for chunk in resp.aiter_bytes():
+                    size += len(chunk)
+                    if size > XC_MAX_BYTES:
+                        f.close()
+                        tmp.unlink(missing_ok=True)
+                        raise HTTPException(413, "Optagelsen er for stor (højst 40 MB)")
+                    f.write(chunk)
+            target = d / f"{nr}{ext}"
+            tmp.rename(target)
+            return target
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "xeno-canto svarer ikke lige nu – prøv igen senere") from exc
+    finally:
+        await r.delete(f"mobgang:xcdl:{nr}")
+
+
+@router.get("/xc/{nr}/audio")
+async def xc_audio(nr: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    if not await kv().exists(f"mobgang:ethics:{user.id}"):
+        raise HTTPException(403, "Mobgang kræver bestået etiktest")
+    meta = await xc_meta(db, nr)
+    st = await season(db)
+    if st["closed"] or xc_closed(st, meta)["closed"]:
+        raise HTTPException(403, "Arten er lukket i ynglesæsonen")
+    if not meta["downloadable"]:
+        raise HTTPException(400, "Optagelsen kan ikke downloades")
+    path = await _xc_file(nr)
+    return FileResponse(path, headers={"Cache-Control": "private, no-cache"})
 
 
 # ---------------------------------------------------------------- etiktest
@@ -137,19 +353,21 @@ async def _remember(user: User, ethics: dict) -> None:
         await kv().set(f"mobgang:ethics:{user.id}", "1", ex=max(ttl, 1))
 
 
-async def audio_allowed(user_id: int) -> bool:
-    """Må brugeren hente mobgang-lydfiler: uden for ynglesæsonen og med gyldig etiktest."""
-    if not await kv().exists(f"mobgang:ethics:{user_id}"):
+async def audio_allowed(user_id: int, path: str) -> bool:
+    """Må brugeren hente lydfilen: gyldig etiktest, modulet er åbent, og artens periode er ikke lukket."""
+    sid = FILE_SPECIES.get(path.rsplit("/", 1)[-1])
+    if sid is None or not await kv().exists(f"mobgang:ethics:{user_id}"):
         return False
     async with SessionLocal() as db:
-        return not (await season(db))["closed"]
+        st = await season(db)
+    return not st["closed"] and not st["species"][sid]["closed"]
 
 
 @router.get("/status")
 async def status(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     ethics = _ethics(user)
     await _remember(user, ethics)
-    return {"season": await season(db), "ethics": ethics, "questions": [
+    return {"season": await season(db), "ethics": ethics, "species": SPECIES, "groups": GROUPS, "questions": [
         {"q": q["q"], "options": q["options"]} for q in QUESTIONS]}
 
 
@@ -247,9 +465,7 @@ async def delete_preset(preset_id: int, user: User = Depends(require_user), db: 
 
 # ---------------------------------------------------------------- officielle startpresets
 
-ALL = ("solsort", "sangdrossel", "vindrossel", "stendrossel", "nattergal", "blaahals", "blaastjert", "cettisanger", "gulbug",
-       "hoegesanger", "lundsanger", "hvidbrynet", "schwarz", "brunloevsanger", "graafluesnapper", "lillefluesnapper",
-       "hvidhalset", "brogetfluesnapper", "roedtoppet", "fyrremejse", "noeddekrige")
+ALL = tuple(SPECIES_IDS)
 
 
 def _cfg(target: str = "", boost: int = 6, duck: int = -6, **species: int) -> dict:

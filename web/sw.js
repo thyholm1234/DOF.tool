@@ -26,7 +26,7 @@ self.addEventListener("fetch", (e) => {
   if (url.pathname.startsWith("/api/")) {
     // Netværk først, cache som nødløsning (så feedet kan ses offline)
     e.respondWith(fetch(e.request).then((r) => {
-      if (r.ok && !url.pathname.startsWith("/api/admin")) { const copy = r.clone(); caches.open("doftool-api").then((c) => c.put(e.request, copy)); }
+      if (r.ok && !url.pathname.startsWith("/api/admin") && !url.pathname.startsWith("/api/mobgang/xc/")) { const copy = r.clone(); caches.open("doftool-api").then((c) => c.put(e.request, copy)); }
       return r;
     }).catch(() => caches.match(e.request).then((r) => r || new Response(JSON.stringify({ detail: "Offline" }), { status: 503, headers: { "Content-Type": "application/json" } }))));
     return;

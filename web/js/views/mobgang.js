@@ -3,52 +3,49 @@
 // brugerens egne private (/api/mobgang/presets).
 import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate } from "../core.js";
 
-// Optagelser fra xeno-canto (XC-nummer). Flere individer af samme art skiftes mellem artens optagelser; deler
-// de samme optagelse, startes de OFFSET sekunder forskudt. start = tændt i en ny, tom opsætning.
-const rec = (xc, file) => ({ xc, file });
-const SPECIES = [
-  { id: "solsort", artnr: 11870, navn: "Solsort", latin: "Turdus merula", group: "drosler", start: true, recs: [rec(988584, "solsort-XC988584.mp3")] },
-  { id: "sangdrossel", artnr: 12000, navn: "Sangdrossel", latin: "Turdus philomelos", group: "drosler", recs: [rec(747444, "sangdrossel-XC747444.mp3")] },
-  { id: "vindrossel", artnr: 12010, navn: "Vindrossel", latin: "Turdus iliacus", group: "drosler", start: true, recs: [rec(663553, "vindrossel-XC663553.mp3")] },
-  { id: "stendrossel", artnr: 11620, navn: "Stendrossel", latin: "Monticola saxatilis", group: "drosler", recs: [rec(296007, "stendrossel-XC296007.mp3")] },
-  { id: "nattergal", artnr: 11030, navn: "Nattergal", latin: "Luscinia luscinia", group: "drosler", recs: [rec(916831, "nattergal-XC916831.mp3")] },
-  { id: "blaahals", artnr: 11060, navn: "Blåhals", latin: "Luscinia svecica", group: "drosler", recs: [rec(1039066, "blaahals-XC1039066.mp3")] },
-  { id: "blaastjert", artnr: 11130, navn: "Blåstjert", latin: "Tarsiger cyanurus", group: "drosler", recs: [rec(1168128, "blaastjert-XC1168128.mp3")] },
-  { id: "cettisanger", artnr: 12200, navn: "Cettisanger", latin: "Cettia cetti", group: "sangere", recs: [rec(1086047, "cettisanger-XC1086047.mp3")] },
-  { id: "gulbug", artnr: 12590, navn: "Gulbug", latin: "Hippolais icterina", group: "sangere", start: true, recs: [rec(1011627, "gulbug-XC1011627.mp3")] },
-  { id: "hoegesanger", artnr: 12730, navn: "Høgesanger", latin: "Curruca nisoria", group: "sangere", recs: [rec(575807, "hoegesanger-XC575807.mp3")] },
-  { id: "lundsanger", artnr: 12930, navn: "Lundsanger", latin: "Phylloscopus trochiloides", group: "sangere", recs: [rec(325508, "lundsanger-XC325508.mp3")] },
-  { id: "hvidbrynet", artnr: 13000, navn: "Hvidbrynet Løvsanger", latin: "Phylloscopus inornatus", group: "sangere", start: true, recs: [rec(1147707, "hvidbrynet-loevsanger-XC1147707.mp3")] },
-  { id: "schwarz", artnr: 13010, navn: "Schwarz' Løvsanger", latin: "Phylloscopus schwarzi", group: "sangere", recs: [rec(1147096, "schwarz-loevsanger-XC1147096.mp3")] },
-  { id: "brunloevsanger", artnr: 13030, navn: "Brun Løvsanger", latin: "Phylloscopus fuscatus", group: "sangere", recs: [rec(495372, "brun-loevsanger-XC495372.mp3")] },
-  { id: "graafluesnapper", artnr: 13350, navn: "Grå Fluesnapper", latin: "Muscicapa striata", group: "fluesnappere", start: true, recs: [rec(921935, "graa-fluesnapper-XC921935.mp3")] },
-  { id: "lillefluesnapper", artnr: 13430, navn: "Lille Fluesnapper", latin: "Ficedula parva", group: "fluesnappere", recs: [rec(1151994, "lille-fluesnapper-XC1151994.mp3")] },
-  { id: "hvidhalset", artnr: 13480, navn: "Hvidhalset Fluesnapper", latin: "Ficedula albicollis", group: "fluesnappere", recs: [rec(288094, "hvidhalset-fluesnapper-XC288094.mp3")] },
-  { id: "brogetfluesnapper", artnr: 13490, navn: "Broget Fluesnapper", latin: "Ficedula hypoleuca", group: "fluesnappere", recs: [rec(918321, "broget-fluesnapper-XC918321.mp3")] },
-  { id: "roedtoppet", artnr: 13150, navn: "Rødtoppet Fuglekonge", latin: "Regulus ignicapilla", group: "andre", start: true,
-    recs: [rec(1165095, "roedtoppet-fuglekonge-XC1165095.mp3"), rec(687689, "roedtoppet-fuglekonge-XC687689.mp3")] },
-  { id: "fyrremejse", artnr: 14420, navn: "Fyrremejse", latin: "Poecile montanus", group: "andre", start: true, recs: [rec(1047896, "fyrremejse-XC1047896.mp3")] },
-  { id: "noeddekrige", artnr: 15570, navn: "Nøddekrige", latin: "Nucifraga caryocatactes", group: "andre", recs: [rec(1082575, "noeddekrige-XC1082575.mp3")] },
-];
-const GROUPS = [["drosler", "Drosler, nattergale og stjerter"], ["sangere", "Sangere og løvsangere"], ["fluesnappere", "Fluesnappere"], ["andre", "Fuglekonger, mejser og krager"]];
+// Arter og optagelser (xeno-canto) kommer fra serveren (/api/mobgang/status), der også har hver arts lukkeperiode
+// i ynglesæsonen. Brugeren kan desuden tilføje egne xeno-canto-optagelser (cfg.custom), som gemmes i presettet og
+// hentes via serveren (/api/mobgang/xc/<nr>/audio). Flere individer af samme art skiftes mellem artens optagelser;
+// deler de samme optagelse, startes de OFFSET sekunder forskudt. start = tændt i en ny, tom opsætning.
+let SPECIES = [], GROUPS = [], SEASON = null;
 const EDITOR_ROLES = ["editor", "admin", "superadmin"];
 const OFFSET = 15;     // sekunder mellem start-positionen for individer der deler en optagelse
 const MAX_COUNT = 8;
+const MAX_CUSTOM = 12; // egne optagelser pr. opsætning
 const FADE = 0.015;    // kort fade i hver ende af filen, så loop-skiftet ikke klikker
 const db = (v) => Math.pow(10, v / 20);
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const xcId = (nr) => `xc:${nr}`;
+
+/** Alle spor i opsætningen: katalogets arter efterfulgt af brugerens egne optagelser. */
+function tracks(cfg) {
+  return [...SPECIES, ...(cfg.custom || []).map(c => ({
+    id: xcId(c.xc), artnr: c.artnr, navn: c.navn || c.en, latin: c.latin, group: "egne", custom: c,
+    recs: [{ xc: c.xc, src: `/api/mobgang/xc/${c.xc}/audio` }],
+  }))];
+}
+
+/** Lukkeperioden for et spor: artens egen, hvis arten er i kataloget – ellers perioden for egne optagelser. */
+function seasonOf(t) {
+  const sid = t.custom ? t.custom.sid : t.id;
+  return (sid && SEASON.species[sid]) || SEASON.custom;
+}
 
 const defaults = () => ({
-  v: 1, master: 80, target: "", boost: 6, duck: -6,
+  v: 1, master: 80, target: "", boost: 6, duck: -6, custom: [],
   species: Object.fromEntries(SPECIES.map(s => [s.id, { on: !!s.start, count: 1, vol: 80 }])),
 });
 
 /** Udfylder manglende felter. Arter der er kommet til efter presettet blev gemt, starter slukket. */
 function normalize(cfg) {
   const d = defaults();
-  const out = { ...d, ...cfg, species: { ...d.species } };
-  for (const s of SPECIES) out.species[s.id] = { ...d.species[s.id], ...(cfg?.species ? { on: false } : {}), ...(cfg?.species?.[s.id] || {}) };
-  if (!SPECIES.some(s => s.id === out.target)) out.target = "";
+  const out = { ...d, ...cfg, custom: (cfg?.custom || []).slice(0, MAX_CUSTOM), species: { ...d.species } };
+  for (const t of tracks(out)) {
+    const base = d.species[t.id] || { on: true, count: 1, vol: 80 };
+    out.species[t.id] = { ...base, ...(cfg?.species && !t.custom ? { on: false } : {}), ...(cfg?.species?.[t.id] || {}) };
+    if (seasonOf(t).closed) out.species[t.id].on = false;  // lukket i ynglesæsonen: kan ikke tændes
+  }
+  if (!out.species[out.target]?.on) out.target = "";
   return out;
 }
 
@@ -64,34 +61,42 @@ class Mixer {
     this.limiter = new DynamicsCompressorNode(ctx, { threshold: -6, knee: 4, ratio: 12, attack: 0.003, release: 0.25 });
     this.master = new GainNode(ctx);
     this.master.connect(this.limiter).connect(ctx.destination);
-    for (const s of SPECIES) {
-      const gain = new GainNode(ctx, { gain: 0 });
-      gain.connect(this.master);
-      this.chains[s.id] = { gain, sources: [] };
-    }
   }
 
-  /** Henter og afkoder kun de tændte arters optagelser (én gang pr. fil). */
-  load(ids) {
+  chain(id) {
+    if (!this.chains[id]) {
+      const gain = new GainNode(this.ctx, { gain: 0 });
+      gain.connect(this.master);
+      this.chains[id] = { gain, sources: [] };
+    }
+    return this.chains[id];
+  }
+
+  /** Henter og afkoder kun de tændte spors optagelser (én gang pr. fil). */
+  load(list) {
     this.init();
-    return Promise.all(SPECIES.filter(s => ids.includes(s.id)).flatMap(s => s.recs).map(r => this.loading[r.file] ||= (async () => {
-      const res = await fetch(new URL(`../../audio/mobgang/${r.file}`, import.meta.url));
-      if (!res.ok) throw new Error(`Kunne ikke hente ${r.file}`);
+    return Promise.all(list.flatMap(t => t.recs).map(r => this.loading[r.src] ||= (async () => {
+      const res = await fetch(r.src, { credentials: "same-origin" });
+      if (!res.ok) {
+        let msg = `Kunne ikke hente XC${r.xc}`;
+        try { msg = (await res.json()).detail || msg; } catch { /* ikke json */ }
+        throw new Error(msg);
+      }
       const buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
       const n = Math.floor(FADE * buf.sampleRate);
       for (let c = 0; c < buf.numberOfChannels; c++) {
         const d = buf.getChannelData(c);
         for (let i = 0; i < n; i++) { d[i] *= i / n; d[d.length - 1 - i] *= i / n; }
       }
-      this.buffers[r.file] = buf;
-    })().catch((err) => { delete this.loading[r.file]; throw err; })));
+      this.buffers[r.src] = buf;
+    })().catch((err) => { delete this.loading[r.src]; throw err; })));
   }
 
-  loaded(s) { return s.recs.every(r => this.buffers[r.file]); }
-  duration(id) { return this.buffers[SPECIES.find(s => s.id === id).recs[0].file]?.duration || 0; }
+  loaded(t) { return t.recs.every(r => this.buffers[r.src]); }
+  duration(t) { return this.buffers[t.recs[0].src]?.duration || 0; }
 
   async start(cfg) {
-    await this.load(SPECIES.filter(s => cfg.species[s.id].on).map(s => s.id));
+    await this.load(tracks(cfg).filter(t => cfg.species[t.id].on));
     await this.ctx.resume();
     this.playing = true;
     this.t0 = this.ctx.currentTime;
@@ -108,33 +113,40 @@ class Mixer {
 
   elapsed() { return this.playing ? this.ctx.currentTime - this.t0 : 0; }
 
-  /** Bringer lydgrafen i overensstemmelse med opsætningen: antal kilder pr. art og alle lydstyrker. */
+  /** Bringer lydgrafen i overensstemmelse med opsætningen: antal kilder pr. spor og alle lydstyrker. */
   apply(cfg, instant = false) {
     this.cfg = cfg;
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     const ramp = (param, value) => instant ? param.setValueAtTime(value, now) : param.setTargetAtTime(value, now, 0.08);
     ramp(this.master.gain, (cfg.master / 100) ** 2);
-    const missing = [];
-    for (const s of SPECIES) {
-      const ch = this.chains[s.id], sc = cfg.species[s.id];
+    const missing = [], present = new Set();
+    for (const t of tracks(cfg)) {
+      present.add(t.id);
+      const ch = this.chain(t.id), sc = cfg.species[t.id];
       let want = this.playing && sc.on ? sc.count : 0;
       // Tændt under afspilning, men endnu ikke hentet: hentes og tilføjes, når lyden er klar
-      if (want && !this.loaded(s)) { missing.push(s.id); want = 0; }
+      if (want && !this.loaded(t)) { missing.push(t); want = 0; }
       // Individ k bruger optagelse k mod n og starter (k div n)·15 s længere inde i den (modulo længden)
       while (ch.sources.length < want) {
-        const k = ch.sources.length, n = s.recs.length;
-        const buf = this.buffers[s.recs[k % n].file];
+        const k = ch.sources.length, n = t.recs.length;
+        const buf = this.buffers[t.recs[k % n].src];
         const src = new AudioBufferSourceNode(this.ctx, { buffer: buf, loop: true });
         src.connect(ch.gain);
         src.start(now, (this.elapsed() + Math.floor(k / n) * OFFSET) % buf.duration);
         ch.sources.push(src);
       }
       while (ch.sources.length > want) { const src = ch.sources.pop(); try { src.stop(now + 0.3); } catch { /* ignore */ } }
-      const focus = cfg.target ? (cfg.target === s.id ? db(cfg.boost) : db(cfg.duck)) : 1;
+      const focus = cfg.target ? (cfg.target === t.id ? db(cfg.boost) : db(cfg.duck)) : 1;
       ramp(ch.gain.gain, want ? (sc.vol / 100) ** 2 * focus : 0);
     }
-    if (missing.length) this.load(missing).then(() => { if (this.playing) this.apply(this.cfg); this.onload?.(); }).catch((err) => toast(err.message, "err"));
+    // Fjernede egne optagelser stoppes
+    for (const [id, ch] of Object.entries(this.chains)) if (!present.has(id)) {
+      for (const src of ch.sources) try { src.stop(now + 0.3); } catch { /* ignore */ }
+      ch.sources = [];
+    }
+    if (missing.length) this.load(missing).then(() => { if (this.playing) this.apply(this.cfg); this.onload?.(); })
+      .catch((err) => { toast(err.message, "err"); this.onerror?.(missing); });
   }
 
   close() { this.stop(); this.ctx?.close(); this.ctx = null; }
@@ -151,9 +163,12 @@ export async function render(view) {
   if (requireLogin(view)) return;
   let st;
   try { st = await api("/api/mobgang/status"); } catch (err) { view.append(errorBox(err)); return; }
+  SPECIES = st.species; GROUPS = st.groups;
+  for (const sp of SPECIES) for (const r of sp.recs) r.src = new URL(`../../audio/mobgang/${r.file}`, import.meta.url).href;
   let cleanup = null;
   const show = () => {
     cleanup?.(); cleanup = null;
+    SEASON = st.season;
     view.replaceChildren();
     if (st.season.closed) view.append(lead(), closedCard(st.season), seasonEditor(st, show));
     else if (st.ethics.due) view.append(lead(), ethicsQuiz(st, show));
@@ -171,30 +186,45 @@ function closedCard(season) {
     h("p", { class: "muted", style: { margin: 0 } }, "Afspilning af mobgang eller sang over for mulige ynglefugle kan stresse dem så meget, at de opgiver territoriet eller forlader reden. Brug tiden i felten – og lad mobilen blive i lommen."));
 }
 
-/** Kun admin: perioden hvor modulet er lukket (dag og måned, gentages hvert år). */
+/** Kun admin: hver arts lukkeperiode og den samlede lukning af modulet (dag og måned, gentages hvert år). */
 function seasonEditor(st, onSaved) {
   if (!["admin", "superadmin"].includes(state.user?.role)) return null;
-  const s = st.season;
   const pick = (md) => {
     const [m, d] = md.split("-").map(Number);
-    const day = h("select", { style: { width: "auto" } }, ...Array.from({ length: 31 }, (_, i) => h("option", { value: i + 1, selected: i + 1 === d }, i + 1)));
-    const month = h("select", { style: { width: "auto" } }, ...MONTHS.map((n, i) => h("option", { value: i + 1, selected: i + 1 === m }, n)));
-    return { el: h("span", { class: "row", style: { gap: "4px" } }, day, month), value: () => `${String(month.value).padStart(2, "0")}-${String(day.value).padStart(2, "0")}` };
+    const day = h("select", { style: { width: "auto", height: "30px" } }, ...Array.from({ length: 31 }, (_, i) => h("option", { value: i + 1, selected: i + 1 === d }, i + 1)));
+    const month = h("select", { style: { width: "auto", height: "30px" } }, ...MONTHS.map((n, i) => h("option", { value: i + 1, selected: i + 1 === m }, n)));
+    return { el: h("span", { class: "row nowrap", style: { gap: "4px", flexWrap: "nowrap" } }, day, month),
+      value: () => `${String(month.value).padStart(2, "0")}-${String(day.value).padStart(2, "0")}`,
+      set: (v) => { const [mm, dd] = v.split("-").map(Number); month.value = mm; day.value = dd; } };
   };
-  const from = pick(s.from), to = pick(s.to);
-  const enabled = h("input", { type: "checkbox", checked: s.enabled });
-  return h("details", { class: "card more mt", style: { maxWidth: "640px" } },
-    h("summary", {}, `Admin: ynglesæson-lukning (${s.enabled ? `${mdLabel(s.from)} – ${mdLabel(s.to)}` : "slået fra"})`),
+  const period = (p) => ({ enabled: h("input", { type: "checkbox", checked: p.enabled }), from: pick(p.from), to: pick(p.to) });
+  const read = (p) => ({ enabled: p.enabled.checked, from: p.from.value(), to: p.to.value() });
+  const all = period(st.season);
+  const per = Object.fromEntries(SPECIES.map(s => [s.id, period(st.season.species[s.id])]));
+  const custom = period(st.season.custom);
+  const copy = () => { for (const p of [...Object.values(per), custom]) { p.from.set(all.from.value()); p.to.set(all.to.value()); } toast("Perioden er kopieret til alle arter – husk at gemme"); };
+  const nClosed = SPECIES.filter(s => st.season.species[s.id].enabled).length;
+  return h("details", { class: "card more mt" },
+    h("summary", {}, `Admin: lukning i ynglesæsonen (${nClosed} af ${SPECIES.length} arter har en periode${st.season.enabled ? "; hele modulet lukkes" : ""})`),
     h("form", { class: "stack mt", onsubmit: async (e) => {
       e.preventDefault();
       try {
-        st.season = await api("/api/mobgang/season", { method: "PUT", body: { enabled: enabled.checked, from: from.value(), to: to.value() } });
-        toast("Perioden er gemt"); onSaved();
+        st.season = await api("/api/mobgang/season", { method: "PUT", body: { ...read(all), custom: read(custom),
+          species: Object.fromEntries(Object.entries(per).map(([id, p]) => [id, read(p)])) } });
+        toast("Perioderne er gemt"); onSaved();
       } catch (err) { toast(err.message, "err"); }
     } },
-      h("label", { class: "check" }, enabled, "Luk modulet i perioden"),
-      h("div", { class: "row" }, "Fra", from.el, "til og med", to.el),
-      h("small", { class: "muted" }, "Gentages hvert år. Perioden må gerne gå hen over nytår. Lydfilerne spærres også på serveren i perioden."),
+      h("small", { class: "muted" }, "Perioderne gentages hvert år og må gerne gå hen over nytår. En lukket art kan ikke tændes, og dens lydfiler spærres også på serveren. Brugernes egne xeno-canto-optagelser følger artens periode, hvis arten er her – ellers den sidste række."),
+      h("div", { class: "table-wrap" }, h("table", { class: "data" },
+        h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Lukket"), h("th", {}, "Fra"), h("th", {}, "Til og med"), h("th", {}, "I dag"))),
+        h("tbody", {}, ...[...SPECIES.map(s => [s.navn, per[s.id], st.season.species[s.id]]),
+          [h("i", {}, "Egne xeno-canto-optagelser af andre arter"), custom, st.season.custom]].map(([navn, p, cur]) =>
+          h("tr", {}, h("td", {}, navn), h("td", {}, p.enabled), h("td", {}, p.from.el), h("td", {}, p.to.el),
+            h("td", { class: "muted nowrap" }, cur.closed ? `lukket til ${fmtDate(cur.opens, false)}` : cur.closes ? `lukker ${fmtDate(cur.closes, false)}` : "åben")))))),
+      h("div", { class: "card stack", style: { background: "var(--bg-2)" } },
+        h("label", { class: "check" }, all.enabled, h("b", {}, "Luk hele modulet"), h("span", { class: "muted" }, " – uanset arternes perioder")),
+        h("div", { class: "row" }, "Fra", all.from.el, "til og med", all.to.el,
+          h("button", { type: "button", class: "btn sm ghost", onclick: copy }, "Kopiér perioden til alle arter"))),
       h("button", { class: "btn primary", style: { alignSelf: "flex-start" } }, "Gem")));
 }
 
@@ -235,7 +265,7 @@ function ethicsQuiz(st, onPassed) {
 
 async function generator(view, st, rerender) {
   const mixer = new Mixer();
-  let cfg = defaults();
+  let cfg = normalize(defaults());
   let presets = [];
   let current = null;   // valgt preset (id) – null = ikke gemt
   let dirty = false;
@@ -321,7 +351,7 @@ async function generator(view, st, rerender) {
   // -------- targetart
   const targetBox = h("div", { class: "card stack" });
   function drawTarget() {
-    const active = SPECIES.filter(s => cfg.species[s.id].on);
+    const active = tracks(cfg).filter(s => cfg.species[s.id].on);
     const slider = (key, min, max, label) => {
       const out = h("b", {}, `${cfg[key] > 0 ? "+" : ""}${cfg[key]} dB`);
       return h("label", { class: "field" }, h("span", {}, label, " · ", out),
@@ -342,30 +372,69 @@ async function generator(view, st, rerender) {
   // -------- arter
   const speciesBox = h("div", {});
   mixer.onload = () => drawSpecies();
+  // Kan en egen optagelse ikke hentes (fx lukket siden opslaget), slukkes den igen
+  mixer.onerror = (list) => { for (const t of list) cfg.species[t.id].on = false; if (list.some(t => t.id === cfg.target)) cfg.target = ""; drawTarget(); drawSpecies(); };
   function drawSpecies() {
-    speciesBox.replaceChildren(...GROUPS.map(([g, title]) => {
-      const list = SPECIES.filter(s => s.group === g);
+    const all = tracks(cfg);
+    const section = (title, list, extra = null) => {
       const n = list.filter(s => cfg.species[s.id].on).length;
-      return h("div", { class: "mt" }, h("h3", {}, title, h("small", { class: "muted", style: { fontWeight: 400 } }, ` · ${n} af ${list.length} tændt`)),
-        h("div", { class: "grid-2" }, ...list.map(speciesCard)));
-    }));
+      return h("div", { class: "mt" }, h("h3", {}, title, list.length ? h("small", { class: "muted", style: { fontWeight: 400 } }, ` · ${n} af ${list.length} tændt`) : null),
+        extra, list.length ? h("div", { class: "grid-2" }, ...list.map(speciesCard)) : null);
+    };
+    speciesBox.replaceChildren(...GROUPS.map(([g, title]) => section(title, all.filter(s => s.group === g))),
+      section("Egne optagelser fra xeno-canto", all.filter(s => s.custom), customForm()));
   }
+
+  // -------- egne xeno-canto-optagelser
+  function customForm() {
+    const input = h("input", { placeholder: "Link til optagelse på xeno-canto.org eller XC-nummer", style: { flex: 1, minWidth: "220px" } });
+    const btn = h("button", { class: "btn", html: `${icon("plus")} Tilføj` });
+    const full = cfg.custom.length >= MAX_CUSTOM;
+    return h("form", { class: "card stack mb", onsubmit: async (e) => {
+      e.preventDefault();
+      if (!input.value.trim()) return;
+      btn.disabled = true;
+      try {
+        const m = await api("/api/mobgang/xc", { method: "POST", body: { ref: input.value } });
+        if (cfg.custom.some(c => c.xc === m.xc)) { toast(`XC${m.xc} er allerede med`); return; }
+        cfg.custom.push({ xc: m.xc, en: m.en, latin: m.latin, navn: m.navn, artnr: m.artnr, sid: m.sid,
+          recordist: m.recordist, license: m.license, license_url: m.license_url });
+        cfg.species[xcId(m.xc)] = { on: !m.season.closed, count: 1, vol: 80 };
+        if (m.season.closed) toast(`${m.navn || m.en} er lukket i ynglesæsonen indtil ${fmtDate(m.season.opens, false)} – optagelsen er gemt, men slukket`);
+        changed(); drawTarget(); drawSpecies();
+      } catch (err) { toast(err.message, "err"); }
+      finally { btn.disabled = false; }
+    } },
+      h("div", { class: "row" }, input, btn),
+      h("small", { class: "muted" }, full ? `Højst ${MAX_CUSTOM} egne optagelser pr. preset.`
+        : "Egne optagelser gemmes i dine egne presets. Optagelsen hentes via portalen, og artens lukkeperiode i ynglesæsonen gælder også her. Respektér optagerens licens – brug kun lyden til din egen træning."));
+  }
+  function removeCustom(t) {
+    cfg.custom = cfg.custom.filter(c => c !== t.custom);
+    delete cfg.species[t.id];
+    if (cfg.target === t.id) cfg.target = "";
+    changed(); drawTarget(); drawSpecies();
+  }
+
   function speciesCard(s) {
     const sc = cfg.species[s.id];
     const isTarget = cfg.target === s.id;
-    const dur = mixer.duration(s.id);
+    const dur = mixer.duration(s);
     const countEl = h("b", { style: { minWidth: "2ch", textAlign: "center", fontVariantNumeric: "tabular-nums" } }, sc.count);
     const setCount = (n) => { sc.count = Math.max(1, Math.min(MAX_COUNT, n)); changed(); drawSpecies(); };
+    const season = seasonOf(s), closed = season.closed;
     return h("div", { class: "card stack", style: { opacity: sc.on ? 1 : 0.6, borderColor: isTarget ? "var(--brand)" : null } },
       h("div", { class: "row between", style: { flexWrap: "nowrap" } },
         h("label", { class: "check", style: { minWidth: 0 } },
-          h("input", { type: "checkbox", checked: sc.on, onchange: (e) => {
+          h("input", { type: "checkbox", checked: sc.on, disabled: closed, onchange: (e) => {
             sc.on = e.target.checked;
             if (!sc.on && isTarget) cfg.target = "";
             changed(); drawTarget(); drawSpecies();
           } }),
           h("span", { style: { minWidth: 0 } }, h("b", {}, s.navn), h("div", { class: "muted", style: { fontSize: ".82rem", fontStyle: "italic" } }, s.latin))),
-        isTarget ? h("span", { class: "tag portal" }, "Target")
+        s.custom ? h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Fjern optagelsen", title: "Fjern optagelsen", onclick: () => removeCustom(s) }) : null,
+        closed ? h("span", { class: "tag SUB", title: `Lukket ${mdLabel(season.from)} – ${mdLabel(season.to)}` }, `Lukket til ${fmtDate(season.opens, false)}`)
+          : isTarget ? h("span", { class: "tag portal" }, "Target")
           : sc.on ? h("button", { class: "btn sm ghost", onclick: () => { cfg.target = s.id; changed(); drawTarget(); drawSpecies(); } }, "Gør til target") : null),
       h("div", { class: "row between" },
         h("div", { class: "row", style: { gap: "6px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Individer"),
@@ -375,8 +444,10 @@ async function generator(view, st, rerender) {
         h("input", { type: "range", min: 0, max: 100, value: sc.vol, disabled: !sc.on, "aria-label": `Lydstyrke ${s.navn}`, style: { width: "140px" },
           oninput: (e) => { sc.vol = Number(e.target.value); changed(); } })),
       h("div", { class: "muted", style: { fontSize: ".8rem" } },
-        h("a", { href: `#/art/${s.artnr}` }, "Artsside"), " · ",
+        s.artnr ? h("a", { href: `#/art/${s.artnr}` }, "Artsside") : h("span", {}, "Ikke i portalens artsliste"), " · ",
         ...s.recs.flatMap((r, i) => [i ? ", " : "", h("a", { href: `https://xeno-canto.org/${r.xc}`, target: "_blank", rel: "noopener" }, `XC${r.xc}`)]),
+        s.custom?.recordist ? ` © ${s.custom.recordist}` : "",
+        s.custom?.license ? [" · ", h("a", { href: s.custom.license_url, target: "_blank", rel: "noopener" }, s.custom.license)] : "",
         dur ? ` · ${mmss(dur)} loop` : "",
         sc.count > 1 ? (s.recs.length > 1 ? ` · individerne skifter mellem ${s.recs.length} optagelser` : ` · individerne er forskudt ${OFFSET} s`) : ""));
   }
@@ -386,7 +457,8 @@ async function generator(view, st, rerender) {
     h("div", { class: "notice mb" }, h("b", {}, "Brug lyden ansvarligt: "),
       "aldrig over for mulige ynglefugle, aldrig ved birdraces, og tjek altid om der er andre fuglekiggere i nærheden. ",
       h("small", { class: "muted" }, `Etiktest bestået ${fmtDate(st.ethics.passed_at)} · gyldig til ${fmtDate(st.ethics.valid_until)}`,
-        st.season.closes ? ` · lukker for ynglesæsonen ${fmtDate(st.season.closes)}` : "")),
+        (n => n ? ` · ${n} ${n === 1 ? "art er" : "arter er"} lukket i ynglesæsonen` : "")(SPECIES.filter(sp => SEASON.species[sp.id].closed).length),
+        st.season.closes ? ` · hele modulet lukker ${fmtDate(st.season.closes)}` : "")),
     seasonEditor(st, rerender),
     h("div", { class: "card stack" },
       h("div", { class: "row" }, playBtn, clock, h("span", { style: { flex: 1 } }),
@@ -395,7 +467,7 @@ async function generator(view, st, rerender) {
     h("div", { class: "mt" }, targetBox),
     h("h2", { class: "mt2" }, "Arter"),
     speciesBox,
-    h("p", { class: "muted mt", style: { fontSize: ".8rem" } }, "Optagelser fra xeno-canto.org. Hver fil afspilles i loop; ekstra individer af samme art bruger artens andre optagelser eller starter længere inde i optagelsen, så de ikke synger i takt. Kun tændte arter hentes."));
+    h("p", { class: "muted mt", style: { fontSize: ".8rem" } }, "Optagelser fra xeno-canto.org. Hver fil afspilles i loop; ekstra individer af samme art bruger artens andre optagelser eller starter længere inde i optagelsen, så de ikke synger i takt. Kun tændte spor hentes."));
 
   try { presets = await api("/api/mobgang/presets"); } catch (err) { view.append(errorBox(err)); }
   const fromUrl = presets.find(p => String(p.id) === params().preset);

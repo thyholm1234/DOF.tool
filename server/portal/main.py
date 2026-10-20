@@ -57,8 +57,8 @@ async def guard(request: Request, call_next):
     if mob_audio:
         # Mobgang-lyde: kun indloggede med bestået etiktest og uden for ynglesæsonen
         user_id = await kv().get(f"sess:{request.cookies.get(COOKIE) or '-'}")
-        if not user_id or not await mobgang.audio_allowed(int(user_id)):
-            return JSONResponse({"detail": "Mobgang er lukket i ynglesæsonen eller kræver bestået etiktest"}, status_code=403)
+        if not user_id or not await mobgang.audio_allowed(int(user_id), path):
+            return JSONResponse({"detail": "Arten er lukket i ynglesæsonen, eller Mobgang kræver bestået etiktest"}, status_code=403)
     response = await call_next(request)
     if not path.startswith(("/api/", "/media/", "/vendor/", "/icons/", "/v/")):
         # App-filer (html/js/css/sw): browseren skal altid tjekke for ny version (billigt via etag)
