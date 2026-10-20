@@ -215,6 +215,7 @@ async def patch_report(report_id: int, body: dict, user: User = Depends(require_
     await _validate_codes(db, merged)
     if merged.loknr != r.loknr:
         await _location_exists(db, merged.loknr)
+    before = (r.artnr, r.loknr, r.dato, r.hemmelig)
     for k, v in merged.model_dump().items():
         if k == "status" or (k in ("dato", "loknr") and v is None):
             continue
@@ -223,6 +224,11 @@ async def patch_report(report_id: int, body: dict, user: User = Depends(require_
     _check_guidelines(r)
     r.updated_at = datetime.now(timezone.utc)
     await db.commit()
+    # Puls: ændres art, sted, dag eller skjult-status, hører meldingen ikke længere hjemme på det gamle punkt
+    if before != (r.artnr, r.loknr, r.dato, r.hemmelig):
+        await pulse.record_deleted([-report_id])
+        if not r.hemmelig and r.dato == dk_today():
+            await pulse.record_report(db, r)
     await publish("feed", {"type": "feed", "portal": True})
     return await _one(db, r, user)
 
