@@ -133,6 +133,8 @@ async def locations_index(q: str = Query("", max_length=60), kommune: str = Quer
 
 @router.get("/locations/{loknr}")
 async def location(loknr: int, db: AsyncSession = Depends(get_session)):
+    from portal.services import locyear
+
     loc = (await db.execute(text("""
         SELECT l.loknr, l.navn, l.lat, l.lon, k.navn AS kommune, a.navn AS afdeling FROM locations l
         LEFT JOIN kommuner k ON k.kode = l.kommune_kode LEFT JOIN afdelinger a ON a.id = l.afdeling_id WHERE l.loknr = :l
@@ -149,14 +151,17 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
             WHERE o.loknr = :l AND o.hemmelig = 0 AND o.dato > current_date - 30
             GROUP BY o.dato, o.artnr, s.navn ORDER BY o.dato DESC, rank DESC, s.navn LIMIT 1500
         """), {"l": loknr})).mappings().all()
-        stats = (await db.execute(text("""
-            SELECT count(*) AS n_obs, count(DISTINCT artnr) AS n_taxa, min(dato) AS first, max(dato) AS last
-            FROM (SELECT DISTINCT dato, artnr FROM observations WHERE loknr = :l) d
+        # n_taxa = krydsbare arter som på årslisterne (artslisten viser dog alle taxa)
+        stats = (await db.execute(text(f"""
+            WITH d AS (SELECT loknr, artnr, dato, bool_or(antal > 0) AS pos FROM observations WHERE loknr = :l GROUP BY loknr, artnr, dato)
+            SELECT count(*) AS n_obs, count(DISTINCT s.list_artnr) FILTER (WHERE d.pos AND {locyear.COUNTED_DAY}) AS n_taxa,
+                   min(d.dato) AS first, max(d.dato) AS last
+            FROM d JOIN species s ON s.artnr = d.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr
         """), {"l": loknr})).mappings().first()
         return {"recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kat[r["rank"]]} for r in recent],
                 "stats": dict(stats)}
 
-    return {**dict(loc), **await cached(f"lok:{loknr}", LOC_TTL, produce), "groups": migration.GROUPS}
+    return {**dict(loc), **await cached(f"lok2:{loknr}", LOC_TTL, produce), "groups": migration.GROUPS}
 
 
 @router.get("/locations/{loknr}/species")

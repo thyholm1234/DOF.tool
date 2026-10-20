@@ -21,19 +21,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal import jobstatus
 from portal.cache import bump, get_json, kv, set_json
 from portal.services import migration
+from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.locyear")
 
-RANK = "CASE kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 WHEN 'bemaerk' THEN 1 ELSE 0 END"
+RANK = "CASE o.kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 WHEN 'bemaerk' THEN 1 ELSE 0 END"
 BUILT = "locyear:built"
 EVERY = 6 * 3600  # sekunder mellem to bygninger
 TOP_N = 100       # artslister bygget på forhånd for de mest aktive lokaliteter
 KAT = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
+# Antal arter tæller som årslisterne: krydsbare observationer (kategori A–C) af ikke-udelukkede arter, med underarter
+# under arten. Kræver aliasserne o (observations), s (species) og ls (listearten, LEFT JOIN).
+SPECIES_JOIN = "JOIN species s ON s.artnr = o.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr"
+COUNTED = f"(o.antal > 0 AND NOT ls.excluded AND {countable_sql()})"
+# Det samme for én art på én dag (d med loknr, artnr, dato) – kategorien afhænger kun af dem, så det er billigere at
+# vurdere efter grupperingen end for hver observation.
+COUNTED_DAY = f"(NOT ls.excluded AND {countable_sql('d', 's')})"
 
 
 def species_key(loknr: int, year: int | None) -> str:
-    return f"lok:sp:{loknr}:{year or 'alle'}"
+    return f"lok:sp2:{loknr}:{year or 'alle'}"
 
 
 async def species_list(session: AsyncSession, loknr: int, year: int | None) -> dict:
@@ -45,8 +53,8 @@ async def species_list(session: AsyncSession, loknr: int, year: int | None) -> d
 
     Alle år: listen og årene i én gennemgang af lokalitetens observationer. Ét år: kun årets observationer, og årene
     genbruges fra alle-år-listen i cachen, når den findes (de er ens for alle år)."""
-    per_day = f"""SELECT artnr, dato, max(antal) AS antal, max({RANK}) AS rank
-        FROM observations WHERE loknr = :l AND hemmelig = 0 AND antal > 0 {{period}} GROUP BY artnr, dato"""
+    per_day = f"""SELECT o.loknr, o.artnr, o.dato, max(o.antal) AS antal, max({RANK}) AS rank
+        FROM observations o WHERE o.loknr = :l AND o.hemmelig = 0 AND o.antal > 0 {{period}} GROUP BY o.loknr, o.artnr, o.dato"""
     species_sql = """SELECT s.artnr, s.navn, s.sortering, count(*) AS n_obs, max(d.dato) AS last_date, max(d.rank) AS rank,
                max(d.antal) AS rekord, (array_agg(d.dato ORDER BY d.antal DESC, d.dato DESC))[1] AS rekord_dato
         FROM d JOIN species s ON s.artnr = d.artnr GROUP BY s.artnr, s.navn, s.sortering ORDER BY n_obs DESC LIMIT 600"""
@@ -55,20 +63,21 @@ async def species_list(session: AsyncSession, loknr: int, year: int | None) -> d
         res = (await session.execute(text(f"""
             WITH d AS MATERIALIZED ({per_day.format(period="")}),
             sp AS ({species_sql}),
-            yr AS (SELECT extract(year FROM dato)::int AS year, count(DISTINCT artnr) AS n_taxa FROM d GROUP BY 1)
+            yr AS (SELECT extract(year FROM d.dato)::int AS year, count(DISTINCT s.list_artnr) FILTER (WHERE {COUNTED_DAY}) AS n_taxa
+                   FROM d JOIN species s ON s.artnr = d.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr GROUP BY 1)
             SELECT (SELECT json_agg(sp) FROM sp) AS species, (SELECT json_agg(yr ORDER BY year DESC) FROM yr) AS years
         """), {"l": loknr})).one()
         rows, years = res.species or [], res.years or []
     else:
         rows = (await session.execute(text(f"""
-            WITH d AS ({per_day.format(period="AND dato >= make_date(CAST(:y AS int), 1, 1) AND dato < make_date(CAST(:y AS int) + 1, 1, 1)")})
+            WITH d AS ({per_day.format(period="AND o.dato >= make_date(CAST(:y AS int), 1, 1) AND o.dato < make_date(CAST(:y AS int) + 1, 1, 1)")})
             {species_sql}
         """), {"l": loknr, "y": year})).mappings().all()
         years = ((await get_json(species_key(loknr, None))) or {}).get("years")
         if years is None:
-            years = [dict(r) for r in (await session.execute(text("""
-                SELECT extract(year FROM dato)::int AS year, count(DISTINCT artnr) AS n_taxa
-                FROM observations WHERE loknr = :l AND hemmelig = 0 AND antal > 0 GROUP BY 1 ORDER BY 1 DESC
+            years = [dict(r) for r in (await session.execute(text(f"""
+                SELECT extract(year FROM o.dato)::int AS year, count(DISTINCT s.list_artnr) FILTER (WHERE {COUNTED}) AS n_taxa
+                FROM observations o {SPECIES_JOIN} WHERE o.loknr = :l AND o.hemmelig = 0 AND o.antal > 0 GROUP BY 1 ORDER BY 1 DESC
             """), {"l": loknr})).mappings().all()]
     groups = await migration.species_groups(session)
     return {"species": [{**{k: r[k] for k in ("artnr", "navn", "sortering", "n_obs", "last_date", "rekord", "rekord_dato")},
@@ -92,16 +101,17 @@ async def prebuild_species(session: AsyncSession, n: int = TOP_N) -> None:
 
 async def refresh_year(session: AsyncSession, year: int) -> int:
     """Genberegn ét år (0 = alle år). Returnerer antal lokaliteter."""
-    period = "" if year == 0 else "AND dato >= :a AND dato < :b"
+    period = "" if year == 0 else "AND o.dato >= :a AND o.dato < :b"
     params: dict = {"y": year, "d30": dk_today() - timedelta(days=30)}
     if year:
         params.update(a=date(year, 1, 1), b=date(year + 1, 1, 1))
     await session.execute(text("DELETE FROM location_year WHERE year = :y"), {"y": year})
     res = await session.execute(text(f"""
         INSERT INTO location_year (loknr, year, n_obs, n_taxa, last_date, rank, n_30, rank30)
-        SELECT loknr, :y, count(*), count(DISTINCT artnr), max(dato), max({RANK}),
-               count(*) FILTER (WHERE dato > :d30), coalesce(max({RANK}) FILTER (WHERE dato > :d30), 0)
-        FROM observations WHERE hemmelig = 0 AND loknr IS NOT NULL AND dato <= current_date {period} GROUP BY loknr
+        SELECT o.loknr, :y, count(*), count(DISTINCT s.list_artnr) FILTER (WHERE {COUNTED}), max(o.dato), max({RANK}),
+               count(*) FILTER (WHERE o.dato > :d30), coalesce(max({RANK}) FILTER (WHERE o.dato > :d30), 0)
+        FROM observations o {SPECIES_JOIN}
+        WHERE o.hemmelig = 0 AND o.loknr IS NOT NULL AND o.dato <= current_date {period} GROUP BY o.loknr
     """), params)
     await session.commit()
     return res.rowcount or 0

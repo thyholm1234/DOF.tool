@@ -77,7 +77,7 @@ export async function render(view, [loknr]) {
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn), h("p", { class: "lead" }, [d.kommune && `${d.kommune} Kommune`, d.afdeling].filter(Boolean).join(" · ")))),
     h("div", { class: "stats", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
       h("div", { class: "stat", title: "Én pr. art pr. dag – flere turlister samme dag tæller ikke dobbelt" }, h("b", {}, fmtN(d.stats.n_obs)), h("span", {}, "observationer")),
-      h("div", { class: "stat" }, h("b", {}, fmtN(d.stats.n_taxa)), h("span", {}, "arter/taxa")),
+      h("div", { class: "stat", title: "Krydsbare arter (kategori A–C) som på årslisterne – underarter tæller som arten. Listen nedenfor viser alle taxa." }, h("b", {}, fmtN(d.stats.n_taxa)), h("span", {}, "arter")),
       h("div", { class: "stat" }, h("b", {}, d.stats.first ? new Date(d.stats.first).getFullYear() : "–"), h("span", {}, "første år"))),
     h("div", { class: "grid-2 mt lok-grid" },
       h("div", { class: "lok-col" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
