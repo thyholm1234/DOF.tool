@@ -141,44 +141,62 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
 
 
 @router.get("/locations/{loknr}/species")
-async def location_species(loknr: int, db: AsyncSession = Depends(get_session)):
-    """Artsliste med rekorder. Tung på de store lokaliteter (fx Grenen), så den hentes for sig – siden vises først –
-    og gemmes i 6 timer."""
-    kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
+async def location_species(loknr: int, year: int | None = Query(None, ge=1900, le=2200), db: AsyncSession = Depends(get_session)):
+    """Artsliste med rekorder for lokaliteten – i alt eller for ét år. Tung på de store lokaliteter (fx Grenen), så
+    den hentes for sig og gemmes (6 timer; indeværende år 30 minutter). years = årene med observationer."""
+    from portal.timeutil import dk_today
 
-    async def produce():
+    kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
+    this_year = dk_today().year
+
+    async def species_rows():
         # Flere turlister samme dag tæller ikke dobbelt: én pr. art pr. dag med det største antal. Rekorden er dagens
         # største enkeltobservation (ikke summen, så samme flok talt af flere ikke lægges sammen). kategori = den højeste,
-        # arten har haft her; group = trækkortets artsgruppe.
+        # arten har haft her (i året); group = trækkortets artsgruppe.
         rows = (await db.execute(text(f"""
             WITH d AS (
                 SELECT artnr, dato, max(antal) AS antal, max({KAT_RANK}) AS rank
-                FROM observations o WHERE loknr = :l AND hemmelig = 0 AND antal > 0 GROUP BY artnr, dato
+                FROM observations o WHERE loknr = :l AND hemmelig = 0 AND antal > 0
+                  AND (CAST(:y AS int) IS NULL OR dato >= make_date(CAST(:y AS int), 1, 1) AND dato < make_date(CAST(:y AS int) + 1, 1, 1))
+                GROUP BY artnr, dato
             )
             SELECT s.artnr, s.navn, s.sortering, count(*) AS n_obs, max(d.dato) AS last_date, max(d.rank) AS rank,
                    max(d.antal) AS rekord, (array_agg(d.dato ORDER BY d.antal DESC, d.dato DESC))[1] AS rekord_dato
             FROM d JOIN species s ON s.artnr = d.artnr
             GROUP BY s.artnr, s.navn, s.sortering ORDER BY n_obs DESC LIMIT 600
-        """), {"l": loknr})).mappings().all()
+        """), {"l": loknr, "y": year})).mappings().all()
         groups = await migration.species_groups(db)
         return [{**{k: r[k] for k in ("artnr", "navn", "sortering", "n_obs", "last_date", "rekord", "rekord_dato")},
                  "kategori": kat[r["rank"]], "group": groups.get(r["artnr"])} for r in rows]
 
-    return {"species": await cached(f"lokspec:{loknr}", 6 * 3600, produce)}
+    async def year_rows():
+        rows = (await db.execute(text("""
+            SELECT extract(year FROM dato)::int AS year, count(DISTINCT artnr) AS n_taxa
+            FROM observations WHERE loknr = :l AND hemmelig = 0 AND antal > 0 GROUP BY 1 ORDER BY 1 DESC
+        """), {"l": loknr})).mappings().all()
+        return [dict(r) for r in rows]
+
+    ttl = 1800 if year in (None, this_year) else 6 * 3600
+    species = await cached(f"lokspec:{loknr}:{year or 'alle'}", ttl, species_rows)
+    years = await cached(f"lokyears:{loknr}", 1800, year_rows)
+    return {"species": species, "years": years, "year": year}
 
 
 @router.get("/locations/{loknr}/records/{artnr}")
-async def location_records(loknr: int, artnr: int, db: AsyncSession = Depends(get_session)):
-    """Top 10 unikke dage for arten på lokaliteten: dagens største enkeltobservation, med observatør og tråd."""
+async def location_records(loknr: int, artnr: int, year: int | None = Query(None, ge=1900, le=2200),
+                           db: AsyncSession = Depends(get_session)):
+    """Top 10 unikke dage for arten på lokaliteten (evt. inden for ét år): dagens største enkeltobservation, med
+    observatør og tråd."""
     rows = (await db.execute(text("""
         SELECT * FROM (
             SELECT DISTINCT ON (o.dato) o.dato, o.antal, o.obsid, o.adfkode, o.obserkode,
                    coalesce(nullif(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')), ''), o.obserkode) AS observer
             FROM observations o LEFT JOIN observers ob ON ob.obserkode = o.obserkode
             WHERE o.loknr = :l AND o.artnr = :a AND o.hemmelig = 0 AND o.antal > 0
+              AND (CAST(:y AS int) IS NULL OR o.dato >= make_date(CAST(:y AS int), 1, 1) AND o.dato < make_date(CAST(:y AS int) + 1, 1, 1))
             ORDER BY o.dato, o.antal DESC, o.obsid
         ) d ORDER BY antal DESC, dato DESC LIMIT 10
-    """), {"l": loknr, "a": artnr})).mappings().all()
+    """), {"l": loknr, "a": artnr, "y": year})).mappings().all()
     return [dict(r) for r in rows]
 
 

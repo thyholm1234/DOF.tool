@@ -17,7 +17,7 @@ export async function render(view, [loknr]) {
   const mapEl = h("div", { class: "map small" });
   let q = "";
   const p = params();
-  const f = { kat: p.kat || "", grp: p.grp || "", sort: p.sort || "dage" };
+  const f = { kat: p.kat || "", grp: p.grp || "", sort: p.sort || "dage", year: p.y || "" };
   const tbody = h("tbody");
   const count = h("small", { class: "muted" });
   const open = new Set();  // arter med top 10-dage foldet ud
@@ -25,7 +25,7 @@ export async function render(view, [loknr]) {
   const recordRow = (s) => {
     const cell = h("td", { colspan: 4, style: { background: "var(--bg-2)" } });
     const draw = (rows) => cell.replaceChildren(
-      h("b", {}, `Top 10 dage – ${s.navn}`), h("small", { class: "muted" }, " · dagens største enkeltobservation"),
+      h("b", {}, `Top 10 dage – ${s.navn}${f.year ? ` (${f.year})` : ""}`), h("small", { class: "muted" }, " · dagens største enkeltobservation"),
       rows.length ? h("ol", { class: "mini-list", style: { marginTop: "6px" } }, ...rows.map((r, i) => h("li", {},
         h("span", {}, h("b", { class: "num muted", style: { display: "inline-block", minWidth: "2.2ch" } }, `${i + 1}.`), " ",
           h("a", { href: `#/traad/${r.dato}/${s.artnr}/${loknr}` }, fmtDate(r.dato)), h("small", { class: "muted" }, ` · ${r.observer}${r.adfkode ? ` · ${r.adfkode}` : ""}`)),
@@ -33,18 +33,20 @@ export async function render(view, [loknr]) {
     if (records[s.artnr]) draw(records[s.artnr]);
     else {
       cell.append(h("small", { class: "muted" }, "Henter…"));
-      api(`/api/locations/${loknr}/records/${s.artnr}`).then(r => { records[s.artnr] = r; draw(r); }).catch(err => cell.replaceChildren(errorBox(err)));
+      const year = f.year;
+      api(`/api/locations/${loknr}/records/${s.artnr}${year ? `?year=${year}` : ""}`).then(r => { if (year === f.year) { records[s.artnr] = r; draw(r); } }).catch(err => cell.replaceChildren(errorBox(err)));
     }
     return h("tr", {}, cell);
   };
   const drawSpecies = () => {
-    setParams({ kat: f.kat, grp: f.grp, sort: f.sort === "dage" ? "" : f.sort });
+    setParams({ kat: f.kat, grp: f.grp, sort: f.sort === "dage" ? "" : f.sort, y: f.year });
     const list = d.species.filter(s => (!q || s.navn.toLowerCase().includes(q)) && (!f.kat || s.kategori === f.kat) && inGroup(s, f.grp));
     const by = { dage: (a, b) => b.n_obs - a.n_obs, rekord: (a, b) => b.rekord - a.rekord, senest: (a, b) => String(b.last_date).localeCompare(String(a.last_date)),
       syst: (a, b) => (a.sortering ?? 1e9) - (b.sortering ?? 1e9) }[f.sort];
     list.sort(by);
     if (speciesState !== "ready") { count.textContent = ""; return; }
-    count.textContent = `${fmtN(list.length)} ${list.length === 1 ? "art" : "arter"} · tryk på en art for dens top 10 dage`;
+    count.textContent = `${fmtN(list.length)} ${list.length === 1 ? "art" : "arter"}${f.year ? ` i ${f.year}` : ""} · tryk på en art for dens top 10 dage`;
+    if (!list.length) { tbody.replaceChildren(h("tr", {}, h("td", { colspan: 4, class: "muted" }, "Ingen arter matcher filtrene."))); return; }
     tbody.replaceChildren(...list.flatMap(s => {
       const row = h("tr", { style: { cursor: "pointer" }, onclick: () => { open.has(s.artnr) ? open.delete(s.artnr) : open.add(s.artnr); drawSpecies(); } },
         h("td", {}, s.navn, s.kategori !== "alm" ? [" ", tag(s.kategori, KAT[s.kategori])] : null),
@@ -80,17 +82,37 @@ export async function render(view, [loknr]) {
   const map = baseMap(mapEl, { center: d.lat ? [d.lat, d.lon] : [56, 10.5], zoom: d.lat ? 12 : 6 });
   if (d.lat) L.marker([d.lat, d.lon]).addTo(map);
 
-  let gone = false;
-  api(`/api/locations/${loknr}/species`).then((r) => {
-    if (gone) return;
-    d.species = r.species; speciesState = "ready";
-    speciesBody.replaceChildren(
-      h("small", { class: "muted" }, "Kategori = den højeste arten har haft her. Dage = antal dage med arten. Rekord = største antal på én dag (én observation, ikke summen af flere)."),
-      filters,
-      d.species.length ? h("div", { class: "table-wrap lok-scroll" }, h("table", { class: "data" },
-        h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", { class: "right" }, "Dage"), h("th", { class: "right" }, "Rekord"), h("th", {}, "Senest"))), tbody))
-        : h("p", { class: "muted mt" }, "Ingen observationer i databasen."));
-    drawSpecies();
-  }).catch((err) => { if (!gone) speciesBody.replaceChildren(errorBox(err)); });
+  // Artslisten hentes for sig (og igen ved årsskifte i vælgeren); resten af siden er allerede vist
+  let gone = false, built = false, years = [];
+  const yearSel = h("select", { style: { width: "auto" }, "aria-label": "Vælg år", onchange: (e) => { f.year = e.target.value; loadSpecies(); } });
+  const tableWrap = h("div", { class: "table-wrap lok-scroll" }, h("table", { class: "data" },
+    h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", { class: "right" }, "Dage"), h("th", { class: "right" }, "Rekord"), h("th", {}, "Senest"))), tbody));
+  const drawYears = () => yearSel.replaceChildren(h("option", { value: "" }, "Alle år"),
+    ...years.map(y => h("option", { value: y.year, selected: String(y.year) === String(f.year) }, `${y.year} · ${fmtN(y.n_taxa)} arter`)));
+  async function loadSpecies() {
+    speciesState = "loading"; open.clear(); for (const k of Object.keys(records)) delete records[k];
+    if (built) { tableWrap.classList.add("is-busy"); count.replaceChildren(h("span", { class: "spinner" })); }
+    try {
+      const r = await api(`/api/locations/${loknr}/species${f.year ? `?year=${encodeURIComponent(f.year)}` : ""}`);
+      if (gone) return;
+      d.species = r.species; years = r.years; speciesState = "ready";
+      drawYears();
+      if (!built) {
+        built = true;
+        speciesBody.replaceChildren(
+          h("small", { class: "muted" }, "Kategori = den højeste arten har haft her (i det valgte år). Dage = antal dage med arten. Rekord = største antal på én dag (én observation, ikke summen af flere)."),
+          h("div", { style: { display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 } },
+            h("div", { class: "row", style: { gap: "8px" } }, h("small", { class: "muted" }, "År"), yearSel), filters),
+          tableWrap);
+      }
+      tableWrap.classList.remove("is-busy");
+      drawSpecies();
+    } catch (err) {
+      if (gone) return;
+      if (!built) speciesBody.replaceChildren(errorBox(err));
+      else { tableWrap.classList.remove("is-busy"); count.textContent = "Kunne ikke hente året – prøv igen"; }
+    }
+  }
+  loadSpecies();
   return () => { gone = true; map.remove(); };
 }
