@@ -144,7 +144,8 @@ async def archive_list(user: User = Depends(admin), db: AsyncSession = Depends(g
 
 @router.post("/admin/archive/upload")
 async def archive_upload(file: UploadFile = File(...), mtime: float | None = Form(None), user: User = Depends(admin)):
-    """Gem én månedsfil i upload-arkivet. Importen startes separat (worker: archive_import), når alle filer er sendt."""
+    """Gem én månedsfil i upload-arkivet. Importen startes separat (worker: archive_import), når alle filer er sendt,
+    og filen slettes, når den er i databasen."""
     name = Path(file.filename or "").name
     if not FILE_RE.match(name):
         raise HTTPException(400, f"{name or 'Filen'}: navnet skal være dofbasen_ÅÅÅÅ_MM.csv")
@@ -168,12 +169,15 @@ async def archive_upload(file: UploadFile = File(...), mtime: float | None = For
         os.replace(tmp, root / name)
     finally:
         tmp.unlink(missing_ok=True)
-    return {"name": name, "size": size, "pending": any(p.name == name for p in await pending_files())}
+    pending = any(p.name == name for p in await pending_files())
+    if not pending:
+        (root / name).unlink(missing_ok=True)  # allerede importeret uændret – intet at gemme
+    return {"name": name, "size": size, "pending": pending}
 
 
 @router.delete("/admin/archive/upload/{name}")
 async def archive_upload_delete(name: str, user: User = Depends(admin)):
-    """Fjern en uploadet fil (allerede importerede observationer bliver i databasen)."""
+    """Fjern en uploadet fil, der endnu ikke er importeret."""
     if not FILE_RE.match(name):
         raise HTTPException(400)
     path = Path(get_settings().archive_upload_dir) / name

@@ -124,7 +124,7 @@ async function archiveUpload(box) {
     try { files = await api("/api/admin/archive/files"); } catch (err) { list.replaceChildren(errorBox(err)); return; }
     const uploaded = files.filter(f => f.uploaded), pending = files.filter(f => f.pending);
     list.replaceChildren(h("details", {},
-      h("summary", {}, `${files.length} filer i arkivet · ${uploaded.length} uploadet · ${pending.length ? `${pending.length} venter på import` : "alt importeret"}`),
+      h("summary", {}, `${files.length} filer i arkivet · ${uploaded.length ? `${uploaded.length} uploadede venter på import` : "ingen uploadede filer venter"} · ${pending.length ? `${pending.length} venter i alt` : "alt importeret"}`),
       h("div", { class: "table-wrap mt", style: { maxHeight: "320px" } }, h("table", { class: "data" },
         h("thead", {}, h("tr", {}, h("th", {}, "Fil"), h("th", { class: "right" }, "Størrelse"), h("th", { class: "right" }, "Rækker"), h("th", {}, "Status"), h("th", {}))),
         h("tbody", {}, ...[...files].reverse().map(f => h("tr", {},
@@ -132,7 +132,7 @@ async function archiveUpload(box) {
           h("td", {}, f.pending ? h("span", { class: "tag bemaerk" }, "venter") : h("span", { class: "tag plain" }, "importeret"), " ",
             h("span", { class: "muted", style: { fontSize: ".8rem" } }, f.uploaded ? "upload" : "arkiv")),
           h("td", { class: "right" }, f.uploaded ? h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Fjern", onclick: async () => {
-            if (!confirm(`Fjern den uploadede ${f.name}? Observationer der allerede er importeret, bliver i databasen.`)) return;
+            if (!confirm(`Fjern den uploadede ${f.name}, før den importeres?`)) return;
             try { await api(`/api/admin/archive/upload/${f.name}`, { method: "DELETE" }); loadList(); } catch (err) { toast(err.message, "err"); }
           } }) : null))))))));
   };
@@ -160,7 +160,7 @@ async function archiveUpload(box) {
       } catch (err) { errors.append(h("div", { class: "notice err" }, err.message)); }
       sent += f.size; bar.value = sent / total;
     }
-    line.textContent = `${ok} af ${good.length} filer uploadet${newOrChanged ? ` – ${newOrChanged} nye/ændrede importeres nu` : ok ? " – de var allerede importeret" : ""}.`;
+    line.textContent = `${ok} af ${good.length} filer uploadet${newOrChanged ? ` – ${newOrChanged} nye/ændrede importeres nu og slettes bagefter` : ok ? " – de var allerede importeret og er slettet igen" : ""}.`;
     if (newOrChanged) {
       try { await api("/api/admin/worker/archive_import", { method: "POST", body: {} }); } catch (err) { errors.append(errorBox(err)); }
     }
@@ -174,7 +174,7 @@ async function archiveUpload(box) {
   drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); run(e.dataTransfer.files); };
 
   box.append(h("h3", { style: { margin: 0 } }, "Upload af DOFbasen-månedsfiler"),
-    h("p", { class: "muted", style: { margin: 0 } }, "Månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv) importeres direkte uden kald til dofbasen.dk. Dage der er dækket af en fil, hentes ikke for at fylde huller. En uploadet fil erstatter arkivets fil med samme navn; filer der allerede er importeret uændret, springes over."),
+    h("p", { class: "muted", style: { margin: 0 } }, "Månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv) importeres direkte uden kald til dofbasen.dk. Dage der er dækket af en fil, hentes ikke for at fylde huller. Uploadede filer slettes fra serveren, så snart de er importeret; filer der allerede er importeret uændret, slettes med det samme."),
     drop, input, status, list);
   await loadList();
 }

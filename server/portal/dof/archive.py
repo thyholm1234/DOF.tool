@@ -27,7 +27,8 @@ PROGRESS = "archive:progress"
 
 
 def archive_files() -> list[Path]:
-    """Månedsfiler fra det lokale arkiv og fra uploads; en uploadet fil erstatter arkivets fil med samme navn."""
+    """Månedsfiler fra det lokale arkiv og fra uploads; en uploadet fil erstatter arkivets fil med samme navn.
+    Uploadede filer slettes, så snart de er importeret."""
     s = get_settings()
     files: dict[str, Path] = {}
     for root in (Path(s.archive_dir), Path(s.archive_upload_dir)):
@@ -44,7 +45,11 @@ async def pending_files() -> list[Path]:
     for p in files:
         st = p.stat()
         rec = done.get(p.name)
-        if rec is None or rec.size != st.st_size or abs(rec.mtime - st.st_mtime) > 1:
+        if rec is None:
+            out.append(p)
+        # Ændret siden importen. Er filen ældre end importen, er en senere upload af samme måned allerede
+        # importeret (og slettet) – arkivets ældre udgave skal så ikke importeres oven i den.
+        elif (rec.size != st.st_size or abs(rec.mtime - st.st_mtime) > 1) and st.st_mtime > rec.imported_at.timestamp():
             out.append(p)
     return out
 
@@ -118,6 +123,8 @@ async def run_import(stop_after: int | None = None) -> dict:
             await jobstatus.step(path.name, i - 1, len(files))
             t0 = time.time()
             n, dmin, _ = await import_file(path)
+            if path.parent == Path(get_settings().archive_upload_dir):
+                path.unlink(missing_ok=True)  # uploadede filer er nu i databasen og skal ikke ligge tilbage
             rows_total += n
             if dmin and (earliest is None or dmin < earliest):
                 earliest = dmin
