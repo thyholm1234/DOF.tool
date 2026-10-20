@@ -245,7 +245,7 @@ async def matrikel_home(session: AsyncSession, year: int | None) -> dict[str, st
 
 async def scoreboard(session: AsyncSession, spec: ListSpec, group_id: int | None = None) -> dict:
     """Rangliste + hver deltagers 'firsts' (til race-graf, matrix og unikke arter)."""
-    key = f"sb:{spec.key}:{group_id or 0}:{await version('lists')}"
+    key = f"sb2:{spec.key}:{group_id or 0}:{await version('lists')}"
 
     async def produce() -> dict:
         people = await participants(session, group_id)
@@ -284,6 +284,9 @@ async def scoreboard(session: AsyncSession, spec: ListSpec, group_id: int | None
                 "sidste_art": names.get(last[0]) if last else None, "sidste_dato": last[1] if last else None,
                 "firsts": lst,
             })
+        if spec.matrikel:
+            # Matrikellister: kun deltagere med matrikeltaggede observationer i perioden – ikke alle med 0
+            rows = [r for r in rows if r["antal"] > 0]
         rows.sort(key=lambda r: (-r["antal"], r["sidste_dato"] or "9999"))
         place = 0
         prev = None
@@ -376,8 +379,7 @@ async def matrikel_board(session: AsyncSession, year: int | None, scope: str = "
     elif kind == "kom" and not group_id:
         home = await matrikel_home(session, year)
         rows = [r for r in rows if home.get(r["obserkode"]) == ref]
-    # Kun deltagere med matrikelobservationer i perioden
-    return {**board, "rows": rerank([r for r in rows if r["antal"] > 0])}
+    return {**board, "rows": rerank(rows)}
 
 
 def _standing(label: str, kind: str, ref: str, rows: list[dict], me: str, my_count: int) -> dict:
@@ -387,7 +389,8 @@ def _standing(label: str, kind: str, ref: str, rows: list[dict], me: str, my_cou
     place = mine["placering"] if mine else 1 + sum(1 for r in lean if r["antal"] > my_count)
     above = next((r for r in reversed(lean) if r["antal"] > my_count), None)
     below = next((r for r in lean if r["antal"] < my_count), None)
-    return {"label": label, "kind": kind, "ref": ref, "n": len(lean) + (0 if mine else 1), "placering": place,
+    # Har man selv ingen matrikelobservationer, er man ikke med på boardet og tæller heller ikke med i antallet
+    return {"label": label, "kind": kind, "ref": ref, "n": len(lean) + (0 if mine or not my_count else 1), "placering": place,
             "public": mine is not None, "leader": lean[0] if lean else None,
             "above": {**above, "gap": above["antal"] - my_count} if above else None,
             "below": {**below, "gap": my_count - below["antal"]} if below else None,
