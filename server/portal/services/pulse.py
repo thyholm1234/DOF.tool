@@ -19,7 +19,7 @@ from portal.cache import kv
 from portal.timeutil import TZ
 
 BATCHES = "pulse:batches"  # JSON pr. sync, nyeste først
-BIRDERS = "pulse:birders"  # anonymt id -> {lat, lon, lok, turid, at}
+BIRDERS = "pulse:birders"  # anonymt id -> {lat, lon, loknr, lok, turid, kategori, at}
 KEEP = 40
 ACTIVE = timedelta(minutes=15)
 RANK = {"SU": 3, "SUB": 2, "bemaerk": 1, "alm": 0}
@@ -42,7 +42,16 @@ async def _store(items: dict, birders: dict, source: str) -> None:
         await kv().lpush(BATCHES, json.dumps(batch))
         await kv().ltrim(BATCHES, 0, KEEP - 1)
     if birders:
-        await kv().hset(BIRDERS, mapping={await _anon(k): json.dumps({**v, "at": now.isoformat()}) for k, v in birders.items()})
+        ids = {k: await _anon(k) for k in birders}
+        prev = dict(zip(ids.values(), await kv().hmget(BIRDERS, list(ids.values()))))
+        mapping = {}
+        for k, v in birders.items():
+            # Figuren beholder sin mest bemærkelsesværdige kategori, så længe den står på kortet
+            old = json.loads(prev[ids[k]]) if prev.get(ids[k]) else None
+            if old and now - datetime.fromisoformat(old["at"]) <= ACTIVE and RANK.get(old.get("kategori"), 0) > RANK.get(v["kategori"], 0):
+                v = {**v, "kategori": old["kategori"]}
+            mapping[ids[k]] = json.dumps({**v, "at": now.isoformat()})
+        await kv().hset(BIRDERS, mapping=mapping)
 
 
 async def record_sync(session: AsyncSession, new_obsids: list[int], changed: list[tuple[int, int, int]]) -> None:
@@ -52,7 +61,7 @@ async def record_sync(session: AsyncSession, new_obsids: list[int], changed: lis
     if not delta:
         return
     rows = (await session.execute(text("""
-        SELECT o.obsid, o.turid, o.artnr, o.antal, o.kategori, o.loknr, o.obserkode, s.navn AS art, l.navn AS lok, l.lat, l.lon
+        SELECT o.obsid, o.turid, o.dato, o.artnr, o.antal, o.kategori, o.loknr, o.obserkode, s.navn AS art, l.navn AS lok, l.lat, l.lon
         FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
         WHERE o.obsid = ANY(:ids) AND o.hemmelig = 0 AND l.lat IS NOT NULL
     """), {"ids": list(delta)})).mappings().all()
@@ -69,8 +78,29 @@ async def record_sync(session: AsyncSession, new_obsids: list[int], changed: lis
         if RANK.get(r["kategori"], 0) > RANK.get(it["kategori"], 0):
             it["kategori"] = r["kategori"]
         if r["obserkode"]:
-            birders[r["obserkode"]] = {"lat": r["lat"], "lon": r["lon"], "lok": r["lok"], "turid": r["turid"]}
+            kat = birders.get(r["obserkode"], {}).get("kategori", "alm")
+            if RANK.get(r["kategori"], 0) > RANK.get(kat, 0):
+                kat = r["kategori"]
+            birders[r["obserkode"]] = {"lat": r["lat"], "lon": r["lon"], "loknr": r["loknr"], "lok": r["lok"], "turid": r["turid"],
+                                       "kategori": kat}
+    if items:
+        await _totals(session, items, rows[0]["dato"])
     await _store(items, birders, "dof")
+
+
+async def _totals(session: AsyncSession, items: dict, day) -> None:
+    """Dagens samlede antal af arten på lokaliteten (DOFbasen + portalens feltmeldinger, uden hemmelige)."""
+    keys = list(items)
+    rows = (await session.execute(text("""
+        SELECT k.loknr, k.artnr,
+               coalesce((SELECT sum(antal) FROM observations o WHERE o.dato = :d AND o.loknr = k.loknr AND o.artnr = k.artnr
+                         AND o.hemmelig = 0), 0)
+             + coalesce((SELECT sum(antal) FROM field_reports r WHERE r.dato = :d AND r.loknr = k.loknr AND r.artnr = k.artnr
+                         AND NOT r.hemmelig), 0) AS total
+        FROM unnest(CAST(:l AS int[]), CAST(:a AS int[])) AS k(loknr, artnr)
+    """), {"d": day, "l": [k[0] for k in keys], "a": [k[1] for k in keys]})).all()
+    for loknr, artnr, total in rows:
+        items[(loknr, artnr)]["total"] = int(total)
 
 
 async def record_report(session: AsyncSession, report) -> None:
@@ -84,7 +114,10 @@ async def record_report(session: AsyncSession, report) -> None:
         return
     item = {"artnr": report.artnr, "art": r["art"], "loknr": report.loknr, "lok": r["lok"], "lat": r["lat"], "lon": r["lon"],
             "kategori": report.kategori, "delta": report.antal or 0, "new": 1}
-    await _store({0: item}, {report.obserkode: {"lat": r["lat"], "lon": r["lon"], "lok": r["lok"]}}, "portal")
+    items = {(report.loknr, report.artnr): item}
+    await _totals(session, items, report.dato)
+    await _store(items, {report.obserkode: {"lat": r["lat"], "lon": r["lon"], "loknr": report.loknr, "lok": r["lok"],
+                                                    "kategori": report.kategori}}, "portal")
 
 
 async def _ended(session: AsyncSession, turids: list[int]) -> set[int]:

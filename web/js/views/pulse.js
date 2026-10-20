@@ -14,6 +14,8 @@ const KEEP_LIST = 300;
 
 const PERSON = `<svg viewBox="0 0 24 32" width="18" height="24" aria-hidden="true"><circle cx="12" cy="6" r="5"/><path d="M3 31v-9a9 9 0 0 1 18 0v9z"/></svg>`;
 const label = (it) => it.delta > 0 ? `${fmtN(it.delta)} ${it.art}` : it.art;
+// Lille totalantal: dagens samlede antal af arten på lokaliteten, når det er mere end selve ændringen
+const totalTxt = (it) => it.total > it.delta ? `i alt ${fmtN(it.total)} · ` : "";
 const threadHash = (it, day) => `#/traad/${day}/${it.artnr}/${it.loknr}`;
 
 export async function render(view) {
@@ -35,7 +37,7 @@ export async function render(view) {
   const map = baseMap(mapEl, { center: [56.15, 11.2], zoom: 7 });
   const birderLayer = L.layerGroup().addTo(map);
   const popLayer = L.layerGroup().addTo(map);
-  const birders = new Map();  // id -> { marker, at }
+  const birders = new Map();  // id -> { marker, at, loknr }
   let items = [];             // til listen (nyeste først)
   let queue = [], gap = MIN_GAP, onMap = 0, timer = null, refreshing = false;
 
@@ -56,12 +58,13 @@ export async function render(view) {
     for (const [id, b] of birders) if (!ids.has(id)) { birderLayer.removeLayer(b.marker); birders.delete(id); }
     for (const b of rows) {
       const at = Date.parse(b.at), old = birders.get(b.id);
-      if (old) { old.at = at; old.marker.setLatLng([b.lat, b.lon]); old.marker.setTooltipContent(esc(b.lok)); continue; }
+      const kat = b.kategori in RANK ? b.kategori : "alm";
+      if (old) { old.at = at; old.loknr = b.loknr; old.marker.getElement()?.classList.remove(...Object.keys(RANK)); old.marker.getElement()?.classList.add(kat); old.marker.setLatLng([b.lat, b.lon]); old.marker.setTooltipContent(esc(b.lok)); continue; }
       // lidt spredning, så flere birdere på samme lokalitet ikke står oven i hinanden
       const j = () => (Math.random() - 0.5) * 0.004;
-      const marker = L.marker([b.lat + j(), b.lon + j()], { icon: L.divIcon({ className: "pulse-birder", html: PERSON, iconSize: [18, 24], iconAnchor: [9, 24] }), keyboard: false })
+      const marker = L.marker([b.lat + j(), b.lon + j()], { icon: L.divIcon({ className: `pulse-birder ${kat}`, html: PERSON, iconSize: [18, 24], iconAnchor: [9, 24] }), keyboard: false })
         .bindTooltip(esc(b.lok), { direction: "top", offset: [0, -22] }).addTo(birderLayer);
-      birders.set(b.id, { marker, at });
+      birders.set(b.id, { marker, at, loknr: b.loknr });
     }
     drawBirders();
   };
@@ -69,11 +72,18 @@ export async function render(view) {
   // ------------------------------------------------ bobler: ændringerne popper op og forsvinder igen
   const pop = (it) => {
     const k = it.kategori in RANK ? it.kategori : "alm";
-    const html = `<div class="pp ${k}"><b>${esc(label(it))}</b><small>${esc(it.lok)}</small></div>`;
+    const html = `<div class="pp ${k}"><b>${esc(label(it))}</b><small>${esc(totalTxt(it) + it.lok)}</small></div>`;
     const m = L.marker([it.lat, it.lon], { icon: L.divIcon({ className: "pulse-pop", html, iconSize: null }), zIndexOffset: 1000 + RANK[k] * 100 })
       .on("click", () => { location.hash = threadHash(it, it.day); }).addTo(popLayer);
     const ring = L.circleMarker([it.lat, it.lon], { radius: 6, className: `pulse-ring ${k}`, interactive: false }).addTo(popLayer);
     onMap++;
+    // Birderne på lokaliteten hopper kort tre gange, når boblen dukker op
+    for (const b of birders.values()) {
+      const svg = b.loknr === it.loknr && b.marker.getElement()?.querySelector("svg");
+      if (!svg) continue;
+      svg.classList.remove("hop"); void svg.getBoundingClientRect(); svg.classList.add("hop");
+      svg.addEventListener("animationend", () => svg.classList.remove("hop"), { once: true });
+    }
     const ms = SHOW_MS[k];
     setTimeout(() => m.getElement()?.classList.add("out"), ms - 600);
     setTimeout(() => { popLayer.removeLayer(m); popLayer.removeLayer(ring); onMap--; }, ms);
@@ -115,7 +125,7 @@ export async function render(view) {
       onmouseenter: () => map.panTo([it.lat, it.lon], { animate: true }) },
       h("span", { class: "muted num" }, fmtTime(it.at)),
       h("span", {}, h("b", {}, label(it)), it.kategori !== "alm" ? tag(it.kategori, KAT[it.kategori]) : null,
-        h("small", { class: "muted", style: { display: "block" } }, it.lok)))));
+        h("small", { class: "muted", style: { display: "block" } }, totalTxt(it) + it.lok)))));
   };
 
   async function refresh() {
