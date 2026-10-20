@@ -44,9 +44,61 @@ GROUPS = [("drosler", "Drosler, nattergale og stjerter"), ("sangere", "Sangere o
           ("fluesnappere", "Fluesnappere"), ("vaerlinger", "Værlinger og finker"), ("andre", "Fuglekonger, mejser og krager")]
 
 
+# Optager og licens for katalogets optagelser (aflæst på xeno-canto). Licenser med ND (NoDerivatives) må afspilles,
+# men udelades af downloadede mix, da et mix er bearbejdet materiale.
+CREDITS = {
+    988584: ("Mats Olsson", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    747444: ("Lars Edenius", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    663553: ("Lars Edenius", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1075168: ("Romuald Mikusek", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    296007: ("Marco Dragonetti", "https://creativecommons.org/licenses/by-nc-nd/4.0/"),
+    916831: ("Lennart Jeppsson", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1039066: ("Aku Kalliomäki", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1168128: ("Stanislas Wroza", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1086047: ("András Schmidt", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    108276: ("Stuart Fisher", "https://creativecommons.org/licenses/by-nc-nd/2.5/"),
+    1005619: ("Aku Kalliomäki", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1011627: ("Bodo Sonnenburg", "https://creativecommons.org/licenses/by-nc-nd/4.0/"),
+    1002087: ("brickegickel", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    575807: ("Stanislas Wroza", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    325508: ("Mikołaj Koss", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1042932: ("Lars Lachmann", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    758912: ("Jens Kirkeby", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1067896: ("Arend Wassink", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1054073: ("Jens Kirkeby", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1147096: ("Dave Guo", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    495372: ("Oscar Campbell", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    997377: ("Lars Edenius", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1173388: ("Walter Wallner", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1151364: ("Lars Edenius", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    921935: ("Lars Mogensen", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1151994: ("Magnus Wadstein", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    288094: ("Mikael Litsgård", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    918321: ("Lars Edenius", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    67246: ("Patrik Åberg", "https://creativecommons.org/licenses/by-nc-sa/3.0/"),
+    181443: ("Jarek Matusiak", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    812536: ("Thomas Bergman", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    766258: ("Stanislas Wroza", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1165095: ("Zsombor Károlyi", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    687689: ("Hugo Wieleman", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    1047896: ("Lars Edenius", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    813347: ("Peter Boesman", "https://creativecommons.org/licenses/by-nc-nd/4.0/"),
+    1082575: ("Gustav Haapalahti", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+}
+
+
+def _license(url: str) -> str:
+    m = re.search(r"/licenses/([a-z-]+)/([\d.]+)/", url or "")
+    return f"CC {m.group(1).upper()} {m.group(2)}" if m else ""
+
+
 def _sp(id_: str, artnr: int | None, navn: str, latin: str, group: str, *recs: tuple[int, str], start: bool = False) -> dict:
-    return {"id": id_, "artnr": artnr, "navn": navn, "latin": latin, "group": group, "start": start,
-            "recs": [{"xc": xc, "file": f} for xc, f in recs]}
+    out = []
+    for xc, f in recs:
+        recordist, url = CREDITS.get(xc, (None, None))
+        out.append({"xc": xc, "file": f, "recordist": recordist, "license": _license(url), "license_url": url,
+                    "nd": "-nd" in (url or "")})
+    return {"id": id_, "artnr": artnr, "navn": navn, "latin": latin, "group": group, "start": start, "recs": out}
 
 
 SPECIES = [
@@ -418,8 +470,8 @@ def preset_out(p: MobPreset, user: User | None) -> dict:
 
 
 def _check(config: dict) -> None:
-    # En chase gemmer en sammensætning pr. trin (højst 8)
-    if len(str(config)) > 60000 or len(config.get("steps") or []) > 8:
+    # En chase gemmer en sammensætning pr. trin (højst 12)
+    if len(str(config)) > 90000 or len(config.get("steps") or []) > 12:
         raise HTTPException(400, "Opsætningen er for stor")
 
 
@@ -495,11 +547,24 @@ def _cfg(target: str = "", boost: int = 6, duck: int = -6, **species: int) -> di
     return {"v": 1, "master": 80, "target": target, "boost": boost, "duck": duck, "species": _species(species)}
 
 
-def _chase(*steps: tuple[str, int, str, dict[str, int]], boost: int = 9, duck: int = -6, loop: bool = True) -> dict:
-    """Chase: trin (navn, sekunder, target, {art-id: antal}). Første trin er også opsætningen uden chase."""
+def _chase(*steps: tuple, boost: int = 9, duck: int = -6, loop: bool = True) -> dict:
+    """Chase: trin (navn, sekunder, target, {art-id: antal}[, fade]) – fade "in"/"out" fader trinnet ind fra eller ud
+    til stilhed over hele trinnets længde. Første trin er også opsætningen uden chase."""
     first = steps[0]
     return {**_cfg(first[2], boost, duck, **first[3]), "loop": loop,
-            "steps": [{"name": n, "secs": secs, "target": t, "species": _species(sp)} for n, secs, t, sp in steps]}
+            "steps": [{"name": st[0], "secs": st[1], "target": st[2], "species": _species(st[3]), "fade": st[4] if len(st) > 4 else ""}
+                      for st in steps]}
+
+
+def _rotation(base: dict[str, int], targets: list[tuple[str, str]], secs: int) -> list[tuple]:
+    """Toppen af en sæson-chase: flokken er fuld, og target skifter mellem sibiriske løvsangere – én ad gangen."""
+    return [(name, secs, t, {**base, t: 1}) for t, name in targets]
+
+
+SIBIRISKE_EFTERAAR = [("hvidbrynet", "Hvidbrynet Løvsanger"), ("fuglekongesanger", "Fuglekongesanger"),
+                      ("himalayasanger", "Himalayasanger"), ("schwarz", "Schwarz' Løvsanger"), ("brunloevsanger", "Brun Løvsanger")]
+SIBIRISKE_FORAAR = [("lundsanger", "Lundsanger"), ("nordsanger", "Nordsanger"), ("hvidbrynet", "Hvidbrynet Løvsanger"),
+                    ("fuglekongesanger", "Fuglekongesanger")]
 
 
 def _sig(cfg: dict) -> tuple:
@@ -568,6 +633,30 @@ SEED = {
             ("Buskrørsangeren", 60, "buskroersanger", {"sivsanger": 2, "blaahals": 1, "buskroersanger": 1}))),
     ],
 }
+
+# Sæson-chases på 7 minutter: fader ind fra stilhed, bygger op om skiftende targetarter, roterer mellem sibiriske
+# løvsangere på toppen og fader ud igen.
+SEED["mobgang_seed_v4"] = [
+    ("Chase: Efterår – løvsangerflokken (7 min)", _chase(
+        ("Stille skov", 40, "", {"gransanger": 1, "fyrremejse": 1}, "in"),
+        ("Mejserne kommer", 40, "roedtoppet", {"fyrremejse": 2, "roedtoppet": 1, "gransanger": 1}),
+        ("Flokken vokser", 40, "lillefluesnapper", {"fyrremejse": 3, "roedtoppet": 2, "gransanger": 2, "lillefluesnapper": 1,
+                                                   "vindrossel": 1}),
+        *_rotation({"fyrremejse": 3, "roedtoppet": 2, "gransanger": 2, "vindrossel": 1}, SIBIRISKE_EFTERAAR, 40),
+        ("Flokken trækker videre", 40, "", {"fyrremejse": 2, "roedtoppet": 1, "gransanger": 1}),
+        ("Stilheden vender tilbage", 60, "", {"fyrremejse": 1, "gransanger": 1}, "out"),
+        loop=False)),
+    ("Chase: Forår – sangerkrattet (7 min)", _chase(
+        ("Daggry", 40, "", {"solsort": 1, "loevsanger": 1}, "in"),
+        ("Løvsangerne", 40, "gransanger", {"loevsanger": 2, "gransanger": 1, "solsort": 1}),
+        ("Krattet vågner", 40, "hoegesanger", {"loevsanger": 2, "gransanger": 1, "hoegesanger": 1, "nattergal": 1}),
+        ("Karmindompappen synger", 40, "karmindompap", {"loevsanger": 2, "gransanger": 2, "hoegesanger": 1, "nattergal": 1,
+                                                        "karmindompap": 1}),
+        *_rotation({"loevsanger": 2, "gransanger": 2, "skovsanger": 1, "karmindompap": 1, "nattergal": 1}, SIBIRISKE_FORAAR, 40),
+        ("Roen sænker sig", 40, "", {"loevsanger": 1, "gransanger": 1, "solsort": 1}),
+        ("Formiddag", 60, "", {"solsort": 1, "loevsanger": 1}, "out"),
+        loop=False)),
+]
 
 # Officielle presets, der opdateres med de nye arter – kun hvis en redaktør ikke har ændret dem siden oprettelsen
 SEED_UPDATES = {

@@ -1,7 +1,7 @@
 // Mobgang-generator: blandede flokke af loopede optagelser, så man kan træne at høre en targetart i mængden.
 // Al lyd mixes i browseren med Web Audio. Presets: officielle (alle kan se, redaktører vedligeholder) og
 // brugerens egne private (/api/mobgang/presets).
-import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can } from "../core.js";
+import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can, modal } from "../core.js";
 
 // Arter og optagelser (xeno-canto) kommer fra serveren (/api/mobgang/status), der også har hver arts lukkeperiode
 // i ynglesæsonen. Brugeren kan desuden tilføje egne xeno-canto-optagelser (cfg.custom), som gemmes i presettet og
@@ -11,7 +11,7 @@ let SPECIES = [], GROUPS = [], SEASON = null;
 const OFFSET = 15;     // sekunder mellem start-positionen for individer der deler en optagelse
 const MAX_COUNT = 8;
 const MAX_CUSTOM = 12; // egne optagelser pr. opsætning
-const MAX_STEPS = 8;   // trin i en chase
+const MAX_STEPS = 12;  // trin i en chase
 const STEP_FADE = 0.9; // tidskonstant (s) for overgangen mellem trin – ca. 3 s til fuld styrke
 const FADE = 0.015;    // kort fade i hver ende af filen, så loop-skiftet ikke klikker
 const db = (v) => Math.pow(10, v / 20);
@@ -37,6 +37,7 @@ const defaults = () => ({
   species: Object.fromEntries(SPECIES.map(s => [s.id, { on: !!s.start, count: 1, vol: 80 }])),
 });
 
+const chaseSecs = (cfg) => (cfg.steps || []).reduce((a, x) => a + x.secs, 0);
 const clampSecs = (v) => Math.max(5, Math.min(900, Math.round(Number(v) || 60)));
 
 /** Udfylder manglende felter. Arter der er kommet til efter presettet blev gemt, starter slukket.
@@ -55,7 +56,8 @@ function normalize(cfg) {
   };
   Object.assign(out, comp(cfg));
   if (Array.isArray(cfg?.steps) && cfg.steps.length) {
-    out.steps = cfg.steps.slice(0, MAX_STEPS).map((st, i) => ({ name: String(st.name || `Trin ${i + 1}`).slice(0, 60), secs: clampSecs(st.secs), ...comp(st) }));
+    out.steps = cfg.steps.slice(0, MAX_STEPS).map((st, i) => ({ name: String(st.name || `Trin ${i + 1}`).slice(0, 60), secs: clampSecs(st.secs),
+      fade: ["in", "out"].includes(st.fade) ? st.fade : "", ...comp(st) }));
   } else delete out.steps;
   out.loop = cfg?.loop !== false;
   return out;
@@ -64,15 +66,24 @@ function normalize(cfg) {
 // ---------------------------------------------------------------- lydmotor
 
 class Mixer {
-  constructor() { this.ctx = null; this.buffers = {}; this.loading = {}; this.chains = {}; this.playing = false; this.t0 = 0; this.cfg = null; }
+  constructor() {
+    this.ctx = null; this.buffers = {}; this.loading = {}; this.chains = {}; this.playing = false; this.t0 = 0; this.cfg = null;
+    this.offline = false; this.vals = new WeakMap();  // offline: senest planlagte værdi pr. parameter
+  }
 
-  init() {
-    if (this.ctx) return;
-    const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  /** Lydgrafen: spor → master (lydstyrke) → fader (trin der fader ind/ud) → edge (filens ender) → limiter. */
+  graph(ctx) {
+    this.ctx = ctx;
     // Mange individer oven i hinanden kan klippe – en hård kompressor fungerer som limiter
     this.limiter = new DynamicsCompressorNode(ctx, { threshold: -6, knee: 4, ratio: 12, attack: 0.003, release: 0.25 });
     this.master = new GainNode(ctx);
-    this.master.connect(this.limiter).connect(ctx.destination);
+    this.fader = new GainNode(ctx);
+    this.edge = new GainNode(ctx);
+    this.master.connect(this.fader).connect(this.edge).connect(this.limiter).connect(ctx.destination);
+  }
+
+  init() {
+    if (!this.ctx) this.graph(new (window.AudioContext || window.webkitAudioContext)());
   }
 
   chain(id) {
@@ -113,6 +124,7 @@ class Mixer {
     await this.ctx.resume();
     this.playing = true;
     this.t0 = this.ctx.currentTime;
+    this.fade("", 0);
     this.apply(cfg, true);
   }
 
@@ -124,17 +136,34 @@ class Mixer {
     }
   }
 
-  elapsed() { return this.playing ? this.ctx.currentTime - this.t0 : 0; }
+  elapsed(at = this.ctx?.currentTime) { return this.playing ? at - this.t0 : 0; }
+
+  /** Trinnets fade: "in" fra stilhed og "out" til stilhed over secs sekunder, ellers op til fuld styrke. */
+  fade(kind, secs, at = this.ctx.currentTime) {
+    const g = this.fader.gain;
+    if (!this.offline) g.cancelScheduledValues(at);  // offline planlægges trinnene i rækkefølge – intet skal annulleres
+    if (kind === "in") { g.setValueAtTime(0, at); g.linearRampToValueAtTime(1, at + secs); this.lastFade = 1; return; }
+    g.setValueAtTime(this.offline ? (this.lastFade ?? 1) : g.value, at);
+    g.linearRampToValueAtTime(kind === "out" ? 0 : 1, at + (kind === "out" ? secs : Math.min(2, secs || 0.01)));
+    this.lastFade = kind === "out" ? 0 : 1;
+  }
 
   /** Bringer lydgrafen i overensstemmelse med opsætningen: antal kilder pr. spor og alle lydstyrker.
-   *  tc = tidskonstant for ændringerne (længere ved skift mellem trin i en chase). */
-  apply(cfg, instant = false, tc = 0.08) {
+   *  tc = tidskonstant for ændringerne (længere ved skift mellem trin i en chase); at = tidspunkt (offline-mix). */
+  apply(cfg, instant = false, tc = 0.08, at = this.ctx?.currentTime) {
     this.cfg = cfg;
     if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    const ramp = (param, value) => instant ? param.setValueAtTime(value, now) : param.setTargetAtTime(value, now, tc);
+    const now = at;
+    // Live: eksponentiel tilnærmelse fra nu. Offline planlægges ændringerne i fremtiden; dér bruges en lineær rampe
+    // forankret i den forrige værdi, så værdien før ændringen er entydig (setTargetAtTime i fremtiden er ikke robust).
+    const ramp = (param, value) => {
+      if (instant) param.setValueAtTime(value, now);
+      else if (this.offline) { param.setValueAtTime(this.vals.get(param) ?? param.value, now); param.linearRampToValueAtTime(value, now + tc * 3); }
+      else param.setTargetAtTime(value, now, tc);
+      this.vals.set(param, value);
+    };
     // Hvert individ har sin egen gain, så det kan fades ind og ud uden at påvirke artens øvrige individer
-    const fadeOut = (src) => { try { src.fade.gain.setTargetAtTime(0, now, tc); src.stop(now + Math.max(0.3, tc * 5)); } catch { /* allerede stoppet */ } };
+    const fadeOut = (src) => { try { ramp(src.fade.gain, 0); src.stop(now + Math.max(0.3, tc * 5)); } catch { /* allerede stoppet */ } };
     ramp(this.master.gain, (cfg.master / 100) ** 2);
     const missing = [], present = new Set();
     for (const t of tracks(cfg)) {
@@ -150,8 +179,9 @@ class Mixer {
         const src = new AudioBufferSourceNode(this.ctx, { buffer: buf, loop: true });
         src.fade = new GainNode(this.ctx, { gain: instant ? 1 : 0 });
         src.connect(src.fade).connect(ch.gain);
-        if (!instant) src.fade.gain.setTargetAtTime(1, now, tc);
-        src.start(now, (this.elapsed() + Math.floor(k / n) * OFFSET) % buf.duration);
+        this.vals.set(src.fade.gain, instant ? 1 : 0);
+        if (!instant) ramp(src.fade.gain, 1);
+        src.start(now, (this.elapsed(now) + Math.floor(k / n) * OFFSET) % buf.duration);
         ch.sources.push(src);
       }
       while (ch.sources.length > want) fadeOut(ch.sources.pop());
@@ -163,7 +193,7 @@ class Mixer {
       ch.sources.forEach(fadeOut);
       ch.sources = [];
     }
-    if (missing.length) this.load(missing).then(() => { if (this.playing) this.apply(this.cfg); this.onload?.(); })
+    if (missing.length && !this.offline) this.load(missing).then(() => { if (this.playing) this.apply(this.cfg); this.onload?.(); })
       .catch((err) => { toast(err.message, "err"); this.onerror?.(missing); });
   }
 
@@ -279,6 +309,144 @@ function ethicsQuiz(st, onPassed) {
   return box;
 }
 
+// ---------------------------------------------------------------- download som mp3
+// Mixet renderes i browseren med samme lydmotor som afspilningen (OfflineAudioContext) og kodes til mp3 med lamejs.
+// Optagelser med ND-licens (NoDerivatives) må ikke indgå i et bearbejdet værk og udelades derfor af filen.
+
+const DOWNLOAD_MINUTES = [1, 2, 3, 5, 10, 15];
+const MAX_DOWNLOAD_SECS = 20 * 60;
+const isND = (r) => r.nd || /-nd\b|\/by-nc-nd\/|\/by-nd\//.test(r.license_url || "");
+const ndTrack = (t) => t.custom ? isND(t.custom) : t.recs.some(isND);
+
+let lamePromise = null;
+const loadLame = () => lamePromise ||= new Promise((resolve, reject) => {
+  if (window.lamejs) { resolve(window.lamejs); return; }
+  const el = document.createElement("script");
+  el.src = new URL("../../vendor/lamejs/lame.min.js", import.meta.url).href;
+  el.onload = () => resolve(window.lamejs);
+  el.onerror = () => { lamePromise = null; reject(new Error("Kunne ikke hente mp3-koderen")); };
+  document.head.append(el);
+});
+
+/** Opsætningen til download: ND-optagelser slukket i alle trin (og som target). */
+function downloadCfg(cfg) {
+  const out = JSON.parse(JSON.stringify(cfg));
+  const nd = tracks(cfg).filter(ndTrack).map(t => t.id);
+  for (const c of [out, ...(out.steps || [])]) for (const id of nd) {
+    if (c.species[id]) c.species[id].on = false;
+    if (c.target === id) c.target = "";
+  }
+  return out;
+}
+
+/** Spor der høres i opsætningen (i mindst ét trin). */
+const usedTracks = (cfg) => tracks(cfg).filter(t => [cfg, ...(cfg.steps || [])].some(c => c.species[t.id]?.on));
+
+async function renderMix(live, cfg, seconds, sampleRate) {
+  const ctx = new OfflineAudioContext(1, Math.ceil(seconds * sampleRate), sampleRate);
+  const m = new Mixer();
+  m.offline = true; m.buffers = live.buffers; m.graph(ctx); m.playing = true; m.t0 = 0;
+  // Kort fade i filens ender, så den hverken starter eller slutter med et klik
+  const edge = m.edge.gain;
+  edge.setValueAtTime(0, 0); edge.linearRampToValueAtTime(1, 1.5);
+  edge.setValueAtTime(1, Math.max(1.5, seconds - 2)); edge.linearRampToValueAtTime(0, seconds);
+  if (cfg.steps) {
+    let t = 0;
+    cfg.steps.forEach((st, i) => {
+      m.apply({ ...cfg, species: st.species, target: st.target }, i === 0, STEP_FADE, t);
+      m.fade(st.fade, st.secs, t);
+      t += st.secs;
+    });
+  } else {
+    m.fade("", 0, 0);
+    m.apply(cfg, true, 0.08, 0);
+  }
+  return ctx.startRendering();
+}
+
+/** ID3v2.3 med titel, kunstner og en kommentar med kreditering og licens (UTF-16). */
+function id3({ title, artist, comment, copyright }) {
+  const utf16 = (str) => { const b = new Uint8Array(2 + str.length * 2); b[0] = 0xff; b[1] = 0xfe; for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); b[2 + 2 * i] = c & 255; b[3 + 2 * i] = c >> 8; } return b; };
+  const cat = (...parts) => { const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; };
+  const frame = (id, body) => { const head = new Uint8Array(10); for (let i = 0; i < 4; i++) head[i] = id.charCodeAt(i); new DataView(head.buffer).setUint32(4, body.length); return cat(head, body); };
+  const textFrame = (id, str) => frame(id, cat(Uint8Array.of(1), utf16(str)));
+  const frames = cat(textFrame("TIT2", title), textFrame("TPE1", artist), textFrame("TCOP", copyright),
+    frame("COMM", cat(Uint8Array.of(1), Uint8Array.from("dan", c => c.charCodeAt(0)), utf16(""), Uint8Array.of(0, 0), utf16(comment))));
+  const n = frames.length, head = Uint8Array.of(0x49, 0x44, 0x33, 3, 0, 0, (n >> 21) & 127, (n >> 14) & 127, (n >> 7) & 127, n & 127);
+  return cat(head, frames);
+}
+
+async function encodeMp3(buffer, tags, onProgress) {
+  const lamejs = await loadLame();
+  const enc = new lamejs.Mp3Encoder(1, buffer.sampleRate, 128);
+  const data = buffer.getChannelData(0), block = 1152 * 40, pcm = new Int16Array(block), parts = [id3(tags)];
+  const push = (out) => { if (out.length) parts.push(new Uint8Array(out.buffer, out.byteOffset, out.length).slice()); };
+  for (let i = 0, k = 0; i < data.length; i += block, k++) {
+    const n = Math.min(block, data.length - i);
+    for (let j = 0; j < n; j++) { const v = Math.max(-1, Math.min(1, data[i + j])); pcm[j] = v < 0 ? v * 0x8000 : v * 0x7fff; }
+    push(enc.encodeBuffer(pcm.subarray(0, n)));
+    if (k % 10 === 0) { onProgress(i / data.length); await new Promise(r => setTimeout(r)); }  // lad siden reagere
+  }
+  push(enc.flush());
+  return new Blob(parts, { type: "audio/mpeg" });
+}
+
+function credits(list) {
+  return list.flatMap(t => t.custom ? [{ xc: t.custom.xc, navn: t.navn, recordist: t.custom.recordist, license: t.custom.license }]
+    : t.recs.map(r => ({ xc: r.xc, navn: t.navn, recordist: r.recordist, license: r.license })));
+}
+
+const slug = (str) => str.toLowerCase().replace(/æ/g, "ae").replace(/ø/g, "oe").replace(/å/g, "aa").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "mobgang";
+
+/** Dialog: længde (chase = trinnenes længde), etik-bekræftelse, render, kodning og download. */
+function downloadDialog(mixer, cfg, name) {
+  const chase = !!cfg.steps;
+  const dl = downloadCfg(cfg);
+  const used = usedTracks(cfg), nd = used.filter(ndTrack), kept = usedTracks(dl);
+  const minutes = h("select", { style: { width: "auto" } }, ...DOWNLOAD_MINUTES.map(m => h("option", { value: m, selected: m === 5 }, `${m} min`)));
+  const total = chaseSecs(cfg);
+  const tooLong = chase && total > MAX_DOWNLOAD_SECS;
+  const ok = h("input", { type: "checkbox", required: true });
+  const status = h("div", { class: "stack", style: { gap: "4px" } });
+  const btn = h("button", { class: "btn primary", disabled: !kept.length || tooLong, html: `${icon("download")} Lav mp3` });
+  const setStatus = (text, frac = null) => status.replaceChildren(h("small", { class: "muted" }, text),
+    frac === null ? "" : h("div", { class: "progress" }, h("i", { style: { width: `${Math.round(frac * 100)}%` } })));
+  const form = h("form", { class: "stack", onsubmit: async (e) => {
+    e.preventDefault();
+    const secs = chase ? total : Number(minutes.value) * 60;
+    btn.disabled = true;
+    try {
+      setStatus("Henter lyde…", 0);
+      await mixer.load(kept);
+      setStatus(`Mixer ${mmss(secs)}…`, 0.05);
+      const buf = await renderMix(mixer, dl, secs, secs > 600 ? 32000 : 44100);
+      const list = credits(kept);
+      const blob = await encodeMp3(buf, {
+        title: name, artist: "DOF.tool Mobgang",
+        copyright: "Mix: CC BY-NC-SA 4.0 – optagelserne tilhører optagerne",
+        comment: `Mixet i DOF.tool Mobgang (${chase ? `chase, ${cfg.steps.length} trin` : "fast opsætning"}, ${mmss(secs)}). Kun til egen træning – brug aldrig lyden i felten over for mulige ynglefugle, ved birdraces eller hvor andre fuglekiggere kan narres.\n\nOptagelser fra xeno-canto.org:\n` +
+          list.map(c => `XC${c.xc} ${c.navn} © ${c.recordist || "ukendt"} (${c.license || "se xeno-canto"})`).join("\n"),
+      }, (f) => setStatus("Koder mp3…", 0.1 + f * 0.9));
+      const url = URL.createObjectURL(blob);
+      const file = `${slug(name)}-${chase ? "chase" : `${minutes.value}min`}.mp3`;
+      const a = h("a", { href: url, download: file, class: "btn" }, `${icon("download")} Gem ${file} igen`);
+      status.replaceChildren(h("small", {}, `Færdig: ${(blob.size / 1e6).toFixed(1).replace(".", ",")} MB.`), a);
+      a.click();
+    } catch (err) { setStatus(`Det mislykkedes: ${err.message}`); }
+    finally { btn.disabled = false; }
+  } },
+    chase ? h("p", { style: { margin: 0 } }, `Chasen downloades i sin fulde længde: ${cfg.steps.length} trin, `, h("b", {}, mmss(total)), ".",
+        tooLong ? h("span", { class: "notice warn", style: { display: "block", marginTop: "6px" } }, `Højst ${MAX_DOWNLOAD_SECS / 60} minutter kan downloades – forkort trinnene.`) : null)
+      : h("label", { class: "row" }, "Længde", minutes, h("small", { class: "muted" }, "Den faste opsætning gentages i hele perioden.")),
+    nd.length ? h("div", { class: "notice warn" }, h("b", {}, "Udelades af filen: "), nd.map(t => t.navn).join(", "),
+      ". Optagelsernes licens (NoDerivatives) tillader ikke, at de indgår i et mix, der deles. De kan stadig afspilles her på siden.") : null,
+    !kept.length ? h("p", { class: "muted" }, "Der er ingen spor at downloade.") : null,
+    h("label", { class: "check" }, ok, h("span", {}, "Jeg bruger kun filen til egen træning – aldrig i felten over for mulige ynglefugle, ved birdraces, eller hvor andre fuglekiggere kan blive narret.")),
+    h("small", { class: "muted" }, "Mixet laves i din browser og kan tage lidt tid. Optagere og licenser skrives ind i filen; mixet må kun deles ikke-kommercielt med samme licens (CC BY-NC-SA)."),
+    btn, status);
+  modal("Download som mp3", form);
+}
+
 // ---------------------------------------------------------------- generator
 
 async function generator(view, st, rerender) {
@@ -300,6 +468,7 @@ async function generator(view, st, rerender) {
   const goStep = (i) => {
     sel = i; stepStart = mixer.elapsed();
     mixer.apply(mixCfg(), false, STEP_FADE);
+    if (mixer.playing) mixer.fade(cfg.steps?.[sel]?.fade || "", cfg.steps?.[sel]?.secs || 0);
     redraw();
   };
 
@@ -314,15 +483,20 @@ async function generator(view, st, rerender) {
       // Sidste trin: forfra ved gentagelse, ellers bliver det sidste trin ved med at spille
       if (sel + 1 < cfg.steps.length) goStep(sel + 1);
       else if (cfg.loop && cfg.steps.length > 1) goStep(0);
+      else if (cfg.steps[sel].fade === "out") { stopPlay(); return; }  // faded helt ud: færdig
       else stepStart = Infinity;
     }
     drawProgress();
   };
+  const stopPlay = () => { mixer.stop(); clearInterval(timer); clock.textContent = "0:00"; drawPlay(); drawChase(); };
   playBtn.onclick = async () => {
-    if (mixer.playing) { mixer.stop(); clearInterval(timer); clock.textContent = "0:00"; drawPlay(); drawChase(); return; }
+    if (mixer.playing) { stopPlay(); return; }
     playBtn.disabled = true; playBtn.textContent = "Henter lyde…";
     const all = tracks(cfg).filter(t => comps().some(c => c.species[t.id]?.on));
-    try { await mixer.start(mixCfg(), all); stepStart = 0; } catch (err) { toast(err.message, "err"); }
+    try {
+      await mixer.start(mixCfg(), all); stepStart = 0;
+      if (cfg.steps) mixer.fade(cfg.steps[sel].fade, cfg.steps[sel].secs);
+    } catch (err) { toast(err.message, "err"); }
     playBtn.disabled = false; drawPlay(); redraw();
     timer = setInterval(tick, 250);
   };
@@ -360,6 +534,7 @@ async function generator(view, st, rerender) {
     setParams({ preset: p.id });
     master.value = cfg.master;
     mixer.apply(mixCfg(), false, STEP_FADE);
+    if (mixer.playing) mixer.fade(cfg.steps?.[0]?.fade || "", cfg.steps?.[0]?.secs || 1);
     drawPresetBar(); redraw();
   }
   const sortPresets = (list) => list.sort((a, b) => (b.official - a.official) || a.name.localeCompare(b.name, "da"));
@@ -398,17 +573,19 @@ async function generator(view, st, rerender) {
     const stp = cfg.steps[sel], el = Math.min(stp.secs, Math.max(0, mixer.elapsed() - stepStart));
     progress.replaceChildren(h("div", { class: "row between", style: { fontSize: ".85rem" } },
       h("span", {}, h("b", {}, `Trin ${sel + 1} af ${cfg.steps.length}`), ` · ${stp.name}`),
-      h("span", { class: "muted", style: { fontVariantNumeric: "tabular-nums" } }, stepStart === Infinity ? "sidste trin – fortsætter" : `${mmss(el)} / ${mmss(stp.secs)}`)),
+      h("span", { class: "muted", style: { fontVariantNumeric: "tabular-nums" } }, stepStart === Infinity ? "sidste trin – fortsætter"
+        : `${mmss(el)} / ${mmss(stp.secs)} · i alt ${mmss(cfg.steps.slice(0, sel).reduce((a, x) => a + x.secs, 0) + el)} / ${mmss(chaseSecs(cfg))}`)),
       h("div", { class: "progress" }, h("i", { style: { width: `${stepStart === Infinity ? 100 : Math.round(el / stp.secs * 100)}%` } })));
   }
   const clone = (c) => ({ species: JSON.parse(JSON.stringify(c.species)), target: c.target });
   function drawChase() {
     const on = !!cfg.steps;
     const toggle = h("input", { type: "checkbox", checked: on, onchange: (e) => {
-      if (e.target.checked) { cfg.steps = [{ name: "Trin 1", secs: 60, ...clone(cfg) }]; sel = 0; }
+      if (e.target.checked) { cfg.steps = [{ name: "Trin 1", secs: 60, fade: "", ...clone(cfg) }]; sel = 0; }
       else {
         if (cfg.steps.length > 1 && !confirm("Slå chase fra? Kun det viste trin bevares.")) { e.target.checked = true; return; }
         Object.assign(cfg, clone(comp())); delete cfg.steps; sel = 0;
+        if (mixer.playing) mixer.fade("", 1);
       }
       stepStart = mixer.elapsed(); changed(); redraw();
     } });
@@ -422,14 +599,19 @@ async function generator(view, st, rerender) {
       h("div", { class: "row", style: { gap: "6px" } }, ...steps.map((stp, i) => h("button", {
         class: `btn sm ${i === sel ? "primary" : ""}`, title: `${nOn(stp)} individer${stp.target ? " · med target" : ""}`,
         onclick: () => { if (mixer.playing) goStep(i); else { sel = i; redraw(); } },
-      }, `${i + 1}. ${stp.name}`, h("small", { style: { opacity: .75 } }, ` ${mmss(stp.secs)}`))),
+      }, `${i + 1}. ${stp.name}`, h("small", { style: { opacity: .75 } }, ` ${mmss(stp.secs)}${stp.fade === "in" ? " ↗" : stp.fade === "out" ? " ↘" : ""}`))),
         steps.length < MAX_STEPS ? h("button", { class: "btn sm ghost", html: `${icon("plus")} Kopiér trin`, title: "Nyt trin efter det valgte, med samme sammensætning",
-          onclick: () => { steps.splice(sel + 1, 0, { name: `Trin ${steps.length + 1}`, secs: cur.secs, ...clone(cur) }); sel++; changed(); redraw(); } }) : null),
+          onclick: () => { steps.splice(sel + 1, 0, { name: `Trin ${steps.length + 1}`, secs: cur.secs, fade: "", ...clone(cur) }); sel++; changed(); redraw(); } }) : null),
       h("div", { class: "row" },
         h("label", { class: "row", style: { gap: "6px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Navn"),
           h("input", { value: cur.name, maxlength: 60, style: { width: "180px" }, onchange: (e) => { cur.name = e.target.value.trim() || `Trin ${sel + 1}`; changed(); } })),
         h("label", { class: "row", style: { gap: "6px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Varighed (s)"),
           h("input", { type: "number", min: 5, max: 900, step: 5, value: cur.secs, style: { width: "90px" }, onchange: (e) => { cur.secs = clampSecs(e.target.value); changed(); } })),
+        h("label", { class: "row", style: { gap: "6px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Fade"),
+          h("select", { style: { width: "auto" }, title: "Fader hele lyden ind fra eller ud til stilhed over trinnets længde", onchange: (e) => {
+            cur.fade = e.target.value; changed();
+            if (mixer.playing) mixer.fade(cur.fade, Math.max(1, cur.secs - (mixer.elapsed() - stepStart)));
+          } }, ...[["", "Ingen"], ["in", "Ind fra stilhed"], ["out", "Ud til stilhed"]].map(([v, l]) => h("option", { value: v, selected: v === cur.fade }, l)))),
         h("span", { style: { flex: 1 } }),
         h("button", { class: "btn sm ghost", disabled: sel === 0, onclick: () => move(-1), "aria-label": "Flyt trinnet frem" }, "←"),
         h("button", { class: "btn sm ghost", disabled: sel === steps.length - 1, onclick: () => move(1), "aria-label": "Flyt trinnet tilbage" }, "→"),
@@ -560,7 +742,10 @@ async function generator(view, st, rerender) {
         st.season.closes ? ` · hele modulet lukker ${fmtDate(st.season.closes)}` : "")),
     seasonEditor(st, rerender),
     h("div", { class: "card stack" },
-      h("div", { class: "row" }, playBtn, clock, h("span", { style: { flex: 1 } }),
+      h("div", { class: "row" }, playBtn, clock,
+        h("button", { class: "btn ghost", html: `${icon("download")} Download mp3`, title: "Download den aktuelle opsætning som mp3",
+          onclick: () => downloadDialog(mixer, cfg, presets.find(p => p.id === current)?.name || "Mobgang") }),
+        h("span", { style: { flex: 1 } }),
         h("label", { class: "row", style: { gap: "8px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Lydstyrke"), master)),
       presetBar),
     chaseBox,
