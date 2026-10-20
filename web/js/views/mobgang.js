@@ -1,6 +1,7 @@
 // Mobgang-generator: blandede flokke af loopede optagelser, så man kan træne at høre en targetart i mængden.
-// Al lyd mixes i browseren med Web Audio; presets gemmes på brugeren (/api/mobgang/presets).
-import { api, h, icon, params, setParams, requireLogin, errorBox, toast } from "../core.js";
+// Al lyd mixes i browseren med Web Audio. Presets: officielle (alle kan se, redaktører vedligeholder) og
+// brugerens egne private (/api/mobgang/presets).
+import { api, state, h, icon, params, setParams, errorBox, toast } from "../core.js";
 
 // Optagelser fra xeno-canto (XC-nummer). Flere individer af samme art = samme fil forskudt OFFSET sekunder.
 const SPECIES = [
@@ -8,7 +9,11 @@ const SPECIES = [
   { id: "fyrremejse", artnr: 14420, navn: "Fyrremejse", latin: "Poecile montanus", xc: 1047896, file: "fyrremejse-XC1047896.mp3" },
   { id: "hvidbrynet", artnr: 13000, navn: "Hvidbrynet Løvsanger", latin: "Phylloscopus inornatus", xc: 1147707, file: "hvidbrynet-loevsanger-XC1147707.mp3" },
   { id: "roedtoppet", artnr: 13150, navn: "Rødtoppet Fuglekonge", latin: "Regulus ignicapilla", xc: 1165095, file: "roedtoppet-fuglekonge-XC1165095.mp3" },
+  { id: "vindrossel", artnr: 12010, navn: "Vindrossel", latin: "Turdus iliacus", xc: 663553, file: "vindrossel-XC663553.mp3" },
+  { id: "gulbug", artnr: 12590, navn: "Gulbug", latin: "Hippolais icterina", xc: 1011627, file: "gulbug-XC1011627.mp3" },
+  { id: "graafluesnapper", artnr: 13350, navn: "Grå Fluesnapper", latin: "Muscicapa striata", xc: 921935, file: "graa-fluesnapper-XC921935.mp3" },
 ];
+const EDITOR_ROLES = ["editor", "admin", "superadmin"];
 const OFFSET = 15;     // sekunder mellem start-positionen for hvert ekstra individ
 const MAX_COUNT = 8;
 const FADE = 0.015;    // kort fade i hver ende af filen, så loop-skiftet ikke klikker
@@ -20,11 +25,11 @@ const defaults = () => ({
   species: Object.fromEntries(SPECIES.map(s => [s.id, { on: true, count: 1, vol: 80 }])),
 });
 
-/** Udfylder manglende felter (fx arter der er kommet til efter presettet blev gemt). */
+/** Udfylder manglende felter. Arter der er kommet til efter presettet blev gemt, starter slukket. */
 function normalize(cfg) {
   const d = defaults();
   const out = { ...d, ...cfg, species: { ...d.species } };
-  for (const s of SPECIES) out.species[s.id] = { ...d.species[s.id], ...(cfg?.species?.[s.id] || {}) };
+  for (const s of SPECIES) out.species[s.id] = { ...d.species[s.id], ...(cfg?.species ? { on: false } : {}), ...(cfg?.species?.[s.id] || {}) };
   if (!SPECIES.some(s => s.id === out.target)) out.target = "";
   return out;
 }
@@ -107,7 +112,6 @@ class Mixer {
 // ---------------------------------------------------------------- side
 
 export async function render(view) {
-  if (requireLogin(view)) return;
   const mixer = new Mixer();
   let cfg = defaults();
   let presets = [];
@@ -134,16 +138,24 @@ export async function render(view) {
 
   // -------- presets
   const presetBar = h("div", { class: "row" });
+  const isEditor = () => EDITOR_ROLES.includes(state.user?.role);
   function drawPresetBar() {
+    const official = presets.filter(p => p.official), own = presets.filter(p => !p.official);
+    const opt = (p) => h("option", { value: p.id, selected: p.id === current }, p.name);
     const sel = h("select", { style: { width: "auto", maxWidth: "100%" }, onchange: (e) => loadPreset(e.target.value) },
-      h("option", { value: "" }, presets.length ? "Vælg preset…" : "Ingen gemte presets"),
-      ...presets.map(p => h("option", { value: p.id, selected: p.id === current }, p.name)));
+      h("option", { value: "" }, presets.length ? "Vælg preset…" : "Ingen presets"),
+      official.length ? h("optgroup", { label: "Officielle" }, ...official.map(opt)) : null,
+      own.length ? h("optgroup", { label: "Mine (kun for mig)" }, ...own.map(opt)) : null);
     const cur = presets.find(p => p.id === current);
     presetBar.replaceChildren(sel,
-      cur ? h("button", { class: "btn", disabled: !dirty, onclick: () => save(cur) }, dirty ? "Gem ændringer" : "Gemt") : null,
-      h("button", { class: "btn", onclick: () => save(null), html: `${icon("plus")} Gem som nyt preset` }),
-      cur ? h("button", { class: "btn ghost", onclick: () => rename(cur), html: icon("edit"), "aria-label": "Omdøb" }) : null,
-      cur ? h("button", { class: "btn ghost danger", onclick: () => remove(cur), html: icon("trash"), "aria-label": "Slet" }) : null,
+      cur?.official ? h("span", { class: "tag portal", title: "Officielt preset – kan ses af alle" }, "Officielt") : null,
+      cur?.editable ? h("button", { class: "btn", disabled: !dirty, onclick: () => save(cur) }, dirty ? "Gem ændringer" : "Gemt") : null,
+      state.user ? h("button", { class: "btn", onclick: () => save(null), title: "Gemmes kun for dig",
+        html: `${icon("plus")} ${cur?.official && !cur.editable ? "Gem som mit eget" : "Gem som nyt preset"}` })
+        : h("a", { class: "btn", href: "#/login?next=" + encodeURIComponent(location.hash) }, "Log ind for at gemme dine egne"),
+      isEditor() ? h("button", { class: "btn ghost", onclick: () => save(null, true), title: "Synligt for alle brugere" }, "Gem som officielt") : null,
+      cur?.editable ? h("button", { class: "btn ghost", onclick: () => rename(cur), html: icon("edit"), "aria-label": "Omdøb" }) : null,
+      cur?.editable ? h("button", { class: "btn ghost danger", onclick: () => remove(cur), html: icon("trash"), "aria-label": "Slet" }) : null,
       dirty && cur ? h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Ændret") : null);
   }
   function loadPreset(id) {
@@ -156,26 +168,28 @@ export async function render(view) {
     mixer.apply(cfg);
     drawPresetBar(); drawTarget(); drawSpecies();
   }
-  async function save(p) {
-    const name = p ? p.name : prompt("Navn på preset", "Ny mobgang");
+  const sortPresets = (list) => list.sort((a, b) => (b.official - a.official) || a.name.localeCompare(b.name, "da"));
+  async function save(p, official = false) {
+    const name = p ? p.name : prompt(official ? "Navn på officielt preset (synligt for alle)" : "Navn på dit preset (kun for dig)", "Ny mobgang");
     if (!name?.trim()) return;
     try {
-      const saved = await api(p ? `/api/mobgang/presets/${p.id}` : "/api/mobgang/presets", { method: p ? "PUT" : "POST", body: { name, config: cfg } });
-      presets = [...presets.filter(x => x.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name, "da"));
+      const saved = await api(p ? `/api/mobgang/presets/${p.id}` : "/api/mobgang/presets",
+        { method: p ? "PUT" : "POST", body: { name, config: cfg, official: p ? p.official : official } });
+      presets = sortPresets([...presets.filter(x => x.id !== saved.id), saved]);
       current = saved.id; dirty = false; setParams({ preset: saved.id });
-      toast("Presettet er gemt"); drawPresetBar();
+      toast(saved.official ? "Det officielle preset er gemt" : "Presettet er gemt – kun du kan se det"); drawPresetBar();
     } catch (err) { toast(err.message, "err"); }
   }
   async function rename(p) {
     const name = prompt("Nyt navn", p.name);
     if (!name?.trim() || name === p.name) return;
     try {
-      const saved = await api(`/api/mobgang/presets/${p.id}`, { method: "PUT", body: { name, config: p.config } });
+      const saved = await api(`/api/mobgang/presets/${p.id}`, { method: "PUT", body: { name, config: p.config, official: p.official } });
       presets = presets.map(x => x.id === saved.id ? saved : x); drawPresetBar();
     } catch (err) { toast(err.message, "err"); }
   }
   async function remove(p) {
-    if (!confirm(`Slet presettet '${p.name}'?`)) return;
+    if (!confirm(p.official ? `Slet det officielle preset '${p.name}' for alle brugere?` : `Slet presettet '${p.name}'?`)) return;
     try {
       await api(`/api/mobgang/presets/${p.id}`, { method: "DELETE" });
       presets = presets.filter(x => x.id !== p.id); current = null; dirty = true; setParams({ preset: "" }); drawPresetBar();

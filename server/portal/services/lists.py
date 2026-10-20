@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import cached, version
 from portal.models import Setting
 from portal.services.areas import Scope, parse_scope
+from portal.services.categories import countable_sql
 
 
 @dataclass(frozen=True)
@@ -129,7 +130,7 @@ async def load_periods(session: AsyncSession, codes: list[str], nummer: int) -> 
 
 def _where(spec: ListSpec, prefix: str, windows: list[tuple[date, date]] | None = None) -> tuple[str, dict]:
     pred, params = spec.scope.predicate("o")
-    parts = [pred, "s.list_artnr IS NOT NULL", "NOT ls.excluded", "o.antal > 0"]
+    parts = [pred, "s.list_artnr IS NOT NULL", "NOT ls.excluded", "o.antal > 0", countable_sql()]
     if spec.year:
         parts.append("o.dato BETWEEN :y0 AND :y1")
         params.update({"y0": date(spec.year, 1, 1), "y1": date(spec.year, 12, 31)})

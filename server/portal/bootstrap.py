@@ -7,9 +7,11 @@ import logging
 from sqlalchemy import text
 
 from portal import models  # noqa: F401 – registrerer tabeller
+from portal.api.mobgang import seed_presets
 from portal.db import Base, SessionLocal, engine
 from portal.dof.reference import seed_reference
 from portal.services.auth import ensure_superadmin
+from portal.services.categories import seed_categories
 from portal.services.learning import seed_courses
 from portal.services.push import ensure_vapid
 
@@ -27,6 +29,8 @@ async def init_db() -> None:
         await s.execute(text("SELECT pg_advisory_lock(424243)"))
         try:
             await seed_reference(s)
+            await seed_categories(s)
+            await seed_presets(s)
             await ensure_superadmin(s)
             await seed_courses(s)
             await ensure_vapid(s)

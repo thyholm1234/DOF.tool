@@ -8,10 +8,10 @@ export async function render(view) {
   const role = state.user?.role;
   const isAdmin = ["admin", "superadmin"].includes(role);
   if (!state.user || !(isAdmin || isModerator())) { view.append(errorBox(new Error("Kræver moderator- eller administratorrettigheder"))); return; }
-  // Moderatorer ser kun moderation og portalens egne ture
+  // Moderatorer ser kun moderation, portalens egne ture og listekategorier
   const tabs = isAdmin
-    ? [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"], ["moderation", "Moderation"], ["ture", "Ture"], ["brugere", "Brugere"], ["arter", "Arter"], ["indhold", "Nyheder"]]
-    : [["moderation", "Moderation"], ["ture", "Ture"]];
+    ? [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"], ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["arter", "Arter"], ["indhold", "Nyheder"]]
+    : [["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"]];
   let tab = params().tab || tabs[0][0];
   if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
   const body = h("div", {});
@@ -31,7 +31,7 @@ export async function render(view) {
     data: () => dataPanel(body, "dof", (f) => every(f, 20000)),
     vejr: () => dataPanel(body, "weather", (f) => every(f, 5000)),
     aktivitet: () => activityPanel(body), support: () => supportPanel(body),
-    moderation: () => moderation(body), ture: () => portalEvents(body),
+    moderation: () => moderation(body), ture: () => portalEvents(body), kategorier: () => categoriesPanel(body),
     brugere: () => users(body), arter: () => species(body), indhold: () => content(body),
   }[t] || ops)();
   draw(tab);
@@ -437,6 +437,109 @@ async function portalEvents(body) {
   await load();
 }
 
+// ---------------------------------------------------------------- listekategorier (moderator og op)
+
+const COUNTABLE = ["A", "B", "C"];
+const katTag = (k, title) => h("span", { class: `tag ${COUNTABLE.includes(k) ? "plain" : "SUB"}`, title: title || (COUNTABLE.includes(k) ? "Krydsbar" : "Ikke krydsbar") }, `Kat. ${k}`);
+const SOURCE_TXT = { portal: "sat i portalen", dofbasen: "DOFbasen har [klammer] om navnet", standard: "standard" };
+
+async function categoriesPanel(body) {
+  const q = h("input", { type: "search", placeholder: "Søg art…", value: params().q || "" });
+  const list = h("div", { class: "stack", style: { maxHeight: "70vh", overflow: "auto" } });
+  const detail = h("div", { class: "stack" });
+  body.append(
+    h("p", { class: "muted", style: { marginTop: 0 } }, "Kun kategori A, B og C er krydsbare på årslisterne. En arts kategori kan skifte over tid (gyldig fra en dato), og en serie af observationer på én lokalitet kan overstyres – fx et godkendt A-fund af en D-art. Ændringer slettes aldrig; tidligere værdier ses i historikken."),
+    h("div", { class: "cat-layout" },
+      h("div", { class: "card stack" }, q, list), detail));
+  const loadList = async () => {
+    setParams({ q: q.value });
+    const rows = await api(`/api/categories/species?q=${encodeURIComponent(q.value)}`);
+    list.replaceChildren(
+      !q.value ? h("small", { class: "muted" }, "Arter der ikke er kategori A, eller som har overstyrede serier. Søg for at finde andre.") : null,
+      ...(rows.length ? rows.map(s => h("a", { href: "#", class: "row between", style: { gap: "6px" }, onclick: (e) => { e.preventDefault(); setParams({ art: s.artnr, y: s.kategori === "A" && !s.n_overrides ? new Date().getFullYear() : "" }); loadDetail(); } },
+        h("span", {}, s.navn, s.n_overrides ? h("small", { class: "muted" }, ` · ${s.n_overrides} serie${s.n_overrides === 1 ? "" : "r"}`) : null), katTag(s.kategori))) : [empty("Ingen arter")]));
+  };
+  const loadDetail = async () => {
+    const p = params();
+    if (!p.art) { detail.replaceChildren(h("div", { class: "card" }, empty("Vælg en art", "Søg til venstre"))); return; }
+    detail.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } }));
+    let d;
+    try { d = await api(`/api/categories/species/${p.art}${p.y ? `?year=${p.y}` : ""}`); } catch (err) { detail.replaceChildren(errorBox(err)); return; }
+    const reload = () => { loadDetail(); loadList(); };
+    const katSelect = (value, extra = []) => h("select", { style: { width: "auto" } }, ...extra, ...Object.entries(d.categories).map(([k, t]) => h("option", { value: k, selected: k === value }, `${k} – ${t}`)));
+    const who = (r) => [r.created_by && `af ${r.created_by}`, fmtDate(r.created_at)].filter(Boolean).join(" ");
+    const removed = (r) => r.removed_at ? h("small", { class: "muted" }, ` · fjernet ${fmtDate(r.removed_at)}${r.removed_by ? ` af ${r.removed_by}` : ""}`) : null;
+
+    // Artens kategori over tid
+    const kat = katSelect(d.current.kategori), from = h("input", { type: "date" }), note = h("input", { placeholder: "Note / kilde (valgfri)", maxlength: 1000 });
+    const active = d.periods.filter(r => !r.removed_at);
+    const periodRow = (r) => h("div", { class: `mod-item ${r.removed_at ? "hidden" : ""}` },
+      h("div", {}, katTag(r.kategori), " ", h("b", {}, r.valid_from ? `fra ${fmtDate(r.valid_from)}` : "altid"),
+        r.note ? h("div", { style: { fontSize: ".9rem" } }, r.note) : null, h("small", { class: "muted" }, who(r)), removed(r)),
+      r.removed_at ? null : h("button", { class: "btn sm ghost danger", onclick: async () => {
+        if (!confirm("Fjern kategorien? Den bevares i historikken.")) return;
+        await api(`/api/categories/periods/${r.id}`, { method: "DELETE" }); toast("Fjernet"); reload();
+      } }, "Fjern"));
+    const periodsCard = h("div", { class: "card stack" },
+      h("div", { class: "row between" }, h("h2", { style: { margin: 0 } }, d.navn, d.latin ? h("i", { class: "muted", style: { fontSize: "1rem", fontWeight: 400 } }, ` ${d.latin}`) : null),
+        h("span", {}, katTag(d.current.kategori), h("small", { class: "muted" }, ` i dag (${SOURCE_TXT[d.current.source]})`))),
+      h("h3", { style: { margin: 0 } }, "Artens kategori over tid"),
+      ...(active.length ? active.map(periodRow) : [h("p", { class: "muted", style: { margin: 0 } }, d.current.source === "dofbasen" ? "Ingen kategori sat i portalen – arten tæller ikke, fordi DOFbasen har [klammer] om navnet." : "Ingen kategori sat – arten er kategori A.")]),
+      h("form", { class: "row", onsubmit: async (e) => {
+        e.preventDefault();
+        try { await api(`/api/categories/species/${d.artnr}/periods`, { method: "POST", body: { kategori: kat.value, valid_from: from.value || null, note: note.value } }); toast("Gemt"); reload(); }
+        catch (err) { toast(err.message, "err"); }
+      } }, kat, h("label", { class: "row", style: { gap: "4px" } }, h("small", { class: "muted" }, "gyldig fra"), from), note, h("button", { class: "btn primary" }, "Tilføj")),
+      h("small", { class: "muted" }, "Uden dato gælder kategorien altid. Med dato gælder den fra datoen, indtil en senere kategori tager over – sådan registreres en art der skifter kategori."),
+      d.periods.some(r => r.removed_at) ? h("details", { class: "more" }, h("summary", {}, "Historik"), h("div", { class: "stack mt" }, ...d.periods.filter(r => r.removed_at).map(periodRow))) : null);
+
+    // Serier: lokalitet × art
+    const year = h("select", { style: { width: "auto" }, onchange: () => { setParams({ y: year.value }); loadDetail(); } },
+      h("option", { value: "" }, "Alle år"), ...d.years.map(y => h("option", { value: y, selected: String(y) === String(d.year) }, y)));
+    const setSeries = async (sr, k) => {
+      const n = prompt(`Sæt kategori ${k} for ${d.navn} på ${sr.lok || sr.loknr} ${fmtDate(sr.first)}–${fmtDate(sr.last)}.\nNote / kilde (fx DKU-godkendelse):`, "");
+      if (n === null) return false;
+      try {
+        await api("/api/categories/overrides", { method: "POST", body: { artnr: d.artnr, loknr: sr.loknr, date_from: sr.first, date_to: sr.last, kategori: k, note: n } });
+        toast("Gemt"); reload(); return true;
+      } catch (err) { toast(err.message, "err"); return false; }
+    };
+    const seriesCard = h("div", { class: "card stack" },
+      h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Serier (lokalitet × art)"), year),
+      h("small", { class: "muted" }, `Observationer på samme lokalitet hører til samme serie, indtil der går mere end ${d.gap_days} dage uden fund (som ved fund-aggregeringen). Viser højst 400, nyeste først.`),
+      d.series.length ? h("div", { class: "table-wrap", style: { maxHeight: "520px" } }, h("table", { class: "data stack-sm", style: { "--cols": 3 } },
+        h("thead", {}, h("tr", {}, h("th", {}, "Lokalitet"), h("th", {}, "Periode"), h("th", { class: "right" }, "Dage"), h("th", { class: "right" }, "Obs."), h("th", { class: "right" }, "Maks."), h("th", {}, "Observatører"), h("th", {}, "Kategori"))),
+        h("tbody", {}, ...d.series.map(sr => {
+          const sel = katSelect(null, [h("option", { value: "", selected: true }, "Sæt…")]);
+          sel.style.height = "30px";
+          sel.onchange = async () => { if (!await setSeries(sr, sel.value)) sel.value = ""; };
+          return h("tr", {},
+            h("td", {}, h("a", { href: `#/lok/${sr.loknr}` }, sr.lok || sr.loknr), sr.secret ? h("small", { class: "muted" }, " (hemmelig)") : null),
+            h("td", { "data-label": "Periode", class: "nowrap" }, sr.first === sr.last ? fmtDate(sr.first) : `${fmtDate(sr.first)} – ${fmtDate(sr.last)}`),
+            h("td", { class: "right num", "data-label": "Dage" }, sr.n_days), h("td", { class: "right num", "data-label": "Obs." }, sr.n_obs), h("td", { class: "right num", "data-label": "Maks." }, fmtN(sr.max_antal)),
+            h("td", { class: "muted", "data-label": "Observatører", style: { fontSize: ".85rem" } }, sr.observers.join(", ")),
+            h("td", { "data-label": "Kategori" }, h("span", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } }, ...sr.kategorier.map(k => katTag(k)), sel)));
+        })))) : empty("Ingen observationer", d.year ? `i ${d.year}` : null));
+
+    // Overstyrede serier
+    const ovRow = (v) => h("div", { class: `mod-item ${v.removed_at ? "hidden" : ""}` },
+      h("div", {}, katTag(v.kategori), " ", h("a", { href: `#/lok/${v.loknr}` }, v.lok || v.loknr), " ",
+        h("span", { class: "nowrap" }, v.date_from === v.date_to ? fmtDate(v.date_from) : `${fmtDate(v.date_from)} – ${fmtDate(v.date_to)}`),
+        v.note ? h("div", { style: { fontSize: ".9rem" } }, v.note) : null, h("small", { class: "muted" }, who(v)), removed(v)),
+      v.removed_at ? null : h("button", { class: "btn sm ghost danger", onclick: async () => {
+        if (!confirm("Fjern overstyringen? Serien får igen artens kategori. Overstyringen bevares i historikken.")) return;
+        await api(`/api/categories/overrides/${v.id}`, { method: "DELETE" }); toast("Fjernet"); reload();
+      } }, "Fjern"));
+    const ovActive = d.overrides.filter(v => !v.removed_at), ovOld = d.overrides.filter(v => v.removed_at);
+    const overridesCard = d.overrides.length ? h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "Overstyrede serier"),
+      ...(ovActive.length ? ovActive.map(ovRow) : [h("p", { class: "muted", style: { margin: 0 } }, "Ingen aktive overstyringer.")]),
+      ovOld.length ? h("details", { class: "more" }, h("summary", {}, `Historik (${ovOld.length})`), h("div", { class: "stack mt" }, ...ovOld.map(ovRow))) : null) : null;
+
+    detail.replaceChildren(periodsCard, overridesCard, seriesCard);
+  };
+  let t; q.oninput = () => { clearTimeout(t); t = setTimeout(loadList, 250); };
+  await Promise.all([loadList(), loadDetail()]);
+}
 
 // ---------------------------------------------------------------- datapaneler (DOFbasen og vejrarkiv)
 

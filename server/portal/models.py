@@ -48,6 +48,43 @@ class Species(Base):
     excluded: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class SpeciesCategory(Base):
+    """Listekategori (A–E) for en art fra en given dato. Kun A, B og C er krydsbare på årslister.
+    Rækker slettes aldrig – en fjernet kategori får removed_at, så historikken bevares."""
+
+    __tablename__ = "species_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    artnr: Mapped[int] = mapped_column(Integer, index=True)
+    kategori: Mapped[str] = mapped_column(String(1))
+    valid_from: Mapped[date | None] = mapped_column(Date)  # None = altid
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    removed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CategoryOverride(Base):
+    """Kategori for en serie af observationer af en art (listeart) på én lokalitet i et datointerval,
+    fx et godkendt kategori A-fund af en art der ellers er kategori D. Går forud for artens kategori."""
+
+    __tablename__ = "category_overrides"
+    __table_args__ = (Index("ix_catov_art_lok", "artnr", "loknr"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    artnr: Mapped[int] = mapped_column(Integer)
+    loknr: Mapped[int] = mapped_column(Integer)
+    date_from: Mapped[date] = mapped_column(Date)
+    date_to: Mapped[date] = mapped_column(Date)
+    kategori: Mapped[str] = mapped_column(String(1))
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    removed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Afdeling(Base):
     __tablename__ = "afdelinger"
 
@@ -409,12 +446,14 @@ class NewsPost(Base):
 
 
 class MobPreset(Base):
-    """Gemt opsætning i Mobgang-generatoren: arter til/fra, antal, styrke og targetart med boost."""
+    """Gemt opsætning i Mobgang-generatoren: arter til/fra, antal, styrke og targetart med boost.
+    Officielle presets ses af alle og vedligeholdes af redaktører; øvrige er private for brugeren."""
 
     __tablename__ = "mob_presets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    official: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     name: Mapped[str] = mapped_column(String(120))
     config: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -806,6 +845,20 @@ EXTRA_DDL = [
     " WHEN 'local' THEN 'SU,SUB,local' ELSE level END WHERE level IN ('SUB', 'bemaerk', 'local')",
     # Portalens egne ture får id'er langt fra dof.dk's event_id'er
     "CREATE SEQUENCE IF NOT EXISTS portal_event_seq START 900000000",
+    # Listekategori for en observation: serie-overstyring → artens kategori på datoen (underarten før listearten)
+    # → DOFbasens [klammer] om artsnavnet (ikke krydsbar) → A
+    """CREATE OR REPLACE FUNCTION bird_category(a integer, la integer, l integer, d date) RETURNS varchar
+    LANGUAGE sql STABLE AS $$
+      SELECT coalesce(
+        (SELECT kategori FROM category_overrides WHERE artnr = la AND loknr = l AND d BETWEEN date_from AND date_to
+           AND removed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1),
+        (SELECT kategori FROM species_categories WHERE artnr IN (a, la) AND removed_at IS NULL
+           AND coalesce(valid_from, '-infinity'::date) <= d ORDER BY (artnr = a) DESC, valid_from DESC NULLS LAST, id DESC LIMIT 1),
+        (SELECT 'D' FROM species WHERE artnr IN (a, la) AND navn LIKE '[%' LIMIT 1),
+        'A')
+    $$""",
+    "ALTER TABLE mob_presets ADD COLUMN IF NOT EXISTS official boolean NOT NULL DEFAULT false",
+    "ALTER TABLE mob_presets ALTER COLUMN user_id DROP NOT NULL",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"
     " + floor(ST_X(ST_Transform(geom, 25832)) / 10000)::int) WHERE cell10 IS NULL AND geom IS NOT NULL",
 ]
