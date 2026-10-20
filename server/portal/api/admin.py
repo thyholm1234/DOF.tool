@@ -134,7 +134,7 @@ async def clear_queue(user: User = Depends(perm_drift)):
 
 @router.post("/admin/worker/{cmd}")
 async def worker(cmd: str, body: dict | None = None, user: User = Depends(perm_drift)):
-    if cmd not in ("archive_import", "compute", "climate", "aggregates", "events", "regions", "location_years"):
+    if cmd not in ("archive_import", "compute", "climate", "aggregates", "events", "forecast", "regions", "location_years"):
         raise HTTPException(400)
     await worker_command(cmd, **(body or {}))
     return {"queued": cmd}

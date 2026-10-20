@@ -213,6 +213,8 @@ async def command_listener() -> None:
                 await run_safely("area_counts", area_counts(cmd["scope"]))
             elif name == "events":
                 await run_safely("events", dof_events.sync())
+            elif name == "forecast":
+                await run_safely("forecast", dmi.forecast())
             elif name == "regions":
                 await run_safely("regions", region_years(cmd.get("from_year")))
             elif name == "location_years":

@@ -183,7 +183,7 @@ async function archiveUpload(box) {
 
 // ---------------------------------------------------------------- worker-opgaver (status opdateres hvert 3. sekund)
 
-const RUNNABLE = ["compute", "archive_import", "aggregates", "climate", "events", "regions", "location_years"];
+const RUNNABLE = ["compute", "archive_import", "aggregates", "climate", "events", "forecast", "regions", "location_years"];
 const JOB_STATUS = { idle: ["plain", "ikke kørt"], queued: ["bemaerk", "i kø"], running: ["local", "kører"], done: ["plain", "ok"], error: ["SU", "fejl"], interrupted: ["SUB", "afbrudt"] };
 const jobTag = (status) => { const [k, l] = JOB_STATUS[status] || ["plain", status]; return h("span", { class: `tag ${k}` }, l); };
 const dur = (s) => s == null ? "–" : s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} t`;

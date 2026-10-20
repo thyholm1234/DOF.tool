@@ -1,7 +1,7 @@
 """Arter pr. år for hele landet, lokalafdelinger og kommuner.
 
 Forudberegnes i `region_year_species` (én række pr. region, år og listeart) med samme artsregler som
-årslisterne: underarter tæller som nominatarten, udelukkede arter og antal 0 tæller ikke.
+årslisterne: kun krydsbare observationer (kategori A–C), underarter tæller som nominatarten, udelukkede arter og antal 0 tæller ikke.
 Natligt genberegnes de seneste år; efter arkivimport fra det tidligste importerede år.
 """
 
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal import jobstatus
 from portal.cache import bump, cached, version
+from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.regions")
@@ -23,7 +24,7 @@ _BASE = """
     FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
     {join}
     WHERE o.dato >= :a AND o.dato < :b AND o.dato <= current_date AND o.antal > 0 AND NOT ls.excluded
-"""
+      AND """ + countable_sql()
 _LEVELS = {
     "dk": ("'dk'", "", ""),
     "afd": ("'afd:' || a", ", unnest(o.afdelinger) a", ""),
