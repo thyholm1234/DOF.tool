@@ -1,17 +1,18 @@
 // Mobgang-generator: blandede flokke af loopede optagelser, så man kan træne at høre en targetart i mængden.
 // Al lyd mixes i browseren med Web Audio. Presets: officielle (alle kan se, redaktører vedligeholder) og
 // brugerens egne private (/api/mobgang/presets).
-import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate } from "../core.js";
+import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can } from "../core.js";
 
 // Arter og optagelser (xeno-canto) kommer fra serveren (/api/mobgang/status), der også har hver arts lukkeperiode
 // i ynglesæsonen. Brugeren kan desuden tilføje egne xeno-canto-optagelser (cfg.custom), som gemmes i presettet og
 // hentes via serveren (/api/mobgang/xc/<nr>/audio). Flere individer af samme art skiftes mellem artens optagelser;
 // deler de samme optagelse, startes de OFFSET sekunder forskudt. start = tændt i en ny, tom opsætning.
 let SPECIES = [], GROUPS = [], SEASON = null;
-const EDITOR_ROLES = ["editor", "admin", "superadmin"];
 const OFFSET = 15;     // sekunder mellem start-positionen for individer der deler en optagelse
 const MAX_COUNT = 8;
 const MAX_CUSTOM = 12; // egne optagelser pr. opsætning
+const MAX_STEPS = 8;   // trin i en chase
+const STEP_FADE = 0.9; // tidskonstant (s) for overgangen mellem trin – ca. 3 s til fuld styrke
 const FADE = 0.015;    // kort fade i hver ende af filen, så loop-skiftet ikke klikker
 const db = (v) => Math.pow(10, v / 20);
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -36,16 +37,27 @@ const defaults = () => ({
   species: Object.fromEntries(SPECIES.map(s => [s.id, { on: !!s.start, count: 1, vol: 80 }])),
 });
 
-/** Udfylder manglende felter. Arter der er kommet til efter presettet blev gemt, starter slukket. */
+const clampSecs = (v) => Math.max(5, Math.min(900, Math.round(Number(v) || 60)));
+
+/** Udfylder manglende felter. Arter der er kommet til efter presettet blev gemt, starter slukket.
+ *  En chase har cfg.steps: hvert trin har sin egen sammensætning (species, target), et navn og en varighed. */
 function normalize(cfg) {
   const d = defaults();
-  const out = { ...d, ...cfg, custom: (cfg?.custom || []).slice(0, MAX_CUSTOM), species: { ...d.species } };
-  for (const t of tracks(out)) {
-    const base = d.species[t.id] || { on: true, count: 1, vol: 80 };
-    out.species[t.id] = { ...base, ...(cfg?.species && !t.custom ? { on: false } : {}), ...(cfg?.species?.[t.id] || {}) };
-    if (seasonOf(t).closed) out.species[t.id].on = false;  // lukket i ynglesæsonen: kan ikke tændes
-  }
-  if (!out.species[out.target]?.on) out.target = "";
+  const out = { ...d, ...cfg, custom: (cfg?.custom || []).slice(0, MAX_CUSTOM) };
+  const comp = (src) => {
+    const species = {};
+    for (const t of tracks(out)) {
+      const base = d.species[t.id] || { on: true, count: 1, vol: 80 };
+      species[t.id] = { ...base, ...(src?.species ? { on: false } : {}), ...(src?.species?.[t.id] || {}) };
+      if (seasonOf(t).closed) species[t.id].on = false;  // lukket i ynglesæsonen: kan ikke tændes
+    }
+    return { species, target: species[src?.target]?.on ? src.target : "" };
+  };
+  Object.assign(out, comp(cfg));
+  if (Array.isArray(cfg?.steps) && cfg.steps.length) {
+    out.steps = cfg.steps.slice(0, MAX_STEPS).map((st, i) => ({ name: String(st.name || `Trin ${i + 1}`).slice(0, 60), secs: clampSecs(st.secs), ...comp(st) }));
+  } else delete out.steps;
+  out.loop = cfg?.loop !== false;
   return out;
 }
 
@@ -95,8 +107,9 @@ class Mixer {
   loaded(t) { return t.recs.every(r => this.buffers[r.src]); }
   duration(t) { return this.buffers[t.recs[0].src]?.duration || 0; }
 
-  async start(cfg) {
-    await this.load(tracks(cfg).filter(t => cfg.species[t.id].on));
+  /** preload: spor der skal være hentet før start (en chase henter alle trins spor på forhånd). */
+  async start(cfg, preload = null) {
+    await this.load(preload || tracks(cfg).filter(t => cfg.species[t.id].on));
     await this.ctx.resume();
     this.playing = true;
     this.t0 = this.ctx.currentTime;
@@ -113,12 +126,15 @@ class Mixer {
 
   elapsed() { return this.playing ? this.ctx.currentTime - this.t0 : 0; }
 
-  /** Bringer lydgrafen i overensstemmelse med opsætningen: antal kilder pr. spor og alle lydstyrker. */
-  apply(cfg, instant = false) {
+  /** Bringer lydgrafen i overensstemmelse med opsætningen: antal kilder pr. spor og alle lydstyrker.
+   *  tc = tidskonstant for ændringerne (længere ved skift mellem trin i en chase). */
+  apply(cfg, instant = false, tc = 0.08) {
     this.cfg = cfg;
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    const ramp = (param, value) => instant ? param.setValueAtTime(value, now) : param.setTargetAtTime(value, now, 0.08);
+    const ramp = (param, value) => instant ? param.setValueAtTime(value, now) : param.setTargetAtTime(value, now, tc);
+    // Hvert individ har sin egen gain, så det kan fades ind og ud uden at påvirke artens øvrige individer
+    const fadeOut = (src) => { try { src.fade.gain.setTargetAtTime(0, now, tc); src.stop(now + Math.max(0.3, tc * 5)); } catch { /* allerede stoppet */ } };
     ramp(this.master.gain, (cfg.master / 100) ** 2);
     const missing = [], present = new Set();
     for (const t of tracks(cfg)) {
@@ -132,17 +148,19 @@ class Mixer {
         const k = ch.sources.length, n = t.recs.length;
         const buf = this.buffers[t.recs[k % n].src];
         const src = new AudioBufferSourceNode(this.ctx, { buffer: buf, loop: true });
-        src.connect(ch.gain);
+        src.fade = new GainNode(this.ctx, { gain: instant ? 1 : 0 });
+        src.connect(src.fade).connect(ch.gain);
+        if (!instant) src.fade.gain.setTargetAtTime(1, now, tc);
         src.start(now, (this.elapsed() + Math.floor(k / n) * OFFSET) % buf.duration);
         ch.sources.push(src);
       }
-      while (ch.sources.length > want) { const src = ch.sources.pop(); try { src.stop(now + 0.3); } catch { /* ignore */ } }
+      while (ch.sources.length > want) fadeOut(ch.sources.pop());
       const focus = cfg.target ? (cfg.target === t.id ? db(cfg.boost) : db(cfg.duck)) : 1;
       ramp(ch.gain.gain, want ? (sc.vol / 100) ** 2 * focus : 0);
     }
     // Fjernede egne optagelser stoppes
     for (const [id, ch] of Object.entries(this.chains)) if (!present.has(id)) {
-      for (const src of ch.sources) try { src.stop(now + 0.3); } catch { /* ignore */ }
+      ch.sources.forEach(fadeOut);
       ch.sources = [];
     }
     if (missing.length) this.load(missing).then(() => { if (this.playing) this.apply(this.cfg); this.onload?.(); })
@@ -188,7 +206,7 @@ function closedCard(season) {
 
 /** Kun admin: hver arts lukkeperiode og den samlede lukning af modulet (dag og måned, gentages hvert år). */
 function seasonEditor(st, onSaved) {
-  if (!["admin", "superadmin"].includes(state.user?.role)) return null;
+  if (!can("mobgang_season")) return null;
   const pick = (md) => {
     const [m, d] = md.split("-").map(Number);
     const day = h("select", { style: { width: "auto", height: "30px" } }, ...Array.from({ length: 31 }, (_, i) => h("option", { value: i + 1, selected: i + 1 === d }, i + 1)));
@@ -270,19 +288,43 @@ async function generator(view, st, rerender) {
   let current = null;   // valgt preset (id) – null = ikke gemt
   let dirty = false;
   let timer = null;
+  // Chase: sel er trinnet der vises og redigeres; under afspilning følger det det trin, der spiller
+  let sel = 0, stepStart = 0;
+  const comp = () => cfg.steps ? cfg.steps[sel] : cfg;
+  const comps = () => cfg.steps || [cfg];
+  const mixCfg = () => ({ ...cfg, species: comp().species, target: comp().target });
 
-  const changed = () => { dirty = true; mixer.apply(cfg); drawPresetBar(); };
+  const changed = () => { dirty = true; mixer.apply(mixCfg()); drawPresetBar(); drawChase(); };
+  const redraw = () => { drawChase(); drawTarget(); drawSpecies(); };
+  /** Skift til et trin (under afspilning med en blød overgang). */
+  const goStep = (i) => {
+    sel = i; stepStart = mixer.elapsed();
+    mixer.apply(mixCfg(), false, STEP_FADE);
+    redraw();
+  };
 
   // -------- afspilning
   const playBtn = h("button", { class: "btn primary", style: { minWidth: "130px" } });
   const clock = h("span", { class: "muted", style: { fontVariantNumeric: "tabular-nums" } }, "0:00");
   const drawPlay = () => { playBtn.innerHTML = mixer.playing ? `${icon("x")} Stop` : `${icon("play")} Afspil`; };
+  const tick = () => {
+    clock.textContent = mmss(mixer.elapsed());
+    if (!cfg.steps || !mixer.playing) return;
+    if (mixer.elapsed() - stepStart >= cfg.steps[sel].secs) {
+      // Sidste trin: forfra ved gentagelse, ellers bliver det sidste trin ved med at spille
+      if (sel + 1 < cfg.steps.length) goStep(sel + 1);
+      else if (cfg.loop && cfg.steps.length > 1) goStep(0);
+      else stepStart = Infinity;
+    }
+    drawProgress();
+  };
   playBtn.onclick = async () => {
-    if (mixer.playing) { mixer.stop(); clearInterval(timer); clock.textContent = "0:00"; drawPlay(); return; }
+    if (mixer.playing) { mixer.stop(); clearInterval(timer); clock.textContent = "0:00"; drawPlay(); drawChase(); return; }
     playBtn.disabled = true; playBtn.textContent = "Henter lyde…";
-    try { await mixer.start(cfg); } catch (err) { toast(err.message, "err"); }
-    playBtn.disabled = false; drawPlay(); drawSpecies();
-    timer = setInterval(() => { clock.textContent = mmss(mixer.elapsed()); }, 500);
+    const all = tracks(cfg).filter(t => comps().some(c => c.species[t.id]?.on));
+    try { await mixer.start(mixCfg(), all); stepStart = 0; } catch (err) { toast(err.message, "err"); }
+    playBtn.disabled = false; drawPlay(); redraw();
+    timer = setInterval(tick, 250);
   };
   drawPlay();
   const master = h("input", { type: "range", min: 0, max: 100, value: cfg.master, "aria-label": "Samlet lydstyrke", style: { width: "160px" },
@@ -290,7 +332,7 @@ async function generator(view, st, rerender) {
 
   // -------- presets
   const presetBar = h("div", { class: "row" });
-  const isEditor = () => EDITOR_ROLES.includes(state.user?.role);
+  const isEditor = () => can("mobgang_presets");
   function drawPresetBar() {
     const official = presets.filter(p => p.official), own = presets.filter(p => !p.official);
     const opt = (p) => h("option", { value: p.id, selected: p.id === current }, p.name);
@@ -314,11 +356,11 @@ async function generator(view, st, rerender) {
     const p = presets.find(x => String(x.id) === String(id));
     if (!p) return;
     if (dirty && !confirm("Kassér dine ændringer og indlæs presettet?")) { drawPresetBar(); return; }
-    current = p.id; cfg = normalize(p.config); dirty = false;
+    current = p.id; cfg = normalize(p.config); dirty = false; sel = 0; stepStart = mixer.elapsed();
     setParams({ preset: p.id });
     master.value = cfg.master;
-    mixer.apply(cfg);
-    drawPresetBar(); drawTarget(); drawSpecies();
+    mixer.apply(mixCfg(), false, STEP_FADE);
+    drawPresetBar(); redraw();
   }
   const sortPresets = (list) => list.sort((a, b) => (b.official - a.official) || a.name.localeCompare(b.name, "da"));
   async function save(p, official = false) {
@@ -348,24 +390,77 @@ async function generator(view, st, rerender) {
     } catch (err) { toast(err.message, "err"); }
   }
 
+  // -------- chase: sammensætningen skifter i trin
+  const chaseBox = h("div", { class: "card stack mt" });
+  const progress = h("div", {});
+  function drawProgress() {
+    if (!cfg.steps || !mixer.playing) { progress.replaceChildren(); return; }
+    const stp = cfg.steps[sel], el = Math.min(stp.secs, Math.max(0, mixer.elapsed() - stepStart));
+    progress.replaceChildren(h("div", { class: "row between", style: { fontSize: ".85rem" } },
+      h("span", {}, h("b", {}, `Trin ${sel + 1} af ${cfg.steps.length}`), ` · ${stp.name}`),
+      h("span", { class: "muted", style: { fontVariantNumeric: "tabular-nums" } }, stepStart === Infinity ? "sidste trin – fortsætter" : `${mmss(el)} / ${mmss(stp.secs)}`)),
+      h("div", { class: "progress" }, h("i", { style: { width: `${stepStart === Infinity ? 100 : Math.round(el / stp.secs * 100)}%` } })));
+  }
+  const clone = (c) => ({ species: JSON.parse(JSON.stringify(c.species)), target: c.target });
+  function drawChase() {
+    const on = !!cfg.steps;
+    const toggle = h("input", { type: "checkbox", checked: on, onchange: (e) => {
+      if (e.target.checked) { cfg.steps = [{ name: "Trin 1", secs: 60, ...clone(cfg) }]; sel = 0; }
+      else {
+        if (cfg.steps.length > 1 && !confirm("Slå chase fra? Kun det viste trin bevares.")) { e.target.checked = true; return; }
+        Object.assign(cfg, clone(comp())); delete cfg.steps; sel = 0;
+      }
+      stepStart = mixer.elapsed(); changed(); redraw();
+    } });
+    const head = h("label", { class: "check" }, toggle, h("span", {}, h("b", {}, "Chase"),
+      h("span", { class: "muted" }, " – sammensætningen skifter i trin, fx en mejseflok der kommer nærmere, og hvor targetarten først dukker op til sidst")));
+    if (!on) { chaseBox.replaceChildren(head); return; }
+    const steps = cfg.steps, cur = steps[sel];
+    const move = (d) => { const j = sel + d; [steps[sel], steps[j]] = [steps[j], steps[sel]]; sel = j; changed(); redraw(); };
+    const nOn = (c) => tracks(cfg).filter(t => c.species[t.id]?.on).reduce((a, t) => a + c.species[t.id].count, 0);
+    chaseBox.replaceChildren(head,
+      h("div", { class: "row", style: { gap: "6px" } }, ...steps.map((stp, i) => h("button", {
+        class: `btn sm ${i === sel ? "primary" : ""}`, title: `${nOn(stp)} individer${stp.target ? " · med target" : ""}`,
+        onclick: () => { if (mixer.playing) goStep(i); else { sel = i; redraw(); } },
+      }, `${i + 1}. ${stp.name}`, h("small", { style: { opacity: .75 } }, ` ${mmss(stp.secs)}`))),
+        steps.length < MAX_STEPS ? h("button", { class: "btn sm ghost", html: `${icon("plus")} Kopiér trin`, title: "Nyt trin efter det valgte, med samme sammensætning",
+          onclick: () => { steps.splice(sel + 1, 0, { name: `Trin ${steps.length + 1}`, secs: cur.secs, ...clone(cur) }); sel++; changed(); redraw(); } }) : null),
+      h("div", { class: "row" },
+        h("label", { class: "row", style: { gap: "6px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Navn"),
+          h("input", { value: cur.name, maxlength: 60, style: { width: "180px" }, onchange: (e) => { cur.name = e.target.value.trim() || `Trin ${sel + 1}`; changed(); } })),
+        h("label", { class: "row", style: { gap: "6px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Varighed (s)"),
+          h("input", { type: "number", min: 5, max: 900, step: 5, value: cur.secs, style: { width: "90px" }, onchange: (e) => { cur.secs = clampSecs(e.target.value); changed(); } })),
+        h("span", { style: { flex: 1 } }),
+        h("button", { class: "btn sm ghost", disabled: sel === 0, onclick: () => move(-1), "aria-label": "Flyt trinnet frem" }, "←"),
+        h("button", { class: "btn sm ghost", disabled: sel === steps.length - 1, onclick: () => move(1), "aria-label": "Flyt trinnet tilbage" }, "→"),
+        h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Slet trinnet", disabled: steps.length === 1,
+          onclick: () => { steps.splice(sel, 1); sel = Math.min(sel, steps.length - 1); stepStart = mixer.elapsed(); changed(); redraw(); } })),
+      h("label", { class: "check" }, h("input", { type: "checkbox", checked: cfg.loop, onchange: (e) => { cfg.loop = e.target.checked; changed(); } }),
+        "Start forfra efter sidste trin", h("span", { class: "muted" }, " – ellers fortsætter det sidste trin")),
+      progress,
+      h("small", { class: "muted" }, "Arter, antal, lydstyrke og target nedenfor gælder det valgte trin. Overgangen mellem trin tager et par sekunder. Klik på et trin under afspilning for at springe til det."));
+    drawProgress();
+  }
+
   // -------- targetart
   const targetBox = h("div", { class: "card stack" });
   function drawTarget() {
-    const active = tracks(cfg).filter(s => cfg.species[s.id].on);
+    const c = comp();
+    const active = tracks(cfg).filter(s => c.species[s.id].on);
     const slider = (key, min, max, label) => {
       const out = h("b", {}, `${cfg[key] > 0 ? "+" : ""}${cfg[key]} dB`);
       return h("label", { class: "field" }, h("span", {}, label, " · ", out),
-        h("input", { type: "range", min, max, step: 1, value: cfg[key], disabled: !cfg.target,
+        h("input", { type: "range", min, max, step: 1, value: cfg[key], disabled: !c.target,
           oninput: (e) => { cfg[key] = Number(e.target.value); out.textContent = `${cfg[key] > 0 ? "+" : ""}${cfg[key]} dB`; changed(); } }));
     };
     targetBox.replaceChildren(
       h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Targetart"),
-        h("select", { style: { width: "auto" }, onchange: (e) => { cfg.target = e.target.value; changed(); drawTarget(); drawSpecies(); } },
+        h("select", { style: { width: "auto" }, onchange: (e) => { c.target = e.target.value; changed(); drawTarget(); drawSpecies(); } },
           h("option", { value: "" }, "Ingen – alle lige højt"),
-          ...active.map(s => h("option", { value: s.id, selected: s.id === cfg.target }, s.navn)))),
+          ...active.map(s => h("option", { value: s.id, selected: s.id === c.target }, s.navn)))),
       h("div", { class: "form-grid two" }, slider("boost", 0, 18, "Boost af targetarten"), slider("duck", -24, 0, "Dæmpning af de andre")),
       h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } },
-        cfg.target ? "Skru gradvist ned for boostet og op for dæmpningen, efterhånden som du kan høre targetarten i flokken."
+        c.target ? "Skru gradvist ned for boostet og op for dæmpningen, efterhånden som du kan høre targetarten i flokken."
           : "Vælg en art for at løfte den frem i mixet og dæmpe resten."));
   }
 
@@ -373,11 +468,14 @@ async function generator(view, st, rerender) {
   const speciesBox = h("div", {});
   mixer.onload = () => drawSpecies();
   // Kan en egen optagelse ikke hentes (fx lukket siden opslaget), slukkes den igen
-  mixer.onerror = (list) => { for (const t of list) cfg.species[t.id].on = false; if (list.some(t => t.id === cfg.target)) cfg.target = ""; drawTarget(); drawSpecies(); };
+  mixer.onerror = (list) => {
+    for (const c of comps()) { for (const t of list) c.species[t.id].on = false; if (list.some(t => t.id === c.target)) c.target = ""; }
+    drawTarget(); drawSpecies();
+  };
   function drawSpecies() {
     const all = tracks(cfg);
     const section = (title, list, extra = null) => {
-      const n = list.filter(s => cfg.species[s.id].on).length;
+      const n = list.filter(s => comp().species[s.id].on).length;
       return h("div", { class: "mt" }, h("h3", {}, title, list.length ? h("small", { class: "muted", style: { fontWeight: 400 } }, ` · ${n} af ${list.length} tændt`) : null),
         extra, list.length ? h("div", { class: "grid-2" }, ...list.map(speciesCard)) : null);
     };
@@ -399,7 +497,8 @@ async function generator(view, st, rerender) {
         if (cfg.custom.some(c => c.xc === m.xc)) { toast(`XC${m.xc} er allerede med`); return; }
         cfg.custom.push({ xc: m.xc, en: m.en, latin: m.latin, navn: m.navn, artnr: m.artnr, sid: m.sid,
           recordist: m.recordist, license: m.license, license_url: m.license_url });
-        cfg.species[xcId(m.xc)] = { on: !m.season.closed, count: 1, vol: 80 };
+        // Tændes i det viste trin; i en chase slukket i de øvrige trin
+        for (const c of comps()) c.species[xcId(m.xc)] = { on: c === comp() && !m.season.closed, count: 1, vol: 80 };
         if (m.season.closed) toast(`${m.navn || m.en} er lukket i ynglesæsonen indtil ${fmtDate(m.season.opens, false)} – optagelsen er gemt, men slukket`);
         changed(); drawTarget(); drawSpecies();
       } catch (err) { toast(err.message, "err"); }
@@ -411,14 +510,14 @@ async function generator(view, st, rerender) {
   }
   function removeCustom(t) {
     cfg.custom = cfg.custom.filter(c => c !== t.custom);
-    delete cfg.species[t.id];
-    if (cfg.target === t.id) cfg.target = "";
+    for (const c of comps()) { delete c.species[t.id]; if (c.target === t.id) c.target = ""; }
     changed(); drawTarget(); drawSpecies();
   }
 
   function speciesCard(s) {
-    const sc = cfg.species[s.id];
-    const isTarget = cfg.target === s.id;
+    const c = comp();
+    const sc = c.species[s.id];
+    const isTarget = c.target === s.id;
     const dur = mixer.duration(s);
     const countEl = h("b", { style: { minWidth: "2ch", textAlign: "center", fontVariantNumeric: "tabular-nums" } }, sc.count);
     const setCount = (n) => { sc.count = Math.max(1, Math.min(MAX_COUNT, n)); changed(); drawSpecies(); };
@@ -428,14 +527,14 @@ async function generator(view, st, rerender) {
         h("label", { class: "check", style: { minWidth: 0 } },
           h("input", { type: "checkbox", checked: sc.on, disabled: closed, onchange: (e) => {
             sc.on = e.target.checked;
-            if (!sc.on && isTarget) cfg.target = "";
+            if (!sc.on && isTarget) c.target = "";
             changed(); drawTarget(); drawSpecies();
           } }),
           h("span", { style: { minWidth: 0 } }, h("b", {}, s.navn), h("div", { class: "muted", style: { fontSize: ".82rem", fontStyle: "italic" } }, s.latin))),
         s.custom ? h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Fjern optagelsen", title: "Fjern optagelsen", onclick: () => removeCustom(s) }) : null,
         closed ? h("span", { class: "tag SUB", title: `Lukket ${mdLabel(season.from)} – ${mdLabel(season.to)}` }, `Lukket til ${fmtDate(season.opens, false)}`)
           : isTarget ? h("span", { class: "tag portal" }, "Target")
-          : sc.on ? h("button", { class: "btn sm ghost", onclick: () => { cfg.target = s.id; changed(); drawTarget(); drawSpecies(); } }, "Gør til target") : null),
+          : sc.on ? h("button", { class: "btn sm ghost", onclick: () => { c.target = s.id; changed(); drawTarget(); drawSpecies(); } }, "Gør til target") : null),
       h("div", { class: "row between" },
         h("div", { class: "row", style: { gap: "6px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Individer"),
           h("button", { class: "btn sm", disabled: !sc.on || sc.count <= 1, onclick: () => setCount(sc.count - 1), "aria-label": "Færre" }, "−"),
@@ -464,6 +563,7 @@ async function generator(view, st, rerender) {
       h("div", { class: "row" }, playBtn, clock, h("span", { style: { flex: 1 } }),
         h("label", { class: "row", style: { gap: "8px" } }, h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Lydstyrke"), master)),
       presetBar),
+    chaseBox,
     h("div", { class: "mt" }, targetBox),
     h("h2", { class: "mt2" }, "Arter"),
     speciesBox,
@@ -472,7 +572,7 @@ async function generator(view, st, rerender) {
   try { presets = await api("/api/mobgang/presets"); } catch (err) { view.append(errorBox(err)); }
   const fromUrl = presets.find(p => String(p.id) === params().preset);
   if (fromUrl) loadPreset(fromUrl.id);
-  else { drawPresetBar(); drawTarget(); drawSpecies(); }
+  else { drawPresetBar(); redraw(); }
 
   return () => { clearInterval(timer); mixer.close(); };
 }

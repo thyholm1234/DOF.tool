@@ -1,21 +1,17 @@
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal, can, ADMIN_TABS, adminLink } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { conversation, KINDS } from "./support.js";
-import { eventForm, isModerator } from "./events.js";
+import { eventForm } from "./events.js";
 import { refreshUnread } from "../app.js";
 
 export async function render(view) {
-  const role = state.user?.role;
-  const isAdmin = ["admin", "superadmin"].includes(role);
-  if (!state.user || !(isAdmin || isModerator())) { view.append(errorBox(new Error("Kræver moderator- eller administratorrettigheder"))); return; }
-  // Moderatorer ser kun moderation, portalens egne ture og listekategorier
-  const tabs = isAdmin
-    ? [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"], ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["arter", "Arter"], ["indhold", "Nyheder"]]
-    : [["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"]];
+  // Fanerne følger brugerens moduler (rollens standard eller individuelle rettigheder)
+  const tabs = ADMIN_TABS.filter(([m]) => can(m));
+  if (!tabs.length) { view.append(errorBox(new Error("Du har ikke adgang til nogen admin-moduler"))); return; }
   let tab = params().tab || tabs[0][0];
   if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
   const body = h("div", {});
-  view.append(h("div", { class: "page-head" }, h("h1", {}, isAdmin ? "Administration" : "Moderation"), h("span", { class: "spacer" }),
+  view.append(h("div", { class: "page-head" }, h("h1", {}, adminLink().long), h("span", { class: "spacer" }),
     seg(tabs, tab, (v) => { setParams({ tab: v, t: "" }); body.replaceChildren(); stop(); draw(v); })), body);
   let timers = [];
   const stop = () => { timers.forEach(clearInterval); timers = []; };
@@ -231,24 +227,70 @@ async function jobsCard(box) {
 async function users(body) {
   const q = h("input", { type: "search", placeholder: "Søg obserkode/navn…", style: { maxWidth: "280px" } });
   const out = h("div", { class: "card table-wrap mt" });
-  body.append(q, out);
+  body.append(h("p", { class: "muted", style: { marginTop: 0 } }, "Rollen giver et standardsæt af admin-moduler. Under Rettigheder kan den enkelte bruger i stedet få præcis de moduler, der er krydset af."), q, out);
+  let meta;
+  try { meta = await api("/api/admin/modules"); } catch (err) { body.append(errorBox(err)); return; }
+  const isSuper = state.user.role === "superadmin";
+  const editable = (u) => u.id !== state.user.id && u.role !== "superadmin" && (isSuper || !["admin", "superadmin"].includes(u.role));
   const load = async () => {
     const rows = await api(`/api/admin/users?q=${encodeURIComponent(q.value)}`);
     out.replaceChildren(h("table", { class: "data stack-sm", style: { "--cols": 3 } },
-      h("thead", {}, h("tr", {}, h("th", {}, "Bruger"), h("th", {}, "Rolle"), h("th", {}, "Sidst set"), h("th", { class: "right" }, "Enheder/regler"), h("th", {}))),
+      h("thead", {}, h("tr", {}, h("th", {}, "Bruger"), h("th", {}, "Rolle"), h("th", {}, "Admin-moduler"), h("th", {}, "Sidst set"), h("th", { class: "right" }, "Enheder/regler"), h("th", {}))),
       h("tbody", {}, ...rows.map(u => h("tr", {},
         h("td", {}, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, u.obserkode, u.blocked ? " · spærret" : "")),
-        h("td", { class: "wide", "data-label": "Rolle" }, h("select", { style: { width: "auto", height: "32px" }, disabled: u.role === "superadmin" && state.user.role !== "superadmin", onchange: async (e) => {
-          try { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { role: e.target.value } }); toast("Rolle ændret"); } catch (err) { toast(err.message, "err"); load(); }
+        h("td", { class: "wide", "data-label": "Rolle" }, h("select", { style: { width: "auto", height: "32px" }, disabled: u.role === "superadmin" && !isSuper, onchange: async (e) => {
+          try { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { role: e.target.value } }); toast("Rolle ændret"); } catch (err) { toast(err.message, "err"); }
+          load();
         } }, ...["user", "moderator", "editor", "admin", "superadmin"].map(r => h("option", { selected: r === u.role }, r)))),
+        h("td", { "data-label": "Moduler" },
+          h("span", { title: u.modules.map(m => meta.modules[m]).join("\n") || "Ingen" },
+            u.role === "superadmin" ? "alle" : u.modules.length ? `${u.modules.length} af ${Object.keys(meta.modules).length}` : "ingen"),
+          u.permissions ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Individuelle rettigheder i stedet for rollens standard" }, "individuel") : null,
+          editable(u) ? h("button", { class: "btn sm ghost", style: { marginLeft: "6px" }, onclick: () => permissionsModal(u, meta, load) }, "Rettigheder") : null),
         h("td", { class: "muted", "data-label": "Sidst set" }, u.last_seen ? ago(u.last_seen) : "aldrig"),
         h("td", { class: "right num", "data-label": "Enh./regler" }, `${u.devices} / ${u.rules}`),
         h("td", { class: "right nowrap wide" }, u.role !== "superadmin" ? [
           h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { blocked: !u.blocked } }); load(); } }, u.blocked ? "Ophæv spærring" : "Spær"),
-          state.user.role === "superadmin" ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
+          isSuper ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
   };
   let t; q.oninput = () => { clearTimeout(t); t = setTimeout(load, 250); };
   await load();
+}
+
+/** Afkrydsningsliste over admin-moduler for én bruger. Moduler man ikke selv har, kan ikke ændres. */
+function permissionsModal(u, meta, onSaved) {
+  const roleDefault = new Set(meta.roles[u.role] || []);
+  const grantable = new Set(meta.grantable);
+  let custom = !!u.permissions;
+  const boxes = Object.fromEntries(Object.keys(meta.modules).map(m => [m, h("input", { type: "checkbox", checked: u.modules.includes(m) })]));
+  const list = h("div", { class: "stack", style: { gap: "6px" } });
+  const mode = h("input", { type: "checkbox", checked: custom });
+  const draw = () => {
+    for (const [m, b] of Object.entries(boxes)) {
+      if (!custom) b.checked = roleDefault.has(m);
+      b.disabled = !custom || !grantable.has(m);
+    }
+    list.replaceChildren(...Object.entries(meta.modules).map(([m, label]) => {
+      const [name, rest] = label.split(": ");
+      return h("label", { class: "check", style: { opacity: grantable.has(m) ? 1 : 0.6 }, title: grantable.has(m) ? "" : "Du har ikke selv adgang til modulet" },
+        boxes[m], h("span", {}, h("b", {}, name), rest ? h("span", { class: "muted" }, ` – ${rest}`) : null,
+          roleDefault.has(m) ? h("small", { class: "muted" }, ` · ${u.role}`) : null));
+    }));
+  };
+  mode.onchange = () => { custom = mode.checked; draw(); };
+  draw();
+  const dlg = modal(`Rettigheder: ${u.navn || u.obserkode}`, h("form", { class: "stack", onsubmit: async (e) => {
+    e.preventDefault();
+    const permissions = custom ? Object.keys(boxes).filter(m => boxes[m].checked) : null;
+    try {
+      await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { permissions } });
+      toast(custom ? "Rettighederne er gemt" : `Følger nu rollens standard (${u.role})`); dlg.close(); onSaved();
+    } catch (err) { toast(err.message, "err"); }
+  } },
+    h("label", { class: "check" }, mode, h("span", {}, h("b", {}, "Individuelle rettigheder"), h("span", { class: "muted" }, ` – ellers følger brugeren rollens standard (${u.role})`))),
+    list,
+    h("small", { class: "muted" }, "Rettighederne gælder både faner og funktioner (fx officielle Mobgang-presets og kurser i Læring). Individuelle rettigheder bevares, hvis rollen ændres."),
+    h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => dlg.close() }, "Annullér"))));
 }
 
 async function species(body) {
@@ -450,7 +492,8 @@ async function categoriesPanel(body) {
   body.append(
     h("p", { class: "muted", style: { marginTop: 0 } }, "Kun kategori A, B og C er krydsbare på årslisterne. En arts kategori kan skifte over tid (gyldig fra en dato), og en serie af observationer på én lokalitet kan overstyres – fx et godkendt A-fund af en D-art. Ændringer slettes aldrig; tidligere værdier ses i historikken."),
     h("div", { class: "cat-layout" },
-      h("div", { class: "card stack" }, q, list), detail));
+      h("div", { class: "card stack" }, h("div", { class: "row", style: { flexWrap: "nowrap" } }, q,
+        h("button", { class: "btn", html: `${icon("plus")} Opret art`, title: "Opret en art, der ikke findes i listen", onclick: () => newSpeciesForm(q.value, (artnr) => { q.value = ""; setParams({ art: artnr, y: "" }); loadList(); loadDetail(); }) })), list), detail));
   const loadList = async () => {
     setParams({ q: q.value });
     const rows = await api(`/api/categories/species?q=${encodeURIComponent(q.value)}`);
@@ -539,6 +582,35 @@ async function categoriesPanel(body) {
   };
   let t; q.oninput = () => { clearTimeout(t); t = setTimeout(loadList, 250); };
   await Promise.all([loadList(), loadDetail()]);
+}
+
+/** Opret en art med kategori (fx en undsluppen art, DOFbasen endnu ikke har på artslisten). */
+function newSpeciesForm(navn, onCreated) {
+  const f = {
+    navn: h("input", { required: true, minlength: 2, maxlength: 200, value: navn || "", placeholder: "Fx Rødhalset Gås eller [Mandarinand]" }),
+    latin: h("input", { maxlength: 200, placeholder: "Videnskabeligt navn (valgfrit)" }),
+    artnr: h("input", { type: "number", min: 1, max: 899999, placeholder: "DOFbasens artsnummer (valgfrit)" }),
+    kategori: h("select", {}, ...Object.entries({ A: "Vild fugl (krydsbar)", B: "Kun vild før 1950 (krydsbar)", C: "Indført, selvopretholdende (krydsbar)",
+      D: "Mulig vild – tvivl om oprindelse (ikke krydsbar)", E: "Undsluppet/udsat (ikke krydsbar)" }).map(([k, t]) => h("option", { value: k, selected: k === "E" }, `${k} – ${t}`))),
+    from: h("input", { type: "date" }),
+    note: h("input", { maxlength: 1000, placeholder: "Note / kilde (valgfri)" }),
+  };
+  const field = (label, el, help) => h("label", { class: "field" }, h("span", {}, label), el, help ? h("small", { class: "muted" }, help) : null);
+  const dlg = modal("Opret art", h("form", { class: "stack", onsubmit: async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api("/api/categories/species", { method: "POST", body: {
+        navn: f.navn.value, latin: f.latin.value || null, artnr: f.artnr.value ? Number(f.artnr.value) : null,
+        kategori: f.kategori.value, valid_from: f.from.value || null, note: f.note.value || null } });
+      toast("Arten er oprettet"); dlg.close(); onCreated(r.artnr);
+    } catch (err) { toast(err.message, "err"); }
+  } },
+    field("Navn", f.navn), field("Latin", f.latin),
+    field("Artsnummer i DOFbasen", f.artnr, "Med DOFbasens nummer kobles arten på observationerne, så snart de hentes. Uden nummer får arten et portalnummer og har ingen observationer."),
+    h("div", { class: "form-grid two" }, field("Kategori", f.kategori), field("Gyldig fra (valgfri)", f.from)),
+    field("Note", f.note),
+    h("div", { class: "row" }, h("button", { class: "btn primary" }, "Opret"), h("button", { type: "button", class: "btn ghost", onclick: () => dlg.close() }, "Annullér"))));
+  f.navn.focus();
 }
 
 // ---------------------------------------------------------------- datapaneler (DOFbasen og vejrarkiv)

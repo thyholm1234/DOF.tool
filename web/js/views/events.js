@@ -1,7 +1,7 @@
 // DOF's ture og aktiviteter (fra dof.dk), kodet med lokalafdeling, kommune og lokalitet.
-import { api, state, h, icon, fmtDate, params, setParams, loadRef, empty, errorBox, seg, store, toast, modal, todayISO, esc } from "../core.js";
+import { api, state, h, icon, fmtDate, params, setParams, loadRef, empty, errorBox, seg, store, toast, modal, todayISO, esc, can } from "../core.js";
 
-export const isModerator = () => !!state.user && ["moderator", "editor", "admin", "superadmin"].includes(state.user.role);
+export const isModerator = () => can("ture");
 import { baseMap, cssVar } from "../maps.js";
 
 const WEEKDAY = new Intl.DateTimeFormat("da-DK", { weekday: "long", day: "numeric", month: "long" });

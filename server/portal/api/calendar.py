@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import require_role, require_user
+from portal.api.deps import require_perm, require_user
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import CalendarVisit, DofEvent, SiteCalendar, User
@@ -19,7 +19,7 @@ from portal.services.alerts import deliver
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["calendar"])
-moderator = require_role("moderator")
+perm_ture = require_perm("ture")
 DOF_URL = "https://www.dof.dk/oplev-fuglene/ture-og-aktiviter?event_id={}"
 
 
@@ -128,7 +128,7 @@ async def event_types(user: User = Depends(require_user)):
 
 
 @router.post("/events")
-async def create_event(body: EventIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def create_event(body: EventIn, user: User = Depends(perm_ture), db: AsyncSession = Depends(get_session)):
     """Moderatorer kan oprette ture og begivenheder, der vises sammen med DOF's officielle ture."""
     new_id = (await db.execute(text("SELECT nextval('portal_event_seq')"))).scalar()
     e = DofEvent(id=new_id, source="portal", created_by=user.id, title=body.title, dato=body.dato, types=[])
@@ -140,7 +140,7 @@ async def create_event(body: EventIn, user: User = Depends(moderator), db: Async
 
 
 @router.put("/events/{event_id}")
-async def update_event(event_id: int, body: EventIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def update_event(event_id: int, body: EventIn, user: User = Depends(perm_ture), db: AsyncSession = Depends(get_session)):
     e = await _portal_event(db, event_id)
     await _save_event(db, e, body)
     await db.commit()
@@ -148,7 +148,7 @@ async def update_event(event_id: int, body: EventIn, user: User = Depends(modera
 
 
 @router.delete("/events/{event_id}")
-async def delete_event(event_id: int, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def delete_event(event_id: int, user: User = Depends(perm_ture), db: AsyncSession = Depends(get_session)):
     e = await _portal_event(db, event_id)
     await db.delete(e)
     await db.commit()

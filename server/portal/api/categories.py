@@ -9,15 +9,16 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import require_role
+from portal.api.deps import require_perm
 from portal.cache import bump
 from portal.db import get_session
 from portal.models import CategoryOverride, Species, SpeciesCategory, User
 from portal.services import activity, categories
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
-moderator = require_role("moderator")
+moderator = require_perm("kategorier")
 KAT = "^[A-E]$"
+PORTAL_ARTNR = 900000  # arter oprettet i portalen uden DOFbasen-artsnummer
 
 
 @router.get("/species")
@@ -71,6 +72,37 @@ async def species_detail(artnr: int, year: int | None = None, user: User = Depen
             "current": await categories.species_category(db, artnr), "categories": categories.CATEGORIES,
             "periods": [_row(r) for r in periods], "overrides": [_row(r) for r in overrides], "years": years,
             "year": year, "series": await categories.series(db, artnr, year), "gap_days": categories.SERIES_GAP_DAYS}
+
+
+class NewSpeciesIn(BaseModel):
+    navn: str = Field(min_length=2, max_length=200)
+    latin: str | None = Field(None, max_length=200)
+    artnr: int | None = Field(None, ge=1, lt=PORTAL_ARTNR)
+    kategori: str = Field(pattern=KAT)
+    valid_from: date | None = None
+    note: str | None = Field(None, max_length=1000)
+
+
+@router.post("/species")
+async def create_species(body: NewSpeciesIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    """Opret en art med kategori. Med DOFbasens artsnummer kobles den på observationerne, når de hentes (importen
+    beholder arten, referencedata retter navnet); uden får den et portalnummer og har ingen observationer."""
+    navn = body.navn.strip()
+    clash = (await db.execute(text("""
+        SELECT artnr, navn FROM species WHERE artnr = CAST(:a AS int) OR lower(trim(both '[]' from navn)) = lower(:n) LIMIT 1
+    """), {"a": body.artnr, "n": navn.strip("[]")})).first()
+    if clash:
+        raise HTTPException(409, f"Arten findes allerede: {clash[1]} (nr. {clash[0]})")
+    artnr = body.artnr or max(PORTAL_ARTNR, ((await db.execute(text("SELECT max(artnr) FROM species"))).scalar() or 0) + 1)
+    db.add(Species(artnr=artnr, navn=navn, latin=(body.latin or "").strip() or None, klass="Alm", art_type="art",
+                   list_artnr=artnr, excluded=False))
+    await db.flush()
+    db.add(SpeciesCategory(artnr=artnr, kategori=body.kategori, valid_from=body.valid_from, created_by=user.id,
+                           note=(body.note or "").strip() or ("Oprettet i portalen" if body.artnr else "Oprettet i portalen uden DOFbasen-artsnummer")))
+    await db.commit()
+    await bump("reference")
+    await _changed(user, {"created_species": artnr, "navn": navn, "kategori": body.kategori})
+    return {"artnr": artnr}
 
 
 class PeriodIn(BaseModel):

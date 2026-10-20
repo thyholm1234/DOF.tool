@@ -1,6 +1,18 @@
 // Fælles hjælpere: API, tilstand, DOM, formattering, ikoner, modaler og toasts.
 
 export const state = { user: null, afdelinger: [], kommuner: [], unread: 0 };
+/** Har den indloggede adgang til et admin-modul (rolle eller individuel rettighed, se /api/me). */
+export const can = (module) => !!state.user?.modules?.includes(module);
+// Admin-sidens faner i rækkefølge: [modul, fanetekst]
+export const ADMIN_TABS = [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"],
+  ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["arter", "Arter"], ["indhold", "Nyheder"]];
+/** Admin-menupunktet: "Moderation" for dem med kun moderatoropgaver, ellers "Admin". null = ingen faner. */
+export function adminLink() {
+  const tabs = ADMIN_TABS.filter(([m]) => can(m)).map(([m]) => m);
+  if (!tabs.length) return null;
+  const mod = tabs.every(m => ["moderation", "ture", "kategorier"].includes(m));
+  return { href: "#/admin", label: mod ? "Moderation" : "Admin", long: mod ? "Moderation" : "Administration" };
+}
 
 // append/replaceChildren ignorerer null/undefined/false, så betingede børn kan skrives som `x ? el : null`
 for (const name of ["append", "replaceChildren", "prepend"]) {

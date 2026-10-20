@@ -29,7 +29,7 @@ class LoginIn(BaseModel):
 
 def user_out(user: User) -> dict:
     return {"id": user.id, "obserkode": user.obserkode, "navn": user.navn, "role": user.role,
-            "prefs": user.prefs or {}, "history_synced_at": user.history_synced_at}
+            "modules": sorted(auth.modules(user)), "prefs": user.prefs or {}, "history_synced_at": user.history_synced_at}
 
 
 @router.post("/auth/login")

@@ -1,7 +1,7 @@
-import { api, state, h, icon, empty, errorBox, modal, toast, loadRef, compressImage } from "../core.js";
+import { api, state, h, icon, empty, errorBox, modal, toast, loadRef, compressImage, can } from "../core.js";
 
 const TOPIC = { id: "Artsbestemmelse", kald: "Kald og stemmer", saeson: "Årstid og træk", andet: "Andet" };
-const isEditor = () => state.user && ["editor", "admin", "superadmin"].includes(state.user.role);
+const isEditor = () => can("laering");
 
 export async function render(view, [sub]) {
   if (!sub) return overview(view);

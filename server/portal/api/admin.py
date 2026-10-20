@@ -14,7 +14,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal import jobstatus
-from portal.api.deps import require_role
+from portal.api.deps import require_perm, require_role, require_user
 from portal.cache import bump, kv, worker_command
 from portal.config import get_settings
 from portal.db import get_session
@@ -22,18 +22,23 @@ from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Setting, Species, SupportMessage, SupportThread, User
 from portal.services import activity, datasync, moderation, weather_archive
-from portal.services.auth import ROLES, role_at_least
+from portal.services.auth import MODULES, ROLE_MODULES, ROLES, can, modules
 
 router = APIRouter(prefix="/api", tags=["admin"])
-admin = require_role("admin")
 superadmin = require_role("superadmin")
-moderator = require_role("moderator")
+perm_arter = require_perm("arter")
+perm_brugere = require_perm("brugere")
+perm_data = require_perm("data")
+perm_drift = require_perm("drift")
+perm_indhold = require_perm("indhold")
+perm_moderation = require_perm("moderation")
+perm_vejr = require_perm("vejr")
 
 SETTINGS = {"live_enabled": True, "matrikel_tag": "#BB", "welcome": ""}
 
 
 @router.get("/admin/overview")
-async def overview(user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def overview(user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
     counts = (await db.execute(text("""
         SELECT (SELECT count(*) FROM users) AS users,
                (SELECT count(*) FROM push_subscriptions) AS devices,
@@ -71,7 +76,7 @@ async def public_settings(db: AsyncSession = Depends(get_session)):
 
 
 @router.put("/admin/settings")
-async def put_settings(body: dict[str, Any], user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def put_settings(body: dict[str, Any], user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
     for k, v in body.items():
         if k not in SETTINGS:
             raise HTTPException(400, f"Ukendt indstilling {k}")
@@ -92,7 +97,7 @@ class EnqueueIn(BaseModel):
 
 
 @router.post("/admin/gateway/enqueue")
-async def enqueue(body: EnqueueIn, user: User = Depends(admin)):
+async def enqueue(body: EnqueueIn, user: User = Depends(perm_drift)):
     from portal.dof.jobs import enqueue_day, enqueue_month, enqueue_reference_refresh
 
     if body.kind == "reference":
@@ -111,18 +116,18 @@ async def enqueue(body: EnqueueIn, user: User = Depends(admin)):
 
 
 @router.delete("/admin/gateway/jobs/{job_id}")
-async def cancel_job(job_id: str, user: User = Depends(admin)):
+async def cancel_job(job_id: str, user: User = Depends(perm_drift)):
     await gateway.cancel(job_id)
     return {"ok": True}
 
 
 @router.delete("/admin/gateway/queue")
-async def clear_queue(user: User = Depends(admin)):
+async def clear_queue(user: User = Depends(perm_drift)):
     return {"removed": await gateway.clear()}
 
 
 @router.post("/admin/worker/{cmd}")
-async def worker(cmd: str, body: dict | None = None, user: User = Depends(admin)):
+async def worker(cmd: str, body: dict | None = None, user: User = Depends(perm_drift)):
     if cmd not in ("archive_import", "compute", "climate", "aggregates", "events", "regions"):
         raise HTTPException(400)
     await worker_command(cmd, **(body or {}))
@@ -133,7 +138,7 @@ async def worker(cmd: str, body: dict | None = None, user: User = Depends(admin)
 
 
 @router.get("/admin/archive/files")
-async def archive_list(user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def archive_list(user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
     upload_root = Path(get_settings().archive_upload_dir)
     imported = {r["name"]: r for r in (await db.execute(text("SELECT name, size, mtime, rows, imported_at FROM archive_files"))).mappings()}
     pending = {p.name for p in await pending_files()}
@@ -148,7 +153,7 @@ async def archive_list(user: User = Depends(admin), db: AsyncSession = Depends(g
 
 
 @router.post("/admin/archive/upload")
-async def archive_upload(file: UploadFile = File(...), mtime: float | None = Form(None), user: User = Depends(admin)):
+async def archive_upload(file: UploadFile = File(...), mtime: float | None = Form(None), user: User = Depends(perm_drift)):
     """Gem én månedsfil i upload-arkivet. Importen startes separat (worker: archive_import), når alle filer er sendt,
     og filen slettes, når den er i databasen."""
     name = Path(file.filename or "").name
@@ -181,7 +186,7 @@ async def archive_upload(file: UploadFile = File(...), mtime: float | None = For
 
 
 @router.delete("/admin/archive/upload/{name}")
-async def archive_upload_delete(name: str, user: User = Depends(admin)):
+async def archive_upload_delete(name: str, user: User = Depends(perm_drift)):
     """Fjern en uploadet fil, der endnu ikke er importeret."""
     if not FILE_RE.match(name):
         raise HTTPException(400)
@@ -193,24 +198,35 @@ async def archive_upload_delete(name: str, user: User = Depends(admin)):
 
 
 @router.get("/admin/jobs")
-async def jobs(user: User = Depends(admin)):
+async def jobs(user: User = Depends(perm_drift)):
     return await jobstatus.snapshot()
 
 
 @router.get("/admin/users")
-async def users(q: str = "", user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
-        SELECT u.id, u.obserkode, u.navn, u.role, u.blocked, u.created_at, u.last_seen, u.history_synced_at,
+        SELECT u.id, u.obserkode, u.navn, u.role, u.blocked, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
                (SELECT count(*) FROM push_subscriptions p WHERE p.user_id = u.id) AS devices,
                (SELECT count(*) FROM alert_rules r WHERE r.user_id = u.id) AS rules
         FROM users u WHERE (:q = '' OR u.obserkode ILIKE :like OR u.navn ILIKE :like)
         ORDER BY u.last_seen DESC NULLS LAST LIMIT 300
     """), {"q": q, "like": f"%{q}%"})).mappings().all()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        probe = User(role=r["role"], blocked=False, permissions=r["permissions"])
+        out.append({**dict(r), "modules": sorted(modules(probe))})
+    return out
+
+
+@router.get("/admin/modules")
+async def module_list(user: User = Depends(perm_brugere)):
+    """Modulerne til afkrydsningslisten, rollernes standard og hvad den indloggede selv må tildele."""
+    return {"modules": MODULES, "roles": {r: sorted(m) for r, m in ROLE_MODULES.items()},
+            "grantable": sorted(modules(user))}
 
 
 @router.patch("/admin/users/{user_id}")
-async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
     target = await db.get(User, user_id)
     if target is None:
         raise HTTPException(404)
@@ -222,7 +238,12 @@ async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(a
             raise HTTPException(403, "Kun superadmin kan ændre administratorer")
         if target.id == user.id and role != user.role:
             raise HTTPException(400, "Du kan ikke ændre din egen rolle")
+        before = modules(target)
         target.role = role
+        if user.role != "superadmin" and (before ^ modules(target)) - modules(user):
+            raise HTTPException(403, "Rollen giver eller fjerner moduler, du ikke selv har adgang til")
+    if "permissions" in body:
+        _set_permissions(user, target, body["permissions"])
     if "blocked" in body:
         if target.role == "superadmin":
             raise HTTPException(400)
@@ -238,6 +259,29 @@ async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(a
     return {"ok": True}
 
 
+def _set_permissions(user: User, target: User, value: Any) -> None:
+    """None = rollens standard; ellers en liste af moduler. Man kan kun give og fjerne moduler, man selv har."""
+    if target.id == user.id:
+        raise HTTPException(400, "Du kan ikke ændre dine egne rettigheder")
+    if target.role in ("admin", "superadmin") and user.role != "superadmin":
+        raise HTTPException(403, "Kun superadmin kan ændre administratorers rettigheder")
+    if target.role == "superadmin":
+        raise HTTPException(400, "Superadmin har altid alle moduler")
+    before = modules(target)
+    if value is None:
+        after = set(ROLE_MODULES.get(target.role, ()))
+    elif isinstance(value, list) and all(isinstance(v, str) for v in value):
+        unknown = set(value) - set(MODULES)
+        if unknown:
+            raise HTTPException(400, f"Ukendte moduler: {', '.join(sorted(unknown))}")
+        after = set(value)
+    else:
+        raise HTTPException(400, "Rettigheder skal være en liste af moduler eller null")
+    if user.role != "superadmin" and (before ^ after) - modules(user):
+        raise HTTPException(403, "Du kan kun give og fjerne moduler, du selv har adgang til")
+    target.permissions = None if value is None else sorted(after)
+
+
 @router.delete("/admin/users/{user_id}")
 async def delete_user(user_id: int, user: User = Depends(superadmin), db: AsyncSession = Depends(get_session)):
     target = await db.get(User, user_id)
@@ -250,7 +294,7 @@ async def delete_user(user_id: int, user: User = Depends(superadmin), db: AsyncS
 
 
 @router.get("/admin/species")
-async def species(q: str = "", user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def species(q: str = "", user: User = Depends(perm_arter), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
         SELECT s.artnr, s.navn, s.klass, s.art_type, s.list_artnr, s.excluded, ls.navn AS list_navn FROM species s
         LEFT JOIN species ls ON ls.artnr = s.list_artnr
@@ -260,7 +304,7 @@ async def species(q: str = "", user: User = Depends(admin), db: AsyncSession = D
 
 
 @router.patch("/admin/species/{artnr}")
-async def update_species(artnr: int, body: dict[str, Any], user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def update_species(artnr: int, body: dict[str, Any], user: User = Depends(perm_arter), db: AsyncSession = Depends(get_session)):
     sp = await db.get(Species, artnr)
     if sp is None:
         raise HTTPException(404)
@@ -277,7 +321,7 @@ async def update_species(artnr: int, body: dict[str, Any], user: User = Depends(
 
 
 @router.get("/admin/comments")
-async def comments(status: str = "alle", q: str = "", user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def comments(status: str = "alle", q: str = "", user: User = Depends(perm_moderation), db: AsyncSession = Depends(get_session)):
     """Kommentarer til moderation (moderator og op). status: alle / skjulte / synlige."""
     rows = (await db.execute(text("""
         SELECT c.id, c.dato, c.artnr, c.loknr, c.body, c.hidden, c.created_at, c.user_id, u.obserkode, u.navn, u.role,
@@ -294,7 +338,7 @@ async def comments(status: str = "alle", q: str = "", user: User = Depends(moder
 
 
 @router.patch("/admin/comments/{cid}")
-async def moderate(cid: int, body: dict, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def moderate(cid: int, body: dict, user: User = Depends(perm_moderation), db: AsyncSession = Depends(get_session)):
     hidden = bool(body.get("hidden"))
     row = (await db.execute(text("UPDATE thread_comments SET hidden = :h WHERE id = :id RETURNING dato, artnr, loknr"),
                             {"h": hidden, "id": cid})).first()
@@ -310,7 +354,7 @@ async def moderate(cid: int, body: dict, user: User = Depends(moderator), db: As
 
 
 @router.get("/admin/bans")
-async def bans(user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def bans(user: User = Depends(perm_moderation), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text(f"""
         SELECT b.user_id, b.reason, b.evidence, b.hide_comments, b.until, b.created_at, u.navn, u.obserkode,
                coalesce(m.navn, m.obserkode) AS by_navn, {moderation.ACTIVE} AS active,
@@ -330,14 +374,14 @@ class BanIn(BaseModel):
 
 
 @router.put("/admin/bans/{user_id}")
-async def ban(user_id: int, body: BanIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def ban(user_id: int, body: BanIn, user: User = Depends(perm_moderation), db: AsyncSession = Depends(get_session)):
     target = await db.get(User, user_id)
     if target is None:
         raise HTTPException(404, "Brugeren findes ikke")
     if target.id == user.id:
         raise HTTPException(400, "Du kan ikke udelukke dig selv")
-    if role_at_least(target, "moderator") and not role_at_least(user, "admin"):
-        raise HTTPException(403, "Kun administratorer kan udelukke moderatorer")
+    if modules(target) and not can(user, "brugere"):  # personale udelukkes kun af dem, der styrer brugere
+        raise HTTPException(403, "Kun dem med adgang til Brugere kan udelukke andre med admin-adgang")
     evidence = None
     if body.comment_id:
         evidence = (await db.execute(text("SELECT body FROM thread_comments WHERE id = :c AND user_id = :u"),
@@ -360,7 +404,7 @@ async def ban(user_id: int, body: BanIn, user: User = Depends(moderator), db: As
 
 
 @router.delete("/admin/bans/{user_id}")
-async def unban(user_id: int, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def unban(user_id: int, user: User = Depends(perm_moderation), db: AsyncSession = Depends(get_session)):
     b = await db.get(CommentBan, user_id)
     if b is None:
         raise HTTPException(404)
@@ -381,7 +425,7 @@ class ModMessageIn(BaseModel):
 
 
 @router.post("/admin/users/{user_id}/message")
-async def message_user(user_id: int, body: ModMessageIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+async def message_user(user_id: int, body: ModMessageIn, user: User = Depends(perm_moderation), db: AsyncSession = Depends(get_session)):
     """Start en samtale med en bruger. Den ligger i brugerens 'Feedback og support', og svar ses af alle moderatorer."""
     from portal.api.social import _notify
     target = await db.get(User, user_id)
@@ -421,7 +465,7 @@ async def news(limit: int = Query(10, le=50), db: AsyncSession = Depends(get_ses
 
 
 @router.post("/admin/news")
-async def create_news(body: NewsIn, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def create_news(body: NewsIn, user: User = Depends(perm_indhold), db: AsyncSession = Depends(get_session)):
     n = NewsPost(author_id=user.id, **body.model_dump())
     db.add(n)
     await db.commit()
@@ -429,7 +473,7 @@ async def create_news(body: NewsIn, user: User = Depends(admin), db: AsyncSessio
 
 
 @router.delete("/admin/news/{nid}")
-async def delete_news(nid: int, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def delete_news(nid: int, user: User = Depends(perm_indhold), db: AsyncSession = Depends(get_session)):
     await db.execute(delete(NewsPost).where(NewsPost.id == nid))
     await db.commit()
     return {"ok": True}
@@ -458,17 +502,24 @@ async def _panel(db: AsyncSession, source: str) -> dict:
                               "per_day": datasync.calls_per_day(source, plan["tiers"])})
 
 
-@router.get("/admin/data/{source}")
-async def data_panel(source: str, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+def _source_perm(source: str, user: User) -> None:
+    """Datapanelerne deles mellem DOFbasen (modulet data) og vejrarkivet (modulet vejr)."""
     if source not in ("dof", "weather"):
         raise HTTPException(404)
+    module = "data" if source == "dof" else "vejr"
+    if not can(user, module):
+        raise HTTPException(403, f"Kræver adgang til {MODULES[module].split(':')[0]}")
+
+
+@router.get("/admin/data/{source}")
+async def data_panel(source: str, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    _source_perm(source, user)
     return await _panel(db, source)
 
 
 @router.put("/admin/data/{source}/plan")
-async def save_plan(source: str, body: PlanIn, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
-    if source not in ("dof", "weather"):
-        raise HTTPException(404)
+async def save_plan(source: str, body: PlanIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    _source_perm(source, user)
     try:
         await datasync.save_plan(db, source, body.model_dump(exclude_none=True))
     except ValueError as exc:
@@ -477,8 +528,9 @@ async def save_plan(source: str, body: PlanIn, user: User = Depends(admin), db: 
 
 
 @router.post("/admin/data/{source}/run/{tier}")
-async def run_tier(source: str, tier: str, user: User = Depends(admin)):
-    if source not in ("dof", "weather") or tier not in dict(datasync.TIERS) or (source == "dof" and tier == "today"):
+async def run_tier(source: str, tier: str, user: User = Depends(require_user)):
+    _source_perm(source, user)
+    if tier not in dict(datasync.TIERS) or (source == "dof" and tier == "today"):
         raise HTTPException(400, "Ukendt vindue")
     await worker_command("run_plan", source=source, tier=tier)
     return {"queued": True}
@@ -490,15 +542,16 @@ class MonthIn(BaseModel):
 
 
 @router.post("/admin/data/dof/month")
-async def dof_month(body: MonthIn, user: User = Depends(admin)):
+async def dof_month(body: MonthIn, user: User = Depends(perm_data)):
     from portal.dof.jobs import enqueue_month
 
     return {"job": await enqueue_month(body.year, body.month, gateway.NORMAL)}
 
 
 @router.delete("/admin/data/{source}/month/{year}/{month}")
-async def delete_month(source: str, year: int, month: int, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
-    if source not in ("dof", "weather") or not 1 <= month <= 12:
+async def delete_month(source: str, year: int, month: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    _source_perm(source, user)
+    if not 1 <= month <= 12:
         raise HTTPException(404)
     try:
         n = await (datasync if source == "dof" else weather_archive).delete_month(db, year, month)
@@ -514,10 +567,10 @@ class WeatherMonthsIn(BaseModel):
 
 
 @router.post("/admin/data/weather/months")
-async def weather_months(body: WeatherMonthsIn, user: User = Depends(admin)):
+async def weather_months(body: WeatherMonthsIn, user: User = Depends(perm_vejr)):
     return {"queued": await weather_archive.enqueue(body.months, only_missing=body.only_missing)}
 
 
 @router.delete("/admin/data/weather/queue")
-async def weather_clear(user: User = Depends(admin)):
+async def weather_clear(user: User = Depends(perm_vejr)):
     return {"removed": await weather_archive.clear_queue()}

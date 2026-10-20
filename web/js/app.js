@@ -1,4 +1,4 @@
-import { api, state, h, $, icon, toast, ago, trackView } from "./core.js";
+import { api, state, h, $, icon, toast, ago, trackView, adminLink } from "./core.js";
 import { live } from "./live.js";
 
 // Build-id fra den versionerede sti (/v/<build>/js/app.js) – vises i brugermenuen
@@ -64,10 +64,8 @@ function renderNav() {
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: current === "#/profil" ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
-    if (["admin", "superadmin"].includes(state.user.role))
-      side.push(h("a", { href: "#/admin", class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>Admin${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
-    else if (["moderator", "editor"].includes(state.user.role))
-      side.push(h("a", { href: "#/admin?tab=moderation", class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>Moderation${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
+    const adm = adminLink();
+    if (adm) side.push(h("a", { href: adm.href, class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>${adm.label}${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
 }
@@ -86,8 +84,7 @@ function openMore() {
       h("div", { class: "more-h" }, "Konto"),
       h("div", { class: "more-grid" },
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
-        u && ["admin", "superadmin"].includes(u.role) ? tile("#/admin", "shield", "Admin", state.adminSupportUnread)
-          : u && ["moderator", "editor"].includes(u.role) ? tile("#/admin?tab=moderation", "shield", "Moderation", state.adminSupportUnread) : null),
+        u && adminLink() ? tile(adminLink().href, "shield", adminLink().label, state.adminSupportUnread) : null),
       h("button", { class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
   document.body.append(sheet);
 }
@@ -138,8 +135,7 @@ function openMenu() {
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
-    ["moderator", "editor"].includes(u.role) ? h("a", { href: "#/admin?tab=moderation", onclick: close, html: `${icon("shield")} Moderation` }) : null,
-    ["admin", "superadmin"].includes(u.role) ? h("a", { href: "#/admin", onclick: close, html: `${icon("shield")} Administration` }) : null,
+    adminLink() ? h("a", { href: adminLink().href, onclick: close, html: `${icon("shield")} ${adminLink().long}` }) : null,
     h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; renderUser(); renderNav(); live.stop(); location.hash = "#/login"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
   document.body.append(menu);

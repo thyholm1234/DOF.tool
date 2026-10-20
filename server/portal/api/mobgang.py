@@ -1,6 +1,7 @@
 """Mobgang-generator: officielle og private presets (selve lydmiksningen sker i browseren).
 
-Officielle presets ses af alle og vedligeholdes af redaktører og op; private presets ses kun af brugeren selv.
+Officielle presets ses af alle og vedligeholdes af dem med modulet mobgang_presets (redaktører og op som standard);
+private presets ses kun af brugeren selv.
 Modulet er lukket i ynglesæsonen (perioden redigeres af admin), og brugeren skal bestå en kort etiktest hver
 3. måned. Begge dele håndhæves også for selve lydfilerne (se audio_allowed og middlewaren i main.py)."""
 
@@ -21,29 +22,29 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import optional_user, require_role, require_user
+from portal.api.deps import optional_user, require_perm, require_user
 from portal.cache import get_json, kv, set_json
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import MobPreset, Setting, User
-from portal.services.auth import role_at_least
+from portal.services.auth import can
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.mobgang")
 router = APIRouter(prefix="/api/mobgang", tags=["mobgang"])
 
 MAX_PRESETS = 100
-OFFICIAL_ROLE = "editor"
+OFFICIAL_MODULE = "mobgang_presets"
 
 # ---------------------------------------------------------------- arter og optagelser
 # Optagelser fra xeno-canto (XC-nummer, fil i web/audio/mobgang). Kataloget sendes til browseren med /status og
 # bruges af middlewaren til at spærre den enkelte arts lydfiler. start = tændt i en ny, tom opsætning.
 
 GROUPS = [("drosler", "Drosler, nattergale og stjerter"), ("sangere", "Sangere og løvsangere"),
-          ("fluesnappere", "Fluesnappere"), ("andre", "Fuglekonger, mejser og krager")]
+          ("fluesnappere", "Fluesnappere"), ("vaerlinger", "Værlinger og finker"), ("andre", "Fuglekonger, mejser og krager")]
 
 
-def _sp(id_: str, artnr: int, navn: str, latin: str, group: str, *recs: tuple[int, str], start: bool = False) -> dict:
+def _sp(id_: str, artnr: int | None, navn: str, latin: str, group: str, *recs: tuple[int, str], start: bool = False) -> dict:
     return {"id": id_, "artnr": artnr, "navn": navn, "latin": latin, "group": group, "start": start,
             "recs": [{"xc": xc, "file": f} for xc, f in recs]}
 
@@ -52,18 +53,28 @@ SPECIES = [
     _sp("solsort", 11870, "Solsort", "Turdus merula", "drosler", (988584, "solsort-XC988584.mp3"), start=True),
     _sp("sangdrossel", 12000, "Sangdrossel", "Turdus philomelos", "drosler", (747444, "sangdrossel-XC747444.mp3")),
     _sp("vindrossel", 12010, "Vindrossel", "Turdus iliacus", "drosler", (663553, "vindrossel-XC663553.mp3"), start=True),
+    _sp("ringdrossel", 11860, "Ringdrossel", "Turdus torquatus", "drosler", (1075168, "ringdrossel-XC1075168.mp3")),
     _sp("stendrossel", 11620, "Stendrossel", "Monticola saxatilis", "drosler", (296007, "stendrossel-XC296007.mp3")),
     _sp("nattergal", 11030, "Nattergal", "Luscinia luscinia", "drosler", (916831, "nattergal-XC916831.mp3")),
     _sp("blaahals", 11060, "Blåhals", "Luscinia svecica", "drosler", (1039066, "blaahals-XC1039066.mp3")),
     _sp("blaastjert", 11130, "Blåstjert", "Tarsiger cyanurus", "drosler", (1168128, "blaastjert-XC1168128.mp3")),
     _sp("cettisanger", 12200, "Cettisanger", "Cettia cetti", "sangere", (1086047, "cettisanger-XC1086047.mp3")),
+    _sp("sivsanger", 12430, "Sivsanger", "Acrocephalus schoenobaenus", "sangere", (108276, "sivsanger-XC108276.mp3")),
+    _sp("buskroersanger", 12480, "Buskrørsanger", "Acrocephalus dumetorum", "sangere", (1005619, "buskroersanger-XC1005619.mp3")),
     _sp("gulbug", 12590, "Gulbug", "Hippolais icterina", "sangere", (1011627, "gulbug-XC1011627.mp3"), start=True),
+    _sp("iberisksanger", 12656, "Iberisk Sanger", "Curruca iberiae", "sangere", (1002087, "iberisk-sanger-XC1002087.mp3")),
     _sp("hoegesanger", 12730, "Høgesanger", "Curruca nisoria", "sangere", (575807, "hoegesanger-XC575807.mp3")),
     _sp("lundsanger", 12930, "Lundsanger", "Phylloscopus trochiloides", "sangere", (325508, "lundsanger-XC325508.mp3")),
+    _sp("nordsanger", 12950, "Nordsanger", "Phylloscopus borealis", "sangere", (1042932, "nordsanger-XC1042932.mp3")),
+    _sp("fuglekongesanger", 12980, "Fuglekongesanger", "Phylloscopus proregulus", "sangere", (758912, "fuglekongesanger-XC758912.mp3")),
     _sp("hvidbrynet", 13000, "Hvidbrynet Løvsanger", "Phylloscopus inornatus", "sangere",
-        (1147707, "hvidbrynet-loevsanger-XC1147707.mp3"), start=True),
+        (1067896, "hvidbrynet-loevsanger-XC1067896.mp3"), start=True),
+    _sp("himalayasanger", 13005, "Himalayasanger", "Phylloscopus humei", "sangere", (1054073, "himalayasanger-XC1054073.mp3")),
     _sp("schwarz", 13010, "Schwarz' Løvsanger", "Phylloscopus schwarzi", "sangere", (1147096, "schwarz-loevsanger-XC1147096.mp3")),
     _sp("brunloevsanger", 13030, "Brun Løvsanger", "Phylloscopus fuscatus", "sangere", (495372, "brun-loevsanger-XC495372.mp3")),
+    _sp("skovsanger", 13080, "Skovsanger", "Phylloscopus sibilatrix", "sangere", (997377, "skovsanger-XC997377.mp3")),
+    _sp("gransanger", 13110, "Gransanger", "Phylloscopus collybita", "sangere", (1173388, "gransanger-XC1173388.mp3")),
+    _sp("loevsanger", 13120, "Løvsanger", "Phylloscopus trochilus", "sangere", (1151364, "loevsanger-XC1151364.mp3")),
     _sp("graafluesnapper", 13350, "Grå Fluesnapper", "Muscicapa striata", "fluesnappere",
         (921935, "graa-fluesnapper-XC921935.mp3"), start=True),
     _sp("lillefluesnapper", 13430, "Lille Fluesnapper", "Ficedula parva", "fluesnappere", (1151994, "lille-fluesnapper-XC1151994.mp3")),
@@ -71,9 +82,15 @@ SPECIES = [
         (288094, "hvidhalset-fluesnapper-XC288094.mp3")),
     _sp("brogetfluesnapper", 13490, "Broget Fluesnapper", "Ficedula hypoleuca", "fluesnappere",
         (918321, "broget-fluesnapper-XC918321.mp3")),
+    _sp("karmindompap", 16790, "Karmindompap", "Carpodacus erythrinus", "vaerlinger", (67246, "karmindompap-XC67246.mp3")),
+    _sp("hortulan", 18660, "Hortulan", "Emberiza hortulana", "vaerlinger", (181443, "hortulan-XC181443.mp3")),
+    _sp("pilevaerling", 18730, "Pileværling", "Emberiza rustica", "vaerlinger", (812536, "pilevaerling-XC812536.mp3")),
+    _sp("dvaergvaerling", 18740, "Dværgværling", "Emberiza pusilla", "vaerlinger", (766258, "dvaergvaerling-XC766258.mp3")),
     _sp("roedtoppet", 13150, "Rødtoppet Fuglekonge", "Regulus ignicapilla", "andre",
         (1165095, "roedtoppet-fuglekonge-XC1165095.mp3"), (687689, "roedtoppet-fuglekonge-XC687689.mp3"), start=True),
     _sp("fyrremejse", 14420, "Fyrremejse", "Poecile montanus", "andre", (1047896, "fyrremejse-XC1047896.mp3"), start=True),
+    # Azurmejse findes ikke i DOFbasens artsliste – intet artsnummer
+    _sp("azurmejse", None, "Azurmejse", "Cyanistes cyanus", "andre", (813347, "azurmejse-XC813347.mp3")),
     _sp("noeddekrige", 15570, "Nøddekrige", "Nucifraga caryocatactes", "andre", (1082575, "noeddekrige-XC1082575.mp3")),
 ]
 SPECIES_IDS = [s["id"] for s in SPECIES]
@@ -152,7 +169,7 @@ class SeasonIn(PeriodIn):
 
 
 @router.put("/season")
-async def put_season(body: SeasonIn, user: User = Depends(require_role("admin")), db: AsyncSession = Depends(get_session)):
+async def put_season(body: SeasonIn, user: User = Depends(require_perm("mobgang_season")), db: AsyncSession = Depends(get_session)):
     unknown = set(body.species) - set(SPECIES_IDS)
     if unknown:
         raise HTTPException(400, f"Ukendte arter: {', '.join(sorted(unknown))}")
@@ -395,19 +412,20 @@ class PresetIn(BaseModel):
 
 
 def preset_out(p: MobPreset, user: User | None) -> dict:
-    editable = role_at_least(user, OFFICIAL_ROLE) if p.official else bool(user and p.user_id == user.id)
+    editable = can(user, OFFICIAL_MODULE) if p.official else bool(user and p.user_id == user.id)
     return {"id": p.id, "name": p.name, "config": p.config or {}, "official": p.official, "editable": editable,
             "updated_at": p.updated_at}
 
 
 def _check(config: dict) -> None:
-    if len(str(config)) > 8000:
+    # En chase gemmer en sammensætning pr. trin (højst 8)
+    if len(str(config)) > 60000 or len(config.get("steps") or []) > 8:
         raise HTTPException(400, "Opsætningen er for stor")
 
 
 def _may_official(user: User) -> None:
-    if not role_at_least(user, OFFICIAL_ROLE):
-        raise HTTPException(403, "Kun redaktører kan gemme officielle presets")
+    if not can(user, OFFICIAL_MODULE):
+        raise HTTPException(403, "Kræver adgang til Mobgang: officielle presets")
 
 
 async def _editable(db: AsyncSession, user: User, preset_id: int) -> MobPreset:
@@ -468,10 +486,26 @@ async def delete_preset(preset_id: int, user: User = Depends(require_user), db: 
 ALL = tuple(SPECIES_IDS)
 
 
+def _species(species: dict[str, int]) -> dict:
+    return {s: {"on": s in species, "count": species.get(s, 1), "vol": 80} for s in ALL}
+
+
 def _cfg(target: str = "", boost: int = 6, duck: int = -6, **species: int) -> dict:
     """species: art-id → antal individer (arter der ikke nævnes er slået fra)."""
-    return {"v": 1, "master": 80, "target": target, "boost": boost, "duck": duck,
-            "species": {s: {"on": s in species, "count": species.get(s, 1), "vol": 80} for s in ALL}}
+    return {"v": 1, "master": 80, "target": target, "boost": boost, "duck": duck, "species": _species(species)}
+
+
+def _chase(*steps: tuple[str, int, str, dict[str, int]], boost: int = 9, duck: int = -6, loop: bool = True) -> dict:
+    """Chase: trin (navn, sekunder, target, {art-id: antal}). Første trin er også opsætningen uden chase."""
+    first = steps[0]
+    return {**_cfg(first[2], boost, duck, **first[3]), "loop": loop,
+            "steps": [{"name": n, "secs": secs, "target": t, "species": _species(sp)} for n, secs, t, sp in steps]}
+
+
+def _sig(cfg: dict) -> tuple:
+    """Det hørbare indhold af en opsætning – til at se, om et officielt preset er uændret siden det blev oprettet."""
+    on = tuple(sorted((k, v.get("count", 1), v.get("vol", 80)) for k, v in (cfg.get("species") or {}).items() if v.get("on")))
+    return (cfg.get("target") or "", cfg.get("boost"), cfg.get("duck"), cfg.get("master"), on, bool(cfg.get("steps")))
 
 
 # Hver version oprettes én gang; nye arter får en ny version, så redaktørernes rettelser i de gamle bevares
@@ -501,16 +535,72 @@ SEED = {
         ("Sjældne drosler: Stendrossel", _cfg("stendrossel", 9, -6, stendrossel=1, solsort=1, sangdrossel=1, vindrossel=1)),
         ("Nåleskoven: Nøddekrige", _cfg("noeddekrige", 9, -6, noeddekrige=1, fyrremejse=2, roedtoppet=1, solsort=1)),
     ],
+    "mobgang_seed_v3": [
+        ("Sibiriske løvsangere: Fuglekongesanger", _cfg("fuglekongesanger", 9, -6, fuglekongesanger=1, hvidbrynet=1, gransanger=1,
+                                                        roedtoppet=2, fyrremejse=1)),
+        ("Sibiriske løvsangere: Himalayasanger blandt Hvidbrynede", _cfg("himalayasanger", 9, -9, himalayasanger=1, hvidbrynet=2,
+                                                                          gransanger=1, roedtoppet=1)),
+        ("Løvsangerflokken: Nordsanger", _cfg("nordsanger", 9, -6, nordsanger=1, loevsanger=2, gransanger=2, hvidbrynet=1)),
+        ("Bøgeskoven: Skovsanger", _cfg("skovsanger", 6, -6, skovsanger=1, loevsanger=1, gransanger=1, brogetfluesnapper=1, solsort=1)),
+        ("Krattet: Iberisk Sanger", _cfg("iberisksanger", 9, -6, iberisksanger=1, gulbug=1, loevsanger=1, gransanger=1)),
+        ("Krattet: Karmindompap", _cfg("karmindompap", 6, -6, karmindompap=1, gulbug=1, loevsanger=1, hoegesanger=1)),
+        ("Rørskoven: Buskrørsanger", _cfg("buskroersanger", 9, -6, buskroersanger=1, sivsanger=2, blaahals=1, nattergal=1)),
+        ("Rørskoven: Sivsanger", _cfg("sivsanger", 6, -6, sivsanger=1, buskroersanger=1, cettisanger=1, blaahals=1)),
+        ("Værlinger: Dværgværling", _cfg("dvaergvaerling", 9, -6, dvaergvaerling=1, pilevaerling=1, hortulan=1)),
+        ("Værlinger: Pileværling", _cfg("pilevaerling", 9, -6, pilevaerling=1, dvaergvaerling=1, hortulan=1)),
+        ("Marken: Hortulan", _cfg("hortulan", 6, -6, hortulan=1, karmindompap=1, solsort=1)),
+        ("Mejseflokken: Azurmejse", _cfg("azurmejse", 9, -6, azurmejse=1, fyrremejse=3, roedtoppet=1)),
+        ("Drosler: Ringdrossel", _cfg("ringdrossel", 9, -6, ringdrossel=1, solsort=2, sangdrossel=1, vindrossel=2)),
+        ("Chase: Mejseflokken kommer forbi", _chase(
+            ("Flokken nærmer sig", 45, "", {"fyrremejse": 3, "roedtoppet": 1}),
+            ("Løvsangerne kommer med", 45, "", {"fyrremejse": 3, "roedtoppet": 2, "gransanger": 1, "hvidbrynet": 1}),
+            ("Der er en ekstra!", 60, "fuglekongesanger", {"fyrremejse": 3, "roedtoppet": 2, "gransanger": 1, "hvidbrynet": 1,
+                                                          "fuglekongesanger": 1}),
+            ("Flokken trækker videre", 30, "", {"fyrremejse": 1, "roedtoppet": 1}))),
+        ("Chase: Sibirisk løvsanger i flokken", _chase(
+            ("Gransangere og Løvsangere", 40, "", {"gransanger": 2, "loevsanger": 1}),
+            ("En Hvidbrynet melder sig", 40, "hvidbrynet", {"gransanger": 2, "loevsanger": 1, "hvidbrynet": 1}),
+            ("Men hvad kalder dér?", 60, "himalayasanger", {"gransanger": 2, "loevsanger": 1, "hvidbrynet": 1, "himalayasanger": 1}),
+            duck=-9)),
+        ("Chase: Rørskoven ved daggry", _chase(
+            ("Sivsangerne", 40, "", {"sivsanger": 2}),
+            ("Blåhalsen går i gang", 40, "", {"sivsanger": 2, "blaahals": 1}),
+            ("Buskrørsangeren", 60, "buskroersanger", {"sivsanger": 2, "blaahals": 1, "buskroersanger": 1}))),
+    ],
+}
+
+# Officielle presets, der opdateres med de nye arter – kun hvis en redaktør ikke har ændret dem siden oprettelsen
+SEED_UPDATES = {
+    "mobgang_seed_v3": {
+        "Alle arter – lige højt": _cfg(**{s: 1 for s in ALL}),
+        "Sibiriske løvsangere: Schwarz' Løvsanger": _cfg("schwarz", 9, -6, schwarz=1, brunloevsanger=1, hvidbrynet=1,
+                                                         fuglekongesanger=1, roedtoppet=2, fyrremejse=2),
+        "Sibiriske løvsangere: Brun Løvsanger": _cfg("brunloevsanger", 9, -6, brunloevsanger=1, schwarz=1, hvidbrynet=1,
+                                                     gransanger=1, roedtoppet=2, fyrremejse=2),
+        "Bøgeskoven: Lundsanger": _cfg("lundsanger", 9, -6, lundsanger=1, skovsanger=1, gransanger=1, sangdrossel=1, solsort=1,
+                                       brogetfluesnapper=1, graafluesnapper=1),
+        "Krattet: Høgesanger": _cfg("hoegesanger", 9, -6, hoegesanger=1, gulbug=1, karmindompap=1, nattergal=1, solsort=1),
+        "Natsang: Blåhals blandt Nattergale": _cfg("blaahals", 9, -6, blaahals=1, nattergal=2, sivsanger=1, cettisanger=1, sangdrossel=1),
+        "Sjældne drosler: Stendrossel": _cfg("stendrossel", 9, -6, stendrossel=1, ringdrossel=1, solsort=1, sangdrossel=1, vindrossel=1),
+    },
 }
 
 
 async def seed_presets(session: AsyncSession) -> None:
-    """Opret de officielle startpresets (redaktører kan derefter rette og slette dem)."""
+    """Opret de officielle startpresets (redaktører kan derefter rette og slette dem). En version kan også opdatere
+    tidligere officielle presets – men kun dem, der stadig lyder som da de blev oprettet."""
+    original = {name: cfg for presets_ in SEED.values() for name, cfg in presets_}
     for key, presets_ in SEED.items():
         if await session.get(Setting, key) is not None:
             continue
+        updated = []
+        for name, cfg in SEED_UPDATES.get(key, {}).items():
+            row = (await session.execute(select(MobPreset).where(MobPreset.official, MobPreset.name == name))).scalars().first()
+            if row is not None and _sig(row.config or {}) == _sig(original[name]):
+                row.config = cfg
+                updated.append(name)
         for name, cfg in presets_:
             session.add(MobPreset(user_id=None, name=name, config=cfg, official=True))
-        session.add(Setting(key=key, value={"n": len(presets_)}))
+        session.add(Setting(key=key, value={"n": len(presets_), "updated": updated}))
         await session.commit()
-        log.info("Oprettede %s officielle mobgang-presets (%s)", len(presets_), key)
+        log.info("Oprettede %s og opdaterede %s officielle mobgang-presets (%s)", len(presets_), len(updated), key)

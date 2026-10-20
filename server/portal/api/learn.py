@@ -11,12 +11,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import optional_user, require_role, require_user
+from portal.api.deps import optional_user, require_perm, require_user
 from portal.config import get_settings
 from portal.db import get_session
 from portal.models import Course, Question, QuizResult, User
 from portal.services import learning
-from portal.services.auth import role_at_least
+from portal.services.auth import can
 
 router = APIRouter(prefix="/api/learn", tags=["learn"])
 
@@ -32,7 +32,7 @@ def course_out(c: Course, n_questions: int = 0, progress: dict | None = None) ->
 
 @router.get("/courses")
 async def courses(user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)):
-    editor = role_at_least(user, "editor")
+    editor = can(user, "laering")
     q = select(Course, func.count(Question.id)).outerjoin(Question).group_by(Course.id).order_by(Course.topic, Course.title)
     if not editor:
         q = q.where(Course.published)
@@ -44,7 +44,7 @@ async def courses(user: User | None = Depends(optional_user), db: AsyncSession =
 
 async def _course(db: AsyncSession, slug: str, user: User | None) -> Course:
     c = (await db.execute(select(Course).where(Course.slug == slug))).scalar_one_or_none()
-    if c is None or (not c.published and not role_at_least(user, "editor")):
+    if c is None or (not c.published and not can(user, "laering")):
         raise HTTPException(404, "Kurset findes ikke")
     return c
 
@@ -54,7 +54,7 @@ async def course(slug: str, user: User | None = Depends(optional_user), db: Asyn
     c = await _course(db, slug, user)
     qs = (await db.execute(select(Question).where(Question.course_id == c.id).order_by(Question.position, Question.id))).scalars().all()
     out = course_out(c, len(qs))
-    if role_at_least(user, "editor"):
+    if can(user, "laering"):
         out["questions"] = [{"id": q.id, "prompt": q.prompt, "choices": q.choices, "explanation": q.explanation,
                              "media_kind": q.media_kind, "media_url": q.media_url, "media_credit": q.media_credit,
                              "position": q.position} for q in qs]
@@ -137,7 +137,7 @@ def slugify(s: str) -> str:
 
 
 @router.post("/courses")
-async def create_course(body: CourseIn, user: User = Depends(require_role("editor")), db: AsyncSession = Depends(get_session)):
+async def create_course(body: CourseIn, user: User = Depends(require_perm("laering")), db: AsyncSession = Depends(get_session)):
     slug = slugify(body.title)
     if (await db.execute(select(Course).where(Course.slug == slug))).scalar_one_or_none():
         slug = f"{slug}-{uuid.uuid4().hex[:4]}"
@@ -148,7 +148,7 @@ async def create_course(body: CourseIn, user: User = Depends(require_role("edito
 
 
 @router.put("/courses/{slug}")
-async def update_course(slug: str, body: CourseIn, user: User = Depends(require_role("editor")),
+async def update_course(slug: str, body: CourseIn, user: User = Depends(require_perm("laering")),
                         db: AsyncSession = Depends(get_session)):
     c = await _course(db, slug, user)
     for k, v in body.model_dump().items():
@@ -158,7 +158,7 @@ async def update_course(slug: str, body: CourseIn, user: User = Depends(require_
 
 
 @router.delete("/courses/{slug}")
-async def delete_course(slug: str, user: User = Depends(require_role("editor")), db: AsyncSession = Depends(get_session)):
+async def delete_course(slug: str, user: User = Depends(require_perm("laering")), db: AsyncSession = Depends(get_session)):
     c = await _course(db, slug, user)
     await db.delete(c)
     await db.commit()
@@ -188,7 +188,7 @@ def _validate(body: QuestionIn) -> None:
 
 
 @router.post("/courses/{slug}/questions")
-async def add_question(slug: str, body: QuestionIn, user: User = Depends(require_role("editor")),
+async def add_question(slug: str, body: QuestionIn, user: User = Depends(require_perm("laering")),
                        db: AsyncSession = Depends(get_session)):
     _validate(body)
     c = await _course(db, slug, user)
@@ -199,7 +199,7 @@ async def add_question(slug: str, body: QuestionIn, user: User = Depends(require
 
 
 @router.put("/questions/{qid}")
-async def update_question(qid: int, body: QuestionIn, user: User = Depends(require_role("editor")),
+async def update_question(qid: int, body: QuestionIn, user: User = Depends(require_perm("laering")),
                           db: AsyncSession = Depends(get_session)):
     _validate(body)
     q = await db.get(Question, qid)
@@ -212,14 +212,14 @@ async def update_question(qid: int, body: QuestionIn, user: User = Depends(requi
 
 
 @router.delete("/questions/{qid}")
-async def delete_question(qid: int, user: User = Depends(require_role("editor")), db: AsyncSession = Depends(get_session)):
+async def delete_question(qid: int, user: User = Depends(require_perm("laering")), db: AsyncSession = Depends(get_session)):
     await db.execute(delete(Question).where(Question.id == qid))
     await db.commit()
     return {"ok": True}
 
 
 @router.post("/media")
-async def upload(file: UploadFile = File(...), user: User = Depends(require_role("editor"))):
+async def upload(file: UploadFile = File(...), user: User = Depends(require_perm("laering"))):
     ext = MEDIA_TYPES.get(file.content_type or "")
     if not ext:
         raise HTTPException(400, "Kun billeder (jpg/png/webp/gif) og lyd (mp3/ogg/wav/m4a/webm)")

@@ -26,6 +26,32 @@ OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
 # Stigende rettigheder: moderator (kommentarer, portalens egne ture) < editor (e-læring) < admin < superadmin
 ROLES = ("user", "moderator", "editor", "admin", "superadmin")
 
+# Admin-moduler. Rollen giver et standardsæt; en bruger kan i stedet få en individuel liste (users.permissions).
+MODULES = {
+    "drift": "Drift: gateway, kø, arkiv, jobs og indstillinger",
+    "data": "Data: hentning fra DOFbasen",
+    "vejr": "Vejrarkiv",
+    "aktivitet": "Aktivitet",
+    "support": "Support: alle samtaler",
+    "moderation": "Moderation: kommentarer, udelukkelser og beskeder",
+    "ture": "Portalens ture",
+    "kategorier": "Listekategorier",
+    "brugere": "Brugere og rettigheder",
+    "arter": "Arter",
+    "indhold": "Nyheder",
+    "laering": "Læring: kurser og spørgsmål",
+    "mobgang_presets": "Mobgang: officielle presets",
+    "mobgang_season": "Mobgang: lukning i ynglesæsonen",
+}
+_MOD = {"moderation", "ture", "kategorier"}
+ROLE_MODULES = {
+    "user": set(),
+    "moderator": _MOD,
+    "editor": _MOD | {"laering", "mobgang_presets"},
+    "admin": set(MODULES),
+    "superadmin": set(MODULES),
+}
+
 
 class AuthError(Exception):
     def __init__(self, message: str, status: int = 401):
@@ -149,3 +175,18 @@ async def destroy_session(token: str | None) -> None:
 
 def role_at_least(user: User | None, role: str) -> bool:
     return bool(user) and ROLES.index(user.role) >= ROLES.index(role)
+
+
+def modules(user: User | None) -> set[str]:
+    """Brugerens admin-moduler: den individuelle liste, ellers rollens standard. Superadmin har altid alle."""
+    if user is None or user.blocked:
+        return set()
+    if user.role == "superadmin":
+        return set(MODULES)
+    if user.permissions is not None:
+        return set(user.permissions) & set(MODULES)
+    return set(ROLE_MODULES.get(user.role, ()))
+
+
+def can(user: User | None, module: str) -> bool:
+    return module in modules(user)

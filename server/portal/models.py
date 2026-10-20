@@ -312,6 +312,8 @@ class User(Base):
     # Profil: hjemafdelinger, kommune, listedeltagelse, stille timer, tema m.m.
     prefs: Mapped[dict] = mapped_column(JSONB, default=dict)
     history_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Adgang til admin-moduler (se services.auth.MODULES). None = rollens standardmoduler.
+    permissions: Mapped[list[str] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -857,6 +859,7 @@ EXTRA_DDL = [
         (SELECT 'D' FROM species WHERE artnr IN (a, la) AND navn LIKE '[%' LIMIT 1),
         'A')
     $$""",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions jsonb",
     "ALTER TABLE mob_presets ADD COLUMN IF NOT EXISTS official boolean NOT NULL DEFAULT false",
     "ALTER TABLE mob_presets ALTER COLUMN user_id DROP NOT NULL",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"

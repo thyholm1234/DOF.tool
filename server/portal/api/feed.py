@@ -17,7 +17,7 @@ from portal.dof.jobs import ensure_media_day, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, reports
-from portal.services.auth import role_at_least
+from portal.services.auth import can
 from portal.services.areas import Scope, parse_scope, scope_for_area
 from portal.timeutil import dk_today
 
@@ -246,7 +246,7 @@ async def delete_comment(comment_id: int, user: User = Depends(require_user), db
     c = await db.get(ThreadComment, comment_id)
     if c is None:
         raise HTTPException(404)
-    if c.user_id != user.id and not role_at_least(user, "moderator"):
+    if c.user_id != user.id and not can(user, "moderation"):
         raise HTTPException(403)
     c.hidden = True
     await db.commit()

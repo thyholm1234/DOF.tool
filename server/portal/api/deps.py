@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import kv
 from portal.db import get_session
 from portal.models import User
-from portal.services.auth import role_at_least, user_from_token
+from portal.services.auth import MODULES, can, role_at_least, user_from_token
 
 COOKIE = "dt_session"
 
@@ -33,6 +33,18 @@ def require_role(role: str):
     async def dep(user: User = Depends(require_user)) -> User:
         if not role_at_least(user, role):
             raise HTTPException(403, "Kræver rettigheder som " + role)
+        return user
+
+    return dep
+
+
+def require_perm(module: str):
+    """Adgang til et admin-modul (rolle eller individuel rettighed)."""
+    assert module in MODULES
+
+    async def dep(user: User = Depends(require_user)) -> User:
+        if not can(user, module):
+            raise HTTPException(403, f"Kræver adgang til {MODULES[module].split(':')[0]}")
         return user
 
     return dep

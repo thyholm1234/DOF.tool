@@ -7,20 +7,19 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import optional_user, require_role, require_user
+from portal.api.deps import optional_user, require_perm, require_user
 from portal.cache import kv, publish
 from portal.db import SessionLocal, get_session
 from portal.models import Like, SupportMessage, SupportThread, ThreadComment, User
 from portal.services import activity
 from portal.services.alerts import deliver
-from portal.services.auth import role_at_least
+from portal.services.auth import can
 
 router = APIRouter(prefix="/api", tags=["social"])
-admin = require_role("admin")
-moderator = require_role("moderator")
+perm_aktivitet = require_perm("aktivitet")
 
 THREAD_KEY = re.compile(r"^\d{4}-\d{2}-\d{2}/\d+/\d+$")
 
@@ -200,15 +199,15 @@ def _ctx(ctx: dict | None, request: Request) -> dict:
 
 
 async def _admins(db: AsyncSession, exclude: int | None = None, kind: str | None = None) -> list[int]:
-    """Dem der skal have besked – aldrig afsenderen selv. Moderationssamtaler går til alle moderatorer."""
-    roles = ("moderator", "editor", "admin", "superadmin") if kind == "moderation" else ("admin", "superadmin")
-    return [r[0] for r in (await db.execute(text("SELECT id FROM users WHERE role = ANY(:r) AND NOT blocked"),
-                                            {"r": list(roles)})).all() if r[0] != exclude]
+    """Dem der skal have besked – aldrig afsenderen selv. Alle samtaler går til dem med support-modulet,
+    moderationssamtaler også til dem med moderation."""
+    users = (await db.execute(select(User).where(~User.blocked, or_(User.role != "user", User.permissions.isnot(None))))).scalars().all()
+    return [u.id for u in users if u.id != exclude and (can(u, "support") or (kind == "moderation" and can(u, "moderation")))]
 
 
 def _staff(t: SupportThread, user: User) -> bool:
     """Må svare som 'admin' i samtalen: administratorer altid, moderatorer i moderationssamtaler."""
-    return role_at_least(user, "admin") or (t.kind == "moderation" and role_at_least(user, "moderator"))
+    return can(user, "support") or (t.kind == "moderation" and can(user, "moderation"))
 
 
 async def _thread_json(db: AsyncSession, t: SupportThread, viewer: User) -> dict:
@@ -245,9 +244,9 @@ async def unread(user: User = Depends(require_user), db: AsyncSession = Depends(
     mine = (await db.execute(text("SELECT count(*) FROM support_threads WHERE user_id = :u AND unread_user"),
                              {"u": user.id})).scalar()
     out = {"user": mine}
-    if role_at_least(user, "moderator"):
+    if can(user, "support") or can(user, "moderation"):
         out["admin"] = (await db.execute(text("SELECT count(*) FROM support_threads WHERE unread_admin AND (:all OR kind = 'moderation')"),
-                                         {"all": role_at_least(user, "admin")})).scalar()
+                                         {"all": can(user, "support")})).scalar()
     return out
 
 
@@ -327,9 +326,11 @@ async def set_status(thread_id: int, body: StatusIn, user: User = Depends(requir
 
 
 @router.get("/admin/support")
-async def admin_threads(status: str = "open", kind: str = "", user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
-    if not role_at_least(user, "admin"):
-        kind = "moderation"  # moderatorer ser kun moderationssamtaler
+async def admin_threads(status: str = "open", kind: str = "", user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    if not can(user, "support"):
+        if not can(user, "moderation"):
+            raise HTTPException(403, "Kræver adgang til Support eller Moderation")
+        kind = "moderation"  # med kun moderation ses kun moderationssamtaler
     rows = (await db.execute(text("""
         SELECT t.id, t.subject, t.kind, t.status, t.unread_admin AS unread, t.updated_at, t.created_at,
                coalesce(u.navn, u.obserkode) AS navn, u.obserkode,
@@ -342,12 +343,12 @@ async def admin_threads(status: str = "open", kind: str = "", user: User = Depen
 
 
 @router.get("/admin/activity")
-async def admin_activity(days: int = 30, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def admin_activity(days: int = 30, user: User = Depends(perm_aktivitet), db: AsyncSession = Depends(get_session)):
     return await activity.overview(db, max(1, min(days, 180)))
 
 
 @router.get("/admin/activity/user/{user_id}")
-async def user_activity(user_id: int, user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+async def user_activity(user_id: int, user: User = Depends(perm_aktivitet), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
         SELECT kind, path, detail, created_at FROM activity WHERE user_id = :u ORDER BY created_at DESC LIMIT 300
     """), {"u": user_id})).mappings().all()
