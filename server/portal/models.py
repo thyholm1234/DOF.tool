@@ -49,7 +49,7 @@ class Species(Base):
 
 
 class SpeciesCategory(Base):
-    """Listekategori (A–E) for en art fra en given dato. Kun A, B og C er krydsbare på årslister.
+    """Listekategori (A–F) for en art fra en given dato. Kun A, B og C er krydsbare på årslister.
     Rækker slettes aldrig – en fjernet kategori får removed_at, så historikken bevares."""
 
     __tablename__ = "species_categories"

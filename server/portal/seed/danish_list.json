@@ -1,0 +1,2672 @@
+{
+ "source": "The Danish List: A Checklist of the Birds of Denmark (Olsen, K. & Danish Rarities Committee 2025, DOFT 119: 105-112). Bilag 1–4: kategori A–C, D, E, F.",
+ "species": {
+  "Acanthis flammea": {
+   "danish": "Gråsisken",
+   "kategori": "A"
+  },
+  "Accipiter nisus": {
+   "danish": "Spurvehøg",
+   "kategori": "A"
+  },
+  "Acridotheres cristatellus": {
+   "danish": "Topmaina",
+   "kategori": "E"
+  },
+  "Acridotheres tristis": {
+   "danish": "Maina",
+   "kategori": "E"
+  },
+  "Acrocephalus agricola": {
+   "danish": "Lille Rørsanger",
+   "kategori": "A"
+  },
+  "Acrocephalus arundinaceus": {
+   "danish": "Drosselrørsanger",
+   "kategori": "A"
+  },
+  "Acrocephalus dumetorum": {
+   "danish": "Buskrørsanger",
+   "kategori": "A"
+  },
+  "Acrocephalus paludicola": {
+   "danish": "Vandsanger",
+   "kategori": "A"
+  },
+  "Acrocephalus palustris": {
+   "danish": "Kærsanger",
+   "kategori": "A"
+  },
+  "Acrocephalus schoenobaenus": {
+   "danish": "Sivsanger",
+   "kategori": "A"
+  },
+  "Acrocephalus scirpaceus": {
+   "danish": "Rørsanger",
+   "kategori": "A"
+  },
+  "Actitis hypoleucos": {
+   "danish": "Mudderklire",
+   "kategori": "A"
+  },
+  "Actitis macularius": {
+   "danish": "Plettet Mudderklire",
+   "kategori": "A"
+  },
+  "Aegithalos caudatus": {
+   "danish": "Halemejse",
+   "kategori": "A"
+  },
+  "Aegolius funereus": {
+   "danish": "Perleugle",
+   "kategori": "A"
+  },
+  "Aegypius monachus": {
+   "danish": "Munkegrib",
+   "kategori": "E"
+  },
+  "Agapornis fischeri": {
+   "danish": "Rødhovedet Dværgpapegøje",
+   "kategori": "E"
+  },
+  "Agapornis personatus": {
+   "danish": "Sorthovedet Dværgpapegøje",
+   "kategori": "E"
+  },
+  "Agapornis roseicollis": {
+   "danish": "Rosenhovedet Dværgpapegøje",
+   "kategori": "E"
+  },
+  "Aix galericulata": {
+   "danish": "Mandarinand",
+   "kategori": "C"
+  },
+  "Aix sponsa": {
+   "danish": "Brudeand",
+   "kategori": "E"
+  },
+  "Alauda arvensis": {
+   "danish": "Sanglærke",
+   "kategori": "A"
+  },
+  "Alca torda": {
+   "danish": "Alk",
+   "kategori": "A"
+  },
+  "Alcedo atthis": {
+   "danish": "Isfugl",
+   "kategori": "A"
+  },
+  "Alectoris chukar": {
+   "danish": "Chukarhøne",
+   "kategori": "E"
+  },
+  "Alectoris graeca": {
+   "danish": "Stenhøne",
+   "kategori": "E"
+  },
+  "Alectoris rufa": {
+   "danish": "Rødhøne",
+   "kategori": "E"
+  },
+  "Alisterus scapularis": {
+   "danish": "Australsk Kongeparakit",
+   "kategori": "E"
+  },
+  "Alle alle": {
+   "danish": "Søkonge",
+   "kategori": "A"
+  },
+  "Alopochen aegyptiaca": {
+   "danish": "Nilgås",
+   "kategori": "C"
+  },
+  "Amandava amandava": {
+   "danish": "Tigerfinke",
+   "kategori": "E"
+  },
+  "Amazona aestiva": {
+   "danish": "Blåpandet Amazone",
+   "kategori": "E"
+  },
+  "Amazona amazonica": {
+   "danish": "Venezuela-amazone",
+   "kategori": "E"
+  },
+  "Amazona ochrocephala": {
+   "danish": "Gulisset Amazone",
+   "kategori": "E"
+  },
+  "Anarhynchus alexandrinus": {
+   "danish": "Hvidbrystet Præstekrave",
+   "kategori": "A"
+  },
+  "Anarhynchus asiaticus": {
+   "danish": "Kaspisk Præstekrave",
+   "kategori": "A"
+  },
+  "Anarhynchus atrifrons": {
+   "danish": "Tibetansk Præstekrave",
+   "kategori": "A"
+  },
+  "Anarhynchus leschenaultii": {
+   "danish": "Ørkenpræstekrave",
+   "kategori": "A"
+  },
+  "Anarhynchus mongolus": {
+   "danish": "Sibirisk Præstekrave",
+   "kategori": "A"
+  },
+  "Anas acuta": {
+   "danish": "Spidsand",
+   "kategori": "A"
+  },
+  "Anas bahamensis": {
+   "danish": "Hvidkindet Spidsand",
+   "kategori": "E"
+  },
+  "Anas crecca": {
+   "danish": "Krikand",
+   "kategori": "A"
+  },
+  "Anas erythrorhyncha": {
+   "danish": "Rødnæbbet And",
+   "kategori": "E"
+  },
+  "Anas flavirostris": {
+   "danish": "Gulnæbbet Krikand",
+   "kategori": "E"
+  },
+  "Anas platyrhynchos": {
+   "danish": "Gråand",
+   "kategori": "A"
+  },
+  "Anas rubripes": {
+   "danish": "Sortbrun And",
+   "kategori": "A"
+  },
+  "Anser albifrons": {
+   "danish": "Blisgås",
+   "kategori": "A"
+  },
+  "Anser anser": {
+   "danish": "Grågås",
+   "kategori": "A"
+  },
+  "Anser brachyrhynchus": {
+   "danish": "Kortnæbbet Gås",
+   "kategori": "A"
+  },
+  "Anser caerulescens": {
+   "danish": "Snegås",
+   "kategori": "E"
+  },
+  "Anser canagicus": {
+   "danish": "Kejsergås",
+   "kategori": "E"
+  },
+  "Anser cygnoides": {
+   "danish": "Svanegås",
+   "kategori": "E"
+  },
+  "Anser erythropus": {
+   "danish": "Dværggås",
+   "kategori": "A"
+  },
+  "Anser fabalis": {
+   "danish": "Tajgasædgås",
+   "kategori": "A"
+  },
+  "Anser indicus": {
+   "danish": "Indisk Gås",
+   "kategori": "C"
+  },
+  "Anser rossii": {
+   "danish": "Dværgsnegås",
+   "kategori": "A"
+  },
+  "Anser serrirostris": {
+   "danish": "Tundrasædgås",
+   "kategori": "A"
+  },
+  "Anthus campestris": {
+   "danish": "Markpiber",
+   "kategori": "A"
+  },
+  "Anthus cervinus": {
+   "danish": "Rødstrubet Piber",
+   "kategori": "A"
+  },
+  "Anthus godlewskii": {
+   "danish": "Mongolsk Piber",
+   "kategori": "A"
+  },
+  "Anthus hodgsoni": {
+   "danish": "Tajgapiber",
+   "kategori": "A"
+  },
+  "Anthus petrosus": {
+   "danish": "Skærpiber",
+   "kategori": "A"
+  },
+  "Anthus pratensis": {
+   "danish": "Engpiber",
+   "kategori": "A"
+  },
+  "Anthus richardi": {
+   "danish": "Storpiber",
+   "kategori": "A"
+  },
+  "Anthus spinoletta": {
+   "danish": "Bjergpiber",
+   "kategori": "A"
+  },
+  "Anthus trivialis": {
+   "danish": "Skovpiber",
+   "kategori": "A"
+  },
+  "Antigone canadensis": {
+   "danish": "Prærietrane",
+   "kategori": "A"
+  },
+  "Apus affinis": {
+   "danish": "Lille Sejler",
+   "kategori": "A"
+  },
+  "Apus apus": {
+   "danish": "Mursejler",
+   "kategori": "A"
+  },
+  "Apus caffer": {
+   "danish": "Kaffersejler",
+   "kategori": "A"
+  },
+  "Apus pacificus": {
+   "danish": "Orientsejler",
+   "kategori": "A"
+  },
+  "Apus pallidus": {
+   "danish": "Gråsejler",
+   "kategori": "A"
+  },
+  "Aquila chrysaetos": {
+   "danish": "Kongeørn",
+   "kategori": "A"
+  },
+  "Aquila fasciata": {
+   "danish": "Høgeørn",
+   "kategori": "A"
+  },
+  "Aquila heliaca": {
+   "danish": "Kejserørn",
+   "kategori": "A"
+  },
+  "Aquila nipalensis": {
+   "danish": "Steppeørn",
+   "kategori": "A"
+  },
+  "Ara ararauna": {
+   "danish": "Blågul Ara",
+   "kategori": "E"
+  },
+  "Ara chloropterus": {
+   "danish": "Mørkerød Ara",
+   "kategori": "E"
+  },
+  "Ardea alba": {
+   "danish": "Sølvhejre",
+   "kategori": "A"
+  },
+  "Ardea cinerea": {
+   "danish": "Fiskehejre",
+   "kategori": "A"
+  },
+  "Ardea ibis": {
+   "danish": "Kohejre",
+   "kategori": "A"
+  },
+  "Ardea purpurea": {
+   "danish": "Purpurhejre",
+   "kategori": "A"
+  },
+  "Ardenna gravis": {
+   "danish": "Storskråpe",
+   "kategori": "A"
+  },
+  "Ardenna grisea": {
+   "danish": "Sodfarvet Skråpe",
+   "kategori": "A"
+  },
+  "Ardeola bacchus": {
+   "danish": "Vinhejre",
+   "kategori": "D"
+  },
+  "Ardeola ralloides": {
+   "danish": "Tophejre",
+   "kategori": "A"
+  },
+  "Arenaria interpres": {
+   "danish": "Stenvender",
+   "kategori": "A"
+  },
+  "Asio flammeus": {
+   "danish": "Mosehornugle",
+   "kategori": "A"
+  },
+  "Asio otus": {
+   "danish": "Skovhornugle",
+   "kategori": "A"
+  },
+  "Astur gentilis": {
+   "danish": "Duehøg",
+   "kategori": "A"
+  },
+  "Athene noctua": {
+   "danish": "Kirkeugle",
+   "kategori": "A"
+  },
+  "Aythya affinis": {
+   "danish": "Lille Bjergand",
+   "kategori": "A"
+  },
+  "Aythya collaris": {
+   "danish": "Halsbåndstroldand",
+   "kategori": "A"
+  },
+  "Aythya ferina": {
+   "danish": "Taffeland",
+   "kategori": "A"
+  },
+  "Aythya fuligula": {
+   "danish": "Troldand",
+   "kategori": "A"
+  },
+  "Aythya marila": {
+   "danish": "Bjergand",
+   "kategori": "A"
+  },
+  "Aythya nyroca": {
+   "danish": "Hvidøjet And",
+   "kategori": "A"
+  },
+  "Barnardius zonarius": {
+   "danish": "Ringparakit",
+   "kategori": "E"
+  },
+  "Bartramia longicauda": {
+   "danish": "Bartramsklire",
+   "kategori": "A"
+  },
+  "Bombycilla garrulus": {
+   "danish": "Silkehale",
+   "kategori": "A"
+  },
+  "Bostrychia hagedash": {
+   "danish": "Hadadaibis",
+   "kategori": "E"
+  },
+  "Botaurus lentiginosus": {
+   "danish": "Amerikansk Rørdrum",
+   "kategori": "A"
+  },
+  "Botaurus minutus": {
+   "danish": "Dværghejre",
+   "kategori": "A"
+  },
+  "Botaurus stellaris": {
+   "danish": "Rørdrum",
+   "kategori": "A"
+  },
+  "Branta bernicla": {
+   "danish": "Knortegås",
+   "kategori": "A"
+  },
+  "Branta canadensis": {
+   "danish": "Canadagås",
+   "kategori": "C"
+  },
+  "Branta hutchinsii": {
+   "danish": "Dværgcanadagås",
+   "kategori": "E"
+  },
+  "Branta leucopsis": {
+   "danish": "Bramgås",
+   "kategori": "A"
+  },
+  "Branta ruficollis": {
+   "danish": "Rødhalset Gås",
+   "kategori": "A"
+  },
+  "Bubo bubo": {
+   "danish": "Stor Hornugle",
+   "kategori": "C"
+  },
+  "Bubo scandiacus": {
+   "danish": "Sneugle",
+   "kategori": "A"
+  },
+  "Bucanetes githagineus": {
+   "danish": "Ørkendompap",
+   "kategori": "A"
+  },
+  "Bucephala albeola": {
+   "danish": "Bøffeland",
+   "kategori": "D"
+  },
+  "Bucephala clangula": {
+   "danish": "Hvinand",
+   "kategori": "A"
+  },
+  "Burhinus oedicnemus": {
+   "danish": "Triel",
+   "kategori": "A"
+  },
+  "Buteo buteo": {
+   "danish": "Musvåge",
+   "kategori": "A"
+  },
+  "Buteo jamaicensis": {
+   "danish": "Rødhalet Våge",
+   "kategori": "E"
+  },
+  "Buteo lagopus": {
+   "danish": "Fjeldvåge",
+   "kategori": "A"
+  },
+  "Buteo rufinus": {
+   "danish": "Ørnevåge",
+   "kategori": "A"
+  },
+  "Cacatua galerita": {
+   "danish": "Stor Gultoppet Kakadue",
+   "kategori": "E"
+  },
+  "Cacatua leadbeateri": {
+   "danish": "Inkakakadu",
+   "kategori": "E"
+  },
+  "Cairina moschata": {
+   "danish": "Moskusand",
+   "kategori": "E"
+  },
+  "Calandrella brachydactyla": {
+   "danish": "Korttået Lærke",
+   "kategori": "A"
+  },
+  "Calcarius lapponicus": {
+   "danish": "Lapværling",
+   "kategori": "A"
+  },
+  "Calidris acuminata": {
+   "danish": "Spidshalet Ryle",
+   "kategori": "A"
+  },
+  "Calidris alba": {
+   "danish": "Sandløber",
+   "kategori": "A"
+  },
+  "Calidris alpina": {
+   "danish": "Almindelig Ryle",
+   "kategori": "A"
+  },
+  "Calidris bairdii": {
+   "danish": "Bairdsryle",
+   "kategori": "A"
+  },
+  "Calidris canutus": {
+   "danish": "Islandsk Ryle",
+   "kategori": "A"
+  },
+  "Calidris falcinellus": {
+   "danish": "Kærløber",
+   "kategori": "A"
+  },
+  "Calidris ferruginea": {
+   "danish": "Krumnæbbet Ryle",
+   "kategori": "A"
+  },
+  "Calidris fuscicollis": {
+   "danish": "Hvidrygget Ryle",
+   "kategori": "A"
+  },
+  "Calidris himantopus": {
+   "danish": "Klireryle",
+   "kategori": "A"
+  },
+  "Calidris maritima": {
+   "danish": "Sortgrå Ryle",
+   "kategori": "A"
+  },
+  "Calidris melanotos": {
+   "danish": "Stribet Ryle",
+   "kategori": "A"
+  },
+  "Calidris minuta": {
+   "danish": "Dværgryle",
+   "kategori": "A"
+  },
+  "Calidris pugnax": {
+   "danish": "Brushane",
+   "kategori": "A"
+  },
+  "Calidris pusilla": {
+   "danish": "Tyknæbbet Dværgryle",
+   "kategori": "A"
+  },
+  "Calidris ruficollis": {
+   "danish": "Rødhalset Ryle",
+   "kategori": "A"
+  },
+  "Calidris subruficollis": {
+   "danish": "Prærieløber",
+   "kategori": "A"
+  },
+  "Calidris temminckii": {
+   "danish": "Temmincksryle",
+   "kategori": "A"
+  },
+  "Calliope calliope": {
+   "danish": "Rubinnattergal",
+   "kategori": "A"
+  },
+  "Callonetta leucophrys": {
+   "danish": "Sydamerikansk Dværgand",
+   "kategori": "E"
+  },
+  "Calonectris borealis": {
+   "danish": "Atlantisk Skråpe",
+   "kategori": "A"
+  },
+  "Calonectris diomedea": {
+   "danish": "Scopolis Skråpe",
+   "kategori": "A"
+  },
+  "Caprimulgus aegyptius": {
+   "danish": "Ørkennatravn",
+   "kategori": "A"
+  },
+  "Caprimulgus europaeus": {
+   "danish": "Natravn",
+   "kategori": "A"
+  },
+  "Caracara plancus": {
+   "danish": "Caracara",
+   "kategori": "E"
+  },
+  "Carduelis carduelis": {
+   "danish": "Stillits",
+   "kategori": "A"
+  },
+  "Carpodacus erythrinus": {
+   "danish": "Karmindompap",
+   "kategori": "A"
+  },
+  "Carpodacus roseus": {
+   "danish": "Rosenfinke",
+   "kategori": "E"
+  },
+  "Carpodacus sibiricus": {
+   "danish": "Langhalet Rosenfinke",
+   "kategori": "E"
+  },
+  "Cathartes aura": {
+   "danish": "Kalkungrib",
+   "kategori": "E"
+  },
+  "Catharus guttatus": {
+   "danish": "Eremitdrossel",
+   "kategori": "A"
+  },
+  "Catharus ustulatus": {
+   "danish": "Olivenskovdrossel",
+   "kategori": "A"
+  },
+  "Cecropis daurica": {
+   "danish": "Amursvale",
+   "kategori": "A"
+  },
+  "Cecropis rufula": {
+   "danish": "Rødrygget Svale",
+   "kategori": "A"
+  },
+  "Cecropis semirufa": {
+   "danish": "Rødbrystet Svale",
+   "kategori": "A"
+  },
+  "Cepphus grylle": {
+   "danish": "Tejst",
+   "kategori": "A"
+  },
+  "Cercotrichas leucophrys": {
+   "danish": "Plettet Trænattergal",
+   "kategori": "E"
+  },
+  "Cereopsis novaehollandiae": {
+   "danish": "Hønsegås",
+   "kategori": "E"
+  },
+  "Certhia brachydactyla": {
+   "danish": "Korttået Træløber",
+   "kategori": "A"
+  },
+  "Certhia familiaris": {
+   "danish": "Træløber",
+   "kategori": "A"
+  },
+  "Cettia cetti": {
+   "danish": "Cettisanger",
+   "kategori": "A"
+  },
+  "Charadrius hiaticula": {
+   "danish": "Stor Præstekrave",
+   "kategori": "A"
+  },
+  "Chenonetta jubata": {
+   "danish": "Mankegås",
+   "kategori": "E"
+  },
+  "Chlamydotis macqueenii": {
+   "danish": "Østlig Kravetrappe",
+   "kategori": "B"
+  },
+  "Chlidonias hybrida": {
+   "danish": "Hvidskægget Terne",
+   "kategori": "A"
+  },
+  "Chlidonias leucopterus": {
+   "danish": "Hvidvinget Terne",
+   "kategori": "A"
+  },
+  "Chlidonias niger": {
+   "danish": "Sortterne",
+   "kategori": "A"
+  },
+  "Chloephaga picta": {
+   "danish": "Magellangås",
+   "kategori": "E"
+  },
+  "Chloephaga poliocephala": {
+   "danish": "Gråhovedet Gås",
+   "kategori": "E"
+  },
+  "Chloris chloris": {
+   "danish": "Grønirisk",
+   "kategori": "A"
+  },
+  "Chloris sinica": {
+   "danish": "Brunirisk",
+   "kategori": "E"
+  },
+  "Chroicocephalus genei": {
+   "danish": "Tyndnæbbet Måge",
+   "kategori": "A"
+  },
+  "Chroicocephalus philadelphia": {
+   "danish": "Bonapartemåge",
+   "kategori": "A"
+  },
+  "Chroicocephalus ridibundus": {
+   "danish": "Hættemåge",
+   "kategori": "A"
+  },
+  "Chrysolophus amherstiae": {
+   "danish": "Amherstfasan",
+   "kategori": "E"
+  },
+  "Chrysolophus pictus": {
+   "danish": "Guldfasan",
+   "kategori": "E"
+  },
+  "Ciconia abdimii": {
+   "danish": "Abdimstork",
+   "kategori": "E"
+  },
+  "Ciconia ciconia": {
+   "danish": "Hvid Stork",
+   "kategori": "A"
+  },
+  "Ciconia nigra": {
+   "danish": "Sort Stork",
+   "kategori": "A"
+  },
+  "Cinclus cinclus": {
+   "danish": "Vandstær",
+   "kategori": "A"
+  },
+  "Circaetus gallicus": {
+   "danish": "Slangeørn",
+   "kategori": "A"
+  },
+  "Circus aeruginosus": {
+   "danish": "Rørhøg",
+   "kategori": "A"
+  },
+  "Circus cyaneus": {
+   "danish": "Blå Kærhøg",
+   "kategori": "A"
+  },
+  "Circus hudsonius": {
+   "danish": "Amerikansk Kærhøg",
+   "kategori": "A"
+  },
+  "Circus macrourus": {
+   "danish": "Steppehøg",
+   "kategori": "A"
+  },
+  "Circus pygargus": {
+   "danish": "Hedehøg",
+   "kategori": "A"
+  },
+  "Cisticola juncidis": {
+   "danish": "Cistussanger",
+   "kategori": "A"
+  },
+  "Clamator glandarius": {
+   "danish": "Skadegøg",
+   "kategori": "A"
+  },
+  "Clanga clanga": {
+   "danish": "Stor Skrigeørn",
+   "kategori": "A"
+  },
+  "Clanga pomarina": {
+   "danish": "Lille Skrigeørn",
+   "kategori": "A"
+  },
+  "Clangula hyemalis": {
+   "danish": "Havlit",
+   "kategori": "A"
+  },
+  "Coccothraustes coccothraustes": {
+   "danish": "Kernebider",
+   "kategori": "A"
+  },
+  "Coccyzus americanus": {
+   "danish": "Gulnæbbet Gøg",
+   "kategori": "B"
+  },
+  "Coccyzus erythropthalmus": {
+   "danish": "Sortnæbbet Gøg",
+   "kategori": "A"
+  },
+  "Colaptes auratus": {
+   "danish": "Guldspætte",
+   "kategori": "A"
+  },
+  "Colinus virginianus": {
+   "danish": "Bobwhite",
+   "kategori": "E"
+  },
+  "Coloeus dauuricus": {
+   "danish": "Sibirisk Allike",
+   "kategori": "A"
+  },
+  "Coloeus monedula": {
+   "danish": "Allike",
+   "kategori": "A"
+  },
+  "Columba livia": {
+   "danish": "Klippedue (tamdue)",
+   "kategori": "C"
+  },
+  "Columba oenas": {
+   "danish": "Huldue",
+   "kategori": "A"
+  },
+  "Columba palumbus": {
+   "danish": "Ringdue",
+   "kategori": "A"
+  },
+  "Coracias cyanogaster": {
+   "danish": "Hvidhovedet Ellekrage",
+   "kategori": "E"
+  },
+  "Coracias garrulus": {
+   "danish": "Ellekrage",
+   "kategori": "A"
+  },
+  "Coracopsis vasa": {
+   "danish": "Vasapapegøje",
+   "kategori": "E"
+  },
+  "Corvus albus": {
+   "danish": "Broget Krage",
+   "kategori": "E"
+  },
+  "Corvus corax": {
+   "danish": "Ravn",
+   "kategori": "A"
+  },
+  "Corvus corone": {
+   "danish": "Krage",
+   "kategori": "A"
+  },
+  "Corvus frugilegus": {
+   "danish": "Råge",
+   "kategori": "A"
+  },
+  "Coturnix coturnix": {
+   "danish": "Vagtel",
+   "kategori": "A"
+  },
+  "Crex crex": {
+   "danish": "Engsnarre",
+   "kategori": "A"
+  },
+  "Crithagra mozambica": {
+   "danish": "Mozambique-sisken",
+   "kategori": "E"
+  },
+  "Cuculus canorus": {
+   "danish": "Gøg",
+   "kategori": "A"
+  },
+  "Curruca cantillans": {
+   "danish": "Hvidskægget Sanger",
+   "kategori": "A"
+  },
+  "Curruca communis": {
+   "danish": "Tornsanger",
+   "kategori": "A"
+  },
+  "Curruca curruca": {
+   "danish": "Gærdesanger",
+   "kategori": "A"
+  },
+  "Curruca iberiae": {
+   "danish": "Iberisk Sanger",
+   "kategori": "A"
+  },
+  "Curruca melanocephala": {
+   "danish": "Sorthovedet Sanger",
+   "kategori": "A"
+  },
+  "Curruca nana": {
+   "danish": "Asiatisk Ørkensanger",
+   "kategori": "A"
+  },
+  "Curruca nisoria": {
+   "danish": "Høgesanger",
+   "kategori": "A"
+  },
+  "Curruca ruppeli": {
+   "danish": "Sortstrubet Sanger",
+   "kategori": "A"
+  },
+  "Curruca sarda": {
+   "danish": "Sardinsk Sanger",
+   "kategori": "A"
+  },
+  "Curruca subalpina": {
+   "danish": "Makisanger",
+   "kategori": "A"
+  },
+  "Cursorius cursor": {
+   "danish": "Ørkenløber",
+   "kategori": "A"
+  },
+  "Cyanistes caeruleus": {
+   "danish": "Blåmejse",
+   "kategori": "A"
+  },
+  "Cyanistes cyanus": {
+   "danish": "Azurmejse",
+   "kategori": "E"
+  },
+  "Cyanopica cooki": {
+   "danish": "Iberisk Blåskade",
+   "kategori": "E"
+  },
+  "Cygnus atratus": {
+   "danish": "Sortsvane",
+   "kategori": "C"
+  },
+  "Cygnus columbianus": {
+   "danish": "Pibesvane",
+   "kategori": "A"
+  },
+  "Cygnus cygnus": {
+   "danish": "Sangsvane",
+   "kategori": "A"
+  },
+  "Cygnus melancoryphus": {
+   "danish": "Sorthalset Svane",
+   "kategori": "E"
+  },
+  "Cygnus olor": {
+   "danish": "Knopsvane",
+   "kategori": "A"
+  },
+  "Delichon urbicum": {
+   "danish": "Bysvale",
+   "kategori": "A"
+  },
+  "Dendrocopos major": {
+   "danish": "Stor Flagspætte",
+   "kategori": "A"
+  },
+  "Dendrocoptes medius": {
+   "danish": "Mellemflagspætte",
+   "kategori": "A"
+  },
+  "Dendrocygna autumnalis": {
+   "danish": "Sortbuget Træand",
+   "kategori": "E"
+  },
+  "Dromaius novaehollandiae": {
+   "danish": "Emu",
+   "kategori": "E"
+  },
+  "Dryobates minor": {
+   "danish": "Lille Flagspætte",
+   "kategori": "A"
+  },
+  "Dryocopus martius": {
+   "danish": "Sortspætte",
+   "kategori": "A"
+  },
+  "Egretta garzetta": {
+   "danish": "Silkehejre",
+   "kategori": "A"
+  },
+  "Elanus caeruleus": {
+   "danish": "Blå Glente",
+   "kategori": "A"
+  },
+  "Emberiza aureola": {
+   "danish": "Gulbrystet Værling",
+   "kategori": "A"
+  },
+  "Emberiza bruniceps": {
+   "danish": "Brunhovedet Værling",
+   "kategori": "A"
+  },
+  "Emberiza buchanani": {
+   "danish": "Bjerghortulan",
+   "kategori": "A"
+  },
+  "Emberiza calandra": {
+   "danish": "Bomlærke",
+   "kategori": "A"
+  },
+  "Emberiza chrysophrys": {
+   "danish": "Gulbrynet Værling",
+   "kategori": "A"
+  },
+  "Emberiza cia": {
+   "danish": "Klippeværling",
+   "kategori": "A"
+  },
+  "Emberiza cineracea": {
+   "danish": "Gulgrå Værling",
+   "kategori": "A"
+  },
+  "Emberiza cirlus": {
+   "danish": "Gærdeværling",
+   "kategori": "A"
+  },
+  "Emberiza citrinella": {
+   "danish": "Gulspurv",
+   "kategori": "A"
+  },
+  "Emberiza elegans": {
+   "danish": "Gulstrubet Værling",
+   "kategori": "E"
+  },
+  "Emberiza hortulana": {
+   "danish": "Hortulan",
+   "kategori": "A"
+  },
+  "Emberiza leucocephalos": {
+   "danish": "Hvidkindet Værling",
+   "kategori": "A"
+  },
+  "Emberiza melanocephala": {
+   "danish": "Hætteværling",
+   "kategori": "A"
+  },
+  "Emberiza pusilla": {
+   "danish": "Dværgværling",
+   "kategori": "A"
+  },
+  "Emberiza rustica": {
+   "danish": "Pileværling",
+   "kategori": "A"
+  },
+  "Emberiza schoeniclus": {
+   "danish": "Rørspurv",
+   "kategori": "A"
+  },
+  "Eophona migratoria": {
+   "danish": "Gulnæbbet Kernebider",
+   "kategori": "E"
+  },
+  "Eremophila alpestris": {
+   "danish": "Bjerglærke",
+   "kategori": "A"
+  },
+  "Erithacus rubecula": {
+   "danish": "Rødhals",
+   "kategori": "A"
+  },
+  "Eudocimus ruber": {
+   "danish": "Rød Ibis",
+   "kategori": "E"
+  },
+  "Eudromias morinellus": {
+   "danish": "Pomeransfugl",
+   "kategori": "A"
+  },
+  "Euplectes afer": {
+   "danish": "Napoleonsvæver",
+   "kategori": "E"
+  },
+  "Euplectes albonotatus": {
+   "danish": "Hvidvinget Vidafinke",
+   "kategori": "E"
+  },
+  "Euplectes franciscanus": {
+   "danish": "Sortisset Orangevæver",
+   "kategori": "E"
+  },
+  "Euplectes hordeaceus": {
+   "danish": "Flammevæver",
+   "kategori": "E"
+  },
+  "Euplectes orix": {
+   "danish": "Oryxvæver",
+   "kategori": "E"
+  },
+  "Falco biarmicus": {
+   "danish": "Lannerfalk",
+   "kategori": "D"
+  },
+  "Falco cherrug": {
+   "danish": "Slagfalk",
+   "kategori": "A"
+  },
+  "Falco columbarius": {
+   "danish": "Dværgfalk",
+   "kategori": "A"
+  },
+  "Falco eleonorae": {
+   "danish": "Eleonorafalk",
+   "kategori": "A"
+  },
+  "Falco naumanni": {
+   "danish": "Lille Tårnfalk",
+   "kategori": "A"
+  },
+  "Falco peregrinus": {
+   "danish": "Vandrefalk",
+   "kategori": "A"
+  },
+  "Falco rusticolus": {
+   "danish": "Jagtfalk",
+   "kategori": "A"
+  },
+  "Falco sparverius": {
+   "danish": "Amerikansk Tårnfalk",
+   "kategori": "B"
+  },
+  "Falco subbuteo": {
+   "danish": "Lærkefalk",
+   "kategori": "A"
+  },
+  "Falco tinnunculus": {
+   "danish": "Tårnfalk",
+   "kategori": "A"
+  },
+  "Falco vespertinus": {
+   "danish": "Aftenfalk",
+   "kategori": "A"
+  },
+  "Ficedula albicilla": {
+   "danish": "Tajgafluesnapper",
+   "kategori": "A"
+  },
+  "Ficedula albicollis": {
+   "danish": "Hvidhalset Fluesnapper",
+   "kategori": "A"
+  },
+  "Ficedula hypoleuca": {
+   "danish": "Broget Fluesnapper",
+   "kategori": "A"
+  },
+  "Ficedula parva": {
+   "danish": "Lille Fluesnapper",
+   "kategori": "A"
+  },
+  "Fratercula arctica": {
+   "danish": "Lunde",
+   "kategori": "A"
+  },
+  "Fregata magnificens": {
+   "danish": "Pragtfregatfugl",
+   "kategori": "A"
+  },
+  "Fringilla coelebs": {
+   "danish": "Bogfinke",
+   "kategori": "A"
+  },
+  "Fringilla montifringilla": {
+   "danish": "Kvækerfinke",
+   "kategori": "A"
+  },
+  "Fulica atra": {
+   "danish": "Blishøne",
+   "kategori": "A"
+  },
+  "Fulmarus glacialis": {
+   "danish": "Mallemuk",
+   "kategori": "A"
+  },
+  "Galerida cristata": {
+   "danish": "Toplærke",
+   "kategori": "A"
+  },
+  "Gallinago gallinago": {
+   "danish": "Dobbeltbekkasin",
+   "kategori": "A"
+  },
+  "Gallinago media": {
+   "danish": "Tredækker",
+   "kategori": "A"
+  },
+  "Gallinula chloropus": {
+   "danish": "Rørhøne",
+   "kategori": "A"
+  },
+  "Garrulus glandarius": {
+   "danish": "Skovskade",
+   "kategori": "A"
+  },
+  "Gavia adamsii": {
+   "danish": "Hvidnæbbet Lom",
+   "kategori": "A"
+  },
+  "Gavia arctica": {
+   "danish": "Sortstrubet Lom",
+   "kategori": "A"
+  },
+  "Gavia immer": {
+   "danish": "Islom",
+   "kategori": "A"
+  },
+  "Gavia pacifica": {
+   "danish": "Stillehavslom",
+   "kategori": "A"
+  },
+  "Gavia stellata": {
+   "danish": "Rødstrubet Lom",
+   "kategori": "A"
+  },
+  "Gelochelidon nilotica": {
+   "danish": "Sandterne",
+   "kategori": "A"
+  },
+  "Geoffroyus geoffroyi": {
+   "danish": "Rødkindet Sangpapegøje",
+   "kategori": "E"
+  },
+  "Geopelia cuneata": {
+   "danish": "Diamantdue",
+   "kategori": "E"
+  },
+  "Geronticus eremita": {
+   "danish": "Eremitibis",
+   "kategori": "E"
+  },
+  "Glareola maldivarum": {
+   "danish": "Orientbraksvale",
+   "kategori": "A"
+  },
+  "Glareola nordmanni": {
+   "danish": "Sortvinget Braksvale",
+   "kategori": "A"
+  },
+  "Glareola pratincola": {
+   "danish": "Rødvinget Braksvale",
+   "kategori": "A"
+  },
+  "Glaucidium passerinum": {
+   "danish": "Spurveugle",
+   "kategori": "A"
+  },
+  "Grus grus": {
+   "danish": "Trane",
+   "kategori": "A"
+  },
+  "Grus japonensis": {
+   "danish": "Japansk Trane",
+   "kategori": "E"
+  },
+  "Grus virgo": {
+   "danish": "Jomfrutrane",
+   "kategori": "A"
+  },
+  "Gulosus aristotelis": {
+   "danish": "Topskarv",
+   "kategori": "A"
+  },
+  "Gypaetus barbatus": {
+   "danish": "Lammegrib",
+   "kategori": "E"
+  },
+  "Gyps fulvus": {
+   "danish": "Gåsegrib",
+   "kategori": "A"
+  },
+  "Gyps rueppelli": {
+   "danish": "Rüppells Grib",
+   "kategori": "E"
+  },
+  "Haematopus ostralegus": {
+   "danish": "Strandskade",
+   "kategori": "A"
+  },
+  "Haemorhous mexicanus": {
+   "danish": "Husfinke",
+   "kategori": "E"
+  },
+  "Haliaeetus albicilla": {
+   "danish": "Havørn",
+   "kategori": "A"
+  },
+  "Haliaeetus leucocephalus": {
+   "danish": "Hvidhovedet Havørn",
+   "kategori": "E"
+  },
+  "Haliaeetus pelagicus": {
+   "danish": "Beringhavørn",
+   "kategori": "E"
+  },
+  "Helopsaltes fasciolatus": {
+   "danish": "Stor Græshoppesanger",
+   "kategori": "A"
+  },
+  "Hieraaetus pennatus": {
+   "danish": "Dværgørn",
+   "kategori": "A"
+  },
+  "Himantopus himantopus": {
+   "danish": "Stylteløber",
+   "kategori": "A"
+  },
+  "Hippolais icterina": {
+   "danish": "Gulbug",
+   "kategori": "A"
+  },
+  "Hippolais polyglotta": {
+   "danish": "Spottesanger",
+   "kategori": "A"
+  },
+  "Hirundapus caudacutus": {
+   "danish": "Tornhalesejler",
+   "kategori": "A"
+  },
+  "Hirundo rustica": {
+   "danish": "Landsvale",
+   "kategori": "A"
+  },
+  "Hydrobates leucorhous": {
+   "danish": "Stor Stormsvale",
+   "kategori": "A"
+  },
+  "Hydrobates pelagicus": {
+   "danish": "Lille Stormsvale",
+   "kategori": "A"
+  },
+  "Hydrocoloeus minutus": {
+   "danish": "Dværgmåge",
+   "kategori": "A"
+  },
+  "Hydroprogne caspia": {
+   "danish": "Rovterne",
+   "kategori": "A"
+  },
+  "Ichthyaetus audouinii": {
+   "danish": "Audouinsmåge",
+   "kategori": "A"
+  },
+  "Ichthyaetus ichthyaetus": {
+   "danish": "Stor Sorthovedet Måge",
+   "kategori": "A"
+  },
+  "Ichthyaetus melanocephalus": {
+   "danish": "Sorthovedet Måge",
+   "kategori": "A"
+  },
+  "Iduna caligata": {
+   "danish": "Lille Gulbug",
+   "kategori": "A"
+  },
+  "Iduna pallida": {
+   "danish": "Bleg Gulbug",
+   "kategori": "A"
+  },
+  "Junco hyemalis": {
+   "danish": "Mørkøjet Junco",
+   "kategori": "A"
+  },
+  "Jynx torquilla": {
+   "danish": "Vendehals",
+   "kategori": "A"
+  },
+  "Lagopus lagopus": {
+   "danish": "Dalrype",
+   "kategori": "E"
+  },
+  "Lagopus muta": {
+   "danish": "Fjeldrype",
+   "kategori": "F"
+  },
+  "Lagopus scotica": {
+   "danish": "Skotsk Dalrype",
+   "kategori": "E"
+  },
+  "Lamprotornis superbus": {
+   "danish": "Trefarvet Glansstær",
+   "kategori": "E"
+  },
+  "Lanius collurio": {
+   "danish": "Rødrygget Tornskade",
+   "kategori": "A"
+  },
+  "Lanius cristatus": {
+   "danish": "Brun Tornskade",
+   "kategori": "A"
+  },
+  "Lanius excubitor": {
+   "danish": "Stor Tornskade",
+   "kategori": "A"
+  },
+  "Lanius minor": {
+   "danish": "Rosenbrystet Tornskade",
+   "kategori": "A"
+  },
+  "Lanius phoenicuroides": {
+   "danish": "Turkestantornskade",
+   "kategori": "A"
+  },
+  "Lanius schach": {
+   "danish": "Langhalet Tornskade",
+   "kategori": "A"
+  },
+  "Lanius senator": {
+   "danish": "Rødhovedet Tornskade",
+   "kategori": "A"
+  },
+  "Larosterna inca": {
+   "danish": "Inkaterne",
+   "kategori": "E"
+  },
+  "Larus argentatus": {
+   "danish": "Sølvmåge",
+   "kategori": "A"
+  },
+  "Larus armenicus": {
+   "danish": "Armensk Måge",
+   "kategori": "A"
+  },
+  "Larus cachinnans": {
+   "danish": "Kaspisk Måge",
+   "kategori": "A"
+  },
+  "Larus canus": {
+   "danish": "Stormmåge",
+   "kategori": "A"
+  },
+  "Larus delawarensis": {
+   "danish": "Ringnæbbet Måge",
+   "kategori": "A"
+  },
+  "Larus fuscus": {
+   "danish": "Sildemåge",
+   "kategori": "A"
+  },
+  "Larus glaucescens": {
+   "danish": "Gråvinget Måge",
+   "kategori": "A"
+  },
+  "Larus glaucoides": {
+   "danish": "Hvidvinget Måge",
+   "kategori": "A"
+  },
+  "Larus hyperboreus": {
+   "danish": "Gråmåge",
+   "kategori": "A"
+  },
+  "Larus marinus": {
+   "danish": "Svartbag",
+   "kategori": "A"
+  },
+  "Larus michahellis": {
+   "danish": "Middelhavsmåge",
+   "kategori": "A"
+  },
+  "Larvivora sibilans": {
+   "danish": "Manchurernattergal",
+   "kategori": "A"
+  },
+  "Leiothrix lutea": {
+   "danish": "Sangtimalie",
+   "kategori": "E"
+  },
+  "Leistes superciliaris": {
+   "danish": "Hvidbrynet Stærling",
+   "kategori": "E"
+  },
+  "Leptoptilos crumenifer": {
+   "danish": "Marabustork",
+   "kategori": "E"
+  },
+  "Leucophaeus atricilla": {
+   "danish": "Lattermåge",
+   "kategori": "A"
+  },
+  "Leucophaeus pipixcan": {
+   "danish": "Præriemåge",
+   "kategori": "A"
+  },
+  "Limnodromus scolopaceus": {
+   "danish": "Langnæbbet Sneppeklire",
+   "kategori": "A"
+  },
+  "Limosa haemastica": {
+   "danish": "Canadisk Kobbersneppe",
+   "kategori": "A"
+  },
+  "Limosa lapponica": {
+   "danish": "Lille Kobbersneppe",
+   "kategori": "A"
+  },
+  "Limosa limosa": {
+   "danish": "Stor Kobbersneppe",
+   "kategori": "A"
+  },
+  "Linaria cannabina": {
+   "danish": "Tornirisk",
+   "kategori": "A"
+  },
+  "Linaria flavirostris": {
+   "danish": "Bjergirisk",
+   "kategori": "A"
+  },
+  "Locustella fluviatilis": {
+   "danish": "Flodsanger",
+   "kategori": "A"
+  },
+  "Locustella lanceolata": {
+   "danish": "Stribet Græshoppesanger",
+   "kategori": "A"
+  },
+  "Locustella luscinioides": {
+   "danish": "Savisanger",
+   "kategori": "A"
+  },
+  "Locustella naevia": {
+   "danish": "Græshoppesanger",
+   "kategori": "A"
+  },
+  "Lonchura atricapilla": {
+   "danish": "Sorthovedet Nonne",
+   "kategori": "E"
+  },
+  "Lonchura punctulata": {
+   "danish": "Muskatfinke",
+   "kategori": "E"
+  },
+  "Lophodytes cucullatus": {
+   "danish": "Hjelmskallesluger",
+   "kategori": "D"
+  },
+  "Lophophanes cristatus": {
+   "danish": "Topmejse",
+   "kategori": "A"
+  },
+  "Loxia curvirostra": {
+   "danish": "Lille Korsnæb",
+   "kategori": "A"
+  },
+  "Loxia leucoptera": {
+   "danish": "Hvidvinget Korsnæb",
+   "kategori": "A"
+  },
+  "Loxia pytyopsittacus": {
+   "danish": "Stor Korsnæb",
+   "kategori": "A"
+  },
+  "Lullula arborea": {
+   "danish": "Hedelærke",
+   "kategori": "A"
+  },
+  "Luscinia luscinia": {
+   "danish": "Nattergal",
+   "kategori": "A"
+  },
+  "Luscinia megarhynchos": {
+   "danish": "Sydlig Nattergal",
+   "kategori": "A"
+  },
+  "Luscinia svecica": {
+   "danish": "Blåhals",
+   "kategori": "A"
+  },
+  "Lymnocryptes minimus": {
+   "danish": "Enkeltbekkasin",
+   "kategori": "A"
+  },
+  "Lyrurus tetrix": {
+   "danish": "Urfugl",
+   "kategori": "A"
+  },
+  "Mareca americana": {
+   "danish": "Amerikansk Pibeand",
+   "kategori": "A"
+  },
+  "Mareca penelope": {
+   "danish": "Pibeand",
+   "kategori": "A"
+  },
+  "Mareca sibilatrix": {
+   "danish": "Chilepibeand",
+   "kategori": "E"
+  },
+  "Mareca strepera": {
+   "danish": "Knarand",
+   "kategori": "A"
+  },
+  "Marmaronetta angustirostris": {
+   "danish": "Marmorand",
+   "kategori": "E"
+  },
+  "Melanitta americana": {
+   "danish": "Amerikansk Sortand",
+   "kategori": "A"
+  },
+  "Melanitta deglandi": {
+   "danish": "Amerikansk Fløjlsand",
+   "kategori": "A"
+  },
+  "Melanitta fusca": {
+   "danish": "Fløjlsand",
+   "kategori": "A"
+  },
+  "Melanitta nigra": {
+   "danish": "Sortand",
+   "kategori": "A"
+  },
+  "Melanitta perspicillata": {
+   "danish": "Brilleand",
+   "kategori": "A"
+  },
+  "Melanitta stejnegeri": {
+   "danish": "Sibirisk Fløjlsand",
+   "kategori": "A"
+  },
+  "Melanocorypha bimaculata": {
+   "danish": "Turkmensk Kalanderlærke",
+   "kategori": "A"
+  },
+  "Meleagris gallopavo": {
+   "danish": "Kalkun",
+   "kategori": "E"
+  },
+  "Melopsittacus undulatus": {
+   "danish": "Undulat",
+   "kategori": "E"
+  },
+  "Mergellus albellus": {
+   "danish": "Lille Skallesluger",
+   "kategori": "A"
+  },
+  "Mergus merganser": {
+   "danish": "Stor Skallesluger",
+   "kategori": "A"
+  },
+  "Mergus serrator": {
+   "danish": "Toppet Skallesluger",
+   "kategori": "A"
+  },
+  "Merops apiaster": {
+   "danish": "Biæder",
+   "kategori": "A"
+  },
+  "Merops persicus": {
+   "danish": "Grøn Biæder",
+   "kategori": "A"
+  },
+  "Microcarbo pygmaeus": {
+   "danish": "Dværgskarv",
+   "kategori": "A"
+  },
+  "Milvus migrans": {
+   "danish": "Sort Glente",
+   "kategori": "A"
+  },
+  "Milvus milvus": {
+   "danish": "Rød Glente",
+   "kategori": "A"
+  },
+  "Monticola saxatilis": {
+   "danish": "Stendrossel",
+   "kategori": "A"
+  },
+  "Montifringilla nivalis": {
+   "danish": "Snefinke",
+   "kategori": "A"
+  },
+  "Morus bassanus": {
+   "danish": "Sule",
+   "kategori": "A"
+  },
+  "Motacilla alba": {
+   "danish": "Hvid Vipstjert",
+   "kategori": "A"
+  },
+  "Motacilla cinerea": {
+   "danish": "Bjergvipstjert",
+   "kategori": "A"
+  },
+  "Motacilla citreola": {
+   "danish": "Citronvipstjert",
+   "kategori": "A"
+  },
+  "Motacilla flava": {
+   "danish": "Gul Vipstjert",
+   "kategori": "A"
+  },
+  "Motacilla tschutschensis": {
+   "danish": "Sibirisk Gul Vipstjert",
+   "kategori": "A"
+  },
+  "Muscicapa dauurica": {
+   "danish": "Brun Fluesnapper",
+   "kategori": "A"
+  },
+  "Muscicapa striata": {
+   "danish": "Grå Fluesnapper",
+   "kategori": "A"
+  },
+  "Myiopsitta monachus": {
+   "danish": "Munkeparakit",
+   "kategori": "E"
+  },
+  "Neophema elegans": {
+   "danish": "Elegant Græsparakit",
+   "kategori": "E"
+  },
+  "Neophron percnopterus": {
+   "danish": "Ådselgrib",
+   "kategori": "A"
+  },
+  "Netta peposaca": {
+   "danish": "Peposacaand",
+   "kategori": "E"
+  },
+  "Netta rufina": {
+   "danish": "Rødhovedet And",
+   "kategori": "A"
+  },
+  "Nucifraga caryocatactes": {
+   "danish": "Nøddekrige",
+   "kategori": "A"
+  },
+  "Numenius arquata": {
+   "danish": "Storspove",
+   "kategori": "A"
+  },
+  "Numenius phaeopus": {
+   "danish": "Småspove",
+   "kategori": "A"
+  },
+  "Numida meleagris": {
+   "danish": "Perlehøne",
+   "kategori": "E"
+  },
+  "Nycticorax nycticorax": {
+   "danish": "Nathejre",
+   "kategori": "A"
+  },
+  "Nymphicus hollandicus": {
+   "danish": "Nymfeparakit",
+   "kategori": "E"
+  },
+  "Oceanites oceanicus": {
+   "danish": "Wilsons Stormsvale",
+   "kategori": "A"
+  },
+  "Oenanthe deserti": {
+   "danish": "Ørkenstenpikker",
+   "kategori": "A"
+  },
+  "Oenanthe hispanica": {
+   "danish": "Vestlig Middelhavsstenpikker",
+   "kategori": "A"
+  },
+  "Oenanthe isabellina": {
+   "danish": "Isabellastenpikker",
+   "kategori": "A"
+  },
+  "Oenanthe leucopyga": {
+   "danish": "Hvidkronet Stenpikker",
+   "kategori": "A"
+  },
+  "Oenanthe melanoleuca": {
+   "danish": "Østlig Middelhavsstenpikker",
+   "kategori": "A"
+  },
+  "Oenanthe oenanthe": {
+   "danish": "Stenpikker",
+   "kategori": "A"
+  },
+  "Oenanthe pleschanka": {
+   "danish": "Nonnestenpikker",
+   "kategori": "A"
+  },
+  "Onychognathus morio": {
+   "danish": "Rødvinget Sortstær",
+   "kategori": "E"
+  },
+  "Onychoprion anaethetus": {
+   "danish": "Brilleterne",
+   "kategori": "A"
+  },
+  "Oriolus oriolus": {
+   "danish": "Pirol",
+   "kategori": "A"
+  },
+  "Otis tarda": {
+   "danish": "Stortrappe",
+   "kategori": "A"
+  },
+  "Otus scops": {
+   "danish": "Dværghornugle",
+   "kategori": "A"
+  },
+  "Oxyura jamaicensis": {
+   "danish": "Amerikansk Skarveand",
+   "kategori": "C"
+  },
+  "Oxyura leucocephala": {
+   "danish": "Hvidhovedet Skarveand",
+   "kategori": "A"
+  },
+  "Padda oryzivora": {
+   "danish": "Risfugl",
+   "kategori": "E"
+  },
+  "Pagophila eburnea": {
+   "danish": "Ismåge",
+   "kategori": "A"
+  },
+  "Pandion haliaetus": {
+   "danish": "Fiskeørn",
+   "kategori": "A"
+  },
+  "Panurus biarmicus": {
+   "danish": "Skægmejse",
+   "kategori": "A"
+  },
+  "Parabuteo unicinctus": {
+   "danish": "Brunskuldret Våge",
+   "kategori": "E"
+  },
+  "Paroaria coronata": {
+   "danish": "Grå Kardinal",
+   "kategori": "E"
+  },
+  "Parus major": {
+   "danish": "Musvit",
+   "kategori": "A"
+  },
+  "Passer domesticus": {
+   "danish": "Gråspurv",
+   "kategori": "A"
+  },
+  "Passer hispaniolensis": {
+   "danish": "Spansk Spurv",
+   "kategori": "A"
+  },
+  "Passer montanus": {
+   "danish": "Skovspurv",
+   "kategori": "A"
+  },
+  "Passerella iliaca": {
+   "danish": "Rævespurv",
+   "kategori": "E"
+  },
+  "Passerina amoena": {
+   "danish": "Lazulifinke",
+   "kategori": "E"
+  },
+  "Passerina cyanea": {
+   "danish": "Indigofinke",
+   "kategori": "E"
+  },
+  "Pastor roseus": {
+   "danish": "Rosenstær",
+   "kategori": "A"
+  },
+  "Pavo cristatus": {
+   "danish": "Påfugl",
+   "kategori": "E"
+  },
+  "Pelecanus crispus": {
+   "danish": "Krøltoppet Pelikan",
+   "kategori": "A"
+  },
+  "Pelecanus onocrotalus": {
+   "danish": "Hvid Pelikan",
+   "kategori": "D"
+  },
+  "Pelecanus rufescens": {
+   "danish": "Rosapelikan",
+   "kategori": "E"
+  },
+  "Perdix perdix": {
+   "danish": "Agerhøne",
+   "kategori": "A"
+  },
+  "Periparus ater": {
+   "danish": "Sortmejse",
+   "kategori": "A"
+  },
+  "Pernis apivorus": {
+   "danish": "Hvepsevåge",
+   "kategori": "A"
+  },
+  "Pernis ptilorhynchus": {
+   "danish": "Tophvepsevåge",
+   "kategori": "A"
+  },
+  "Phalacrocorax carbo": {
+   "danish": "Skarv",
+   "kategori": "A"
+  },
+  "Phalaropus fulicarius": {
+   "danish": "Thorshane",
+   "kategori": "A"
+  },
+  "Phalaropus lobatus": {
+   "danish": "Odinshane",
+   "kategori": "A"
+  },
+  "Phalaropus tricolor": {
+   "danish": "Amerikansk Svømmesneppe",
+   "kategori": "A"
+  },
+  "Phasianus colchicus": {
+   "danish": "Fasan",
+   "kategori": "C"
+  },
+  "Phasianus versicolor": {
+   "danish": "Grøn Fasan",
+   "kategori": "E"
+  },
+  "Pheucticus ludovicianus": {
+   "danish": "Rosenbrystet Kernebider",
+   "kategori": "A"
+  },
+  "Phoeniconaias minor": {
+   "danish": "Lille Flamingo",
+   "kategori": "E"
+  },
+  "Phoenicopterus chilensis": {
+   "danish": "Chileflamingo",
+   "kategori": "E"
+  },
+  "Phoenicopterus roseus": {
+   "danish": "Stor Flamingo",
+   "kategori": "D"
+  },
+  "Phoenicopterus ruber": {
+   "danish": "Cariberflamingo",
+   "kategori": "E"
+  },
+  "Phoenicurus ochruros": {
+   "danish": "Husrødstjert",
+   "kategori": "A"
+  },
+  "Phoenicurus phoenicurus": {
+   "danish": "Rødstjert",
+   "kategori": "A"
+  },
+  "Phylloscopus bonelli": {
+   "danish": "Bjergløvsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus borealis": {
+   "danish": "Nordsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus collybita": {
+   "danish": "Gransanger",
+   "kategori": "A"
+  },
+  "Phylloscopus fuscatus": {
+   "danish": "Brun Løvsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus griseolus": {
+   "danish": "Sinkiangløvsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus humei": {
+   "danish": "Himalayasanger",
+   "kategori": "A"
+  },
+  "Phylloscopus ibericus": {
+   "danish": "Iberisk Gransanger",
+   "kategori": "A"
+  },
+  "Phylloscopus inornatus": {
+   "danish": "Hvidbrynet Løvsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus nitidus": {
+   "danish": "Grøn Sanger",
+   "kategori": "A"
+  },
+  "Phylloscopus plumbeitarsus": {
+   "danish": "Østlig Lundsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus proregulus": {
+   "danish": "Fuglekongesanger",
+   "kategori": "A"
+  },
+  "Phylloscopus schwarzi": {
+   "danish": "Schwarz´ Løvsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus sibilatrix": {
+   "danish": "Skovsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus trochiloides": {
+   "danish": "Lundsanger",
+   "kategori": "A"
+  },
+  "Phylloscopus trochilus": {
+   "danish": "Løvsanger",
+   "kategori": "A"
+  },
+  "Pica pica": {
+   "danish": "Husskade",
+   "kategori": "A"
+  },
+  "Picoides tridactylus": {
+   "danish": "Tretået Spætte",
+   "kategori": "A"
+  },
+  "Picus viridis": {
+   "danish": "Grønspætte",
+   "kategori": "A"
+  },
+  "Pinguinus impennis": {
+   "danish": "Gejrfugl",
+   "kategori": "F"
+  },
+  "Pinicola enucleator": {
+   "danish": "Krognæb",
+   "kategori": "A"
+  },
+  "Platalea alba": {
+   "danish": "Afrikansk Skestork",
+   "kategori": "E"
+  },
+  "Platalea leucorodia": {
+   "danish": "Skestork",
+   "kategori": "A"
+  },
+  "Platycercus elegans": {
+   "danish": "Pennants Rosella",
+   "kategori": "E"
+  },
+  "Platycercus eximius": {
+   "danish": "Rosella",
+   "kategori": "E"
+  },
+  "Plectrophenax nivalis": {
+   "danish": "Snespurv",
+   "kategori": "A"
+  },
+  "Plegadis falcinellus": {
+   "danish": "Sort Ibis",
+   "kategori": "A"
+  },
+  "Ploceus vitellinus": {
+   "danish": "Blommegul Maskevæver",
+   "kategori": "E"
+  },
+  "Pluvialis apricaria": {
+   "danish": "Hjejle",
+   "kategori": "A"
+  },
+  "Pluvialis dominica": {
+   "danish": "Amerikansk Hjejle",
+   "kategori": "A"
+  },
+  "Pluvialis fulva": {
+   "danish": "Sibirisk Hjejle",
+   "kategori": "A"
+  },
+  "Pluvialis squatarola": {
+   "danish": "Strandhjejle",
+   "kategori": "A"
+  },
+  "Podiceps auritus": {
+   "danish": "Nordisk Lappedykker",
+   "kategori": "A"
+  },
+  "Podiceps cristatus": {
+   "danish": "Toppet Lappedykker",
+   "kategori": "A"
+  },
+  "Podiceps grisegena": {
+   "danish": "Gråstrubet Lappedykker",
+   "kategori": "A"
+  },
+  "Podiceps nigricollis": {
+   "danish": "Sorthalset Lappedykker",
+   "kategori": "A"
+  },
+  "Poecile montanus": {
+   "danish": "Fyrremejse",
+   "kategori": "A"
+  },
+  "Poecile palustris": {
+   "danish": "Sumpmejse",
+   "kategori": "A"
+  },
+  "Poicephalus meyeri": {
+   "danish": "Meyers Papegøje",
+   "kategori": "E"
+  },
+  "Poicephalus senegalus": {
+   "danish": "Senegalpapegøje",
+   "kategori": "E"
+  },
+  "Polysticta stelleri": {
+   "danish": "Stellersand",
+   "kategori": "A"
+  },
+  "Polytelis swainsonii": {
+   "danish": "Barrabandparakit",
+   "kategori": "E"
+  },
+  "Porphyrio alleni": {
+   "danish": "Lille Sultanhøne",
+   "kategori": "B"
+  },
+  "Porphyrio porphyrio": {
+   "danish": "Sultanhøne",
+   "kategori": "E"
+  },
+  "Porzana porzana": {
+   "danish": "Plettet Rørvagtel",
+   "kategori": "A"
+  },
+  "Prunella atrogularis": {
+   "danish": "Sortstrubet Jernspurv",
+   "kategori": "A"
+  },
+  "Prunella collaris": {
+   "danish": "Alpejernspurv",
+   "kategori": "A"
+  },
+  "Prunella modularis": {
+   "danish": "Jernspurv",
+   "kategori": "A"
+  },
+  "Prunella montanella": {
+   "danish": "Sibirisk Jernspurv",
+   "kategori": "A"
+  },
+  "Psephotus haematonotus": {
+   "danish": "Sangparakit",
+   "kategori": "E"
+  },
+  "Psittacula columboides": {
+   "danish": "Dueparakit",
+   "kategori": "E"
+  },
+  "Psittacula eupatria": {
+   "danish": "Stor Alexanderparakit",
+   "kategori": "E"
+  },
+  "Psittacula krameri": {
+   "danish": "Alexanderparakit",
+   "kategori": "E"
+  },
+  "Psittacus erithacus": {
+   "danish": "Gråpapegøje",
+   "kategori": "E"
+  },
+  "Ptyonoprogne rupestris": {
+   "danish": "Klippesvale",
+   "kategori": "A"
+  },
+  "Puffinus lherminieri": {
+   "danish": "Tropeskråpe",
+   "kategori": "B"
+  },
+  "Puffinus puffinus": {
+   "danish": "Almindelig Skråpe",
+   "kategori": "A"
+  },
+  "Puffinus yelkouan": {
+   "danish": "Middelhavsskråpe",
+   "kategori": "A"
+  },
+  "Pycnonotus jocosus": {
+   "danish": "Rødøret Bulbul",
+   "kategori": "E"
+  },
+  "Pycnonotus leucotis": {
+   "danish": "Hvidkindet Bulbul",
+   "kategori": "E"
+  },
+  "Pyrrhocorax pyrrhocorax": {
+   "danish": "Alpekrage",
+   "kategori": "E"
+  },
+  "Pyrrhula pyrrhula": {
+   "danish": "Dompap",
+   "kategori": "A"
+  },
+  "Pyrrhura cruentata": {
+   "danish": "Blåstrubet Conure",
+   "kategori": "E"
+  },
+  "Pyrrhura molinae": {
+   "danish": "Grønkindet Conure",
+   "kategori": "E"
+  },
+  "Quiscalus quiscula": {
+   "danish": "Sortgrackel",
+   "kategori": "E"
+  },
+  "Rallus aquaticus": {
+   "danish": "Vandrikse",
+   "kategori": "A"
+  },
+  "Recurvirostra avosetta": {
+   "danish": "Klyde",
+   "kategori": "A"
+  },
+  "Regulus ignicapilla": {
+   "danish": "Rødtoppet Fuglekonge",
+   "kategori": "A"
+  },
+  "Regulus regulus": {
+   "danish": "Fuglekonge",
+   "kategori": "A"
+  },
+  "Remiz pendulinus": {
+   "danish": "Pungmejse",
+   "kategori": "A"
+  },
+  "Rhea americana": {
+   "danish": "Nandu",
+   "kategori": "E"
+  },
+  "Rhodospiza obsoleta": {
+   "danish": "Ørkenfinke",
+   "kategori": "E"
+  },
+  "Rhodostethia rosea": {
+   "danish": "Rosenmåge",
+   "kategori": "A"
+  },
+  "Riparia riparia": {
+   "danish": "Digesvale",
+   "kategori": "A"
+  },
+  "Rissa tridactyla": {
+   "danish": "Ride",
+   "kategori": "A"
+  },
+  "Saxicola maurus": {
+   "danish": "Sibirisk Bynkefugl",
+   "kategori": "A"
+  },
+  "Saxicola rubetra": {
+   "danish": "Bynkefugl",
+   "kategori": "A"
+  },
+  "Saxicola rubicola": {
+   "danish": "Sortstrubet Bynkefugl",
+   "kategori": "A"
+  },
+  "Scolopax rusticola": {
+   "danish": "Skovsneppe",
+   "kategori": "A"
+  },
+  "Scopus umbretta": {
+   "danish": "Hammerhoved",
+   "kategori": "E"
+  },
+  "Serinus canaria": {
+   "danish": "Kanariefugl",
+   "kategori": "E"
+  },
+  "Serinus serinus": {
+   "danish": "Gulirisk",
+   "kategori": "A"
+  },
+  "Setophaga aestiva": {
+   "danish": "Gul Sanger",
+   "kategori": "A"
+  },
+  "Setophaga striata": {
+   "danish": "Stribet Sanger",
+   "kategori": "A"
+  },
+  "Sibirionetta formosa": {
+   "danish": "Sibirisk Krikand",
+   "kategori": "A"
+  },
+  "Sicalis flaveola": {
+   "danish": "Safranfinke",
+   "kategori": "E"
+  },
+  "Sitta europaea": {
+   "danish": "Spætmejse",
+   "kategori": "A"
+  },
+  "Somateria mollissima": {
+   "danish": "Ederfugl",
+   "kategori": "A"
+  },
+  "Somateria spectabilis": {
+   "danish": "Kongeederfugl",
+   "kategori": "A"
+  },
+  "Spatula clypeata": {
+   "danish": "Skeand",
+   "kategori": "A"
+  },
+  "Spatula cyanoptera": {
+   "danish": "Kaneland",
+   "kategori": "E"
+  },
+  "Spatula discors": {
+   "danish": "Blåvinget And",
+   "kategori": "A"
+  },
+  "Spatula querquedula": {
+   "danish": "Atlingand",
+   "kategori": "A"
+  },
+  "Spinus cucullatus": {
+   "danish": "Kapucinersisken",
+   "kategori": "E"
+  },
+  "Spinus spinus": {
+   "danish": "Grønsisken",
+   "kategori": "A"
+  },
+  "Stercorarius longicaudus": {
+   "danish": "Lille Kjove",
+   "kategori": "A"
+  },
+  "Stercorarius parasiticus": {
+   "danish": "Almindelig Kjove",
+   "kategori": "A"
+  },
+  "Stercorarius pomarinus": {
+   "danish": "Mellemkjove",
+   "kategori": "A"
+  },
+  "Stercorarius skua": {
+   "danish": "Storkjove",
+   "kategori": "A"
+  },
+  "Sterna dougallii": {
+   "danish": "Rosenterne",
+   "kategori": "A"
+  },
+  "Sterna hirundo": {
+   "danish": "Fjordterne",
+   "kategori": "A"
+  },
+  "Sterna paradisaea": {
+   "danish": "Havterne",
+   "kategori": "A"
+  },
+  "Sternula albifrons": {
+   "danish": "Dværgterne",
+   "kategori": "A"
+  },
+  "Streptopelia decaocto": {
+   "danish": "Tyrkerdue",
+   "kategori": "A"
+  },
+  "Streptopelia orientalis": {
+   "danish": "Østlig Turteldue",
+   "kategori": "A"
+  },
+  "Streptopelia turtur": {
+   "danish": "Turteldue",
+   "kategori": "A"
+  },
+  "Strix aluco": {
+   "danish": "Natugle",
+   "kategori": "A"
+  },
+  "Strix nebulosa": {
+   "danish": "Lapugle",
+   "kategori": "E"
+  },
+  "Strix uralensis": {
+   "danish": "Slagugle",
+   "kategori": "E"
+  },
+  "Sturnia sinensis": {
+   "danish": "Mandarinstær",
+   "kategori": "E"
+  },
+  "Sturnus unicolor": {
+   "danish": "Ensfarvet Stær",
+   "kategori": "A"
+  },
+  "Sturnus vulgaris": {
+   "danish": "Stær",
+   "kategori": "A"
+  },
+  "Sula leucogaster": {
+   "danish": "Brun Sule",
+   "kategori": "A"
+  },
+  "Surnia ulula": {
+   "danish": "Høgeugle",
+   "kategori": "A"
+  },
+  "Suthora webbiana": {
+   "danish": "Kanelpapegøjenæb",
+   "kategori": "E"
+  },
+  "Sylvia atricapilla": {
+   "danish": "Munk",
+   "kategori": "A"
+  },
+  "Sylvia borin": {
+   "danish": "Havesanger",
+   "kategori": "A"
+  },
+  "Synoicus chinensis": {
+   "danish": "Kinesisk Dværgvagtel",
+   "kategori": "E"
+  },
+  "Syrmaticus reevesii": {
+   "danish": "Kongefasan",
+   "kategori": "E"
+  },
+  "Syrrhaptes paradoxus": {
+   "danish": "Steppehøne",
+   "kategori": "A"
+  },
+  "Tachybaptus ruficollis": {
+   "danish": "Lille Lappedykker",
+   "kategori": "A"
+  },
+  "Tachymarptis melba": {
+   "danish": "Alpesejler",
+   "kategori": "A"
+  },
+  "Tadorna cana": {
+   "danish": "Sydafrikansk Gravand",
+   "kategori": "E"
+  },
+  "Tadorna ferruginea": {
+   "danish": "Rustand",
+   "kategori": "A"
+  },
+  "Tadorna tadorna": {
+   "danish": "Gravand",
+   "kategori": "A"
+  },
+  "Taeniopygia castanotis": {
+   "danish": "Zebrafinke",
+   "kategori": "E"
+  },
+  "Tarsiger cyanurus": {
+   "danish": "Blåstjert",
+   "kategori": "A"
+  },
+  "Tetrao urogallus": {
+   "danish": "Tjur",
+   "kategori": "E"
+  },
+  "Tetrax tetrax": {
+   "danish": "Dværgtrappe",
+   "kategori": "A"
+  },
+  "Thalassarche melanophris": {
+   "danish": "Sortbrynet Albatros",
+   "kategori": "A"
+  },
+  "Thalasseus elegans": {
+   "danish": "Aztekerterne",
+   "kategori": "A"
+  },
+  "Thalasseus sandvicensis": {
+   "danish": "Splitterne",
+   "kategori": "A"
+  },
+  "Thinornis dubius": {
+   "danish": "Lille Præstekrave",
+   "kategori": "A"
+  },
+  "Threskiornis aethiopicus": {
+   "danish": "Hellig Ibis",
+   "kategori": "E"
+  },
+  "Trichoglossus borneus": {
+   "danish": "Rød Lori",
+   "kategori": "E"
+  },
+  "Trichoglossus moluccanus": {
+   "danish": "Regnbuelori",
+   "kategori": "E"
+  },
+  "Tringa erythropus": {
+   "danish": "Sortklire",
+   "kategori": "A"
+  },
+  "Tringa flavipes": {
+   "danish": "Lille Gulben",
+   "kategori": "A"
+  },
+  "Tringa glareola": {
+   "danish": "Tinksmed",
+   "kategori": "A"
+  },
+  "Tringa melanoleuca": {
+   "danish": "Stor Gulben",
+   "kategori": "A"
+  },
+  "Tringa nebularia": {
+   "danish": "Hvidklire",
+   "kategori": "A"
+  },
+  "Tringa ochropus": {
+   "danish": "Svaleklire",
+   "kategori": "A"
+  },
+  "Tringa stagnatilis": {
+   "danish": "Damklire",
+   "kategori": "A"
+  },
+  "Tringa totanus": {
+   "danish": "Rødben",
+   "kategori": "A"
+  },
+  "Trochalopteron erythrocephalum": {
+   "danish": "Gyldenvinget Skadedrossel",
+   "kategori": "E"
+  },
+  "Troglodytes troglodytes": {
+   "danish": "Gærdesmutte",
+   "kategori": "A"
+  },
+  "Turdus atrogularis": {
+   "danish": "Sortstrubet Drossel",
+   "kategori": "A"
+  },
+  "Turdus eunomus": {
+   "danish": "Brundrossel",
+   "kategori": "A"
+  },
+  "Turdus iliacus": {
+   "danish": "Vindrossel",
+   "kategori": "A"
+  },
+  "Turdus merula": {
+   "danish": "Solsort",
+   "kategori": "A"
+  },
+  "Turdus migratorius": {
+   "danish": "Vandredrossel",
+   "kategori": "A"
+  },
+  "Turdus obscurus": {
+   "danish": "Gråstrubet Drossel",
+   "kategori": "A"
+  },
+  "Turdus philomelos": {
+   "danish": "Sangdrossel",
+   "kategori": "A"
+  },
+  "Turdus pilaris": {
+   "danish": "Sjagger",
+   "kategori": "A"
+  },
+  "Turdus torquatus": {
+   "danish": "Ringdrossel",
+   "kategori": "A"
+  },
+  "Turdus viscivorus": {
+   "danish": "Misteldrossel",
+   "kategori": "A"
+  },
+  "Tyto alba": {
+   "danish": "Slørugle",
+   "kategori": "A"
+  },
+  "Upupa epops": {
+   "danish": "Hærfugl",
+   "kategori": "A"
+  },
+  "Uraeginthus bengalus": {
+   "danish": "Sommerfuglefinke",
+   "kategori": "E"
+  },
+  "Uria aalge": {
+   "danish": "Lomvie",
+   "kategori": "A"
+  },
+  "Uria lomvia": {
+   "danish": "Polarlomvie",
+   "kategori": "A"
+  },
+  "Vanellus armatus": {
+   "danish": "Broget Vibe",
+   "kategori": "E"
+  },
+  "Vanellus gregarius": {
+   "danish": "Steppevibe",
+   "kategori": "A"
+  },
+  "Vanellus leucurus": {
+   "danish": "Sumpvibe",
+   "kategori": "A"
+  },
+  "Vanellus spinosus": {
+   "danish": "Sporevibe",
+   "kategori": "E"
+  },
+  "Vanellus vanellus": {
+   "danish": "Vibe",
+   "kategori": "A"
+  },
+  "Vidua macroura": {
+   "danish": "Dominikanerenke",
+   "kategori": "E"
+  },
+  "Vireo olivaceus": {
+   "danish": "Rødøjet Vireo",
+   "kategori": "A"
+  },
+  "Xanthocephalus xanthocephalus": {
+   "danish": "Gulhovedet Trupial",
+   "kategori": "E"
+  },
+  "Xema sabini": {
+   "danish": "Sabinemåge",
+   "kategori": "A"
+  },
+  "Xenus cinereus": {
+   "danish": "Terekklire",
+   "kategori": "A"
+  },
+  "Yuhina nigrimenta": {
+   "danish": "Sorthaget Yuhina",
+   "kategori": "E"
+  },
+  "Zapornia parva": {
+   "danish": "Lille Rørvagtel",
+   "kategori": "A"
+  },
+  "Zapornia pusilla": {
+   "danish": "Dværgrørvagtel",
+   "kategori": "A"
+  },
+  "Zenaida macroura": {
+   "danish": "Sørgedue",
+   "kategori": "A"
+  },
+  "Zonotrichia albicollis": {
+   "danish": "Hvidstrubet Spurv",
+   "kategori": "A"
+  },
+  "Zonotrichia leucophrys": {
+   "danish": "Hvidkronet Spurv",
+   "kategori": "A"
+  },
+  "Zoothera aurea": {
+   "danish": "Gulddrossel",
+   "kategori": "A"
+  }
+ },
+ "subspecies": {
+  "Milvus migrans parasitus": {
+   "danish": "Gulnæbbet Glente",
+   "kategori": "D",
+   "species": "Milvus migrans"
+  },
+  "Phasianus colchicus colchicus": {
+   "danish": "Fasan",
+   "kategori": "E",
+   "species": "Phasianus colchicus"
+  },
+  "Phasianus colchicus karpowi": {
+   "danish": "Koreansk Fasan",
+   "kategori": "E",
+   "species": "Phasianus colchicus"
+  },
+  "Phasianus colchicus mongolicus": {
+   "danish": "Kazakhstan Fasan",
+   "kategori": "E",
+   "species": "Phasianus colchicus"
+  },
+  "Phasianus colchicus torquatus": {
+   "danish": "Ringfasan",
+   "kategori": "E",
+   "species": "Phasianus colchicus"
+  }
+ }
+}

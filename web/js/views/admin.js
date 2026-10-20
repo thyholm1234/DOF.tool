@@ -494,8 +494,17 @@ async function categoriesPanel(body) {
   const q = h("input", { type: "search", placeholder: "Søg art…", value: params().q || "" });
   const list = h("div", { class: "stack", style: { maxHeight: "70vh", overflow: "auto" } });
   const detail = h("div", { class: "stack" });
+  const listBox = h("details", { class: "card more", style: { marginBottom: "12px" } },
+    h("summary", {}, "Den Danske Liste (DOF's Sjældenhedsudvalg, 2025) – læg kategorierne ind"));
+  listBox.append(h("div", { class: "stack mt" }, h("p", { class: "muted", style: { margin: 0 } }, "Sammenligner portalens arter med listen (bilag 1–4: kategori A–C, D, E og F). Se først hvad en import vil ændre, og kør den bagefter. Rækker I selv har lavet, røres ikke, og afløste rækker bevares i historikken."),
+    h("button", { class: "btn", style: { alignSelf: "flex-start" }, onclick: async (e) => {
+      const btn = e.currentTarget; btn.disabled = true;
+      try { renderListReport(listBox, await api("/api/categories/danish-list"), () => { loadList(); loadDetail(); }); }
+      catch (err) { toast(err.message, "err"); } finally { btn.disabled = false; }
+    } }, "Se hvad der ændres")));
   body.append(
-    h("p", { class: "muted", style: { marginTop: 0 } }, "Kun kategori A, B og C er krydsbare på årslisterne. En arts kategori kan skifte over tid (gyldig fra en dato), og en serie af observationer på én lokalitet kan overstyres – fx et godkendt A-fund af en D-art. Ændringer slettes aldrig; tidligere værdier ses i historikken."),
+    listBox,
+    h("p", { class: "muted", style: { marginTop: 0 } }, "Kun kategori A, B og C er krydsbare på årslisterne (D, E og F er ikke). Kategorierne følger Den Danske Liste (A–C fra Netfugl, D–F fra Sjældenhedsudvalgets PDF). En arts kategori kan skifte over tid (gyldig fra en dato), og en serie af observationer på én lokalitet kan overstyres – fx et godkendt A-fund af en D-art. Ændringer slettes aldrig; tidligere værdier ses i historikken."),
     h("div", { class: "cat-layout" },
       h("div", { class: "card stack" }, h("div", { class: "row", style: { flexWrap: "nowrap" } }, q,
         h("button", { class: "btn", html: `${icon("plus")} Opret art`, title: "Opret en art, der ikke findes i listen", onclick: () => newSpeciesForm(q.value, (artnr) => { q.value = ""; setParams({ art: artnr, y: "" }); loadList(); loadDetail(); }) })), list), detail));
@@ -589,14 +598,37 @@ async function categoriesPanel(body) {
   await Promise.all([loadList(), loadDetail()]);
 }
 
+/** Rapport fra Den Danske Liste: hvad en import vil ændre, med knap til at gennemføre den. */
+function renderListReport(box, r, done) {
+  const out = box.querySelector(".stack");
+  out.querySelector(".list-report")?.remove();
+  const row = (c) => h("li", {}, h("b", {}, c.navn), h("i", { class: "muted" }, ` ${c.latin} `), katTag(c.kategori), c.valid_from ? h("small", { class: "muted" }, ` fra ${fmtDate(c.valid_from)}`) : null);
+  const rep = h("div", { class: "list-report stack" },
+    h("p", { style: { margin: 0 } }, h("b", {}, `${fmtN(r.matched)} af ${fmtN(r.of)} arter på listen`), ` findes i portalen. ${fmtN(r.n_changes)} ændringer: `,
+      Object.entries(r.summary).sort().map(([k, n]) => `${n}× ${k}`).join(", ") || "ingen", `. ${fmtN(r.unchanged)} er allerede som på listen.`),
+    r.conflicts.length ? h("div", { class: "notice warn" }, h("b", {}, `${r.conflicts.length} arter røres ikke, fordi en moderator har sat kategorien: `),
+      r.conflicts.map(c => `${c.navn} (listen: ${c.liste}, portalen: ${c.portal.map(p => p.kategori).join("/")})`).join(", ")) : null,
+    r.unmatched.length ? h("details", {}, h("summary", {}, `${r.n_unmatched} arter på listen findes ikke i portalen`),
+      h("small", { class: "muted" }, "Typisk undsluppne arter, som DOFbasen aldrig har haft – vist er A–D og F: "), r.unmatched.map(u => `${u.navn} (${u.kategori})`).join(", ")) : null,
+    r.bracket_off_list.length ? h("small", { class: "muted" }, `Står med [klammer] i DOFbasen, men ikke på listen (beholder kategori D): ${r.bracket_off_list.map(x => x.navn).join(", ")}`) : null,
+    r.n_changes ? h("details", {}, h("summary", {}, `Vis ændringerne${r.n_changes > r.changes.length ? ` (de første ${r.changes.length})` : ""}`), h("ul", { class: "stack-sm", style: { columns: "2 260px" } }, ...r.changes.map(row))) : null,
+    r.n_changes ? h("button", { class: "btn primary", style: { alignSelf: "flex-start" }, onclick: async (e) => {
+      if (!confirm(`Læg ${r.n_changes} kategoriændringer ind fra Den Danske Liste?`)) return;
+      e.currentTarget.disabled = true;
+      try { const w = await api("/api/categories/danish-list", { method: "POST" }); toast(`${w.written} kategorier lagt ind`); rep.remove(); done(); }
+      catch (err) { toast(err.message, "err"); e.currentTarget.disabled = false; }
+    } }, `Læg ${fmtN(r.n_changes)} kategorier ind`) : h("p", { class: "muted", style: { margin: 0 } }, "Portalen følger allerede listen."));
+  out.append(rep);
+}
+
 /** Opret en art med kategori (fx en undsluppen art, DOFbasen endnu ikke har på artslisten). */
 function newSpeciesForm(navn, onCreated) {
   const f = {
     navn: h("input", { required: true, minlength: 2, maxlength: 200, value: navn || "", placeholder: "Fx Rødhalset Gås eller [Mandarinand]" }),
     latin: h("input", { maxlength: 200, placeholder: "Videnskabeligt navn (valgfrit)" }),
     artnr: h("input", { type: "number", min: 1, max: 899999, placeholder: "DOFbasens artsnummer (valgfrit)" }),
-    kategori: h("select", {}, ...Object.entries({ A: "Vild fugl (krydsbar)", B: "Kun vild før 1950 (krydsbar)", C: "Indført, selvopretholdende (krydsbar)",
-      D: "Mulig vild – tvivl om oprindelse (ikke krydsbar)", E: "Undsluppet/udsat (ikke krydsbar)" }).map(([k, t]) => h("option", { value: k, selected: k === "E" }, `${k} – ${t}`))),
+    kategori: h("select", {}, ...Object.entries({ A: "Vild fugl (krydsbar)", B: "Kun vild 1800–1949 (krydsbar)", C: "Indført, selvopretholdende (krydsbar)",
+      D: "Mulig vild – tvivl om oprindelse (ikke krydsbar)", E: "Undsluppet/udsat (ikke krydsbar)", F: "Kun registreret før 1800 (ikke krydsbar)" }).map(([k, t]) => h("option", { value: k, selected: k === "E" }, `${k} – ${t}`))),
     from: h("input", { type: "date" }),
     note: h("input", { maxlength: 1000, placeholder: "Note / kilde (valgfri)" }),
   };

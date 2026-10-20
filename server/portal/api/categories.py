@@ -10,14 +10,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_perm
-from portal.cache import bump
+from portal.cache import bump, kv
 from portal.db import get_session
 from portal.models import CategoryOverride, Species, SpeciesCategory, User
-from portal.services import activity, categories
+from portal.services import activity, categories, danish_list
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 moderator = require_perm("kategorier")
-KAT = "^[A-E]$"
+KAT = "^[A-F]$"
 PORTAL_ARTNR = 900000  # arter oprettet i portalen uden DOFbasen-artsnummer
 
 
@@ -72,6 +72,43 @@ async def species_detail(artnr: int, year: int | None = None, user: User = Depen
             "current": await categories.species_category(db, artnr), "categories": categories.CATEGORIES,
             "periods": [_row(r) for r in periods], "overrides": [_row(r) for r in overrides], "years": years,
             "year": year, "series": await categories.series(db, artnr, year), "gap_days": categories.SERIES_GAP_DAYS}
+
+
+def _report(p: dict) -> dict:
+    """Rapport til brugerfladen: tal og de første eksempler (hele listen er for lang)."""
+    return {"sources": p["sources"], "disagreements": p["disagreements"], "matched": p["matched"], "of": p["of"], "summary": p["summary"],
+            "unchanged": p["unchanged"],
+            "conflicts": p["conflicts"][:100], "unmatched": [u for u in p["unmatched"] if u["kategori"] in "ABCDF"][:100],
+            "n_unmatched": len(p["unmatched"]), "bracket_off_list": p["bracket_off_list"],
+            "changes": [{k: c[k] for k in ("navn", "latin", "kategori")} | {"valid_from": c["valid_from"].isoformat() if c["valid_from"] else None}
+                        for c in p["changes"][:300]], "n_changes": len(p["changes"])}
+
+
+@router.get("/danish-list")
+async def danish_list_preview(user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    """Hvad en import af Den Danske Liste vil ændre (skriver ikke noget)."""
+    return _report(await danish_list.plan(db))
+
+
+@router.post("/danish-list/refresh")
+async def danish_list_refresh(user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    """Hent Netfugls DK-liste (ét kald til netfugl.dk) og vis, hvad en import så vil ændre."""
+    if not await kv().set("categories:netfugl_rl", "1", nx=True, ex=300):
+        raise HTTPException(429, "Netfugl er hentet for et øjeblik siden – vent et par minutter")
+    try:
+        await danish_list.refresh_netfugl(db)
+    except Exception as exc:  # noqa: BLE001 – netværksfejl og ændret sideformat skal ses af brugeren
+        await kv().delete("categories:netfugl_rl")
+        raise HTTPException(502, f"Kunne ikke hente Netfugls liste: {exc}") from exc
+    return _report(await danish_list.plan(db))
+
+
+@router.post("/danish-list")
+async def danish_list_import(user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    """Læg Den Danske Liste ind som kategorier. Rækker oprettet af moderatorer røres ikke; afløste rækker bevares i historikken."""
+    report = await danish_list.apply(db, user.id)
+    await activity.track(user.id, "moderation", None, {"category": "danish_list", "written": report["written"]})
+    return report
 
 
 class NewSpeciesIn(BaseModel):

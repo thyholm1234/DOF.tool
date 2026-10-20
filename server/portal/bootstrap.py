@@ -12,6 +12,7 @@ from portal.db import Base, SessionLocal, engine
 from portal.dof.reference import seed_reference
 from portal.services.auth import ensure_superadmin
 from portal.services.categories import seed_categories
+from portal.services.danish_list import seed as seed_danish_list
 from portal.services.learning import seed_courses
 from portal.services.push import ensure_vapid
 
@@ -30,6 +31,7 @@ async def init_db() -> None:
         try:
             await seed_reference(s)
             await seed_categories(s)
+            await seed_danish_list(s)
             await seed_presets(s)
             await ensure_superadmin(s)
             await seed_courses(s)

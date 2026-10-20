@@ -160,7 +160,8 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
 
 
 @router.get("/locations/{loknr}/species")
-async def location_species(loknr: int, year: int | None = Query(None, ge=1900, le=2200), db: AsyncSession = Depends(get_session)):
+async def location_species(loknr: int, year: int | None = Query(None, ge=1900, le=2200), user: User | None = Depends(optional_user),
+                           db: AsyncSession = Depends(get_session)):
     """Artsliste med rekorder for lokaliteten – i alt eller for ét år. Bygges altid ved indlæsning (ingen cache) og er
     tung på de store lokaliteter (fx Grenen), så den hentes for sig, mens resten af siden vises. years = årene med
     observationer."""
@@ -193,7 +194,18 @@ async def location_species(loknr: int, year: int | None = Query(None, ge=1900, l
         """), {"l": loknr})).mappings().all()
         return [dict(r) for r in rows]
 
-    return {"species": await species_rows(), "years": await year_rows(), "year": year}
+    async def mine_rows():
+        # Arter den indloggede selv har indtastet på lokaliteten (i det valgte år) – til filteret "Mangler hos mig"
+        if user is None or not user.obserkode:
+            return []
+        rows = (await db.execute(text("""
+            SELECT DISTINCT artnr FROM observations
+            WHERE loknr = :l AND obserkode = :k AND antal > 0
+              AND (CAST(:y AS int) IS NULL OR dato >= make_date(CAST(:y AS int), 1, 1) AND dato < make_date(CAST(:y AS int) + 1, 1, 1))
+        """), {"l": loknr, "k": user.obserkode, "y": year})).scalars().all()
+        return list(rows)
+
+    return {"species": await species_rows(), "years": await year_rows(), "year": year, "mine": await mine_rows()}
 
 
 @router.get("/locations/{loknr}/records/{artnr}")

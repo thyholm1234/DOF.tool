@@ -1,7 +1,8 @@
 """Listekategorier: hvilke observationer er krydsbare på årslister.
 
-Kategorierne følger AERC/DOF: A (vild), B (kun vild før 1950), C (indført, selvopretholdende) er krydsbare;
-D (mulig vild, tvivl om oprindelse) og E (undslupne/udsatte) er ikke. Kategorien for en observation findes af
+Kategorierne følger AERC/SU (Den Danske Liste): A (vild), B (kun vild 1800–1949) og C (indført, selvopretholdende) er
+krydsbare – som på Netfugl. D (tvivl om oprindelse), E (undslupne/udsatte) og F (kun registreret før 1800) er ikke.
+Se services/danish_list.py for listen. Kategorien for en observation findes af
 SQL-funktionen bird_category (se models.EXTRA_DDL):
   1. en overstyring for serien (listeart × lokalitet × datointerval), fx et godkendt A-fund af en D-art
   2. artens kategori på datoen (kategorier har en gyldig-fra-dato, så en art kan skifte kategori over tid)
@@ -23,10 +24,11 @@ log = logging.getLogger("portal.categories")
 
 CATEGORIES = {
     "A": "Vild fugl (krydsbar)",
-    "B": "Kun vild før 1950 (krydsbar)",
+    "B": "Kun vild 1800–1949 (krydsbar)",
     "C": "Indført, selvopretholdende bestand (krydsbar)",
     "D": "Mulig vild – tvivl om oprindelse (ikke krydsbar)",
     "E": "Undsluppet/udsat (ikke krydsbar)",
+    "F": "Kun registreret før 1800 (ikke krydsbar)",
 }
 COUNTABLE = ("A", "B", "C")
 SERIES_GAP_DAYS = 7  # som fund-aggregeringen: mere end 7 dage uden obs. på lokaliteten deler serien
