@@ -36,6 +36,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=get_settings().app_name, lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 
+MOB_AUDIO = re.compile(r"^(/v/[^/]+)?/audio/mobgang/")
 PUBLIC_API = ("/api/auth/", "/api/health", "/api/me", "/api/settings/public", "/api/ics/", "/api/docs", "/api/openapi.json")
 
 
@@ -52,10 +53,19 @@ async def guard(request: Request, call_next):
         token = request.cookies.get(COOKIE)
         if not token or not await kv().exists(f"sess:{token}"):
             return JSONResponse({"detail": "Log ind for at bruge portalen"}, status_code=401)
+    mob_audio = bool(MOB_AUDIO.match(path))
+    if mob_audio:
+        # Mobgang-lyde: kun indloggede med bestået etiktest og uden for ynglesæsonen
+        user_id = await kv().get(f"sess:{request.cookies.get(COOKIE) or '-'}")
+        if not user_id or not await mobgang.audio_allowed(int(user_id)):
+            return JSONResponse({"detail": "Mobgang er lukket i ynglesæsonen eller kræver bestået etiktest"}, status_code=403)
     response = await call_next(request)
     if not path.startswith(("/api/", "/media/", "/vendor/", "/icons/", "/v/")):
         # App-filer (html/js/css/sw): browseren skal altid tjekke for ny version (billigt via etag)
         response.headers["Cache-Control"] = "no-cache"
+    if mob_audio:
+        # Aldrig i delt cache (CDN), og browseren skal spørge igen, så lukningen også gælder cachede filer
+        response.headers["Cache-Control"] = "private, no-cache"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "DENY")
