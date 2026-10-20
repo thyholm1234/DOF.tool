@@ -5,10 +5,12 @@ export const state = { user: null, afdelinger: [], kommuner: [], unread: 0 };
 export const can = (module) => !!state.user?.modules?.includes(module);
 // Admin-sidens faner i rækkefølge: [modul, fanetekst]
 export const ADMIN_TABS = [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"],
-  ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["arter", "Arter"], ["indhold", "Nyheder"]];
+  ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["roller", "Roller"], ["arter", "Arter"], ["indhold", "Nyheder"]];
+/** Må den indloggede se admin-fanen? Roller er kun for superadmin (ikke et modul, der kan tildeles). */
+export const hasTab = (m) => m === "roller" ? state.user?.role === "superadmin" : can(m);
 /** Admin-menupunktet: "Moderation" for dem med kun moderatoropgaver, ellers "Admin". null = ingen faner. */
 export function adminLink() {
-  const tabs = ADMIN_TABS.filter(([m]) => can(m)).map(([m]) => m);
+  const tabs = ADMIN_TABS.filter(([m]) => hasTab(m)).map(([m]) => m);
   if (!tabs.length) return null;
   const mod = tabs.every(m => ["moderation", "ture", "kategorier"].includes(m));
   return { href: "#/admin", label: mod ? "Moderation" : "Admin", long: mod ? "Moderation" : "Administration" };

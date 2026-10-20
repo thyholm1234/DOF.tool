@@ -13,19 +13,16 @@ from datetime import datetime, timezone
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, InvalidHashError
-from sqlalchemy import or_, select, text
+from sqlalchemy import or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
 from portal.config import get_settings
 from portal.dof import gateway
-from portal.models import Setting, User
+from portal.models import Role, Setting, User
 
 ph = PasswordHasher()
 OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
-# Stigende rettigheder: moderator (kommentarer, portalens egne ture) < editor (e-læring) < admin < superadmin
-ROLES = ("user", "moderator", "editor", "admin", "superadmin")
-
 # Admin-moduler. Rollen giver et standardsæt; en bruger kan i stedet få en individuel liste (users.permissions).
 MODULES = {
     "drift": "Drift: gateway, kø, arkiv, jobs og indstillinger",
@@ -44,13 +41,45 @@ MODULES = {
     "mobgang_season": "Mobgang: lukning i ynglesæsonen",
 }
 _MOD = {"moderation", "ture", "kategorier"}
-ROLE_MODULES = {
-    "user": set(),
-    "moderator": _MOD,
-    "editor": _MOD | {"laering", "mobgang_presets"},
-    "admin": set(MODULES),
-    "superadmin": set(MODULES),
-}
+
+# Roller ligger i tabellen roles og redigeres af superadmin. Startsættet lægges ind første gang. "user" (ingen
+# admin-adgang) og "admin" (koden giver administratorer særlige rettigheder) kan ikke slettes; "user" har aldrig moduler.
+# Superadmin er ikke en rolle i tabellen: den har altid alle moduler og er brugeren fra .env.
+SUPERADMIN = "superadmin"
+DEFAULT_ROLES = [("user", "Bruger", set()), ("moderator", "Moderator", _MOD),
+                 ("editor", "Redaktør", _MOD | {"laering", "mobgang_presets"}), ("admin", "Administrator", set(MODULES))]
+FIXED_ROLES = {"user", "admin"}
+# Rollernes moduler og navne i denne proces – genindlæses, når en anden proces har ændret dem (se ensure_roles)
+ROLE_MODULES: dict[str, set[str]] = {k: set(m) for k, _, m in DEFAULT_ROLES}
+ROLE_NAMES: dict[str, str] = {k: n for k, n, _ in DEFAULT_ROLES}
+ROLES_VERSION = "roles:version"
+_roles_loaded: list = [None]
+
+
+async def seed_roles(session: AsyncSession) -> None:
+    if (await session.execute(select(Role.key).limit(1))).first() is None:
+        for i, (key, name, mods) in enumerate(DEFAULT_ROLES):
+            session.add(Role(key=key, name=name, modules=sorted(mods), sort=i * 10))
+        await session.commit()
+
+
+async def ensure_roles(session: AsyncSession, force: bool = False) -> None:
+    """Hent rollerne fra databasen, hvis de er ændret siden sidst (ét Valkey-opslag pr. kald)."""
+    ver = await kv().get(ROLES_VERSION) or "0"
+    if not force and _roles_loaded[0] == ver:
+        return
+    rows = (await session.execute(select(Role).order_by(Role.sort, Role.name))).scalars().all()
+    if rows:
+        ROLE_MODULES.clear()
+        ROLE_NAMES.clear()
+        for r in rows:
+            ROLE_MODULES[r.key] = set() if r.key == "user" else set(r.modules or []) & set(MODULES)
+            ROLE_NAMES[r.key] = r.name
+    _roles_loaded[0] = ver
+
+
+async def roles_changed() -> None:
+    await kv().incr(ROLES_VERSION)
 
 
 class AuthError(Exception):
@@ -84,9 +113,11 @@ async def ensure_superadmin(session: AsyncSession) -> None:
     if user is None:
         user = User(obserkode=kode, navn=kode, role="superadmin", prefs={})
         session.add(user)
-    user.role = "superadmin"
+    user.role = SUPERADMIN
     if not verify(user.password_hash, s.superadmin_password):
         user.password_hash = ph.hash(s.superadmin_password)
+    # Der er kun én superadmin – den fra .env. Andre med rollen (fx en tidligere SUPERADMIN_OBSERKODE) bliver administratorer.
+    await session.execute(update(User).where(User.role == SUPERADMIN, User.id != user.id).values(role="admin"))
     await session.commit()
 
 
@@ -117,6 +148,7 @@ async def approval_required(session: AsyncSession) -> bool:
 
 async def staff_ids(session: AsyncSession, module: str) -> list[int]:
     """Brugere med adgang til et admin-modul (rolle eller individuel rettighed)."""
+    await ensure_roles(session)
     rows = (await session.execute(select(User).where(~User.blocked, or_(User.role != "user", User.permissions.isnot(None))))).scalars().all()
     return [u.id for u in rows if module in modules(u)]
 
@@ -198,6 +230,7 @@ async def user_from_token(session: AsyncSession, token: str | None) -> User | No
     user = await session.get(User, int(user_id))
     if user is None or user.blocked or not user.approved:
         return None
+    await ensure_roles(session)
     return user
 
 
@@ -207,14 +240,15 @@ async def destroy_session(token: str | None) -> None:
 
 
 def role_at_least(user: User | None, role: str) -> bool:
-    return bool(user) and ROLES.index(user.role) >= ROLES.index(role)
+    """Har brugeren rollen (superadmin har alle)?"""
+    return bool(user) and user.role in (role, SUPERADMIN)
 
 
 def modules(user: User | None) -> set[str]:
     """Brugerens admin-moduler: den individuelle liste, ellers rollens standard. Superadmin har altid alle."""
     if user is None or user.blocked:
         return set()
-    if user.role == "superadmin":
+    if user.role == SUPERADMIN:
         return set(MODULES)
     if user.permissions is not None:
         return set(user.permissions) & set(MODULES)

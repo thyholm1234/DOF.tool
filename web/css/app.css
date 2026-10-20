@@ -295,6 +295,15 @@ table.data tr.click:hover td { background: var(--surface-2); }
 .chart .band { fill: var(--brand-2); opacity: .14; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .8rem; color: var(--text-2); }
 .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+/* ---------- roller (admin) ---------- */
+.roles-table th.roles-mod { position: sticky; left: 0; z-index: 1; background: var(--surface); min-width: 220px; text-transform: none; letter-spacing: 0; font-size: .86rem; font-weight: 400; color: var(--text); white-space: normal; }
+.roles-table thead th.roles-mod { z-index: 2; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; color: var(--text-3); }
+.roles-table th.roles-col { text-align: center; min-width: 130px; vertical-align: top; text-transform: none; letter-spacing: 0; color: var(--text); }
+.roles-table th.roles-col > * { display: block; margin: 0 auto 4px; }
+.roles-table .roles-name { width: 100%; height: 30px; font-weight: 700; text-align: center; padding: 0 6px; }
+.roles-table td.roles-cell { text-align: center; vertical-align: middle; }
+.roles-table td.roles-cell input { width: 18px; height: 18px; }
+@media (max-width: 600px) { .roles-table th.roles-mod { min-width: 130px; max-width: 150px; } .roles-table th.roles-mod small { display: none !important; } .roles-table th.roles-col { min-width: 104px; } }
 /* ---------- delesiden for gæster (/del/…) ---------- */
 .share-main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(32px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 12px; }
 .share-card h1 { margin: 2px 0 4px; }

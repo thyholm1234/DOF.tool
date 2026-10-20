@@ -316,6 +316,19 @@ class LocationYear(Base):
 # ---------------------------------------------------------------- brugere
 
 
+class Role(Base):
+    """Roller og deres admin-moduler (redigeres af superadmin under Admin → Roller). Superadmin er ikke en række: den
+    har altid alle moduler og styres fra .env."""
+
+    __tablename__ = "roles"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+    modules: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list)
+    sort: Mapped[int] = mapped_column(Integer, default=100)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class User(Base):
     __tablename__ = "users"
 
