@@ -55,6 +55,63 @@ async def search_locations(q: str = Query(min_length=2, max_length=60), db: Asyn
     return [dict(r) for r in rows]
 
 
+@router.get("/locations/index")
+async def locations_index(q: str = Query("", max_length=60), kommune: str = Query("", max_length=4), afdeling: int | None = None,
+                          kat: str = Query("", pattern="^(|SU|SUB|bemaerk)$"), active: bool = False,
+                          sort: str = Query("aktivitet", pattern="^(aktivitet|aar|arter|senest|navn|afstand)$"),
+                          lat: float | None = None, lon: float | None = None, limit: int = Query(100, ge=1, le=300),
+                          offset: int = Query(0, ge=0), db: AsyncSession = Depends(get_session)):
+    """Lokalitetsindeks: alle lokaliteter med årets tal. Filtrering, sortering og sider sker her, så telefonen kun
+    henter de første rækker. sort=afstand kræver lat/lon (km fra positionen)."""
+    from portal.timeutil import dk_today
+
+    async def produce():
+        today = dk_today()
+        rows = (await db.execute(text("""
+            WITH o AS (
+                SELECT loknr, count(*) AS n_year, count(DISTINCT artnr) AS n_taxa, max(dato) AS last_date,
+                       count(*) FILTER (WHERE dato > :d30) AS n_30,
+                       max(CASE kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 WHEN 'bemaerk' THEN 1 ELSE 0 END) FILTER (WHERE dato > :d30) AS rank30
+                FROM observations WHERE dato >= :y0 AND hemmelig = 0 AND loknr IS NOT NULL GROUP BY loknr),
+            ever AS (SELECT loknr, max(dato) AS last_ever FROM observations WHERE hemmelig = 0 AND loknr IS NOT NULL GROUP BY loknr)
+            SELECT l.loknr, l.navn, l.lat, l.lon, l.kommune_kode, k.navn AS kommune, l.afdeling_id,
+                   coalesce(o.n_year, 0) AS n_year, coalesce(o.n_taxa, 0) AS n_taxa, coalesce(o.n_30, 0) AS n_30,
+                   coalesce(o.rank30, 0) AS rank30, greatest(o.last_date, ever.last_ever) AS last_date
+            FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode LEFT JOIN o ON o.loknr = l.loknr
+            LEFT JOIN ever ON ever.loknr = l.loknr
+        """), {"y0": date(today.year, 1, 1), "d30": today - timedelta(days=30)})).mappings().all()
+        return [{**dict(r), "last_date": r["last_date"].isoformat() if r["last_date"] else None} for r in rows]
+
+    # Det tunge opslag (alle observationer i år) gemmes i 30 minutter
+    allrows = await cached(f"lokindex:{await version('feed')}", 1800, produce)
+    kat_rank = {"SU": 3, "SUB": 2, "bemaerk": 1}.get(kat, 0)
+    ql = q.strip().lower()
+    rows = [r for r in allrows
+            if (not ql or ql in r["navn"].lower())
+            and (not kommune or r["kommune_kode"] == kommune)
+            and (afdeling is None or r["afdeling_id"] == afdeling)
+            and (not kat_rank or r["rank30"] >= kat_rank)
+            and (not active or r["n_year"] > 0)]
+    if sort == "afstand":
+        if lat is None or lon is None:
+            raise HTTPException(400, "Afstand kræver en position")
+        rows = [{**r, "km": round(finds._km((lat, lon), (r["lat"], r["lon"])), 1)} for r in rows if r["lat"] is not None]
+        rows.sort(key=lambda r: r["km"])
+    elif sort == "navn":
+        rows.sort(key=lambda r: r["navn"].lower())
+    else:
+        key = {"aktivitet": lambda r: (r["n_30"], r["n_year"]), "aar": lambda r: (r["n_year"], r["n_taxa"]),
+               "arter": lambda r: (r["n_taxa"], r["n_year"]), "senest": lambda r: (r["last_date"] or "", r["n_year"])}[sort]
+        rows.sort(key=key, reverse=True)
+    # Ved søgning står navne der begynder med søgeordet først (stabil sortering bevarer rækkefølgen i øvrigt)
+    if ql and sort != "afstand":
+        rows.sort(key=lambda r: not r["navn"].lower().startswith(ql))
+    katname = {3: "SU", 2: "SUB", 1: "bemaerk", 0: None}
+    page = [{**{k: v for k, v in r.items() if k not in ("rank30", "kommune_kode")}, "kategori": katname[r["rank30"]]}
+            for r in rows[offset:offset + limit]]
+    return {"total": len(rows), "all": len(allrows), "items": page}
+
+
 @router.get("/locations/{loknr}")
 async def location(loknr: int, db: AsyncSession = Depends(get_session)):
     loc = (await db.execute(text("""
@@ -65,24 +122,6 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
         raise HTTPException(404)
 
     kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
-
-    async def species_list():
-        # Flere turlister samme dag tæller ikke dobbelt: én pr. art pr. dag med det største antal. Rekorden er dagens
-        # største enkeltobservation (ikke summen, så samme flok talt af flere ikke lægges sammen). kat = den højeste
-        # kategori, arten har haft her; group = trækkortets artsgruppe.
-        rows = (await db.execute(text(f"""
-            WITH d AS (
-                SELECT artnr, dato, max(antal) AS antal, max({KAT_RANK}) AS rank
-                FROM observations o WHERE loknr = :l AND hemmelig = 0 AND antal > 0 GROUP BY artnr, dato
-            )
-            SELECT s.artnr, s.navn, s.sortering, count(*) AS n_obs, max(d.dato) AS last_date, max(d.rank) AS rank,
-                   max(d.antal) AS rekord, (array_agg(d.dato ORDER BY d.antal DESC, d.dato DESC))[1] AS rekord_dato
-            FROM d JOIN species s ON s.artnr = d.artnr
-            GROUP BY s.artnr, s.navn, s.sortering ORDER BY n_obs DESC LIMIT 600
-        """), {"l": loknr})).mappings().all()
-        groups = await migration.species_groups(db)
-        return [{**{k: r[k] for k in ("artnr", "navn", "sortering", "n_obs", "last_date", "rekord", "rekord_dato")},
-                 "kategori": kat[r["rank"]], "group": groups.get(r["artnr"])} for r in rows]
 
     async def produce():
         recent = (await db.execute(text(f"""
@@ -98,10 +137,34 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
         return {"recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kat[r["rank"]]} for r in recent],
                 "stats": dict(stats)}
 
-    data = await cached(f"lok2:{loknr}", 900, produce)
-    # Artsliste og rekorder ændrer sig langsomt og er tunge på de store lokaliteter (fx Grenen) – gemmes i 6 timer
-    species = await cached(f"lokspec:{loknr}", 6 * 3600, species_list)
-    return {**dict(loc), **data, "species": species, "groups": migration.GROUPS}
+    return {**dict(loc), **await cached(f"lok2:{loknr}", 900, produce), "groups": migration.GROUPS}
+
+
+@router.get("/locations/{loknr}/species")
+async def location_species(loknr: int, db: AsyncSession = Depends(get_session)):
+    """Artsliste med rekorder. Tung på de store lokaliteter (fx Grenen), så den hentes for sig – siden vises først –
+    og gemmes i 6 timer."""
+    kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
+
+    async def produce():
+        # Flere turlister samme dag tæller ikke dobbelt: én pr. art pr. dag med det største antal. Rekorden er dagens
+        # største enkeltobservation (ikke summen, så samme flok talt af flere ikke lægges sammen). kategori = den højeste,
+        # arten har haft her; group = trækkortets artsgruppe.
+        rows = (await db.execute(text(f"""
+            WITH d AS (
+                SELECT artnr, dato, max(antal) AS antal, max({KAT_RANK}) AS rank
+                FROM observations o WHERE loknr = :l AND hemmelig = 0 AND antal > 0 GROUP BY artnr, dato
+            )
+            SELECT s.artnr, s.navn, s.sortering, count(*) AS n_obs, max(d.dato) AS last_date, max(d.rank) AS rank,
+                   max(d.antal) AS rekord, (array_agg(d.dato ORDER BY d.antal DESC, d.dato DESC))[1] AS rekord_dato
+            FROM d JOIN species s ON s.artnr = d.artnr
+            GROUP BY s.artnr, s.navn, s.sortering ORDER BY n_obs DESC LIMIT 600
+        """), {"l": loknr})).mappings().all()
+        groups = await migration.species_groups(db)
+        return [{**{k: r[k] for k in ("artnr", "navn", "sortering", "n_obs", "last_date", "rekord", "rekord_dato")},
+                 "kategori": kat[r["rank"]], "group": groups.get(r["artnr"])} for r in rows]
+
+    return {"species": await cached(f"lokspec:{loknr}", 6 * 3600, produce)}
 
 
 @router.get("/locations/{loknr}/records/{artnr}")

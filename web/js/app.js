@@ -7,7 +7,7 @@ const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
   ["Nu og her", [["#/", "now", "Nu"], ["#/traek", "trend", "Træk"], ["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
-  ["Fugle", [["#/arter", "bird", "Arter"], ["#/laer", "learn", "Læring"], ["#/mobgang", "sound", "Mobgang"]]],
+  ["Fugle", [["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"], ["#/laer", "learn", "Læring"], ["#/mobgang", "sound", "Mobgang"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/kalender/mine", "calendar", "Mine planer"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
@@ -17,7 +17,8 @@ const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus
 
 /** Det mest specifikke menupunkt der matcher stien (så #/kalender/mine ikke også markerer Kalender). */
 function activeHref(path, hrefs) {
-  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path;  // en arts side hører under Arter
+  // en arts side hører under Arter, en lokalitets side under Lokaliteter
+  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter" : path;
   return hrefs.filter(href => href === "#/" ? p === "#/" : p === href || p.startsWith(href + "/") || p.startsWith(href + "?"))
     .sort((a, b) => b.length - a.length)[0];
 }
@@ -30,6 +31,7 @@ const ROUTES = [
   [/^\/traek$/, () => import("./views/pheno.js")],
   [/^\/arter$/, () => import("./views/arter.js")],
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
+  [/^\/lokaliteter$/, () => import("./views/lokaliteter.js")],
   [/^\/lok\/(\d+)$/, () => import("./views/location.js")],
   [/^\/laer(?:\/(.+))?$/, () => import("./views/learn.js")],
   [/^\/mobgang$/, () => import("./views/mobgang.js")],

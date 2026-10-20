@@ -173,7 +173,6 @@ export function threadCard(t, level, fresh = false) {
       h("div", { class: "title" }, h("span", { class: "count" }, fmtN(t.max_antal)), h("span", {}, t.art)),
       h("div", { class: "meta" }, h("span", { class: "lok", title: t.lok || "" }, t.lok || "Ukendt lokalitet"), t.kommune ? h("span", { class: "muted" }, `\u00a0· ${t.kommune}`) : null),
       h("div", { class: "meta2" }, [last.adf, last.observer, last.tid].filter(Boolean).join(" · ")),
-      t.rules?.length ? h("div", { class: "meta2" }, `Regel: ${t.rules.join(", ")}`) : null,
       t.portal ? h("div", { class: "row", style: { gap: "5px", marginTop: "5px" } },
         statusBadge(t.portal.status, t.portal.live, t.portal.status_at), t.source === "portal" ? h("span", { class: "tag portal" }, "Portal") : null,
         certaintyTag(t.portal.sikkerhed)) : null),

@@ -106,6 +106,14 @@ export function loading(el, rows = 4) {
   el.replaceChildren(...Array.from({ length: rows }, () => h("div", { class: "skeleton", style: { marginBottom: "8px" } })));
 }
 
+/** Indlæsningsblok: skeleton-rækker og en besked med spinner. Beskeden vises først efter lidt ventetid, så hurtige
+ *  opslag ikke blinker – tager det længere (tunge beregninger på serveren), ved brugeren at siden arbejder. */
+export function busyBlock(text, rows = 4) {
+  return h("div", { class: "stack", "aria-busy": "true", "aria-live": "polite" },
+    h("div", { class: "loadnote" }, h("span", { class: "spinner" }), h("span", {}, text)),
+    ...Array.from({ length: rows }, () => h("div", { class: "skeleton", style: { height: "44px" } })));
+}
+
 export function empty(text, sub) {
   return h("div", { class: "empty" }, h("div", { html: icon("bino") }), h("p", {}, text), sub ? h("small", {}, sub) : null);
 }

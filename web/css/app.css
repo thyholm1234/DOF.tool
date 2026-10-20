@@ -367,6 +367,9 @@ table.data tr.click:hover td { background: var(--surface-2); }
 .feature { padding: 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
 .feature b { display: block; margin-bottom: 3px; }
 .feature span { color: var(--text-2); font-size: .88rem; }
+.loadnote { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: .9rem; animation: fade .3s .7s backwards; }
+.loadnote .spinner { width: 16px; height: 16px; flex: none; }
+.is-busy { opacity: .5; pointer-events: none; transition: opacity .15s; }
 .spinner { width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hide { display: none !important; }

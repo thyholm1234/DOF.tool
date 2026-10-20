@@ -1,4 +1,4 @@
-import { api, h, fmtN, fmtDate, tag, errorBox, KAT, seg, params, setParams } from "../core.js";
+import { api, h, fmtN, fmtDate, tag, errorBox, KAT, seg, params, setParams, busyBlock } from "../core.js";
 
 // Filtre over artslisten: højeste kategori arten har haft på lokaliteten, og trækkortets artsgrupper
 const KAT_FILTER = [["", "Alle"], ["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"]];
@@ -9,7 +9,11 @@ import { baseMap } from "../maps.js";
 
 export async function render(view, [loknr]) {
   let d;
-  try { d = await api(`/api/locations/${loknr}`); } catch (err) { view.append(errorBox(err)); return; }
+  view.replaceChildren(busyBlock("Henter lokaliteten…", 5));
+  try { d = await api(`/api/locations/${loknr}`); } catch (err) { view.replaceChildren(errorBox(err)); return; }
+  view.replaceChildren();
+  d.species = [];  // artslisten og rekorderne er tunge og hentes for sig, så resten af siden kan vises med det samme
+  let speciesState = "loading";
   const mapEl = h("div", { class: "map small" });
   let q = "";
   const p = params();
@@ -39,6 +43,7 @@ export async function render(view, [loknr]) {
     const by = { dage: (a, b) => b.n_obs - a.n_obs, rekord: (a, b) => b.rekord - a.rekord, senest: (a, b) => String(b.last_date).localeCompare(String(a.last_date)),
       syst: (a, b) => (a.sortering ?? 1e9) - (b.sortering ?? 1e9) }[f.sort];
     list.sort(by);
+    if (speciesState !== "ready") { count.textContent = ""; return; }
     count.textContent = `${fmtN(list.length)} ${list.length === 1 ? "art" : "arter"} · tryk på en art for dens top 10 dage`;
     tbody.replaceChildren(...list.flatMap(s => {
       const row = h("tr", { style: { cursor: "pointer" }, onclick: () => { open.has(s.artnr) ? open.delete(s.artnr) : open.add(s.artnr); drawSpecies(); } },
@@ -53,6 +58,7 @@ export async function render(view, [loknr]) {
     seg(KAT_FILTER, f.kat, (v) => { f.kat = v; drawSpecies(); }),
     seg(GROUP_FILTER, f.grp, (v) => { f.grp = v; drawSpecies(); }),
     h("div", { class: "row between" }, seg(SORTS, f.sort, (v) => { f.sort = v; drawSpecies(); }), count));
+  const speciesBody = h("div", { class: "stack" }, busyBlock("Beregner arter og rekorder for lokaliteten… det kan tage et par sekunder på store lokaliteter", 6));
   view.append(
     h("p", {}, h("a", { href: "#/", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn), h("p", { class: "lead" }, [d.kommune && `${d.kommune} Kommune`, d.afdeling].filter(Boolean).join(" · ")))),
@@ -69,13 +75,21 @@ export async function render(view, [loknr]) {
           h("span", {}, r.kategori !== "alm" ? tag(r.kategori, KAT[r.kategori]) : null, " ", h("b", { class: "num" }, fmtN(r.antal))))))) : h("p", { class: "muted" }, "Ingen observationer."))),
       h("div", { class: "card lok-fill" }, h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Arter på lokaliteten"),
         h("input", { type: "search", placeholder: "Søg…", style: { width: "160px" }, oninput: (e) => { q = e.target.value.toLowerCase(); drawSpecies(); } })),
-        h("small", { class: "muted" }, "Kategori = den højeste arten har haft her. Dage = antal dage med arten. Rekord = største antal på én dag (én observation, ikke summen af flere)."),
-        filters,
-        d.species.length ? h("div", { class: "table-wrap lok-scroll" }, h("table", { class: "data" },
-          h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", { class: "right" }, "Dage"), h("th", { class: "right" }, "Rekord"), h("th", {}, "Senest"))), tbody))
-          : h("p", { class: "muted mt" }, "Ingen observationer i databasen."))));
-  drawSpecies();
+        speciesBody)));
   const map = baseMap(mapEl, { center: d.lat ? [d.lat, d.lon] : [56, 10.5], zoom: d.lat ? 12 : 6 });
   if (d.lat) L.marker([d.lat, d.lon]).addTo(map);
-  return () => map.remove();
+
+  let gone = false;
+  api(`/api/locations/${loknr}/species`).then((r) => {
+    if (gone) return;
+    d.species = r.species; speciesState = "ready";
+    speciesBody.replaceChildren(
+      h("small", { class: "muted" }, "Kategori = den højeste arten har haft her. Dage = antal dage med arten. Rekord = største antal på én dag (én observation, ikke summen af flere)."),
+      filters,
+      d.species.length ? h("div", { class: "table-wrap lok-scroll" }, h("table", { class: "data" },
+        h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", { class: "right" }, "Dage"), h("th", { class: "right" }, "Rekord"), h("th", {}, "Senest"))), tbody))
+        : h("p", { class: "muted mt" }, "Ingen observationer i databasen."));
+    drawSpecies();
+  }).catch((err) => { if (!gone) speciesBody.replaceChildren(errorBox(err)); });
+  return () => { gone = true; map.remove(); };
 }
