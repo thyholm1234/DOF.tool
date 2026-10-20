@@ -296,6 +296,23 @@ class RegionYearSpecies(Base):
     last_date: Mapped[date] = mapped_column(Date)
 
 
+class LocationYear(Base):
+    """Tal pr. lokalitet og år (year = 0: alle år) – grundlag for Lokaliteter-siden. rank = højeste kategori i perioden
+    (0 alm, 1 bemærk, 2 SUB, 3 SU)."""
+
+    __tablename__ = "location_year"
+
+    loknr: Mapped[int] = mapped_column(Integer, primary_key=True)
+    year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    n_obs: Mapped[int] = mapped_column(Integer)
+    n_taxa: Mapped[int] = mapped_column(Integer)
+    last_date: Mapped[date | None] = mapped_column(Date)
+    rank: Mapped[int] = mapped_column(SmallInteger, default=0)
+    # De seneste 30 dage på byggetidspunktet (kun brugt for indeværende år)
+    n_30: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    rank30: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+
+
 # ---------------------------------------------------------------- brugere
 
 

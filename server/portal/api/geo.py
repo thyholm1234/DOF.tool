@@ -57,33 +57,50 @@ async def search_locations(q: str = Query(min_length=2, max_length=60), db: Asyn
 
 @router.get("/locations/index")
 async def locations_index(q: str = Query("", max_length=60), kommune: str = Query("", max_length=4), afdeling: int | None = None,
+                          year: str = Query("", pattern=r"^(|alle|\d{4})$"),
                           kat: str = Query("", pattern="^(|SU|SUB|bemaerk)$"), active: bool = False,
                           sort: str = Query("aktivitet", pattern="^(aktivitet|aar|arter|senest|navn|afstand)$"),
                           lat: float | None = None, lon: float | None = None, limit: int = Query(100, ge=1, le=300),
                           offset: int = Query(0, ge=0), db: AsyncSession = Depends(get_session)):
-    """Lokalitetsindeks: alle lokaliteter med årets tal. Filtrering, sortering og sider sker her, så telefonen kun
-    henter de første rækker. sort=afstand kræver lat/lon (km fra positionen)."""
+    """Lokalitetsindeks: alle lokaliteter med tal for indeværende år (standard), et valgt år eller alle år. Tallene
+    bygges af workeren hver 6. time (location_year) – siden læser kun tabellen. Filtrering, sortering og sider sker her,
+    så telefonen kun henter de første rækker. sort=afstand kræver lat/lon."""
+    from portal.cache import kv
+    from portal.services import locyear
     from portal.timeutil import dk_today
 
+    this_year = dk_today().year
+    y = this_year if year == "" else 0 if year == "alle" else int(year)
+    live = y == this_year
+
+    years = [r[0] for r in (await db.execute(text("SELECT DISTINCT year FROM location_year WHERE year > 0 ORDER BY 1 DESC"))).all()]
+    if this_year not in years:
+        years.insert(0, this_year)
+    if not (await db.execute(text("SELECT EXISTS (SELECT 1 FROM location_year WHERE year = :y)"), {"y": y})).scalar():
+        # Perioden er ikke bygget endnu (første opstart, eller et nyt år) – workeren bygger den, og siden spørger igen
+        if await kv().set(f"lokyear:requested:{y}", "1", nx=True, ex=600):
+            await worker_command("location_years", years=[y] if y else None)
+        return {"building": True, "total": 0, "all": 0, "items": [], "years": years, "year": year, "live": live,
+                "built": await locyear.built_info()}
+
     async def produce():
-        today = dk_today()
+        # Indeværende år: seneste 30 dage fra byggetidspunktet, og 'senest set' falder tilbage på alle år.
+        # Øvrige perioder: tal og højeste kategori i perioden.
         rows = (await db.execute(text("""
-            WITH o AS (
-                SELECT loknr, count(*) AS n_year, count(DISTINCT artnr) AS n_taxa, max(dato) AS last_date,
-                       count(*) FILTER (WHERE dato > :d30) AS n_30,
-                       max(CASE kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 WHEN 'bemaerk' THEN 1 ELSE 0 END) FILTER (WHERE dato > :d30) AS rank30
-                FROM observations WHERE dato >= :y0 AND hemmelig = 0 AND loknr IS NOT NULL GROUP BY loknr),
-            ever AS (SELECT loknr, max(dato) AS last_ever FROM observations WHERE hemmelig = 0 AND loknr IS NOT NULL GROUP BY loknr)
             SELECT l.loknr, l.navn, l.lat, l.lon, l.kommune_kode, k.navn AS kommune, l.afdeling_id,
-                   coalesce(o.n_year, 0) AS n_year, coalesce(o.n_taxa, 0) AS n_taxa, coalesce(o.n_30, 0) AS n_30,
-                   coalesce(o.rank30, 0) AS rank30, greatest(o.last_date, ever.last_ever) AS last_date
-            FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode LEFT JOIN o ON o.loknr = l.loknr
-            LEFT JOIN ever ON ever.loknr = l.loknr
-        """), {"y0": date(today.year, 1, 1), "d30": today - timedelta(days=30)})).mappings().all()
+                   coalesce(y.n_obs, 0) AS n_year, coalesce(y.n_taxa, 0) AS n_taxa,
+                   CASE WHEN :live THEN coalesce(y.n_30, 0) ELSE 0 END AS n_30,
+                   CASE WHEN :live THEN coalesce(y.rank30, 0) ELSE coalesce(y.rank, 0) END AS rank30,
+                   CASE WHEN :live THEN coalesce(y.last_date, a.last_date) ELSE y.last_date END AS last_date
+            FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode
+            LEFT JOIN location_year y ON y.loknr = l.loknr AND y.year = :y
+            LEFT JOIN location_year a ON a.loknr = l.loknr AND a.year = 0
+        """), {"y": y, "live": live})).mappings().all()
         return [{**dict(r), "last_date": r["last_date"].isoformat() if r["last_date"] else None} for r in rows]
 
-    # Det tunge opslag (alle observationer i år) gemmes i 30 minutter
-    allrows = await cached(f"lokindex:{await version('feed')}", 1800, produce)
+    allrows = await cached(f"lokindex:{y}:{await version('locyear')}", 6 * 3600, produce)
+    if sort == "aktivitet" and not live:
+        sort = "aar"  # 'seneste 30 dage' findes kun for indeværende år
     kat_rank = {"SU": 3, "SUB": 2, "bemaerk": 1}.get(kat, 0)
     ql = q.strip().lower()
     rows = [r for r in allrows
@@ -109,7 +126,8 @@ async def locations_index(q: str = Query("", max_length=60), kommune: str = Quer
     katname = {3: "SU", 2: "SUB", 1: "bemaerk", 0: None}
     page = [{**{k: v for k, v in r.items() if k not in ("rank30", "kommune_kode")}, "kategori": katname[r["rank30"]]}
             for r in rows[offset:offset + limit]]
-    return {"total": len(rows), "all": len(allrows), "items": page}
+    return {"total": len(rows), "all": len(allrows), "items": page, "years": years, "year": year, "live": live,
+            "built": await locyear.built_info()}
 
 
 @router.get("/locations/{loknr}")
@@ -137,17 +155,16 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
         return {"recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kat[r["rank"]]} for r in recent],
                 "stats": dict(stats)}
 
-    return {**dict(loc), **await cached(f"lok2:{loknr}", 900, produce), "groups": migration.GROUPS}
+    # Den enkelte lokalitet bygges altid ved indlæsning (ingen cache)
+    return {**dict(loc), **await produce(), "groups": migration.GROUPS}
 
 
 @router.get("/locations/{loknr}/species")
 async def location_species(loknr: int, year: int | None = Query(None, ge=1900, le=2200), db: AsyncSession = Depends(get_session)):
-    """Artsliste med rekorder for lokaliteten – i alt eller for ét år. Tung på de store lokaliteter (fx Grenen), så
-    den hentes for sig og gemmes (6 timer; indeværende år 30 minutter). years = årene med observationer."""
-    from portal.timeutil import dk_today
-
+    """Artsliste med rekorder for lokaliteten – i alt eller for ét år. Bygges altid ved indlæsning (ingen cache) og er
+    tung på de store lokaliteter (fx Grenen), så den hentes for sig, mens resten af siden vises. years = årene med
+    observationer."""
     kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
-    this_year = dk_today().year
 
     async def species_rows():
         # Flere turlister samme dag tæller ikke dobbelt: én pr. art pr. dag med det største antal. Rekorden er dagens
@@ -176,10 +193,7 @@ async def location_species(loknr: int, year: int | None = Query(None, ge=1900, l
         """), {"l": loknr})).mappings().all()
         return [dict(r) for r in rows]
 
-    ttl = 1800 if year in (None, this_year) else 6 * 3600
-    species = await cached(f"lokspec:{loknr}:{year or 'alle'}", ttl, species_rows)
-    years = await cached(f"lokyears:{loknr}", 1800, year_rows)
-    return {"species": species, "years": years, "year": year}
+    return {"species": await species_rows(), "years": await year_rows(), "year": year}
 
 
 @router.get("/locations/{loknr}/records/{artnr}")

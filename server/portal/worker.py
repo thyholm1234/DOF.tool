@@ -17,7 +17,7 @@ from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, dof_events, phenology, regions, weather_archive
+from portal.services import areas, datasync, dmi, dof_events, locyear, phenology, regions, weather_archive
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -26,6 +26,11 @@ log = logging.getLogger("portal.worker")
 async def _once(name: str, period_key: str) -> bool:
     """True første gang i en periode (fx dato eller dato+time)."""
     return bool(await kv().set(f"sched:{name}:{period_key}", "1", nx=True, ex=3 * 86400))
+
+
+async def _every(name: str, seconds: int) -> bool:
+    """True højst hvert `seconds`. sekund (også på tværs af genstarter; første gang med det samme)."""
+    return bool(await kv().set(f"sched:every:{name}", "1", nx=True, ex=seconds))
 
 
 AGG_MARK = "agg:last"
@@ -59,6 +64,7 @@ async def nightly_compute() -> None:
     await jobstatus.step("Arter pr. år", 3, 5)
     async with SessionLocal() as s:
         await regions.ensure(s, since.year)
+
     await jobstatus.step("Oprydning", 4, 5)
     async with SessionLocal() as s:
         await s.execute(text("DELETE FROM notifications WHERE created_at < now() - interval '90 days'"))
@@ -108,6 +114,8 @@ async def scheduler() -> None:
                 await run_safely("forecast", dmi.forecast())
             if now.hour == 2 and now.minute >= 30 and await _once("compute", day):
                 await run_safely("compute", nightly_compute())
+            if await _every("location_years", locyear.EVERY):
+                await run_safely("location_years", location_years(None))
             if now.hour == 3 and await _once("reference", day):
                 await jobs.enqueue_reference_refresh()
             if now.weekday() == 0 and now.hour == 5 and await _once("climate", day):
@@ -172,6 +180,12 @@ async def region_years(from_year: int | None) -> None:
         await regions.refresh(s, from_year)
 
 
+async def location_years(years: list[int] | None) -> None:
+    """Lokalitetsoversigten: bestemte år (på forlangende) eller den sædvanlige bygning (alt første gang)."""
+    async with SessionLocal() as s:
+        await (locyear.refresh(s, years) if years else locyear.ensure(s))
+
+
 async def aggregates(days: int) -> None:
     await jobstatus.step(f"Seneste {days} dage")
     async with SessionLocal() as s:
@@ -201,6 +215,8 @@ async def command_listener() -> None:
                 await run_safely("events", dof_events.sync())
             elif name == "regions":
                 await run_safely("regions", region_years(cmd.get("from_year")))
+            elif name == "location_years":
+                await run_safely("location_years", location_years(cmd.get("years")))
             elif name == "run_plan":
                 await run_safely("plan", run_plans({cmd["source"]: [cmd["tier"]]}))
             elif name == "weather_months":
