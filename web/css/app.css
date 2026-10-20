@@ -198,6 +198,8 @@ label.check { display: flex; align-items: center; gap: .5rem; cursor: pointer; }
 
 .seg { display: inline-flex; background: var(--bg-2); border-radius: 10px; padding: 3px; gap: 2px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .seg::-webkit-scrollbar { display: none; }
+/* Filterknapper der skal ombrydes i stedet for at scrolle sidelæns */
+.seg.wrap { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; overflow: visible; }
 .seg button { border: 0; background: transparent; font: inherit; font-size: .84rem; font-weight: 600; color: var(--text-2); padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; flex: none; }
 .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
@@ -602,7 +604,11 @@ body.anon main#view { padding-bottom: 32px; max-width: 1080px; }
 .lok-col > .card + .card { margin-top: 0; }
 .lok-fill { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
 .lok-scroll { overflow: auto; min-height: 0; max-height: 420px; }
+/* Indholdet af "Arter på lokaliteten" (filtre + tabel) fylder kortet, så tabellen scroller i stedet for at løbe ud */
+.lok-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
+.lok-body > * { min-width: 0; }
 @media (min-width: 720px) {
+  .lok-body { flex: 1; }
   .lok-grid { height: clamp(620px, calc(100dvh - 240px), 960px); align-items: stretch; }
   .lok-grid > * { min-height: 0; }
   .lok-fill { flex: 1; }

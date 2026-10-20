@@ -61,7 +61,7 @@ export async function render(view, [date, artnr, loknr]) {
         reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
           h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, "Indtastet direkte i portalen. Står du ved fuglen, så meld om den stadig er der."), repList) : null,
         h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
-          obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, t.media_pending, mediaRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
+          obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, { pending: !!o.media_pending, eta: t.media_eta }, mediaRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
       h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
         weatherEl,
         h("div", { class: "card" }, h("h3", {}, "Kommentarer"), commentsEl))));
@@ -127,16 +127,22 @@ export async function render(view, [date, artnr, loknr]) {
     if (e.kind === "thread" && e.key === threadKey) api(`/api/likes?kind=thread&key=${encodeURIComponent(threadKey)}`)
       .then(d => likeEl.update({ count: d.count, names: d.users.slice(-3).reverse().map(u => u.navn) })).catch(() => {});
   });
-  let mediaTimer = null;
+  // Billeder/lyd: serveren slår dem op hos DOFbasen (forrest i køen) og melder, når de er hentet. Hvis beskeden udebliver
+  // (fx mistet forbindelse), spørges der også med jævne mellemrum, så længe noget venter – og ventetiden opdateres.
+  let mediaTimer = null, polls = 0;
+  const refreshMedia = async () => {
+    if (!mediaRows.size) return;
+    try {
+      const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`);
+      for (const o of fresh.observations || []) mediaRows.get(o.obsid)?.(o.media, { pending: !!o.media_pending, eta: fresh.media_eta });
+    } catch { /* næste forsøg */ }
+    if (mediaRows.size && ++polls < 20) mediaTimer = setTimeout(refreshMedia, 8000);
+  };
+  if (mediaRows.size) mediaTimer = setTimeout(refreshMedia, 8000);
   const offMedia = live.on("feed", (e) => {
     if (!(e.media || e.media_day === date) || !mediaRows.size) return;
     clearTimeout(mediaTimer);
-    mediaTimer = setTimeout(async () => {
-      try {
-        const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`);
-        for (const o of fresh.observations || []) mediaRows.get(o.obsid)?.(o.media, fresh.media_pending);
-      } catch { /* næste hændelse prøver igen */ }
-    }, 800);
+    mediaTimer = setTimeout(refreshMedia, 800);
   });
   const offFeed = live.on("feed", async (e) => {
     if (!e.portal || !reps.length) return;
@@ -145,16 +151,17 @@ export async function render(view, [date, artnr, loknr]) {
   return () => { off(); offFeed(); offMedia(); offLike(); offStatus(); clearTimeout(pending); clearTimeout(mediaTimer); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
 }
 
-function obsRow(o, mediaPending, mediaRows) {
+function obsRow(o, ms, mediaRows) {
   const media = h("div", {});
   const tid = [o.obstidfra || o.turtidfra, o.obstidtil || o.turtidtil].filter(Boolean).join("–");
   const dkuEl = h("span", {});
   // Billeder, lyd og DKU-status hentes automatisk af serverens medie-scanner og følger med tråden
-  const show = (r, pending) => {
+  const show = (r, ms) => {
     if (!r) {
       dkuEl.replaceChildren();
-      media.replaceChildren(pending ? h("small", { class: "muted" }, h("span", { class: "spinner" }), " Billeder og lyd hentes fra DOFbasen…") : "");
-      if (!pending) mediaRows.delete(o.obsid);
+      media.replaceChildren(ms.pending ? h("small", { class: "muted" }, h("span", { class: "spinner" }),
+        ms.eta > 5 ? ` Henter billeder og lyd fra DOFbasen – ca. ${ms.eta < 90 ? `${ms.eta} sek.` : `${Math.round(ms.eta / 60)} min.`}` : " Henter billeder og lyd fra DOFbasen…") : "");
+      if (!ms.pending) mediaRows.delete(o.obsid);
       return;
     }
     mediaRows.delete(o.obsid);
@@ -163,8 +170,8 @@ function obsRow(o, mediaPending, mediaRows) {
       ...(r.images || []).map(src => h("a", { href: src, target: "_blank", rel: "noopener" }, h("img", { src, loading: "lazy", style: { maxWidth: "100%", borderRadius: "10px", marginTop: "6px" }, alt: "Foto fra DOFbasen" }))),
       ...(r.sounds || []).map(src => h("audio", { controls: true, src, preload: "none", style: { width: "100%", marginTop: "6px" } })));
   };
-  if (!o.media && mediaPending) mediaRows.set(o.obsid, show);
-  show(o.media, mediaPending);
+  if (!o.media && ms.pending) mediaRows.set(o.obsid, show);
+  show(o.media, ms);
   const rare = ["SU", "SUB"].includes(o.kategori);
   return h("div", { style: { borderBottom: "1px dashed var(--line)", paddingBottom: "10px" } },
     h("div", { class: "row between" },

@@ -13,7 +13,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import kv
 from portal.db import get_session
 from portal.dof import gateway
-from portal.dof.jobs import ensure_media_day, media_for, media_many
+from portal.dof.jobs import ensure_media_obs, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, reports
@@ -170,10 +170,15 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
     found = await media_many([o["obsid"] for o in data.get("observations", [])])
     for o in data.get("observations", []):
         o["media"] = found.get(o["obsid"])
-    # Mangler billeder/lyd/DKU: i dag dækker medie-scanneren, tidligere dage får én fuld gennemgang i gatewayen
-    data["media_pending"] = False
-    if any(o["media"] is None for o in data.get("observations", [])):
-        data["media_pending"] = day >= dk_today() or await ensure_media_day(day)
+    # Mangler billeder/lyd/DKU: ét opslag pr. observation (største antal først) lægges forrest i gatewayens kø.
+    # Resultatet gemmes i 7 dage, og tråden får besked, når det er hentet.
+    data["media_pending"], data["media_eta"] = False, None
+    missing = sorted((o for o in data.get("observations", []) if o["media"] is None), key=lambda o: -(o.get("antal") or 0))
+    if missing:
+        st = await ensure_media_obs([o["obsid"] for o in missing])
+        data["media_pending"], data["media_eta"] = st["pending"], st["eta"]
+        for o in missing:
+            o["media_pending"] = o["obsid"] in st["obsids"]  # observationer ud over de første få slås op ved næste besøg
     data["find"] = await finds.thread_find(db, day, artnr, loknr)
     data["comments"] = await _comments(db, day, artnr, loknr, user)
     key = f"{day.isoformat()}/{artnr}/{loknr}"

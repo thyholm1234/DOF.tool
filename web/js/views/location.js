@@ -54,11 +54,12 @@ export async function render(view, [loknr]) {
       return open.has(s.artnr) ? [row, recordRow(s)] : [row];
     }));
   };
-  const filters = h("div", { class: "stack", style: { gap: "6px" } },
-    seg(KAT_FILTER, f.kat, (v) => { f.kat = v; drawSpecies(); }),
-    seg(GROUP_FILTER, f.grp, (v) => { f.grp = v; drawSpecies(); }),
-    h("div", { class: "row between" }, seg(SORTS, f.sort, (v) => { f.sort = v; drawSpecies(); }), count));
-  const speciesBody = h("div", { class: "stack" }, busyBlock("Beregner arter og rekorder for lokaliteten… det kan tage et par sekunder på store lokaliteter", 6));
+  const wrapSeg = (el) => { el.classList.add("wrap"); return el; };
+  const filters = h("div", { style: { display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 } },
+    wrapSeg(seg(KAT_FILTER, f.kat, (v) => { f.kat = v; drawSpecies(); })),
+    wrapSeg(seg(GROUP_FILTER, f.grp, (v) => { f.grp = v; drawSpecies(); })),
+    wrapSeg(seg(SORTS, f.sort, (v) => { f.sort = v; drawSpecies(); })), count);
+  const speciesBody = h("div", { class: "lok-body" }, busyBlock("Beregner arter og rekorder for lokaliteten… det kan tage et par sekunder på store lokaliteter", 6));
   view.append(
     h("p", {}, h("a", { href: "#/", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn), h("p", { class: "lead" }, [d.kommune && `${d.kommune} Kommune`, d.afdeling].filter(Boolean).join(" · ")))),

@@ -253,25 +253,28 @@ async def scan_media(client: httpx.AsyncClient, day: date, visning: str = "sufug
 
 
 async def job_media_day(client: httpx.AsyncClient, p: dict) -> dict:
+    """Forældet: hele dagen på én gang. Beholdes, så job der allerede ligger i køen, stadig kan udføres."""
     day = date.fromisoformat(p["date"])
     n = await scan_media(client, day, "allfugle")
-    # Trådene for dagen venter på svaret – også når intet er ændret (fx skjulte observationer uden række)
     await publish("feed", {"type": "feed", "media_day": day.isoformat()})
     return {"date": day.isoformat(), "changed": n}
 
 
-DAYSCAN = "media:dayscan:"
+MAX_THREAD_LOOKUPS = 4  # observationer pr. visning af en tråd (hver er ét kald til DOFbasen)
 
 
-async def ensure_media_day(day: date) -> bool:
-    """Læg én fuld medie-gennemgang af en tidligere dag i kø (højst hver 6. time). True mens den venter."""
-    r = kv()
-    job = await r.get(DAYSCAN + day.isoformat())
-    if job is None:
-        job = await gateway.enqueue("media_day", {"date": day.isoformat()}, priority=gateway.HIGH,
-                                    dedupe=f"media_day:{day.isoformat()}")
-        await r.set(DAYSCAN + day.isoformat(), job, ex=6 * 3600)
-    return job in await gateway.pending_ids()
+async def ensure_media_obs(obsids: list[int]) -> dict:
+    """Læg et opslag pr. observation i kø med interaktiv prioritet – det er næste kald til DOFbasen, uanset hvad der
+    ellers ligger i køen. Ét opslag (popobs for obsid) er en lille side. Højst ét kald i minuttet gælder stadig, så
+    ventetiden er højst resten af det interval. Returnerer {"pending", "eta" (sekunder), "obsids" (dem der venter)}."""
+    ids = obsids[:MAX_THREAD_LOOKUPS]
+    if await gateway.interactive_depth() >= gateway.MAX_INTERACTIVE_QUEUE:
+        # Køen er fuld af andre opslag – kun allerede ventende opslag på tråden tæller med
+        jobs = [await kv().get(f"dof:dedupe:media:{o}") for o in ids]
+    else:
+        jobs = [await gateway.enqueue("media", {"obsid": o}, priority=gateway.INTERACTIVE, dedupe=f"media:{o}") for o in ids]
+    waiting = await gateway.pending_ids()
+    return {**await gateway.eta([j for j in jobs if j]), "obsids": [o for o, j in zip(ids, jobs) if j and j in waiting]}
 
 
 async def media_scanner() -> None:

@@ -38,6 +38,8 @@ STATUS = "dof:status"
 RUNNING = "dof:running"  # id på jobbet der udføres lige nu (genoptages hvis workeren dør undervejs)
 MAX_ATTEMPTS = 3
 PRIO_STEP = 1e14  # skal være større end tidsstempler i ms (~1,8e12)
+LIVE_MAX_GAP = 150  # sekunder: så længe må interaktive job højst holde live-hentningen tilbage
+MAX_INTERACTIVE_QUEUE = 20  # flere interaktive job lægges ikke i kø (værn mod at fylde køen)
 
 Handler = Callable[[httpx.AsyncClient, dict], Awaitable[Any]]
 
@@ -65,6 +67,32 @@ async def enqueue(kind: str, params: dict | None = None, *, priority: int = NORM
     pipe.zadd(Q, {job_id: priority * PRIO_STEP + time.time() * 1000})
     await pipe.execute()
     return job_id
+
+
+async def interactive_depth() -> int:
+    """Antal interaktive job der venter."""
+    return await kv().zcount(Q, 0, (INTERACTIVE + 1) * PRIO_STEP - 1)
+
+
+async def eta(job_ids: list[str]) -> dict:
+    """Hvornår de første af jobbene udføres: pending = mindst ét venter, eta = sekunder til det første af dem.
+    Højst ét kald pr. dof_min_interval, så ventetiden er resten af det aktuelle interval + ét interval pr. job foran."""
+    r = kv()
+    interval = get_settings().dof_min_interval
+    last = float(await r.get(LAST_CALL) or 0)
+    wait = max(0.0, last + interval - time.time())
+    running = await r.get(RUNNING)
+    best = None
+    for job_id in job_ids:
+        if job_id == running:
+            t = 5.0  # kaldet er i gang
+        else:
+            rank = await r.zrank(Q, job_id)
+            if rank is None:
+                continue  # udført eller væk
+            t = wait + rank * interval
+        best = t if best is None else min(best, t)
+    return {"pending": best is not None, "eta": None if best is None else int(best) + 1}
 
 
 async def pending_ids() -> set[str]:
@@ -171,9 +199,6 @@ class Gateway:
             return job
 
     async def _choose(self) -> tuple[str, dict | None]:
-        job = await self._pop(max_priority=INTERACTIVE)
-        if job:
-            return "job", job
         live_on = await self.live_enabled()
         # Planens interval for "dagen i dag" (0 = slået fra); aldrig under minimumsintervallet
         planned = await kv().get("dof:live_interval")
@@ -181,6 +206,13 @@ class Gateway:
             live_on = False
         interval = max(self.settings.dof_min_interval, int(float(planned or 0)))
         live_due = live_on and time.time() - self.last_live >= interval - 1
+        # Interaktive job (login, billedopslag) går først – men en lang række af dem må ikke tage live-feedet:
+        # er live forfalden med mere end LIVE_MAX_GAP sekunder, kommer den imellem
+        if live_due and not self.last_was_live and time.time() - self.last_live > LIVE_MAX_GAP:
+            return "live", None
+        job = await self._pop(max_priority=INTERACTIVE)
+        if job:
+            return "job", job
         pending = await kv().zcard(Q) > 0
         if live_due and (not pending or not self.last_was_live or time.time() - self.last_live > 150):
             return "live", None

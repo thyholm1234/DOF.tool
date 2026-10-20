@@ -26,8 +26,9 @@ export async function render(view) {
       () => { nearBtn.disabled = false; drawButtons(); out.replaceChildren(errorBox(new Error("Kunne ikke hente din position – tjek at siden må bruge den"))); },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
   } });
-  const sortSeg = () => seg([["aktivitet", "Seneste 30 dage"], ["aar", `I ${YEAR}`], ["arter", "Arter"], ["senest", "Senest"], ["navn", "Navn"]], st.sort === "afstand" ? "" : st.sort,
-    (v) => { st.sort = v; st.pos = null; save(); load(); });
+  const wrapSeg = (el) => { el.classList.add("wrap"); return el; };
+  const sortSeg = () => wrapSeg(seg([["aktivitet", "Seneste 30 dage"], ["aar", `I ${YEAR}`], ["arter", "Arter"], ["senest", "Senest"], ["navn", "Navn"]], st.sort === "afstand" ? "" : st.sort,
+    (v) => { st.sort = v; st.pos = null; save(); load(); }));
   const sortBox = h("div", {});
   const drawButtons = () => {
     activeBtn.classList.toggle("on", st.active);
@@ -48,7 +49,7 @@ export async function render(view) {
       h("div", {}, h("h1", {}, "Lokaliteter"), h("p", { class: "lead" }, "Alle lokaliteter i DOFbasen – åbn en lokalitet for arter, rekorder og de seneste dage."))),
     h("div", { class: "card toolbox" },
       search,
-      h("div", { class: "toolbar" }, seg(KATS, st.kat, (v) => { st.kat = v; save(); load(); }),
+      h("div", { class: "toolbar" }, wrapSeg(seg(KATS, st.kat, (v) => { st.kat = v; save(); load(); })),
         h("small", { class: "muted" }, "de seneste 30 dage"), h("span", { class: "spacer" }), countEl),
       h("div", { class: "toolbar" },
         select(state.kommuner.map(k => [k.kode, k.navn]), st.kommune, (v) => { st.kommune = v; save(); load(); }, "Alle kommuner"),
