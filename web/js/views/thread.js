@@ -39,8 +39,9 @@ export async function render(view, [date, artnr, loknr]) {
   const weatherEl = h("div", {});
   const mapEl = h("div", { class: "map small" });
   const commentsEl = h("div", { class: "stack" });
+  // Delelinket kan også åbnes af folk uden bruger (server-renderet side med fundet); indloggede sendes videre hertil
   const share = async () => {
-    const url = location.href;
+    const url = `${location.origin}/del/traad/${date}/${artnr}/${loknr}`;
     if (navigator.share) { try { await navigator.share({ title: `${t.art} – ${t.lok}`, url }); } catch { /* annulleret */ } }
     else { await navigator.clipboard.writeText(url); toast("Link kopieret"); }
   };

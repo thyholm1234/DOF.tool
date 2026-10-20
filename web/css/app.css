@@ -295,6 +295,17 @@ table.data tr.click:hover td { background: var(--surface-2); }
 .chart .band { fill: var(--brand-2); opacity: .14; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .8rem; color: var(--text-2); }
 .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+/* ---------- delesiden for gæster (/del/…) ---------- */
+.share-main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(32px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 12px; }
+.share-card h1 { margin: 2px 0 4px; }
+.share-card .lead { margin: 0 0 10px; }
+.share-kicker { margin: 0; display: flex; align-items: center; gap: 8px; }
+.share-img { display: block; width: 100%; max-height: 420px; object-fit: cover; border-radius: 12px; margin: 6px 0 10px; }
+.share-cta { background: var(--brand-soft); border-color: transparent; }
+.share-cta h2 { margin-top: 0; }
+.share-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
+.share-actions .btn { height: 44px; padding: 0 18px; }
+.share-small { font-size: .84rem; margin-bottom: 0; }
 .hbar-list { display: grid; gap: 7px; }
 .hbar { display: grid; grid-template-columns: minmax(0, 11rem) 1fr 3.6rem; align-items: center; gap: 10px; font-size: .86rem; }
 .hbar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
