@@ -17,7 +17,7 @@ from portal.dof.jobs import ensure_media_obs, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, reports
-from portal.services.auth import can
+from portal.services.auth import can, modules
 from portal.services.areas import Scope, parse_scope, scope_for_area
 from portal.timeutil import dk_today
 
@@ -193,11 +193,21 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
 
 
 async def _comments(db: AsyncSession, day: date, artnr: int, loknr: int, user: User | None) -> list[dict]:
+    mod = can(user, "moderation")
+    # Moderatorer ser også udelukkede brugeres skjulte kommentarer (mærket), så udelukkelsen kan ophæves herfra
     rows = (await db.execute(text(f"""
-        SELECT c.id, c.body, c.created_at, u.navn, u.obserkode, c.user_id FROM thread_comments c JOIN users u ON u.id = c.user_id
-        WHERE c.dato = :d AND c.artnr = :a AND c.loknr = :l AND NOT c.hidden AND {moderation.VISIBLE} ORDER BY c.created_at
-    """), {"d": day, "a": artnr, "l": loknr, "viewer": user.id if user else -1})).mappings().all()
-    out = [dict(c) for c in rows]
+        SELECT c.id, c.body, c.created_at, u.navn, u.obserkode, c.user_id, u.role, u.permissions,
+               EXISTS (SELECT 1 FROM comment_bans b WHERE b.user_id = c.user_id AND {moderation.ACTIVE}) AS banned
+        FROM thread_comments c JOIN users u ON u.id = c.user_id
+        WHERE c.dato = :d AND c.artnr = :a AND c.loknr = :l AND NOT c.hidden AND (:mod OR {moderation.VISIBLE}) ORDER BY c.created_at
+    """), {"d": day, "a": artnr, "l": loknr, "viewer": user.id if user else -1, "mod": mod})).mappings().all()
+    out = []
+    for r in rows:
+        c = {k: r[k] for k in ("id", "body", "created_at", "navn", "obserkode", "user_id")}
+        if mod:  # moderatorer kan udelukke direkte fra kommentaren – de ser om brugeren er udelukket eller har admin-adgang
+            c["banned"] = r["banned"]
+            c["staff"] = bool(modules(User(role=r["role"], blocked=False, permissions=r["permissions"])))
+        out.append(c)
     likes = await like_summary(db, "comment", [str(c["id"]) for c in out], user)
     for c in out:
         c["likes"] = likes.get(str(c["id"])) or {"count": 0, "liked": False, "names": []}

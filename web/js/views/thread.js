@@ -3,6 +3,7 @@ import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
 import { reportCard, statusBadge } from "../reportui.js";
 import { likeWidget } from "../likes.js";
+import { banForm } from "../moderation.js";
 
 export async function render(view, [date, artnr, loknr]) {
   view.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } }));
@@ -71,9 +72,17 @@ export async function render(view, [date, artnr, loknr]) {
     commentsEl.replaceChildren(
       ...(t.comments.length ? t.comments.map(c => h("div", {},
         h("div", { class: "row" }, h("b", {}, c.navn || c.obserkode), h("small", {}, ago(c.created_at)),
+          c.banned ? h("span", { class: "tag SUB", title: "Udelukket fra at kommentere – kommentaren ses ikke af andre brugere" }, "udelukket") : null,
           c.id ? likeWidget("comment", String(c.id), c.likes, { small: true, title: "Synes godt om kommentaren" }) : null,
           state.user && (state.user.id === c.user_id || can("moderation"))
-            ? h("button", { class: "btn sm ghost danger", onclick: async () => { await api(`/api/comments/${c.id}`, { method: "DELETE" }); t.comments = t.comments.filter(x => x.id !== c.id); drawComments(); } }, "Slet") : null),
+            ? h("button", { class: "btn sm ghost danger", onclick: async () => { await api(`/api/comments/${c.id}`, { method: "DELETE" }); t.comments = t.comments.filter(x => x.id !== c.id); drawComments(); } }, "Slet") : null,
+          // Moderatorer kan udelukke afsenderen direkte (admin-brugere kun af dem med adgang til Brugere)
+          can("moderation") && c.user_id !== state.user.id && (!c.staff || can("brugere"))
+            ? (c.banned
+              ? h("button", { class: "btn sm ghost", title: "Brugeren er udelukket fra at kommentere", onclick: async () => {
+                try { await api(`/api/admin/bans/${c.user_id}`, { method: "DELETE" }); toast("Udelukkelsen er ophævet"); refreshComments(); } catch (err) { toast(err.message, "err"); }
+              } }, "Ophæv udelukkelse")
+              : h("button", { class: "btn sm ghost danger", onclick: () => banForm(c, refreshComments) }, "Udeluk")) : null),
         h("p", { style: { margin: "2px 0 0", whiteSpace: "pre-wrap" } }, c.body))) : [h("p", { class: "muted" }, "Ingen kommentarer endnu – del status fra stedet, fx om fuglen stadig er der.")]),
       !state.user ? h("p", {}, h("a", { href: "#/login?next=" + encodeURIComponent(location.hash) }, "Log ind for at kommentere"))
         : t.comment_ban ? h("div", { class: "notice warn comment-ban" }, `Du er udelukket fra at kommentere${t.comment_ban.until ? ` til ${fmtDate(t.comment_ban.until)}` : ""}. Årsag: ${t.comment_ban.reason}. `,
