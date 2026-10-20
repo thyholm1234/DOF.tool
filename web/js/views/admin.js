@@ -495,8 +495,8 @@ async function categoriesPanel(body) {
   const list = h("div", { class: "stack", style: { maxHeight: "70vh", overflow: "auto" } });
   const detail = h("div", { class: "stack" });
   const listBox = h("details", { class: "card more", style: { marginBottom: "12px" } },
-    h("summary", {}, "Den Danske Liste (DOF's Sjældenhedsudvalg, 2025) – læg kategorierne ind"));
-  listBox.append(h("div", { class: "stack mt" }, h("p", { class: "muted", style: { margin: 0 } }, "Sammenligner portalens arter med listen (bilag 1–4: kategori A–C, D, E og F). Se først hvad en import vil ændre, og kør den bagefter. Rækker I selv har lavet, røres ikke, og afløste rækker bevares i historikken."),
+    h("summary", {}, "Den Danske Liste (Netfugl) – læg kategorierne ind"));
+  listBox.append(h("div", { class: "stack mt" }, h("p", { class: "muted", style: { margin: 0 } }, "Sammenligner portalens arter med Netfugls DK-liste (www.netfugl.dk/artslister/dk: kategori A–C; D, E og F supplerer vi fra Sjældenhedsudvalgets PDF, da Netfugl ikke viser dem). Se først hvad en import vil ændre, og kør den bagefter. Rækker I selv har lavet, røres ikke, og afløste rækker bevares i historikken."),
     h("button", { class: "btn", style: { alignSelf: "flex-start" }, onclick: async (e) => {
       const btn = e.currentTarget; btn.disabled = true;
       try { renderListReport(listBox, await api("/api/categories/danish-list"), () => { loadList(); loadDetail(); }); }
