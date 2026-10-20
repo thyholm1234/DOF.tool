@@ -16,7 +16,7 @@ from portal.dof import gateway
 from portal.dof.jobs import ensure_media_obs, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
-from portal.services import activity, feed, finds, moderation, reports
+from portal.services import activity, feed, finds, moderation, pulse, reports
 from portal.services.auth import can, modules
 from portal.services.areas import Scope, parse_scope, scope_for_area
 from portal.timeutil import dk_today
@@ -294,6 +294,12 @@ async def nearby(lat: float, lon: float, radius_km: float = Query(10, gt=0, le=1
     """), {"lat": lat, "lon": lon, "r": radius_km * 1000, "days": days, "minrank": min_rank})).mappings().all()
     kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
     return {"items": [{**dict(r), "kategori": kat[r["rank"]], "km": float(r["km"])} for r in rows]}
+
+
+@router.get("/pulse")
+async def pulse_map(since: str | None = Query(None, max_length=40)):
+    """Kommandokortet: ændringer pr. live-sync og aktive (anonyme) birdere."""
+    return await pulse.snapshot(since)
 
 
 @router.get("/stream")

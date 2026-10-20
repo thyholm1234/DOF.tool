@@ -18,7 +18,7 @@ from portal.cache import kv, publish
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, ThreadFollow, User
-from portal.services import activity, reports
+from portal.services import activity, pulse, reports
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.reports")
@@ -194,6 +194,7 @@ async def create_report(body: ReportIn, tasks: BackgroundTasks, user: User = Dep
     tasks.add_task(activity.track, user.id, "report", None, {"artnr": r.artnr, "loknr": r.loknr, "kategori": r.kategori})
     if not r.hemmelig:
         tasks.add_task(_in_background, reports.notify_new, [r.id])
+        await pulse.record_report(db, r)
         await publish("feed", {"type": "feed", "portal": True, "new": 1})
     return await _one(db, r, user)
 

@@ -21,7 +21,7 @@ from portal.dof import gateway, reference
 from portal.dof.ingest import IngestResult, ingest
 from portal.dof.parse import decode, parse_text
 from portal.models import DaySync, Setting
-from portal.services import alerts
+from portal.services import alerts, pulse
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.jobs")
@@ -76,6 +76,12 @@ async def fetch_day(client: httpx.AsyncClient, day: date, notify: bool) -> dict:
 async def after_ingest(res: IngestResult, notify: bool) -> None:
     if res.unknown_species:
         await gateway.enqueue("artdata", {"list": "art"}, priority=gateway.NORMAL, dedupe="artdata:art")
+    if notify and (res.new_obsids or res.changed):
+        try:
+            async with SessionLocal() as s:
+                await pulse.record_sync(s, res.new_obsids, res.changed)
+        except Exception:  # noqa: BLE001 – kommandokortet må ikke vælte dataindlæsningen
+            log.exception("Puls fejlede")
     if res.new_obsids or res.changed or res.deleted:
         await bump("feed")
         await publish("feed", {"type": "feed", "new": len(res.new_obsids), "changed": len(res.changed)})

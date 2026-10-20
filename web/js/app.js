@@ -6,10 +6,12 @@ const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
-  ["Nu og her", [["#/", "now", "Nu"], ["#/traek", "trend", "Træk"], ["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
-  ["Fugle", [["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"], ["#/laer", "learn", "Læring"], ["#/mobgang", "sound", "Mobgang"]]],
+  ["Nu og her", [["#/", "now", "Nu"]]],
+  ["Ud i felten", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
+  ["Statistik", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
-  ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/kalender/mine", "calendar", "Mine planer"], ["#/alarmer", "bell", "Alarmer"]]],
+  ["Værktøjer", [["#/mobgang", "sound", "Mobgang"], ["#/puls", "map", "Puls"], ["#/laer", "learn", "Læring"]]],
+  ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
 const NAV = SECTIONS.flatMap(([, items]) => items);
 const navItem = (href) => NAV.find(n => n[0] === href);
@@ -29,6 +31,7 @@ const ROUTES = [
   [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
   [/^\/matrikel$/, () => import("./views/matrikel.js")],
   [/^\/traek$/, () => import("./views/pheno.js")],
+  [/^\/puls$/, () => import("./views/pulse.js")],
   [/^\/arter$/, () => import("./views/arter.js")],
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
   [/^\/lokaliteter$/, () => import("./views/lokaliteter.js")],

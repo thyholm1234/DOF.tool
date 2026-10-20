@@ -744,3 +744,33 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .dropzone:hover, .dropzone.over { border-color: var(--brand); background: var(--brand-soft); }
 .dropzone.busy { opacity: .6; pointer-events: none; }
 progress { accent-color: var(--brand); height: 10px; }
+
+/* Puls: kommandokort med birdere og nye fugle der popper op */
+.pulse-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-bottom: 10px; }
+.pulse-stat { display: inline-flex; align-items: center; gap: 6px; }
+.pulse-person svg, .pulse-birder svg { fill: var(--brand); stroke: #fff; stroke-width: 1.5; }
+.pulse-layout { display: grid; gap: 12px; }
+@media (min-width: 1000px) { .pulse-layout { grid-template-columns: minmax(0, 1fr) 320px; } .pulse-side { max-height: calc(100dvh - var(--top-h) - 130px); overflow: auto; } }
+.pulse-birder { filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); transition: opacity 1s; }
+.pulse-birder.fresh svg { animation: pulse-bob 1.6s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes pulse-bob { 50% { transform: translateY(-3px); } }
+.pulse-pop { background: none; border: 0; }
+.pulse-pop .pp { position: absolute; transform: translate(-50%, calc(-100% - 10px)); white-space: nowrap; padding: 5px 10px 6px; border-radius: 10px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-left: 4px solid var(--text-3);
+  box-shadow: 0 4px 14px rgba(0,0,0,.25); font-size: .86rem; line-height: 1.2; cursor: pointer; animation: pulse-in .45s cubic-bezier(.2, 1.4, .4, 1) both; }
+.pulse-pop .pp b { display: block; }
+.pulse-pop .pp small { color: var(--text-3); font-size: .74rem; }
+.pulse-pop .pp.SU { border-left-color: var(--su); font-size: 1rem; } .pulse-pop .pp.SUB { border-left-color: var(--sub); }
+.pulse-pop .pp.bemaerk { border-left-color: var(--bem); }
+.pulse-pop.out .pp { animation: pulse-out .6s ease-in both; }
+@keyframes pulse-in { from { opacity: 0; transform: translate(-50%, -60%) scale(.6); } }
+@keyframes pulse-out { to { opacity: 0; transform: translate(-50%, calc(-100% - 26px)); } }
+.pulse-ring { stroke: var(--text-3); fill: var(--text-3); fill-opacity: .35; animation: pulse-ring 2.2s ease-out both; transform-box: fill-box; transform-origin: center; }
+.pulse-ring.SU { stroke: var(--su); fill: var(--su); } .pulse-ring.SUB { stroke: var(--sub); fill: var(--sub); } .pulse-ring.bemaerk { stroke: var(--bem); fill: var(--bem); }
+@keyframes pulse-ring { from { transform: scale(.4); opacity: 1; } to { transform: scale(3.2); opacity: 0; } }
+.pulse-list { display: grid; gap: 2px; }
+.pulse-item { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: 8px; color: var(--text); border-left: 3px solid transparent; }
+.pulse-item:hover { background: var(--surface-2, rgba(127,127,127,.08)); text-decoration: none; }
+.pulse-item.SU { border-left-color: var(--su); } .pulse-item.SUB { border-left-color: var(--sub); } .pulse-item.bemaerk { border-left-color: var(--bem); }
+.pulse-item .tag { margin-left: 6px; }
+@media (prefers-reduced-motion: reduce) { .pulse-pop .pp, .pulse-ring, .pulse-birder.fresh svg { animation: none; } }
