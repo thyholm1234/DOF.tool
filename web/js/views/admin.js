@@ -228,17 +228,40 @@ async function jobsCard(box) {
 async function users(body) {
   const q = h("input", { type: "search", placeholder: "Søg obserkode/navn…", style: { maxWidth: "280px" } });
   const out = h("div", { class: "card table-wrap mt" });
-  body.append(h("p", { class: "muted", style: { marginTop: 0 } }, "Rollen giver et standardsæt af admin-moduler. Under Rettigheder kan den enkelte bruger i stedet få præcis de moduler, der er krydset af."), q, out);
+  const pendingBox = h("div", {});
   let meta;
   try { meta = await api("/api/admin/modules"); } catch (err) { body.append(errorBox(err)); return; }
+  const approvalSwitch = h("input", { type: "checkbox", checked: meta.require_approval, onchange: async (e) => {
+    try { await api("/api/admin/settings", { method: "PUT", body: { require_approval: e.target.checked } }); toast(e.target.checked ? "Nye brugere skal godkendes" : "Nye brugere får adgang med det samme"); }
+    catch (err) { e.target.checked = !e.target.checked; toast(err.message, "err"); }
+  } });
+  body.append(
+    h("div", { class: "card stack", style: { marginBottom: "12px" } },
+      h("label", { class: "check" }, approvalSwitch, h("span", {}, h("b", {}, "Nye brugere skal godkendes"),
+        h("span", { class: "muted" }, " – en ny bruger oprettes, når koden er gyldig hos DOFbasen, men får først adgang, når en administrator har godkendt kontoen. Er den slået fra, får nye brugere adgang med det samme."))),
+      pendingBox),
+    h("p", { class: "muted", style: { marginTop: 0 } }, "Rollen giver et standardsæt af admin-moduler. Under Rettigheder kan den enkelte bruger i stedet få præcis de moduler, der er krydset af."), q, out);
   const isSuper = state.user.role === "superadmin";
   const editable = (u) => u.id !== state.user.id && u.role !== "superadmin" && (isSuper || !["admin", "superadmin"].includes(u.role));
+  const approve = async (u) => {
+    try { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { approved: true } }); toast(`${u.navn || u.obserkode} er godkendt`); load(); }
+    catch (err) { toast(err.message, "err"); }
+  };
   const load = async () => {
     const rows = await api(`/api/admin/users?q=${encodeURIComponent(q.value)}`);
+    const waiting = rows.filter(u => !u.approved);
+    pendingBox.replaceChildren(waiting.length ? h("div", { class: "notice warn stack", style: { gap: "6px" } },
+      h("b", {}, `${waiting.length} ${waiting.length === 1 ? "bruger afventer" : "brugere afventer"} godkendelse`),
+      ...waiting.map(u => h("div", { class: "row between" },
+        h("span", {}, h("b", {}, u.navn || u.obserkode), h("small", { class: "muted" }, ` ${u.obserkode} · oprettet ${ago(u.created_at)}`)),
+        h("span", { class: "row", style: { gap: "6px" } },
+          h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
+          h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Afvis og slet ${u.obserkode}? Personen kan søge igen ved at logge ind.`)) { try { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); toast("Afvist"); load(); } catch (err) { toast(err.message, "err"); } } } }, "Afvis"))))) : h("small", { class: "muted" }, "Ingen venter på godkendelse."));
     out.replaceChildren(h("table", { class: "data stack-sm", style: { "--cols": 3 } },
       h("thead", {}, h("tr", {}, h("th", {}, "Bruger"), h("th", {}, "Rolle"), h("th", {}, "Admin-moduler"), h("th", {}, "Sidst set"), h("th", { class: "right" }, "Enheder/regler"), h("th", {}))),
       h("tbody", {}, ...rows.map(u => h("tr", {},
-        h("td", {}, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, u.obserkode, u.blocked ? " · spærret" : "")),
+        h("td", {}, h("b", {}, u.navn || u.obserkode), u.approved ? null : h("span", { class: "tag SUB", style: { marginLeft: "6px" } }, "afventer"),
+          h("div", { class: "muted" }, u.obserkode, u.blocked ? " · spærret" : "")),
         h("td", { class: "wide", "data-label": "Rolle" }, h("select", { style: { width: "auto", height: "32px" }, disabled: u.role === "superadmin" && !isSuper, onchange: async (e) => {
           try { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { role: e.target.value } }); toast("Rolle ændret"); } catch (err) { toast(err.message, "err"); }
           load();
@@ -251,6 +274,7 @@ async function users(body) {
         h("td", { class: "muted", "data-label": "Sidst set" }, u.last_seen ? ago(u.last_seen) : "aldrig"),
         h("td", { class: "right num", "data-label": "Enh./regler" }, `${u.devices} / ${u.rules}`),
         h("td", { class: "right nowrap wide" }, u.role !== "superadmin" ? [
+          u.approved ? null : h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
           h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { blocked: !u.blocked } }); load(); } }, u.blocked ? "Ophæv spærring" : "Spær"),
           isSuper ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
   };

@@ -309,6 +309,8 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(200))
     dof_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Nye brugere skal godkendes af en administrator (kan slås fra). Eksisterende brugere er godkendt.
+    approved: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # Profil: hjemafdelinger, kommune, listedeltagelse, stille timer, tema m.m.
     prefs: Mapped[dict] = mapped_column(JSONB, default=dict)
     history_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -860,6 +862,7 @@ EXTRA_DDL = [
         'A')
     $$""",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions jsonb",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS approved boolean NOT NULL DEFAULT true",
     "ALTER TABLE mob_presets ADD COLUMN IF NOT EXISTS official boolean NOT NULL DEFAULT false",
     "ALTER TABLE mob_presets ALTER COLUMN user_id DROP NOT NULL",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"

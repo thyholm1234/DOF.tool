@@ -38,7 +38,10 @@ export async function render(view) {
           toast(r.new ? `Velkommen, ${r.user.navn}! Vi henter dine ældre observationer i baggrunden.` : `Velkommen tilbage, ${r.user.navn}`);
           location.hash = params().next || (r.new ? "#/profil" : "#/");
         } catch (err) {
-          msg.replaceChildren(h("div", { class: "notice err" }, err.message));
+          // Gyldig kode, men kontoen venter på en administrator: det er ikke en fejl
+          msg.replaceChildren(err.status === 403 && /afventer/.test(err.message)
+            ? h("div", { class: "notice" }, h("b", {}, "Tak – din konto afventer godkendelse. "), err.message.replace(/^[^.]*\.\s*/, ""))
+            : h("div", { class: "notice err" }, err.message));
         } finally {
           clearTimeout(slow);
           btn.disabled = false; btn.textContent = "Log ind";

@@ -13,13 +13,13 @@ from datetime import datetime, timezone
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, InvalidHashError
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
 from portal.config import get_settings
 from portal.dof import gateway
-from portal.models import User
+from portal.models import Setting, User
 
 ph = PasswordHasher()
 OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
@@ -105,8 +105,25 @@ async def _fail(kode: str, ip: str) -> None:
         await r.expire(key, 600)
 
 
+PENDING_MSG = ("Din konto er oprettet, men afventer godkendelse af en administrator. "
+               "Prøv igen senere – der er ikke noget at gøre fra din side.")
+
+
+async def approval_required(session: AsyncSession) -> bool:
+    """Skal nye brugere godkendes, før de kan bruge portalen? Standard: ja (kan slås fra under Admin → Brugere)."""
+    row = await session.get(Setting, "require_approval")
+    return True if row is None else bool(row.value)
+
+
+async def staff_ids(session: AsyncSession, module: str) -> list[int]:
+    """Brugere med adgang til et admin-modul (rolle eller individuel rettighed)."""
+    rows = (await session.execute(select(User).where(~User.blocked, or_(User.role != "user", User.permissions.isnot(None))))).scalars().all()
+    return [u.id for u in rows if module in modules(u)]
+
+
 async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -> tuple[User, bool]:
-    """Returnerer (bruger, ny_bruger)."""
+    """Returnerer (bruger, ny_bruger). Er godkendelse slået til, oprettes en ny bruger som afventende, når koden er
+    gyldig hos DOFbasen – men får ingen session, før en administrator har godkendt kontoen."""
     kode = normalize(obserkode)
     if not password:
         raise AuthError("Adgangskode mangler", 400)
@@ -115,6 +132,8 @@ async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -
     if user and user.blocked:
         raise AuthError("Brugeren er spærret", 403)
     if user and verify(user.password_hash, password):
+        if not user.approved:
+            raise AuthError(PENDING_MSG, 403)
         if user.navn in (None, "", user.obserkode):
             navn = (await session.execute(text(
                 "SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = :k"),
@@ -140,14 +159,28 @@ async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -
         navn = (await session.execute(text(
             "SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = :k"),
             {"k": kode})).scalar()
-        user = User(obserkode=kode, navn=navn or kode, role="user",
+        user = User(obserkode=kode, navn=navn or kode, role="user", approved=not await approval_required(session),
                     prefs={"lists_public": True, "push_enabled": True, "afdelinger": [], "kommuner": []})
         session.add(user)
     user.password_hash = ph.hash(password)
     user.dof_verified_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(user)
+    if not user.approved:
+        if new:
+            await _notify_pending(session, user)
+        raise AuthError(PENDING_MSG, 403)
     return user, new
+
+
+async def _notify_pending(session: AsyncSession, user: User) -> None:
+    """Giv dem, der styrer brugere, besked om en ny bruger der venter på godkendelse."""
+    from portal.api.social import _notify  # her for at undgå cirkulær import
+
+    ids = await staff_ids(session, "brugere")
+    if ids:
+        await _notify(ids, "Ny bruger afventer godkendelse", f"{user.navn or user.obserkode} ({user.obserkode}) har logget ind med en gyldig DOFbasen-kode.",
+                      "/#/admin?tab=brugere", f"pending:{user.id}")
 
 
 async def create_session(user: User) -> str:
@@ -163,7 +196,7 @@ async def user_from_token(session: AsyncSession, token: str | None) -> User | No
     if not user_id:
         return None
     user = await session.get(User, int(user_id))
-    if user is None or user.blocked:
+    if user is None or user.blocked or not user.approved:
         return None
     return user
 

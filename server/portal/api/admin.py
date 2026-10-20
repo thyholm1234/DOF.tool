@@ -22,6 +22,7 @@ from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Setting, Species, SupportMessage, SupportThread, User
 from portal.services import activity, datasync, moderation, weather_archive
+from portal.services import auth as auth_service
 from portal.services.auth import MODULES, ROLE_MODULES, ROLES, can, modules
 
 router = APIRouter(prefix="/api", tags=["admin"])
@@ -34,7 +35,9 @@ perm_indhold = require_perm("indhold")
 perm_moderation = require_perm("moderation")
 perm_vejr = require_perm("vejr")
 
-SETTINGS = {"live_enabled": True, "matrikel_tag": "#BB", "welcome": ""}
+SETTINGS = {"live_enabled": True, "matrikel_tag": "#BB", "welcome": "", "require_approval": True}
+# Indstillinger der styres fra et andet modul end Drift
+SETTING_MODULE = {"require_approval": "brugere"}
 
 
 @router.get("/admin/overview")
@@ -76,10 +79,13 @@ async def public_settings(db: AsyncSession = Depends(get_session)):
 
 
 @router.put("/admin/settings")
-async def put_settings(body: dict[str, Any], user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
+async def put_settings(body: dict[str, Any], user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     for k, v in body.items():
         if k not in SETTINGS:
             raise HTTPException(400, f"Ukendt indstilling {k}")
+        module = SETTING_MODULE.get(k, "drift")
+        if not can(user, module):
+            raise HTTPException(403, f"Kræver adgang til {MODULES[module].split(':')[0]}")
         row = await db.get(Setting, k)
         if row is None:
             db.add(Setting(key=k, value=v))
@@ -205,11 +211,11 @@ async def jobs(user: User = Depends(perm_drift)):
 @router.get("/admin/users")
 async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
-        SELECT u.id, u.obserkode, u.navn, u.role, u.blocked, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
+        SELECT u.id, u.obserkode, u.navn, u.role, u.blocked, u.approved, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
                (SELECT count(*) FROM push_subscriptions p WHERE p.user_id = u.id) AS devices,
                (SELECT count(*) FROM alert_rules r WHERE r.user_id = u.id) AS rules
         FROM users u WHERE (:q = '' OR u.obserkode ILIKE :like OR u.navn ILIKE :like)
-        ORDER BY u.last_seen DESC NULLS LAST LIMIT 300
+        ORDER BY u.approved, u.last_seen DESC NULLS LAST, u.created_at DESC LIMIT 300
     """), {"q": q, "like": f"%{q}%"})).mappings().all()
     out = []
     for r in rows:
@@ -219,10 +225,11 @@ async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSessio
 
 
 @router.get("/admin/modules")
-async def module_list(user: User = Depends(perm_brugere)):
-    """Modulerne til afkrydsningslisten, rollernes standard og hvad den indloggede selv må tildele."""
+async def module_list(user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
+    """Modulerne til afkrydsningslisten, rollernes standard og hvad den indloggede selv må tildele – samt kontakten for
+    godkendelse af nye brugere."""
     return {"modules": MODULES, "roles": {r: sorted(m) for r, m in ROLE_MODULES.items()},
-            "grantable": sorted(modules(user))}
+            "grantable": sorted(modules(user)), "require_approval": await auth_service.approval_required(db)}
 
 
 @router.patch("/admin/users/{user_id}")
@@ -242,6 +249,19 @@ async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(p
         target.role = role
         if user.role != "superadmin" and (before ^ modules(target)) - modules(user):
             raise HTTPException(403, "Rollen giver eller fjerner moduler, du ikke selv har adgang til")
+    if "approved" in body:
+        if target.id == user.id:
+            raise HTTPException(400, "Du kan ikke ændre din egen godkendelse")
+        if target.role in ("admin", "superadmin") and user.role != "superadmin":
+            raise HTTPException(403, "Kun superadmin kan ændre administratorer")
+        was = target.approved
+        target.approved = bool(body["approved"])
+        if not target.approved:  # fjernet godkendelse: log ud overalt
+            async for key in kv().scan_iter("sess:*"):
+                if await kv().get(key) == str(target.id):
+                    await kv().delete(key)
+        if was != target.approved:
+            await activity.track(user.id, "approval", None, {"user": target.id, "approved": target.approved})
     if "permissions" in body:
         _set_permissions(user, target, body["permissions"])
     if "blocked" in body:
@@ -283,10 +303,13 @@ def _set_permissions(user: User, target: User, value: Any) -> None:
 
 
 @router.delete("/admin/users/{user_id}")
-async def delete_user(user_id: int, user: User = Depends(superadmin), db: AsyncSession = Depends(get_session)):
+async def delete_user(user_id: int, user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
     target = await db.get(User, user_id)
     if target is None or target.role == "superadmin":
         raise HTTPException(400)
+    # Sletning af eksisterende brugere kræver superadmin; en afventende (afvist) ansøgning kan fjernes af dem, der styrer brugere
+    if target.approved and user.role != "superadmin":
+        raise HTTPException(403, "Kun superadmin kan slette godkendte brugere")
     await db.delete(target)
     await db.commit()
     await bump("lists")
