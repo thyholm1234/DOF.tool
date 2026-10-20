@@ -16,7 +16,9 @@ from dataclasses import dataclass
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import kv, publish
+from portal.cache import get_json, kv, publish, set_json
+from portal.services.areas import Scope
+from portal.services.lists import ListSpec, _where, matrikel_prefix
 from portal.services.push import send_to_user
 from portal.timeutil import dk_today, in_quiet_hours
 
@@ -44,6 +46,7 @@ class Event:
     tid: str | None
     source: str = "dofbasen"  # dofbasen / portal (feltmelding indtastet i portalen)
     sikkerhed: str = "sikker"
+    list_artnr: int | None = None  # arten på listerne (underarter tæller som arten)
 
     @property
     def thread(self) -> tuple:
@@ -88,6 +91,8 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
     area_members = await _area_members(session, rules, {e.loknr for e in events})
     counts = await _local_counts(session, rules, events)
 
+    crossed = Crossed(session)
+
     outbox: dict[tuple[int, str], dict] = {}
     # 1) Regler – én repræsentativ (seneste) observation pr. ændret tråd
     rep: dict[tuple, Event] = {}
@@ -104,6 +109,8 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
             if not _rule_matches(rule, e, area_members, counts):
                 continue
             if user["obserkode"] and user["obserkode"] in thread_observers.get(t, set()):
+                continue
+            if rule["missing"] and not await crossed.missing(rule, e, user["obserkode"]):
                 continue
             dedup = f"t:{t[0]}:{t[1]}:{t[2]}:{changed_threads[t]}"
             key = (rule["user_id"], dedup)
@@ -203,6 +210,59 @@ def _rule_matches(rule: dict, e: Event, members: dict[int, set[int]], counts: di
     return False
 
 
+class Crossed:
+    """Arter en bruger har krydset i et område (årslisten eller alle år) – til reglerne 'kun arter jeg mangler'.
+
+    Tæller som Lister (krydsbare observationer med brugerens obserkode, underarter under arten). Slås kun op for regler,
+    der ellers matcher, og gemmes 10 minutter pr. bruger, område og periode."""
+
+    TTL = 600
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.memo: dict[str, set[int]] = {}
+
+    @staticmethod
+    def scopes(rule: dict, e: Event) -> list[Scope]:
+        """Områderne arten skal mangle i: reglens område – eller, med flere kommuner/afdelinger, dem fundet ligger i."""
+        if rule["kommuner"] or rule["afdelinger"]:
+            out = [Scope("kommune", e.kommune_kode)] if e.kommune_kode in rule["kommuner"] else []
+            return out + [Scope("afdeling", str(a)) for a in e.afdelinger if a in rule["afdelinger"]]
+        kind = rule["area_kind"]
+        if kind is None:
+            return [Scope("dk")]
+        if kind in ("polygon", "radius"):
+            return [Scope("area", str(rule["area_id"]))]
+        return [Scope(kind, str(rule["area_ref"]))]
+
+    async def species(self, obserkode: str, spec: ListSpec) -> set[int]:
+        key = f"alert:crossed:{obserkode}:{spec.key}"
+        if key in self.memo:
+            return self.memo[key]
+        hit = await get_json(key)
+        if hit is None:
+            where, params = _where(spec, await matrikel_prefix(self.session))
+            hit = list((await self.session.execute(text(f"""
+                SELECT DISTINCT s.list_artnr FROM observations o
+                JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
+                WHERE o.obserkode = :kode AND {where}
+            """), {"kode": obserkode, **params})).scalars())
+            await set_json(key, hit, self.TTL)
+        self.memo[key] = set(hit)
+        return self.memo[key]
+
+    async def missing(self, rule: dict, e: Event, obserkode: str | None) -> bool:
+        """Mangler brugeren arten i (mindst ét af) områderne? Uden obserkode har man ingen lister – alt mangler."""
+        if not obserkode:
+            return True
+        year = dk_today().year if rule["missing"] == "year" else None
+        artnr = e.list_artnr or e.artnr
+        for scope in self.scopes(rule, e):
+            if artnr not in await self.species(obserkode, ListSpec(scope, year)):
+                return True
+        return False
+
+
 def _message(e: Event, max_antal: int, rule: dict | None, followed: bool = False) -> dict:
     kat = KAT_LABEL.get(e.kategori, "")
     if rule and "local" in rule["levels"] and e.kategori not in rule["levels"] and e.kategori in ("alm", "bemaerk"):
@@ -223,7 +283,7 @@ def _message(e: Event, max_antal: int, rule: dict | None, followed: bool = False
 
 async def _load_events(session: AsyncSession, ids: list[int]) -> list[Event]:
     rows = (await session.execute(text("""
-        SELECT o.obsid, o.dato, o.artnr, o.loknr, o.antal, o.kategori, s.navn AS art, s.art_type, l.navn AS lok,
+        SELECT o.obsid, o.dato, o.artnr, o.loknr, o.antal, o.kategori, s.navn AS art, s.art_type, s.list_artnr, l.navn AS lok,
                l.kommune_kode, o.afdelinger, o.obserkode,
                trim(coalesce(ob.fornavn,'') || ' ' || coalesce(ob.efternavn,'')) AS observer,
                ct.text AS adf, coalesce(o.obstidfra, t.turtidfra) AS tid
@@ -264,7 +324,7 @@ async def _users(session: AsyncSession) -> dict[int, dict]:
 
 async def _rules(session: AsyncSession) -> list[dict]:
     rows = (await session.execute(text("""
-        SELECT r.id, r.user_id, r.level, r.local_max, r.min_antal, r.species_include, r.species_exclude, r.push,
+        SELECT r.id, r.user_id, r.level, r.local_max, r.min_antal, r.species_include, r.species_exclude, r.missing, r.push,
                r.area_id, a.kind AS area_kind, a.ref AS area_ref, r.kommuner, r.afdelinger
         FROM alert_rules r LEFT JOIN areas a ON a.id = r.area_id WHERE r.enabled
     """))).mappings().all()

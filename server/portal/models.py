@@ -383,6 +383,8 @@ class AlertRule(Base):
     min_antal: Mapped[int] = mapped_column(Integer, default=1)
     species_include: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)
     species_exclude: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)
+    # Kun arter brugeren endnu ikke har krydset i området: "year" (årslisten) eller "ever" (alle år); None = alle arter
+    missing: Mapped[str | None] = mapped_column(String(8))
     push: Mapped[bool] = mapped_column(Boolean, default=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -860,6 +862,7 @@ EXTRA_DDL = [
     "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lon double precision",
     "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS kommuner varchar(4)[] NOT NULL DEFAULT '{}'",
     "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS afdelinger smallint[] NOT NULL DEFAULT '{}'",
+    "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS missing varchar(8)",
     # Alarmniveau som afkrydsninger: de gamle trinvise niveauer omskrives til deres kategorier
     "ALTER TABLE alert_rules ALTER COLUMN level TYPE varchar(32)",
     "UPDATE alert_rules SET level = CASE level WHEN 'SUB' THEN 'SU,SUB' WHEN 'bemaerk' THEN 'SU,SUB,bemaerk'"

@@ -29,6 +29,7 @@ class RuleIn(BaseModel):
     min_antal: int = Field(1, ge=1, le=100000)
     species_include: list[int] = Field(default_factory=list, max_length=200)
     species_exclude: list[int] = Field(default_factory=list, max_length=500)
+    missing: str | None = Field(None, pattern="^(year|ever)$")
     push: bool = True
     enabled: bool = True
 
@@ -39,7 +40,7 @@ def rule_out(r: AlertRule, area: Area | None, names: dict[str, str]) -> dict:
     return {"id": r.id, "name": r.name, "area_id": r.area_id, "kommuner": r.kommuner or [], "afdelinger": r.afdelinger or [],
             "area_name": area_name,
             "level": r.level, "local_max": r.local_max, "min_antal": r.min_antal, "species_include": r.species_include or [],
-            "species_exclude": r.species_exclude or [], "push": r.push, "enabled": r.enabled}
+            "species_exclude": r.species_exclude or [], "missing": r.missing, "push": r.push, "enabled": r.enabled}
 
 
 async def _region_names(db: AsyncSession) -> dict[str, str]:
@@ -61,8 +62,8 @@ async def _check_area(db: AsyncSession, user: User, body: RuleIn) -> Area | None
             raise HTTPException(400, "Ukendt kommune eller lokalafdeling")
         return None
     if body.area_id is None:
-        if ("local" in body.level or body.level == "all") and not body.species_include:
-            raise HTTPException(400, "Lokale hits og 'alle' kræver et område (eller en artsliste)")
+        if ("local" in body.level or body.level == "all") and not body.species_include and not body.missing:
+            raise HTTPException(400, "Lokale hits og 'alle' kræver et område, en artsliste eller 'kun arter jeg mangler'")
         return None
     area = await db.get(Area, body.area_id)
     if area is None or area.user_id != user.id:

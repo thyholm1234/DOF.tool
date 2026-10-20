@@ -323,7 +323,7 @@ async def events_for(session: AsyncSession, reports: list[FieldReport]) -> list[
         if r.hemmelig:
             continue
         row = (await session.execute(text("""
-            SELECT s.navn, s.art_type, l.navn AS lok, l.kommune_kode, u.navn AS observer, c.text AS adf, t.turtidfra
+            SELECT s.navn, s.art_type, s.list_artnr, l.navn AS lok, l.kommune_kode, u.navn AS observer, c.text AS adf, t.turtidfra
             FROM species s, locations l, users u, field_trips t
             LEFT JOIN code_texts c ON c.kind = 'adf' AND c.code = :adf
             WHERE s.artnr = :a AND l.loknr = :l AND u.id = :u AND t.id = :t
@@ -334,7 +334,8 @@ async def events_for(session: AsyncSession, reports: list[FieldReport]) -> list[
             obsid=-r.id, dato=r.dato, artnr=r.artnr, loknr=r.loknr, antal=r.antal or 1, kategori=r.kategori,
             art=row["navn"], art_type=row["art_type"], lok=row["lok"], kommune_kode=row["kommune_kode"],
             afdelinger=list(r.afdelinger or []), obserkode=r.obserkode, observer=row["observer"] or r.obserkode,
-            adf=row["adf"], tid=r.obstidfra or row["turtidfra"], source="portal", sikkerhed=r.sikkerhed))
+            adf=row["adf"], tid=r.obstidfra or row["turtidfra"], source="portal", sikkerhed=r.sikkerhed,
+            list_artnr=row["list_artnr"]))
     return out
 
 
