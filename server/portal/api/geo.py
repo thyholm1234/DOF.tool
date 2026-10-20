@@ -21,6 +21,7 @@ from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geome
 from portal.services.feed import KAT_RANK
 
 router = APIRouter(prefix="/api", tags=["geo"])
+LOC_TTL = 3600  # lokalitetssiderne (lokalitet, artsliste, top 10, art på lokalitet) caches en time
 
 
 @router.get("/afdelinger")
@@ -155,15 +156,14 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
         return {"recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kat[r["rank"]]} for r in recent],
                 "stats": dict(stats)}
 
-    # Den enkelte lokalitet bygges altid ved indlæsning (ingen cache)
-    return {**dict(loc), **await produce(), "groups": migration.GROUPS}
+    return {**dict(loc), **await cached(f"lok:{loknr}", LOC_TTL, produce), "groups": migration.GROUPS}
 
 
 @router.get("/locations/{loknr}/species")
 async def location_species(loknr: int, year: int | None = Query(None, ge=1900, le=2200), user: User | None = Depends(optional_user),
                            db: AsyncSession = Depends(get_session)):
-    """Artsliste med rekorder for lokaliteten – i alt eller for ét år. Bygges altid ved indlæsning (ingen cache) og er
-    tung på de store lokaliteter (fx Grenen), så den hentes for sig, mens resten af siden vises. years = årene med
+    """Artsliste med rekorder for lokaliteten – i alt eller for ét år. Tung på de store lokaliteter (fx Grenen), så den
+    hentes for sig, mens resten af siden vises, og caches en time (undtagen brugerens egne arter). years = årene med
     observationer."""
     kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
 
@@ -205,7 +205,11 @@ async def location_species(loknr: int, year: int | None = Query(None, ge=1900, l
         """), {"l": loknr, "k": user.obserkode, "y": year})).scalars().all()
         return list(rows)
 
-    return {"species": await species_rows(), "years": await year_rows(), "year": year, "mine": await mine_rows()}
+    async def produce():
+        return {"species": await species_rows(), "years": await year_rows()}
+
+    data = await cached(f"lok:sp:{loknr}:{year or 'alle'}", LOC_TTL, produce)
+    return {**data, "year": year, "mine": await mine_rows()}
 
 
 @router.get("/locations/{loknr}/records/{artnr}")
@@ -213,24 +217,28 @@ async def location_records(loknr: int, artnr: int, year: int | None = Query(None
                            db: AsyncSession = Depends(get_session)):
     """Top 10 unikke dage for arten på lokaliteten (evt. inden for ét år): dagens største enkeltobservation, med
     observatør og tråd."""
-    rows = (await db.execute(text("""
-        SELECT * FROM (
-            SELECT DISTINCT ON (o.dato) o.dato, o.antal, o.obsid, o.adfkode, o.obserkode,
-                   coalesce(nullif(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')), ''), o.obserkode) AS observer
-            FROM observations o LEFT JOIN observers ob ON ob.obserkode = o.obserkode
-            WHERE o.loknr = :l AND o.artnr = :a AND o.hemmelig = 0 AND o.antal > 0
-              AND (CAST(:y AS int) IS NULL OR o.dato >= make_date(CAST(:y AS int), 1, 1) AND o.dato < make_date(CAST(:y AS int) + 1, 1, 1))
-            ORDER BY o.dato, o.antal DESC, o.obsid
-        ) d ORDER BY antal DESC, dato DESC LIMIT 10
-    """), {"l": loknr, "a": artnr, "y": year})).mappings().all()
-    return [dict(r) for r in rows]
+
+    async def produce():
+        rows = (await db.execute(text("""
+            SELECT * FROM (
+                SELECT DISTINCT ON (o.dato) o.dato, o.antal, o.obsid, o.adfkode, o.obserkode,
+                       coalesce(nullif(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')), ''), o.obserkode) AS observer
+                FROM observations o LEFT JOIN observers ob ON ob.obserkode = o.obserkode
+                WHERE o.loknr = :l AND o.artnr = :a AND o.hemmelig = 0 AND o.antal > 0
+                  AND (CAST(:y AS int) IS NULL OR o.dato >= make_date(CAST(:y AS int), 1, 1) AND o.dato < make_date(CAST(:y AS int) + 1, 1, 1))
+                ORDER BY o.dato, o.antal DESC, o.obsid
+            ) d ORDER BY antal DESC, dato DESC LIMIT 10
+        """), {"l": loknr, "a": artnr, "y": year})).mappings().all()
+        return [dict(r) for r in rows]
+
+    return await cached(f"lok:rec:{loknr}:{artnr}:{year or 'alle'}", LOC_TTL, produce)
 
 
 @router.get("/locations/{loknr}/species/{artnr}")
 async def location_species_detail(loknr: int, artnr: int, year: int | None = Query(None, ge=1900, le=2200),
                                   db: AsyncSession = Depends(get_session)):
     """Én art på lokaliteten: gennem året, år for år, tidspunkt i forhold til solen og adfærd (evt. inden for ét år)."""
-    data = await cached(f"locsp:{loknr}:{artnr}:{year or 'alle'}:{await version('feed')}", 900,
+    data = await cached(f"lok:art2:{loknr}:{artnr}:{year or 'alle'}", LOC_TTL,
                         lambda: locspecies.build(db, loknr, artnr, year))
     if data is None:
         raise HTTPException(404)

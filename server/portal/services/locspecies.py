@@ -2,6 +2,7 @@
 
 Dage tælles som på lokalitetssiden: én pr. dag med dagens største enkeltobservation. 'Andel' er dage med arten ud af
 dage med observationer på lokaliteten (af alle arter) – det udligner, at nogle uger og år er bedre dækket end andre.
+'Fugle pr. liste' er artens antal lagt sammen over alle turlister på lokaliteten, delt med antallet af turlister.
 
 Tidspunkt: observationens klokkeslæt (midt i intervallet, når fra–til er højst 3 timer, ellers fra-tiden). '00:00' er
 DOFbasens 'ikke angivet' og tæller ikke. Hver observation lægges ved den nærmeste af solopgang og solnedgang den dag på
@@ -67,11 +68,14 @@ async def build(session: AsyncSession, loknr: int, artnr: int, year: int | None)
     if not loc or not sp:
         return None
     rows = (await session.execute(text("""
-        SELECT o.dato, o.antal, o.adfkode, o.obstidfra, o.obstidtil FROM observations o
+        SELECT o.dato, o.antal, o.adfkode, o.obstidfra, o.obstidtil, o.turid FROM observations o
         WHERE o.loknr = :l AND o.artnr = :a AND o.hemmelig = 0 AND o.antal > 0
     """), {"l": loknr, "a": artnr})).all()
     visit_days = (await session.execute(text("SELECT DISTINCT dato FROM observations WHERE loknr = :l AND hemmelig = 0"),
                                         {"l": loknr})).scalars().all()
+    lists_by_year = dict((await session.execute(text("""
+        SELECT extract(year FROM dato)::int, count(DISTINCT turid) FROM observations WHERE loknr = :l AND hemmelig = 0 GROUP BY 1
+    """), {"l": loknr})).all())
     codes = dict((await session.execute(text("SELECT code, text FROM code_texts WHERE kind = 'adf'"))).all())
     lat, lon = (loc["lat"], loc["lon"]) if loc["lat"] is not None else DK
 
@@ -91,7 +95,11 @@ async def build(session: AsyncSession, loknr: int, artnr: int, year: int | None)
         y["birds"] += n
         if n > y["max"] or (n == y["max"] and d > y["max_date"]):
             y["max"], y["max_date"] = n, d
-    years = [{**y, "visits": visits_by_year.get(y["year"], 0), "max_date": y["max_date"].isoformat()}
+    list_birds: dict[int, int] = defaultdict(int)
+    for r in rows:
+        list_birds[r.dato.year] += r.antal
+    years = [{**y, "visits": visits_by_year.get(y["year"], 0), "max_date": y["max_date"].isoformat(),
+              "lists": lists_by_year.get(y["year"], 0), "list_birds": list_birds[y["year"]]}
              for y in sorted(per_year.values(), key=lambda y: y["year"])]
 
     def chosen(d: date) -> bool:
@@ -162,6 +170,8 @@ async def build(session: AsyncSession, loknr: int, artnr: int, year: int | None)
     return {
         "location": dict(loc), "species": dict(sp), "year": year, "years": years,
         "stats": {"days": len(sel_days), "obs": len(sel_rows), "visits": len(sel_visits), "birds": sum(sel_days.values()),
+                  "lists": sum(n for y, n in lists_by_year.items() if year is None or y == year),
+                  "list_birds": sum(r.antal for r in sel_rows),
                   "max": rec[1] if rec else None, "max_date": rec[0].isoformat() if rec else None,
                   "first": first.isoformat() if first else None, "last": last.isoformat() if last else None},
         "weeks": weeks,

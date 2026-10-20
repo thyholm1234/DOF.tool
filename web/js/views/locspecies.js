@@ -7,6 +7,7 @@ const s = (t, attrs = {}) => { const el = document.createElementNS(NS, t); for (
 const MON = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
 const MONTH_WEEK = [0, 4, 8, 13, 17, 21, 26, 30, 34, 39, 43, 47];  // første uge (7-dages blok) i hver måned
 const WEEK_TICKS = MONTH_WEEK.map((w, i) => [w, MON[i]]);
+const perList = (v) => (Math.round(v * (v < 10 ? 100 : 10)) / (v < 10 ? 100 : 10)).toLocaleString("da-DK");
 const pct = (v) => `${(Math.round(v * 10) / 10).toLocaleString("da-DK")} %`;
 const clock = (min) => { const m = ((Math.round(min) % 1440) + 1440) % 1440; return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
 const hrs = (min) => { const a = Math.abs(min), t = a >= 60 ? `${Math.floor(a / 60)} t${a % 60 ? ` ${a % 60} min` : ""}` : `${a} min`; return min === 0 ? "0" : `${t} ${min < 0 ? "før" : "efter"}`; };
@@ -58,7 +59,7 @@ export async function render(view, [loknr, artnr]) {
         seg([["obs", "Observationer"], ["birds", "Fugle"]], st.weight, (v) => { st.weight = v; draw(); })),
       h("div", { class: "stats" },
         stat(fmtN(sv.days), "dage med arten", sv.visits ? `af ${fmtN(sv.visits)} dage med observationer her (${pct(100 * sv.days / sv.visits)})` : null),
-        stat(fmtN(sv.obs), "observationer", `${fmtN(sv.birds)} fugle i alt (dagens største antal pr. dag)`),
+        stat(sv.lists ? perList(sv.list_birds / sv.lists) : "–", "fugle pr. liste", `${fmtN(sv.obs)} observationer på ${fmtN(sv.lists)} turlister her`),
         stat(sv.max ? fmtN(sv.max) : "–", "største antal", sv.max_date ? fmtDate(sv.max_date) : null),
         stat(sv.last ? fmtDate(sv.last) : "–", "senest set", sv.first ? `første gang ${fmtDate(sv.first)}` : null)),
       sv.days ? null : h("div", { class: "card mt" }, empty("Ingen fund", st.year ? `Arten er ikke registreret her i ${st.year}.` : "Arten er ikke registreret her.")),
@@ -88,16 +89,18 @@ export async function render(view, [loknr, artnr]) {
   function yearsCard() {
     const by = Object.fromEntries(d.years.map(y => [y.year, y]));
     const y0 = d.years[0].year, y1 = d.years.at(-1).year;
-    const all = Array.from({ length: y1 - y0 + 1 }, (_, i) => by[y0 + i] || { year: y0 + i, days: 0, visits: 0, max: 0 });
-    const M = { andel: { v: (y) => y.visits ? 100 * y.days / y.visits : 0, f: pct }, dage: { v: (y) => y.days, f: fmtN }, max: { v: (y) => y.max, f: fmtN } }[st.yearMetric];
+    const all = Array.from({ length: y1 - y0 + 1 }, (_, i) => by[y0 + i] || { year: y0 + i, days: 0, visits: 0, max: 0, lists: 0, list_birds: 0 });
+    const M = { andel: { v: (y) => y.visits ? 100 * y.days / y.visits : 0, f: pct }, dage: { v: (y) => y.days, f: fmtN }, max: { v: (y) => y.max, f: fmtN },
+      liste: { v: (y) => y.lists ? y.list_birds / y.lists : 0, f: perList } }[st.yearMetric];
     const bars = all.map(y => ({ v: M.v(y), hl: String(y.year) === String(st.year),
-      tip: `<div style="opacity:.7">${y.year}</div>${fmtN(y.days)} dage med arten${y.visits ? ` af ${fmtN(y.visits)} (${pct(100 * y.days / y.visits)})` : ""}<br>Største antal: <b>${fmtN(y.max)}</b>${y.max_date ? ` (${esc(fmtDate(y.max_date))})` : ""}<br><small style="opacity:.7">Klik for at vælge året</small>` }));
+      tip: `<div style="opacity:.7">${y.year}</div>${fmtN(y.days)} dage med arten${y.visits ? ` af ${fmtN(y.visits)} (${pct(100 * y.days / y.visits)})` : ""}<br>Største antal: <b>${fmtN(y.max)}</b>${y.max_date ? ` (${esc(fmtDate(y.max_date))})` : ""}${y.lists ? `<br>Fugle pr. liste: <b>${perList(y.list_birds / y.lists)}</b> (${fmtN(y.list_birds)} på ${fmtN(y.lists)} lister)` : ""}<br><small style="opacity:.7">Klik for at vælge året</small>` }));
     const every = Math.max(1, Math.ceil(all.length / (chartW() < 720 ? 6 : 12)));
     const ticks = all.map((y, i) => [i, String(y.year)]).filter(([i]) => (all.length - 1 - i) % every === 0);
     return [h("div", { class: "row between" }, h("h2", { style: { margin: 0 } }, "År for år"),
-        seg([["andel", "Andel af dage"], ["dage", "Dage"], ["max", "Største antal"]], st.yearMetric, (v) => { st.yearMetric = v; draw(); })),
+        seg([["andel", "Andel af dage"], ["dage", "Dage"], ["max", "Største antal"], ["liste", "Fugle pr. liste"]], st.yearMetric, (v) => { st.yearMetric = v; draw(); })),
       barChart({ bars, width: chartW(), height: 200, xTicks: ticks, yFormat: M.f,
         onClick: (i) => { st.year = String(all[i].year) === String(st.year) ? "" : String(all[i].year); load(); } }),
+      st.yearMetric === "liste" ? h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } }, "Artens antal lagt sammen over alle turlister på lokaliteten i året, delt med antallet af turlister (af alle arter) – et mål for, hvor mange man i gennemsnit ser pr. besøg.") : null,
       h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } }, st.year ? `${st.year} er fremhævet – klik på det igen for alle år.` : "Klik på et år for at se det for sig.")];
   }
 
