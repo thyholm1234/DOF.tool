@@ -752,8 +752,6 @@ progress { accent-color: var(--brand); height: 10px; }
 .pulse-layout { display: grid; gap: 12px; }
 @media (min-width: 1000px) { .pulse-layout { grid-template-columns: minmax(0, 1fr) 320px; } .pulse-side { max-height: calc(100dvh - var(--top-h) - 130px); overflow: auto; } }
 .pulse-birder { filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); transition: opacity 1s; }
-.pulse-birder.fresh svg { animation: pulse-bob 1.6s ease-in-out infinite; transform-origin: 50% 100%; }
-@keyframes pulse-bob { 50% { transform: translateY(-3px); } }
 .pulse-pop { background: none; border: 0; }
 .pulse-pop .pp { position: absolute; transform: translate(-50%, calc(-100% - 10px)); white-space: nowrap; padding: 5px 10px 6px; border-radius: 10px;
   background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-left: 4px solid var(--text-3);
@@ -773,4 +771,4 @@ progress { accent-color: var(--brand); height: 10px; }
 .pulse-item:hover { background: var(--surface-2, rgba(127,127,127,.08)); text-decoration: none; }
 .pulse-item.SU { border-left-color: var(--su); } .pulse-item.SUB { border-left-color: var(--sub); } .pulse-item.bemaerk { border-left-color: var(--bem); }
 .pulse-item .tag { margin-left: 6px; }
-@media (prefers-reduced-motion: reduce) { .pulse-pop .pp, .pulse-ring, .pulse-birder.fresh svg { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .pulse-pop .pp, .pulse-ring { animation: none; } }

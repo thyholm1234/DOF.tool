@@ -46,11 +46,14 @@ export async function render(view) {
       const age = now - b.at;
       if (age > ACTIVE_MS) { birderLayer.removeLayer(b.marker); birders.delete(id); continue; }
       const el = b.marker.getElement();
-      if (el) { el.style.opacity = String(1 - 0.65 * age / ACTIVE_MS); el.classList.toggle("fresh", age < 120000); }
+      if (el) el.style.opacity = String(1 - 0.65 * age / ACTIVE_MS);
     }
     stats.birders.textContent = fmtN(birders.size);
   };
   const setBirders = (rows) => {
+    // Birdere serveren ikke længere sender (turen er afsluttet) fjernes
+    const ids = new Set(rows.map(b => b.id));
+    for (const [id, b] of birders) if (!ids.has(id)) { birderLayer.removeLayer(b.marker); birders.delete(id); }
     for (const b of rows) {
       const at = Date.parse(b.at), old = birders.get(b.id);
       if (old) { old.at = at; old.marker.setLatLng([b.lat, b.lon]); old.marker.setTooltipContent(esc(b.lok)); continue; }

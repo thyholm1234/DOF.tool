@@ -297,9 +297,9 @@ async def nearby(lat: float, lon: float, radius_km: float = Query(10, gt=0, le=1
 
 
 @router.get("/pulse")
-async def pulse_map(since: str | None = Query(None, max_length=40)):
+async def pulse_map(since: str | None = Query(None, max_length=40), db: AsyncSession = Depends(get_session)):
     """Kommandokortet: ændringer pr. live-sync og aktive (anonyme) birdere."""
-    return await pulse.snapshot(since)
+    return await pulse.snapshot(db, since)
 
 
 @router.get("/stream")

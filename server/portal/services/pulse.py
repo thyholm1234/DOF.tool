@@ -2,7 +2,7 @@
 
 Ved hver live-hentning gemmes ændringen siden sidste sync pr. art og lokalitet: nye observationer tæller med
 deres antal, ændrede med forskellen (50 → 56 bogfinker giver 6). Birdere er anonyme og vises på lokaliteten
-for deres seneste ændring i op til 15 minutter. Hemmelige observationer er udeladt, og der bruges altid
+for deres seneste ændring i op til 15 minutter – eller til turen er afsluttet (sluttid i DOFbasen). Hemmelige observationer er udeladt, og der bruges altid
 lokalitetens position, aldrig fuglens præcise.
 """
 
@@ -16,9 +16,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
+from portal.timeutil import TZ
 
 BATCHES = "pulse:batches"  # JSON pr. sync, nyeste først
-BIRDERS = "pulse:birders"  # anonymt id -> {lat, lon, lok, at}
+BIRDERS = "pulse:birders"  # anonymt id -> {lat, lon, lok, turid, at}
 KEEP = 40
 ACTIVE = timedelta(minutes=15)
 RANK = {"SU": 3, "SUB": 2, "bemaerk": 1, "alm": 0}
@@ -51,7 +52,7 @@ async def record_sync(session: AsyncSession, new_obsids: list[int], changed: lis
     if not delta:
         return
     rows = (await session.execute(text("""
-        SELECT o.obsid, o.artnr, o.antal, o.kategori, o.loknr, o.obserkode, s.navn AS art, l.navn AS lok, l.lat, l.lon
+        SELECT o.obsid, o.turid, o.artnr, o.antal, o.kategori, o.loknr, o.obserkode, s.navn AS art, l.navn AS lok, l.lat, l.lon
         FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
         WHERE o.obsid = ANY(:ids) AND o.hemmelig = 0 AND l.lat IS NOT NULL
     """), {"ids": list(delta)})).mappings().all()
@@ -68,7 +69,7 @@ async def record_sync(session: AsyncSession, new_obsids: list[int], changed: lis
         if RANK.get(r["kategori"], 0) > RANK.get(it["kategori"], 0):
             it["kategori"] = r["kategori"]
         if r["obserkode"]:
-            birders[r["obserkode"]] = {"lat": r["lat"], "lon": r["lon"], "lok": r["lok"]}
+            birders[r["obserkode"]] = {"lat": r["lat"], "lon": r["lon"], "lok": r["lok"], "turid": r["turid"]}
     await _store(items, birders, "dof")
 
 
@@ -86,8 +87,21 @@ async def record_report(session: AsyncSession, report) -> None:
     await _store({0: item}, {report.obserkode: {"lat": r["lat"], "lon": r["lon"], "lok": r["lok"]}}, "portal")
 
 
-async def snapshot(since: str | None) -> dict:
-    """Syncs efter `since` (ældste først; uden `since` de seneste ti) og birdere aktive de seneste 15 minutter."""
+async def _ended(session: AsyncSession, turids: list[int]) -> set[int]:
+    """Ture der er afsluttet: sluttid angivet og passeret (eller turen er fra en tidligere dag)."""
+    if not turids:
+        return set()
+    now = datetime.now(TZ)
+    rows = (await session.execute(text("""
+        SELECT turid FROM trips WHERE turid = ANY(:t) AND turtidtil IS NOT NULL
+          AND (dato < :d OR replace(turtidtil, '.', ':') <= :hm)
+    """), {"t": turids, "d": now.date(), "hm": now.strftime("%H:%M")})).scalars().all()
+    return set(rows)
+
+
+async def snapshot(session: AsyncSession, since: str | None) -> dict:
+    """Syncs efter `since` (ældste først; uden `since` de seneste ti) og birdere aktive de seneste 15 minutter,
+    hvis tur ikke er afsluttet."""
     raw = [json.loads(b) for b in await kv().lrange(BATCHES, 0, KEEP - 1)]
     batches = [b for b in raw if since and b["at"] > since] if since else raw[:10]
     now = datetime.now(timezone.utc)
@@ -98,6 +112,9 @@ async def snapshot(since: str | None) -> dict:
             stale.append(k)
         else:
             birders.append({"id": k, **b})
+    ended = await _ended(session, [b["turid"] for b in birders if b.get("turid")])
+    stale += [b["id"] for b in birders if b.get("turid") in ended]
+    birders = [{k: v for k, v in b.items() if k != "turid"} for b in birders if b.get("turid") not in ended]
     if stale:
         await kv().hdel(BIRDERS, *stale)
     # Forventet tid til næste sync: medianen af de seneste intervaller mellem DOFbasen-hentninger
