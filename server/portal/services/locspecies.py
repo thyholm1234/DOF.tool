@@ -2,7 +2,8 @@
 
 Dage tælles som på lokalitetssiden: én pr. dag med dagens største enkeltobservation. 'Andel' er dage med arten ud af
 dage med observationer på lokaliteten (af alle arter) – det udligner, at nogle uger og år er bedre dækket end andre.
-'Fugle pr. liste' er artens antal lagt sammen over alle turlister på lokaliteten, delt med antallet af turlister.
+'Fugle pr. liste' er artens antal lagt sammen over alle turlister på lokaliteten, delt med antallet af turlister
+(fra trips – samme tal som de forskellige turid'er i observationerne, men uden at læse dem alle).
 
 Tidspunkt: observationens klokkeslæt (midt i intervallet, når fra–til er højst 3 timer, ellers fra-tiden). '00:00' er
 DOFbasens 'ikke angivet' og tæller ikke. Hver observation lægges ved den nærmeste af solopgang og solnedgang den dag på
@@ -74,7 +75,7 @@ async def build(session: AsyncSession, loknr: int, artnr: int, year: int | None)
     visit_days = (await session.execute(text("SELECT DISTINCT dato FROM observations WHERE loknr = :l AND hemmelig = 0"),
                                         {"l": loknr})).scalars().all()
     lists_by_year = dict((await session.execute(text("""
-        SELECT extract(year FROM dato)::int, count(DISTINCT turid) FROM observations WHERE loknr = :l AND hemmelig = 0 GROUP BY 1
+        SELECT extract(year FROM dato)::int, count(*) FROM trips WHERE loknr = :l GROUP BY 1
     """), {"l": loknr})).all())
     codes = dict((await session.execute(text("SELECT code, text FROM code_texts WHERE kind = 'adf'"))).all())
     lat, lon = (loc["lat"], loc["lon"]) if loc["lat"] is not None else DK

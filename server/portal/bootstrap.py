@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from sqlalchemy import text
@@ -41,3 +42,40 @@ async def init_db() -> None:
             await s.execute(text("SELECT pg_advisory_unlock(424243)"))
             await s.commit()
     log.info("Database klar")
+
+
+# Store indekser på observations bygges CONCURRENTLY i baggrunden af workeren (tager minutter og må ikke låse tabellen
+# under opstart). Et halvbygget (ugyldigt) indeks fra en afbrudt bygning droppes og bygges igen.
+BACKGROUND_INDEXES = {
+    # Lokalitetssiderne (lokalitet, artsliste, art på lokalitet) læser kun disse kolonner – index-only scan i stedet
+    # for at hente hver observation fra tabellen (Grenen: ~165.000 sider pr. forespørgsel).
+    "ix_obs_loknr_cover": "ON observations (loknr, dato, artnr) INCLUDE (antal, kategori, hemmelig, turid)",
+}
+
+
+async def build_background_indexes(delay: int = 60, attempts: int = 3) -> None:
+    # Vent til de andre processers opstart (create_all og EXTRA_DDL på observations) er færdig – ellers kan
+    # CREATE INDEX CONCURRENTLY gå i deadlock med dem.
+    await asyncio.sleep(delay)
+    async with engine.connect() as conn:
+        conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
+        for name, ddl in BACKGROUND_INDEXES.items():
+            for attempt in range(1, attempts + 1):
+                valid = (await conn.execute(text("""
+                    SELECT i.indisvalid FROM pg_class c JOIN pg_index i ON i.indexrelid = c.oid WHERE c.relname = :n
+                """), {"n": name})).scalar()
+                if valid:
+                    break
+                if valid is False:
+                    await conn.execute(text(f"DROP INDEX CONCURRENTLY IF EXISTS {name}"))
+                log.info("Bygger indeks %s i baggrunden", name)
+                try:
+                    await conn.execute(text(f"CREATE INDEX CONCURRENTLY {name} {ddl}"))
+                    # Synlighedskortet skal være opdateret, før Postgres kan svare fra indekset alene
+                    await conn.execute(text("VACUUM (ANALYZE) observations"))
+                except Exception:  # noqa: BLE001 – workeren skal køre videre; prøv igen lidt senere
+                    log.exception("Kunne ikke bygge indeks %s (forsøg %s af %s)", name, attempt, attempts)
+                    await asyncio.sleep(300)
+                    continue
+                log.info("Indeks %s bygget", name)
+                break

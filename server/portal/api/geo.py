@@ -163,36 +163,9 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
 async def location_species(loknr: int, year: int | None = Query(None, ge=1900, le=2200), user: User | None = Depends(optional_user),
                            db: AsyncSession = Depends(get_session)):
     """Artsliste med rekorder for lokaliteten – i alt eller for ét år. Tung på de store lokaliteter (fx Grenen), så den
-    hentes for sig, mens resten af siden vises, og caches en time (undtagen brugerens egne arter). years = årene med
-    observationer."""
-    kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
-
-    async def species_rows():
-        # Flere turlister samme dag tæller ikke dobbelt: én pr. art pr. dag med det største antal. Rekorden er dagens
-        # største enkeltobservation (ikke summen, så samme flok talt af flere ikke lægges sammen). kategori = den højeste,
-        # arten har haft her (i året); group = trækkortets artsgruppe.
-        rows = (await db.execute(text(f"""
-            WITH d AS (
-                SELECT artnr, dato, max(antal) AS antal, max({KAT_RANK}) AS rank
-                FROM observations o WHERE loknr = :l AND hemmelig = 0 AND antal > 0
-                  AND (CAST(:y AS int) IS NULL OR dato >= make_date(CAST(:y AS int), 1, 1) AND dato < make_date(CAST(:y AS int) + 1, 1, 1))
-                GROUP BY artnr, dato
-            )
-            SELECT s.artnr, s.navn, s.sortering, count(*) AS n_obs, max(d.dato) AS last_date, max(d.rank) AS rank,
-                   max(d.antal) AS rekord, (array_agg(d.dato ORDER BY d.antal DESC, d.dato DESC))[1] AS rekord_dato
-            FROM d JOIN species s ON s.artnr = d.artnr
-            GROUP BY s.artnr, s.navn, s.sortering ORDER BY n_obs DESC LIMIT 600
-        """), {"l": loknr, "y": year})).mappings().all()
-        groups = await migration.species_groups(db)
-        return [{**{k: r[k] for k in ("artnr", "navn", "sortering", "n_obs", "last_date", "rekord", "rekord_dato")},
-                 "kategori": kat[r["rank"]], "group": groups.get(r["artnr"])} for r in rows]
-
-    async def year_rows():
-        rows = (await db.execute(text("""
-            SELECT extract(year FROM dato)::int AS year, count(DISTINCT artnr) AS n_taxa
-            FROM observations WHERE loknr = :l AND hemmelig = 0 AND antal > 0 GROUP BY 1 ORDER BY 1 DESC
-        """), {"l": loknr})).mappings().all()
-        return [dict(r) for r in rows]
+    hentes for sig, mens resten af siden vises, og caches en time (undtagen brugerens egne arter); for de 100 mest aktive
+    lokaliteter bygges den på forhånd af workeren. years = årene med observationer."""
+    from portal.services import locyear
 
     async def mine_rows():
         # Arter den indloggede selv har indtastet på lokaliteten (i det valgte år) – til filteret "Mangler hos mig"
@@ -205,10 +178,8 @@ async def location_species(loknr: int, year: int | None = Query(None, ge=1900, l
         """), {"l": loknr, "k": user.obserkode, "y": year})).scalars().all()
         return list(rows)
 
-    async def produce():
-        return {"species": await species_rows(), "years": await year_rows()}
-
-    data = await cached(f"lok:sp:{loknr}:{year or 'alle'}", LOC_TTL, produce)
+    # De mest aktive lokaliteter har listen klar fra workeren (se locyear.prebuild_species)
+    data = await cached(locyear.species_key(loknr, year), LOC_TTL, lambda: locyear.species_list(db, loknr, year))
     return {**data, "year": year, "mine": await mine_rows()}
 
 

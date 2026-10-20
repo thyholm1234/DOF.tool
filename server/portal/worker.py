@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy import text
 
-from portal.bootstrap import init_db
+from portal.bootstrap import build_background_indexes, init_db
 from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
@@ -184,6 +184,7 @@ async def location_years(years: list[int] | None) -> None:
     """Lokalitetsoversigten: bestemte år (på forlangende) eller den sædvanlige bygning (alt første gang)."""
     async with SessionLocal() as s:
         await (locyear.refresh(s, years) if years else locyear.ensure(s))
+        await locyear.prebuild_species(s)
 
 
 async def aggregates(days: int) -> None:
@@ -243,6 +244,7 @@ async def main() -> None:
         asyncio.create_task(command_listener(), name="commands"),
         asyncio.create_task(weather_archive.loop(), name="weather"),
         asyncio.create_task(jobs.media_scanner(), name="media"),
+        asyncio.create_task(build_background_indexes(), name="indexes"),
     ]
     if await archive.pending_files():
         log.info("Nye arkivfiler fundet – starter import i baggrunden")
