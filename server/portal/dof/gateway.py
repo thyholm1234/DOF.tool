@@ -5,6 +5,8 @@ Alle kald til DOFbasen går gennem gatewayen i worker-processen. Der er to baner
   * Udtræk (live-observationer, login, referencedata, historik, måneder): én kø og én løkke. Mellem afslutningen af
     ét kald og starten af det næste går der altid mindst `dof_min_interval` sekunder (standard 60). Grænsen
     håndhæves med et globalt tidsstempel + lås i Valkey, så den også holder hvis der ved en fejl kører flere workers.
+    Undtagelse: en administrator kan bede om én live-hentning af dagen med det samme (request_live_now) – den
+    springer ventetiden over én gang og kan højst bestilles hvert LIVE_NOW_COOLDOWN sekund.
   * Opslag (LOOKUP_KINDS: billeder, lyd og DKU-status for én observation): små sider der ikke trækker data ud af
     DOFbasens database. De har deres egen kø og udføres med det samme, uden minimumsinterval, og de tæller ikke
     med i udtrækkenes interval. Kun et teknisk loft på samtidige opslag (LOOKUP_CONCURRENCY) og på køens længde.
@@ -42,6 +44,8 @@ STATUS = "dof:status"
 RUNNING = "dof:running"  # id på jobbet der udføres lige nu (genoptages hvis workeren dør undervejs)
 MAX_ATTEMPTS = 3
 PRIO_STEP = 1e14  # skal være større end tidsstempler i ms (~1,8e12)
+LIVE_NOW = "dof:live_now"  # sat af en administrator: hent dagen nu, uden at vente på minimumsintervallet
+LIVE_NOW_COOLDOWN = 15
 LIVE_MAX_GAP = 150  # sekunder: så længe må interaktive job højst holde live-hentningen tilbage
 # Opslagsbanen: små opslag pr. observation uden minimumsinterval
 LQ = "dof:lq"
@@ -51,6 +55,14 @@ LOOKUP_CONCURRENCY = 4  # samtidige opslag (teknisk loft, ikke en hastighedsgræ
 MAX_LOOKUP_QUEUE = 200  # værn mod at køen vokser uendeligt
 
 Handler = Callable[[httpx.AsyncClient, dict], Awaitable[Any]]
+
+
+async def request_live_now() -> bool:
+    """Bed om én live-hentning af dagen med det samme (springer minimumsintervallet over). False ved for hyppige kald."""
+    if not await kv().set(f"{LIVE_NOW}:cooldown", "1", nx=True, ex=LIVE_NOW_COOLDOWN):
+        return False
+    await kv().set(LIVE_NOW, "1", ex=300)
+    return True
 
 
 async def enqueue(kind: str, params: dict | None = None, *, priority: int = NORMAL, dedupe: str | None = None,
@@ -219,6 +231,8 @@ class Gateway:
             return job
 
     async def _choose(self) -> tuple[str, dict | None]:
+        if await kv().getdel(LIVE_NOW):
+            return "live", None
         live_on = await self.live_enabled()
         # Planens interval for "dagen i dag" (0 = slået fra); aldrig under minimumsintervallet
         planned = await kv().get("dof:live_interval")
@@ -246,6 +260,8 @@ class Gateway:
     async def _wait_for_slot(self) -> None:
         r = kv()
         while True:
+            if await r.exists(LIVE_NOW):
+                return
             last = float(await r.get(LAST_CALL) or 0)
             remaining = last + self.settings.dof_min_interval - time.time()
             if remaining <= 0:

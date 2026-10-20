@@ -557,8 +557,13 @@ async def save_plan(source: str, body: PlanIn, user: User = Depends(require_user
 @router.post("/admin/data/{source}/run/{tier}")
 async def run_tier(source: str, tier: str, user: User = Depends(require_user)):
     _source_perm(source, user)
-    if tier not in dict(datasync.TIERS) or (source == "dof" and tier == "today"):
+    if tier not in dict(datasync.TIERS):
         raise HTTPException(400, "Ukendt vindue")
+    if source == "dof" and tier == "today":
+        # Dagen i dag: én live-hentning med det samme, uden at vente på minimumsintervallet
+        if not await gateway.request_live_now():
+            raise HTTPException(429, f"Dagen er lige bestilt – vent {gateway.LIVE_NOW_COOLDOWN} sekunder")
+        return {"queued": True, "now": True}
     await worker_command("run_plan", source=source, tier=tier)
     return {"queued": True}
 

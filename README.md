@@ -28,7 +28,8 @@ docker compose
 * **Udtræk** (live-hentning, login-tjek, referencedata, historik, måneder): én kø i Valkey, og der går
   altid mindst 60 sekunder fra ét kald er færdigt til det næste starter. Grænsen kan ikke sættes lavere
   end 60 sekunder (`DOF_MIN_INTERVAL`), og den håndhæves med et globalt tidsstempel og en lås, så den
-  også holder på tværs af genstarter.
+  også holder på tværs af genstarter. Eneste undtagelse er knappen *Hent nu* ved "Dagen i dag" under **Admin → Data**:
+  den henter dagens liste med det samme én gang (højst hvert 15. sekund).
 * **Opslag** (billeder, lyd og DKU-status for én observation): små sider, der ikke trækker data ud af
   DOFbasens database. De har deres egen kø og udføres med det samme, højst fire ad gangen, uden at vente på
   minimumsintervallet og uden at påvirke det.
