@@ -165,11 +165,11 @@ async function calendarPage(view, id) {
     }
     grid.replaceChildren(
       h("div", { class: "row between mb" },
-        h("button", { class: "btn sm", onclick: () => { month = new Date(month.getFullYear(), month.getMonth() - 1, 1); load(); } }, "‹"),
+        h("button", { class: "btn sm", onclick: () => { month = new Date(month.getFullYear(), month.getMonth() - 1, 1); load(); }, "aria-label": "Forrige måned", html: icon("prev") }),
         h("h2", { style: { margin: 0, textTransform: "capitalize" } }, `${MONTHS[month.getMonth()]} ${month.getFullYear()}`),
         h("div", { class: "row", style: { gap: "4px" } },
           h("button", { class: "btn sm ghost", onclick: () => { month = new Date(); month.setDate(1); load(); } }, "I dag"),
-          h("button", { class: "btn sm", onclick: () => { month = new Date(month.getFullYear(), month.getMonth() + 1, 1); load(); } }, "›"))),
+          h("button", { class: "btn sm", onclick: () => { month = new Date(month.getFullYear(), month.getMonth() + 1, 1); load(); }, "aria-label": "Næste måned", html: icon("next") }))),
       h("div", { class: "cal-grid" }, ...WD.map(w => h("div", { class: "cal-wd" }, w)), ...cells),
       h("p", { class: "muted", style: { fontSize: ".8rem", margin: "8px 0 0" } }, "Tryk på en dag for at se hvem der kommer og melde dig til. Prikken øverst viser trækvejret om morgenen (grøn = godt) de dage, DMI's prognose dækker."));
   };
@@ -354,10 +354,10 @@ async function myWeek(view) {
     const days = Array.from({ length: 7 }, (_, i) => iso(addDays(start, i)));
     out.replaceChildren(
       h("div", { class: "row between mb" },
-        h("button", { class: "btn sm", onclick: () => { start = addDays(start, -7); load(); } }, "‹ Forrige"),
+        h("button", { class: "btn sm", onclick: () => { start = addDays(start, -7); load(); }, html: `${icon("prev")} Forrige` }),
         h("h2", { style: { margin: 0 } }, `Uge ${week} · ${fmtDate(days[0], false)}–${fmtDate(days[6], false)}`),
         h("div", { class: "row", style: { gap: "4px" } }, h("button", { class: "btn sm ghost", onclick: () => { start = monday(new Date()); load(); } }, "Denne uge"),
-          h("button", { class: "btn sm", onclick: () => { start = addDays(start, 7); load(); } }, "Næste ›"))),
+          h("button", { class: "btn sm", onclick: () => { start = addDays(start, 7); load(); }, html: `Næste ${icon("next")}` }))),
       h("div", { class: "week-grid" }, ...days.map((d, i) => {
         const vs = rows.filter(v => v.dato === d);
         return h("div", { class: `week-day ${d === todayISO() ? "today" : ""}` }, h("div", { class: "week-head" }, h("b", {}, WD[i]), h("span", { class: "muted" }, fmtDate(d, false))),
