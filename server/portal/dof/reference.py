@@ -11,14 +11,16 @@ import html
 import json
 import re
 import unicodedata
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import bump
+from portal.cache import bump, worker_command
 from portal.config import SEED_DIR
-from portal.models import Afdeling, BemaerkThreshold, Kommune, PhenologyWindow, Species
+from portal.models import Afdeling, BemaerkThreshold, Kommune, PhenologyWindow, Setting, Species
+from portal.timeutil import dk_today
 
 AFDELINGER = [
     (574, "DOF København", "koebenhavn", "kbh"),
@@ -45,12 +47,14 @@ def clean_text(value: str) -> str:
 
 
 def base_name(navn: str) -> str:
-    return navn.split("(")[0].split(",")[0].strip()
+    return navn.strip("[]").split("(")[0].split(",")[0].strip()
 
 
 def is_listable_name(navn: str) -> bool:
+    """Ubestemte ('Albatros sp.', 'X/Y') og hybrider tæller ikke. 'sp.' skal stå som ord – ellers rammes '(ssp. …)' i
+    alle underartsnavne. Klippedue (tamdue) er DOFbasens eneste Columba livia og står på Den Danske Liste (kategori C)."""
     n = navn.lower()
-    return not ("sp." in n or "/" in n or " x " in n or "hybrid" in n or "ubestemt" in n or "(tam" in n)
+    return not (re.search(r"\bsp\.", n) or "/" in n or " x " in n or "hybrid" in n or "ubestemt" in n)
 
 
 # ---------------------------------------------------------------- seed
@@ -126,13 +130,14 @@ async def _seed_species(session: AsyncSession) -> None:
 
 
 async def resolve_list_species(session: AsyncSession) -> None:
-    """Sæt list_artnr: arter tæller som sig selv, underarter som nominatarten, resten tæller ikke."""
+    """Sæt list_artnr: arter tæller som sig selv, underarter som arten (eller sig selv, hvis arten ikke findes i
+    DOFbasen, fx Klippedue (tamdue)), resten tæller ikke. [Klammer] om navnet gør stadig fundet ikke-krydsbart."""
     species = (await session.execute(select(Species.artnr, Species.navn, Species.art_type))).all()
-    by_name = {navn: artnr for artnr, navn, typ in species if typ == "art" and "(" not in navn}
+    by_name = {navn.strip("[]"): artnr for artnr, navn, typ in species if typ == "art" and "(" not in navn}
     for artnr, navn, typ in species:
         target = None
         if typ in ("art", "underart") and is_listable_name(navn):
-            target = by_name.get(base_name(navn), artnr if "(" not in navn else None)
+            target = by_name.get(base_name(navn), artnr if "(" not in navn or typ == "underart" else None)
         await session.execute(text("UPDATE species SET list_artnr = :t WHERE artnr = :a AND list_artnr IS DISTINCT FROM :t"),
                               {"t": target, "a": artnr})
 
@@ -279,3 +284,22 @@ async def apply_windows(session: AsyncSession, season: str, rows: list[tuple[str
     await session.commit()
     await bump("reference")
     return len(rows)
+
+
+LIST_FIX_KEY = "list_species_v2"
+
+
+async def fix_list_species(session: AsyncSession) -> None:
+    """Én gang: underarter fik ved en fejl 'tæller ikke' ('sp.' ramte '(ssp. …)'). Sæt list_artnr igen og byg de
+    forudberegnede tal (Arter pr. år og lokalitetsoversigten) for alle år."""
+    if await session.get(Setting, LIST_FIX_KEY) is not None or not (await session.execute(select(func.count()).select_from(Species))).scalar():
+        return
+    await resolve_list_species(session)
+    session.add(Setting(key=LIST_FIX_KEY, value={"at": datetime.now(timezone.utc).isoformat()}))
+    await session.commit()
+    for v in ("reference", "lists", "regions", "locyear", "feed"):
+        await bump(v)
+    first = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar()
+    if first:
+        await worker_command("regions", from_year=None)
+        await worker_command("location_years", years=list(range(first, dk_today().year + 1)))
