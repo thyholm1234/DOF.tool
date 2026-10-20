@@ -1,7 +1,7 @@
 // Matrikelbirding (Boligbirding): eget modul med oversigt over placeringer, liste, scoreboards og matrikler.
 import { api, state, h, icon, fmtN, fmtDate, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
-import { drawList, ranking, race, matrix, unique } from "./lists.js";
+import { drawList, ranking, race, matrix, unique, groups } from "./lists.js";
 
 const YEAR = new Date().getFullYear();
 const dayOfYear = (iso) => { const d = new Date(iso + "T12:00:00"); return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); };
@@ -14,10 +14,10 @@ export async function render(view) {
   view.append(h("div", { class: "page-head" },
     h("div", {}, h("h1", {}, "Matrikel"), h("p", { class: "lead" }, "Boligbirding: arter set fra din matrikel – og hvor du ligger i landet, din lokalafdeling, din kommune og dine grupper.")),
     h("span", { class: "spacer" }),
-    seg([["oversigt", "Oversigt"], ["liste", "Min liste"], ["score", "Scoreboard"], ["matrikler", "Matrikler"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
+    seg([["oversigt", "Oversigt"], ["liste", "Min liste"], ["score", "Scoreboard"], ["matrikler", "Administrér"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
   const body = h("div", {});
   view.append(body);
-  const draw = (t) => ({ liste: myList, score: scoreboard, matrikler }[t] || landing)(body);
+  const draw = (t) => ({ liste: myList, score: scoreboard, matrikler: manage }[t] || landing)(body);
   await draw(tab);
 }
 
@@ -50,7 +50,7 @@ async function landing(body) {
         pts.length > 1 ? lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], step: true, height: 190,
           xFormat: isYear ? monthName : String, xTicks: isYear ? monthTicks : undefined, yFormat: (v) => fmtN(Math.round(v)) }) : null),
       h("h2", { class: "mt" }, "Placeringer"),
-      d.standings.length > 1 ? null : h("p", { class: "muted" }, "Vælg lokalafdeling og kommune under ", h("a", { href: "#/profil" }, "profil"), " og deltag i ", h("a", { href: "#/lister?tab=grupper" }, "grupper"), " for at se flere placeringer."),
+      d.standings.length > 1 ? null : h("p", { class: "muted" }, "Vælg lokalafdeling og kommune under ", h("a", { href: "#/profil" }, "profil"), " og deltag i ", h("a", { href: "#/matrikel?tab=matrikler" }, "grupper"), " for at se flere placeringer."),
       h("div", { class: "grid-2" }, ...d.standings.map(s => standingCard(s, st.year))),
       latest.length ? h("div", { class: "card" }, h("h3", { style: { marginTop: 0 } }, "Seneste nye arter"),
         h("table", { class: "data" }, h("tbody", {}, ...latest.map(it => h("tr", {},
@@ -161,6 +161,16 @@ async function scoreboard(body) {
   };
   scopeSel.onchange = load; groupSel.onchange = load;
   await load();
+}
+
+// ---------------------------------------------------------------- administrér: matrikler og grupper
+
+async function manage(body) {
+  if (requireLogin(body)) return;
+  const mBox = h("div", {}), gBox = h("div", {});
+  body.append(h("h2", {}, "Mine matrikler"), mBox, h("h2", { class: "mt2" }, "Grupper"),
+    h("p", { class: "muted", style: { marginTop: 0, maxWidth: "62ch" } }, "Grupper får deres eget scoreboard for boligbirding og årslister. Opret en gruppe og del koden, eller deltag i en andens med koden."), gBox);
+  await Promise.all([matrikler(mBox), groups(gBox, "#/matrikel")]);
 }
 
 // ---------------------------------------------------------------- matrikler: navne, perioder og flytning

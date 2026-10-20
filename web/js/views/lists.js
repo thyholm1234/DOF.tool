@@ -315,9 +315,9 @@ export function unique(rows, names) {
       h("b", {}, `${r.navn} (${only.length})`), h("div", { class: "muted" }, only.map(([a, d]) => `${names[a]} (${fmtDate(d, false)})`).join(", ")))));
 }
 
-// ---------------------------------------------------------------- grupper
+// ---------------------------------------------------------------- grupper (også under Matrikel → Administrér)
 
-async function groups(body) {
+export async function groups(body, board = "#/lister") {
   if (requireLogin(body)) return;
   const list = h("div", { class: "stack" });
   const name = h("input", { placeholder: "Gruppenavn, fx 'Fugleholdet'" });
@@ -330,18 +330,18 @@ async function groups(body) {
     h("h2", { class: "mt2" }, "Mine grupper"), list);
   const load = async () => {
     const gs = await api("/api/lists/groups");
-    list.replaceChildren(...(gs.length ? gs.map(g => groupCard(g, load)) : [empty("Du er ikke med i nogen grupper endnu")]));
+    list.replaceChildren(...(gs.length ? gs.map(g => groupCard(g, load, board)) : [empty("Du er ikke med i nogen grupper endnu")]));
   };
   await load();
 }
 
-function groupCard(g, reload) {
+function groupCard(g, reload, board) {
   const members = h("div", { class: "muted" }, "…");
   const add = h("input", { placeholder: "Tilføj obserkode", style: { width: "180px", textTransform: "uppercase" } });
   const card = h("div", { class: "card" },
     h("div", { class: "card-head" }, h("h3", {}, g.name), h("span", { class: "spacer" }),
       g.invite_code ? h("span", { class: "muted" }, "Kode: ", h("b", { class: "kbd" }, g.invite_code)) : null,
-      h("a", { class: "btn sm", href: `#/lister?tab=score&group=${g.id}` }, "Scoreboard")),
+      h("a", { class: "btn sm", href: `${board}?tab=score&group=${g.id}` }, "Scoreboard")),
     members,
     g.owner ? h("form", { class: "row mt", onsubmit: async (e) => { e.preventDefault(); try { await api(`/api/lists/groups/${g.id}/members`, { method: "POST", body: { obserkode: add.value } }); add.value = ""; loadMembers(); } catch (err) { toast(err.message, "err"); } } },
       add, h("button", { class: "btn sm" }, "Tilføj"), h("span", { style: { flex: 1 } }),
