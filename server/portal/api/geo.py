@@ -16,7 +16,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import cached, version, worker_command
 from portal.db import get_session
 from portal.models import Area, Species, User
-from portal.services import dofext, finds
+from portal.services import dofext, finds, migration
 from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geometry
 from portal.services.feed import KAT_RANK
 
@@ -64,13 +64,27 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
     if not loc:
         raise HTTPException(404)
 
-    async def produce():
-        # Flere turlister samme dag tæller ikke dobbelt: én observation pr. art pr. dag med det største antal
-        top = (await db.execute(text("""
-            SELECT s.navn, count(*) AS n_obs, max(d.dato) AS last_date
-            FROM (SELECT DISTINCT dato, artnr FROM observations WHERE loknr = :l AND hemmelig = 0) d
-            JOIN species s ON s.artnr = d.artnr GROUP BY s.navn ORDER BY n_obs DESC LIMIT 600
+    kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
+
+    async def species_list():
+        # Flere turlister samme dag tæller ikke dobbelt: én pr. art pr. dag med det største antal. Rekorden er dagens
+        # største enkeltobservation (ikke summen, så samme flok talt af flere ikke lægges sammen). kat = den højeste
+        # kategori, arten har haft her; group = trækkortets artsgruppe.
+        rows = (await db.execute(text(f"""
+            WITH d AS (
+                SELECT artnr, dato, max(antal) AS antal, max({KAT_RANK}) AS rank
+                FROM observations o WHERE loknr = :l AND hemmelig = 0 AND antal > 0 GROUP BY artnr, dato
+            )
+            SELECT s.artnr, s.navn, s.sortering, count(*) AS n_obs, max(d.dato) AS last_date, max(d.rank) AS rank,
+                   max(d.antal) AS rekord, (array_agg(d.dato ORDER BY d.antal DESC, d.dato DESC))[1] AS rekord_dato
+            FROM d JOIN species s ON s.artnr = d.artnr
+            GROUP BY s.artnr, s.navn, s.sortering ORDER BY n_obs DESC LIMIT 600
         """), {"l": loknr})).mappings().all()
+        groups = await migration.species_groups(db)
+        return [{**{k: r[k] for k in ("artnr", "navn", "sortering", "n_obs", "last_date", "rekord", "rekord_dato")},
+                 "kategori": kat[r["rank"]], "group": groups.get(r["artnr"])} for r in rows]
+
+    async def produce():
         recent = (await db.execute(text(f"""
             SELECT o.dato, o.artnr, s.navn AS art, max(o.antal) AS antal, max({KAT_RANK}) AS rank
             FROM observations o JOIN species s ON s.artnr = o.artnr
@@ -81,13 +95,28 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
             SELECT count(*) AS n_obs, count(DISTINCT artnr) AS n_taxa, min(dato) AS first, max(dato) AS last
             FROM (SELECT DISTINCT dato, artnr FROM observations WHERE loknr = :l) d
         """), {"l": loknr})).mappings().first()
-        kat = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
-        return {"species": [dict(r) for r in top],
-                "recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kat[r["rank"]]} for r in recent],
+        return {"recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kat[r["rank"]]} for r in recent],
                 "stats": dict(stats)}
 
     data = await cached(f"lok2:{loknr}", 900, produce)
-    return {**dict(loc), **data}
+    # Artsliste og rekorder ændrer sig langsomt og er tunge på de store lokaliteter (fx Grenen) – gemmes i 6 timer
+    species = await cached(f"lokspec:{loknr}", 6 * 3600, species_list)
+    return {**dict(loc), **data, "species": species, "groups": migration.GROUPS}
+
+
+@router.get("/locations/{loknr}/records/{artnr}")
+async def location_records(loknr: int, artnr: int, db: AsyncSession = Depends(get_session)):
+    """Top 10 unikke dage for arten på lokaliteten: dagens største enkeltobservation, med observatør og tråd."""
+    rows = (await db.execute(text("""
+        SELECT * FROM (
+            SELECT DISTINCT ON (o.dato) o.dato, o.antal, o.obsid, o.adfkode, o.obserkode,
+                   coalesce(nullif(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')), ''), o.obserkode) AS observer
+            FROM observations o LEFT JOIN observers ob ON ob.obserkode = o.obserkode
+            WHERE o.loknr = :l AND o.artnr = :a AND o.hemmelig = 0 AND o.antal > 0
+            ORDER BY o.dato, o.antal DESC, o.obsid
+        ) d ORDER BY antal DESC, dato DESC LIMIT 10
+    """), {"l": loknr, "a": artnr})).mappings().all()
+    return [dict(r) for r in rows]
 
 
 @router.get("/species")

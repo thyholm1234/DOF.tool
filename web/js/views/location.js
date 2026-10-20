@@ -1,4 +1,10 @@
-import { api, h, fmtN, fmtDate, tag, errorBox, KAT } from "../core.js";
+import { api, h, fmtN, fmtDate, tag, errorBox, KAT, seg, params, setParams } from "../core.js";
+
+// Filtre over artslisten: højeste kategori arten har haft på lokaliteten, og trækkortets artsgrupper
+const KAT_FILTER = [["", "Alle"], ["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"]];
+const GROUP_FILTER = [["", "Alle grupper"], ["rov", "Rovfugle"], ["vade", "Vadefugle"], ["gaes", "Gæs"], ["hav", "Havfugle"], ["drossel", "Drosler"], ["spurv", "Spurvefugle"]];
+const SORTS = [["dage", "Flest dage"], ["rekord", "Største antal"], ["senest", "Senest"], ["syst", "Systematisk"]];
+const inGroup = (s, g) => !g || (g === "rov" ? ["rov_svaev", "rov_aktiv"].includes(s.group) : s.group === g);
 import { baseMap } from "../maps.js";
 
 export async function render(view, [loknr]) {
@@ -6,9 +12,47 @@ export async function render(view, [loknr]) {
   try { d = await api(`/api/locations/${loknr}`); } catch (err) { view.append(errorBox(err)); return; }
   const mapEl = h("div", { class: "map small" });
   let q = "";
+  const p = params();
+  const f = { kat: p.kat || "", grp: p.grp || "", sort: p.sort || "dage" };
   const tbody = h("tbody");
-  const drawSpecies = () => tbody.replaceChildren(...d.species.filter(s => !q || s.navn.toLowerCase().includes(q)).map(s => h("tr", {},
-    h("td", {}, s.navn), h("td", { class: "right num" }, fmtN(s.n_obs)), h("td", { class: "nowrap" }, fmtDate(s.last_date)))));
+  const count = h("small", { class: "muted" });
+  const open = new Set();  // arter med top 10-dage foldet ud
+  const records = {};      // artnr → top 10 (hentet ved første klik)
+  const recordRow = (s) => {
+    const cell = h("td", { colspan: 4, style: { background: "var(--bg-2)" } });
+    const draw = (rows) => cell.replaceChildren(
+      h("b", {}, `Top 10 dage – ${s.navn}`), h("small", { class: "muted" }, " · dagens største enkeltobservation"),
+      rows.length ? h("ol", { class: "mini-list", style: { marginTop: "6px" } }, ...rows.map((r, i) => h("li", {},
+        h("span", {}, h("b", { class: "num muted", style: { display: "inline-block", minWidth: "2.2ch" } }, `${i + 1}.`), " ",
+          h("a", { href: `#/traad/${r.dato}/${s.artnr}/${loknr}` }, fmtDate(r.dato)), h("small", { class: "muted" }, ` · ${r.observer}${r.adfkode ? ` · ${r.adfkode}` : ""}`)),
+        h("b", { class: "num" }, fmtN(r.antal))))) : h("p", { class: "muted" }, "Ingen tal."));
+    if (records[s.artnr]) draw(records[s.artnr]);
+    else {
+      cell.append(h("small", { class: "muted" }, "Henter…"));
+      api(`/api/locations/${loknr}/records/${s.artnr}`).then(r => { records[s.artnr] = r; draw(r); }).catch(err => cell.replaceChildren(errorBox(err)));
+    }
+    return h("tr", {}, cell);
+  };
+  const drawSpecies = () => {
+    setParams({ kat: f.kat, grp: f.grp, sort: f.sort === "dage" ? "" : f.sort });
+    const list = d.species.filter(s => (!q || s.navn.toLowerCase().includes(q)) && (!f.kat || s.kategori === f.kat) && inGroup(s, f.grp));
+    const by = { dage: (a, b) => b.n_obs - a.n_obs, rekord: (a, b) => b.rekord - a.rekord, senest: (a, b) => String(b.last_date).localeCompare(String(a.last_date)),
+      syst: (a, b) => (a.sortering ?? 1e9) - (b.sortering ?? 1e9) }[f.sort];
+    list.sort(by);
+    count.textContent = `${fmtN(list.length)} ${list.length === 1 ? "art" : "arter"} · tryk på en art for dens top 10 dage`;
+    tbody.replaceChildren(...list.flatMap(s => {
+      const row = h("tr", { style: { cursor: "pointer" }, onclick: () => { open.has(s.artnr) ? open.delete(s.artnr) : open.add(s.artnr); drawSpecies(); } },
+        h("td", {}, s.navn, s.kategori !== "alm" ? [" ", tag(s.kategori, KAT[s.kategori])] : null),
+        h("td", { class: "right num" }, fmtN(s.n_obs)),
+        h("td", { class: "right nowrap", title: "Største antal på én dag" }, h("b", { class: "num" }, fmtN(s.rekord)), h("small", { class: "muted", style: { display: "block" } }, fmtDate(s.rekord_dato))),
+        h("td", { class: "nowrap" }, fmtDate(s.last_date)));
+      return open.has(s.artnr) ? [row, recordRow(s)] : [row];
+    }));
+  };
+  const filters = h("div", { class: "stack", style: { gap: "6px" } },
+    seg(KAT_FILTER, f.kat, (v) => { f.kat = v; drawSpecies(); }),
+    seg(GROUP_FILTER, f.grp, (v) => { f.grp = v; drawSpecies(); }),
+    h("div", { class: "row between" }, seg(SORTS, f.sort, (v) => { f.sort = v; drawSpecies(); }), count));
   view.append(
     h("p", {}, h("a", { href: "#/", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn), h("p", { class: "lead" }, [d.kommune && `${d.kommune} Kommune`, d.afdeling].filter(Boolean).join(" · ")))),
@@ -25,9 +69,10 @@ export async function render(view, [loknr]) {
           h("span", {}, r.kategori !== "alm" ? tag(r.kategori, KAT[r.kategori]) : null, " ", h("b", { class: "num" }, fmtN(r.antal))))))) : h("p", { class: "muted" }, "Ingen observationer."))),
       h("div", { class: "card lok-fill" }, h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Arter på lokaliteten"),
         h("input", { type: "search", placeholder: "Søg…", style: { width: "160px" }, oninput: (e) => { q = e.target.value.toLowerCase(); drawSpecies(); } })),
-        h("small", { class: "muted" }, "Obs. = antal dage med arten"),
+        h("small", { class: "muted" }, "Kategori = den højeste arten har haft her. Dage = antal dage med arten. Rekord = største antal på én dag (én observation, ikke summen af flere)."),
+        filters,
         d.species.length ? h("div", { class: "table-wrap lok-scroll" }, h("table", { class: "data" },
-          h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", { class: "right" }, "Obs."), h("th", {}, "Senest"))), tbody))
+          h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", { class: "right" }, "Dage"), h("th", { class: "right" }, "Rekord"), h("th", {}, "Senest"))), tbody))
           : h("p", { class: "muted mt" }, "Ingen observationer i databasen."))));
   drawSpecies();
   const map = baseMap(mapEl, { center: d.lat ? [d.lat, d.lon] : [56, 10.5], zoom: d.lat ? 12 : 6 });
