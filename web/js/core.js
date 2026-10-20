@@ -169,6 +169,7 @@ const P = {
   edit: '<path d="M4 20h4L20 8l-4-4L4 16z"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   play: '<path d="M7 4l13 8-13 8z"/>',
+  sound: '<path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
   check: '<path d="M4 12l5 5L20 6"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5 6.5-5s5.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5c2.6 0 4.6 1.4 5.5 4.5"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',

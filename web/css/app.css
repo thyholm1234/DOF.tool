@@ -693,3 +693,9 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
   .sidenav { gap: 2px; overflow-y: auto; scrollbar-width: thin; }
   .sidenav a { padding: 8px 12px; }
 }
+
+/* Upload-felt (Admin → Drift) */
+.dropzone { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 22px 16px; border: 2px dashed var(--line-strong); border-radius: var(--radius); cursor: pointer; text-align: center; }
+.dropzone:hover, .dropzone.over { border-color: var(--brand); background: var(--brand-soft); }
+.dropzone.busy { opacity: .6; pointer-events: none; }
+progress { accent-color: var(--brand); height: 10px; }

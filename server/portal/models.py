@@ -408,6 +408,19 @@ class NewsPost(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class MobPreset(Base):
+    """Gemt opsætning i Mobgang-generatoren: arter til/fra, antal, styrke og targetart med boost."""
+
+    __tablename__ = "mob_presets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    config: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 # ---------------------------------------------------------------- læring
 
 

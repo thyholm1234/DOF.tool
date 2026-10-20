@@ -37,6 +37,8 @@ class Settings(BaseSettings):
 
     # Lokalt arkiv med månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv)
     archive_dir: str = "/archive"
+    # Månedsfiler uploadet via Admin → Drift (skrivbar; vinder over en fil med samme navn i archive_dir)
+    archive_upload_dir: str = "/data/archive-upload"
 
     media_dir: str = "/data/media"
     weather_dir: str = "/data/weather"  # midlertidige DMI-månedsfiler (≈0,5 GB, slettes efter parsing)

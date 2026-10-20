@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,9 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal import jobstatus
 from portal.api.deps import require_role
 from portal.cache import bump, kv, worker_command
+from portal.config import get_settings
 from portal.db import get_session
 from portal.dof import gateway
-from portal.dof.archive import PROGRESS, archive_files, pending_files
+from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Setting, Species, SupportMessage, SupportThread, User
 from portal.services import activity, datasync, moderation, weather_archive
 from portal.services.auth import ROLES, role_at_least
@@ -119,6 +122,65 @@ async def worker(cmd: str, body: dict | None = None, user: User = Depends(admin)
         raise HTTPException(400)
     await worker_command(cmd, **(body or {}))
     return {"queued": cmd}
+
+
+# ---------------------------------------------------------------- upload af månedsfiler (dofbasen_ÅÅÅÅ_MM.csv)
+
+
+@router.get("/admin/archive/files")
+async def archive_list(user: User = Depends(admin), db: AsyncSession = Depends(get_session)):
+    upload_root = Path(get_settings().archive_upload_dir)
+    imported = {r["name"]: r for r in (await db.execute(text("SELECT name, size, mtime, rows, imported_at FROM archive_files"))).mappings()}
+    pending = {p.name for p in await pending_files()}
+    out = []
+    for p in archive_files():
+        st = p.stat()
+        rec = imported.get(p.name)
+        out.append({"name": p.name, "size": st.st_size, "mtime": st.st_mtime, "uploaded": p.parent == upload_root,
+                    "rows": rec["rows"] if rec else None, "imported_at": rec["imported_at"] if rec else None,
+                    "pending": p.name in pending})
+    return out
+
+
+@router.post("/admin/archive/upload")
+async def archive_upload(file: UploadFile = File(...), mtime: float | None = Form(None), user: User = Depends(admin)):
+    """Gem én månedsfil i upload-arkivet. Importen startes separat (worker: archive_import), når alle filer er sendt."""
+    name = Path(file.filename or "").name
+    if not FILE_RE.match(name):
+        raise HTTPException(400, f"{name or 'Filen'}: navnet skal være dofbasen_ÅÅÅÅ_MM.csv")
+    head = (await file.read(4096)).decode("latin-1", errors="replace").split("\n", 1)[0].lstrip("\ufeff")
+    cols = head.strip().split(";")
+    if not cols or cols[0] != "Dato" or not {"Artnr", "Obsid", "Turid", "Loknr"} <= set(cols):
+        raise HTTPException(400, f"{name}: ligner ikke et DOFbasen-udtræk (mangler kolonner som Dato, Artnr, Obsid)")
+    root = Path(get_settings().archive_upload_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    tmp = root / f".{name}.part"
+    size = 0
+    try:
+        await file.seek(0)
+        with tmp.open("wb") as fh:
+            while chunk := await file.read(1 << 20):
+                fh.write(chunk)
+                size += len(chunk)
+        # Behold filens egen ændringstid: en fil der allerede er importeret fra arkivet, importeres så ikke igen
+        if mtime:
+            os.utime(tmp, (mtime, mtime))
+        os.replace(tmp, root / name)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return {"name": name, "size": size, "pending": any(p.name == name for p in await pending_files())}
+
+
+@router.delete("/admin/archive/upload/{name}")
+async def archive_upload_delete(name: str, user: User = Depends(admin)):
+    """Fjern en uploadet fil (allerede importerede observationer bliver i databasen)."""
+    if not FILE_RE.match(name):
+        raise HTTPException(400)
+    path = Path(get_settings().archive_upload_dir) / name
+    if not path.is_file():
+        raise HTTPException(404)
+    path.unlink()
+    return {"ok": True}
 
 
 @router.get("/admin/jobs")

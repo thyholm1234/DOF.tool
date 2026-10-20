@@ -7,7 +7,7 @@ const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
   ["Nu og her", [["#/", "now", "Nu"], ["#/traek", "trend", "Træk"], ["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
-  ["Fugle", [["#/arter", "bird", "Arter"], ["#/laer", "learn", "Læring"]]],
+  ["Fugle", [["#/arter", "bird", "Arter"], ["#/laer", "learn", "Læring"], ["#/mobgang", "sound", "Mobgang"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/kalender/mine", "calendar", "Mine planer"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
@@ -32,6 +32,7 @@ const ROUTES = [
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
   [/^\/lok\/(\d+)$/, () => import("./views/location.js")],
   [/^\/laer(?:\/(.+))?$/, () => import("./views/learn.js")],
+  [/^\/mobgang$/, () => import("./views/mobgang.js")],
   [/^\/alarmer$/, () => import("./views/alerts.js")],
   [/^\/profil$/, () => import("./views/profile.js")],
   [/^\/admin$/, () => import("./views/admin.js")],

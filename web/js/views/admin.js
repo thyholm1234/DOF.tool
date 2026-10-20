@@ -22,8 +22,9 @@ export async function render(view) {
   const every = (fn, ms) => { fn(); timers.push(setInterval(fn, ms)); };
   const draw = (t) => ({
     drift: () => {
-      const jobsBox = h("div", { class: "card stack" }), opsBox = h("div", { class: "mt" });
-      body.append(jobsBox, opsBox);
+      const jobsBox = h("div", { class: "card stack" }), uploadBox = h("div", { class: "card stack mt" }), opsBox = h("div", { class: "mt" });
+      body.append(jobsBox, uploadBox, opsBox);
+      archiveUpload(uploadBox);
       every(() => jobsCard(jobsBox), 3000);
       every(() => { opsBox.replaceChildren(); ops(opsBox); }, 15000);
     },
@@ -83,6 +84,100 @@ async function ops(body) {
 }
 
 const st = (v, l) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l));
+
+// ---------------------------------------------------------------- upload af månedsfiler (gentegnes ikke af 15 s-opdateringen)
+
+const FILE_RE = /^dofbasen_\d{4}_\d{2}\.csv$/;
+const fmtMB = (b) => `${(b / 1e6).toLocaleString("da-DK", { maximumFractionDigits: 1 })} MB`;
+
+/** POST med upload-fremdrift (fetch kan ikke rapportere hvor meget der er sendt). */
+function uploadFile(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("mtime", String(file.lastModified / 1000));
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/admin/archive/upload");
+    xhr.setRequestHeader("X-Requested-With", "fetch");
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    xhr.onload = () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch { /* ikke JSON */ }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data?.detail || `${file.name}: fejl ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error(`${file.name}: forbindelsen blev afbrudt`));
+    xhr.send(form);
+  });
+}
+
+async function archiveUpload(box) {
+  const input = h("input", { type: "file", accept: ".csv", multiple: true, class: "hide" });
+  const drop = h("label", { class: "dropzone", onclick: () => input.click() },
+    h("b", {}, "Vælg eller træk månedsfiler hertil"), h("span", { class: "muted" }, "dofbasen_ÅÅÅÅ_MM.csv – flere ad gangen"));
+  const status = h("div", { class: "stack" });
+  const list = h("div", {});
+  let busy = false;
+
+  const loadList = async () => {
+    let files;
+    try { files = await api("/api/admin/archive/files"); } catch (err) { list.replaceChildren(errorBox(err)); return; }
+    const uploaded = files.filter(f => f.uploaded), pending = files.filter(f => f.pending);
+    list.replaceChildren(h("details", {},
+      h("summary", {}, `${files.length} filer i arkivet · ${uploaded.length} uploadet · ${pending.length ? `${pending.length} venter på import` : "alt importeret"}`),
+      h("div", { class: "table-wrap mt", style: { maxHeight: "320px" } }, h("table", { class: "data" },
+        h("thead", {}, h("tr", {}, h("th", {}, "Fil"), h("th", { class: "right" }, "Størrelse"), h("th", { class: "right" }, "Rækker"), h("th", {}, "Status"), h("th", {}))),
+        h("tbody", {}, ...[...files].reverse().map(f => h("tr", {},
+          h("td", { class: "nowrap" }, f.name), h("td", { class: "right num" }, fmtMB(f.size)), h("td", { class: "right num" }, fmtN(f.rows)),
+          h("td", {}, f.pending ? h("span", { class: "tag bemaerk" }, "venter") : h("span", { class: "tag plain" }, "importeret"), " ",
+            h("span", { class: "muted", style: { fontSize: ".8rem" } }, f.uploaded ? "upload" : "arkiv")),
+          h("td", { class: "right" }, f.uploaded ? h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Fjern", onclick: async () => {
+            if (!confirm(`Fjern den uploadede ${f.name}? Observationer der allerede er importeret, bliver i databasen.`)) return;
+            try { await api(`/api/admin/archive/upload/${f.name}`, { method: "DELETE" }); loadList(); } catch (err) { toast(err.message, "err"); }
+          } }) : null))))))));
+  };
+
+  const run = async (all) => {
+    if (busy) return;
+    const files = [...all].filter(f => f.name.endsWith(".csv"));
+    const bad = files.filter(f => !FILE_RE.test(f.name));
+    const good = files.filter(f => FILE_RE.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
+    if (!good.length) { toast(bad.length ? "Filnavnene skal være dofbasen_ÅÅÅÅ_MM.csv" : "Ingen CSV-filer valgt", "err"); return; }
+    busy = true; drop.classList.add("busy");
+    const total = good.reduce((n, f) => n + f.size, 0);
+    const bar = h("progress", { max: 1, value: 0, style: { width: "100%" } });
+    const line = h("div", { class: "muted" });
+    const errors = h("div", { class: "stack" }, ...bad.map(f => h("div", { class: "notice err" }, `${f.name}: springes over – navnet skal være dofbasen_ÅÅÅÅ_MM.csv`)));
+    status.replaceChildren(line, bar, errors);
+    let sent = 0, ok = 0, newOrChanged = 0;
+    for (const [i, f] of good.entries()) {
+      try {
+        const r = await uploadFile(f, (frac) => {
+          bar.value = (sent + frac * f.size) / total;
+          line.textContent = `${i + 1}/${good.length}: ${f.name} · ${fmtMB(sent + frac * f.size)} af ${fmtMB(total)}`;
+        });
+        ok++; if (r?.pending) newOrChanged++;
+      } catch (err) { errors.append(h("div", { class: "notice err" }, err.message)); }
+      sent += f.size; bar.value = sent / total;
+    }
+    line.textContent = `${ok} af ${good.length} filer uploadet${newOrChanged ? ` – ${newOrChanged} nye/ændrede importeres nu` : ok ? " – de var allerede importeret" : ""}.`;
+    if (newOrChanged) {
+      try { await api("/api/admin/worker/archive_import", { method: "POST", body: {} }); } catch (err) { errors.append(errorBox(err)); }
+    }
+    busy = false; drop.classList.remove("busy"); input.value = "";
+    loadList();
+  };
+
+  input.onchange = () => run(input.files);
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); run(e.dataTransfer.files); };
+
+  box.append(h("h3", { style: { margin: 0 } }, "Upload af DOFbasen-månedsfiler"),
+    h("p", { class: "muted", style: { margin: 0 } }, "Månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv) importeres direkte uden kald til dofbasen.dk. Dage der er dækket af en fil, hentes ikke for at fylde huller. En uploadet fil erstatter arkivets fil med samme navn; filer der allerede er importeret uændret, springes over."),
+    drop, input, status, list);
+  await loadList();
+}
 
 // ---------------------------------------------------------------- worker-opgaver (status opdateres hvert 3. sekund)
 

@@ -27,10 +27,13 @@ PROGRESS = "archive:progress"
 
 
 def archive_files() -> list[Path]:
-    root = Path(get_settings().archive_dir)
-    if not root.is_dir():
-        return []
-    return sorted(p for p in root.iterdir() if FILE_RE.match(p.name))
+    """Månedsfiler fra det lokale arkiv og fra uploads; en uploadet fil erstatter arkivets fil med samme navn."""
+    s = get_settings()
+    files: dict[str, Path] = {}
+    for root in (Path(s.archive_dir), Path(s.archive_upload_dir)):
+        if root.is_dir():
+            files.update({p.name: p for p in root.iterdir() if FILE_RE.match(p.name)})
+    return [files[n] for n in sorted(files)]
 
 
 async def pending_files() -> list[Path]:
