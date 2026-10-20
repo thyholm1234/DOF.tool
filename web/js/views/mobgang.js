@@ -1,7 +1,7 @@
 // Mobgang-generator: blandede flokke af loopede optagelser, så man kan træne at høre en targetart i mængden.
 // Al lyd mixes i browseren med Web Audio. Presets: officielle (alle kan se, redaktører vedligeholder) og
 // brugerens egne private (/api/mobgang/presets).
-import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can, modal } from "../core.js";
+import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can, modal, esc } from "../core.js";
 
 // Arter og optagelser (xeno-canto) kommer fra serveren (/api/mobgang/status), der også har hver arts lukkeperiode
 // i ynglesæsonen. Brugeren kan desuden tilføje egne xeno-canto-optagelser (cfg.custom), som gemmes i presettet og
@@ -429,7 +429,7 @@ function downloadDialog(mixer, cfg, name) {
       }, (f) => setStatus("Koder mp3…", 0.1 + f * 0.9));
       const url = URL.createObjectURL(blob);
       const file = `${slug(name)}-${chase ? "chase" : `${minutes.value}min`}.mp3`;
-      const a = h("a", { href: url, download: file, class: "btn" }, `${icon("download")} Gem ${file} igen`);
+      const a = h("a", { href: url, download: file, class: "btn", html: `${icon("download")} Gem ${esc(file)} igen` });
       status.replaceChildren(h("small", {}, `Færdig: ${(blob.size / 1e6).toFixed(1).replace(".", ",")} MB.`), a);
       a.click();
     } catch (err) { setStatus(`Det mislykkedes: ${err.message}`); }
