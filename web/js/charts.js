@@ -87,6 +87,61 @@ export function lineChart({ series, band, height = 260, xFormat = String, yForma
   return svg;
 }
 
+/** Vis den fælles tooltip ved musen (til grafer, der tegner deres egne mærker). */
+export function showTip(e, html) {
+  if (!tip) { tip = h("div", { class: "chart-tip" }); document.body.append(tip); }
+  tip.innerHTML = html;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+  tip.style.top = (e.clientY + 14) + "px";
+}
+export { hideTip };
+
+/**
+ * Søjlediagram: bars: [{ v, tip, hl }] i rækkefølge; xTicks: [[indeks, label]]; markers: [{ x (indeks, gerne brøk), label }].
+ * width: viewBox-bredden – brug en mindre for halvbrede diagrammer, så teksten ikke skaleres ned. yMax deles mellem flere diagrammer, der skal kunne sammenlignes. onClick(i) gør søjlerne klikbare.
+ */
+export function barChart({ bars, width = 720, height = 220, xTicks = [], yFormat = String, yMax, markers = [], onClick }) {
+  const W = width, H = height, m = { l: 44, r: 12, t: 12, b: 26 };
+  if (!bars.length) return h("p", { class: "muted" }, "Ingen data endnu.");
+  const top = (yMax ?? Math.max(...bars.map(b => b.v))) * 1.05 || 1;
+  const slot = (W - m.l - m.r) / bars.length;
+  const X = (i) => m.l + i * slot;
+  const Y = (v) => H - m.b - v / top * (H - m.t - m.b);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img" });
+  for (const t of niceTicks(0, top)) {
+    if (t > top) continue;
+    svg.append(s("line", { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: "grid" }));
+    const tx = s("text", { x: m.l - 6, y: Y(t) + 4, "text-anchor": "end" }); tx.textContent = yFormat(t); svg.append(tx);
+  }
+  for (const [i, label] of xTicks) {
+    const tx = s("text", { x: X(i) + slot / 2, y: H - 8, "text-anchor": "middle" }); tx.textContent = label; svg.append(tx);
+  }
+  const gap = slot > 6 ? 2 : slot > 3 ? 1 : 0, bw = Math.max(slot - gap, 1), r = Math.min(4, bw / 2);
+  bars.forEach((b, i) => {
+    if (!(b.v > 0)) return;
+    const x = X(i) + gap / 2, y = Y(b.v), y0 = H - m.b, rr = Math.min(r, y0 - y);
+    svg.append(s("path", { d: `M${x},${y0}V${y + rr}Q${x},${y} ${x + rr},${y}H${x + bw - rr}Q${x + bw},${y} ${x + bw},${y + rr}V${y0}Z`,
+      style: `fill: var(${b.hl ? "--accent" : "--brand-2"})` }));
+  });
+  for (const mk of markers) {
+    const x = X(mk.x);
+    svg.append(s("line", { x1: x, x2: x, y1: m.t, y2: H - m.b, style: "stroke: var(--text-3)", "stroke-dasharray": "3 3", "stroke-width": 1.2 }));
+    if (mk.label) { const tx = s("text", { x: x + 4, y: m.t + 10 }); tx.textContent = mk.label; svg.append(tx); }
+  }
+  svg.append(s("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: "axis" }));
+  // Hele søjlens højde er hit-område, så også små søjler kan rammes
+  const hover = s("rect", { y: m.t, height: H - m.t - m.b, width: slot, style: "fill: var(--text)", opacity: 0, "pointer-events": "none" });
+  svg.append(hover);
+  bars.forEach((b, i) => {
+    const hit = s("rect", { x: X(i), y: m.t, width: slot, height: H - m.t - m.b, fill: "transparent", style: onClick ? "cursor: pointer" : "" });
+    hit.addEventListener("pointermove", (e) => { hover.setAttribute("x", X(i)); hover.setAttribute("opacity", .06); showTip(e, b.tip ?? yFormat(b.v)); });
+    hit.addEventListener("pointerleave", () => { hover.setAttribute("opacity", 0); hideTip(); });
+    if (onClick) hit.addEventListener("click", (e) => { e.stopPropagation(); hideTip(); onClick(i); });
+    svg.append(hit);
+  });
+  return svg;
+}
+
 export function seriesLegend(series) {
   return h("div", { class: "legend" }, ...series.map((se, i) => h("span", {}, h("i", { style: { background: se.color || PALETTE[i % PALETTE.length] } }), se.name)));
 }

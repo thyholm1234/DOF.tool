@@ -23,10 +23,13 @@ export async function render(view, [loknr]) {
   const count = h("small", { class: "muted" });
   const open = new Set();  // arter med top 10-dage foldet ud
   const records = {};      // artnr → top 10 (hentet ved første klik)
+  const artHref = (s) => `#/lok/${loknr}/art/${s.artnr}${f.year ? `?y=${f.year}` : ""}`;
   const recordRow = (s) => {
     const cell = h("td", { colspan: 4, style: { background: "var(--bg-2)" } });
     const draw = (rows) => cell.replaceChildren(
-      h("b", {}, `Top 10 dage – ${s.navn}${f.year ? ` (${f.year})` : ""}`), h("small", { class: "muted" }, " · dagens største enkeltobservation"),
+      h("div", { class: "row between", style: { gap: "8px" } },
+        h("span", {}, h("b", {}, `Top 10 dage – ${s.navn}${f.year ? ` (${f.year})` : ""}`), h("small", { class: "muted" }, " · dagens største enkeltobservation")),
+        h("a", { class: "btn sm primary", href: artHref(s) }, "Grafer, tidspunkt og adfærd →")),
       rows.length ? h("ol", { class: "mini-list", style: { marginTop: "6px" } }, ...rows.map((r, i) => h("li", {},
         h("span", {}, h("b", { class: "num muted", style: { display: "inline-block", minWidth: "2.2ch" } }, `${i + 1}.`), " ",
           h("a", { href: `#/traad/${r.dato}/${s.artnr}/${loknr}` }, fmtDate(r.dato)), h("small", { class: "muted" }, ` · ${r.observer}${r.adfkode ? ` · ${r.adfkode}` : ""}`)),
@@ -48,11 +51,11 @@ export async function render(view, [loknr]) {
       syst: (a, b) => (a.sortering ?? 1e9) - (b.sortering ?? 1e9) }[f.sort];
     list.sort(by);
     if (speciesState !== "ready") { count.textContent = ""; return; }
-    count.textContent = `${fmtN(list.length)} ${list.length === 1 ? "art" : "arter"}${f.missing ? " du mangler" : ""}${f.year ? ` i ${f.year}` : ""} · tryk på en art for dens top 10 dage`;
+    count.textContent = `${fmtN(list.length)} ${list.length === 1 ? "art" : "arter"}${f.missing ? " du mangler" : ""}${f.year ? ` i ${f.year}` : ""} · tryk på navnet for artens side her · på rækken for top 10 dage`;
     if (!list.length) { tbody.replaceChildren(h("tr", {}, h("td", { colspan: 4, class: "muted" }, "Ingen arter matcher filtrene."))); return; }
     tbody.replaceChildren(...list.flatMap(s => {
       const row = h("tr", { style: { cursor: "pointer" }, onclick: () => { open.has(s.artnr) ? open.delete(s.artnr) : open.add(s.artnr); drawSpecies(); } },
-        h("td", {}, s.navn, s.kategori !== "alm" ? [" ", tag(s.kategori, KAT[s.kategori])] : null,
+        h("td", {}, h("a", { href: artHref(s), title: `${s.navn} på ${d.navn}: gennem året, tidspunkt på dagen og adfærd`, onclick: (e) => e.stopPropagation() }, s.navn), s.kategori !== "alm" ? [" ", tag(s.kategori, KAT[s.kategori])] : null,
           state.user && mine.has(s.artnr) ? h("span", { class: "muted", title: `Du har indtastet arten her${f.year ? ` i ${f.year}` : ""}`, style: { marginLeft: "6px" } }, "✓") : null),
         h("td", { class: "right num" }, fmtN(s.n_obs)),
         h("td", { class: "right nowrap", title: "Største antal på én dag" }, h("b", { class: "num" }, fmtN(s.rekord)), h("small", { class: "muted", style: { display: "block" } }, fmtDate(s.rekord_dato))),

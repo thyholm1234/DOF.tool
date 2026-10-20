@@ -33,6 +33,7 @@ const ROUTES = [
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
   [/^\/lokaliteter$/, () => import("./views/lokaliteter.js")],
   [/^\/lok\/(\d+)$/, () => import("./views/location.js")],
+  [/^\/lok\/(\d+)\/art\/(\d+)$/, () => import("./views/locspecies.js")],
   [/^\/laer(?:\/(.+))?$/, () => import("./views/learn.js")],
   [/^\/mobgang$/, () => import("./views/mobgang.js")],
   [/^\/alarmer$/, () => import("./views/alerts.js")],

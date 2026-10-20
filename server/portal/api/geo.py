@@ -16,7 +16,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import cached, version, worker_command
 from portal.db import get_session
 from portal.models import Area, Species, User
-from portal.services import dofext, finds, migration
+from portal.services import dofext, finds, locspecies, migration
 from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geometry
 from portal.services.feed import KAT_RANK
 
@@ -224,6 +224,17 @@ async def location_records(loknr: int, artnr: int, year: int | None = Query(None
         ) d ORDER BY antal DESC, dato DESC LIMIT 10
     """), {"l": loknr, "a": artnr, "y": year})).mappings().all()
     return [dict(r) for r in rows]
+
+
+@router.get("/locations/{loknr}/species/{artnr}")
+async def location_species_detail(loknr: int, artnr: int, year: int | None = Query(None, ge=1900, le=2200),
+                                  db: AsyncSession = Depends(get_session)):
+    """Én art på lokaliteten: gennem året, år for år, tidspunkt i forhold til solen og adfærd (evt. inden for ét år)."""
+    data = await cached(f"locsp:{loknr}:{artnr}:{year or 'alle'}:{await version('feed')}", 900,
+                        lambda: locspecies.build(db, loknr, artnr, year))
+    if data is None:
+        raise HTTPException(404)
+    return data
 
 
 @router.get("/species")
