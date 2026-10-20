@@ -235,7 +235,8 @@ async def delete_month(session: AsyncSession, y: int, m: int) -> int:
     start = date(y, m, 1)
     end = date(y + (m == 12), m % 12 + 1, 1)
     p = {"a": start, "b": end}
-    n = (await session.execute(text("DELETE FROM observations WHERE dato >= :a AND dato < :b"), p)).rowcount
+    # Manuelle fund (negative obsid'er) står ikke i DOFbasen og bevares
+    n = (await session.execute(text("DELETE FROM observations WHERE dato >= :a AND dato < :b AND obsid > 0"), p)).rowcount
     await session.execute(text("DELETE FROM trips WHERE dato >= :a AND dato < :b"), p)
     await session.execute(text("DELETE FROM day_sync WHERE dato >= :a AND dato < :b"), p)
     await session.execute(text("DELETE FROM month_sync WHERE year = :y AND month = :m"), {"y": y, "m": m})

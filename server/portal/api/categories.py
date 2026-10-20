@@ -10,10 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_perm
+from portal.services.auth import role_at_least
 from portal.cache import bump, kv
 from portal.db import get_session
-from portal.models import CategoryOverride, Species, SpeciesCategory, User
-from portal.services import activity, categories, danish_list
+from portal.models import CategoryOverride, ManualFind, Species, SpeciesCategory, User
+from portal.services import activity, categories, danish_list, manual_finds
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 moderator = require_perm("kategorier")
@@ -221,4 +222,75 @@ async def remove_period(item_id: int, user: User = Depends(moderator), db: Async
 @router.delete("/overrides/{item_id}")
 async def remove_override(item_id: int, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
     await _remove(db, CategoryOverride, item_id, user)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- manuelle fund (kun administratorer)
+# Fund der ikke står i DOFbasen (fx et godkendt fund til havs). Moderatorer kan se dem, administratorer indsætte og slette.
+
+
+class FindIn(BaseModel):
+    artnr: int
+    dato: date
+    antal: int = Field(1, ge=1, le=1_000_000)
+    loknr: int | None = None
+    sted: str | None = Field(None, max_length=200)
+    note: str | None = Field(None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _place(self):
+        if self.loknr is None and not (self.sted or "").strip():
+            raise ValueError("Vælg en lokalitet eller skriv hvor fundet blev gjort")
+        if self.dato > date.today():
+            raise ValueError("Datoen ligger i fremtiden")
+        return self
+
+
+def _admin(user: User) -> None:
+    if not role_at_least(user, "admin"):
+        raise HTTPException(403, "Kun administratorer kan indsætte og slette fund")
+
+
+@router.get("/finds")
+async def list_finds(user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    rows = (await db.execute(text("""
+        SELECT f.id, f.dato, f.artnr, s.navn AS art, f.antal, f.loknr, l.navn AS lok, f.sted, f.note, f.created_at,
+               u.navn AS created_by
+        FROM manual_finds f JOIN species s ON s.artnr = f.artnr LEFT JOIN locations l ON l.loknr = f.loknr
+        LEFT JOIN users u ON u.id = f.created_by WHERE f.removed_at IS NULL ORDER BY f.dato DESC, f.id DESC
+    """))).mappings().all()
+    return {"items": [_row(r) for r in rows], "can_edit": role_at_least(user, "admin")}
+
+
+@router.post("/finds")
+async def add_find(body: FindIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    _admin(user)
+    sp = await db.get(Species, body.artnr)
+    if sp is None:
+        raise HTTPException(400, "Arten findes ikke")
+    if body.loknr is not None and not (await db.execute(text("SELECT 1 FROM locations WHERE loknr = :l"), {"l": body.loknr})).first():
+        raise HTTPException(400, "Lokaliteten findes ikke")
+    f = ManualFind(**body.model_dump(exclude={"sted", "note"}), sted=(body.sted or "").strip() or None,
+                   note=(body.note or "").strip() or None, created_by=user.id)
+    db.add(f)
+    await db.flush()
+    await manual_finds.mirror(db, f)
+    await db.commit()
+    await manual_finds.changed(f)
+    await activity.track(user.id, "moderation", None, {"category": "manual_find", "id": f.id, "artnr": f.artnr, "dato": f.dato})
+    return {"id": f.id}
+
+
+@router.delete("/finds/{item_id}")
+async def remove_find(item_id: int, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
+    _admin(user)
+    f = await db.get(ManualFind, item_id)
+    if f is None or f.removed_at is not None:
+        raise HTTPException(404)
+    f.removed_at = datetime.now(timezone.utc)
+    f.removed_by = user.id
+    await manual_finds.mirror(db, f)
+    await db.commit()
+    await manual_finds.changed(f)
+    await activity.track(user.id, "moderation", None, {"category": "manual_find", "removed": item_id})
     return {"ok": True}

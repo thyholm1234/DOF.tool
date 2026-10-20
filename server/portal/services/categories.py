@@ -46,7 +46,7 @@ def countable_sql(o: str = "o", s: str = "s") -> str:
             f"THEN bird_category({s}.artnr, {s}.list_artnr, {o}.loknr, {o}.dato) IN ('A', 'B', 'C') ELSE TRUE END)")
 
 
-# Startliste over ikke-krydsbare arter (D og nedefter). Dværgsnegås har godkendte A-fund fra 7.10.2023 –
+# Startliste over ikke-krydsbare arter (D og nedefter). Dværgsnegås har godkendte A-fund fra 17.11.2021 –
 # de sættes som overstyring på den enkelte serie; alle fund før den dato er ikke krydsbare.
 SEED_NOT_COUNTABLE = [
     "Guldfasan", "Alexanderparakit", "Rødhøne", "Munkeparakit", "Kanariefugl", "Brudeand", "Japansk Trane",

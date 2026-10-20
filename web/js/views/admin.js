@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal, can, hasTab, ADMIN_TABS, adminLink } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal, can, hasTab, ADMIN_TABS, adminLink, searchSpecies } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { conversation, KINDS } from "./support.js";
 import { eventForm } from "./events.js";
@@ -568,8 +568,10 @@ async function categoriesPanel(body) {
       try { renderListReport(listBox, await api("/api/categories/danish-list"), () => { loadList(); loadDetail(); }); }
       catch (err) { toast(err.message, "err"); } finally { btn.disabled = false; }
     } }, "Se hvad der ændres")));
+  const findsBox = h("details", { class: "card more", style: { marginBottom: "12px" } }, h("summary", {}, "Manuelle fund – fund der ikke står i DOFbasen"));
+  findsBox.addEventListener("toggle", () => { if (findsBox.open && !findsBox.dataset.loaded) { findsBox.dataset.loaded = "1"; manualFinds(findsBox); } });
   body.append(
-    listBox,
+    listBox, findsBox,
     h("p", { class: "muted", style: { marginTop: 0 } }, "Kun kategori A, B og C er krydsbare på årslisterne (D, E og F er ikke). Kategorierne følger Den Danske Liste (A–C fra Netfugl, D–F fra Sjældenhedsudvalgets PDF). En arts kategori kan skifte over tid (gyldig fra en dato), og en serie af observationer på én lokalitet kan overstyres – fx et godkendt A-fund af en D-art. Ændringer slettes aldrig; tidligere værdier ses i historikken."),
     h("div", { class: "cat-layout" },
       h("div", { class: "card stack" }, h("div", { class: "row", style: { flexWrap: "nowrap" } }, q,
@@ -662,6 +664,75 @@ async function categoriesPanel(body) {
   };
   let t; q.oninput = () => { clearTimeout(t); t = setTimeout(loadList, 250); };
   await Promise.all([loadList(), loadDetail()]);
+}
+
+/** Manuelle fund (fx godkendte fund til havs): tæller i Arter pr. år og på lokaliteten, men ikke på personlige lister. */
+async function manualFinds(box) {
+  const out = h("div", { class: "stack mt" });
+  box.append(out);
+  let all = [];
+  const load = async () => {
+    let d;
+    try { d = await api("/api/categories/finds"); } catch (err) { out.replaceChildren(errorBox(err)); return; }
+    out.replaceChildren(
+      h("p", { class: "muted", style: { margin: 0 } }, "Fundet tæller som en almindelig observation i Arter pr. år, på lokaliteten og på artens side – men ikke på nogens personlige liste. Kategorien følger artens kategori som for andre fund. Synkroniseringen fra DOFbasen rører det ikke."),
+      d.can_edit ? findForm(load) : h("small", { class: "muted" }, "Kun administratorer kan indsætte og slette fund."),
+      d.items.length ? h("div", { class: "table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 2 } },
+        h("thead", {}, h("tr", {}, h("th", {}, "Dato"), h("th", {}, "Art"), h("th", { class: "right" }, "Antal"), h("th", {}, "Sted"), h("th", {}, "Note"), h("th", {}))),
+        h("tbody", {}, ...d.items.map(f => h("tr", {},
+          h("td", { class: "nowrap" }, fmtDate(f.dato)), h("td", {}, h("b", {}, f.art)), h("td", { class: "right num", "data-label": "Antal" }, fmtN(f.antal)),
+          h("td", { "data-label": "Sted" }, f.lok ? h("a", { href: `#/lok/${f.loknr}` }, f.lok) : null, f.lok && f.sted ? " · " : null, f.sted || null),
+          h("td", { class: "muted", "data-label": "Note" }, f.note || "", h("small", { style: { display: "block" } }, `${f.created_by || "Indlæst automatisk"} · ${fmtDate(f.created_at)}`)),
+          h("td", { class: "right" }, d.can_edit ? h("button", { class: "btn sm ghost danger", onclick: async () => {
+            if (!confirm(`Slet fundet af ${f.art} ${fmtDate(f.dato)}?`)) return;
+            try { await api(`/api/categories/finds/${f.id}`, { method: "DELETE" }); toast("Fundet er slettet"); load(); } catch (err) { toast(err.message, "err"); }
+          } }, "Slet") : null)))))) : h("small", { class: "muted" }, "Ingen manuelle fund endnu."));
+  };
+  const findForm = (onSaved) => {
+    let artnr = null, loknr = null;
+    const art = h("input", { type: "search", placeholder: "Søg art…", autocomplete: "off", required: true });
+    const artHits = h("div", { class: "suggest" });
+    const ready = api("/api/reports/species").then(l => { all = l; });
+    art.addEventListener("input", () => ready.then(() => {
+      artnr = null;
+      artHits.replaceChildren(...searchSpecies(all, art.value).map(sp => h("button", { type: "button", onclick: () => { artnr = sp.artnr; art.value = sp.navn; artHits.replaceChildren(); } },
+        h("span", {}, sp.navn), sp.latin ? h("i", { class: "muted" }, sp.latin) : null)));
+    }));
+    const lok = h("input", { type: "search", placeholder: "Søg lokalitet (valgfri)…", autocomplete: "off" });
+    const lokHits = h("div", { class: "suggest" });
+    let t;
+    lok.addEventListener("input", () => {
+      loknr = null; clearTimeout(t);
+      if (lok.value.trim().length < 2) { lokHits.replaceChildren(); return; }
+      t = setTimeout(async () => {
+        const rows = await api(`/api/locations?q=${encodeURIComponent(lok.value.trim())}`).catch(() => []);
+        lokHits.replaceChildren(...rows.slice(0, 8).map(l => h("button", { type: "button", onclick: () => { loknr = l.loknr; lok.value = l.navn; lokHits.replaceChildren(); } },
+          h("span", {}, l.navn), l.kommune ? h("i", { class: "muted" }, l.kommune) : null)));
+      }, 250);
+    });
+    const dato = h("input", { type: "date", required: true, max: new Date().toISOString().slice(0, 10) });
+    const antal = h("input", { type: "number", min: 1, value: 1, required: true });
+    const sted = h("input", { maxlength: 200, placeholder: "Fx '60 km VNV for Hanstholm' (hvis ingen lokalitet)" });
+    const note = h("input", { maxlength: 2000, placeholder: "Kilde, fx 'Godkendt af SU 2023' (valgfri)" });
+    return h("form", { class: "stack", style: { background: "var(--surface-2)", padding: "12px", borderRadius: "10px" }, onsubmit: async (e) => {
+      e.preventDefault();
+      if (!artnr) { toast("Vælg arten på listen", "err"); return; }
+      if (lok.value.trim() && !loknr) { toast("Vælg lokaliteten på listen – eller ryd feltet og skriv stedet", "err"); return; }
+      try {
+        await api("/api/categories/finds", { method: "POST", body: { artnr, dato: dato.value, antal: Number(antal.value), loknr, sted: sted.value || null, note: note.value || null } });
+        toast("Fundet er lagt ind – Arter pr. år genberegnes i baggrunden"); onSaved();
+      } catch (err) { toast(err.message, "err"); }
+    } },
+      h("div", { class: "form-grid two" },
+        h("label", { class: "field" }, h("span", {}, "Art"), art, artHits),
+        h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Dato"), dato), h("label", { class: "field" }, h("span", {}, "Antal"), antal))),
+      h("div", { class: "form-grid two" },
+        h("label", { class: "field" }, h("span", {}, "Lokalitet"), lok, lokHits),
+        h("label", { class: "field" }, h("span", {}, "Sted (fritekst)"), sted)),
+      h("label", { class: "field" }, h("span", {}, "Note"), note),
+      h("div", {}, h("button", { class: "btn primary" }, "Indsæt fund")));
+  };
+  await load();
 }
 
 /** Rapport fra Den Danske Liste: hvad en import vil ændre, med knap til at gennemføre den. */

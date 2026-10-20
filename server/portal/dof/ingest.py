@@ -199,7 +199,8 @@ async def ingest(
 
 async def _delete_missing(session: AsyncSession, period: tuple[date, date], keep: list[int]) -> int:
     res = await session.execute(
-        text("DELETE FROM observations WHERE dato BETWEEN :a AND :b AND NOT (obsid = ANY(:keep))"),
+        # Negative obsid'er er manuelle fund (manual_finds) – de står ikke i DOFbasen og skal blive
+        text("DELETE FROM observations WHERE dato BETWEEN :a AND :b AND obsid > 0 AND NOT (obsid = ANY(:keep))"),
         {"a": period[0], "b": period[1], "keep": keep},
     )
     return res.rowcount or 0

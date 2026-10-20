@@ -34,12 +34,12 @@ from portal.services import netfugl_list
 log = logging.getLogger("portal.danish_list")
 
 SEED_FILE = Path(__file__).resolve().parent.parent / "seed" / "danish_list.json"
-SEED_KEY = "categories_danish_list_2025"
+SEED_KEY = "categories_danish_list_2025b"  # nyt navn = importen køres igen ved næste opstart
 NETFUGL_KEY = "netfugl_dk_list"  # senest hentede kopi af Netfugls liste (ellers seed/netfugl_dk.json)
 MARK = "Den Danske Liste"
 # Arter med en kendt dato for første godkendte fund: før datoen er fundene ikke krydsbare (kategori før), derefter A.
-# Dværgsnegås: første godkendte kategori A-fund 7. oktober 2023.
-FIRST_ACCEPTED = {"Anser rossii": (date(2023, 10, 7), "E")}
+# Dværgsnegås: første danske fund, Bygholm Vejle 17. november 2021 (godkendt af SU, jf. DOFbasen og club300).
+FIRST_ACCEPTED = {"Anser rossii": (date(2021, 11, 17), "E")}
 
 
 def _norm(name: str | None) -> str:

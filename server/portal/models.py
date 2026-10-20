@@ -85,6 +85,26 @@ class CategoryOverride(Base):
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ManualFind(Base):
+    """Fund lagt ind af en administrator, som ikke står i DOFbasen (fx godkendte fund til havs). Spejles ind i
+    observations med obsid = -id, så det tæller i Arter pr. år, på lokaliteten og på artens side – men ikke på nogens
+    personlige liste (ingen obserkode). Synkroniseringen fra DOFbasen rører aldrig negative obsid'er."""
+
+    __tablename__ = "manual_finds"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dato: Mapped[date] = mapped_column(Date)
+    artnr: Mapped[int] = mapped_column(Integer)
+    loknr: Mapped[int | None] = mapped_column(Integer)
+    sted: Mapped[str | None] = mapped_column(String(200))
+    antal: Mapped[int] = mapped_column(Integer, default=1)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    removed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Afdeling(Base):
     __tablename__ = "afdelinger"
 
