@@ -162,6 +162,7 @@ main#view { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 24px +
 .btn.ghost { border-color: transparent; background: transparent; color: var(--text-2); }
 .btn.ghost:hover { background: var(--bg-2); }
 .btn.danger { color: var(--err); }
+.btn.danger.solid { background: var(--err); border-color: var(--err); color: #fff; }
 .btn.sm { height: 30px; padding: 0 10px; font-size: .82rem; border-radius: 8px; }
 .btn[disabled] { opacity: .55; cursor: default; }
 .btn svg { width: 18px; height: 18px; }

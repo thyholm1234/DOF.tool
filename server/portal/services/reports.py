@@ -10,13 +10,11 @@ høre til en tur med turtider og turnoter. Portalen tilføjer:
   samt beskyttelse: hemmelig (kun synlig for indtasteren) eller skjult præcis position.
 
 Meldingerne vises i de samme tråde (art + lokalitet + dag) som DOFbasen-data, kører gennem de samme
-alarmregler og kan eksporteres som CSV med DOFbasens kolonnenavne. De sendes ikke til dofbasen.dk.
+alarmregler og sendes ikke til dofbasen.dk.
 """
 
 from __future__ import annotations
 
-import csv
-import io
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import text
@@ -344,36 +342,3 @@ async def notify_status(session: AsyncSession, report_id: int, update_id: int) -
            "url": f"/#/traad/{report.dato}/{report.artnr}/{report.loknr}", "tag": f"{report.dato}-{report.artnr}-{report.loknr}",
            "kategori": report.kategori, "rule_id": None, "push": True}
     return await alerts.deliver(session, None, {(u, f"s:{upd.id}"): msg for u in recipients})
-
-
-# ---------------------------------------------------------------- eksport
-
-CSV_COLUMNS = ["Dato", "Turtidfra", "Turtidtil", "Loknr", "Loknavn", "Artnr", "Artnavn", "Latin", "Antal", "Koen",
-               "Adfkode", "Adfbeskrivelse", "Alderkode", "Dragtkode", "Dragtbeskrivelse", "Obserkode", "Medobser",
-               "Turnoter", "Fuglnoter", "Metode", "Obstidfra", "Obstidtil", "Hemmelig", "obs_laengdegrad",
-               "obs_breddegrad", "radius", "Sikkerhed", "Grundlag", "Status"]
-
-
-async def export_csv(session: AsyncSession, user: User) -> str:
-    rows = (await session.execute(text("""
-        SELECT r.*, t.turtidfra, t.turtidtil, t.medobser, t.turnoter, l.navn AS loknavn, s.navn AS artnavn, s.latin,
-               ca.text AS adf, cd.text AS dragt
-        FROM field_reports r LEFT JOIN field_trips t ON t.id = r.trip_id JOIN locations l ON l.loknr = r.loknr
-        JOIN species s ON s.artnr = r.artnr
-        LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
-        LEFT JOIN code_texts cd ON cd.kind = 'dragt' AND cd.code = r.dragtkode
-        WHERE r.user_id = :u ORDER BY r.dato, r.obstidfra NULLS LAST, r.id
-    """), {"u": user.id})).mappings().all()
-    buf = io.StringIO()
-    w = csv.writer(buf, delimiter=";")
-    w.writerow(CSV_COLUMNS)
-    num = lambda v: "" if v is None else str(v).replace(".", ",")  # noqa: E731
-    for r in rows:
-        w.writerow([r["dato"].isoformat(), r["turtidfra"] or "", r["turtidtil"] or "", r["loknr"], r["loknavn"],
-                    f"{r['artnr']:05d}", r["artnavn"], r["latin"] or "", r["antal"], r["koen"] or "", r["adfkode"] or "",
-                    r["adf"] or "", r["alderkode"] or "", r["dragtkode"] or "", r["dragt"] or "", r["obserkode"],
-                    r["medobser"] or "", r["turnoter"] or "", r["fuglnoter"] or "", r["metode"] or "",
-                    r["obstidfra"] or "", r["obstidtil"] or "", 1 if r["hemmelig"] else 0, num(r["obs_lon"]),
-                    num(r["obs_lat"]), r["radius_m"] or "", SIKKERHED.get(r["sikkerhed"], r["sikkerhed"]),
-                    ", ".join(GRUNDLAG.get(g, g) for g in (r["grundlag"] or [])), STATUS.get(r["status"], r["status"])])
-    return buf.getvalue()

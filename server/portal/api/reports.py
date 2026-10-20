@@ -8,7 +8,6 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import Response
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -291,10 +290,3 @@ async def delete_media(report_id: int, url: str, user: User = Depends(require_us
     await db.commit()
     _remove_files([{"url": url}])
     return {"media": r.media}
-
-
-@router.get("/export.csv")
-async def export(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    body = await reports.export_csv(db, user)
-    return Response("﻿" + body, media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": f'attachment; filename="feltmeldinger-{user.obserkode}.csv"'})

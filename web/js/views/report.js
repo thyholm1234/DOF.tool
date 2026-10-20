@@ -22,6 +22,7 @@ export async function render(view, [reportId]) {
 // ---------------------------------------------------------------- modul: mine indtastede fugle + ny observation
 
 const KAT_ORDER = { SU: 0, SUB: 1, bemaerk: 2, alm: 3 };
+const threadHash = (r) => `#/traad/${r.dato}/${r.artnr}/${r.loknr}`;
 
 async function startPage(view) {
   const p = params();
@@ -32,21 +33,21 @@ async function startPage(view) {
   try { recent = await api("/api/reports/recent"); } catch { /* formularen virker uden */ }
   const openForm = () => {
     if (!newPanel.firstChild) newPanel.append(h("div", { class: "card mb" }, h("h2", { style: { marginTop: 0 } }, "Ny observation"),
-      reportForm({ recent, submitLabel: "Gem observation", onSaved: loadMine })));
+      reportForm({ recent, submitLabel: "Gem observation", onSaved: (r) => { location.hash = threadHash(r); } })));
   };
   const newBtn = h("button", { class: "btn primary", html: `${icon("plus")} Ny observation`, onclick: () => {
-    newPanel.classList.toggle("hide");
-    setParams({ ny: newPanel.classList.contains("hide") ? "" : "1" });
-    if (!newPanel.classList.contains("hide")) { openForm(); newPanel.querySelector("input[type=search]")?.focus(); }
+    const open = newPanel.classList.toggle("hide") === false;
+    listEl.classList.toggle("hide", open);  // ny indtastning: de gamle skjules
+    setParams({ ny: open ? "1" : "" });
+    if (open) { openForm(); newPanel.querySelector("input[type=search]")?.focus(); }
   } });
-  if (p.ny) openForm();
+  if (p.ny) { openForm(); listEl.classList.add("hide"); }
   view.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Mine indtastninger"),
       h("p", { class: "lead" }, "Dine egne fugle indtastet i portalen. De vises med det samme i trådene og alarmerne.")),
       h("span", { class: "spacer" }), newBtn),
     newPanel, listEl,
-    h("div", { class: "row mt" }, h("a", { class: "btn sm", href: "/api/reports/export.csv", download: "", html: `${icon("external")} Eksportér CSV (DOFbasens kolonner)` })),
-    h("p", { class: "muted mt", style: { fontSize: ".85rem" } }, "Portalen sender ikke data til DOFbasen. Indtast også dine fund i DOFbasen (app.dofbasen.dk), eller brug CSV-eksporten med DOFbasens kolonnenavne. Når fundet dukker op i DOFbasen, markeres det med ✓."));
+    h("p", { class: "muted mt", style: { fontSize: ".85rem" } }, "Portalen sender ikke data til DOFbasen. Indtast også dine fund i DOFbasen (app.dofbasen.dk). Når fundet dukker op i DOFbasen, markeres det med ✓."));
   await loadMine();
 }
 
@@ -70,7 +71,7 @@ function drawMine(el, rows) {
       && (filter.kind === "alle" || (filter.kind === "sjaeldne" && r.kategori !== "alm") || (filter.kind === "live" && r.live)))
       .sort((a, b) => sort.dir * cmp[sort.key](a, b));
     count.textContent = `${shown.length} af ${rows.length}`;
-    list.replaceChildren(...(shown.length ? shown.map(r => h("a", { class: `myobs ${r.kategori}`, href: `#/indtast/obs/${r.id}` },
+    list.replaceChildren(...(shown.length ? shown.map(r => h("a", { class: `myobs ${r.kategori}`, href: threadHash(r) },
       h("div", { class: "myobs-when" }, h("b", {}, fmtDate(r.dato, false)), h("small", { class: "muted" }, r.tid || "")),
       h("div", { class: "myobs-main" },
         h("div", { class: "row", style: { gap: "6px" } }, h("b", { class: "num" }, fmtN(r.antal)), h("b", {}, r.art),
@@ -103,11 +104,11 @@ async function editPage(view, id) {
         h("h1", { style: { marginTop: "4px" } }, `${fmtN(r.antal)} ${r.art}`),
         h("p", { class: "lead" }, [fmtDate(r.dato), r.lok, r.kommune].filter(Boolean).join(" · "))),
       h("span", { class: "spacer" }),
-      h("button", { class: "btn ghost danger", html: `${icon("trash")} Slet`, onclick: async () => {
+      h("button", { class: "btn danger solid", html: `${icon("trash")} Slet observation`, onclick: async () => {
         if (!confirm(`Slet ${r.antal} ${r.art}?`)) return;
         try { await api(`/api/reports/${r.id}`, { method: "DELETE" }); toast("Observationen er slettet"); back(); } catch (err) { toast(err.message, "err"); }
       } })),
-    h("div", { class: "card" }, reportForm({ recent, initial: r, submitLabel: "Gem ændringer", onSaved: back })));
+    h("div", { class: "card" }, reportForm({ recent, initial: r, submitLabel: "Gem ændringer", onSaved: (upd) => { location.hash = threadHash(upd); } })));
 }
 
 // ---------------------------------------------------------------- observationsformular
