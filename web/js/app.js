@@ -10,7 +10,7 @@ const SECTIONS = [
   ["Ud i felten", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
   ["Statistik", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
-  ["Værktøjer", [["#/mobgang", "sound", "Mobgang"], ["#/puls", "map", "Puls"], ["#/laer", "learn", "Læring"]]],
+  ["Værktøjer", [["#/laer", "learn", "Læring"], ["#/puls", "map", "Puls"], ["#/mobgang", "sound", "Mobgang"]]],
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
 const NAV = SECTIONS.flatMap(([, items]) => items);
