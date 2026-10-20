@@ -82,6 +82,11 @@ async def after_ingest(res: IngestResult, notify: bool) -> None:
                 await pulse.record_sync(s, res.new_obsids, res.changed)
         except Exception:  # noqa: BLE001 – kommandokortet må ikke vælte dataindlæsningen
             log.exception("Puls fejlede")
+    if notify and res.deleted_obsids:
+        try:
+            await pulse.record_deleted(res.deleted_obsids)
+        except Exception:  # noqa: BLE001
+            log.exception("Puls (slettede) fejlede")
     if res.new_obsids or res.changed or res.deleted:
         await bump("feed")
         await publish("feed", {"type": "feed", "new": len(res.new_obsids), "changed": len(res.changed)})

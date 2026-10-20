@@ -128,6 +128,17 @@ export async function render(view) {
         h("small", { class: "muted", style: { display: "block" } }, totalTxt(it) + it.lok)))));
   };
 
+  // Slettede observationer: punktet fjernes fra listen (og fra kortets kø), eller antallet sættes ned
+  function applyGone(gone) {
+    if (!gone.length) return;
+    const by = new Map(gone.map(g => [g.key, g]));
+    const before = items.length;
+    let touched = false;
+    items = items.filter(it => { const g = by.get(it.key); if (!g) return true; touched = true; if (g.delta == null) return false; it.delta = g.delta; it.total = g.total ?? it.total; return true; });
+    queue = queue.filter(it => { const g = by.get(it.key); return !g || g.delta != null; });
+    if (touched || items.length !== before) drawList();
+  }
+
   async function refresh() {
     if (refreshing) return;
     refreshing = true;
@@ -135,6 +146,7 @@ export async function render(view) {
       const d = await api(`/api/pulse${st.since ? `?since=${encodeURIComponent(st.since)}` : ""}`);
       st.interval = d.interval;
       setBirders(d.birders);
+      applyGone(d.gone || []);
       if (d.batches.length) {
         const day = todayISO();
         const fresh = d.batches.flatMap(b => b.items.map(it => ({ ...it, at: b.at, day }))).reverse();

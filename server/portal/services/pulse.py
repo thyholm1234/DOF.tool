@@ -19,6 +19,7 @@ from portal.cache import kv
 from portal.timeutil import TZ
 
 BATCHES = "pulse:batches"  # JSON pr. sync, nyeste først
+GONE = "pulse:gone"  # slettede/nedjusterede punkter: {key, delta, total} (delta None = punktet er væk)
 BIRDERS = "pulse:birders"  # anonymt id -> {lat, lon, loknr, lok, turid, kategori, at}
 KEEP = 40
 ACTIVE = timedelta(minutes=15)
@@ -72,7 +73,8 @@ async def record_sync(session: AsyncSession, new_obsids: list[int], changed: lis
         add = r["antal"] if d is None else d
         it = items.setdefault((r["loknr"], r["artnr"]), {
             "artnr": r["artnr"], "art": r["art"], "loknr": r["loknr"], "lok": r["lok"], "lat": r["lat"], "lon": r["lon"],
-            "kategori": r["kategori"], "delta": 0, "new": 0})
+            "kategori": r["kategori"], "delta": 0, "new": 0, "obs": {}})
+        it["obs"][str(r["obsid"])] = [max(add or 0, 0), r["antal"] or 0]
         it["delta"] += max(add or 0, 0)
         it["new"] += d is None
         if RANK.get(r["kategori"], 0) > RANK.get(it["kategori"], 0):
@@ -113,7 +115,8 @@ async def record_report(session: AsyncSession, report) -> None:
     if not r or r["lat"] is None:
         return
     item = {"artnr": report.artnr, "art": r["art"], "loknr": report.loknr, "lok": r["lok"], "lat": r["lat"], "lon": r["lon"],
-            "kategori": report.kategori, "delta": report.antal or 0, "new": 1}
+            "kategori": report.kategori, "delta": report.antal or 0, "new": 1,
+            "obs": {str(-report.id): [report.antal or 0, report.antal or 0]}}
     items = {(report.loknr, report.artnr): item}
     await _totals(session, items, report.dato)
     await _store(items, {report.obserkode: {"lat": r["lat"], "lon": r["lon"], "loknr": report.loknr, "lok": r["lok"],
@@ -130,6 +133,41 @@ async def _ended(session: AsyncSession, turids: list[int]) -> set[int]:
           AND (dato < :d OR replace(turtidtil, '.', ':') <= :hm)
     """), {"t": turids, "d": now.date(), "hm": now.strftime("%H:%M")})).scalars().all()
     return set(rows)
+
+
+async def record_deleted(obsids: list[int]) -> None:
+    """Slettede observationer fjernes fra loggen: deres bidrag trækkes fra, og tomme punkter forsvinder."""
+    gone = {str(o) for o in obsids}
+    raw = await kv().lrange(BATCHES, 0, KEEP - 1)
+    for idx, text_ in enumerate(raw):
+        b = json.loads(text_)
+        keep, changed = [], False
+        for it in b["items"]:
+            hit = gone & set(it.get("obs", {}))
+            if not hit:
+                keep.append(it)
+                continue
+            changed = True
+            for o in hit:
+                d, antal = it["obs"].pop(o)
+                it["delta"] -= d
+                if it.get("total") is not None:
+                    it["total"] = max(it["total"] - antal, 0)
+            key = f"{b['id']}/{it['loknr']}/{it['artnr']}"
+            if it["obs"] and it["delta"] > 0:
+                keep.append(it)
+                await _tombstone(key, it["delta"], it.get("total"))
+            else:
+                await _tombstone(key, None, None)
+        if changed:
+            b["items"] = keep
+            await kv().lset(BATCHES, idx, json.dumps(b))
+
+
+async def _tombstone(key: str, delta: int | None, total: int | None) -> None:
+    await kv().lpush(GONE, json.dumps({"key": key, "delta": delta, "total": total}))
+    await kv().ltrim(GONE, 0, 499)
+    await kv().expire(GONE, 3600)
 
 
 async def snapshot(session: AsyncSession, since: str | None) -> dict:
@@ -154,5 +192,10 @@ async def snapshot(session: AsyncSession, since: str | None) -> dict:
     times = sorted(datetime.fromisoformat(b["at"]) for b in raw if b["source"] == "dof")[-8:]
     gaps = sorted((b - a).total_seconds() for a, b in zip(times, times[1:]) if (b - a).total_seconds() < 900)
     interval = gaps[len(gaps) // 2] if gaps else 120
-    return {"batches": list(reversed(batches)), "birders": birders, "interval": max(45, min(interval, 600)),
+    for b in batches:  # punkterne får en nøgle, så slettelser kan henvise til dem; obsid'er sendes ikke videre
+        for it in b["items"]:
+            it["key"] = f"{b['id']}/{it['loknr']}/{it['artnr']}"
+            it.pop("obs", None)
+    gone = [json.loads(g) for g in await kv().lrange(GONE, 0, 499)]
+    return {"batches": list(reversed(batches)), "gone": list(reversed(gone)), "birders": birders, "interval": max(45, min(interval, 600)),
             "now": now.isoformat()}

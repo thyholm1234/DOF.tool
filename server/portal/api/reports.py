@@ -233,6 +233,7 @@ async def delete_report(report_id: int, user: User = Depends(require_user), db: 
     media = list(r.media or [])
     await db.delete(r)
     await db.commit()
+    await pulse.record_deleted([-report_id])
     _remove_files(media)
     await publish("feed", {"type": "feed", "portal": True})
     return {"ok": True}

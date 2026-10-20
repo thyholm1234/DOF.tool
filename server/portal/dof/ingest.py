@@ -21,6 +21,7 @@ class IngestResult:
     new_obsids: list[int] = field(default_factory=list)
     changed: list[tuple[int, int, int]] = field(default_factory=list)  # obsid, gammelt antal, nyt antal
     deleted: int = 0
+    deleted_obsids: list[int] = field(default_factory=list)
     unknown_species: set[int] = field(default_factory=set)
     observers: set[str] = field(default_factory=set)
 
@@ -54,7 +55,8 @@ async def ingest(
     result = IngestResult(rows=len(rows))
     if not rows:
         if replace_dates:
-            result.deleted = await _delete_missing(session, replace_dates, [])
+            result.deleted_obsids = await _delete_missing(session, replace_dates, [])
+            result.deleted = len(result.deleted_obsids)
         return result
 
     clf = await get_classifier(session)
@@ -193,17 +195,18 @@ async def ingest(
         """)
 
     if replace_dates:
-        result.deleted = await _delete_missing(session, replace_dates, [rec[0] for rec in obs_records])
+        result.deleted_obsids = await _delete_missing(session, replace_dates, [rec[0] for rec in obs_records])
+        result.deleted = len(result.deleted_obsids)
     return result
 
 
-async def _delete_missing(session: AsyncSession, period: tuple[date, date], keep: list[int]) -> int:
+async def _delete_missing(session: AsyncSession, period: tuple[date, date], keep: list[int]) -> list[int]:
     res = await session.execute(
         # Negative obsid'er er manuelle fund (manual_finds) – de står ikke i DOFbasen og skal blive
-        text("DELETE FROM observations WHERE dato BETWEEN :a AND :b AND obsid > 0 AND NOT (obsid = ANY(:keep))"),
+        text("DELETE FROM observations WHERE dato BETWEEN :a AND :b AND obsid > 0 AND NOT (obsid = ANY(:keep)) RETURNING obsid"),
         {"a": period[0], "b": period[1], "keep": keep},
     )
-    return res.rowcount or 0
+    return list(res.scalars().all())
 
 
 async def assign_kommuner(session: AsyncSession, loknrs: list[int] | None = None) -> None:
