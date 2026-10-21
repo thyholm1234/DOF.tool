@@ -26,6 +26,7 @@ LABELS = {
     "forecast": "DMI-prognose",
     "area_counts": "Områdetal",
     "regions": "Arter pr. år (regioner)",
+    "gaps": "Huller (observatører og ture pr. art)",
     "location_years": "Lokalitetsoversigt (hver 6. time)",
     "plan": "Opdateringsplan",
 }

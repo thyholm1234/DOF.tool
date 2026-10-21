@@ -49,16 +49,20 @@ async def refresh(session: AsyncSession, first_year: int | None = None) -> int:
                 GROUP BY 1, ls.artnr
             """), p)
         await session.commit()
-    await refresh_reach(session, years)
     await bump("regions")
     log.info("Arter pr. år genberegnet for %s–%s", first_year, last)
     return len(years)
 
 
-async def refresh_reach(session: AsyncSession, years: list[int]) -> None:
-    """Observatører og ture pr. region, år og art (+ år 0 = alle år) til 'Huller'. Ture tæller kun med turid."""
-    for y in [*years, 0]:
-        await jobstatus.step(f"Huller: {y or 'alle år'}", 0, 1)
+async def refresh_reach(session: AsyncSession, first_year: int | None = None) -> int:
+    """Observatører og ture pr. region, år og art (+ år 0 = alle år) til 'Huller'. Ture tæller kun med turid.
+    Genberegner fra first_year (None = alle år) til i år. Returnerer antal beregnede perioder."""
+    last = dk_today().year
+    if first_year is None:
+        first_year = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar() or last
+    periods = [*range(first_year, last + 1), 0]
+    for i, y in enumerate(periods):
+        await jobstatus.step(f"Huller: {y or 'alle år'}", i, len(periods))
         p = {"y": y, "a": date(y or 1900, 1, 1), "b": date(y + 1 if y else 3000, 1, 1)}
         await session.execute(text("DELETE FROM region_reach WHERE year = :y"), p)
         await session.execute(text("DELETE FROM region_totals WHERE year = :y"), p)
@@ -75,13 +79,20 @@ async def refresh_reach(session: AsyncSession, years: list[int]) -> None:
                 GROUP BY 1
             """), p)
         await session.commit()
+    await bump("regions")
+    log.info("Huller genberegnet for %s–%s", first_year, last)
+    return len(periods)
+
+
+async def ensure_reach(session: AsyncSession, since_year: int | None = None) -> int:
+    """Fuld beregning første gang (tom tabel), ellers fra since_year (højst det forrige år)."""
+    empty = not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach)"))).scalar()
+    return await refresh_reach(session, None if empty else min(since_year or dk_today().year - 1, dk_today().year - 1))
 
 
 async def ensure(session: AsyncSession, since_year: int | None = None) -> None:
     """Fuld beregning første gang (tom tabel), ellers fra since_year (højst de to seneste år)."""
     empty = not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_year_species)"))).scalar()
-    if not empty and not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach)"))).scalar():
-        empty = True  # 'Huller' er ny – byg dem for alle år
     last = dk_today().year - 1
     await refresh(session, None if empty else min(since_year or last, last))
 

@@ -99,6 +99,11 @@ async def scheduler() -> None:
         await kv().rpush(COMMANDS, json.dumps({"cmd": "regions"}))
         await jobstatus.queued("regions")
     async with SessionLocal() as s:
+        has_reach = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach)"))).scalar()
+    if not has_reach:
+        await kv().rpush(COMMANDS, json.dumps({"cmd": "gaps"}))
+        await jobstatus.queued("gaps")
+    async with SessionLocal() as s:
         has_events = (await s.execute(text("SELECT count(*) FROM dof_events"))).scalar()
     if not has_events:
         await run_safely("events", dof_events.sync())
@@ -114,6 +119,7 @@ async def scheduler() -> None:
                 await run_safely("forecast", dmi.forecast())
             if now.hour == 2 and now.minute >= 30 and await _once("compute", day):
                 await run_safely("compute", nightly_compute())
+                await run_safely("gaps", gaps(None))
             if await _every("location_years", locyear.EVERY):
                 await run_safely("location_years", location_years(None))
             if now.hour == 3 and await _once("reference", day):
@@ -180,6 +186,14 @@ async def region_years(from_year: int | None) -> None:
         await regions.refresh(s, from_year)
 
 
+async def gaps(from_year: int | None) -> None:
+    async with SessionLocal() as s:
+        if from_year is None and await s.scalar(text("SELECT EXISTS (SELECT 1 FROM region_reach)")):
+            await regions.ensure_reach(s, dk_today().year - 1)
+        else:
+            await regions.refresh_reach(s, from_year)
+
+
 async def location_years(years: list[int] | None) -> None:
     """Lokalitetsoversigten: bestemte år (på forlangende) eller den sædvanlige bygning (alt første gang)."""
     async with SessionLocal() as s:
@@ -218,6 +232,8 @@ async def command_listener() -> None:
                 await run_safely("forecast", dmi.forecast())
             elif name == "regions":
                 await run_safely("regions", region_years(cmd.get("from_year")))
+            elif name == "gaps":
+                await run_safely("gaps", gaps(cmd.get("from_year")))
             elif name == "location_years":
                 await run_safely("location_years", location_years(cmd.get("years")))
             elif name == "run_plan":
