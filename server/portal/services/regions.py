@@ -60,10 +60,10 @@ async def refresh_reach(session: AsyncSession, first_year: int | None = None) ->
     last = dk_today().year
     if first_year is None:
         first_year = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar() or last
-    periods = [*range(first_year, last + 1), 0]
-    for i, y in enumerate(periods):
-        await jobstatus.step(f"Huller: {y or 'alle år'}", i, len(periods))
-        p = {"y": y, "a": date(y or 1900, 1, 1), "b": date(y + 1 if y else 3000, 1, 1)}
+    years = list(range(first_year, last + 1))
+    for i, y in enumerate(years):
+        await jobstatus.step(f"Huller: {y}", i, len(years) + 1)
+        p = {"y": y, "a": date(y, 1, 1), "b": date(y + 1, 1, 1)}
         await session.execute(text("DELETE FROM region_reach WHERE year = :y"), p)
         await session.execute(text("DELETE FROM region_totals WHERE year = :y"), p)
         for key, join, extra in _LEVELS.values():
@@ -79,9 +79,23 @@ async def refresh_reach(session: AsyncSession, first_year: int | None = None) ->
                 GROUP BY 1
             """), p)
         await session.commit()
+    # Alle år (year = 0) lægges sammen fra årene uden at røre observationerne: ture ligger på én dato, og observatører
+    # tælles som observatør-år – så andelen er et vægtet gennemsnit af årsandelene (vægt = aktive observatører i året).
+    await jobstatus.step("Huller: alle år", len(years), len(years) + 1)
+    await session.execute(text("DELETE FROM region_reach WHERE year = 0"))
+    await session.execute(text("DELETE FROM region_totals WHERE year = 0"))
+    await session.execute(text("""
+        INSERT INTO region_reach (region, year, artnr, n_observers, n_trips)
+        SELECT region, 0, artnr, sum(n_observers), sum(n_trips) FROM region_reach WHERE year > 0 GROUP BY region, artnr
+    """))
+    await session.execute(text("""
+        INSERT INTO region_totals (region, year, n_trips, n_observers)
+        SELECT region, 0, sum(n_trips), sum(n_observers) FROM region_totals WHERE year > 0 GROUP BY region
+    """))
+    await session.commit()
     await bump("regions")
     log.info("Huller genberegnet for %s–%s", first_year, last)
-    return len(periods)
+    return len(years) + 1
 
 
 async def ensure_reach(session: AsyncSession, since_year: int | None = None) -> int:
@@ -219,9 +233,9 @@ async def gaps(session: AsyncSession, scope, year: int | None, mine: set[int]) -
         last = {r[0]: r[1] for r in (await session.execute(text("""
             SELECT artnr, max(last_date) FROM region_year_species WHERE region = :r AND artnr = ANY(:a) GROUP BY artnr
         """), {"r": region, "a": [m[0] for m in missing]})).all()}
-    trips = max(data["trips"], 1)
+    trips, obs = max(data["trips"], 1), max(data["observers"], 1)
     items = [{"artnr": a, "art": names[a][1], "klass": names[a][2], "n_observers": o, "n_trips": t,
-              "share": t / trips, "last": last[a].isoformat() if a in last else None}
+              "share": t / trips, "obs_share": o / obs, "last": last[a].isoformat() if a in last else None}
              for a, o, t in missing if a in names]
     return {"scope": region, "year": year, "observers": data["observers"], "trips": data["trips"],
             "n_gaps": len(items), "items": items}

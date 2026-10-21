@@ -230,7 +230,7 @@ async function gaps(body) {
   const yearSel = h("select", { style: { width: "auto" } }, h("option", { value: "all" }, "Livsliste (alle år)"),
     ...[...new Set([YEAR, ...meta.years])].sort((a, b) => b - a).map(y => h("option", { value: y }, y)));
   yearSel.value = st.year;
-  const metric = seg([["trips", "Andel af ture"], ["obs", "Antal observatører"]], st.by, (v) => { st.by = v; st.shown = GAP_STEP; save(); draw(); });
+  const metric = seg([["trips", "Andel af ture"], ["obs", "Observatører"]], st.by, (v) => { st.by = v; st.shown = GAP_STEP; save(); draw(); });
   const search = h("input", { type: "search", placeholder: "Søg art…", style: { maxWidth: "200px" } });
   const klassSel = h("select", { style: { width: "auto" } }, h("option", { value: "" }, "Alle kategorier"));
   const out = h("div", { class: "stack mt" });
@@ -240,7 +240,10 @@ async function gaps(body) {
     note), out);
   let data = null;
   const save = () => setParams({ tab: "huller", scope: st.scope === "dk" ? "" : st.scope, year: st.year, by: st.by === "trips" ? "" : st.by });
-  const value = (it) => st.by === "trips" ? it.share : it.n_observers;
+  // Livslisten tæller observatør-år (se regions.refresh_reach), så observatørmålet er en andel – ikke et antal personer
+  const obsShare = () => st.year === "all" && data?.scope && /^(dk|afd:|kom:)/.test(data.scope);
+  const value = (it) => st.by === "trips" ? it.share : obsShare() ? it.obs_share : it.n_observers;
+  const obsText = (it) => obsShare() ? pct(it.obs_share) : fmtN(it.n_observers);
   const pct = (x) => x >= 0.1 ? `${Math.round(x * 100)} %` : x >= 0.01 ? `${(x * 100).toFixed(1).replace(".", ",")} %` : "< 1 %";
 
   const load = async () => {
@@ -259,7 +262,9 @@ async function gaps(body) {
     if (!data) return;
     note.textContent = st.by === "trips"
       ? `Andel af de ${fmtN(data.trips)} ture i området${st.year === "all" ? "" : ` i ${st.year}`}, hvor arten blev indtastet – hvor stor en chance du reelt har for at støde på den.`
-      : `Antal af de ${fmtN(data.observers)} observatører i området${st.year === "all" ? "" : ` i ${st.year}`}, der har indtastet arten – hvor udbredt arten er blandt birdere.`;
+      : obsShare()
+        ? "Andel af områdets aktive observatører, der har indtastet arten – gennemsnit over årene, vægtet med antal aktive observatører hvert år. Hvor udbredt arten er blandt birdere."
+        : `Antal af de ${fmtN(data.observers)} observatører i området${st.year === "all" ? "" : ` i ${st.year}`}, der har indtastet arten – hvor udbredt arten er blandt birdere.`;
     const q = st.q.toLowerCase();
     const all = data.items.filter(i => (!q || i.art.toLowerCase().includes(q)) && (!st.klass || i.klass === st.klass))
       .sort((a, b) => value(b) - value(a) || a.art.localeCompare(b.art, "da"));
@@ -273,8 +278,8 @@ async function gaps(body) {
         h("td", { style: { width: "42%", minWidth: "120px" } }, h("div", { style: { display: "flex", alignItems: "center", gap: "8px" } },
           h("div", { style: { flex: 1, height: "10px", background: "var(--bg-2)", borderRadius: "5px", overflow: "hidden" } },
             h("div", { style: { width: `${Math.max(2, v / max * 100)}%`, height: "100%", background: "var(--brand-2)", borderRadius: "5px" } })),
-          h("b", { class: "num nowrap", style: { minWidth: "5.5ch", textAlign: "right" }, title: `${fmtN(it.n_observers)} observatører · ${fmtN(it.n_trips)} ture` },
-            st.by === "trips" ? pct(it.share) : fmtN(it.n_observers)))),
+          h("b", { class: "num nowrap", style: { minWidth: "5.5ch", textAlign: "right" }, title: `${fmtN(it.n_observers)} ${obsShare() ? "observatør-år" : "observatører"} · ${fmtN(it.n_trips)} ture` },
+            st.by === "trips" ? pct(it.share) : obsText(it)))),
         h("td", { class: "nowrap muted right" }, it.last ? fmtDate(it.last, false) : "–"));
     });
     out.replaceChildren(
@@ -282,12 +287,12 @@ async function gaps(body) {
         h("div", { class: "stats" },
           h("div", { class: "stat" }, h("b", {}, fmtN(data.n_gaps)), h("span", {}, "huller")),
           h("div", { class: "stat" }, h("b", {}, fmtN(data.mine)), h("span", {}, "arter på din liste")),
-          top ? h("div", { class: "stat" }, h("b", {}, top.art), h("span", {}, `største hul · ${st.by === "trips" ? pct(top.share) + " af ture" : fmtN(top.n_observers) + " observatører"}`)) : null)),
+          top ? h("div", { class: "stat" }, h("b", {}, top.art), h("span", {}, `største hul · ${st.by === "trips" ? pct(top.share) + " af ture" : (obsShare() ? pct(top.obs_share) + " af observatører" : fmtN(top.n_observers) + " observatører")}`)) : null)),
       h("div", { class: "card table-wrap" },
         h("div", { class: "row between mb" }, search, klassSel,
-          h("span", { class: "muted", style: { fontSize: ".85rem" } }, `${fmtN(all.length)} arter · sorteret efter ${st.by === "trips" ? "andel af ture" : "antal observatører"}`)),
+          h("span", { class: "muted", style: { fontSize: ".85rem" } }, `${fmtN(all.length)} arter · sorteret efter ${st.by === "trips" ? "andel af ture" : obsShare() ? "andel af observatører" : "antal observatører"}`)),
         all.length ? h("table", { class: "data" },
-          h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Art"), h("th", {}, st.by === "trips" ? "Andel af ture" : "Observatører"), h("th", { class: "right" }, "Senest set")))
+          h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Art"), h("th", {}, st.by === "trips" ? "Andel af ture" : obsShare() ? "Andel af observatører" : "Observatører"), h("th", { class: "right" }, "Senest set")))
           , h("tbody", {}, ...rows)) : empty(data.n_gaps ? "Ingen arter matcher" : "Ingen huller – du har alle arter andre har!"),
         all.length > st.shown ? h("div", { class: "row mt", style: { justifyContent: "center" } },
           h("button", { class: "btn", onclick: () => { st.shown += GAP_STEP * 2; draw(); } }, `Vis flere (${fmtN(all.length - st.shown)} tilbage)`)) : null));
