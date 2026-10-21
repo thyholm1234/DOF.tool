@@ -49,14 +49,39 @@ async def refresh(session: AsyncSession, first_year: int | None = None) -> int:
                 GROUP BY 1, ls.artnr
             """), p)
         await session.commit()
+    await refresh_reach(session, years)
     await bump("regions")
     log.info("Arter pr. år genberegnet for %s–%s", first_year, last)
     return len(years)
 
 
+async def refresh_reach(session: AsyncSession, years: list[int]) -> None:
+    """Observatører og ture pr. region, år og art (+ år 0 = alle år) til 'Huller'. Ture tæller kun med turid."""
+    for y in [*years, 0]:
+        await jobstatus.step(f"Huller: {y or 'alle år'}", 0, 1)
+        p = {"y": y, "a": date(y or 1900, 1, 1), "b": date(y + 1 if y else 3000, 1, 1)}
+        await session.execute(text("DELETE FROM region_reach WHERE year = :y"), p)
+        await session.execute(text("DELETE FROM region_totals WHERE year = :y"), p)
+        for key, join, extra in _LEVELS.values():
+            base = _BASE.format(join=join)
+            await session.execute(text(f"""
+                INSERT INTO region_reach (region, year, artnr, n_observers, n_trips)
+                SELECT {key}, :y, ls.artnr, count(DISTINCT o.obserkode), count(DISTINCT o.turid) {base} {extra}
+                GROUP BY 1, ls.artnr
+            """), p)
+            await session.execute(text(f"""
+                INSERT INTO region_totals (region, year, n_trips, n_observers)
+                SELECT {key}, :y, count(DISTINCT o.turid), count(DISTINCT o.obserkode) {base} {extra}
+                GROUP BY 1
+            """), p)
+        await session.commit()
+
+
 async def ensure(session: AsyncSession, since_year: int | None = None) -> None:
     """Fuld beregning første gang (tom tabel), ellers fra since_year (højst de to seneste år)."""
     empty = not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_year_species)"))).scalar()
+    if not empty and not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach)"))).scalar():
+        empty = True  # 'Huller' er ny – byg dem for alle år
     last = dk_today().year - 1
     await refresh(session, None if empty else min(since_year or last, last))
 
@@ -146,3 +171,46 @@ async def _all_years(session: AsyncSession, region: str, per_year: list) -> dict
                     for r in rows],
         "missing": [],
     }
+
+
+
+async def gaps(session: AsyncSession, scope, year: int | None, mine: set[int]) -> dict:
+    """Arter andre har i området/året, men som ikke er på `mine` (listeartnumre). Begge mål beregnes på én gang.
+
+    dk / afdelinger / kommuner læses fra de forudberegnede tabeller; egne områder tælles direkte og gemmes 6 timer."""
+    region = scope.key
+    y = year or 0
+
+    async def produce():
+        if scope.kind in ("dk", "afdeling", "kommune"):
+            rows = (await session.execute(text("""
+                SELECT r.artnr, r.n_observers, r.n_trips FROM region_reach r WHERE r.region = :r AND r.year = :y
+            """), {"r": region, "y": y})).all()
+            tot = (await session.execute(text(
+                "SELECT n_trips, n_observers FROM region_totals WHERE region = :r AND year = :y"), {"r": region, "y": y})).first()
+        else:
+            pred, params = scope.predicate("o")
+            base = (_BASE.format(join="") + f" AND {pred}").replace(":a", ":ya").replace(":b", ":yb")
+            params.update({"ya": date(y or 1900, 1, 1), "yb": date(y + 1 if y else 3000, 1, 1)})
+            rows = (await session.execute(text(f"""
+                SELECT ls.artnr, count(DISTINCT o.obserkode), count(DISTINCT o.turid) {base} GROUP BY ls.artnr
+            """), params)).all()
+            tot = (await session.execute(text(f"SELECT count(DISTINCT o.turid), count(DISTINCT o.obserkode) {base}"), params)).first()
+        return {"rows": [list(r) for r in rows], "trips": tot[0] if tot else 0, "observers": tot[1] if tot else 0}
+
+    data = await cached(f"gaps:{region}:{y}:{await version('regions')}", 6 * 3600, produce)
+    missing = [(a, o, t) for a, o, t in data["rows"] if a not in mine]
+    names = {r[0]: r for r in (await session.execute(
+        text("SELECT artnr, navn, klass, sortering FROM species WHERE artnr = ANY(:a)"), {"a": [m[0] for m in missing]})).all()}
+    # Senest set i området (fra Arter pr. år) – kun for hullerne
+    last = {}
+    if scope.kind in ("dk", "afdeling", "kommune") and missing:
+        last = {r[0]: r[1] for r in (await session.execute(text("""
+            SELECT artnr, max(last_date) FROM region_year_species WHERE region = :r AND artnr = ANY(:a) GROUP BY artnr
+        """), {"r": region, "a": [m[0] for m in missing]})).all()}
+    trips = max(data["trips"], 1)
+    items = [{"artnr": a, "art": names[a][1], "klass": names[a][2], "n_observers": o, "n_trips": t,
+              "share": t / trips, "last": last[a].isoformat() if a in last else None}
+             for a, o, t in missing if a in names]
+    return {"scope": region, "year": year, "observers": data["observers"], "trips": data["trips"],
+            "n_gaps": len(items), "items": items}

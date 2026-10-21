@@ -133,6 +133,15 @@ async def matrikel_scoreboard(scope: str = "dk", year: str | None = None, group:
 # ---------------------------------------------------------------- arter pr. år for regioner
 
 
+@router.get("/gaps")
+async def gaps(scope: str | None = None, year: str | None = None, user: User = Depends(require_user),
+               db: AsyncSession = Depends(get_session)):
+    """Mine huller: arter andre har indtastet i området (og året), men jeg ikke har. Sorteres på klienten."""
+    spec = await _spec(db, scope, year, None, user)
+    mine = {i["artnr"] for i in await lists.year_list(db, user.obserkode, spec)}
+    return {**await regions.gaps(db, spec.scope, spec.year, mine), "mine": len(mine)}
+
+
 @router.get("/regions")
 async def region_overview(level: str = "afd", db: AsyncSession = Depends(get_session)):
     try:

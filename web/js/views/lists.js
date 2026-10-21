@@ -14,10 +14,10 @@ export async function render(view) {
   view.append(h("div", { class: "page-head" },
     h("div", {}, h("h1", {}, "Lister & scoreboards"), h("p", { class: "lead" }, "Årslister, kommuner, egne områder og arter pr. år – beregnet direkte fra DOFbasen-data. Matrikelbirding har sit eget modul.")),
     h("span", { class: "spacer" }),
-    seg([["mine", "Mine"], ["score", "Scoreboard"], ["regioner", "Arter pr. år"], ["grupper", "Grupper"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
+    seg([["mine", "Mine"], ["huller", "Huller"], ["score", "Scoreboard"], ["regioner", "Arter pr. år"], ["grupper", "Grupper"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
   const body = h("div", {});
   view.append(body);
-  const draw = (t) => t === "score" ? scoreboard(body) : t === "regioner" ? regionsTab(body) : t === "grupper" ? groups(body) : mine(body);
+  const draw = (t) => t === "score" ? scoreboard(body) : t === "regioner" ? regionsTab(body) : t === "grupper" ? groups(body) : t === "huller" ? gaps(body) : mine(body);
   await draw(tab);
 }
 
@@ -214,6 +214,88 @@ export function drawList(out, data, year) {
     items.length ? h("div", { class: "card table-wrap" }, h("div", { class: "mb" }, bar), h("table", { class: "data list-table" },
       h("thead", {}, h("tr", {}, h("th", {}, "#"), th("Art", "navn"), th("Første dato", "dato"), h("th", {}, "Lokalitet"))), tbody))
       : empty("Ingen arter på denne liste endnu", "Data kommer fra DOFbasen – nye observationer tæller med inden for få minutter."));
+}
+
+// ---------------------------------------------------------------- huller: arter andre har, men ikke jeg
+
+const GAP_STEP = 40;
+
+async function gaps(body) {
+  if (requireLogin(body)) return;
+  const meta = await api("/api/lists/meta");
+  const p = params();
+  const st = { scope: p.scope || "dk", year: p.year || String(YEAR), by: p.by === "obs" ? "obs" : "trips", q: "", klass: "", shown: GAP_STEP };
+  const scopeSel = h("select", { style: { width: "auto" } }, ...meta.scopes.map(sc => h("option", { value: sc.scope }, sc.label)));
+  scopeSel.value = st.scope;
+  const yearSel = h("select", { style: { width: "auto" } }, h("option", { value: "all" }, "Livsliste (alle år)"),
+    ...[...new Set([YEAR, ...meta.years])].sort((a, b) => b - a).map(y => h("option", { value: y }, y)));
+  yearSel.value = st.year;
+  const metric = seg([["trips", "Andel af ture"], ["obs", "Antal observatører"]], st.by, (v) => { st.by = v; st.shown = GAP_STEP; save(); draw(); });
+  const search = h("input", { type: "search", placeholder: "Søg art…", style: { maxWidth: "200px" } });
+  const klassSel = h("select", { style: { width: "auto" } }, h("option", { value: "" }, "Alle kategorier"));
+  const out = h("div", { class: "stack mt" });
+  const note = h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } });
+  body.append(h("div", { class: "card" },
+    h("div", { class: "row" }, scopeSel, yearSel, h("span", { style: { flex: 1 } }), metric),
+    note), out);
+  let data = null;
+  const save = () => setParams({ tab: "huller", scope: st.scope === "dk" ? "" : st.scope, year: st.year, by: st.by === "trips" ? "" : st.by });
+  const value = (it) => st.by === "trips" ? it.share : it.n_observers;
+  const pct = (x) => x >= 0.1 ? `${Math.round(x * 100)} %` : x >= 0.01 ? `${(x * 100).toFixed(1).replace(".", ",")} %` : "< 1 %";
+
+  const load = async () => {
+    st.scope = scopeSel.value; st.year = yearSel.value; st.shown = GAP_STEP; save();
+    out.replaceChildren(h("div", { class: "skeleton", style: { height: "320px" } }));
+    try {
+      data = await api(`/api/lists/gaps?${new URLSearchParams({ scope: st.scope, year: st.year })}`);
+      const ks = [...new Set(data.items.map(i => i.klass))].sort();
+      klassSel.replaceChildren(h("option", { value: "" }, "Alle kategorier"), ...ks.map(k => h("option", { value: k }, k === "Alm" ? "Almindelige" : k)));
+      st.klass = "";
+      draw();
+    } catch (err) { out.replaceChildren(errorBox(err)); }
+  };
+
+  const draw = () => {
+    if (!data) return;
+    note.textContent = st.by === "trips"
+      ? `Andel af de ${fmtN(data.trips)} ture i området${st.year === "all" ? "" : ` i ${st.year}`}, hvor arten blev indtastet – hvor stor en chance du reelt har for at støde på den.`
+      : `Antal af de ${fmtN(data.observers)} observatører i området${st.year === "all" ? "" : ` i ${st.year}`}, der har indtastet arten – hvor udbredt arten er blandt birdere.`;
+    const q = st.q.toLowerCase();
+    const all = data.items.filter(i => (!q || i.art.toLowerCase().includes(q)) && (!st.klass || i.klass === st.klass))
+      .sort((a, b) => value(b) - value(a) || a.art.localeCompare(b.art, "da"));
+    const max = Math.max(...all.map(value), 1e-9);
+    const top = all[0];
+    const rows = all.slice(0, st.shown).map((it, i) => {
+      const v = value(it);
+      return h("tr", {},
+        h("td", { class: "num muted" }, i + 1),
+        h("td", {}, h("a", { href: `#/art/${it.artnr}` }, it.art), it.klass !== "Alm" ? [" ", tag(it.klass)] : null),
+        h("td", { style: { width: "42%", minWidth: "120px" } }, h("div", { style: { display: "flex", alignItems: "center", gap: "8px" } },
+          h("div", { style: { flex: 1, height: "10px", background: "var(--bg-2)", borderRadius: "5px", overflow: "hidden" } },
+            h("div", { style: { width: `${Math.max(2, v / max * 100)}%`, height: "100%", background: "var(--brand-2)", borderRadius: "5px" } })),
+          h("b", { class: "num nowrap", style: { minWidth: "5.5ch", textAlign: "right" }, title: `${fmtN(it.n_observers)} observatører · ${fmtN(it.n_trips)} ture` },
+            st.by === "trips" ? pct(it.share) : fmtN(it.n_observers)))),
+        h("td", { class: "nowrap muted right" }, it.last ? fmtDate(it.last, false) : "–"));
+    });
+    out.replaceChildren(
+      h("div", { class: "card" },
+        h("div", { class: "stats" },
+          h("div", { class: "stat" }, h("b", {}, fmtN(data.n_gaps)), h("span", {}, "huller")),
+          h("div", { class: "stat" }, h("b", {}, fmtN(data.mine)), h("span", {}, "arter på din liste")),
+          top ? h("div", { class: "stat" }, h("b", {}, top.art), h("span", {}, `største hul · ${st.by === "trips" ? pct(top.share) + " af ture" : fmtN(top.n_observers) + " observatører"}`)) : null)),
+      h("div", { class: "card table-wrap" },
+        h("div", { class: "row between mb" }, search, klassSel,
+          h("span", { class: "muted", style: { fontSize: ".85rem" } }, `${fmtN(all.length)} arter · sorteret efter ${st.by === "trips" ? "andel af ture" : "antal observatører"}`)),
+        all.length ? h("table", { class: "data" },
+          h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Art"), h("th", {}, st.by === "trips" ? "Andel af ture" : "Observatører"), h("th", { class: "right" }, "Senest set")))
+          , h("tbody", {}, ...rows)) : empty(data.n_gaps ? "Ingen arter matcher" : "Ingen huller – du har alle arter andre har!"),
+        all.length > st.shown ? h("div", { class: "row mt", style: { justifyContent: "center" } },
+          h("button", { class: "btn", onclick: () => { st.shown += GAP_STEP * 2; draw(); } }, `Vis flere (${fmtN(all.length - st.shown)} tilbage)`)) : null));
+  };
+  let t; search.oninput = () => { clearTimeout(t); t = setTimeout(() => { st.q = search.value; st.shown = GAP_STEP; draw(); }, 150); };
+  klassSel.onchange = () => { st.klass = klassSel.value; st.shown = GAP_STEP; draw(); };
+  scopeSel.onchange = load; yearSel.onchange = load;
+  await load();
 }
 
 // ---------------------------------------------------------------- scoreboard

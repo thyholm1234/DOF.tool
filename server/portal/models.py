@@ -316,6 +316,29 @@ class RegionYearSpecies(Base):
     last_date: Mapped[date] = mapped_column(Date)
 
 
+class RegionReach(Base):
+    """Hvor mange observatører og ture der har listearten pr. region og år (year = 0: alle år) – grundlag for 'Huller'."""
+
+    __tablename__ = "region_reach"
+
+    region: Mapped[str] = mapped_column(String(12), primary_key=True)
+    year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    artnr: Mapped[int] = mapped_column(Integer, primary_key=True)
+    n_observers: Mapped[int] = mapped_column(Integer)
+    n_trips: Mapped[int] = mapped_column(Integer)
+
+
+class RegionTotals(Base):
+    """Nævnerne til RegionReach: ture og observatører i alt pr. region og år (year = 0: alle år)."""
+
+    __tablename__ = "region_totals"
+
+    region: Mapped[str] = mapped_column(String(12), primary_key=True)
+    year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    n_trips: Mapped[int] = mapped_column(Integer)
+    n_observers: Mapped[int] = mapped_column(Integer)
+
+
 class LocationYear(Base):
     """Tal pr. lokalitet og år (year = 0: alle år) – grundlag for Lokaliteter-siden. rank = højeste kategori i perioden
     (0 alm, 1 bemærk, 2 SUB, 3 SU)."""
