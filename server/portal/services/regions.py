@@ -100,7 +100,8 @@ async def refresh_reach(session: AsyncSession, first_year: int | None = None) ->
 
 async def ensure_reach(session: AsyncSession, since_year: int | None = None) -> int:
     """Fuld beregning første gang (tom tabel), ellers fra since_year (højst det forrige år)."""
-    empty = not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach)"))).scalar()
+    # Alle år (year = 0) skrives sidst: findes de ikke, er en tidligere bygning afbrudt og alt bygges forfra
+    empty = not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach WHERE year = 0)"))).scalar()
     return await refresh_reach(session, None if empty else min(since_year or dk_today().year - 1, dk_today().year - 1))
 
 

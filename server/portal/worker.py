@@ -99,7 +99,7 @@ async def scheduler() -> None:
         await kv().rpush(COMMANDS, json.dumps({"cmd": "regions"}))
         await jobstatus.queued("regions")
     async with SessionLocal() as s:
-        has_reach = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach)"))).scalar()
+        has_reach = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach WHERE year = 0)"))).scalar()
     if not has_reach:
         await kv().rpush(COMMANDS, json.dumps({"cmd": "gaps"}))
         await jobstatus.queued("gaps")
@@ -188,7 +188,7 @@ async def region_years(from_year: int | None) -> None:
 
 async def gaps(from_year: int | None) -> None:
     async with SessionLocal() as s:
-        if from_year is None and await s.scalar(text("SELECT EXISTS (SELECT 1 FROM region_reach)")):
+        if from_year is None and await s.scalar(text("SELECT EXISTS (SELECT 1 FROM region_reach WHERE year = 0)")):
             await regions.ensure_reach(s, dk_today().year - 1)
         else:
             await regions.refresh_reach(s, from_year)
