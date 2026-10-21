@@ -68,17 +68,17 @@ async function rules(body) {
     h("button", { class: "btn", onclick: async () => { await api("/api/alerts/rules", { method: "POST", body: { name: "SU + SUB i Danmark", level: "SU,SUB" } }); body.replaceChildren(); rules(body); } }, "Opret 'SU + SUB i Danmark'")))); return; }
   body.append(h("div", { class: "grid" }, ...list.map(r => h("div", { class: "card row between", style: { opacity: r.enabled ? 1 : .55 } },
     h("div", {}, h("b", {}, r.name), h("div", { class: "muted" }, `${r.area_name} · ${levelText(r.level)}${r.level.includes("local") ? ` (< ${r.local_max} obs.)` : ""}${r.min_antal > 1 ? ` · min. ${r.min_antal} ind.` : ""}`,
-      r.missing ? ` · kun arter jeg ${MISSING_SHORT[r.missing]}` : "", r.species_include.length ? ` · ${r.species_include.length} udvalgte arter` : "", r.species_exclude.length ? ` · ${r.species_exclude.length} fravalgt` : "", r.push ? "" : " · kun indbakke")),
+      r.missing ? ` · kun arter jeg ${MISSING_SHORT[r.missing]}` : "", r.species_include.length ? ` · ${r.species_include.length} udvalgte arter` : "", r.species_exclude.length ? ` · ${r.species_exclude.length} fravalgt` : "", r.first_only ? " · kun første indtastning" : "", r.push ? "" : " · kun indbakke")),
     h("div", { class: "row" },
       h("label", { class: "check" }, h("input", { type: "checkbox", checked: r.enabled, onchange: async (e) => { await api(`/api/alerts/rules/${r.id}`, { method: "PUT", body: { ...strip(r), enabled: e.target.checked } }); r.enabled = e.target.checked; e.target.closest(".card").style.opacity = r.enabled ? 1 : .55; } }), "Aktiv"),
       h("button", { class: "btn sm", onclick: () => editRule(r, areasList, () => { body.replaceChildren(); rules(body); }) }, "Redigér"),
       h("button", { class: "btn sm ghost danger", onclick: async () => { if (!confirm("Slet reglen?")) return; await api(`/api/alerts/rules/${r.id}`, { method: "DELETE" }); body.replaceChildren(); rules(body); } }, "Slet"))))));
 }
 
-const strip = (r) => ({ name: r.name, area_id: r.area_id, kommuner: r.kommuner || [], afdelinger: r.afdelinger || [], level: r.level, local_max: r.local_max, min_antal: r.min_antal, species_include: r.species_include, species_exclude: r.species_exclude, missing: r.missing || null, push: r.push, enabled: r.enabled });
+const strip = (r) => ({ name: r.name, area_id: r.area_id, kommuner: r.kommuner || [], afdelinger: r.afdelinger || [], level: r.level, local_max: r.local_max, min_antal: r.min_antal, species_include: r.species_include, species_exclude: r.species_exclude, missing: r.missing || null, push: r.push, first_only: !!r.first_only, enabled: r.enabled });
 
 async function editRule(rule, areasList, done) {
-  const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SU,SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], missing: null, push: true, enabled: true };
+  const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SU,SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], missing: null, push: true, first_only: false, enabled: true };
   const name = h("input", { value: r.name, placeholder: "Fx 'Lokale hits i Odsherred'", required: true });
   const hasRegions = r.kommuner.length || r.afdelinger.length;
   const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"), h("option", { value: "regions", selected: !r.area_id && hasRegions }, "Lokalafdelinger og kommuner…"),
@@ -97,6 +97,7 @@ async function editRule(rule, areasList, done) {
   const push = h("input", { type: "checkbox", checked: r.push });
   // Kun arter man endnu ikke har krydset i området (som på Lister); med flere kommuner/afdelinger: i den fundet ligger i
   const missing = h("select", {}, ...Object.entries(MISSING).map(([v, l]) => h("option", { value: v, selected: (r.missing || "") === v }, l)));
+  const firstOnly = h("input", { type: "checkbox", checked: r.first_only });
   const include = speciesPicker(r.species_include, "Kun disse arter (valgfrit)");
   const exclude = speciesPicker(r.species_exclude, "Ignorér disse arter");
   const localRow = h("label", { class: "field" }, h("span", {}, "Lokalt hit = færre end N observationer i området i hele databasen"), localMax);
@@ -111,7 +112,7 @@ async function editRule(rule, areasList, done) {
     const reg = area.value === "regions" ? regions.value() : { kommuner: [], afdelinger: [] };
     if (area.value === "regions" && !reg.kommuner.length && !reg.afdelinger.length) { toast("Vælg mindst én lokalafdeling eller kommune", "err"); return; }
     const payload = { ...r, name: name.value, area_id: area.value && area.value !== "regions" ? Number(area.value) : null, ...reg, level: levelValue(), local_max: Number(localMax.value), min_antal: Number(minAntal.value),
-      species_include: include.value(), species_exclude: exclude.value(), missing: missing.value || null, push: push.checked };
+      species_include: include.value(), species_exclude: exclude.value(), missing: missing.value || null, push: push.checked, first_only: firstOnly.checked };
     try {
       if (rule) await api(`/api/alerts/rules/${rule.id}`, { method: "PUT", body: payload });
       else await api("/api/alerts/rules", { method: "POST", body: payload });
@@ -127,6 +128,8 @@ async function editRule(rule, areasList, done) {
         h("span", {}, "Arter"), missing)),
     include.el, exclude.el,
     h("label", { class: "check" }, push, "Send push-notifikation (ellers kun indbakke)"),
+    h("label", { class: "check", title: "Én besked pr. art, lokalitet og dag – ingen ny besked når andre birdere indtaster samme art eller et højere antal" },
+      firstOnly, "Kun første indtastning pr. art, lokalitet og dag"),
     h("p", { class: "muted", style: { fontSize: ".85rem" } }, areasList.length ? "" : "Lokalafdelinger og kommuner vælges direkte her. Lokaliteter, tegnede områder og radius oprettes under fanen 'Områder'."),
     h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => m.close() }, "Annullér"))), { wide: true });
 }

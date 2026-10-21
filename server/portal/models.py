@@ -442,6 +442,8 @@ class AlertRule(Base):
     # Kun arter brugeren endnu ikke har krydset i området: "year" (årslisten) eller "ever" (alle år); None = alle arter
     missing: Mapped[str | None] = mapped_column(String(8))
     push: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Kun den første indtastning af arten på lokaliteten pr. dag – ikke ny besked når flere eller flere ind. indtastes
+    first_only: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -912,6 +914,7 @@ EXTRA_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_trips_bbtag ON trips (obserkode, dato) WHERE turnoter LIKE '%#%'",
     # 10 km-kvadrat (DKN, EPSG:25832) for hver lokalitet – nøgle til vejrarkivet
     "ALTER TABLE locations ADD COLUMN IF NOT EXISTS cell10 integer",
+    "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS first_only boolean NOT NULL DEFAULT false",
     "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS retningslinjer boolean NOT NULL DEFAULT false",
     "ALTER TABLE field_reports ALTER COLUMN trip_id DROP NOT NULL",
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS source varchar(8) NOT NULL DEFAULT 'dof'",

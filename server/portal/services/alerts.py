@@ -112,7 +112,8 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
                 continue
             if rule["missing"] and not await crossed.missing(rule, e, user["obserkode"]):
                 continue
-            dedup = f"t:{t[0]}:{t[1]}:{t[2]}:{changed_threads[t]}"
+            # first_only: samme nøgle hele dagen, så kun den første matchende indtastning på lokaliteten giver besked
+            dedup = f"t:{t[0]}:{t[1]}:{t[2]}:{'first' if rule['first_only'] else changed_threads[t]}"
             key = (rule["user_id"], dedup)
             if key not in outbox:
                 outbox[key] = _message(e, thread_max.get(t, e.antal), rule)
@@ -324,7 +325,7 @@ async def _users(session: AsyncSession) -> dict[int, dict]:
 
 async def _rules(session: AsyncSession) -> list[dict]:
     rows = (await session.execute(text("""
-        SELECT r.id, r.user_id, r.level, r.local_max, r.min_antal, r.species_include, r.species_exclude, r.missing, r.push,
+        SELECT r.id, r.user_id, r.level, r.local_max, r.min_antal, r.species_include, r.species_exclude, r.missing, r.push, r.first_only,
                r.area_id, a.kind AS area_kind, a.ref AS area_ref, r.kommuner, r.afdelinger
         FROM alert_rules r LEFT JOIN areas a ON a.id = r.area_id WHERE r.enabled
     """))).mappings().all()

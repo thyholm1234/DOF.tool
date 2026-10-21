@@ -31,6 +31,7 @@ class RuleIn(BaseModel):
     species_exclude: list[int] = Field(default_factory=list, max_length=500)
     missing: str | None = Field(None, pattern="^(year|ever)$")
     push: bool = True
+    first_only: bool = False
     enabled: bool = True
 
 
@@ -40,7 +41,7 @@ def rule_out(r: AlertRule, area: Area | None, names: dict[str, str]) -> dict:
     return {"id": r.id, "name": r.name, "area_id": r.area_id, "kommuner": r.kommuner or [], "afdelinger": r.afdelinger or [],
             "area_name": area_name,
             "level": r.level, "local_max": r.local_max, "min_antal": r.min_antal, "species_include": r.species_include or [],
-            "species_exclude": r.species_exclude or [], "missing": r.missing, "push": r.push, "enabled": r.enabled}
+            "species_exclude": r.species_exclude or [], "missing": r.missing, "push": r.push, "first_only": r.first_only, "enabled": r.enabled}
 
 
 async def _region_names(db: AsyncSession) -> dict[str, str]:
