@@ -4,8 +4,8 @@ Hver melding er én fugl med dato, koordinat og lokalitet (foreslået ud fra koo
 DOFbasens indtastning (art, antal, adfærd, køn, alder, dragt, metode, tider, noter, hemmelig). Ældre meldinger kan
 høre til en tur med turtider og turnoter. Portalen tilføjer:
 
-- Status – om fuglen er under observation lige nu. Indtasteren og andre brugere, der står ved fuglen,
-  kan bekræfte "stadig til stede" eller melde den fløjet/ikke genfundet; følgere af tråden får besked.
+- Status – indtasteren kan angive, om fuglen er under observation. Derefter meldes status på selve tråden
+  (thread_status nedenfor), så alle kan melde på SU/SUB-fund – også dem der kun er i DOFbasen.
 - Sikkerhed – bestemmelsessikkerhed (sikker/sandsynlig/mulig) og grundlag (set, hørt, foto ...),
   samt beskyttelse: hemmelig (kun synlig for indtasteren) eller skjult præcis position.
 
@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
 from portal.dof.classify import get_classifier
-from portal.models import FieldReport, FieldReportUpdate, User
+from portal.models import FieldReport, FieldReportUpdate, ThreadStatus, User
 from portal.services import alerts
 from portal.services.areas import Scope
 from portal.timeutil import TZ
@@ -321,24 +321,65 @@ async def notify_new(session: AsyncSession, report_ids: list[int]) -> int:
     return await alerts.process(session, [], [], extra=events) if events else 0
 
 
-async def notify_status(session: AsyncSession, report_id: int, update_id: int) -> int:
-    """Statusændringer går til trådens følgere og til indtasteren (ikke til den, der meldte statussen)."""
-    report = await session.get(FieldReport, report_id)
-    upd = await session.get(FieldReportUpdate, update_id)
-    if report is None or upd is None or report.hemmelig:
-        return 0
-    thread = (report.dato, report.artnr, report.loknr)
-    recipients = set(await alerts.follower_ids(session, thread)) | {report.user_id}
-    recipients.discard(upd.user_id)
+# ---------------------------------------------------------------- status på SU/SUB-tråde
+
+
+async def rare_kategori(session: AsyncSession, day: date, artnr: int, loknr: int) -> str | None:
+    """'SU'/'SUB' hvis tråden har en synlig SU- eller SUB-observation (DOFbasen eller portalen), ellers None."""
+    rank = (await session.execute(text("""
+        SELECT max(CASE kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 ELSE 0 END) FROM (
+            SELECT kategori FROM observations WHERE dato = :d AND artnr = :a AND loknr = :l AND hemmelig = 0
+            UNION ALL SELECT kategori FROM field_reports WHERE dato = :d AND artnr = :a AND loknr = :l AND NOT hemmelig
+        ) x
+    """), {"d": day, "a": artnr, "l": loknr})).scalar()
+    return {3: "SU", 2: "SUB"}.get(rank or 0)
+
+
+def _summary(rows: list) -> dict | None:
+    if not rows:
+        return None
+    last = rows[-1]
+    return {"status": last["status"], "status_at": last["created_at"].isoformat(),
+            "live": is_live(last["status"], last["created_at"])}
+
+
+async def thread_status(session: AsyncSession, day: date, artnr: int, loknr: int, viewer: User | None) -> dict:
+    """Trådens statusmeldinger (ældste først) og den aktuelle status (den seneste melding)."""
+    rows = (await session.execute(text("""
+        SELECT x.id, x.status, x.created_at, x.user_id, u.navn, u.obserkode FROM thread_statuses x
+        JOIN users u ON u.id = x.user_id WHERE x.dato = :d AND x.artnr = :a AND x.loknr = :l ORDER BY x.created_at, x.id
+    """), {"d": day, "a": artnr, "l": loknr})).mappings().all()
+    return {"rare": await rare_kategori(session, day, artnr, loknr) is not None, "current": _summary(rows),
+            "updates": [{"id": r["id"], "status": r["status"], "navn": r["navn"] or r["obserkode"],
+                         "at": r["created_at"].isoformat(), "own": viewer is not None and r["user_id"] == viewer.id}
+                        for r in rows]}
+
+
+async def status_many(session: AsyncSession, day: date) -> dict[str, dict]:
+    """Aktuel status pr. tråd-id for dagens tråde med statusmeldinger (til feedet)."""
+    rows = (await session.execute(text("""
+        SELECT DISTINCT ON (artnr, loknr) artnr, loknr, status, created_at FROM thread_statuses
+        WHERE dato = :d ORDER BY artnr, loknr, created_at DESC, id DESC
+    """), {"d": day})).mappings().all()
+    return {f"{day.isoformat()}/{r['artnr']}/{r['loknr']}": _summary([r]) for r in rows}
+
+
+async def notify_thread_status(session: AsyncSession, status_id: int, kategori: str) -> int:
+    """En statusmelding går til trådens følgere (ikke til den, der meldte den)."""
+    st = await session.get(ThreadStatus, status_id)
+    if st is None:
+        return 0  # trukket tilbage inden afsendelse
+    recipients = set(await alerts.follower_ids(session, (st.dato, st.artnr, st.loknr)))
+    recipients.discard(st.user_id)
     if not recipients:
         return 0
     row = (await session.execute(text("""
         SELECT s.navn AS art, l.navn AS lok, u.navn AS who, u.obserkode FROM species s, locations l, users u
         WHERE s.artnr = :a AND l.loknr = :l AND u.id = :u
-    """), {"a": report.artnr, "l": report.loknr, "u": upd.user_id})).mappings().first()
-    when = upd.created_at.astimezone(TZ).strftime("%H.%M") if upd.created_at else ""
-    msg = {"title": f"{STATUS.get(upd.status, upd.status)}: {row['art']}, {row['lok']}"[:240],
-           "body": " · ".join(b for b in (f"{row['who'] or row['obserkode']} {when}".strip(), upd.note) if b)[:480],
-           "url": f"/#/traad/{report.dato}/{report.artnr}/{report.loknr}", "tag": f"{report.dato}-{report.artnr}-{report.loknr}",
-           "kategori": report.kategori, "rule_id": None, "push": True}
-    return await alerts.deliver(session, None, {(u, f"s:{upd.id}"): msg for u in recipients})
+    """), {"a": st.artnr, "l": st.loknr, "u": st.user_id})).mappings().first()
+    when = st.created_at.astimezone(TZ).strftime("%H.%M") if st.created_at else ""
+    msg = {"title": f"{STATUS.get(st.status, st.status)}: {row['art']}, {row['lok']}"[:240],
+           "body": f"{row['who'] or row['obserkode']} {when}".strip()[:480],
+           "url": f"/#/traad/{st.dato}/{st.artnr}/{st.loknr}", "tag": f"{st.dato}-{st.artnr}-{st.loknr}",
+           "kategori": kategori, "rule_id": None, "push": True}
+    return await alerts.deliver(session, None, {(u, f"ts:{st.id}"): msg for u in recipients})

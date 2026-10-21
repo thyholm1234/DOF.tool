@@ -84,8 +84,11 @@ for besked om hver ny observation; billeder/lyd fra DOFbasen hentes på forespø
 og dato; derefter art (dropdown med dine seneste arter), antal, tidspunkt og adfærd (påkrævet), noter, fuglens
 position på kortet, køn/alder/dragt/metode og foto/lyd. Afkrydsning af DOF's retningslinjer *Når du ser en
 sjælden fugl* er påkrævet for SU/SUB-arter.
-Kodelister bygges fra DOFbasen-data. Portalen tilføjer **status** (er fuglen under observation? – andre
-kan melde "stadig til stede", "fløjet" eller "ikke genfundet", og trådens følgere får besked) og
+**Status på SU/SUB-tråde.** På alle tråde med en SU- eller SUB-art – fra DOFbasen eller portalen – kan alle
+indloggede melde "stadig til stede", "fløjet" eller "ikke genfundet" (samme dag eller dagen efter). Hver melding
+skal bekræftes, kan trækkes tilbage af den, der meldte den, og trådens følgere får besked. Den seneste melding
+vises på tråden og i feedet.
+Kodelister bygges fra DOFbasen-data. Portalen tilføjer **status** (er fuglen under observation?) og
 **sikkerhed** (sikker/sandsynlig/mulig + grundlag: set, hørt, foto, lyd, i hånden, beskrevet; samt
 ). Meldingerne klassificeres som
 DOFbasen-data, vises i de samme tråde og kører gennem de samme alarmregler. De sendes **ikke** til

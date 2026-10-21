@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.api.learn import MEDIA_TYPES
-from portal.cache import kv, publish
+from portal.cache import publish
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, ThreadFollow, User
@@ -68,11 +68,6 @@ class ReportIn(BaseModel):
         if bad:
             raise ValueError(f"Ukendt grundlag: {', '.join(bad)}")
         return list(dict.fromkeys(v))
-
-
-class StatusIn(BaseModel):
-    status: str = Field(pattern="^(til_stede|fløjet|ikke_genfundet)$")
-    note: str | None = Field(None, max_length=300)
 
 
 async def _in_background(fn, *args) -> None:
@@ -243,24 +238,6 @@ async def delete_report(report_id: int, user: User = Depends(require_user), db: 
     _remove_files(media)
     await publish("feed", {"type": "feed", "portal": True})
     return {"ok": True}
-
-
-@router.post("/{report_id}/status")
-async def set_status(report_id: int, body: StatusIn, tasks: BackgroundTasks, user: User = Depends(require_user),
-                     db: AsyncSession = Depends(get_session)):
-    """Alle indloggede kan melde status på en synlig feltmelding fra de seneste to dage."""
-    r = await db.get(FieldReport, report_id)
-    if r is None or (r.hemmelig and r.user_id != user.id):
-        raise HTTPException(404, "Observationen findes ikke")
-    if r.dato < dk_today() - timedelta(days=1):
-        raise HTTPException(400, "Status kan kun meldes samme dag eller dagen efter")
-    if not await kv().set(f"report:status:rl:{user.id}:{r.id}", "1", nx=True, ex=20):
-        raise HTTPException(429, "Du har lige meldt status – vent lidt")
-    upd = await reports.add_status(db, r, user, body.status, body.note)
-    await db.commit()
-    tasks.add_task(_in_background, reports.notify_status, r.id, upd.id)
-    await publish("feed", {"type": "feed", "portal": True})
-    return await _one(db, r, user)
 
 
 @router.post("/{report_id}/media")

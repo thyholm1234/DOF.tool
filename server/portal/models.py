@@ -471,6 +471,22 @@ class ThreadComment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ThreadStatus(Base):
+    """Statusmeldinger på en SU/SUB-tråd (art + lokalitet + dag): stadig til stede, fløjet eller ikke genfundet.
+    Alle indloggede kan melde; en melding kan trækkes tilbage af den, der meldte den."""
+
+    __tablename__ = "thread_statuses"
+    __table_args__ = (Index("ix_thread_status", "dato", "artnr", "loknr"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dato: Mapped[date] = mapped_column(Date)
+    artnr: Mapped[int] = mapped_column(Integer)
+    loknr: Mapped[int] = mapped_column(Integer)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Notification(Base):
     """Indbakke + log over sendte notifikationer (dedup pr. bruger/observation)."""
 

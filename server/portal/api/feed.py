@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+import logging
+from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -10,11 +11,11 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import optional_user, require_user
-from portal.cache import kv
-from portal.db import get_session
+from portal.cache import kv, publish
+from portal.db import SessionLocal, get_session
 from portal.dof import gateway
 from portal.dof.jobs import ensure_media_obs, media_for, media_many
-from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
+from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, ThreadStatus, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, pulse, reports
 from portal.services.auth import can, modules
@@ -24,6 +25,7 @@ from portal.services.lists import ListSpec
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["feed"])
+log = logging.getLogger("portal.feed")
 
 
 async def resolve_scope(db: AsyncSession, scope: str | None, user: User | None) -> Scope:
@@ -56,6 +58,7 @@ async def get_feed(
         threads = await _my_filter_threads(db, day, user)
         await _attach_media(db, day, threads)
         await _attach_comments(db, day, threads)
+        await _attach_status(db, day, threads)
         likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
         for t in threads:
             t["likes"] = likes.get(t["id"], {}).get("count", 0)
@@ -68,6 +71,7 @@ async def get_feed(
     threads = await reports.merge_feed(db, threads, day, sc, level, local_max, user)
     await _attach_media(db, day, threads)
     await _attach_comments(db, day, threads)
+    await _attach_status(db, day, threads)
     likes = await like_summary(db, "thread", [t["id"] for t in threads], user)
     for t in threads:
         t["likes"] = likes.get(t["id"], {}).get("count", 0)
@@ -80,6 +84,14 @@ async def _attach_comments(db: AsyncSession, day: date, threads: list[dict]) -> 
     """), {"d": day})).all()}
     for t in threads:
         t["n_comments"] = counts.get(t["id"], 0)
+
+
+async def _attach_status(db: AsyncSession, day: date, threads: list[dict]) -> None:
+    """Statusmeldinger på SU/SUB-tråde (stadig til stede, fløjet, ikke genfundet)."""
+    status = await reports.status_many(db, day)
+    for t in threads:
+        if t["id"] in status and t["kategori"] in ("SU", "SUB"):
+            t["status"] = status[t["id"]]
 
 
 async def _attach_media(db: AsyncSession, day: date, threads: list[dict]) -> None:
@@ -197,6 +209,7 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
         for o in missing:
             o["media_pending"] = o["obsid"] in st["obsids"]  # observationer ud over de første få slås op ved næste besøg
     data["find"] = await finds.thread_find(db, day, artnr, loknr)
+    data["status"] = await reports.thread_status(db, day, artnr, loknr, user)
     data["comments"] = await _comments(db, day, artnr, loknr, user)
     key = f"{day.isoformat()}/{artnr}/{loknr}"
     data["likes"] = (await like_summary(db, "thread", [key], user)).get(key) or {"count": 0, "liked": False, "names": []}
@@ -271,6 +284,51 @@ async def comment(day: date, artnr: int, loknr: int, body: CommentIn, tasks: Bac
     await moderation.comments_changed(f"{day}/{artnr}/{loknr}", "new", c.id)
     return {"id": c.id, "body": c.body, "navn": user.navn, "obserkode": user.obserkode, "user_id": user.id,
             "created_at": c.created_at.isoformat(), "likes": {"count": 0, "liked": False, "names": []}}
+
+
+class ThreadStatusIn(BaseModel):
+    status: str = Field(pattern="^(til_stede|fløjet|ikke_genfundet)$")
+
+
+async def _notify_status(status_id: int, kategori: str) -> None:
+    async with SessionLocal() as s:
+        try:
+            await reports.notify_thread_status(s, status_id, kategori)
+        except Exception:  # noqa: BLE001 – en fejlet notifikation må ikke vælte statusmeldingen
+            log.exception("Notifikation for trådstatus fejlede")
+
+
+@router.post("/thread/{day}/{artnr}/{loknr}/status")
+async def add_thread_status(day: date, artnr: int, loknr: int, body: ThreadStatusIn, tasks: BackgroundTasks,
+                            user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Alle indloggede kan melde status på en SU/SUB-tråd samme dag eller dagen efter."""
+    kategori = await reports.rare_kategori(db, day, artnr, loknr)
+    if kategori is None:
+        raise HTTPException(400, "Status kan kun meldes på SU- og SUB-arter")
+    if day < dk_today() - timedelta(days=1):
+        raise HTTPException(400, "Status kan kun meldes samme dag eller dagen efter")
+    if not await kv().set(f"thread:status:rl:{user.id}:{day}/{artnr}/{loknr}", "1", nx=True, ex=20):
+        raise HTTPException(429, "Du har lige meldt status – vent lidt")
+    st = ThreadStatus(dato=day, artnr=artnr, loknr=loknr, user_id=user.id, status=body.status)
+    db.add(st)
+    await db.commit()
+    await activity.track(user.id, "thread_status", None, {"thread": f"{day}/{artnr}/{loknr}", "status": body.status})
+    tasks.add_task(_notify_status, st.id, kategori)
+    await publish("feed", {"type": "feed", "status": f"{day.isoformat()}/{artnr}/{loknr}"})
+    return await reports.thread_status(db, day, artnr, loknr, user)
+
+
+@router.delete("/thread/{day}/{artnr}/{loknr}/status/{status_id}")
+async def withdraw_thread_status(day: date, artnr: int, loknr: int, status_id: int, user: User = Depends(require_user),
+                                 db: AsyncSession = Depends(get_session)):
+    """Træk sin egen statusmelding tilbage."""
+    st = await db.get(ThreadStatus, status_id)
+    if st is None or st.user_id != user.id or (st.dato, st.artnr, st.loknr) != (day, artnr, loknr):
+        raise HTTPException(404, "Statusmeldingen findes ikke")
+    await db.delete(st)
+    await db.commit()
+    await publish("feed", {"type": "feed", "status": f"{day.isoformat()}/{artnr}/{loknr}"})
+    return await reports.thread_status(db, day, artnr, loknr, user)
 
 
 @router.delete("/comments/{comment_id}")

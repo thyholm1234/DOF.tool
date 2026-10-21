@@ -1,4 +1,4 @@
-// Fælles visning af feltmeldinger (egne indtastninger): status, sikkerhed, medier og statusknapper.
+// Fælles visning af feltmeldinger (egne indtastninger): status, sikkerhed og medier – og statusknapperne på SU/SUB-tråde.
 import { api, state, h, icon, fmtN, fmtTime, ago, tag, toast, KAT } from "./core.js";
 
 export const STATUS = { til_stede: "Under observation", "fløjet": "Fløjet/forsvundet", ikke_genfundet: "Ikke genfundet", ukendt: "Ikke angivet" };
@@ -16,17 +16,10 @@ export function statusBadge(status, live, at) {
 
 export const certaintyTag = (s) => s && s !== "sikker" ? h("span", { class: `tag certainty ${s}`, title: "Bestemmelsessikkerhed" }, SIKKERHED[s]) : null;
 
-/** Kort for én feltmelding. onChange(report) kaldes efter statusændring. */
-export function reportCard(r, { onChange, onEdit, showObserver = true } = {}) {
+/** Kort for én feltmelding. */
+export function reportCard(r, { onEdit, showObserver = true } = {}) {
   const tid = [r.obstidfra || r.turtidfra, r.obstidtil].filter(Boolean).join("–");
   const details = [r.adf, r.koen === "M" ? "han" : r.koen === "F" ? "hun" : null, r.alderkode, r.dragt, r.metode && r.metode !== "Uspecificeret/tilfældig" ? r.metode : null].filter(Boolean);
-  const canStatus = state.user && !(r.hemmelig && !r.own);
-  const setStatus = async (status) => {
-    const note = status === "til_stede" ? "" : (prompt(`${STATUS[status]} – evt. kommentar (fx retning, tidspunkt):`) ?? null);
-    if (note === null) return;
-    try { const upd = await api(`/api/reports/${r.id}/status`, { method: "POST", body: { status, note: note || null } }); toast(`Status: ${STATUS[status]}`); onChange?.(upd); }
-    catch (err) { toast(err.message, "err"); }
-  };
   return h("div", { class: `report ${r.kategori}` },
     h("div", { class: "row between", style: { alignItems: "flex-start" } },
       h("div", { style: { minWidth: 0 } },
@@ -46,9 +39,38 @@ export function reportCard(r, { onChange, onEdit, showObserver = true } = {}) {
     r.updates?.length > 1 || (r.updates?.length === 1 && r.updates[0].note) ? h("ul", { class: "timeline" },
       ...r.updates.map(u => h("li", {}, h("b", {}, STATUS[u.status] || u.status), ` · ${u.navn} · ${fmtTime(u.at)}`, u.note ? h("div", { class: "muted" }, u.note) : null))) : null,
     r.i_dofbasen ? h("small", { class: "muted" }, "✓ Også indtastet i DOFbasen") : null,
-    canStatus ? h("div", { class: "row", style: { gap: "6px", marginTop: "8px", flexWrap: "wrap" } },
-      h("button", { class: "btn sm", onclick: () => setStatus("til_stede"), html: `${icon("bino")} Stadig til stede` }),
-      h("button", { class: "btn sm", onclick: () => setStatus("fløjet") }, "Fløjet"),
-      h("button", { class: "btn sm", onclick: () => setStatus("ikke_genfundet") }, "Ikke genfundet")) : null,
     h("small", { class: "muted", style: { display: "block", marginTop: "4px" } }, `Indtastet ${ago(r.created_at)}`));
+}
+
+const BUTTONS = [["til_stede", "Stadig til stede", "bino"], ["fløjet", "Fløjet"], ["ikke_genfundet", "Ikke genfundet"]];
+
+/** Statusboks på en SU/SUB-tråd: alle indloggede kan melde status (med bekræftelse) og trække deres egne meldinger
+ *  tilbage. st = trådens status fra API'et; onChange(st) kaldes med den nye status. */
+export function threadStatusCard(st, { date, artnr, loknr, art, onChange }) {
+  const base = `/api/thread/${date}/${artnr}/${loknr}/status`;
+  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("sv-SE", { timeZone: "Europe/Copenhagen" });
+  const open = date >= yesterday;  // serveren tager kun imod samme dag og dagen efter
+  const send = async (path, opts) => {
+    try { onChange(await api(path, opts)); } catch (err) { toast(err.message, "err"); }
+  };
+  const report = (status, label) => {
+    if (!confirm(`Meld "${label}" for ${art}?\n\nAlle kan se meldingen, og følgere af tråden får besked.`)) return;
+    send(base, { method: "POST", body: { status } }).then(() => toast(`Meldt: ${label}`));
+  };
+  const withdraw = (u) => {
+    if (!confirm(`Træk din melding "${STATUS[u.status]}" fra ${fmtTime(u.at)} tilbage?`)) return;
+    send(`${base}/${u.id}`, { method: "DELETE" }).then(() => toast("Meldingen er trukket tilbage"));
+  };
+  const cur = st.current;
+  return h("div", { class: "card" },
+    h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Status"),
+      cur ? statusBadge(cur.status, cur.live, cur.status_at) : h("small", { class: "muted" }, "Ingen meldinger endnu")),
+    h("p", { class: "muted", style: { fontSize: ".85rem", margin: "6px 0 0" } }, "Står du ved fuglen? Meld om den stadig er der – eller om den er fløjet."),
+    !open ? null
+      : !state.user ? h("p", {}, h("a", { href: "#/login?next=" + encodeURIComponent(location.hash) }, "Log ind for at melde status"))
+      : h("div", { class: "row", style: { gap: "6px", marginTop: "8px", flexWrap: "wrap" } },
+        ...BUTTONS.map(([code, label, ic]) => h("button", { class: "btn sm", onclick: () => report(code, label), html: ic ? `${icon(ic)} ${label}` : label }))),
+    st.updates.length ? h("ul", { class: "timeline" }, ...[...st.updates].reverse().map(u => h("li", {},
+      h("b", {}, STATUS[u.status] || u.status), ` · ${u.navn} · ${fmtTime(u.at)}`,
+      u.own ? h("button", { class: "btn sm ghost", style: { marginLeft: "6px" }, onclick: () => withdraw(u) }, "Træk tilbage") : null))) : null);
 }

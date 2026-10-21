@@ -1,7 +1,7 @@
 import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
-import { reportCard, statusBadge } from "../reportui.js";
+import { reportCard, statusBadge, threadStatusCard } from "../reportui.js";
 import { likeWidget } from "../likes.js";
 import { banForm } from "../moderation.js";
 
@@ -18,10 +18,18 @@ export async function render(view, [date, artnr, loknr]) {
   const liveRep = reps.find(r => r.live) || reps.find(r => r.status !== "ukendt");
   const repList = h("div", { class: "stack" });
   const drawReports = () => repList.replaceChildren(...reps.map(r => reportCard(r, {
-    onChange: (upd) => { Object.assign(r, upd); drawReports(); },
     onEdit: r.own ? () => { location.hash = `#/indtast/obs/${r.id}`; } : null,
   })));
   drawReports();
+  // Status på SU/SUB-tråde: meldt af alle på selve tråden. Ellers vises indtasterens egen status fra portalen.
+  const badgeEl = h("span", {});
+  const statusEl = h("div", {});
+  const drawStatus = () => {
+    const cur = t.status?.current;
+    badgeEl.replaceChildren(cur ? statusBadge(cur.status, cur.live, cur.status_at) : liveRep ? statusBadge(liveRep.status, liveRep.live, liveRep.status_at) || "" : "");
+    statusEl.replaceChildren(t.status?.rare ? threadStatusCard(t.status, { date, artnr, loknr, art: t.art, onChange: (s) => { t.status = s; drawStatus(); } }) : "");
+  };
+  drawStatus();
   const followBtn = h("button", { class: `btn ${t.following ? "primary" : ""}` });
   const drawFollow = () => { followBtn.innerHTML = `${icon("bell")} ${t.following ? "Følger tråden" : "Følg tråden"}`; followBtn.className = `btn ${t.following ? "primary" : ""}`; };
   drawFollow();
@@ -50,7 +58,7 @@ export async function render(view, [date, artnr, loknr]) {
     h("p", {}, h("a", { href: "#/" }, "← Feed")),
     h("div", { class: "page-head" },
       h("div", {},
-        h("div", { class: "row" }, tag(best, KAT[best]), liveRep ? statusBadge(liveRep.status, liveRep.live, liveRep.status_at) : null, h("span", { class: "muted" }, fmtDate(date))),
+        h("div", { class: "row" }, tag(best, KAT[best]), badgeEl, h("span", { class: "muted" }, fmtDate(date))),
         h("h1", { style: { marginTop: "6px" } }, `${fmtN(maxAntal)} ${t.art}`),
         h("p", { class: "lead" }, h("a", { href: `#/lok/${loknr}` }, t.lok), t.kommune ? ` · ${t.kommune} Kommune` : "",
           " · ", h("a", { href: `#/art/${artnr}` }, "om arten"), t.latin ? h("i", { class: "muted" }, ` (${t.latin})`) : null)),
@@ -60,8 +68,9 @@ export async function render(view, [date, artnr, loknr]) {
     findNotice(t.find, artnr),
     h("div", { class: "grid-2" },
       h("div", { class: "stack" },
+        statusEl,
         reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
-          h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, "Indtastet direkte i portalen. Står du ved fuglen, så meld om den stadig er der."), repList) : null,
+          h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, "Indtastet direkte i portalen."), repList) : null,
         h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
           obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, { pending: !!o.media_pending, eta: t.media_eta }, mediaRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
       h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
@@ -155,6 +164,10 @@ export async function render(view, [date, artnr, loknr]) {
     mediaTimer = setTimeout(refreshMedia, 800);
   });
   const offFeed = live.on("feed", async (e) => {
+    if (e.status === threadKey) {
+      try { t.status = (await api(`/api/thread/${date}/${artnr}/${loknr}`)).status; drawStatus(); } catch { /* ignore */ }
+      return;
+    }
     if (!e.portal || !reps.length) return;
     try { const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`); reps.splice(0, reps.length, ...(fresh.reports || [])); drawReports(); } catch { /* ignore */ }
   });
