@@ -253,7 +253,10 @@ class Crossed:
         return self.memo[key]
 
     async def missing(self, rule: dict, e: Event, obserkode: str | None) -> bool:
-        """Mangler brugeren arten i (mindst ét af) områderne? Uden obserkode har man ingen lister – alt mangler."""
+        """Mangler brugeren arten i (mindst ét af) områderne? Uden obserkode har man ingen lister – alt mangler.
+        Ubestemte (sp.) og hybrider er ikke arter på listen og tæller aldrig som manglende."""
+        if e.art_type not in ("art", "underart"):
+            return False
         if not obserkode:
             return True
         year = dk_today().year if rule["missing"] == "year" else None

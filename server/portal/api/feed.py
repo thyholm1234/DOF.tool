@@ -130,15 +130,19 @@ async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[di
         return fetched[key]
 
     crossed = Crossed(db)
-    list_art: dict[int, int] = {}
+    list_art: dict[int, int | None] = {}
 
     async def lacks(r: AlertRule, sc: Scope, artnr: int) -> bool:
-        """Regler med 'kun arter jeg mangler': arten må ikke være krydset i området (årsliste eller alle år)."""
+        """Regler med 'kun arter jeg mangler': arten må ikke være krydset i området (årsliste eller alle år).
+        Ubestemte (sp.) og hybrider er ikke arter på listen og vises aldrig her."""
+        if artnr not in list_art:
+            row = (await db.execute(text(
+                "SELECT coalesce(list_artnr, artnr), art_type FROM species WHERE artnr = :a"), {"a": artnr})).first()
+            list_art[artnr] = artnr if row is None else row[0] if row[1] in ("art", "underart") else None
+        if list_art[artnr] is None:
+            return False
         if not user.obserkode:
             return True
-        if artnr not in list_art:
-            list_art[artnr] = (await db.execute(text(
-                "SELECT coalesce(list_artnr, artnr) FROM species WHERE artnr = :a"), {"a": artnr})).scalar() or artnr
         year = dk_today().year if r.missing == "year" else None
         return list_art[artnr] not in await crossed.species(user.obserkode, ListSpec(sc, year))
 
