@@ -18,7 +18,9 @@ from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, User
 from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, pulse, reports
 from portal.services.auth import can, modules
+from portal.services.alerts import Crossed
 from portal.services.areas import Scope, parse_scope, scope_for_area
+from portal.services.lists import ListSpec
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["feed"])
@@ -115,6 +117,19 @@ async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[di
             fetched[key] = await reports.merge_feed(db, ts, day, sc, level, local_max, user)
         return fetched[key]
 
+    crossed = Crossed(db)
+    list_art: dict[int, int] = {}
+
+    async def lacks(r: AlertRule, sc: Scope, artnr: int) -> bool:
+        """Regler med 'kun arter jeg mangler': arten må ikke være krydset i området (årsliste eller alle år)."""
+        if not user.obserkode:
+            return True
+        if artnr not in list_art:
+            list_art[artnr] = (await db.execute(text(
+                "SELECT coalesce(list_artnr, artnr) FROM species WHERE artnr = :a"), {"a": artnr})).scalar() or artnr
+        year = dk_today().year if r.missing == "year" else None
+        return list_art[artnr] not in await crossed.species(user.obserkode, ListSpec(sc, year))
+
     out: dict[str, dict] = {}
     for r in rules:
         if r.kommuner or r.afdelinger:
@@ -139,6 +154,8 @@ async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[di
                     if t["kategori"] not in ok or ((r.min_antal or 1) > 1 and t["max_antal"] < r.min_antal):
                         continue
                     if (r.species_include and t["artnr"] not in r.species_include) or t["artnr"] in (r.species_exclude or ()):
+                        continue
+                    if r.missing and not await lacks(r, sc, t["artnr"]):
                         continue
                     hit = out.setdefault(t["id"], {**t, "rules": []})
                     if r.name not in hit["rules"]:
