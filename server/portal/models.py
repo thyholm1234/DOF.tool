@@ -379,7 +379,6 @@ class User(Base):
     obserkode: Mapped[str] = mapped_column(String(16), unique=True)
     navn: Mapped[str | None] = mapped_column(String(160))
     role: Mapped[str] = mapped_column(String(16), default="user")  # user / editor / admin / superadmin
-    password_hash: Mapped[str | None] = mapped_column(String(200))
     dof_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     # Nye brugere skal godkendes af en administrator (kan slås fra). Eksisterende brugere er godkendt.
@@ -904,6 +903,8 @@ class CalendarVisit(Base):
 
 # Ekstra DDL der ikke kan udtrykkes pænt i modellerne
 EXTRA_DDL = [
+    # Portalen gemmer ikke længere noget om adgangskoder – login tjekkes altid hos DOFbasen
+    "ALTER TABLE users DROP COLUMN IF EXISTS password_hash",
     "ALTER TABLE notifications ALTER COLUMN pushed SET DEFAULT false",
     "ALTER TABLE notifications ALTER COLUMN read SET DEFAULT false",
     "CREATE INDEX IF NOT EXISTS ix_locations_geom ON locations USING gist (geom)",

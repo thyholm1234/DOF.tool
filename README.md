@@ -25,25 +25,23 @@ docker compose
 **Alt**, der går til dofbasen.dk, går gennem gatewayen i worker-processen
 (`server/portal/dof/gateway.py`). Der er to baner:
 
-* **Udtræk** (live-hentning, login-tjek, referencedata, historik, måneder): én kø i Valkey, og der går
+* **Udtræk** (live-hentning, referencedata, historik, måneder): én kø i Valkey, og der går
   altid mindst 60 sekunder fra ét kald er færdigt til det næste starter. Grænsen kan ikke sættes lavere
   end 60 sekunder (`DOF_MIN_INTERVAL`), og den håndhæves med et globalt tidsstempel og en lås, så den
   også holder på tværs af genstarter. Eneste undtagelse er knappen *Hent nu* ved "Dagen i dag" under **Admin → Data**:
   den henter dagens liste med det samme én gang (højst hvert 15. sekund).
-* **Opslag** (billeder, lyd og DKU-status for én observation): små sider, der ikke trækker data ud af
+* **Opslag** (login-tjek samt billeder, lyd og DKU-status for én observation): små kald, der ikke trækker data ud af
   DOFbasens database. De har deres egen kø og udføres med det samme, højst fire ad gangen, uden at vente på
-  minimumsintervallet og uden at påvirke det.
+  minimumsintervallet og uden at påvirke det. Login er begrænset til fem forsøg i minuttet pr. obserkode og pr. IP.
 
 Prioritering af udtrækkene pr. ledigt minut:
-1. login-tjek
-2. live-hentning af dagens observationer
-3. øvrige job (i går hver time, sidste 7 dage om natten, referencedata kl. 3, huller i data).
+1. live-hentning af dagens observationer
+2. øvrige job (i går hver time, sidste 7 dage om natten, referencedata kl. 3, huller i data).
    Er der ventende job, skiftes der mellem live og kø, så feedet opdateres mindst hvert 2. minut.
 
 Hvad sparer kald:
 * Én dagsliste dækker *alle* moduler: notifikationer, lister, scoreboards og fænologi læser samme data.
 * Historik kommer fra det lokale arkiv (`dofbasen_ÅÅÅÅ_MM.csv`), der importeres automatisk.
-* Login tjekkes kun hos DOFbasen første gang (eller ved ændret kode); derefter bruges en argon2-hash.
 * Kommunetilhørsforhold beregnes med kommunepolygoner i PostGIS, ikke med opslag hos DOFbasen.
 
 Status, kø og log kan ses under **Admin → Drift**.
@@ -63,7 +61,8 @@ docker compose up -d --build
    og genberegner derefter fænologi og lokale artstal. Fremdrift ses under Admin → Drift.
 3. Live-hentningen går i gang med det samme.
 
-Superadmin oprettes ud fra `SUPERADMIN_OBSERKODE`/`SUPERADMIN_PASSWORD` ved hver opstart.
+Superadmin sættes ud fra `SUPERADMIN_OBSERKODE` ved hver opstart og logger ind med sin DOFbasen-adgangskode.
+Portalen gemmer intet om adgangskoder (heller ikke hashes): hvert login tjekkes hos DOFbasen.
 
 ### Push-notifikationer
 

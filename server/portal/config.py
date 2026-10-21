@@ -19,9 +19,8 @@ class Settings(BaseSettings):
     postgres_dsn: str = "postgresql+asyncpg://portal:portal@localhost:5432/portal"
     redis_dsn: str = "redis://localhost:6379/0"
 
-    # Superadmin oprettes/opdateres ved opstart. Adgangskoden gemmes kun som argon2-hash.
+    # Superadmin er denne obserkode (sættes ved opstart). Den logger ind med sin DOFbasen-adgangskode som alle andre.
     superadmin_obserkode: str = ""
-    superadmin_password: str = ""
 
     session_days: int = 90
     cookie_secure: bool = False

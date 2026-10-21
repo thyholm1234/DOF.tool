@@ -30,7 +30,7 @@ export async function render(view) {
         e.preventDefault();
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span> Logger ind…';
-        const slow = setTimeout(() => msg.replaceChildren(h("div", { class: "notice" }, "Første login tjekkes hos DOFbasen. Portalen kalder højst DOFbasen én gang i minuttet for ikke at belaste serveren – det kan tage op til et minut.")), 2500);
+        const slow = setTimeout(() => msg.replaceChildren(h("div", { class: "notice" }, "Adgangskoden tjekkes hos DOFbasen – det tager normalt kun et øjeblik.")), 2500);
         try {
           const r = await api("/api/auth/login", { method: "POST", body: { obserkode: kode.value.trim(), password: pw.value } });
           await refreshUser();

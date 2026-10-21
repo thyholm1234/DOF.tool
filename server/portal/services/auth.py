@@ -1,8 +1,8 @@
 """Fælles login med DOFbasen-obserkode.
 
-Første login verificeres hos DOFbasen (via gatewayen – tæller med i 1 kald/min). Derefter gemmes
-en argon2-hash lokalt, så efterfølgende logins ikke belaster DOFbasen. Adgangskoden gemmes aldrig
-i klartekst; i gateway-køen ligger den højst 3 minutter.
+Hvert login verificeres hos DOFbasen (gatewayens opslagsbane – uden minimumsinterval). Portalen gemmer intet om
+adgangskoden, heller ikke en hash; i gateway-køen ligger den højst 3 minutter. Højst LOGIN_PER_MIN forsøg i minuttet
+pr. obserkode og pr. IP.
 """
 
 from __future__ import annotations
@@ -11,8 +11,6 @@ import re
 import secrets
 from datetime import datetime, timezone
 
-from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError, InvalidHashError
 from sqlalchemy import or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +19,7 @@ from portal.config import get_settings
 from portal.dof import gateway
 from portal.models import Role, Setting, User
 
-ph = PasswordHasher()
+LOGIN_PER_MIN = 5
 OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
 # Admin-moduler. Rollen giver et standardsæt; en bruger kan i stedet få en individuel liste (users.permissions).
 MODULES = {
@@ -95,18 +93,10 @@ def normalize(kode: str) -> str:
     return kode
 
 
-def verify(hash_: str | None, password: str) -> bool:
-    if not hash_:
-        return False
-    try:
-        return ph.verify(hash_, password)
-    except (VerificationError, InvalidHashError):
-        return False
-
-
 async def ensure_superadmin(session: AsyncSession) -> None:
+    """Superadmin er obserkoden fra .env. Den logger ind via DOFbasen som alle andre."""
     s = get_settings()
-    if not s.superadmin_obserkode or not s.superadmin_password:
+    if not s.superadmin_obserkode:
         return
     kode = normalize(s.superadmin_obserkode)
     user = (await session.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
@@ -114,26 +104,21 @@ async def ensure_superadmin(session: AsyncSession) -> None:
         user = User(obserkode=kode, navn=kode, role="superadmin", prefs={})
         session.add(user)
     user.role = SUPERADMIN
-    if not verify(user.password_hash, s.superadmin_password):
-        user.password_hash = ph.hash(s.superadmin_password)
+    user.approved = True
     # Der er kun én superadmin – den fra .env. Andre med rollen (fx en tidligere SUPERADMIN_OBSERKODE) bliver administratorer.
     await session.execute(update(User).where(User.role == SUPERADMIN, User.id != user.id).values(role="admin"))
     await session.commit()
 
 
 async def _rate_limit(kode: str, ip: str) -> None:
+    """Hvert forsøg tæller (det giver et kald til DOFbasen): højst LOGIN_PER_MIN i minuttet pr. obserkode og pr. IP."""
     r = kv()
-    for key in (f"login:fail:{kode}", f"login:fail:ip:{ip}"):
-        n = int(await r.get(key) or 0)
-        if n >= (8 if "ip:" not in key else 30):
-            raise AuthError("For mange forsøg. Prøv igen om 10 minutter.", 429)
-
-
-async def _fail(kode: str, ip: str) -> None:
-    r = kv()
-    for key in (f"login:fail:{kode}", f"login:fail:ip:{ip}"):
-        await r.incr(key)
-        await r.expire(key, 600)
+    for key in (f"login:try:{kode}", f"login:try:ip:{ip}"):
+        n = await r.incr(key)
+        if n == 1:
+            await r.expire(key, 60)
+        if n > LOGIN_PER_MIN:
+            raise AuthError("For mange forsøg. Prøv igen om et minut.", 429)
 
 
 PENDING_MSG = ("Din konto er oprettet, men afventer godkendelse af en administrator. "
@@ -163,38 +148,30 @@ async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -
     user = (await session.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
     if user and user.blocked:
         raise AuthError("Brugeren er spærret", 403)
-    if user and verify(user.password_hash, password):
-        if not user.approved:
-            raise AuthError(PENDING_MSG, 403)
-        if user.navn in (None, "", user.obserkode):
-            navn = (await session.execute(text(
-                "SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = :k"),
-                {"k": kode})).scalar()
-            if navn:
-                user.navn = navn
-                await session.commit()
-        return user, False
 
-    # Verificér hos DOFbasen – samme kø som alt andet, men forrest
+    # Verificér hos DOFbasen (opslagsbanen: med det samme, uden at vente på minimumsintervallet)
     job_id = await gateway.enqueue("login", {"obserkode": kode}, priority=gateway.INTERACTIVE,
                                    secret={"password": password})
-    result = await gateway.wait_result(job_id, timeout=150)
+    result = await gateway.wait_result(job_id, timeout=60)
     if result is None:
         await gateway.cancel(job_id)
         raise AuthError("DOFbasen svarede ikke i tide. Prøv igen om lidt.", 503)
-    if not result.get("ok") or not (result.get("result") or {}).get("valid"):
-        await _fail(kode, ip)
+    if not result.get("ok"):
+        raise AuthError("DOFbasen kunne ikke nås. Prøv igen om lidt.", 503)
+    if not (result.get("result") or {}).get("valid"):
         raise AuthError("Forkert obserkode eller adgangskode (tjekket hos DOFbasen)")
 
     new = user is None
-    if new:
+    if new or user.navn in (None, "", user.obserkode):
         navn = (await session.execute(text(
             "SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = :k"),
             {"k": kode})).scalar()
+    if new:
         user = User(obserkode=kode, navn=navn or kode, role="user", approved=not await approval_required(session),
                     prefs={"lists_public": True, "push_enabled": True, "afdelinger": [], "kommuner": []})
         session.add(user)
-    user.password_hash = ph.hash(password)
+    elif navn:
+        user.navn = navn
     user.dof_verified_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(user)

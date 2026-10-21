@@ -2,17 +2,18 @@
 
 Alle kald til DOFbasen går gennem gatewayen i worker-processen. Der er to baner:
 
-  * Udtræk (live-observationer, login, referencedata, historik, måneder): én kø og én løkke. Mellem afslutningen af
+  * Udtræk (live-observationer, referencedata, historik, måneder): én kø og én løkke. Mellem afslutningen af
     ét kald og starten af det næste går der altid mindst `dof_min_interval` sekunder (standard 60). Grænsen
     håndhæves med et globalt tidsstempel + lås i Valkey, så den også holder hvis der ved en fejl kører flere workers.
     Undtagelse: en administrator kan bede om én live-hentning af dagen med det samme (request_live_now) – den
     springer ventetiden over én gang og kan højst bestilles hvert LIVE_NOW_COOLDOWN sekund.
-  * Opslag (LOOKUP_KINDS: billeder, lyd og DKU-status for én observation): små sider der ikke trækker data ud af
-    DOFbasens database. De har deres egen kø og udføres med det samme, uden minimumsinterval, og de tæller ikke
+  * Opslag (LOOKUP_KINDS: login samt billeder, lyd og DKU-status for én observation): små kald der ikke trækker data
+    ud af DOFbasens database. De har deres egen kø og udføres med det samme, uden minimumsinterval, og de tæller ikke
     med i udtrækkenes interval. Kun et teknisk loft på samtidige opslag (LOOKUP_CONCURRENCY) og på køens længde.
+    Login begrænses i stedet pr. bruger og IP (services/auth.py).
 
 Planlægning pr. ledig plads:
-  1. Interaktive job (login, medier) – en bruger venter.
+  1. Interaktive job – en bruger venter.
   2. Live-hentning af dagens observationer, hvis den er forfalden.
   3. Øvrige job efter prioritet. Er der ventende job, skiftes der mellem live og kø, så
      live-feedet opdateres mindst hvert andet minut.
@@ -50,7 +51,7 @@ LIVE_MAX_GAP = 150  # sekunder: så længe må interaktive job højst holde live
 # Opslagsbanen: små opslag pr. observation uden minimumsinterval
 LQ = "dof:lq"
 LOOKUP_RUNNING = "dof:lq:running"  # id'er på opslag der udføres lige nu
-LOOKUP_KINDS = {"media"}
+LOOKUP_KINDS = {"media", "login"}
 LOOKUP_CONCURRENCY = 4  # samtidige opslag (teknisk loft, ikke en hastighedsgrænse)
 MAX_LOOKUP_QUEUE = 200  # værn mod at køen vokser uendeligt
 
@@ -184,7 +185,7 @@ async def cancel(job_id: str) -> None:
 
 
 async def clear() -> int:
-    """Fjern alle ventende job (det kørende kald gøres færdigt). Login-job bevares – en bruger venter på svaret."""
+    """Fjern alle ventende job (det kørende kald gøres færdigt). Login bevares – en bruger venter på svaret."""
     r = kv()
     removed = 0
     for job_id in await r.zrange(Q, 0, -1):
@@ -194,6 +195,9 @@ async def clear() -> int:
         await cancel(job_id)
         removed += 1
     for job_id in await r.zrange(LQ, 0, -1):  # ventende opslag
+        raw = await r.get(f"dof:job:{job_id}")
+        if raw and json.loads(raw).get("kind") == "login":
+            continue
         await cancel(job_id)
         removed += 1
     return removed
@@ -402,10 +406,13 @@ class Gateway:
             if not raw:
                 return  # annulleret imens
             job = json.loads(raw)
+            params = dict(job["params"])
+            if secret := await r.getdel(f"dof:secret:{job_id}"):
+                params["secret"] = json.loads(secret)
             handler = self.handlers.get(job["kind"])
             if handler is None:
                 raise ValueError(f"Ukendt jobtype {job['kind']}")
-            result = await handler(client, dict(job["params"]))
+            result = await handler(client, params)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001

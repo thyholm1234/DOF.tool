@@ -70,13 +70,21 @@ def fake(monkeypatch):
 async def test_enqueue_dedupes_and_orders_by_priority(fake):
     a = await gateway.enqueue("day", {"date": "2025-01-01"}, priority=gateway.BULK, dedupe="day:1")
     b = await gateway.enqueue("day", {"date": "2025-01-01"}, priority=gateway.BULK, dedupe="day:1")
-    c = await gateway.enqueue("login", {"obserkode": "X"}, priority=gateway.INTERACTIVE, secret={"password": "p"})
+    c = await gateway.enqueue("history", {"obserkode": "X"}, priority=gateway.INTERACTIVE, secret={"password": "p"})
     assert a == b
     gw = gateway.Gateway({}, None, None)
     job = await gw._pop()
     assert job["id"] == c and job["secret"] == {"password": "p"}
-    assert await fake.get(f"dof:secret:{c}") is None  # adgangskoden fjernes straks fra Valkey
+    assert await fake.get(f"dof:secret:{c}") is None  # hemmeligheden fjernes straks fra Valkey
     assert (await gw._pop())["id"] == a
+
+
+async def test_login_skips_extract_queue(fake):
+    """Login går i opslagsbanen (uden minimumsinterval) og bevares, når køen ryddes."""
+    job_id = await gateway.enqueue("login", {"obserkode": "X"}, priority=gateway.INTERACTIVE, secret={"password": "p"})
+    assert await fake.zcard(gateway.Q) == 0 and await fake.zrange(gateway.LQ, 0, -1) == [job_id]
+    await gateway.clear()
+    assert await fake.zrange(gateway.LQ, 0, -1) == [job_id]
 
 
 async def test_live_and_queue_alternate(fake):
@@ -115,7 +123,7 @@ def test_min_interval_cannot_be_lowered():
 async def test_interactive_beats_old_bulk_jobs(fake):
     """Regression: prioritet skal vægte tungere end tidsstempel (ms siden 1970)."""
     await gateway.enqueue("day", {"date": "a"}, priority=gateway.BULK)
-    await gateway.enqueue("login", {"obserkode": "X"}, priority=gateway.INTERACTIVE)
+    await gateway.enqueue("history", {"obserkode": "X"}, priority=gateway.INTERACTIVE)
     gw = gateway.Gateway({}, None, None)
     job = await gw._pop(max_priority=gateway.INTERACTIVE)
-    assert job is not None and job["kind"] == "login"
+    assert job is not None and job["kind"] == "history"
