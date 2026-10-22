@@ -38,8 +38,9 @@ export function reportCard(r, { onEdit, showObserver = true } = {}) {
       : h("a", { href: m.url, target: "_blank", rel: "noopener" }, h("img", { src: m.url, loading: "lazy", alt: `Foto af ${r.art}` })))) : null,
     r.updates?.length > 1 || (r.updates?.length === 1 && r.updates[0].note) ? h("ul", { class: "timeline" },
       ...r.updates.map(u => h("li", {}, h("b", {}, STATUS[u.status] || u.status), ` · ${u.navn} · ${fmtTime(u.at)}`, u.note ? h("div", { class: "muted" }, u.note) : null))) : null,
-    r.i_dofbasen ? h("small", { class: "muted" }, "✓ Også indtastet i DOFbasen") : null,
-    h("small", { class: "muted", style: { display: "block", marginTop: "4px" } }, `Indtastet ${ago(r.created_at)}`));
+    h("div", { class: "row", style: { gap: "6px", marginTop: "6px" } }, h("span", { class: "tag plain", title: "Indtastet i DOF.tool – ikke sendt til DOFbasen" }, "Indtastet i DOF.tool"),
+      r.i_dofbasen ? h("small", { class: "muted" }, "✓ Også i DOFbasen") : null,
+      h("small", { class: "muted" }, ago(r.created_at))));
 }
 
 const BUTTONS = [["til_stede", "Stadig til stede", "bino"], ["fløjet", "Fløjet"], ["ikke_genfundet", "Ikke genfundet"]];

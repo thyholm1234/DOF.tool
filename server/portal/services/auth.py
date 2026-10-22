@@ -162,6 +162,7 @@ async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -
         raise AuthError("Forkert obserkode eller adgangskode (tjekket hos DOFbasen)")
 
     new = user is None
+    navn = None
     if new or user.navn in (None, "", user.obserkode):
         navn = (await session.execute(text(
             "SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = :k"),

@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from portal.api import admin, alerts, auth, calendar, categories, feed, geo, learn, lists, mobgang, reports, science, share, social
+from portal.api import admin, alerts, auth, calendar, categories, feed, geo, learn, lists, mobgang, reports, science, share, social, trips
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
@@ -110,7 +110,7 @@ async def health():
     return {"ok": True}
 
 
-for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, social, calendar, categories, admin, share):
+for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, share):
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer

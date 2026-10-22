@@ -32,6 +32,9 @@ STATUS = {"til_stede": "Under observation", "fløjet": "Fløjet/forsvundet", "ik
 SIKKERHED = {"sikker": "Sikker", "sandsynlig": "Sandsynlig", "mulig": "Mulig"}
 GRUNDLAG = {"set": "Set", "hoert": "Hørt", "foto": "Foto", "lyd": "Lydoptagelse", "haand": "I hånden/ringmærket",
             "beskrevet": "Detaljeret beskrevet"}
+# Markeringer på en observation (som afkrydsningerne i DOFbasen-appen)
+MAERKER = {"kalder": "Kalder", "hoert": "Kun hørt", "traek_ind": "Trækker ind", "traek_ud": "Trækker ud", "burfugl": "Burfugl",
+           "syg": "Syg", "olie": "Olieskadet", "fiskegrej": "Fiskegrej", "plastik": "Plastik"}
 KOEN = {"M": "Han", "F": "Hun"}
 ALDER = {"AD": "Adult", "IMM": "Immatur", "SUB": "Subadult", "JUV": "Juvenil", "PUL": "Pullus (dununge)"}
 LIVE_HOURS = 3  # 'til stede' regnes som aktuel så længe efter seneste bekræftelse
@@ -80,9 +83,10 @@ async def codes(session: AsyncSession) -> dict:
             "status": [{"code": k, "text": v} for k, v in STATUS.items()],
             "sikkerhed": [{"code": k, "text": v} for k, v in SIKKERHED.items()],
             "grundlag": [{"code": k, "text": v} for k, v in GRUNDLAG.items()],
+            "maerker": [{"code": k, "text": v} for k, v in MAERKER.items()],
         }
 
-    return await cached(f"report:codes:{await version('reference')}", 86400, produce)
+    return await cached(f"report:codes:v2:{await version('reference')}", 86400, produce)
 
 
 async def species_list(session: AsyncSession) -> list[dict]:
@@ -209,8 +213,8 @@ async def _report_rows(session: AsyncSession, where: str, params: dict, viewer: 
                                 "dragtkode", "dragt", "metode", "obstidfra", "obstidtil", "fuglnoter", "hemmelig",
                                 "skjul_position", "sikkerhed", "grundlag", "retningslinjer", "status", "kategori", "media", "obserkode",
                                 "observer", "loknr", "lok", "kommune", "lok_lat", "lok_lon", "turtidfra", "medobser",
-                                "i_dofbasen")}
-        d.update(dato=r["dato"].isoformat(), status_at=r["status_at"].isoformat() if r["status_at"] else None,
+                                "i_dofbasen", "trip_id", "antalmetode", "maerker", "client_id")}
+        d.update(kilde="portal", dato=r["dato"].isoformat(), status_at=r["status_at"].isoformat() if r["status_at"] else None,
                  created_at=r["created_at"].isoformat(), live=is_live(r["status"], r["status_at"]), own=own,
                  observer=r["observer"] or r["obserkode"], updates=by.get(r["id"], []))
         if own or not r["skjul_position"]:

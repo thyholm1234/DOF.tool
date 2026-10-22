@@ -23,6 +23,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, deferred, mapped_column
@@ -619,19 +620,73 @@ class QuizResult(Base):
 
 
 class FieldTrip(Base):
-    """En tur i portalen: lokalitet + dato, som i DOFbasens indtastning. Bruges kun af ældre meldinger."""
+    """En tur i portalen, som i DOFbasens indtastning: dato, lokalitet, tider, metode, vejr, GPS-rute og observationer.
+
+    obserkode er observatøren (kan være en anden end brugeren, når der indtastes på vegne af); user_id er den, der
+    har indtastet. client_id gør upload fra offline-kø idempotent."""
 
     __tablename__ = "field_trips"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     obserkode: Mapped[str] = mapped_column(String(16))
+    client_id: Mapped[str | None] = mapped_column(String(40))
     dato: Mapped[date] = mapped_column(Date, index=True)
     loknr: Mapped[int] = mapped_column(Integer, index=True)
     turtidfra: Mapped[str | None] = mapped_column(String(5))
     turtidtil: Mapped[str | None] = mapped_column(String(5))
     medobser: Mapped[str | None] = mapped_column(String(300))
     turnoter: Mapped[str | None] = mapped_column(Text)
+    metode_id: Mapped[int] = mapped_column(SmallInteger, default=1, server_default="1")
+    komplet: Mapped[bool | None] = mapped_column(Boolean)  # komplet artsliste
+    spontan: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    lat: Mapped[float | None] = mapped_column(Float)
+    lon: Mapped[float | None] = mapped_column(Float)
+    temperatur: Mapped[int | None] = mapped_column(SmallInteger)
+    skydaekke: Mapped[int | None] = mapped_column(SmallInteger)  # ottendedele
+    vindretning: Mapped[str | None] = mapped_column(String(4))
+    vindstyrke: Mapped[int | None] = mapped_column(SmallInteger)  # m/s
+    nedboer: Mapped[int | None] = mapped_column(SmallInteger)
+    nedboertype: Mapped[str | None] = mapped_column(String(8))
+    sigtbarhed: Mapped[int | None] = mapped_column(Integer)
+    gps_aktiv: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    gps_track: Mapped[list | None] = mapped_column(JSONB)  # [[lat, lon, sekunder siden midnat/epoch, nøjagtighed], ...]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (Index("ix_field_trips_client", "user_id", "client_id", unique=True,
+                            postgresql_where=text("client_id IS NOT NULL")),)
+
+
+class FieldBreedingPair(Base):
+    """Ynglepar registreret på en tur (som 'Ny indtastning af ynglepar' i DOFbasen-appen)."""
+
+    __tablename__ = "field_breeding_pairs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(ForeignKey("field_trips.id", ondelete="CASCADE"), index=True)
+    client_id: Mapped[str | None] = mapped_column(String(40))
+    artnr: Mapped[int] = mapped_column(Integer)
+    antal: Mapped[int] = mapped_column(Integer, default=1)
+    adfkode: Mapped[str | None] = mapped_column(String(16))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lon: Mapped[float | None] = mapped_column(Float)
+    noter: Mapped[str | None] = mapped_column(Text)
+    hemmelig: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FieldDisturbance(Base):
+    """Forstyrrelse (jagt, hunde, sejlads …) noteret på en tur."""
+
+    __tablename__ = "field_disturbances"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(ForeignKey("field_trips.id", ondelete="CASCADE"), index=True)
+    client_id: Mapped[str | None] = mapped_column(String(40))
+    type_id: Mapped[int] = mapped_column(SmallInteger)
+    antal: Mapped[int | None] = mapped_column(Integer)
+    noter: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -672,6 +727,9 @@ class FieldReport(Base):
     status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     media: Mapped[list] = mapped_column(JSONB, default=list)
     kategori: Mapped[str] = mapped_column(String(8), default="alm")
+    antalmetode: Mapped[int | None] = mapped_column(SmallInteger)  # 1 uangivet, 2 præcis, 3 estimat
+    maerker: Mapped[list[str]] = mapped_column(ARRAY(String(16)), default=list, server_default="{}")  # kalder, hoert, burfugl …
+    client_id: Mapped[str | None] = mapped_column(String(40))  # fra offline-kø: matcher gentagne uploads af samme tur
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -934,6 +992,26 @@ EXTRA_DDL = [
     "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS first_only boolean NOT NULL DEFAULT false",
     "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS retningslinjer boolean NOT NULL DEFAULT false",
     "ALTER TABLE field_reports ALTER COLUMN trip_id DROP NOT NULL",
+    "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS antalmetode smallint",
+    "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS maerker varchar(16)[] NOT NULL DEFAULT '{}'",
+    "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS client_id varchar(40)",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS client_id varchar(40)",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS metode_id smallint NOT NULL DEFAULT 1",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS komplet boolean",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS spontan boolean NOT NULL DEFAULT false",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS lat double precision",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS lon double precision",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS temperatur smallint",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS skydaekke smallint",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS vindretning varchar(4)",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS vindstyrke smallint",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS nedboer smallint",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS nedboertype varchar(8)",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS sigtbarhed integer",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS gps_aktiv boolean NOT NULL DEFAULT false",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS gps_track jsonb",
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_field_trips_client ON field_trips (user_id, client_id) WHERE client_id IS NOT NULL",
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS source varchar(8) NOT NULL DEFAULT 'dof'",
     "ALTER TABLE dof_events ADD COLUMN IF NOT EXISTS created_by integer REFERENCES users(id) ON DELETE SET NULL",
     "ALTER TABLE calendar_visits ADD COLUMN IF NOT EXISTS lat double precision",

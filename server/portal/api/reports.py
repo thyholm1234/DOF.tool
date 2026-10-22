@@ -36,6 +36,8 @@ class ReportIn(BaseModel):
     dato: date | None = None  # standard: i dag
     loknr: int | None = None  # standard: nærmeste lokalitet til fuglens position
     antal: int = Field(1, ge=0, le=9_900_000)
+    antalmetode: int | None = Field(None, ge=1, le=3)  # 1 uangivet, 2 præcis, 3 estimat
+    maerker: list[str] = Field(default_factory=list, max_length=12)  # kalder, hoert, traek_ind, burfugl …
     koen: str | None = Field(None, pattern="^(M|F)$")
     adfkode: str | None = Field(None, max_length=16)
     alderkode: str | None = Field(None, max_length=8)
@@ -60,6 +62,14 @@ class ReportIn(BaseModel):
         if v and v > dk_today():
             raise ValueError("Datoen ligger i fremtiden")
         return v
+
+    @field_validator("maerker")
+    @classmethod
+    def known_marks(cls, v: list[str]) -> list[str]:
+        bad = [m for m in v if m not in reports.MAERKER]
+        if bad:
+            raise ValueError(f"Ukendt markering: {', '.join(bad)}")
+        return list(dict.fromkeys(v))
 
     @field_validator("grundlag")
     @classmethod

@@ -79,16 +79,28 @@ Opdateres live via server-sent events. Dagens største træklokaliteter. *Tæt p
 **Tråd.** Alle observationer med adfærd, dragt, tider, noter; kort; kommentarer i realtid; følg tråden
 for besked om hver ny observation; billeder/lyd fra DOFbasen hentes på forespørgsel (køes, caches 7 dage).
 
-**Indtast (feltmeldinger).** Modulet *Mine indtastninger* viser egne fugle som én liste med sortering
-(dato/tid, art, systematik, antal, lokalitet, kategori) og filtre. *Ny observation*: vælg en DOFbasen-lokalitet
-og dato; derefter art (dropdown med dine seneste arter), antal, tidspunkt og adfærd (påkrævet), noter, fuglens
-position på kortet, køn/alder/dragt/metode og foto/lyd. Afkrydsning af DOF's retningslinjer *Når du ser en
-sjælden fugl* er påkrævet for SU/SUB-arter.
+**Indtast (ture og feltmeldinger).** Modulet *Mine indtastninger* følger app.dofbasen.dk, men gemmer i portalens egen
+database. Alt er mærket *Indtastet i DOF.tool* (kontra DOFbasen) og sendes **ikke** til dofbasen.dk.
+
+* **Ny tur** (`#/indtast/tur/ny`): dato, tid fra/til, lokalitet (søg, nærmeste til din position, seneste), metode, komplet
+  artsliste, spontan, medobservatører, turnoter og vejr (temperatur, skydække, vind, nedbør, sigtbarhed). Under turen:
+  *observationer* (art, antal + optællingsmetode, adfærd – kan genbruges til næste –, markeringer som kalder/burfugl/syg,
+  køn/alder/dragt, position på kort, sikkerhed og grundlag, hemmelig, foto/lyd, status for SU/SUB og DOF's
+  retningslinjer), *ynglepar* og *forstyrrelser*. Kort over lokalitet, rute og fund.
+* **GPS-rute.** Start/pause/stop; punkter gemmes løbende på enheden og sendes med turen (kun synlig for den, der har indtastet).
+* **Offline.** Kladder gemmes løbende på enheden (IndexedDB). Uden forbindelse lægges turen i en kø med fotos og lyd og
+  sendes automatisk, når der er net igen; et fælles `client_id` forhindrer dubletter, hvis et svar går tabt.
+* **På vegne af en anden observatør.** Obserkoden skal være kendt (portalbruger eller i DOFbasen-data); observationerne
+  registreres på den, men vises som indtastet af dig.
+* **Hurtig observation** (`Alle fugle`): den oprindelige én-fugl-formular med sortérbar liste over alle egne fugle.
+
+API: `/api/trips` (opslag, liste, hent, opret, ret, slet – hele turen i ét kald, børn matches på `id`/`client_id`).
+Tabeller: `field_trips`, `field_reports` (observationer), `field_breeding_pairs`, `field_disturbances`.
 **Status på SU/SUB-tråde.** På alle tråde med en SU- eller SUB-art – fra DOFbasen eller portalen – kan alle
 indloggede melde "stadig til stede", "fløjet" eller "ikke genfundet" (samme dag eller dagen efter). Hver melding
 skal bekræftes, kan trækkes tilbage af den, der meldte den, og trådens følgere får besked. Den seneste melding
 vises på tråden og i feedet.
-Kodelister bygges fra DOFbasen-data. Portalen tilføjer **status** (er fuglen under observation?) og
+Kodelister bygges fra DOFbasen-data (metoder, optællingsmetoder og forstyrrelser fra `seed/trip_lookups.json`). Portalen tilføjer **status** (er fuglen under observation?) og
 **sikkerhed** (sikker/sandsynlig/mulig + grundlag: set, hørt, foto, lyd, i hånden, beskrevet; samt
 ). Meldingerne klassificeres som
 DOFbasen-data, vises i de samme tråde og kører gennem de samme alarmregler. De sendes **ikke** til

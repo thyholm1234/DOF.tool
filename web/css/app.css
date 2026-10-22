@@ -776,3 +776,10 @@ progress { accent-color: var(--brand); height: 10px; }
 .pulse-item.SU { border-left-color: var(--su); } .pulse-item.SUB { border-left-color: var(--sub); } .pulse-item.bemaerk { border-left-color: var(--bem); }
 .pulse-item .tag { margin-left: 6px; }
 @media (prefers-reduced-motion: reduce) { .pulse-pop .pp, .pulse-ring, .pulse-birder svg.hop { animation: none; } }
+
+/* Tur-indtastning (tur.js) */
+.tur-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding: 8px 10px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line-strong); }
+.tur-row.SU { border-left-color: var(--su); } .tur-row.SUB { border-left-color: var(--sub); }
+.tur-main { min-width: 0; display: grid; gap: 2px; }
+.tur-footer { position: sticky; bottom: 0; padding: 10px 0; background: var(--bg); border-top: 1px solid var(--line); margin-top: 12px; }

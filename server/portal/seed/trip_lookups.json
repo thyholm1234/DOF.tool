@@ -1,0 +1,243 @@
+{
+ "metoder": [
+  {
+   "id": 1,
+   "navn": "Uspecificeret/tilfældig",
+   "kort": "-"
+  },
+  {
+   "id": 2,
+   "navn": "Totaloptælling",
+   "kort": "TOT"
+  },
+  {
+   "id": 3,
+   "navn": "Ynglefugletælling",
+   "kort": "YNT"
+  },
+  {
+   "id": 4,
+   "navn": "Trækfugletælling",
+   "kort": "TRT"
+  },
+  {
+   "id": 5,
+   "navn": "Delvis optælling",
+   "kort": "DOT"
+  },
+  {
+   "id": 6,
+   "navn": "Optælling af artsgruppe (specificeret)",
+   "kort": "OART"
+  },
+  {
+   "id": 7,
+   "navn": "Udeladelse af artsgruppe (specificeret)",
+   "kort": "UART"
+  },
+  {
+   "id": 8,
+   "navn": "Punkttælling",
+   "kort": "PKT"
+  },
+  {
+   "id": 9,
+   "navn": "IBA-tælling",
+   "kort": "IBA"
+  },
+  {
+   "id": 10,
+   "navn": "Havfugletælling",
+   "kort": "HAV"
+  },
+  {
+   "id": 11,
+   "navn": "Rovfugletælling",
+   "kort": "ROV"
+  },
+  {
+   "id": 12,
+   "navn": "Rastefugletælling",
+   "kort": "RAST"
+  },
+  {
+   "id": 13,
+   "navn": "Diverse obs",
+   "kort": "DIV"
+  },
+  {
+   "id": 15,
+   "navn": "Indlandstræktælling",
+   "kort": "LAND"
+  },
+  {
+   "id": 16,
+   "navn": "Ringmærkning",
+   "kort": "RING"
+  },
+  {
+   "id": 17,
+   "navn": "Træktælling, standardtid",
+   "kort": "TST"
+  },
+  {
+   "id": 18,
+   "navn": "Vandfugletælling",
+   "kort": "VAND"
+  },
+  {
+   "id": 19,
+   "navn": "Linjetaksering",
+   "kort": "LTAKS"
+  },
+  {
+   "id": 20,
+   "navn": "Passiv lydoptagelse, fx NocMig",
+   "kort": "LYD"
+  },
+  {
+   "id": 21,
+   "navn": "Havtælling, standardtid",
+   "kort": "HST"
+  },
+  {
+   "id": 22,
+   "navn": "Indlandstælling, standardtid",
+   "kort": "IST"
+  },
+  {
+   "id": 23,
+   "navn": "FiNN - Random walk",
+   "kort": "FRW"
+  },
+  {
+   "id": 24,
+   "navn": "Ilanddrevne døde fugle langs kyst",
+   "kort": "ILAND"
+  }
+ ],
+ "antalmetoder": [
+  {
+   "id": 1,
+   "navn": "Uangivet"
+  },
+  {
+   "id": 2,
+   "navn": "Præcis"
+  },
+  {
+   "id": 3,
+   "navn": "Estimat"
+  }
+ ],
+ "forstyrrelser": [
+  {
+   "id": 1,
+   "navn": "Landjægere"
+  },
+  {
+   "id": 2,
+   "navn": "Pramjægere"
+  },
+  {
+   "id": 3,
+   "navn": "Motorbådsjagt"
+  },
+  {
+   "id": 4,
+   "navn": "Kajaker og robåde, ikke-jagt"
+  },
+  {
+   "id": 5,
+   "navn": "Motorbåde, ikke-jagt"
+  },
+  {
+   "id": 6,
+   "navn": "Lystfiskere"
+  },
+  {
+   "id": 7,
+   "navn": "Lystfiskeri fra båd"
+  },
+  {
+   "id": 8,
+   "navn": "Fiskekuttere/trawlere"
+  },
+  {
+   "id": 9,
+   "navn": "Sejlbåde"
+  },
+  {
+   "id": 10,
+   "navn": "Windsurfere"
+  },
+  {
+   "id": 25,
+   "navn": "Stand Up Padle-surfere"
+  },
+  {
+   "id": 11,
+   "navn": "Kitesurfere"
+  },
+  {
+   "id": 12,
+   "navn": "Vandscootere"
+  },
+  {
+   "id": 13,
+   "navn": "Løsgående hunde"
+  },
+  {
+   "id": 14,
+   "navn": "Hunde i snor"
+  },
+  {
+   "id": 15,
+   "navn": "Mennesker på vadeflader"
+  },
+  {
+   "id": 16,
+   "navn": "Badegæster"
+  },
+  {
+   "id": 17,
+   "navn": "Ægsamlere"
+  },
+  {
+   "id": 18,
+   "navn": "Lavtgående fly"
+  },
+  {
+   "id": 19,
+   "navn": "Helikoptere"
+  },
+  {
+   "id": 20,
+   "navn": "Modelflyvere"
+  },
+  {
+   "id": 26,
+   "navn": "Droner"
+  },
+  {
+   "id": 27,
+   "navn": "Paraglidere"
+  },
+  {
+   "id": 21,
+   "navn": "Fyrværkeri"
+  },
+  {
+   "id": 22,
+   "navn": "Andre mennesker"
+  },
+  {
+   "id": 23,
+   "navn": "Ingen forstyrrelser"
+  },
+  {
+   "id": 24,
+   "navn": "Andet (uddyb)"
+  }
+ ]
+}

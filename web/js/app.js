@@ -43,6 +43,7 @@ const ROUTES = [
   [/^\/profil$/, () => import("./views/profile.js")],
   [/^\/admin$/, () => import("./views/admin.js")],
   [/^\/login$/, () => import("./views/login.js")],
+  [/^\/indtast\/tur\/(ny|\d+|lokal\/[\w-]+)$/, () => import("./views/tur.js")],
   [/^\/indtast(?:\/obs\/(\d+))?$/, () => import("./views/report.js")],
   [/^\/support$/, () => import("./views/support.js")],
   [/^\/ture(?:\/(\d+))?$/, () => import("./views/events.js")],
@@ -61,12 +62,12 @@ function renderNav() {
   const inMore = current && !BOTTOM.includes(current);
   const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
-    ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast?ny=1", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
+    ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
     : []));
   const side = [];
   for (const [title, items] of SECTIONS) side.push(h("div", { class: "nav-h" }, title), ...items.map(n => link(n)));
   if (state.user) {
-    side.unshift(link(["#/indtast?ny=1", "plus", "Indtast"], "cta"));
+    side.unshift(link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: current === "#/profil" ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
@@ -111,7 +112,15 @@ export async function refreshUser() {
   applyTheme();
   renderUser();
   renderNav();
-  if (state.user) refreshUnread();
+  if (state.user) { refreshUnread(); startOffline(); }
+}
+
+let offlineStarted = false;
+// Ture, der er gemt på enheden uden forbindelse, sendes, når der er net (og brugeren er logget ind)
+function startOffline() {
+  if (offlineStarted) return;
+  offlineStarted = true;
+  import("./offline.js").then(m => m.start());
 }
 
 export async function refreshUnread() {

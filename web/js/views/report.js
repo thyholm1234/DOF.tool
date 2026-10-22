@@ -3,6 +3,7 @@
 import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
 import { baseMap } from "../maps.js";
 import { statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
+import { listLocal, syncAll } from "../offline.js";
 
 let CODES = null;
 let SPECIES = null;
@@ -28,31 +29,77 @@ async function startPage(view) {
   const p = params();
   const newPanel = h("div", { class: p.ny ? "" : "hide" });
   const listEl = h("div", {}, h("div", { class: "skeleton", style: { height: "160px" } }));
+  const tripsEl = h("div", {}, h("div", { class: "skeleton", style: { height: "160px" } }));
   const loadMine = async () => { try { drawMine(listEl, await api("/api/reports/mine")); } catch (err) { listEl.replaceChildren(errorBox(err)); } };
+  const loadTrips = async () => {
+    const local = await listLocal().catch(() => []);
+    try { drawTrips(tripsEl, await api("/api/trips/mine"), local, loadTrips); } catch (err) { drawTrips(tripsEl, null, local, loadTrips, err); }
+  };
   let recent = { locations: [], species: [], adf: [] };
   try { recent = await api("/api/reports/recent"); } catch { /* formularen virker uden */ }
+  let tab = p.ny ? "fugle" : store("indtasttab") || "ture";
+  const showTab = () => {
+    const open = !newPanel.classList.contains("hide");
+    tripsEl.classList.toggle("hide", tab !== "ture" || open);
+    listEl.classList.toggle("hide", tab !== "fugle" || open);
+  };
   const openForm = () => {
-    if (!newPanel.firstChild) newPanel.append(h("div", { class: "card mb" }, h("h2", { style: { marginTop: 0 } }, "Ny observation"),
+    if (!newPanel.firstChild) newPanel.append(h("div", { class: "card mb" }, h("h2", { style: { marginTop: 0 } }, "Hurtig observation"),
       reportForm({ recent, submitLabel: "Gem observation", onSaved: (r) => { location.hash = threadHash(r); } })));
   };
-  const newBtn = h("button", { class: "btn primary", html: `${icon("plus")} Ny observation`, onclick: () => {
+  const newBtn = h("button", { class: "btn", html: `${icon("plus")} Hurtig observation`, onclick: () => {
     const open = newPanel.classList.toggle("hide") === false;
-    listEl.classList.toggle("hide", open);  // ny indtastning: de gamle skjules
     setParams({ ny: open ? "1" : "" });
+    showTab();
     if (open) { openForm(); newPanel.querySelector("input[type=search]")?.focus(); }
   } });
-  if (p.ny) { openForm(); listEl.classList.add("hide"); }
+  if (p.ny) openForm();
   view.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Mine indtastninger"),
-      h("p", { class: "lead" }, "Dine egne fugle indtastet i portalen. De vises med det samme i trådene og alarmerne.")),
-      h("span", { class: "spacer" }), newBtn),
-    newPanel, listEl,
-    h("p", { class: "muted mt", style: { fontSize: ".85rem" } }, "Portalen sender ikke data til DOFbasen. Indtast også dine fund i DOFbasen (app.dofbasen.dk). Når fundet dukker op i DOFbasen, markeres det med ✓."));
-  await loadMine();
+      h("p", { class: "lead" }, "Dine ture og fugle indtastet i DOF.tool. De vises med det samme i trådene og alarmerne.")),
+      h("span", { class: "spacer" }), newBtn, h("a", { class: "btn primary", href: "#/indtast/tur/ny", html: `${icon("plus")} Ny tur` })),
+    newPanel,
+    h("div", { class: "mb" }, seg([["ture", "Ture"], ["fugle", "Alle fugle"]], tab, (v) => { tab = v; store("indtasttab", v); showTab(); })),
+    tripsEl, listEl,
+    h("p", { class: "muted mt", style: { fontSize: ".85rem" } }, "Det, du indtaster her, gemmes i DOF.tool og er mærket \"indtastet i DOF.tool\" – det sendes ikke til DOFbasen. Indtast også dine fund i DOFbasen (app.dofbasen.dk). Når fundet dukker op i DOFbasen, markeres det med ✓."));
+  showTab();
+  await Promise.all([loadTrips(), loadMine()]);
+  const onSynced = () => { loadTrips(); loadMine(); };
+  window.addEventListener("ture-synkroniseret", onSynced);
+  return () => window.removeEventListener("ture-synkroniseret", onSynced);
+}
+
+const LOCAL_STATE = { kladde: "Kladde – ikke gemt endnu", klar: "Venter på forbindelse", fejl: "Kunne ikke sendes" };
+
+function drawTrips(el, trips, local, reload, err = null) {
+  const rows = [];
+  if (local.length) rows.push(h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "Gemt på denne enhed"),
+    ...local.map(r => {
+      const T = r.draft || {};
+      return h("a", { class: "myobs", href: `#/indtast/tur/lokal/${r.client_id}` },
+        h("div", { class: "myobs-when" }, h("b", {}, fmtDate(T.dato || todayISO(), false)), h("small", { class: "muted" }, T.turtidfra || "")),
+        h("div", { class: "myobs-main" }, h("b", {}, T.lok || "Tur uden lokalitet"),
+          h("div", { class: "muted myobs-sub" }, [`${T.observations?.length || 0} obs.`, LOCAL_STATE[r.state], r.error].filter(Boolean).join(" · "))),
+        h("div", { class: "myobs-side" }, r.state !== "kladde" ? h("button", { class: "btn sm", onclick: async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (!(await syncAll())) toast("Kunne ikke sende – tjek forbindelsen", "err");
+          reload();
+        } }, "Send nu") : null));
+    })));
+  if (err) rows.push(h("div", { class: "notice warn" }, `Kunne ikke hente turene: ${err.message}`));
+  else if (!trips.length && !local.length) rows.push(empty("Ingen ture endnu", "Tryk på 'Ny tur' for at begynde."));
+  else if (trips.length) rows.push(h("div", { class: "card stack" }, h("div", { class: "stack", style: { gap: "6px" } }, ...trips.map(t => h("a", { class: "myobs", href: `#/indtast/tur/${t.id}` },
+    h("div", { class: "myobs-when" }, h("b", {}, fmtDate(t.dato, false)), h("small", { class: "muted" }, [t.turtidfra, t.turtidtil].filter(Boolean).join("–"))),
+    h("div", { class: "myobs-main" }, h("div", { class: "row", style: { gap: "6px" } }, h("b", {}, t.lok), t.for_andre ? h("span", { class: "tag plain" }, `for ${t.obserkode}`) : null),
+      h("div", { class: "muted myobs-sub" }, [`${fmtN(t.n_obs)} observationer`, `${fmtN(t.n_arter)} arter`, t.n_ynglepar ? `${t.n_ynglepar} ynglepar` : null,
+        t.n_forstyrrelser ? `${t.n_forstyrrelser} forstyrrelser` : null, t.kommune].filter(Boolean).join(" · "))),
+    h("div", { class: "myobs-side" }, h("span", { class: "tag plain", title: "Indtastet i DOF.tool – ikke sendt til DOFbasen" }, "DOF.tool"),
+      t.gps_aktiv ? h("small", { class: "muted" }, "rute") : null))))));
+  el.replaceChildren(...rows);
 }
 
 function drawMine(el, rows) {
-  if (!rows.length) { el.replaceChildren(empty("Ingen indtastede fugle endnu", "Tryk på 'Ny observation' for at begynde.")); return; }
+  if (!rows.length) { el.replaceChildren(empty("Ingen indtastede fugle endnu", "Tryk på 'Hurtig observation' for at begynde.")); return; }
   const sort = store("minesort") || { key: "dato", dir: -1 };
   const filter = { q: "", kind: store("minefilter") || "alle" };
   const list = h("div", { class: "stack", style: { gap: "6px" } });

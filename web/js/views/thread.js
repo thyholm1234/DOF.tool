@@ -18,7 +18,7 @@ export async function render(view, [date, artnr, loknr]) {
   const liveRep = reps.find(r => r.live) || reps.find(r => r.status !== "ukendt");
   const repList = h("div", { class: "stack" });
   const drawReports = () => repList.replaceChildren(...reps.map(r => reportCard(r, {
-    onEdit: r.own ? () => { location.hash = `#/indtast/obs/${r.id}`; } : null,
+    onEdit: r.own ? () => { location.hash = r.trip_id ? `#/indtast/tur/${r.trip_id}` : `#/indtast/obs/${r.id}`; } : null,
   })));
   drawReports();
   // Status på SU/SUB-tråde: meldt af alle på selve tråden. Ellers vises indtasterens egen status fra portalen.
