@@ -782,4 +782,42 @@ progress { accent-color: var(--brand); height: 10px; }
   background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line-strong); }
 .tur-row.SU { border-left-color: var(--su); } .tur-row.SUB { border-left-color: var(--sub); }
 .tur-main { min-width: 0; display: grid; gap: 2px; }
-.tur-footer { position: sticky; bottom: 0; padding: 10px 0; background: var(--bg); border-top: 1px solid var(--line); margin-top: 12px; }
+
+/* Tur: observationsliste, bund-ark (popup med faner) og sider */
+.obs-list { display: grid; gap: 6px; }
+.obs-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto 22px; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line-strong); font: inherit; color: inherit; text-align: left; }
+.obs-row.pair { grid-template-columns: minmax(0, 1fr); cursor: pointer; }
+.obs-row.SU { border-left-color: var(--su); } .obs-row.SUB { border-left-color: var(--sub); }
+.obs-main { min-width: 0; display: grid; gap: 2px; background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.obs-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.obs-row .num { font-size: 1.15rem; min-width: 1.6ch; text-align: right; }
+.obs-state svg { width: 18px; height: 18px; } .obs-state.ok { color: var(--ok); } .obs-state.off { color: var(--text-3); }
+.btn.accent { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.btn.grow { flex: 1; }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; font-size: .82rem; font-weight: 650; color: var(--brand); cursor: pointer; }
+.sync-chip { font-size: .78rem; font-weight: 650; padding: 4px 10px; border-radius: 99px; background: var(--bg-2); color: var(--text-2); align-self: center; }
+.sync-chip.ok { color: var(--ok); } .sync-chip.off { color: var(--warn); } .sync-chip.err { color: var(--err); }
+.tur-bar { position: sticky; bottom: 0; display: flex; gap: 10px; padding: 10px 0; margin-top: 12px; background: var(--bg); border-top: 1px solid var(--line); z-index: 5; }
+.tur-bar .btn { height: 46px; font-size: 1rem; }
+@media (max-width: 899px) { .tur-bar { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); } }
+.kicker { display: block; font-size: .7rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--brand); margin-bottom: 4px; }
+.sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; }
+.sheet-head h2 { margin: 0; font-size: 1.35rem; }
+.sheet-sub { display: flex; align-items: center; gap: 6px; color: var(--text-2); margin-top: 4px; font-size: .92rem; }
+.sheet-sub svg { width: 17px; height: 17px; }
+.tabs { display: flex; justify-content: center; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--surface-2); overflow-x: auto; scrollbar-width: none; }
+.tab { border: 0; border-bottom: 3px solid transparent; background: none; padding: 12px 14px; font: inherit; font-weight: 650; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.tab.on { color: var(--brand); border-bottom-color: var(--brand); }
+.sheet-body { padding: 16px 20px; }
+.tab-panel.hide { display: none; }
+.sheet-foot { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; padding: 12px 20px 16px; border-top: 1px solid var(--line); background: var(--surface); }
+.sheet-foot .btn { height: 46px; font-size: 1rem; justify-content: center; }
+.modal.sheet { padding: 0; display: flex; flex-direction: column; width: min(520px, 100%); max-height: 92dvh; overflow: hidden; }
+.modal.sheet .sheet-body { overflow: auto; flex: 1; }
+.sheet-page { padding: 0; overflow: hidden; max-width: 640px; margin-inline: auto; }
+.sheet-page .sheet-foot { position: sticky; bottom: 0; }
+@media (max-width: 899px) { .sheet-page .sheet-foot { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); } }
+.filled-badge { font-size: .8rem; font-weight: 650; color: var(--text-3); display: inline-flex; align-items: center; gap: 4px; }
+.filled-badge.ok { color: var(--ok); } .filled-badge svg { width: 15px; height: 15px; }
+body.sheet-open { overflow: hidden; }
