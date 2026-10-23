@@ -173,6 +173,7 @@ async def register_fcm(body: FcmIn, user: User = Depends(require_user), db: Asyn
     else:
         db.add(PushSubscription(user_id=user.id, endpoint=endpoint, p256dh="", auth="", user_agent=(body.device or "Android-app")[:300]))
     await db.commit()
+    await fcm.ensure(db)
     return {"ok": True, "enabled": fcm.enabled()}
 
 
@@ -254,6 +255,7 @@ async def devices(diag: bool = False, user: User = Depends(require_user), db: As
     out = [{"id": s.id, "user_agent": s.user_agent, "created_at": s.created_at, "last_ok": s.last_ok,
             "endpoint_host": "Android-app" if s.endpoint.startswith(fcm.PREFIX) else s.endpoint.split("/")[2]} for s in subs]
     if diag:
+        await fcm.ensure(db)
         rules = (await db.execute(select(func.count()).select_from(AlertRule).where(AlertRule.user_id == user.id, AlertRule.enabled))).scalar()
         return {"devices": out, "diag": await diag_log(user.id), "fcm_enabled": fcm.enabled(), "rules": rules}
     return out
@@ -271,6 +273,7 @@ async def push_test(user: User = Depends(require_user), db: AsyncSession = Depen
     n = await send_to_user(db, user.id, {"title": "Testnotifikation", "body": "Push virker på denne enhed 🎉",
                                          "url": "/#/alarmer", "tag": "test"})
     await db.commit()
+    await fcm.ensure(db)
     apps = (await db.execute(select(func.count()).select_from(PushSubscription)
                              .where(PushSubscription.user_id == user.id, PushSubscription.endpoint.like(fcm.PREFIX + "%")))).scalar() or 0
     return {"delivered": n, "app_devices": apps, "fcm_enabled": fcm.enabled(), "fcm_error": fcm.LAST["error"] if fcm.LAST["error_at"] else None}

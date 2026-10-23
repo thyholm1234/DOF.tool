@@ -22,7 +22,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
-from portal.services import activity, datasync, features, moderation, weather_archive
+from portal.services import activity, datasync, fcm, features, moderation, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
 
@@ -114,6 +114,50 @@ async def put_features(body: dict[str, str], user: User = Depends(superadmin), d
         raise HTTPException(400, str(exc)) from exc
     await activity.track(user.id, "features", None, body)
     return await get_features(user, db)
+
+
+@router.get("/admin/fcm")
+async def get_fcm(user: User = Depends(superadmin), db: AsyncSession = Depends(get_session)):
+    """Firebase (push til Android-appen): er en servicekonto sat op, og hvorfra (.env eller her)?"""
+    await fcm.ensure(db)
+    acc = fcm._account()
+    return {"source": fcm.source(), "project_id": acc and acc["project_id"], "client_email": acc and acc["client_email"],
+            "devices": (await db.execute(text("SELECT count(*) FROM push_subscriptions WHERE endpoint LIKE 'fcm:%'"))).scalar(),
+            "last_error": fcm.LAST["error"]}
+
+
+@router.put("/admin/fcm")
+async def put_fcm(body: dict[str, Any], user: User = Depends(superadmin), db: AsyncSession = Depends(get_session)):
+    """Gem servicekontoens JSON (Firebase → Projektindstillinger → Tjenestekonti → Generér ny privat nøgle)."""
+    acc = body.get("account")
+    if isinstance(acc, str):
+        try:
+            acc = json.loads(acc)
+        except ValueError as exc:
+            raise HTTPException(400, "Filen er ikke gyldig JSON") from exc
+    if not isinstance(acc, dict) or acc.get("type") != "service_account" or not fcm.valid(acc):
+        raise HTTPException(400, "Det er ikke en servicekonto-nøgle (mangler type, project_id, client_email eller private_key)")
+    try:
+        fcm._assertion(acc)  # kan nøglen signere?
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(400, f"Den private nøgle kan ikke bruges: {exc}") from exc
+    row = await db.get(Setting, fcm.SETTING)
+    if row is None:
+        db.add(Setting(key=fcm.SETTING, value=acc))
+    else:
+        row.value = acc
+    await db.commit()
+    fcm.set_db_account(acc)
+    await activity.track(user.id, "fcm", None, {"project_id": acc["project_id"]})
+    return await get_fcm(user, db)
+
+
+@router.delete("/admin/fcm")
+async def delete_fcm(user: User = Depends(superadmin), db: AsyncSession = Depends(get_session)):
+    await db.execute(delete(Setting).where(Setting.key == fcm.SETTING))
+    await db.commit()
+    fcm.set_db_account(None)
+    return await get_fcm(user, db)
 
 
 class EnqueueIn(BaseModel):

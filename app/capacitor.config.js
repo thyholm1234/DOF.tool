@@ -7,6 +7,7 @@ module.exports = {
   appName: "DOF.tool",
   webDir: "www",
   server: url ? { url, cleartext: url.startsWith("http://"), errorPath: "error.html" } : undefined,
-  android: { allowMixedContent: false },
+  // DOF_DEBUG=1: WebView kan inspiceres fra chrome://inspect (til fejlsøgning på en tilsluttet telefon)
+  android: { allowMixedContent: false, webContentsDebuggingEnabled: process.env.DOF_DEBUG === "1", loggingBehavior: process.env.DOF_DEBUG === "1" ? "production" : "debug" },
   plugins: {},
 };

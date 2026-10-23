@@ -27,8 +27,39 @@ _token: dict = {"value": None, "exp": 0.0}
 LAST: dict = {"ok_at": None, "error": None, "error_at": None}
 
 
-@lru_cache
+_db: dict = {"value": None, "at": 0.0}  # servicekonto gemt under Admin → Funktioner (bruges, når .env ikke har en)
+SETTING = "fcm_service_account"
+
+
+def valid(acc: dict | None) -> bool:
+    return bool(acc) and all(acc.get(k) for k in ("private_key", "client_email", "project_id"))
+
+
+async def ensure(session) -> None:
+    """Hent servicekontoen fra databasen (højst hvert minut), hvis .env ikke har en."""
+    if _env_account() is not None or time.time() - _db["at"] < 60:
+        return
+    from portal.models import Setting  # her for at undgå cirkulær import
+
+    row = await session.get(Setting, SETTING)
+    _db.update(value=row.value if row is not None and valid(row.value) else None, at=time.time())
+
+
+def set_db_account(acc: dict | None) -> None:
+    _db.update(value=acc, at=time.time())
+    _token.update(value=None, exp=0.0)
+
+
+def source() -> str | None:
+    return "env" if _env_account() is not None else "admin" if _db["value"] else None
+
+
 def _account() -> dict | None:
+    return _env_account() or _db["value"]
+
+
+@lru_cache
+def _env_account() -> dict | None:
     s = get_settings()
     raw = (s.fcm_service_account_json or "").strip()
     try:
@@ -38,7 +69,7 @@ def _account() -> dict | None:
     except (ValueError, UnicodeDecodeError):
         log.warning("FCM: servicekontoen kunne ikke læses")
         return None
-    return acc if acc and acc.get("private_key") and acc.get("client_email") and acc.get("project_id") else None
+    return acc if valid(acc) else None
 
 
 def enabled() -> bool:

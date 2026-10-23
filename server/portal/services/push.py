@@ -70,6 +70,8 @@ async def send_to_user(session: AsyncSession, user_id: int, payload: dict) -> in
     subs = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == user_id))).scalars().all()
     delivered = 0
     app_subs = {s.endpoint[len(fcm.PREFIX):]: s for s in subs if s.endpoint.startswith(fcm.PREFIX)}
+    if app_subs:
+        await fcm.ensure(session)
     if app_subs and fcm.enabled():  # Android-appen (Firebase)
         for token, status in (await fcm.send(list(app_subs), payload)).items():
             if status in (404, 410):
