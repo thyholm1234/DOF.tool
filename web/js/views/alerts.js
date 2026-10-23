@@ -80,7 +80,7 @@ const strip = (r) => ({ name: r.name, area_id: r.area_id, kommuner: r.kommuner |
 async function editRule(rule, areasList, done) {
   const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SU,SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], missing: null, push: true, first_only: false, enabled: true };
   const name = h("input", { value: r.name, placeholder: "Fx 'Lokale hits i Odsherred'", required: true });
-  const hasRegions = r.kommuner.length || r.afdelinger.length;
+  const hasRegions = r.kommuner.length > 0 || r.afdelinger.length > 0;
   const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"), h("option", { value: "regions", selected: !r.area_id && hasRegions }, "Lokalafdelinger og kommuner…"),
     areasList.length ? h("optgroup", { label: "Mine områder" }, ...areasList.map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${KIND_LABEL[a.kind]})`))) : null);
   const regions = regionPicker(r.kommuner, r.afdelinger);
