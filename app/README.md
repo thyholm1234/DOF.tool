@@ -30,6 +30,10 @@ Web Push findes ikke i en WebView, så appen bruger Firebase. Appen henter et to
 melder det til `POST /api/push/fcm`, og serveren sender alarmer via FCM HTTP v1 (`server/portal/services/fcm.py`) –
 samme alarmregler, stille timer og push til/fra som for browser-push. Tryk på en notifikation åbner den rigtige side.
 
+Mens appen er åben viser Android ikke selv notifikationen, så appen viser den som en lokal notifikation
+(`@capacitor/local-notifications`). Under Alarmer → *Push & enheder* vises status og fejl, og *Send testbesked* fortæller,
+om serveren mangler nøglen, om Firebase afviste beskeden, eller om ingen enhed er registreret.
+
 Opsætning (engangs, kræver en Google-konto):
 
 1. [console.firebase.google.com](https://console.firebase.google.com) → opret projekt → *Tilføj app* → Android med

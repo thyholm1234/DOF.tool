@@ -39,7 +39,8 @@ app = FastAPI(title=get_settings().app_name, lifespan=lifespan, docs_url="/api/d
 
 MOB_AUDIO = re.compile(r"^(/v/[^/]+)?/audio/mobgang/")
 PUBLIC_API = ("/api/auth/", "/api/health", "/api/me", "/api/settings/public", "/api/ics/", "/api/docs", "/api/openapi.json",
-              "/api/dofbasen/v1/", "/api/netfugl/v1/")  # showcase-API'erne har deres egen token-godkendelse
+              "/api/dofbasen/v1/", "/api/netfugl/v1/",  # showcase-API'erne har deres egen token-godkendelse
+              "/api/location/native")  # appens positionstjeneste sender selv med et positionstoken
 TOKEN_APIS = ("/api/dofbasen/v1/", "/api/netfugl/v1/")
 CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Max-Age": "86400"}
@@ -59,7 +60,9 @@ async def guard(request: Request, call_next):
         return response
     # CSRF-værn: ændrende API-kald skal komme fra vores egen fetch-klient (custom header kræver CORS-preflight)
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH", "DELETE"):
-        if request.headers.get("x-requested-with") != "fetch":
+        # Android-WebView kan sætte sit eget X-Requested-With (pakkenavnet); Sec-Fetch-Site sættes af browseren selv
+        xrw = {v.strip() for v in (request.headers.get("x-requested-with") or "").split(",")}
+        if "fetch" not in xrw and request.headers.get("sec-fetch-site") != "same-origin":
             return JSONResponse({"detail": "Mangler X-Requested-With"}, status_code=403)
     # Portalen er kun for indloggede brugere: alt under /api kræver en gyldig session, undtagen login,
     # sundhedstjek, /api/me (svarer user=null) og ICS-feeds (personligt token i adressen).

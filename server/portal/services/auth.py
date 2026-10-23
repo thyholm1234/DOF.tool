@@ -149,7 +149,7 @@ async def create_test_user(session: AsyncSession, navn: str, password: str | Non
     password = password or secrets.token_urlsafe(9)
     user = User(obserkode=f"TEST{last + 1:04d}", navn=navn.strip()[:160] or f"Testbruger {last + 1}", role="user", approved=True,
                 is_test=True, test_pw_hash=hash_test_password(password), history_synced_at=datetime.now(timezone.utc),
-                prefs={"lists_public": False, "push_enabled": False, "afdelinger": [], "kommuner": []})
+                prefs={"lists_public": False, "push_enabled": True, "afdelinger": [], "kommuner": []})
     session.add(user)
     await session.commit()
     await session.refresh(user)

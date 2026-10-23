@@ -23,6 +23,8 @@ log = logging.getLogger("portal.fcm")
 SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 PREFIX = "fcm:"
 _token: dict = {"value": None, "exp": 0.0}
+# Seneste udfald (pr. proces) – vises under Alarmer → Push & enheder, så en fejl hos Firebase kan ses
+LAST: dict = {"ok_at": None, "error": None, "error_at": None}
 
 
 @lru_cache
@@ -86,6 +88,7 @@ async def send(tokens: list[str], payload: dict) -> dict[str, int]:
             bearer = {"Authorization": f"Bearer {await _access_token(client, acc)}"}
         except (httpx.HTTPError, ValueError, KeyError) as exc:
             log.warning("FCM: kunne ikke hente adgangstoken: %s", exc)
+            LAST.update(error=f"Adgangstoken: {exc}"[:300], error_at=time.time())
             return {t: 500 for t in tokens}
         url = f"https://fcm.googleapis.com/v1/projects/{acc['project_id']}/messages:send"
         for t in tokens:
@@ -97,9 +100,11 @@ async def send(tokens: list[str], payload: dict) -> dict[str, int]:
                 continue
             if r.status_code == 200:
                 out[t] = 200
+                LAST["ok_at"] = time.time()
             else:
                 # UNREGISTERED (404) og ugyldigt token (400 INVALID_ARGUMENT) betyder, at enheden ikke kan nås mere
                 dead = r.status_code == 404 or (r.status_code == 400 and "INVALID_ARGUMENT" in r.text and "token" in r.text.lower())
                 log.info("FCM %s: %s", r.status_code, r.text[:200])
+                LAST.update(error=f"{r.status_code}: {r.text[:260]}", error_at=time.time())
                 out[t] = 410 if dead else r.status_code
     return out

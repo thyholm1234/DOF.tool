@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import cached, version
 from portal.dof.classify import get_classifier
 from portal.models import FieldReport, FieldReportUpdate, ThreadStatus, User
-from portal.services import alerts
+from portal.services import alerts, feed, seasons
 from portal.services.areas import Scope
 from portal.timeutil import TZ
 
@@ -239,14 +239,19 @@ async def merge_feed(session: AsyncSession, threads: list[dict], day: date, scop
     if level == "local":
         joins = "LEFT JOIN area_species_counts c ON c.area_key = :ck AND c.artnr = r.artnr"
         conds.append("((coalesce(c.n_obs, 0) < :lmax AND s.art_type IN ('art', 'underart')) OR r.kategori IN ('SU','SUB'))")
-        params.update(ck=scope.key, lmax=local_max)
+        params.update(ck=scope.count_key, lmax=local_max)
+    elif level == "pheno":
+        joins = "JOIN species_season ss ON ss.artnr = coalesce(s.list_artnr, s.artnr)"
+        conds += ["s.art_type IN ('art', 'underart')", feed.PHENO_COND]
+        params["doy"] = seasons.doy365(day)
     elif level != "all":
         conds.append("r.kategori = ANY(:kats)")
         params["kats"] = [k for k, v in RANK.items() if v >= LEVELS.get(level, 1)]
+    ph = ", ss.start_doy AS ph_from, ss.end_doy AS ph_to, ss.source AS ph_source" if level == "pheno" else ""
     rows = (await session.execute(text(f"""
         SELECT r.id, r.artnr, r.loknr, r.antal, r.kategori, r.status, r.status_at, r.sikkerhed, r.created_at, r.obserkode,
                r.obstidfra, r.afdelinger, s.navn AS art, l.navn AS lok, l.lat, l.lon, k.navn AS kommune, u.navn AS observer,
-               ca.text AS adf, t.turtidfra
+               ca.text AS adf, t.turtidfra{ph}
         FROM field_reports r JOIN species s ON s.artnr = r.artnr JOIN locations l ON l.loknr = r.loknr
         LEFT JOIN field_trips t ON t.id = r.trip_id JOIN users u ON u.id = r.user_id
         LEFT JOIN kommuner k ON k.kode = l.kommune_kode
@@ -286,7 +291,8 @@ async def merge_feed(session: AsyncSession, threads: list[dict], day: date, scop
              "first_seen": first["created_at"].isoformat(), "last_seen": seen.isoformat(),
              "last": {"obsid": None, "antal": last["antal"], "adf": last["adf"], "tid": last["obstidfra"] or last["turtidfra"],
                       "observer": last["observer"] or last["obserkode"], "obserkode": last["obserkode"]},
-             "afdelinger": list(first["afdelinger"] or []), "source": "portal", "portal": portal}
+             "afdelinger": list(first["afdelinger"] or []), "source": "portal", "portal": portal,
+             **({"pheno": {"fra": first["ph_from"], "til": first["ph_to"], "kilde": first["ph_source"]}} if level == "pheno" else {})}
         threads.append(t)
         by_id[tid] = t
     threads.sort(key=lambda t: t["last_seen"], reverse=True)

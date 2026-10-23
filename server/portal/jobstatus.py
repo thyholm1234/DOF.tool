@@ -25,6 +25,7 @@ LABELS = {
     "events": "DOF-ture",
     "forecast": "DMI-prognose",
     "area_counts": "Områdetal",
+    "seasons": "Normale forekomstperioder (fænologi-filter)",
     "regions": "Arter pr. år (regioner)",
     "gaps": "Huller (observatører og ture pr. art)",
     "location_years": "Lokalitetsoversigt (hver 6. time)",

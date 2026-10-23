@@ -17,7 +17,7 @@ from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, dof_events, features, locyear, netfugl, phenology, regions, weather_archive
+from portal.services import areas, datasync, dmi, dof_events, features, locyear, netfugl, phenology, regions, seasons, weather_archive
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -61,6 +61,7 @@ async def nightly_compute() -> None:
     await jobstatus.step("Fænologi", 2, 5)
     async with SessionLocal() as s:
         await phenology.recompute_metrics(s)
+        await seasons.refresh(s)
     await jobstatus.step("Arter pr. år", 3, 5)
     async with SessionLocal() as s:
         await regions.ensure(s, since.year)
@@ -103,6 +104,11 @@ async def scheduler() -> None:
     if not has_reach:
         await kv().rpush(COMMANDS, json.dumps({"cmd": "gaps"}))
         await jobstatus.queued("gaps")
+    async with SessionLocal() as s:
+        has_seasons = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM species_season)"))).scalar()
+        has_days = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM species_day)"))).scalar()
+    if has_days and not has_seasons:
+        await rpush_cmd("seasons")
     async with SessionLocal() as s:
         has_events = (await s.execute(text("SELECT count(*) FROM dof_events"))).scalar()
     if not has_events:
@@ -199,6 +205,16 @@ async def run_safely(name: str, coro) -> None:
         log.exception("Opgave fejlede: %s", jobstatus.LABELS.get(name, name))
 
 
+async def rpush_cmd(name: str) -> None:
+    await kv().rpush(COMMANDS, json.dumps({"cmd": name}))
+    await jobstatus.queued(name)
+
+
+async def compute_seasons() -> None:
+    async with SessionLocal() as s:
+        await seasons.refresh(s)
+
+
 async def area_counts(scope_ref: str) -> None:
     await jobstatus.step(scope_ref)
     async with SessionLocal() as s:
@@ -249,6 +265,8 @@ async def command_listener() -> None:
                 await run_safely("compute", nightly_compute())
             elif name == "climate":
                 await run_safely("climate", refresh_climate())
+            elif name == "seasons":
+                await run_safely("seasons", compute_seasons())
             elif name == "area_counts":
                 await run_safely("area_counts", area_counts(cmd["scope"]))
             elif name == "events":

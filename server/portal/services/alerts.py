@@ -17,6 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import get_json, kv, publish, set_json
+from portal.services import seasons
 from portal.services.areas import Scope
 from portal.services.lists import ListSpec, _where, matrikel_prefix
 from portal.services.push import send_to_user
@@ -47,6 +48,7 @@ class Event:
     source: str = "dofbasen"  # dofbasen / portal (feltmelding indtastet i portalen)
     sikkerhed: str = "sikker"
     list_artnr: int | None = None  # arten på listerne (underarter tæller som arten)
+    pheno: bool = False  # arten ses uden for sin normale forekomstperiode (species_season)
 
     @property
     def thread(self) -> tuple:
@@ -64,6 +66,7 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
     events = [e for e in events if e.dato == today and e.loknr is not None]
     if not events:
         return 0
+    await _mark_pheno(session, events, today)
     new_ids = {*new_obsids, *(e.obsid for e in extra or [])}
 
     threads = {e.thread for e in events}
@@ -137,6 +140,15 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
     return sent
 
 
+async def _mark_pheno(session: AsyncSession, events: list[Event], today) -> None:
+    ids = list({e.list_artnr or e.artnr for e in events})
+    rows = (await session.execute(text("SELECT artnr, start_doy, end_doy FROM species_season WHERE artnr = ANY(:a)"), {"a": ids})).all()
+    doy = seasons.doy365(today)
+    outside = {a for a, st, en in rows if seasons.is_outside(st, en, doy)}
+    for e in events:
+        e.pheno = e.art_type in ("art", "underart") and (e.list_artnr or e.artnr) in outside
+
+
 async def deliver(session: AsyncSession, users: dict[int, dict] | None, outbox: dict[tuple[int, str], dict]) -> int:
     """Gem notifikationer (dedupliceret pr. bruger), send dem live via SSE og som push."""
     users = users if users is not None else await _users(session)
@@ -198,6 +210,8 @@ def _rule_matches(rule: dict, e: Event, members: dict[int, set[int]], counts: di
         return False
     levels = rule["levels"]
     if "all" in levels or e.kategori in levels:
+        return True
+    if "pheno" in levels and e.pheno:
         return True
     if "local" in levels and e.kategori in ("alm", "bemaerk"):
         if e.art_type not in ("art", "underart"):
@@ -271,6 +285,8 @@ def _message(e: Event, max_antal: int, rule: dict | None, followed: bool = False
     kat = KAT_LABEL.get(e.kategori, "")
     if rule and "local" in rule["levels"] and e.kategori not in rule["levels"] and e.kategori in ("alm", "bemaerk"):
         kat = "Lokalt hit"
+    if rule and e.pheno and "pheno" in rule["levels"] and e.kategori not in rule["levels"]:
+        kat = "Uden for sæson"
     title = f"{max_antal or e.antal} {e.art}, {e.lok or 'ukendt lokalitet'}"
     certainty = e.sikkerhed if e.sikkerhed != "sikker" else None
     bits = [b for b in (kat, "Portal" if e.source == "portal" else None, certainty, e.adf, e.observer, e.tid) if b]

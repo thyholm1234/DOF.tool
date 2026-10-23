@@ -283,6 +283,20 @@ class PhenoMetric(Base):
     n_days: Mapped[int] = mapped_column(SmallInteger, default=0)
 
 
+class SpeciesSeason(Base):
+    """Artens normale forekomstperiode (dag-i-året, 1–365, evt. hen over årsskiftet) – grundlag for filteret Fænologi."""
+
+    __tablename__ = "species_season"
+
+    artnr: Mapped[int] = mapped_column(Integer, primary_key=True)  # listeart
+    start_doy: Mapped[int] = mapped_column(SmallInteger)
+    end_doy: Mapped[int] = mapped_column(SmallInteger)  # < start_doy: perioden går over nytår
+    source: Mapped[str] = mapped_column(String(4))  # dof (bemærk-vindue) / stat (beregnet af observationerne)
+    n_days: Mapped[int] = mapped_column(Integer, default=0)
+    n_years: Mapped[int] = mapped_column(SmallInteger, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ClimateMonth(Base):
     __tablename__ = "climate_month"
 

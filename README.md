@@ -112,9 +112,19 @@ også optages med slukket skærm. Med *Del min position i baggrunden* (Profil) s
 feedet (eller en alarmregel med området) gælder en radius, der følger brugeren (`areas.ref = 'me'`, flyttes af
 `POST /api/me/location`). Funktionen kan slås fra under Admin → Funktioner (`position`). Push til appen sendes via Firebase (`FCM_SERVICE_ACCOUNT_B64`). Se `app/README.md` for byg og opsætning.
 
+**Alarmer der følger dig.** I en alarmregel kan området være *📍 Min position – følger mig* med en radius (1–100 km). Reglen bruger et Nær mig-område pr. radius (`areas.ref = 'me'`). I appen slås positionsdeling til, og Androids positionstjeneste sender selv positionen (højst hvert minut, også når appen er lukket) til `POST /api/location/native` med et positionstoken, der kun kan melde en position. Hver ny position flytter områderne, så notifikationerne gælder, hvor brugeren er. Under Alarmer → *Push & enheder* vises appens diagnose (tilladelser, Firebase-token, fejl), som appen melder til `POST /api/push/diag`.
+
+**Nær mig uden område.** Under *Nær mig* i feedet kan man vælge *Brug min position som filter*: enhedens position er midtpunkt for en radius (2–100 km), og der oprettes ingen lokation eller noget område. Feedet kalder `scope=near:breddegrad,længdegrad,km`, og positionen hentes igen højst hvert 2. minut.
+
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og
 adgangskoden vises kun ved oprettelse/nulstilling.
+
+**Fænologi-filter.** Niveauet *Fænologi* i feedet (og som valg i alarmregler) viser arter, der ses uden for deres normale
+forekomstperiode. Perioden pr. art ligger i `species_season` og beregnes natligt (`services/seasons.py`): har DOFbasen ét
+bemærk-vindue for arten, er resten af året normalt; ellers bruges det korteste stykke af året (også over nytår), der rummer
+99 % af de dage arten er set de seneste 15 år, plus 5 dages margen. Arter set hele året og arter med for få data (< 60 dage
+eller < 5 år) er aldrig fænologi-fund. Tråden viser den normale periode.
 
 **Tommel op og kommentarer.** Man kan give tommel op til en fugl (tråden: art + lokalitet + dag) og til
 kommentarer. Feedet viser antal, tråden "X, Y og N andre", og et klik viser alle. Fuglens ejere (portalbrugere

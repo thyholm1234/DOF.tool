@@ -21,13 +21,18 @@ KINDS = ("afdeling", "kommune", "lokalitet", "polygon", "radius")
 class Scope:
     """Et område reduceret til hvad SQL har brug for."""
 
-    kind: str  # dk / afdeling / kommune / lokalitet / area
-    ref: str = ""
+    kind: str  # dk / afdeling / kommune / lokalitet / area / near
+    ref: str = ""  # near: "lat,lon,km" – en radius om et punkt, uden at oprette et område
 
     @property
     def key(self) -> str:
         return {"dk": "dk", "afdeling": f"afd:{self.ref}", "kommune": f"kom:{self.ref}",
-                "lokalitet": f"lok:{self.ref}", "area": f"area:{self.ref}"}[self.kind]
+                "lokalitet": f"lok:{self.ref}", "area": f"area:{self.ref}", "near": f"near:{self.ref}"}[self.kind]
+
+    @property
+    def count_key(self) -> str:
+        """Nøgle til de historiske artstal ('lokale hits'). En radius om et punkt har ingen egne tal – der bruges hele landet."""
+        return "dk" if self.kind == "near" else self.key
 
     def predicate(self, alias: str = "o", pname: str = "scope_ref") -> tuple[str, dict]:
         if self.kind == "dk":
@@ -41,6 +46,11 @@ class Scope:
         if self.kind == "area":
             return (f"{alias}.loknr IN (SELECT lx.loknr FROM locations lx JOIN areas ax ON ST_Intersects(ax.geom, lx.geom) "
                     f"WHERE ax.id = :{pname})", {pname: int(self.ref)})
+        if self.kind == "near":
+            lat, lon, km = (float(x) for x in self.ref.split(","))
+            return (f"{alias}.loknr IN (SELECT lx.loknr FROM locations lx WHERE ST_DWithin(lx.geom::geography, "
+                    f"ST_SetSRID(ST_MakePoint(CAST(:{pname}_lon AS float), CAST(:{pname}_lat AS float)), 4326)::geography, "
+                    f"CAST(:{pname}_m AS float)))", {f"{pname}_lat": lat, f"{pname}_lon": lon, f"{pname}_m": km * 1000})
         raise ValueError(self.kind)
 
 
@@ -53,9 +63,18 @@ def scope_for_area(area: Area | None) -> Scope:
 
 
 def parse_scope(value: str | None) -> Scope:
-    """'dk' | 'afd:574' | 'kom:0101' | 'lok:123' | 'area:7'"""
+    """'dk' | 'afd:574' | 'kom:0101' | 'lok:123' | 'area:7' | 'near:55.676,12.568,25' (breddegrad, længdegrad, km)"""
     if not value or value == "dk":
         return Scope("dk")
+    if value.startswith("near:"):
+        try:
+            lat, lon, km = (float(x) for x in value[5:].split(","))
+        except ValueError as exc:
+            raise ValueError(f"Ukendt område {value}") from exc
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180 and 0 < km <= 100):
+            raise ValueError(f"Ukendt område {value}")
+        # afrundet til ca. 100 m, så små udsving i positionen deler cache
+        return Scope("near", f"{lat:.3f},{lon:.3f},{km:g}")
     prefix, _, ref = value.partition(":")
     kind = {"afd": "afdeling", "kom": "kommune", "lok": "lokalitet", "area": "area"}.get(prefix)
     if not kind or not ref:

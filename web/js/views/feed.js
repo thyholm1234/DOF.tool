@@ -1,9 +1,9 @@
 import { statusBadge, certaintyTag } from "../reportui.js";
-import { api, state, h, icon, fmtN, fmtDate, ago, tag, todayISO, params, setParams, loadRef, store, empty, errorBox, modal, toast, KAT } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, ago, doyLabel, tag, todayISO, params, setParams, loadRef, store, empty, errorBox, modal, toast, KAT } from "../core.js";
 import { live } from "../live.js";
 import { isApp, currentPosition } from "../native.js";
 
-const LEVELS = [["SU", "SU"], ["SUB", "SUB+"], ["bemaerk", "Bemærk+"], ["local", "Lokale hits"], ["all", "Alle"]];
+const LEVELS = [["SU", "SU"], ["SUB", "SUB+"], ["bemaerk", "Bemærk+"], ["local", "Lokale hits"], ["pheno", "Fænologi"], ["all", "Alle"]];
 
 export async function scopeOptions() {
   await loadRef();
@@ -54,10 +54,21 @@ export async function render(view) {
   const toggles = h("div", { class: "toolbar" });
   const chips = h("div", { class: "chips" });
   const filterRow = h("div", { class: "row between wrap", style: { gap: "8px" } }, chips, h("div", { class: "row", style: { gap: "8px" } }, localWrap, scopeSel,
-    state.user?.position ? h("button", { class: "btn sm", type: "button", title: "Filtrér på en radius om din position", html: `${icon("pin")} Nær mig`, onclick: () => nearMe(async (area) => {
-      scopeSel.replaceChildren(...(await scopeOptions()).filter(o => o[0] !== "mine").map(([v, l]) => h("option", { value: v }, l)));
-      st.scope = st.prevScope = area.scope; st.autoScope = false; scopeSel.value = st.scope; drawChips(); load();
-    }) }) : null));
+    h("button", { class: "btn sm", type: "button", title: "Filtrér på en radius om din position", html: `${icon("pin")} Nær mig`, onclick: () => nearMe({
+      here: (km) => { setHere(km); },
+      saved: async (area) => {
+        scopeSel.replaceChildren(...(await scopeOptions()).filter(o => o[0] !== "mine").map(([v, l]) => h("option", { value: v }, l)));
+        st.scope = st.prevScope = area.scope; st.autoScope = false; scopeSel.value = st.scope; drawChips(); load();
+      } }) })));
+  // Midlertidigt filter: enhedens position som midtpunkt for en radius – intet område oprettes
+  const hereKm = (v) => v.startsWith("here:") ? Number(v.slice(5)) : null;
+  const hereOption = (km) => {
+    scopeSel.querySelectorAll("option[value^='here:']").forEach(o => o.remove());
+    scopeSel.prepend(h("option", { value: `here:${km}` }, `📍 Min position (${km} km)`));
+  };
+  const setHere = (km) => {
+    hereOption(km); st.scope = st.prevScope = `here:${km}`; st.autoScope = false; scopeSel.value = st.scope; drawChips(); load();
+  };
   const tw = (label, on, onclick, title) => h("button", { type: "button", class: `twostate ${on ? "on" : ""}`, title, onclick }, label);
   const drawChips = () => {
     const mine = st.scope === "mine";
@@ -100,7 +111,8 @@ export async function render(view) {
 
   const opts = (await scopeOptions()).filter(o => o[0] !== "mine");
   for (const [v, l] of opts) scopeSel.append(h("option", { value: v, selected: v === st.scope }, l));
-  if (st.scope !== "mine" && !opts.some(o => o[0] === st.scope)) st.scope = "dk";
+  if (hereKm(st.scope)) hereOption(hereKm(st.scope));
+  else if (st.scope !== "mine" && !opts.some(o => o[0] === st.scope)) st.scope = "dk";
   drawChips();
   scopeSel.addEventListener("change", () => { st.scope = scopeSel.value; st.prevScope = st.scope; st.autoScope = false; if (st.level === "all" && st.scope === "dk") st.level = "bemaerk"; drawChips(); load(); });
   localRange.addEventListener("input", () => { localVal.textContent = localRange.value; });
@@ -128,7 +140,13 @@ export async function render(view) {
     localWrap.classList.toggle("hide", mine || st.level !== "local");
     if (first) listEl.replaceChildren(...Array.from({ length: 5 }, () => h("div", { class: "skeleton" })));
     try {
-      const q = new URLSearchParams({ date: st.date, level: st.level, scope: st.scope, local_max: st.localMax });
+      let scope = st.scope;
+      if (hereKm(scope)) {
+        // enhedens position nu (hentes igen højst hvert 2. minut); kan den ikke findes, vises hele landet
+        try { const p = await devicePosition(); scope = `near:${p.lat},${p.lon},${hereKm(scope)}`; }
+        catch (err) { toast(err.message, "err"); st.scope = "dk"; scopeSel.value = "dk"; drawChips(); scope = "dk"; }
+      }
+      const q = new URLSearchParams({ date: st.date, level: st.level, scope, local_max: st.localMax });
       const [data, sum] = await Promise.all([api(`/api/feed?${q}`), api(`/api/feed/summary?date=${st.date}`)]);
       if (mine && data.n_rules === 0) {
         // Ingen regler endnu: standardvisningen falder tilbage til hele landet, et aktivt valg viser en vejledning
@@ -178,6 +196,8 @@ export function threadCard(t, level, fresh = false) {
       h("div", { class: "title" }, h("span", { class: "count" }, fmtN(t.max_antal)), h("span", {}, t.art)),
       h("div", { class: "meta" }, h("span", { class: "lok", title: t.lok || "" }, t.lok || "Ukendt lokalitet"), t.kommune ? h("span", { class: "muted" }, `\u00a0· ${t.kommune}`) : null),
       h("div", { class: "meta2" }, [last.adf, last.observer, last.tid].filter(Boolean).join(" · ")),
+      t.pheno?.fra ? h("div", { class: "meta2", title: t.pheno.kilde === "dof" ? "Efter DOFbasens bemærk-vindue" : "Beregnet af observationerne de seneste 15 år" },
+        `🗓 Uden for sæson – normalt ${doyLabel(t.pheno.fra)} – ${doyLabel(t.pheno.til)}`) : null,
       t.portal || t.status ? h("div", { class: "row", style: { gap: "5px", marginTop: "5px" } },
         // Status meldt på tråden (SU/SUB) vinder over indtasterens egen status
         t.status ? statusBadge(t.status.status, t.status.live, t.status.status_at) : statusBadge(t.portal.status, t.portal.live, t.portal.status_at),
@@ -194,27 +214,47 @@ export function threadCard(t, level, fresh = false) {
 
 const RADII = [2, 5, 10, 25, 50, 100];
 
-/** Nær mig: en radius om brugerens position, som følger med, når appen sender positionen i baggrunden. */
-async function nearMe(done) {
-  const [areas, where] = await Promise.all([api("/api/areas").catch(() => []), api("/api/me/location").catch(() => ({ location: null }))]);
+let lastPos = null;
+/** Enhedens position (genbruges i 2 minutter, så feedets opdateringer ikke bruger GPS hver gang). */
+async function devicePosition() {
+  if (lastPos && Date.now() - lastPos.at < 120000) return lastPos;
+  lastPos = { ...(await currentPosition({ timeout: 20000 })), at: Date.now() };
+  return lastPos;
+}
+
+/** Nær mig: enten et midlertidigt filter om enhedens position (intet gemmes), eller – hvis funktionen er slået til – et
+ *  område, der følger brugeren, når appen sender positionen i baggrunden. */
+async function nearMe({ here, saved }) {
+  const canSave = !!state.user?.position;
+  const [areas, where] = canSave ? await Promise.all([api("/api/areas").catch(() => []), api("/api/me/location").catch(() => ({ location: null }))]) : [[], { location: null }];
   const mine = areas.find(a => a.ref === "me");
   const loc = where.location;
   const fresh = loc && Date.now() - new Date(loc.updated_at) < 30 * 60000;
   const sel = h("select", { "aria-label": "Radius" }, ...RADII.map(km => h("option", { value: km, selected: km === (mine ? mine.radius_m / 1000 : 25) }, `${km} km`)));
-  const status = h("p", { class: "muted" }, fresh ? `Din position fra appen er opdateret ${ago(loc.updated_at)}.`
-    : isApp() ? "Slå «Del min position i baggrunden» til under Profil, så følger filteret dig. Indtil da bruges din position nu."
-      : "Din browsers position bruges nu. Radius flytter sig ikke med dig – det gør den kun i Android-appen.");
-  const go = h("button", { class: "btn primary", type: "button" }, mine ? "Opdatér" : "Brug Nær mig");
-  const body = h("div", { class: "stack" }, h("label", { class: "field" }, h("span", {}, "Radius om min position"), sel), status, go);
+  const useHere = h("button", { class: "btn primary", type: "button" }, "Brug min position som filter");
+  const keep = canSave ? h("button", { class: "btn", type: "button" }, mine ? "Opdatér mit Nær mig-område" : "Gem som område, der følger mig") : null;
+  const body = h("div", { class: "stack" },
+    h("label", { class: "field" }, h("span", {}, "Radius om min position"), sel),
+    h("p", { class: "muted", style: { margin: 0 } }, "Midtpunktet er din enheds position, når feedet hentes. Der oprettes ingen lokation eller noget område."),
+    useHere,
+    keep ? h("div", { class: "stack" }, h("hr", {}), h("p", { class: "muted", style: { margin: 0 } }, fresh
+      ? `Alternativt: gem filtret som et område, der følger dig (din position fra appen er opdateret ${ago(loc.updated_at)}). Det kan også bruges i alarmer.`
+      : isApp() ? "Alternativt: gem et område, der følger dig. Slå «Del min position i baggrunden» til under Profil, så flytter det sig med dig."
+        : "Alternativt: gem et område om din nuværende position. Det flytter sig kun med dig i Android-appen."), keep) : null);
   const m = modal("Nær mig", body);
-  go.onclick = async () => {
-    go.disabled = true;
+  useHere.onclick = async () => {
+    useHere.disabled = true;
+    try { await devicePosition(); m.close(); toast(`Viser observationer inden for ${sel.value} km af din position`); here(Number(sel.value)); }
+    catch (err) { useHere.disabled = false; toast(err.message, "err"); }
+  };
+  if (keep) keep.onclick = async () => {
+    keep.disabled = true;
     try {
       const payload = { radius_km: Number(sel.value) };
-      if (!fresh) { const p = await currentPosition({ timeout: 20000 }); payload.lat = p.lat; payload.lon = p.lon; }
+      if (!fresh) { const p = await devicePosition(); payload.lat = p.lat; payload.lon = p.lon; }
       const area = await api("/api/areas/near-me", { method: "PUT", body: payload });
-      m.close(); toast(`Viser observationer inden for ${sel.value} km`); await done(area);
-    } catch (err) { go.disabled = false; toast(err.message, "err"); }
+      m.close(); toast(`Området «${area.name}» er gemt`); await saved(area);
+    } catch (err) { keep.disabled = false; toast(err.message, "err"); }
   };
 }
 

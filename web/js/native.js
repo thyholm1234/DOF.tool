@@ -14,6 +14,17 @@ const bg = {
   stop: () => cap().nativePromise(PLUGIN, "stop"),
 };
 
+// Android viser kun én tilladelsesdialog ad gangen: en samtidig anmodning (fx position og notifikationer ved opstart)
+// kan blive afvist uden dialog. Derfor køres alle anmodninger efter hinanden.
+let permChain = Promise.resolve();
+const serial = (fn) => { const p = permChain.then(fn, fn); permChain = p.catch(() => {}); return p; };
+
+/** Diagnose: appen melder trinene i push- og positionsopsætningen til serveren (vises under Alarmer → Push & enheder). */
+export function diag(step, detail) {
+  if (!state.user) return;
+  api("/api/push/diag", { method: "POST", body: { step, detail: detail == null ? null : String(detail).slice(0, 480) } }).catch(() => {});
+}
+
 const round6 = (x) => Math.round(x * 1e6) / 1e6;
 const fromNative = (l) => ({ lat: round6(l.latitude), lon: round6(l.longitude), accuracy: l.accuracy ?? null, ts: Math.round((l.time || Date.now()) / 1000) });
 const fromWeb = (p) => ({ lat: round6(p.coords.latitude), lon: round6(p.coords.longitude), accuracy: p.coords.accuracy ?? null, ts: Math.round(p.timestamp / 1000) });
@@ -33,36 +44,47 @@ export function currentPosition({ precise = false, timeout = 15000 } = {}) {
 // Tjenesten kører som forgrundstjeneste med en synlig notifikation, så Android ikke lukker den ned i baggrunden.
 
 const subs = new Map();  // id → { onPoint, onError, distance }
-let running = null;      // distanceFilter tjenesten er startet med
+let running = null;      // konfigurationen tjenesten er startet med (JSON)
+let nativeDelivery = null;  // { url, headers } når positionsdelingen er slået til
 let chain = Promise.resolve();
 
 const dispatch = (fn) => { for (const s of [...subs.values()]) { try { fn(s); } catch { /* ét abonnement må ikke vælte de andre */ } } };
 
 function reconcile() {
-  chain = chain.then(async () => {
-    const want = subs.size ? Math.min(...[...subs.values()].map((s) => s.distance)) : null;
-    if (want === running) return;
+  chain = chain.then(() => serial(async () => {
+    const opts = subs.size ? {
+      backgroundTitle: "DOF.tool bruger din position",
+      backgroundMessage: subs.has("route") ? "Optager din rute" : "Opdaterer Nær mig – dine alarmer følger dig",
+      requestPermissions: true, stale: false, distanceFilter: Math.min(...[...subs.values()].map((s) => s.distance)),
+      // Positionsdeling: Android sender selv positionen til serveren (højst hvert minut) – også når appen er lukket
+      ...(nativeDelivery ? { url: nativeDelivery.url, headers: nativeDelivery.headers, minIntervalMs: 60_000, networkFallback: true } : {}),
+    } : null;
+    const key = opts && JSON.stringify(opts);
+    if (key === running) return;
     if (running !== null) { try { await bg.stop(); } catch { /* ignore */ } running = null; }
-    if (want === null) return;
-    running = want;
+    if (!opts) return;
+    running = key;
     try {
-      bg.start({
-        backgroundTitle: "DOF.tool bruger din position",
-        backgroundMessage: [...subs.keys()].includes("route") ? "Optager din rute" : "Opdaterer Nær mig-filteret",
-        requestPermissions: true, stale: false, distanceFilter: want,
-      }, (loc, err) => {
-        if (err) {
-          if (err.code === "ALREADY_STARTED") return;
-          dispatch((s) => s.onError?.({ code: err.code === "NOT_AUTHORIZED" ? 1 : 2, message: err.message || String(err.code) }));
-          return;
-        }
-        if (loc) dispatch((s) => s.onPoint(fromNative(loc)));
+      await new Promise((resolve) => {
+        let first = true;
+        bg.start(opts, (loc, err) => {
+          if (first) { first = false; resolve(); }
+          if (err) {
+            if (err.code === "ALREADY_STARTED") return;
+            running = null;
+            diag("position-fejl", `${err.code || ""} ${err.message || ""}`);
+            dispatch((s) => s.onError?.({ code: err.code === "NOT_AUTHORIZED" ? 1 : 2, message: err.message || String(err.code) }));
+            return;
+          }
+          if (loc) dispatch((s) => s.onPoint(fromNative(loc)));
+        });
+        setTimeout(resolve, 15000);  // tilladelsesdialogen er besvaret, eller tjenesten kører
       });
     } catch (e) {
       running = null;
       dispatch((s) => s.onError?.({ code: 2, message: e.message || "Positionstjenesten kunne ikke startes" }));
     }
-  });
+  }));
   return chain;
 }
 
@@ -81,40 +103,31 @@ export function watchPosition(id, { distance = 10, precise = true } = {}, onPoin
 // ---------------------------------------------------------------- positionsdeling til 'Nær mig'
 
 let stopShare = null;
-let lastSent = null;  // { lat, lon, at }
-const SHARE_EVERY_MS = 60_000, SHARE_REFRESH_MS = 10 * 60_000, SHARE_MIN_M = 100;
-
-const metersBetween = (a, b) => {
-  const R = 6371000, rad = Math.PI / 180, dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(x));
-};
+const SHARE_MIN_M = 100;
 
 export async function sendPosition(p, source = "app") {
   await api("/api/me/location", { method: "POST", body: { lat: p.lat, lon: p.lon, accuracy_m: p.accuracy, source } });
-  lastSent = { lat: p.lat, lon: p.lon, at: Date.now() };
 }
 
-function onSharePoint(p) {
-  if (p.accuracy != null && p.accuracy > 500) return;
-  const now = Date.now();
-  if (lastSent) {
-    const age = now - lastSent.at;
-    if (age < SHARE_EVERY_MS) return;
-    if (age < SHARE_REFRESH_MS && metersBetween(lastSent, p) < SHARE_MIN_M) return;
-  }
-  lastSent = { ...p, at: now };  // markér straks, så et langsomt svar ikke giver dobbelte kald
-  sendPosition(p).catch(() => { lastSent = null; });  // offline: næste punkt prøver igen
-}
-
-/** Start eller stop deling af baggrundsposition efter brugerens valg (profilen) – kaldes ved login/logout og ændring. */
-export function syncSharing() {
+/** Start eller stop deling af baggrundsposition efter brugerens valg (profilen) – kaldes ved login/logout og ændring.
+ *  Androids positionstjeneste sender selv positionen med et positionstoken, så Nær mig-områderne (og alarmerne) følger
+ *  brugeren, også når appen er lukket. */
+export async function syncSharing() {
   const want = isApp() && !!state.user?.position && state.user?.prefs?.share_location === true;
   if (want && !stopShare) {
-    stopShare = watchPosition("share", { distance: SHARE_MIN_M, precise: false }, onSharePoint,
-      (err) => { toast(err.code === 1 ? "Positionsdeling kræver tilladelse til position. Slå den til i Android-indstillinger." : "Position: " + err.message, "err"); });
+    stopShare = () => {};  // optaget, mens tokenet hentes
+    try {
+      const { token } = await api("/api/me/location/token", { method: "POST" });
+      nativeDelivery = { url: `${location.origin}/api/location/native`, headers: { Authorization: `Bearer ${token}`, "X-Requested-With": "fetch" } };
+    } catch (e) { diag("position-token-fejl", e.message); }
+    // første position med det samme, så områderne flytter sig nu og ikke først efter et minut
+    stopShare = watchPosition("share", { distance: SHARE_MIN_M, precise: false }, (p) => {
+      if (!nativeDelivery) sendPosition(p).catch(() => {});
+    }, (err) => { toast(err.code === 1 ? "Nær mig kræver tilladelse til position. Slå den til i Android-indstillinger." : "Position: " + err.message, "err"); });
+    diag("position-deling", nativeDelivery ? "native" : "via appen");
   } else if (!want && stopShare) {
-    stopShare(); stopShare = null; lastSent = null;
+    nativeDelivery = null;
+    stopShare(); stopShare = null;
   }
 }
 
@@ -123,45 +136,74 @@ export function syncSharing() {
 // sendes til serveren; serveren sender via FCM (services/fcm.py). Samme bro-teknik som positionen: broens egne kald.
 
 const PUSH = "PushNotifications";
+const LOCAL = "LocalNotifications";
 const pn = (method, options) => cap().nativePromise(PUSH, method, options);
-let pushOn = null;  // { token, handles }
+const ln = (method, options) => cap().nativePromise(LOCAL, method, options);
+let pushOn = null;     // { token, handles }
+export let pushError = null;  // seneste fejl fra Firebase/Android, vises under Alarmer → Push & enheder
 
 const goto = (url) => { if (url) location.hash = String(url).replace(/^.*#/, "#"); };
 
-/** Er push slået til i appen? "on" | "off" | "denied" | "unsupported" (appen er bygget uden push-pluginet). */
+/** Er push slået til i appen? "on" | "off" | "denied" | "error" | "unsupported" (appen er bygget uden push-pluginet). */
 export async function appPushStatus() {
   if (!isApp() || typeof cap().nativePromise !== "function") return "unsupported";
   try {
     const { receive } = await pn("checkPermissions");
     if (receive === "denied") return "denied";
-    return receive === "granted" && pushOn?.token ? "on" : "off";
+    if (pushOn?.token) return "on";
+    return pushError ? "error" : "off";
   } catch { return "unsupported"; }
+}
+
+/** Android viser ikke selv en notifikation, mens appen er åben – så vis den som lokal notifikation. */
+async function showForeground(n) {
+  try {
+    let { display } = await ln("checkPermissions");
+    if (display !== "granted") ({ display } = await serial(() => ln("requestPermissions")));
+    if (display !== "granted") throw new Error("ikke tilladt");
+    await ln("schedule", { notifications: [{ id: Math.floor(Math.random() * 2_000_000_000), title: n.title || "DOF.tool", body: n.body || "",
+      channelId: "alerts", extra: { url: n.data?.url } }] });
+  } catch { toast(`${n.title || "DOF.tool"}: ${n.body || ""}`); }
 }
 
 /** Bed om tilladelse, hent token fra Firebase og meld det til serveren. */
 export async function enableAppPush() {
-  if (pushOn) return;
-  const state_ = { token: null, handles: [] };
-  pushOn = state_;
-  const fail = (msg) => { pushOn = null; state_.handles.forEach((x) => x?.remove?.()); throw new Error(msg); };
+  if (pushOn) {  // allerede startet: er der intet token endnu, så prøv at registrere igen
+    if (!pushOn.token) { pushError = null; await pn("register"); }
+    return;
+  }
+  const cur = { token: null, handles: [] };
+  pushOn = cur;
+  pushError = null;
+  const fail = (msg) => { pushOn = null; pushError = msg; diag("push-fejl", msg); cur.handles.forEach((x) => x?.remove?.()); throw new Error(msg); };
+  diag("push-start", `bro: ${typeof cap()?.nativePromise}, lyttere: ${typeof cap()?.addListener}`);
   try {
-    state_.handles.push(cap().addListener(PUSH, "registration", (t) => {
-      state_.token = t.value;
-      api("/api/push/fcm", { method: "POST", body: { token: t.value, device: "Android-app" } }).catch(() => {});
+    cur.handles.push(cap().addListener(PUSH, "registration", (t) => {
+      cur.token = t.value;
+      pushError = null;
+      diag("push-token", `${String(t.value).slice(0, 12)}… (${String(t.value).length} tegn)`);
+      api("/api/push/fcm", { method: "POST", body: { token: t.value, device: "Android-app" } })
+        .then(() => diag("push-registreret"))
+        .catch((e) => { pushError = "Serveren afviste enhedens token: " + e.message; diag("push-fejl", pushError); });
     }));
-    state_.handles.push(cap().addListener(PUSH, "registrationError", (e) => {
-      console.warn("Push kunne ikke aktiveres", e);
-      toast("Push kunne ikke aktiveres – appen mangler Firebase-opsætning (google-services.json).", "err");
+    cur.handles.push(cap().addListener(PUSH, "registrationError", (e) => {
+      pushError = e?.error || "Firebase kunne ikke registrere enheden (tjek google-services.json og Google Play-tjenester)";
+      diag("push-fejl", "registrationError: " + pushError);
+      toast("Push kunne ikke aktiveres: " + pushError, "err");
     }));
     // Tryk på en notifikation: gå til siden i beskeden
-    state_.handles.push(cap().addListener(PUSH, "pushNotificationActionPerformed", (a) => goto(a?.notification?.data?.url)));
+    cur.handles.push(cap().addListener(PUSH, "pushNotificationActionPerformed", (a) => goto(a?.notification?.data?.url)));
+    cur.handles.push(cap().addListener(PUSH, "pushNotificationReceived", (n) => showForeground(n)));
+    cur.handles.push(cap().addListener(LOCAL, "localNotificationActionPerformed", (a) => goto(a?.notification?.extra?.url)));
     try { await pn("createChannel", { id: "alerts", name: "Alarmer", description: "Alarmer om fugle i dine områder", importance: 5, visibility: 1, vibration: true }); } catch { /* findes allerede */ }
     let { receive } = await pn("checkPermissions");
-    if (receive !== "granted") ({ receive } = await pn("requestPermissions"));
+    if (receive !== "granted") ({ receive } = await serial(() => pn("requestPermissions")));
+    diag("push-tilladelse", receive);
     if (receive !== "granted") fail("Notifikationer er ikke tilladt for appen. Slå dem til i Android-indstillinger.");
     await pn("register");
+    diag("push-register-kaldt");
   } catch (e) {
-    if (pushOn === state_) fail(e.message || "Push kunne ikke slås til");
+    if (pushOn === cur) fail(e.message || "Push kunne ikke slås til");
     throw e;
   }
 }
@@ -171,6 +213,7 @@ export async function stopAppPush() {
   const cur = pushOn;
   if (!cur) return;
   pushOn = null;
+  pushError = null;
   cur.handles.forEach((x) => x?.remove?.());
   if (cur.token) await api("/api/push/fcm/unregister", { method: "POST", body: { token: cur.token } }).catch(() => {});
   try { await pn("unregister"); } catch { /* ignore */ }

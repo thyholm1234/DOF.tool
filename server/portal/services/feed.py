@@ -8,10 +8,15 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
+from portal.services import seasons
 from portal.services.areas import Scope
 
 KAT_RANK = "CASE o.kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 WHEN 'bemaerk' THEN 1 ELSE 0 END"
-LEVELS = {"SU": 3, "SUB": 2, "bemaerk": 1, "all": 0, "local": 0}
+LEVELS = {"SU": 3, "SUB": 2, "bemaerk": 1, "all": 0, "local": 0, "pheno": 0}
+
+# Fænologi: arten ses uden for sin normale periode (species_season). :doy er dagens dag i året (1–365).
+PHENO_COND = ("(CASE WHEN ss.start_doy <= ss.end_doy THEN (:doy < ss.start_doy OR :doy > ss.end_doy) "
+              "ELSE (:doy > ss.end_doy AND :doy < ss.start_doy) END)")
 
 
 async def threads(session: AsyncSession, day: date, *, scope: Scope, level: str = "bemaerk", local_max: int = 10,
@@ -27,16 +32,22 @@ async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, l
     local_join = ""
     local_cond = ""
     if level == "local":
-        count_key = scope.key
+        count_key = scope.count_key
         local_join = "LEFT JOIN area_species_counts c ON c.area_key = :ck AND c.artnr = o.artnr"
         local_cond = ("AND ((coalesce(c.n_obs, 0) < :lmax AND s.art_type IN ('art', 'underart')) "
                       "OR o.kategori IN ('SU','SUB'))")
         params.update({"ck": count_key, "lmax": local_max})
-    kat_filter = f"AND {KAT_RANK} >= :minrank" if level not in ("local", "all") else ""
+    ph_cols = ph_agg = ""
+    if level == "pheno":
+        local_join = "JOIN species_season ss ON ss.artnr = s.list_or_artnr"
+        local_cond = f"AND s.art_type IN ('art', 'underart') AND {PHENO_COND}"
+        ph_cols, ph_agg = ", ss.start_doy AS ph_from, ss.end_doy AS ph_to, ss.source AS ph_source", ", max(ph_from) AS ph_from, max(ph_to) AS ph_to, max(ph_source) AS ph_source"
+        params["doy"] = seasons.doy365(day)
+    kat_filter = f"AND {KAT_RANK} >= :minrank" if level not in ("local", "all", "pheno") else ""
     sql = f"""
         WITH sp AS (SELECT artnr, navn, klass, coalesce(list_artnr, artnr) AS list_or_artnr, art_type FROM species),
         obs AS (
-            SELECT o.*, {KAT_RANK} AS rank, s.navn AS art, s.klass, s.art_type
+            SELECT o.*, {KAT_RANK} AS rank, s.navn AS art, s.klass, s.art_type{ph_cols}
             FROM observations o JOIN sp s ON s.artnr = o.artnr {local_join}
             WHERE o.dato = :day AND o.hemmelig = 0 AND {pred} {kat_filter} {local_cond}
         ),
@@ -46,7 +57,7 @@ async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, l
         agg AS (
             SELECT artnr, loknr, max(art) AS art, max(klass) AS klass, max(rank) AS rank,
                    count(*) AS n_obs, count(DISTINCT obserkode) AS n_observers,
-                   min(first_seen) AS first_seen, max(first_seen) AS last_seen,
+                   min(first_seen) AS first_seen, max(first_seen) AS last_seen{ph_agg},
                    (array_agg(obsid ORDER BY coalesce(obstidfra, '00:00') DESC, first_seen DESC))[1] AS last_obsid
             FROM obs GROUP BY artnr, loknr
         )
@@ -79,6 +90,7 @@ async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, l
                      "tid": r["obstidfra"] or r["turtidfra"], "observer": r["last_observer"],
                      "obserkode": r["last_obserkode"]},
             "afdelinger": list(r["afdelinger"] or []),
+            **({"pheno": {"fra": r["ph_from"], "til": r["ph_to"], "kilde": r["ph_source"]}} if level == "pheno" else {}),
         })
     return out
 

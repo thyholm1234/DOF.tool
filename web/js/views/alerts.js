@@ -1,8 +1,9 @@
 import { api, state, h, icon, fmtN, fmtDate, params, setParams, seg, loadRef, requireLogin, empty, errorBox, modal, toast, ago, searchSpecies } from "../core.js";
-import { isApp, appPushStatus, enableAppPush } from "../native.js";
+import { isApp, appPushStatus, enableAppPush, pushError, currentPosition } from "../native.js";
+import { refreshUser } from "../app.js";
 import { baseMap, drawTool, cssVar } from "../maps.js";
 
-const LEVELS = { SU: "SU", SUB: "SUB", bemaerk: "Bemærk", local: "Lokale hits" };
+const LEVELS = { SU: "SU", SUB: "SUB", bemaerk: "Bemærk", local: "Lokale hits", pheno: "Fænologi (uden for sæson)" };
 const levelText = (lv) => lv === "all" ? "Alle observationer" : lv.split(",").map(k => LEVELS[k] || k).join(" + ");
 const MISSING = { "": "Alle arter", year: "Kun arter jeg mangler på årslisten i området", ever: "Kun arter jeg aldrig har set i området" };
 const MISSING_SHORT = { year: "mangler i år", ever: "mangler i området" };
@@ -84,10 +85,20 @@ async function editRule(rule, areasList, done) {
   const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SU,SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], missing: null, push: true, first_only: false, enabled: true };
   const name = h("input", { value: r.name, placeholder: "Fx 'Lokale hits i Odsherred'", required: true });
   const hasRegions = r.kommuner.length > 0 || r.afdelinger.length > 0;
-  const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"), h("option", { value: "regions", selected: !r.area_id && hasRegions }, "Lokalafdelinger og kommuner…"),
-    areasList.length ? h("optgroup", { label: "Mine områder" }, ...areasList.map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${a.ref === "me" ? "følger min position" : KIND_LABEL[a.kind]})`))) : null);
+  // "Min position": en radius om enheden, der flytter sig med brugeren (Nær mig-område, ref = 'me')
+  const curMe = areasList.find(a => a.id === r.area_id && a.ref === "me");
+  const canFollow = !!state.user?.position;
+  const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"),
+    canFollow ? h("option", { value: "me", selected: !!curMe }, "📍 Min position – følger mig") : null,
+    h("option", { value: "regions", selected: !r.area_id && hasRegions }, "Lokalafdelinger og kommuner…"),
+    areasList.filter(a => a.ref !== "me").length ? h("optgroup", { label: "Mine områder" }, ...areasList.filter(a => a.ref !== "me").map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${KIND_LABEL[a.kind]})`))) : null);
+  const radius = h("select", {}, ...[1, 2, 5, 10, 15, 25, 50, 100].map(km => h("option", { value: km, selected: km === (curMe ? curMe.radius_m / 1000 : 10) }, `${km} km`)));
+  const meRow = h("div", { class: "stack", style: { gap: "4px" } }, h("label", { class: "field" }, h("span", {}, "Radius om min position"), radius),
+    h("small", { class: "muted" }, isApp()
+      ? "Appen sender din position i baggrunden (også når den er lukket), og reglen gælder hele tiden inden for radius af, hvor du er. Android viser en fast notifikation, mens positionen følges."
+      : "Positionen følger kun med i Android-appen. Her i browseren bruges din position, når du gemmer reglen."));
   const regions = regionPicker(r.kommuner, r.afdelinger);
-  const syncArea = () => regions.el.classList.toggle("hide", area.value !== "regions");
+  const syncArea = () => { regions.el.classList.toggle("hide", area.value !== "regions"); meRow.classList.toggle("hide", area.value !== "me"); };
   area.onchange = syncArea; syncArea();
   // Afkrydsning af kategorier; "Alle observationer" udelukker de andre
   const chosen = new Set(r.level.split(","));
@@ -114,7 +125,11 @@ async function editRule(rule, areasList, done) {
     if (!levelValue()) { toast("Vælg mindst én kategori", "err"); return; }
     const reg = area.value === "regions" ? regions.value() : { kommuner: [], afdelinger: [] };
     if (area.value === "regions" && !reg.kommuner.length && !reg.afdelinger.length) { toast("Vælg mindst én lokalafdeling eller kommune", "err"); return; }
-    const payload = { ...r, name: name.value, area_id: area.value && area.value !== "regions" ? Number(area.value) : null, ...reg, level: levelValue(), local_max: Number(localMax.value), min_antal: Number(minAntal.value),
+    let areaId = area.value && !["regions", "me"].includes(area.value) ? Number(area.value) : null;
+    if (area.value === "me") {
+      try { areaId = await followMe(Number(radius.value)); } catch (err) { toast(err.message, "err"); return; }
+    }
+    const payload = { ...r, name: name.value, area_id: areaId, ...reg, level: levelValue(), local_max: Number(localMax.value), min_antal: Number(minAntal.value),
       species_include: include.value(), species_exclude: exclude.value(), missing: missing.value || null, push: push.checked, first_only: firstOnly.checked };
     try {
       if (rule) await api(`/api/alerts/rules/${rule.id}`, { method: "PUT", body: payload });
@@ -124,7 +139,7 @@ async function editRule(rule, areasList, done) {
   } },
     h("label", { class: "field" }, h("span", {}, "Navn"), name),
     h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Område"), area), h("div", { class: "field" }, h("span", {}, "Hvad skal udløse en alarm?"), level)),
-    regions.el,
+    regions.el, meRow,
     localRow,
     h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Mindste antal individer"), minAntal),
       h("label", { class: "field", title: "Tæller som dine lister: krydsbare observationer med din obserkode. Med flere kommuner/lokalafdelinger gælder det den, fundet ligger i." },
@@ -135,6 +150,22 @@ async function editRule(rule, areasList, done) {
       firstOnly, "Kun første indtastning pr. art, lokalitet og dag"),
     h("p", { class: "muted", style: { fontSize: ".85rem" } }, areasList.length ? "" : "Lokalafdelinger og kommuner vælges direkte her. Lokaliteter, tegnede områder og radius oprettes under fanen 'Områder'."),
     h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => m.close() }, "Annullér"))), { wide: true });
+}
+
+/** Nær mig-område med radius om brugerens position (genbruges pr. radius). I appen slås positionsdeling i baggrunden til,
+ *  så området – og dermed reglen – følger med. Returnerer områdets id. */
+async function followMe(km) {
+  const where = await api("/api/me/location").catch(() => ({ location: null }));
+  const fresh = where.location && Date.now() - new Date(where.location.updated_at) < 30 * 60000;
+  const payload = { radius_km: km };
+  if (!fresh) { const p = await currentPosition({ timeout: 20000 }); payload.lat = p.lat; payload.lon = p.lon; }
+  const a = await api("/api/areas/near-me", { method: "PUT", body: payload });
+  if (isApp() && state.user?.prefs?.share_location !== true) {
+    await api("/api/me", { method: "PATCH", body: { share_location: true } });
+    await refreshUser();  // starter positionstjenesten (Android spørger om tilladelse)
+    toast("Positionsdeling i baggrunden er slået til – kan slås fra under Profil");
+  }
+  return a.id;
 }
 
 // Flere kommuner og lokalafdelinger direkte på reglen – uden at oprette dem som områder først
@@ -285,18 +316,29 @@ function editArea(done) {
 
 async function devices(body) {
   const st = await pushStatus();
-  const list = await api("/api/push/devices");
+  const info = await api("/api/push/devices?diag=1");
+  const list = info.devices;
   body.append(h("div", { class: "card stack" },
     h("h3", {}, "Denne enhed"),
-    h("p", {}, st === "on" ? "✅ Push er slået til." : st === "denied" ? "🚫 Notifikationer er blokeret i browseren." : st === "unsupported" ? "Push understøttes ikke i denne browser (på iPhone kræver det at appen er føjet til hjemmeskærmen)." : "Push er ikke slået til."),
+    info.rules ? null : h("div", { class: "notice warn" }, "Du har ingen aktive alarmregler – så kommer der ingen notifikationer. Opret en under Regler."),
+    info.fcm_enabled ? null : h("div", { class: "notice warn" }, "Serveren mangler Firebase-nøglen, så appen kan ikke få push."),
+    h("p", {}, st === "on" ? "✅ Push er slået til." : st === "error" ? "⚠️ Push kunne ikke aktiveres: " + (pushError || "ukendt fejl") : st === "denied" ? "🚫 Notifikationer er blokeret i browseren." : st === "unsupported" ? "Push understøttes ikke i denne browser (på iPhone kræver det at appen er føjet til hjemmeskærmen)." : "Push er ikke slået til."),
     h("div", { class: "row" },
       st !== "on" && st !== "unsupported" ? h("button", { class: "btn primary", onclick: async () => { try { await enablePush(); toast("Push slået til"); body.replaceChildren(); devices(body); } catch (err) { toast(err.message, "err"); } } }, "Slå push til") : null,
-      h("button", { class: "btn", onclick: async () => { const r = await api("/api/push/test", { method: "POST" }); toast(r.delivered ? `Testbesked sendt til ${r.delivered} enhed(er)` : "Ingen enheder modtog beskeden", r.delivered ? "" : "err"); } }, "Send testbesked")),
+      h("button", { class: "btn", onclick: async () => {
+        const r = await api("/api/push/test", { method: "POST" });
+        if (r.delivered) return toast(`Testbesked sendt til ${r.delivered} enhed(er)`);
+        toast(r.app_devices && !r.fcm_enabled ? "Serveren mangler Firebase-nøglen (FCM_SERVICE_ACCOUNT_B64)"
+          : r.fcm_error ? "Firebase afviste beskeden: " + r.fcm_error : "Ingen enheder er registreret til push for din bruger", "err");
+      } }, "Send testbesked")),
     h("p", { class: "muted" }, "Stille timer og globalt push-til/fra findes under ", h("a", { href: "#/profil" }, "profil"), ".")),
     h("div", { class: "card mt" }, h("h3", {}, "Registrerede enheder"),
       list.length ? h("table", { class: "data" }, h("tbody", {}, ...list.map(d => h("tr", {},
         h("td", {}, d.user_agent?.match(/(iPhone|Android|Windows|Macintosh|Linux)/)?.[0] || "Enhed", h("div", { class: "muted", style: { fontSize: ".78rem" } }, d.endpoint_host)),
         h("td", { class: "muted" }, d.last_ok ? `Sidst leveret ${ago(d.last_ok)}` : `Oprettet ${fmtDate(d.created_at)}`),
         h("td", { class: "right" }, h("button", { class: "btn sm ghost danger", onclick: async () => { await api(`/api/push/devices/${d.id}`, { method: "DELETE" }); body.replaceChildren(); devices(body); } }, "Fjern"))))))
-        : h("p", { class: "muted" }, "Ingen enheder.")));
+        : h("p", { class: "muted" }, "Ingen enheder.")),
+    info.diag.length ? h("details", { class: "card mt" }, h("summary", {}, h("b", {}, "Diagnose fra appen"), h("span", { class: "muted" }, ` – seneste ${info.diag.length} trin`)),
+      h("table", { class: "data" }, h("tbody", {}, ...info.diag.map(x => h("tr", {},
+        h("td", { class: "nowrap muted" }, fmtDate(x.at), " ", x.at.slice(11, 16)), h("td", {}, h("b", {}, x.step)), h("td", { style: { wordBreak: "break-word" } }, x.detail || "")))))) : null);
 }

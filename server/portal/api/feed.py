@@ -46,7 +46,7 @@ async def resolve_scope(db: AsyncSession, scope: str | None, user: User | None) 
 async def get_feed(
     day: date | None = Query(None, alias="date"),
     scope: str | None = None,
-    level: str = Query("bemaerk", pattern="^(SU|SUB|bemaerk|local|all)$"),
+    level: str = Query("bemaerk", pattern="^(SU|SUB|bemaerk|local|pheno|all)$"),
     local_max: int = Query(10, ge=1, le=1000),
     user: User | None = Depends(optional_user),
     db: AsyncSession = Depends(get_session),
@@ -164,6 +164,8 @@ async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[di
                 wanted.append(("bemaerk" if "bemaerk" in kats else "SUB" if "SUB" in kats else "SU", kats))
             if "local" in levels:
                 wanted.append(("local", {"alm", "bemaerk"}))
+            if "pheno" in levels:
+                wanted.append(("pheno", {"SU", "SUB", "bemaerk", "alm"}))
         for sc in scopes:
             for level, ok in wanted:
                 for t in await fetch(sc, level, r.local_max):
@@ -178,6 +180,8 @@ async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[di
                         hit["rules"].append(r.name)
                     if level == "local" and t["kategori"] not in levels:
                         hit["local_hit"] = True
+                    if level == "pheno" and t["kategori"] not in levels:
+                        hit["pheno"] = t.get("pheno", True)
     return sorted(out.values(), key=lambda t: t["last_seen"], reverse=True)
 
 
