@@ -1,4 +1,5 @@
 import { api, state, h, icon, fmtN, fmtDate, params, setParams, seg, loadRef, requireLogin, empty, errorBox, modal, toast, ago, searchSpecies } from "../core.js";
+import { isApp, appPushStatus, enableAppPush } from "../native.js";
 import { baseMap, drawTool, cssVar } from "../maps.js";
 
 const LEVELS = { SU: "SU", SUB: "SUB", bemaerk: "Bemærk", local: "Lokale hits" };
@@ -23,6 +24,7 @@ export async function render(view) {
 // ---------------------------------------------------------------- push
 
 export async function enablePush() {
+  if (isApp()) return enableAppPush();
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) throw new Error("Denne browser understøtter ikke push. På iPhone: tilføj appen til hjemmeskærmen først.");
   const perm = await Notification.requestPermission();
   if (perm !== "granted") throw new Error("Notifikationer er ikke tilladt i browseren");
@@ -37,6 +39,7 @@ export async function enablePush() {
 }
 
 async function pushStatus() {
+  if (isApp()) return appPushStatus();
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
   if (Notification.permission === "denied") return "denied";
   try {

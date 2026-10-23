@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     weather_dir: str = "/data/weather"  # midlertidige DMI-månedsfiler (≈0,5 GB, slettes efter parsing)
 
     vapid_subject: str = "mailto:admin@example.org"
+    # Firebase (push til Android-appen): servicekontoens JSON, direkte eller base64-kodet (se services/fcm.py)
+    fcm_service_account_json: str = ""
+    fcm_service_account_b64: str = ""
 
     dmi_base: str = "https://opendataapi.dmi.dk"
 

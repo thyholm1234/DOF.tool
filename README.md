@@ -110,7 +110,7 @@ markeres, når fundet dukker op dér.
 **Android-app og Nær mig.** `app/` er en Capacitor-app (APK) om portalen med native positionstjeneste, så GPS-ruten
 også optages med slukket skærm. Med *Del min position i baggrunden* (Profil) sender appen sin position, og *Nær mig* i
 feedet (eller en alarmregel med området) gælder en radius, der følger brugeren (`areas.ref = 'me'`, flyttes af
-`POST /api/me/location`). Funktionen kan slås fra under Admin → Funktioner (`position`). Se `app/README.md` for byg.
+`POST /api/me/location`). Funktionen kan slås fra under Admin → Funktioner (`position`). Push til appen sendes via Firebase (`FCM_SERVICE_ACCOUNT_B64`). Se `app/README.md` for byg og opsætning.
 
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og

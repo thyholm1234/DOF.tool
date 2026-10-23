@@ -117,3 +117,68 @@ export function syncSharing() {
     stopShare(); stopShare = null; lastSent = null;
   }
 }
+
+// ---------------------------------------------------------------- push (Firebase) til appen
+// Web Push findes ikke i en WebView. Appen får i stedet et Firebase-token (plugin @capacitor/push-notifications), som
+// sendes til serveren; serveren sender via FCM (services/fcm.py). Samme bro-teknik som positionen: broens egne kald.
+
+const PUSH = "PushNotifications";
+const pn = (method, options) => cap().nativePromise(PUSH, method, options);
+let pushOn = null;  // { token, handles }
+
+const goto = (url) => { if (url) location.hash = String(url).replace(/^.*#/, "#"); };
+
+/** Er push slået til i appen? "on" | "off" | "denied" | "unsupported" (appen er bygget uden push-pluginet). */
+export async function appPushStatus() {
+  if (!isApp() || typeof cap().nativePromise !== "function") return "unsupported";
+  try {
+    const { receive } = await pn("checkPermissions");
+    if (receive === "denied") return "denied";
+    return receive === "granted" && pushOn?.token ? "on" : "off";
+  } catch { return "unsupported"; }
+}
+
+/** Bed om tilladelse, hent token fra Firebase og meld det til serveren. */
+export async function enableAppPush() {
+  if (pushOn) return;
+  const state_ = { token: null, handles: [] };
+  pushOn = state_;
+  const fail = (msg) => { pushOn = null; state_.handles.forEach((x) => x?.remove?.()); throw new Error(msg); };
+  try {
+    state_.handles.push(cap().addListener(PUSH, "registration", (t) => {
+      state_.token = t.value;
+      api("/api/push/fcm", { method: "POST", body: { token: t.value, device: "Android-app" } }).catch(() => {});
+    }));
+    state_.handles.push(cap().addListener(PUSH, "registrationError", (e) => {
+      console.warn("Push kunne ikke aktiveres", e);
+      toast("Push kunne ikke aktiveres – appen mangler Firebase-opsætning (google-services.json).", "err");
+    }));
+    // Tryk på en notifikation: gå til siden i beskeden
+    state_.handles.push(cap().addListener(PUSH, "pushNotificationActionPerformed", (a) => goto(a?.notification?.data?.url)));
+    try { await pn("createChannel", { id: "alerts", name: "Alarmer", description: "Alarmer om fugle i dine områder", importance: 5, visibility: 1, vibration: true }); } catch { /* findes allerede */ }
+    let { receive } = await pn("checkPermissions");
+    if (receive !== "granted") ({ receive } = await pn("requestPermissions"));
+    if (receive !== "granted") fail("Notifikationer er ikke tilladt for appen. Slå dem til i Android-indstillinger.");
+    await pn("register");
+  } catch (e) {
+    if (pushOn === state_) fail(e.message || "Push kunne ikke slås til");
+    throw e;
+  }
+}
+
+/** Fjern enhedens token fra serveren (ved logout eller når push slås fra). Skal kaldes, mens brugeren stadig er logget ind. */
+export async function stopAppPush() {
+  const cur = pushOn;
+  if (!cur) return;
+  pushOn = null;
+  cur.handles.forEach((x) => x?.remove?.());
+  if (cur.token) await api("/api/push/fcm/unregister", { method: "POST", body: { token: cur.token } }).catch(() => {});
+  try { await pn("unregister"); } catch { /* ignore */ }
+}
+
+/** Slå push til i appen for den indloggede (hvis brugeren ikke har slået det fra) – kaldes ved login/start. */
+export function syncPush() {
+  const want = isApp() && !!state.user && state.user.prefs?.push_enabled !== false;
+  if (want && !pushOn) enableAppPush().catch(() => { /* brugeren kan slå det til under Alarmer → Push & enheder */ });
+  else if (!want && pushOn) stopAppPush();
+}

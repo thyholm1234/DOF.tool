@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import require_user
 from portal.db import get_session
 from portal.models import Afdeling, AlertRule, Area, Kommune, Notification, PushSubscription, User
+from portal.services import fcm
 from portal.services.push import ensure_vapid, send_to_user
 
 router = APIRouter(prefix="/api", tags=["alerts"])
@@ -148,7 +149,33 @@ async def _unread(db: AsyncSession, user: User) -> int:
 
 @router.get("/push/key")
 async def push_key(db: AsyncSession = Depends(get_session)):
-    return {"key": await ensure_vapid(db)}
+    return {"key": await ensure_vapid(db), "fcm": fcm.enabled()}
+
+
+class FcmIn(BaseModel):
+    token: str = Field(min_length=20, max_length=500, pattern=r"^[\w:.\-]+$")
+    device: str | None = Field(None, max_length=120)
+
+
+@router.post("/push/fcm")
+async def register_fcm(body: FcmIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Android-appen melder sit Firebase-token (kaldes ved hver start, og når Firebase skifter token)."""
+    endpoint = fcm.PREFIX + body.token
+    existing = (await db.execute(select(PushSubscription).where(PushSubscription.endpoint == endpoint))).scalar_one_or_none()
+    if existing:
+        existing.user_id = user.id
+        existing.user_agent = body.device or existing.user_agent
+    else:
+        db.add(PushSubscription(user_id=user.id, endpoint=endpoint, p256dh="", auth="", user_agent=(body.device or "Android-app")[:300]))
+    await db.commit()
+    return {"ok": True, "enabled": fcm.enabled()}
+
+
+@router.post("/push/fcm/unregister")
+async def unregister_fcm(body: FcmIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    await db.execute(delete(PushSubscription).where(PushSubscription.user_id == user.id, PushSubscription.endpoint == fcm.PREFIX + body.token))
+    await db.commit()
+    return {"ok": True}
 
 
 class SubIn(BaseModel):
@@ -199,7 +226,7 @@ async def unsubscribe(body: dict, user: User = Depends(require_user), db: AsyncS
 async def devices(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     subs = (await db.execute(select(PushSubscription).where(PushSubscription.user_id == user.id))).scalars().all()
     return [{"id": s.id, "user_agent": s.user_agent, "created_at": s.created_at, "last_ok": s.last_ok,
-             "endpoint_host": s.endpoint.split("/")[2]} for s in subs]
+             "endpoint_host": "Android-app" if s.endpoint.startswith(fcm.PREFIX) else s.endpoint.split("/")[2]} for s in subs]
 
 
 @router.delete("/push/devices/{sub_id}")

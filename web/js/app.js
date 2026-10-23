@@ -1,6 +1,6 @@
 import { api, state, h, $, icon, toast, ago, trackView, adminLink } from "./core.js";
 import { live } from "./live.js";
-import { syncSharing } from "./native.js";
+import { syncSharing, syncPush, stopAppPush } from "./native.js";
 
 // Build-id fra den versionerede sti (/v/<build>/js/app.js) – vises i brugermenuen
 const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
@@ -124,6 +124,7 @@ export async function refreshUser() {
   renderUser();
   renderNav();
   syncSharing();
+  syncPush();
   if (state.user) { refreshUnread(); startOffline(); }
 }
 
@@ -163,7 +164,7 @@ function openMenu() {
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     adminLink() ? h("a", { href: adminLink().href, onclick: close, html: `${icon("shield")} ${adminLink().long}` }) : null,
-    h("button", { onclick: async () => { close(); await api("/api/auth/logout", { method: "POST" }); state.user = null; syncSharing(); renderUser(); renderNav(); live.stop(); location.hash = "#/login"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
+    h("button", { onclick: async () => { close(); await stopAppPush(); await api("/api/auth/logout", { method: "POST" }); state.user = null; syncSharing(); renderUser(); renderNav(); live.stop(); location.hash = "#/login"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
   document.body.append(menu);
   setTimeout(() => document.addEventListener("click", outside, true));

@@ -35,6 +35,9 @@ fi
 export DOF_KEYSTORE="$PWD/signing/dof-tool.jks" DOF_KEYSTORE_PASS="$(cat signing/keystore.pass)"
 export DOF_VERSION_CODE="${DOF_VERSION_CODE:-$(date +%y%m%d%H)}" DOF_VERSION_NAME="${DOF_VERSION_NAME:-$(date +%Y.%m.%d)}"
 
+if [ ! -f android/app/google-services.json ]; then
+  echo "OBS: android/app/google-services.json mangler – appen bygges, men push (Firebase) virker ikke. Se README.md." >&2
+fi
 [ -d node_modules ] || npm install
 npx cap sync android
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties

@@ -3,7 +3,7 @@
 const url = (process.env.DOF_SERVER_URL || "").replace(/\/+$/, "");
 
 module.exports = {
-  appId: "dk.dof.tool",
+  appId: "com.chfotofilm.doftool",
   appName: "DOF.tool",
   webDir: "www",
   server: url ? { url, cleartext: url.startsWith("http://"), errorPath: "error.html" } : undefined,

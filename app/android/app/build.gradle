@@ -4,7 +4,7 @@ android {
     namespace = "dk.dof.tool"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "dk.dof.tool"
+        applicationId "com.chfotofilm.doftool"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode Integer.parseInt(System.getenv("DOF_VERSION_CODE") ?: "1")

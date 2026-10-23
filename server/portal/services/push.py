@@ -15,6 +15,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.config import get_settings
+from portal.services import fcm
 from portal.models import PushSubscription, Setting
 
 log = logging.getLogger("portal.push")
@@ -68,7 +69,18 @@ async def send_to_user(session: AsyncSession, user_id: int, payload: dict) -> in
     await ensure_vapid(session)
     subs = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == user_id))).scalars().all()
     delivered = 0
+    app_subs = {s.endpoint[len(fcm.PREFIX):]: s for s in subs if s.endpoint.startswith(fcm.PREFIX)}
+    if app_subs and fcm.enabled():  # Android-appen (Firebase)
+        for token, status in (await fcm.send(list(app_subs), payload)).items():
+            if status in (404, 410):
+                await session.execute(delete(PushSubscription).where(PushSubscription.id == app_subs[token].id))
+            elif status < 300:
+                delivered += 1
+                await session.execute(update(PushSubscription).where(PushSubscription.id == app_subs[token].id)
+                                      .values(last_ok=datetime.now(timezone.utc)))
     for sub in subs:
+        if sub.endpoint.startswith(fcm.PREFIX):
+            continue
         info = {"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}}
         async with _sem:
             status = await asyncio.to_thread(_send_sync, info, payload)

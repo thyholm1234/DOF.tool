@@ -24,8 +24,23 @@ DOF_SERVER_URL=https://portal.example.dk ./build.sh      # → dist/DOF-tool.apk
   uden nøglen kan en ny version ikke installeres oven på en gammel.
 * Installér: `adb install -r dist/DOF-tool.apk`, eller send filen til telefonen og tillad installation fra ukendte kilder.
 
+## Push via Firebase (FCM)
+
+Web Push findes ikke i en WebView, så appen bruger Firebase. Appen henter et token (`@capacitor/push-notifications`),
+melder det til `POST /api/push/fcm`, og serveren sender alarmer via FCM HTTP v1 (`server/portal/services/fcm.py`) –
+samme alarmregler, stille timer og push til/fra som for browser-push. Tryk på en notifikation åbner den rigtige side.
+
+Opsætning (engangs, kræver en Google-konto):
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → opret projekt → *Tilføj app* → Android med
+   pakkenavnet **`com.chfotofilm.doftool`**. Hent **`google-services.json`** og læg den i `app/android/app/` (ligger ikke i git).
+2. Projektindstillinger → *Tjenestekonti* → *Generér ny privat nøgle*. Sæt filen i serverens `.env` som base64:
+   `FCM_SERVICE_ACCOUNT_B64=$(base64 -w0 nøgle.json)` og genstart `api` og `worker` (`docker compose up -d api worker`).
+3. Byg appen igen (`./build.sh`). Under Alarmer → *Push & enheder* kan man sende en testbesked.
+
+Uden trin 1 bygges appen uden push (den viser en fejl, når man forsøger at slå push til); uden trin 2 modtager serveren
+tokens, men sender ikke.
+
 ## Begrænsninger
 
-* Push-notifikationer (Web Push) virker ikke i en WebView. Alarmer ses i indbakken, når appen er åben; rigtig push til
-  appen kræver Firebase (FCM) og et native push-plugin.
-* Position kræver Google Play-tjenester på telefonen.
+* Position og push kræver Google Play-tjenester på telefonen.
