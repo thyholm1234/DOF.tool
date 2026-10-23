@@ -9,5 +9,9 @@ module.exports = {
   server: url ? { url, cleartext: url.startsWith("http://"), errorPath: "error.html" } : undefined,
   // DOF_DEBUG=1: WebView kan inspiceres fra chrome://inspect (til fejlsøgning på en tilsluttet telefon)
   android: { allowMixedContent: false, webContentsDebuggingEnabled: process.env.DOF_DEBUG === "1", loggingBehavior: process.env.DOF_DEBUG === "1" ? "production" : "debug" },
-  plugins: {},
+  ios: { contentInset: "automatic", webContentsDebuggingEnabled: process.env.DOF_DEBUG === "1" },
+  plugins: {
+    // iOS: vis push som banner, også når appen er åben (Android klarer det i web/js/native.js)
+    PushNotifications: { presentationOptions: ["badge", "sound", "alert"] },
+  },
 };

@@ -104,8 +104,11 @@ async def _access_token(client: httpx.AsyncClient, acc: dict) -> str:
 def message(token: str, payload: dict) -> dict:
     tag = str(payload.get("tag") or "")
     android = {"priority": "HIGH", "ttl": "3600s", "notification": {"channel_id": "alerts", **({"tag": tag} if tag else {})}}
+    # iPhone (via APNs): lyd, høj prioritet og samme tag som Android, så en opdatering erstatter den forrige besked
+    apns = {"headers": {"apns-priority": "10", **({"apns-collapse-id": tag[:64]} if tag else {})},
+            "payload": {"aps": {"sound": "default", **({"thread-id": tag} if tag else {})}}}
     return {"message": {"token": token, "notification": {"title": payload.get("title", "DOF.tool"), "body": payload.get("body", "")},
-                        "data": {"url": str(payload.get("url") or "/#/"), "tag": tag}, "android": android}}
+                        "data": {"url": str(payload.get("url") or "/#/"), "tag": tag}, "android": android, "apns": apns}}
 
 
 async def send(tokens: list[str], payload: dict) -> dict[str, int]:

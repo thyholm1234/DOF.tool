@@ -155,8 +155,10 @@ export async function appPushStatus() {
   } catch { return "unsupported"; }
 }
 
-/** Android viser ikke selv en notifikation, mens appen er åben – så vis den som lokal notifikation. */
+/** Android viser ikke selv en notifikation, mens appen er åben – så vis den som lokal notifikation. Ligger appen i
+ *  baggrunden (positionstjenesten holder den i live), har systemet allerede vist den, så her vises intet. */
 async function showForeground(n) {
+  if (document.visibilityState !== "visible" || cap().getPlatform?.() !== "android") return;  // iOS viser selv banneret
   try {
     let { display } = await ln("checkPermissions");
     if (display !== "granted") ({ display } = await serial(() => ln("requestPermissions")));

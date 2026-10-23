@@ -1,0 +1,109 @@
+# iOS-appen kan kun bygges på macOS (Xcode). Denne workflow bygger den på GitHubs Mac-maskiner:
+#  * simulator: oversætter appen uden signering – tjekker at projektet bygger (kræver ingen hemmeligheder)
+#  * ipa:       signeret .ipa (og evt. TestFlight), når signeringshemmelighederne er sat (se app/README.md)
+name: iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["app/**", ".github/workflows/ios.yml"]
+
+env:
+  DOF_SERVER_URL: ${{ vars.DOF_SERVER_URL || 'https://doftool.chfotofilm.dk' }}
+
+jobs:
+  simulator:
+    runs-on: macos-15
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
+      - run: npm ci
+      - name: Firebase-konfiguration (valgfri)
+        env: { PLIST_B64: "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}" }
+        run: if [ -n "$PLIST_B64" ]; then echo "$PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist; fi
+      - run: npx cap sync ios
+      - name: Byg til simulator
+        working-directory: app/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -n 40
+
+  ipa:
+    needs: simulator
+    runs-on: macos-15
+    defaults: { run: { working-directory: app } }
+    env:
+      HAS_CERT: ${{ secrets.IOS_CERT_P12_B64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.HAS_CERT == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_CERT == 'true'
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
+      - name: Signering og Firebase
+        if: env.HAS_CERT == 'true'
+        env:
+          CERT_B64: ${{ secrets.IOS_CERT_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          PROFILE_B64: ${{ secrets.IOS_PROFILE_B64 }}
+          PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          npm ci
+          [ -n "$PLIST_B64" ] && echo "$PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist
+          KC=$RUNNER_TEMP/build.keychain; KCPW=$(uuidgen)
+          security create-keychain -p "$KCPW" "$KC"; security set-keychain-settings -lut 3600 "$KC"; security unlock-keychain -p "$KCPW" "$KC"
+          echo "$CERT_B64" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KCPW" "$KC" >/dev/null
+          security list-keychain -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_B64" | base64 --decode > $RUNNER_TEMP/app.mobileprovision
+          security cms -D -i $RUNNER_TEMP/app.mobileprovision > $RUNNER_TEMP/profile.plist
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' $RUNNER_TEMP/profile.plist)
+          echo "PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' $RUNNER_TEMP/profile.plist)" >> $GITHUB_ENV
+          cp $RUNNER_TEMP/app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          npx cap sync ios
+      - name: Arkivér og eksportér .ipa
+        if: env.HAS_CERT == 'true'
+        working-directory: app/ios/App
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          EXPORT_METHOD: ${{ vars.IOS_EXPORT_METHOD || 'app-store-connect' }}
+        run: |
+          BUILD=$(date +%y%m%d%H%M)
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath $RUNNER_TEMP/App.xcarchive \
+            -destination 'generic/platform=iOS' CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            CURRENT_PROJECT_VERSION=$BUILD MARKETING_VERSION=$(date +%Y.%-m.%-d) archive | tail -n 40
+          cat > $RUNNER_TEMP/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>$EXPORT_METHOD</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict><key>com.chfotofilm.doftool</key><string>$PROFILE_NAME</string></dict>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath $RUNNER_TEMP/App.xcarchive -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/export
+          mv $RUNNER_TEMP/export/*.ipa $RUNNER_TEMP/DOF-tool.ipa
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_CERT == 'true'
+        with: { name: DOF-tool-ios, path: "${{ runner.temp }}/DOF-tool.ipa" }
+      - name: Upload til TestFlight (valgfri)
+        if: env.HAS_CERT == 'true' && vars.IOS_TESTFLIGHT == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_P8_B64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+          xcrun altool --upload-app -f $RUNNER_TEMP/DOF-tool.ipa -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Ingen signering sat op
+        if: env.HAS_CERT != 'true'
+        run: echo "::notice::Simulator-bygget lykkedes. Sæt IOS_CERT_P12_B64 m.fl. (se app/README.md) for at få en .ipa."

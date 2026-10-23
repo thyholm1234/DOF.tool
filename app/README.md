@@ -48,3 +48,32 @@ tokens, men sender ikke.
 ## Begrænsninger
 
 * Position og push kræver Google Play-tjenester på telefonen.
+
+## iOS
+
+iOS-projektet ligger i `ios/` (CocoaPods). Det kan kun bygges på macOS med Xcode, så det bygges af GitHub Actions
+(`.github/workflows/ios.yml`) ved push til `app/` eller manuelt under *Actions → iOS → Run workflow*:
+
+* **simulator** – oversætter appen uden signering og viser, at projektet bygger. Kræver ingen hemmeligheder.
+* **ipa** – signeret `DOF-tool.ipa` som artefakt (og evt. TestFlight), når signeringshemmelighederne er sat.
+
+Appen gør det samme som på Android: portalen fra serveren, positionen fra iOS (Core Location, også i baggrunden med
+tilladelsen *Altid*) og push via Firebase. iOS stopper positionen, hvis brugeren lukker appen helt (det kan ingen app
+komme uden om); ligger den bare i baggrunden, følger Nær mig-alarmerne med.
+
+Engangsopsætning (kræver Apple Developer Program, 99 USD/år):
+
+1. **Apple Developer** → Identifiers: App ID `com.chfotofilm.doftool` med *Push Notifications*. Keys: opret en
+   **APNs-nøgle** (.p8). Certificates: et *Apple Distribution*-certifikat (eksportér som .p12). Profiles: en
+   *App Store*- (eller *Ad Hoc*-) profil for app-id'et.
+2. **Firebase** → Projektindstillinger → *Cloud Messaging* → Apple-app-konfiguration: upload APNs-nøglen.
+   *Tilføj app* → iOS med bundle-id `com.chfotofilm.doftool`, hent `GoogleService-Info.plist`.
+3. **GitHub** → Settings → Secrets and variables → Actions:
+   * Secrets: `IOS_CERT_P12_B64`, `IOS_CERT_PASSWORD`, `IOS_PROFILE_B64`, `IOS_TEAM_ID`, `GOOGLE_SERVICE_INFO_PLIST_B64`
+     (alle filer som `base64 -w0 fil`). Til TestFlight også `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_B64`
+     (App Store Connect → Users and Access → Integrations → API-nøgle).
+   * Variables: `DOF_SERVER_URL` (standard `https://doftool.chfotofilm.dk`), `IOS_EXPORT_METHOD` (`app-store-connect`
+     eller `ad-hoc`), `IOS_TESTFLIGHT=true` for upload.
+
+Serveren skal ikke ændres: iPhone får et Firebase-token som Android, og afsendelsen (`services/fcm.py`) sender også
+iOS-felterne (lyd, prioritet, samme tag).
