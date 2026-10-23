@@ -17,8 +17,8 @@ jobs:
     runs-on: macos-15
     defaults: { run: { working-directory: app } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
       - run: npm ci
       - name: Firebase-konfiguration (valgfri)
@@ -38,9 +38,9 @@ jobs:
     env:
       HAS_CERT: ${{ secrets.IOS_CERT_P12_B64 != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.HAS_CERT == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: env.HAS_CERT == 'true'
         with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
       - name: Signering og Firebase
@@ -106,4 +106,5 @@ jobs:
           xcrun altool --upload-app -f $RUNNER_TEMP/DOF-tool.ipa -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
       - name: Ingen signering sat op
         if: env.HAS_CERT != 'true'
+        working-directory: ${{ github.workspace }}  # koden er ikke hentet i dette tilfælde, så app/ findes ikke
         run: echo "::notice::Simulator-bygget lykkedes. Sæt IOS_CERT_P12_B64 m.fl. (se app/README.md) for at få en .ipa."
