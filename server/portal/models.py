@@ -389,8 +389,24 @@ class User(Base):
     history_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Adgang til admin-moduler (se services.auth.MODULES). None = rollens standardmoduler.
     permissions: Mapped[list[str] | None] = mapped_column(JSONB)
+    # Testbrugere oprettes af en administrator og logger ind med en lokal adgangskode (ikke hos DOFbasen)
+    is_test: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    test_pw_hash: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class UserLocation(Base):
+    """Seneste kendte position for en app-bruger (baggrundsposition). Bruges til 'følg mig'-radius i feed og alarmer."""
+
+    __tablename__ = "user_locations"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lon: Mapped[float] = mapped_column(Float)
+    accuracy_m: Mapped[float | None] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(12), default="app")  # app / web
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PushSubscription(Base):
@@ -1422,6 +1438,8 @@ EXTRA_DDL = [
     $$""",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions jsonb",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS approved boolean NOT NULL DEFAULT true",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_test boolean NOT NULL DEFAULT false",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS test_pw_hash varchar(200)",
     "ALTER TABLE mob_presets ADD COLUMN IF NOT EXISTS official boolean NOT NULL DEFAULT false",
     "ALTER TABLE mob_presets ALTER COLUMN user_id DROP NOT NULL",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"

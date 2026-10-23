@@ -107,6 +107,15 @@ DOFbasen-data, vises i de samme tråde og kører gennem de samme alarmregler. De
 dofbasen.dk; brug CSV-eksporten (DOFbasens kolonnenavne) eller indtast også i DOFbasen – meldingen
 markeres, når fundet dukker op dér.
 
+**Android-app og Nær mig.** `app/` er en Capacitor-app (APK) om portalen med native positionstjeneste, så GPS-ruten
+også optages med slukket skærm. Med *Del min position i baggrunden* (Profil) sender appen sin position, og *Nær mig* i
+feedet (eller en alarmregel med området) gælder en radius, der følger brugeren (`areas.ref = 'me'`, flyttes af
+`POST /api/me/location`). Funktionen kan slås fra under Admin → Funktioner (`position`). Se `app/README.md` for byg.
+
+**Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
+`users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og
+adgangskoden vises kun ved oprettelse/nulstilling.
+
 **Tommel op og kommentarer.** Man kan give tommel op til en fugl (tråden: art + lokalitet + dag) og til
 kommentarer. Feedet viser antal, tråden "X, Y og N andre", og et klik viser alle. Fuglens ejere (portalbrugere
 med observationer i tråden eller egne feltmeldinger) får notifikation om tommel op og nye kommentarer; trådens

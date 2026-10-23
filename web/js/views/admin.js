@@ -241,6 +241,9 @@ async function users(body) {
       h("label", { class: "check" }, approvalSwitch, h("span", {}, h("b", {}, "Nye brugere skal godkendes"),
         h("span", { class: "muted" }, " – en ny bruger oprettes, når koden er gyldig hos DOFbasen, men får først adgang, når en administrator har godkendt kontoen. Er den slået fra, får nye brugere adgang med det samme."))),
       pendingBox),
+    h("div", { class: "card row between", style: { marginBottom: "12px" } },
+      h("span", {}, h("b", {}, "Testbrugere"), h("span", { class: "muted" }, " – konti med lokal adgangskode, til at afprøve appen uden en DOFbasen-konto. De vises ikke på scoreboards.")),
+      h("button", { class: "btn sm primary", onclick: () => testUserModal(null, load) }, "Opret testbruger")),
     h("p", { class: "muted", style: { marginTop: 0 } }, "Rollen giver et standardsæt af admin-moduler. Under Rettigheder kan den enkelte bruger i stedet få præcis de moduler, der er krydset af."), q, out);
   const isSuper = state.user.role === "superadmin";
   const editable = (u) => u.id !== state.user.id && u.role !== "superadmin" && (isSuper || !["admin", "superadmin"].includes(u.role));
@@ -262,6 +265,7 @@ async function users(body) {
       h("thead", {}, h("tr", {}, h("th", {}, "Bruger"), h("th", {}, "Rolle"), h("th", {}, "Admin-moduler"), h("th", {}, "Sidst set"), h("th", { class: "right" }, "Enheder/regler"), h("th", {}))),
       h("tbody", {}, ...rows.map(u => h("tr", {},
         h("td", {}, h("b", {}, u.navn || u.obserkode), u.approved ? null : h("span", { class: "tag SUB", style: { marginLeft: "6px" } }, "afventer"),
+          u.is_test ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Testbruger med lokal adgangskode" }, "test") : null,
           h("div", { class: "muted" }, u.obserkode, u.blocked ? " · spærret" : "")),
         h("td", { class: "wide", "data-label": "Rolle" }, roleSelect(u, meta.role_names, load)),
         h("td", { "data-label": "Moduler" },
@@ -273,11 +277,37 @@ async function users(body) {
         h("td", { class: "right num", "data-label": "Enh./regler" }, `${u.devices} / ${u.rules}`),
         h("td", { class: "right nowrap wide" }, u.role !== "superadmin" ? [
           u.approved ? null : h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
+          u.is_test ? h("button", { class: "btn sm", onclick: () => testUserModal(u, load) }, "Ny kode") : null,
           h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { blocked: !u.blocked } }); load(); } }, u.blocked ? "Ophæv spærring" : "Spær"),
-          isSuper ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
+          isSuper || u.is_test ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
   };
   let t; q.oninput = () => { clearTimeout(t); t = setTimeout(load, 250); };
   await load();
+}
+
+/** Opret en testbruger (u = null) eller giv en ny adgangskode. Adgangskoden vises kun her, så den kan gives videre. */
+function testUserModal(u, done) {
+  const navn = h("input", { type: "text", placeholder: "Fx Testbruger Anna", maxlength: 160, value: u?.navn || "" });
+  const pw = h("input", { type: "text", placeholder: "Tom = tilfældig adgangskode", minlength: 6, maxlength: 100, autocomplete: "off" });
+  const out = h("div", {});
+  const go = h("button", { class: "btn primary", type: "button" }, u ? "Giv ny adgangskode" : "Opret");
+  const body = h("div", { class: "stack" }, u ? h("p", { class: "muted", style: { margin: 0 } }, `${u.navn || u.obserkode} (${u.obserkode}) bliver logget ud overalt.`)
+    : h("label", { class: "field" }, h("span", {}, "Navn"), navn),
+    h("label", { class: "field" }, h("span", {}, "Adgangskode"), pw), go, out);
+  const m = modal(u ? "Ny adgangskode" : "Opret testbruger", body);
+  go.onclick = async () => {
+    go.disabled = true;
+    try {
+      const r = u ? await api(`/api/admin/test-users/${u.id}/password`, { method: "POST", body: { password: pw.value } })
+        : await api("/api/admin/test-users", { method: "POST", body: { navn: navn.value, password: pw.value || null } });
+      const text = `Obserkode: ${r.obserkode}\nAdgangskode: ${r.password}`;
+      out.replaceChildren(h("div", { class: "notice stack", style: { gap: "6px" } }, h("b", {}, "Log ind med"), h("pre", { style: { margin: 0, userSelect: "all" } }, text),
+        h("small", { class: "muted" }, "Adgangskoden vises kun nu."),
+        h("button", { class: "btn sm", type: "button", onclick: () => navigator.clipboard?.writeText(text).then(() => toast("Kopieret")) }, "Kopiér")));
+      go.remove(); done();
+    } catch (err) { go.disabled = false; toast(err.message, "err"); }
+  };
+  return m;
 }
 
 /** Rollevalg for en bruger. Superadmin (fra .env) kan ikke ændres og kan ikke tildeles. */

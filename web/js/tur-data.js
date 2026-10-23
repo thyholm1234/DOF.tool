@@ -1,5 +1,6 @@
 // Fælles data og logik for tur-siderne: opslag, GPS-rute, tur-modellen og lagring (server eller offline-kø).
 import { api, toast, todayISO } from "./core.js";
+import { watchPosition, isApp } from "./native.js";
 import { newId, putLocal, getLocal, deleteLocal, listLocal, upload, isNetworkError } from "./offline.js";
 
 export const nowHM = () => new Date().toTimeString().slice(0, 5);
@@ -25,17 +26,18 @@ export function trackStart(cid, points) {
   if (tracker.cid !== cid) { trackStop(); tracker.cid = cid; tracker.points = points; }
   tracker.paused = false;
   if (tracker.watch != null) return;
-  tracker.watch = navigator.geolocation.watchPosition((p) => {
-    const pt = [Math.round(p.coords.latitude * 1e6) / 1e6, Math.round(p.coords.longitude * 1e6) / 1e6, Math.round(p.timestamp / 1000), Math.round(p.coords.accuracy)];
+  // I appen kommer punkterne fra Androids positionstjeneste (forgrundstjeneste), så ruten optages med slukket skærm
+  tracker.watch = watchPosition("route", { distance: 5, precise: true }, (p) => {
+    const pt = [p.lat, p.lon, p.ts, Math.round(p.accuracy ?? 0)];
     const last = tracker.points[tracker.points.length - 1];
-    if (pt[3] > 100 || (last && meters(last, pt) < 5) || tracker.points.length >= 20000) return;
+    if (pt[3] > 100 || (last && (meters(last, pt) < 5 || pt[2] < last[2])) || tracker.points.length >= 20000) return;
     tracker.points.push(pt);
     tracker.listeners.forEach(fn => fn());
   }, (err) => {
     toast(err.code === 1 ? "Lokationstilladelse er afvist – GPS-ruten kan ikke optages" : "Position ikke tilgængelig: " + err.message, "err");
     trackPause();
-  }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
-  navigator.wakeLock?.request("screen").then(l => { tracker.lock = l; }).catch(() => {});
+  });
+  if (!isApp()) navigator.wakeLock?.request("screen").then(l => { tracker.lock = l; }).catch(() => {});
   // Ruten gemmes i den lokale kopi hvert 20. sekund, så den overlever, at appen lukkes
   tracker.saver ||= setInterval(async () => {
     const rec = tracker.cid && await getLocal(tracker.cid);
@@ -43,7 +45,7 @@ export function trackStart(cid, points) {
   }, 20000);
 }
 export function trackPause() {
-  if (tracker.watch != null) navigator.geolocation.clearWatch(tracker.watch);
+  if (tracker.watch != null) tracker.watch();
   tracker.watch = null; tracker.paused = true;
   tracker.lock?.release?.().catch(() => {}); tracker.lock = null;
   tracker.listeners.forEach(fn => fn());

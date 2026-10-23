@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DOF.tool</string>
+    <string name="title_activity_main">DOF.tool</string>
+    <string name="package_name">dk.dof.tool</string>
+    <string name="custom_url_scheme">dk.dof.tool</string>
+</resources>

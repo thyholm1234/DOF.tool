@@ -1,6 +1,7 @@
 import { api, state, h, fmtN, fmtDate, loadRef, requireLogin, toast, seg } from "../core.js";
 import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
+import { isApp, syncSharing } from "../native.js";
 
 export async function render(view) {
   if (requireLogin(view)) return;
@@ -29,6 +30,22 @@ export async function render(view) {
   const push = h("input", { type: "checkbox", checked: p.push_enabled });
   const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], p.theme || "auto", (v) => { p.theme = v; localStorage.setItem("theme", v); state.user.prefs.theme = v; applyTheme(); });
 
+  // Baggrundsposition (kun appen): gemmes med det samme, så Android når at bede om tilladelse
+  const share = h("input", { type: "checkbox", checked: p.share_location === true, disabled: !isApp(), onchange: async () => {
+    try {
+      await api("/api/me", { method: "PATCH", body: { share_location: share.checked } });
+      if (!share.checked) await api("/api/me/location", { method: "DELETE" });
+      await refreshUser();
+      toast(share.checked ? "Positionen deles i baggrunden, mens appen kører" : "Positionen er slettet fra serveren");
+    } catch (err) { share.checked = !share.checked; toast(err.message, "err"); }
+  } });
+  const positionCard = u.position ? [
+    h("h3", { class: "mt" }, "Position og Nær mig"),
+    h("label", { class: "check" }, share, "Del min position i baggrunden (Android-appen)"),
+    h("small", { class: "muted", style: { marginTop: "-6px" } }, isApp()
+      ? "Appen sender din seneste position, når du flytter dig, så feedet og dine alarmer kan gælde en radius omkring, hvor du er (Nær mig). Positionen bruges kun til dine egne filtre, og slettes, når du slår delingen fra."
+      : "Baggrundsposition kræver Android-appen. I browseren kan du stadig vælge Nær mig i feedet – så bruges din position, mens du vælger.")] : [];
+
   const phone = h("input", { type: "tel", inputmode: "tel", value: p.phone || "", placeholder: "Fx 20 30 40 50", maxlength: 20, autocomplete: "tel" });
   const save = async () => {
     try {
@@ -55,6 +72,7 @@ export async function render(view) {
         h("label", { class: "check" }, push, "Send push til mine enheder"),
         h("div", {}, h("p", { class: "muted", style: { marginBottom: "6px" } }, "Stille timer (ingen push – notifikationer ligger stadig i indbakken)"), h("div", { class: "row" }, qs, "–", qe)),
         h("button", { type: "button", class: "btn", onclick: async () => { try { await enablePush(); toast("Push slået til på denne enhed"); } catch (err) { toast(err.message, "err"); } } }, "Slå push til på denne enhed"),
+        ...positionCard,
         h("h3", { class: "mt" }, "Lister og privatliv"),
         h("label", { class: "check" }, pub, "Vis mig på scoreboards og lad andre se mine lister"),
         h("h3", { class: "mt" }, "Udseende"), theme)),

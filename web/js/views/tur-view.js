@@ -3,6 +3,7 @@
 import { h, icon, fmtN, fmtDate, tag, toast, store, KAT } from "../core.js";
 import { baseMap } from "../maps.js";
 import { tracker, trackStart, trackPause, trackStop, trackLength } from "../tur-data.js";
+import { isApp } from "../native.js";
 import { openObsSheet, openPairSheet } from "../obs-sheet.js";
 
 const STATE = { ok: ["Gemt", "ok"], gemmer: ["Gemmer …", "busy"], offline: ["Ikke sendt – sendes, når der er net", "off"], fejl: ["Kunne ikke gemmes", "err"] };
@@ -88,7 +89,7 @@ export function view(page, ref, store_, recent) {
   };
   const startGps = () => {
     if (!navigator.geolocation) return toast("Enheden understøtter ikke positionsbestemmelse", "err");
-    if (!T.gps_aktiv && !confirm("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. Hold appen åben under turen.")) return;
+    if (!T.gps_aktiv && !confirm("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. " + (isApp() ? "I appen optages ruten også med slukket skærm." : "Hold appen åben under turen."))) return;
     T.gps_aktiv = true;
     trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
     store_.save(); drawGps();

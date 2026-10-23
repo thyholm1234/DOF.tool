@@ -82,7 +82,7 @@ async function editRule(rule, areasList, done) {
   const name = h("input", { value: r.name, placeholder: "Fx 'Lokale hits i Odsherred'", required: true });
   const hasRegions = r.kommuner.length > 0 || r.afdelinger.length > 0;
   const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"), h("option", { value: "regions", selected: !r.area_id && hasRegions }, "Lokalafdelinger og kommuner…"),
-    areasList.length ? h("optgroup", { label: "Mine områder" }, ...areasList.map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${KIND_LABEL[a.kind]})`))) : null);
+    areasList.length ? h("optgroup", { label: "Mine områder" }, ...areasList.map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${a.ref === "me" ? "følger min position" : KIND_LABEL[a.kind]})`))) : null);
   const regions = regionPicker(r.kommuner, r.afdelinger);
   const syncArea = () => regions.el.classList.toggle("hide", area.value !== "regions");
   area.onchange = syncArea; syncArea();
@@ -189,7 +189,7 @@ async function areas(body) {
   body.append(h("div", { class: "grid-2" }, ...list.map(a => {
     const mapEl = h("div", { class: "map small", style: { height: "180px" } });
     const card = h("div", { class: "card" },
-      h("div", { class: "card-head" }, h("h3", {}, a.name), h("span", { class: "spacer" }), h("span", { class: "tag plain" }, KIND_LABEL[a.kind])),
+      h("div", { class: "card-head" }, h("h3", {}, a.name), h("span", { class: "spacer" }), h("span", { class: "tag plain" }, a.ref === "me" ? "Følger min position" : KIND_LABEL[a.kind])),
       mapEl,
       h("div", { class: "row mt" },
         h("a", { class: "btn sm", href: `#/?scope=${a.scope.startsWith("area:") ? "area:" + a.id : a.scope}&level=local` }, "Lokale hits i dag"),

@@ -20,6 +20,8 @@ from portal.models import Setting
 STATES = ("off", "preview", "on")
 # nøgle: (navn, beskrivelse, forælder, standard)
 FEATURES: dict[str, tuple[str, str, str | None, str]] = {
+    "position": ("Position og 'Nær mig' (app)", "Appen sender brugerens position i baggrunden, og feed og alarmer kan filtreres på en radius "
+                 "om, hvor man er (Nær mig). Brugeren kan slå positionsdeling fra og slette sin position.", None, "on"),
     "dofbasen": ("DOFbasen (showcase)", "Hele modulet: en ny udgave af dofbasen.dk med forside, observationer, lister, fænologi, "
                  "tekstsider og eget admin-panel. Menupunktet DOFbasen vises kun, når modulet er synligt for brugeren.", None, "preview"),
     "dofbasen_search": ("DOFbasen: søgning", "Søgesiden med alle filtre, kort og CSV-udtræk.", "dofbasen", "on"),

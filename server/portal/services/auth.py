@@ -7,6 +7,8 @@ pr. obserkode og pr. IP.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 import secrets
 from datetime import datetime, timezone
@@ -123,6 +125,37 @@ async def _rate_limit(kode: str, ip: str) -> None:
             raise AuthError("For mange forsøg. Prøv igen om et minut.", 429)
 
 
+def hash_test_password(password: str) -> str:
+    """Testbrugeres lokale adgangskode (scrypt). Gælder kun brugere oprettet af en administrator – rigtige brugere har
+    aldrig en adgangskode i portalen."""
+    salt = secrets.token_bytes(16)
+    digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+    return f"scrypt${salt.hex()}${digest.hex()}"
+
+
+def check_test_password(stored: str | None, password: str) -> bool:
+    try:
+        _, salt, digest = (stored or "").split("$")
+        probe = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1)
+        return hmac.compare_digest(probe, bytes.fromhex(digest))
+    except ValueError:
+        return False
+
+
+async def create_test_user(session: AsyncSession, navn: str, password: str | None = None) -> tuple[User, str]:
+    """Opret en testbruger med obserkode TEST0001, TEST0002 … Adgangskoden returneres kun her (genereres, hvis den mangler)."""
+    last = (await session.execute(text(
+        "SELECT coalesce(max(substring(obserkode from 5)::int), 0) FROM users WHERE obserkode ~ '^TEST[0-9]+$'"))).scalar() or 0
+    password = password or secrets.token_urlsafe(9)
+    user = User(obserkode=f"TEST{last + 1:04d}", navn=navn.strip()[:160] or f"Testbruger {last + 1}", role="user", approved=True,
+                is_test=True, test_pw_hash=hash_test_password(password), history_synced_at=datetime.now(timezone.utc),
+                prefs={"lists_public": False, "push_enabled": False, "afdelinger": [], "kommuner": []})
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user, password
+
+
 PENDING_MSG = ("Din konto er oprettet, men afventer godkendelse af en administrator. "
                "Prøv igen senere – der er ikke noget at gøre fra din side.")
 
@@ -150,6 +183,12 @@ async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -
     user = (await session.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
     if user and user.blocked:
         raise AuthError("Brugeren er spærret", 403)
+    if user and user.is_test:  # testbruger: lokal adgangskode, intet kald til DOFbasen
+        if not check_test_password(user.test_pw_hash, password):
+            raise AuthError("Forkert obserkode eller adgangskode")
+        user.dof_verified_at = datetime.now(timezone.utc)
+        await session.commit()
+        return user, False
 
     # Verificér hos DOFbasen (opslagsbanen: med det samme, uden at vente på minimumsintervallet)
     job_id = await gateway.enqueue("login", {"obserkode": kode}, priority=gateway.INTERACTIVE,

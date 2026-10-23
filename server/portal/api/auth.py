@@ -16,7 +16,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import archive_files
 from portal.models import User
-from portal.services import activity, auth, dofbasen, netfugl
+from portal.services import activity, auth, dofbasen, features, netfugl
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -71,12 +71,14 @@ async def me(user: User | None = Depends(optional_user), db: AsyncSession = Depe
     if user is None:
         return {"user": None}
     # DOFbasen-modulet: hvilke funktioner brugeren ser, og hvad brugeren må (styrer menuen)
-    return {"user": {**user_out(user), "dofbasen": (await dofbasen.context(db, user)).out(),
-                     "netfugl": (await netfugl.context(db, user)).out()}}
+    flags = await features.load(db)
+    return {"user": {**user_out(user), "is_test": user.is_test, "dofbasen": (await dofbasen.context(db, user)).out(),
+                     "netfugl": (await netfugl.context(db, user)).out(),
+                     "position": features.visible(flags, "position", superadmin=user.role == "superadmin", insider=False)}}
 
 
 ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "push_enabled", "quiet_hours", "theme", "home",
-                 "feed_level", "feed_scope", "local_max", "phone"}
+                 "feed_level", "feed_scope", "local_max", "phone", "share_location"}
 
 
 @router.patch("/me")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -229,7 +230,7 @@ async def jobs(user: User = Depends(perm_drift)):
 @router.get("/admin/users")
 async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
-        SELECT u.id, u.obserkode, u.navn, u.role, u.blocked, u.approved, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
+        SELECT u.id, u.obserkode, u.navn, u.role, u.blocked, u.approved, u.is_test, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
                (SELECT count(*) FROM push_subscriptions p WHERE p.user_id = u.id) AS devices,
                (SELECT count(*) FROM alert_rules r WHERE r.user_id = u.id) AS rules
         FROM users u WHERE (:q = '' OR u.obserkode ILIKE :like OR u.navn ILIKE :like)
@@ -240,6 +241,35 @@ async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSessio
         probe = User(role=r["role"], blocked=False, permissions=r["permissions"])
         out.append({**dict(r), "modules": sorted(modules(probe))})
     return out
+
+
+class TestUserIn(BaseModel):
+    navn: str = Field(min_length=1, max_length=160)
+    password: str | None = Field(None, min_length=6, max_length=100)
+
+
+@router.post("/admin/test-users")
+async def create_test_user(body: TestUserIn, user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
+    """Opret en testbruger med lokal adgangskode (til test af appen uden en DOFbasen-konto). Adgangskoden vises kun her."""
+    target, password = await auth_service.create_test_user(db, body.navn, body.password)
+    await activity.track(user.id, "test_user", None, {"user": target.id})
+    return {"id": target.id, "obserkode": target.obserkode, "navn": target.navn, "password": password}
+
+
+@router.post("/admin/test-users/{user_id}/password")
+async def reset_test_password(user_id: int, body: dict[str, Any], user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
+    target = await db.get(User, user_id)
+    if target is None or not target.is_test:
+        raise HTTPException(404, "Ikke en testbruger")
+    password = str(body.get("password") or "") or secrets.token_urlsafe(9)
+    if len(password) < 6:
+        raise HTTPException(400, "Adgangskoden skal have mindst 6 tegn")
+    target.test_pw_hash = auth_service.hash_test_password(password)
+    await db.commit()
+    async for key in kv().scan_iter("sess:*"):
+        if await kv().get(key) == str(target.id):
+            await kv().delete(key)
+    return {"obserkode": target.obserkode, "password": password}
 
 
 @router.get("/admin/modules")
@@ -330,7 +360,7 @@ async def delete_user(user_id: int, user: User = Depends(perm_brugere), db: Asyn
     if target is None or target.role == "superadmin":
         raise HTTPException(400)
     # Sletning af eksisterende brugere kræver superadmin; en afventende (afvist) ansøgning kan fjernes af dem, der styrer brugere
-    if target.approved and user.role != "superadmin":
+    if target.approved and not target.is_test and user.role != "superadmin":
         raise HTTPException(403, "Kun superadmin kan slette godkendte brugere")
     await db.delete(target)
     await db.commit()

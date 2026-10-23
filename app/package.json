@@ -1,0 +1,17 @@
+{
+  "name": "dof-tool-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DOF.tool som Android-app (Capacitor) med native baggrundsposition",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capgo/background-geolocation": "^8.4.14"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0"
+  }
+}

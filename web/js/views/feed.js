@@ -1,6 +1,7 @@
 import { statusBadge, certaintyTag } from "../reportui.js";
 import { api, state, h, icon, fmtN, fmtDate, ago, tag, todayISO, params, setParams, loadRef, store, empty, errorBox, modal, toast, KAT } from "../core.js";
 import { live } from "../live.js";
+import { isApp, currentPosition } from "../native.js";
 
 const LEVELS = [["SU", "SU"], ["SUB", "SUB+"], ["bemaerk", "Bemærk+"], ["local", "Lokale hits"], ["all", "Alle"]];
 
@@ -19,7 +20,7 @@ export async function scopeOptions() {
   }
   if (state.user) {
     try {
-      for (const a of await api("/api/areas")) opts.push([a.scope.startsWith("area:") ? `area:${a.id}` : a.scope, `★ ${a.name}`]);
+      for (const a of await api("/api/areas")) opts.push([a.scope.startsWith("area:") ? `area:${a.id}` : a.scope, `${a.ref === "me" ? "📍" : "★"} ${a.name}`]);
     } catch { /* ignore */ }
   }
   return opts;
@@ -52,7 +53,11 @@ export async function render(view) {
   // Værktøjslinje som i DOF.not: to-tilstandsknapper; kategori og område kun når egne filtre er slået fra
   const toggles = h("div", { class: "toolbar" });
   const chips = h("div", { class: "chips" });
-  const filterRow = h("div", { class: "row between wrap", style: { gap: "8px" } }, chips, h("div", { class: "row", style: { gap: "8px" } }, localWrap, scopeSel));
+  const filterRow = h("div", { class: "row between wrap", style: { gap: "8px" } }, chips, h("div", { class: "row", style: { gap: "8px" } }, localWrap, scopeSel,
+    state.user?.position ? h("button", { class: "btn sm", type: "button", title: "Filtrér på en radius om din position", html: `${icon("pin")} Nær mig`, onclick: () => nearMe(async (area) => {
+      scopeSel.replaceChildren(...(await scopeOptions()).filter(o => o[0] !== "mine").map(([v, l]) => h("option", { value: v }, l)));
+      st.scope = st.prevScope = area.scope; st.autoScope = false; scopeSel.value = st.scope; drawChips(); load();
+    }) }) : null));
   const tw = (label, on, onclick, title) => h("button", { type: "button", class: `twostate ${on ? "on" : ""}`, title, onclick }, label);
   const drawChips = () => {
     const mine = st.scope === "mine";
@@ -185,6 +190,32 @@ export function threadCard(t, level, fresh = false) {
       t.media?.images || t.media?.sounds ? h("span", { title: "Billeder og lyd i DOFbasen" },
         [t.media.images ? `📷 ${t.media.images}` : "", t.media.sounds ? `🔊 ${t.media.sounds}` : ""].filter(Boolean).join(" ")) : null,
       t.media?.dku?.length ? h("span", { class: "tag plain", title: "Status hos DKU" }, `DKU: ${t.media.dku.join(", ")}`) : null));
+}
+
+const RADII = [2, 5, 10, 25, 50, 100];
+
+/** Nær mig: en radius om brugerens position, som følger med, når appen sender positionen i baggrunden. */
+async function nearMe(done) {
+  const [areas, where] = await Promise.all([api("/api/areas").catch(() => []), api("/api/me/location").catch(() => ({ location: null }))]);
+  const mine = areas.find(a => a.ref === "me");
+  const loc = where.location;
+  const fresh = loc && Date.now() - new Date(loc.updated_at) < 30 * 60000;
+  const sel = h("select", { "aria-label": "Radius" }, ...RADII.map(km => h("option", { value: km, selected: km === (mine ? mine.radius_m / 1000 : 25) }, `${km} km`)));
+  const status = h("p", { class: "muted" }, fresh ? `Din position fra appen er opdateret ${ago(loc.updated_at)}.`
+    : isApp() ? "Slå «Del min position i baggrunden» til under Profil, så følger filteret dig. Indtil da bruges din position nu."
+      : "Din browsers position bruges nu. Radius flytter sig ikke med dig – det gør den kun i Android-appen.");
+  const go = h("button", { class: "btn primary", type: "button" }, mine ? "Opdatér" : "Brug Nær mig");
+  const body = h("div", { class: "stack" }, h("label", { class: "field" }, h("span", {}, "Radius om min position"), sel), status, go);
+  const m = modal("Nær mig", body);
+  go.onclick = async () => {
+    go.disabled = true;
+    try {
+      const payload = { radius_km: Number(sel.value) };
+      if (!fresh) { const p = await currentPosition({ timeout: 20000 }); payload.lat = p.lat; payload.lon = p.lon; }
+      const area = await api("/api/areas/near-me", { method: "PUT", body: payload });
+      m.close(); toast(`Viser observationer inden for ${sel.value} km`); await done(area);
+    } catch (err) { go.disabled = false; toast(err.message, "err"); }
+  };
 }
 
 async function nearby() {
