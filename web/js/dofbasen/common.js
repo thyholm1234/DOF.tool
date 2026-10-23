@@ -102,6 +102,11 @@ export async function obsView(obsid, el) {
         ["Links", h("span", {}, link(`/faeno/art/${o.artnr}`, `Information om ${o.art}`, { onclick: nav }))],
         [null, h("a", { href: `#/traad/${o.dato}/${o.artnr}/${o.loknr}`, onclick: nav }, "Se tråden i DOF.tool (kommentarer, status, kort)")],
       ]),
+      d.netfugl?.length ? [h("br"), head("Fotos på Netfugl", { kind: "blue", center: true }),
+        h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" } }, ...d.netfugl.map(p =>
+          h("a", { href: `#/netfugl/fotos/${p.id}`, title: `${p.art} – ${p.fotograf}`, style: { display: "block", border: "4px solid #eee" } },
+            h("img", { src: p.url, alt: p.art, loading: "lazy", style: { width: "100%", height: "100px", objectFit: "cover", display: "block" } }),
+            h("small", { style: { display: "block", padding: "2px 4px" } }, `© ${p.fotograf}`))))] : null,
       d.tur.length ? [h("br"), head("Alle observationer på turen", { kind: "blue", center: true }),
         h("table", { class: "db-table" }, h("tbody", {}, ...d.tur.map(t => h("tr", {},
           h("td", {}, h("a", { href: `${BASE}/obs/${t.obsid}`, class: "plain", onclick: (e) => { if (m) { e.preventDefault(); m.close(); obsView(t.obsid); } } },

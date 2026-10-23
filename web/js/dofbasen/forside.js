@@ -214,9 +214,9 @@ async function drawPhotos(box) {
   try { rows = await api("/api/dofbasen/forside/fotos"); } catch { /* ignore */ }
   box.replaceChildren(rows.length
     ? h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" } }, ...rows.map(p =>
-      h("a", { href: p.url, target: "_blank", title: `${p.art} – ${p.lokalitet || ""} (${dmy(p.dato)})`, style: { display: "block", border: "4px solid #eee" } },
+      h("a", { href: p.netfugl ? `#/netfugl/fotos/${p.id}` : p.url, target: p.netfugl ? null : "_blank", title: `${p.art} – ${p.lokalitet || ""} (${dmy(p.dato)})${p.fotograf ? " © " + p.fotograf : ""}`, style: { display: "block", border: "4px solid #eee" } },
         h("img", { src: p.url, alt: p.art, loading: "lazy", style: { width: "100%", height: "110px", objectFit: "cover", display: "block" } }))))
     : h("p", { class: "muted" }, "Her vises de seneste fotos, der er uploadet til observationer. DOFbasens egne fotos hentes ikke i showcasen – fotos fra indtastninger i DOF.tool vises her."),
-    h("p", {}, link("/fotogalleri", "Fotogalleri")));
+    h("p", {}, rows[0]?.netfugl ? h("a", { href: "#/netfugl/fotos" }, "Fotogalleri på Netfugl") : link("/fotogalleri", "Fotogalleri")));
 }
 

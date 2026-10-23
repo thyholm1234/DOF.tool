@@ -57,6 +57,9 @@ const ROUTES = [
   [/^\/faeno\/art\.php/, (u) => u.searchParams.get("artnmr") ? `/faeno/art/${+u.searchParams.get("artnmr")}` : "/faeno"],
   [/^\/faeno\/firstobs/, () => "/faeno/firstobs"], [/^\/faeno\/samedate/, () => "/faeno/samedate"], [/^\/faeno\/art_kort/, () => "/faeno/artkort"],
   [/^\/(ART\/art\.php|danmarksfugle\/art\/)/, (u) => { const n = u.searchParams.get("art") || u.pathname.split("/").pop(); return /^\d+$/.test(n) ? `/faeno/art/${+n}` : "/faeno"; }],
+  [/^\/popobs\.php/, (u) => u.searchParams.get("obsid") ? `/obs/${+u.searchParams.get("obsid")}` : "/observationer"],
+  [/^\/poplok\.php/, (u) => u.searchParams.get("loknr") ? `/lok/${+u.searchParams.get("loknr")}` : "/opslag/lokaliteter"],
+  [/^\/popobser\.php/, (u) => u.searchParams.get("obserkode") ? `/obser/${encodeURIComponent(u.searchParams.get("obserkode"))}` : "/opslag/observatorer"],
   [/^\/news/, () => "/nyheder"], [/^\/atlas/, () => "/side/atlas"], [/^\/pkt/, () => "/side/punkt"], [/^\/fotogalleri/, () => "/fotogalleri"],
 ];
 export function mapHref(href) {

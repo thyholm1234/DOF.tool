@@ -38,6 +38,7 @@ MODULES = {
     "mobgang_presets": "Mobgang: officielle presets",
     "mobgang_season": "Mobgang: lukning i ynglesæsonen",
     "dofbasen": "DOFbasen: alle rettigheder i DOFbasen-modulet (sider, lister, nyheder, roller, API)",
+    "netfugl": "Netfugl: alle rettigheder i Netfugl-modulet (artikler, fotos, krydslister, RSS, roller, API)",
 }
 _MOD = {"moderation", "ture", "kategorier"}
 

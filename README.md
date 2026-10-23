@@ -203,6 +203,13 @@ med rollen kan man redigere direkte på siderne. REST-API til egne apps: `/api/d
 Alt kan slås fra, vises som forhåndsvisning (kun superadmin og DOFbasen-roller) eller slås til under **Admin → Funktioner**
 (kun superadmin). Se `docs/dofbasen-showcase.md`.
 
+**Netfugl (showcase)** (`#/netfugl`). En ny udgave af netfugl.dk i Netfugls layout, integreret med DOFbasen: krydslisterne
+(DK, årsarter, månedsarter, lokalarter) beregnes automatisk fra brugernes observationer og suppleres med manuelle kryds
+(VP, ringmærkning, ædelarter); fotos kan knyttes til en observation og vises så også i DOFbasen-modulet; DK-listens
+artssider viser alle danske fund. Desuden nyheder og artikler med kommentarer, fotogalleri med likes og moderation,
+RSS fra danske og udenlandske kilder, trækvejr fra DMI, brugerprofiler, søgning, eget admin-panel, egne roller og
+API (`/api/netfugl/v1`). Alt kan slås fra/til under **Admin → Funktioner**. Se `docs/netfugl-showcase.md`.
+
 ## Udvikling
 
 ```bash

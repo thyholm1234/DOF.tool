@@ -14,12 +14,14 @@ const SECTIONS = [
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
 const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
-/** Menuens grupper for den indloggede: DOFbasen vises kun, når superadmin har slået modulet til (eller forhåndsvisning). */
+const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
+/** Menuens grupper for den indloggede: DOFbasen og Netfugl vises kun, når superadmin har slået modulerne til (eller forhåndsvisning). */
 function sections() {
-  if (!state.user?.dofbasen?.features?.dofbasen) return SECTIONS;
-  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, DOFBASEN] : items]);
+  const extra = [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null].filter(Boolean);
+  if (!extra.length) return SECTIONS;
+  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : items]);
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -55,6 +57,7 @@ const ROUTES = [
   [/^\/ture(?:\/(\d+))?$/, () => import("./views/events.js")],
   [/^\/kalender(?:\/(\d+|mine))?$/, () => import("./views/calendar.js")],
   [/^\/dofbasen(?:\/(.+))?$/, () => import("./views/dofbasen.js")],
+  [/^\/netfugl(?:\/(.+))?$/, () => import("./views/netfugl.js")],
 ];
 
 let cleanup = null;

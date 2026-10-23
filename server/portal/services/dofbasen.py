@@ -147,9 +147,9 @@ async def set_user_roles(session: AsyncSession, user_id: int, roles: list[str], 
 TOKEN_PREFIX = "dofb_"
 
 
-def new_token() -> tuple[str, str, str]:
-    """(token, prefix til visning, sha256)."""
-    token = TOKEN_PREFIX + secrets.token_urlsafe(32)
+def new_token(prefix: str = TOKEN_PREFIX) -> tuple[str, str, str]:
+    """(token, prefix til visning, sha256). Netfugl-modulet bruger samme funktion med prefikset 'nf_'."""
+    token = prefix + secrets.token_urlsafe(32)
     return token, token[:12], hash_token(token)
 
 

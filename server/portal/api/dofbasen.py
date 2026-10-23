@@ -199,8 +199,12 @@ async def forside_art(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends
 
 
 @router.get("/forside/fotos")
-async def forside_fotos(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
-    """Seneste fotos uploadet til observationer (portalens egne indtastninger – DOFbasens fotos hentes ikke)."""
+async def forside_fotos(user: User = Depends(require_user), ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Seneste fotos: fra Netfugl-galleriet (når integrationen er slået til) og ellers fra portalens egne indtastninger.
+    DOFbasens egne fotos hentes ikke."""
+    nf = await netfugl_photos(db, user, "TRUE", 15)
+    if nf:
+        return [{**r, "netfugl": True} for r in nf]
     return await _rows(db, """
         SELECT r.id, r.dato, s.navn AS art, l.navn AS lokalitet, m->>'url' AS url
         FROM field_reports r CROSS JOIN LATERAL jsonb_array_elements(r.media) m
@@ -301,7 +305,19 @@ async def observation(obsid: int, user: User = Depends(require_user), ctx: svc.C
         WHERE o.turid = :t AND (o.hemmelig = 0 OR o.obserkode = :me) ORDER BY s.sortering, o.obsid
     """, t=o["turid"], me=user.obserkode) if o["turid"] else []
     o["can_dku"] = ctx.can("dku") and ctx.on("dofbasen_dku")
-    return {"obs": o, "tur": tur}
+    return {"obs": o, "tur": tur, "netfugl": await netfugl_photos(db, user, "p.obsid = :o", o=obsid)}
+
+
+async def netfugl_photos(db: AsyncSession, user: User, where: str, limit: int = 12, **args) -> list[dict] | None:
+    """Fotos fra Netfugl-modulet – kun når integrationen (netfugl_dofbasen) er synlig for brugeren. None = slået fra."""
+    from portal.services import netfugl
+
+    if not (await netfugl.context(db, user)).out()["features"]["netfugl_dofbasen"]:
+        return None
+    return await _rows(db, f"""
+        SELECT p.id, p.url, p.art_navn AS art, p.dato, p.lokalitet, coalesce(u.navn, u.obserkode) AS fotograf
+        FROM nf_photos p JOIN users u ON u.id = p.user_id WHERE p.status = 'publiceret' AND {where}
+        ORDER BY p.published_at DESC LIMIT {int(limit)}""", **args)
 
 
 class DkuIn(BaseModel):

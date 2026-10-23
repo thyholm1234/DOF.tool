@@ -16,7 +16,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import archive_files
 from portal.models import User
-from portal.services import activity, auth, dofbasen
+from portal.services import activity, auth, dofbasen, netfugl
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -71,7 +71,8 @@ async def me(user: User | None = Depends(optional_user), db: AsyncSession = Depe
     if user is None:
         return {"user": None}
     # DOFbasen-modulet: hvilke funktioner brugeren ser, og hvad brugeren må (styrer menuen)
-    return {"user": {**user_out(user), "dofbasen": (await dofbasen.context(db, user)).out()}}
+    return {"user": {**user_out(user), "dofbasen": (await dofbasen.context(db, user)).out(),
+                     "netfugl": (await netfugl.context(db, user)).out()}}
 
 
 ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "push_enabled", "quiet_hours", "theme", "home",

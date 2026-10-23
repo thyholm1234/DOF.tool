@@ -29,6 +29,8 @@ LABELS = {
     "gaps": "Huller (observatører og ture pr. art)",
     "location_years": "Lokalitetsoversigt (hver 6. time)",
     "plan": "Opdateringsplan",
+    "netfugl_kryds": "Netfugl: krydslister fra DOFbasen",
+    "netfugl_rss": "Netfugl: RSS-kilder",
 }
 
 _current: ContextVar[str | None] = ContextVar("job", default=None)

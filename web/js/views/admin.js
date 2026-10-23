@@ -300,7 +300,7 @@ async function featuresPanel(body) {
     featuresPanel(body);
   };
   body.replaceChildren(
-    h("p", { class: "muted" }, "Fra: slået fra for alle (også API'et). Forhåndsvisning: kun superadmin og brugere med en DOFbasen-rolle. Til: alle indloggede. En underfunktion virker kun, når forælderen også er synlig."),
+    h("p", { class: "muted" }, "Fra: slået fra for alle (også API'et). Forhåndsvisning: kun superadmin og brugere med en rolle i modulet (DOFbasen- eller Netfugl-rolle). Til: alle indloggede. En underfunktion virker kun, når forælderen også er synlig."),
     h("div", { class: "card table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 2 } },
       h("thead", {}, h("tr", {}, h("th", {}, "Funktion"), h("th", {}, "Tilstand"), h("th", {}, "Beskrivelse"))),
       h("tbody", {}, ...rows.map(f => h("tr", {},

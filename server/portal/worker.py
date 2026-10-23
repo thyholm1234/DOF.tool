@@ -17,7 +17,7 @@ from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, dof_events, locyear, phenology, regions, weather_archive
+from portal.services import areas, datasync, dmi, dof_events, features, locyear, netfugl, phenology, regions, weather_archive
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -130,9 +130,34 @@ async def scheduler() -> None:
                 await run_safely("events", dof_events.sync())
             if now.hour % 6 == 0 and await _once("gap", hour):
                 await jobs.enqueue_gap_fill()
+            await netfugl_schedule()
         except Exception:  # noqa: BLE001
             log.exception("Planlægger-fejl")
         await asyncio.sleep(30)
+
+
+async def netfugl_schedule() -> None:
+    """Netfugl-showcasen: krydslister fra DOFbasen hver 6. time og RSS hver time – kun når modulet ikke er slået fra."""
+    async with SessionLocal() as s:
+        flags = await features.load(s)
+    if flags.get("netfugl") == "off":
+        return
+    if flags.get("netfugl_kryds") != "off" and await _every("netfugl_kryds", 6 * 3600):
+        await run_safely("netfugl_kryds", netfugl_kryds())
+    if flags.get("netfugl_rss") != "off" and await _every("netfugl_rss", 3600):
+        await run_safely("netfugl_rss", netfugl_rss(None))
+
+
+async def netfugl_kryds() -> None:
+    async with SessionLocal() as s:
+        n = await netfugl.refresh_auto(s)
+    await jobstatus.step(f"{n} automatiske kryds")
+
+
+async def netfugl_rss(feed: int | None) -> None:
+    async with SessionLocal() as s:
+        r = await netfugl.fetch_feeds(s, feed)
+    await jobstatus.step(f"{r['ok']} af {r['feeds']} kilder hentet")
 
 
 DOF_PRIORITY = {"days3": gateway.HIGH, "week": gateway.NORMAL, "month": gateway.NORMAL,
@@ -240,6 +265,10 @@ async def command_listener() -> None:
                 await run_safely("plan", run_plans({cmd["source"]: [cmd["tier"]]}))
             elif name == "weather_months":
                 await weather_archive.enqueue([tuple(x) for x in cmd["months"]], only_missing=bool(cmd.get("only_missing")))
+            elif name == "netfugl_kryds":
+                await run_safely("netfugl_kryds", netfugl_kryds())
+            elif name == "netfugl_rss":
+                await run_safely("netfugl_rss", netfugl_rss(cmd.get("feed")))
             elif name == "aggregates":
                 await run_safely("aggregates", aggregates(int(cmd.get("days", 30))))
         except Exception:  # noqa: BLE001

@@ -29,6 +29,21 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "dofbasen_dku": ("DOFbasen: kvalitetssikring (DKU)", "DKU-rollen kan sætte observationer til behandling/godkendt (blå pil).", "dofbasen", "on"),
     "dofbasen_api": ("DOFbasen: API og tokens", "Offentligt REST-API (/api/dofbasen/v1) med personlige tokens. Admin tildeler adgang; "
                      "brugeren laver selv tokens på sin profil.", "dofbasen", "preview"),
+    "netfugl": ("Netfugl (showcase)", "Hele modulet: en ny udgave af netfugl.dk med forside, nyheder og artikler, krydslister, "
+                "artslister, fotogalleri, RSS, vejr, brugere og eget admin-panel. Menupunktet Netfugl vises kun, når modulet er synligt.",
+                None, "preview"),
+    "netfugl_kryds": ("Netfugl: krydslister", "Krydslister beregnet automatisk fra brugernes DOFbasen-observationer og suppleret "
+                      "med manuelle kryds (VP, ringmærkning, ædelarter).", "netfugl", "on"),
+    "netfugl_fotos": ("Netfugl: fotogalleri", "Upload af fotos (kan knyttes til en observation i DOFbasen), likes og kommentarer.",
+                      "netfugl", "on"),
+    "netfugl_artikler": ("Netfugl: nyheder, artikler og kommentarer", "Artikler, kort nyt og kommentarer.", "netfugl", "on"),
+    "netfugl_rss": ("Netfugl: RSS (Netfugl live)", "Workeren henter RSS fra danske og udenlandske kilder hver time.", "netfugl", "on"),
+    "netfugl_edit": ("Netfugl: redigering på siderne", "Redigér-knapper direkte på tekstsider og lister for dem med en Netfugl-rolle.",
+                     "netfugl", "on"),
+    "netfugl_dofbasen": ("Netfugl ↔ DOFbasen", "Netfugl-fotos vises på observationer i DOFbasen-modulet, og DOFbasen-fund linker "
+                         "til Netfugl. Kræver at begge moduler er synlige.", "netfugl", "on"),
+    "netfugl_api": ("Netfugl: API og tokens", "REST-API (/api/netfugl/v1) med personlige tokens: artikler, krydslister, fotos, "
+                    "RSS og artslister.", "netfugl", "preview"),
 }
 KEY = "features"
 VERSION = "features:version"

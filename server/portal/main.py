@@ -14,8 +14,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from portal.api import (admin, alerts, auth, calendar, categories, dofbasen, dofbasen_v1, feed, geo, learn, lists, mobgang, reports, science,
-                        share, social, trips)
+from portal.api import (admin, alerts, auth, calendar, categories, dofbasen, dofbasen_v1, feed, geo, learn, lists, mobgang, netfugl,
+                        netfugl_v1, reports, science, share, social, trips)
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
@@ -39,16 +39,16 @@ app = FastAPI(title=get_settings().app_name, lifespan=lifespan, docs_url="/api/d
 
 MOB_AUDIO = re.compile(r"^(/v/[^/]+)?/audio/mobgang/")
 PUBLIC_API = ("/api/auth/", "/api/health", "/api/me", "/api/settings/public", "/api/ics/", "/api/docs", "/api/openapi.json",
-              "/api/dofbasen/v1/")  # DOFbasen-API'et har sin egen token-godkendelse
-DOFB_API = "/api/dofbasen/v1/"
+              "/api/dofbasen/v1/", "/api/netfugl/v1/")  # showcase-API'erne har deres egen token-godkendelse
+TOKEN_APIS = ("/api/dofbasen/v1/", "/api/netfugl/v1/")
 CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Max-Age": "86400"}
 
 
 @app.middleware("http")
 async def guard(request: Request, call_next):
-    # DOFbasen-API'et bruges fra andres apps (også i browseren): åben CORS, kun læsning, token i stedet for cookie
-    if request.url.path.startswith(DOFB_API):
+    # Showcase-API'erne bruges fra andres apps (også i browseren): åben CORS, kun læsning, token i stedet for cookie
+    if request.url.path.startswith(TOKEN_APIS):
         if request.method == "OPTIONS":
             return Response(status_code=204, headers=CORS)
         if request.method not in ("GET", "HEAD"):
@@ -126,7 +126,7 @@ async def health():
 
 
 for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, share,
-               dofbasen, dofbasen_v1):
+               dofbasen, dofbasen_v1, netfugl, netfugl_v1):
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer
