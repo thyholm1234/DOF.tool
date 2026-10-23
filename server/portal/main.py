@@ -10,11 +10,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from portal.api import admin, alerts, auth, calendar, categories, feed, geo, learn, lists, mobgang, reports, science, share, social, trips
+from portal.api import (admin, alerts, auth, calendar, categories, dofbasen, dofbasen_v1, feed, geo, learn, lists, mobgang, reports, science,
+                        share, social, trips)
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
@@ -37,11 +38,25 @@ app = FastAPI(title=get_settings().app_name, lifespan=lifespan, docs_url="/api/d
 
 
 MOB_AUDIO = re.compile(r"^(/v/[^/]+)?/audio/mobgang/")
-PUBLIC_API = ("/api/auth/", "/api/health", "/api/me", "/api/settings/public", "/api/ics/", "/api/docs", "/api/openapi.json")
+PUBLIC_API = ("/api/auth/", "/api/health", "/api/me", "/api/settings/public", "/api/ics/", "/api/docs", "/api/openapi.json",
+              "/api/dofbasen/v1/")  # DOFbasen-API'et har sin egen token-godkendelse
+DOFB_API = "/api/dofbasen/v1/"
+CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Max-Age": "86400"}
 
 
 @app.middleware("http")
 async def guard(request: Request, call_next):
+    # DOFbasen-API'et bruges fra andres apps (også i browseren): åben CORS, kun læsning, token i stedet for cookie
+    if request.url.path.startswith(DOFB_API):
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=CORS)
+        if request.method not in ("GET", "HEAD"):
+            return JSONResponse({"detail": "API'et er kun til læsning"}, status_code=405, headers=CORS)
+        response = await call_next(request)
+        response.headers.update(CORS)
+        response.headers.setdefault("Cache-Control", "no-store")
+        return response
     # CSRF-værn: ændrende API-kald skal komme fra vores egen fetch-klient (custom header kræver CORS-preflight)
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH", "DELETE"):
         if request.headers.get("x-requested-with") != "fetch":
@@ -110,7 +125,8 @@ async def health():
     return {"ok": True}
 
 
-for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, share):
+for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, share,
+               dofbasen, dofbasen_v1):
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer

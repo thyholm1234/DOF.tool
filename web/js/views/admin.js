@@ -3,7 +3,7 @@ import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { conversation, KINDS } from "./support.js";
 import { eventForm } from "./events.js";
 import { banForm } from "../moderation.js";
-import { refreshUnread } from "../app.js";
+import { refreshUnread, refreshUser } from "../app.js";
 
 export async function render(view) {
   // Fanerne følger brugerens moduler (rollens standard eller individuelle rettigheder)
@@ -30,6 +30,7 @@ export async function render(view) {
     aktivitet: () => activityPanel(body), support: () => supportPanel(body),
     moderation: () => moderation(body), ture: () => portalEvents(body), kategorier: () => categoriesPanel(body),
     brugere: () => users(body), roller: () => rolesPanel(body), arter: () => species(body), indhold: () => content(body),
+    funktioner: () => featuresPanel(body),
   }[t] || ops)();
   draw(tab);
   return stop;
@@ -287,6 +288,27 @@ function roleSelect(u, names, onDone) {
     onDone();
   } }, ...Object.entries(names).map(([k, n]) => h("option", { value: k, selected: k === u.role }, n)),
     names[u.role] ? null : h("option", { value: u.role, selected: true }, u.role));
+}
+
+/** Funktioner (kun superadmin): nye moduler kan slås fra, vises som forhåndsvisning eller slås til for alle. */
+async function featuresPanel(body) {
+  let rows;
+  try { rows = await api("/api/admin/features"); } catch (err) { body.replaceChildren(errorBox(err)); return; }
+  const STATES = [["off", "Fra"], ["preview", "Forhåndsvisning"], ["on", "Til"]];
+  const set = async (key, v) => {
+    try { await api("/api/admin/features", { method: "PUT", body: { [key]: v } }); toast("Gemt"); await refreshUser(); } catch (err) { toast(err.message, "err"); }
+    featuresPanel(body);
+  };
+  body.replaceChildren(
+    h("p", { class: "muted" }, "Fra: slået fra for alle (også API'et). Forhåndsvisning: kun superadmin og brugere med en DOFbasen-rolle. Til: alle indloggede. En underfunktion virker kun, når forælderen også er synlig."),
+    h("div", { class: "card table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 2 } },
+      h("thead", {}, h("tr", {}, h("th", {}, "Funktion"), h("th", {}, "Tilstand"), h("th", {}, "Beskrivelse"))),
+      h("tbody", {}, ...rows.map(f => h("tr", {},
+        h("td", { style: { paddingLeft: f.parent ? "26px" : undefined } }, h("b", {}, f.name),
+          h("div", { class: "muted", style: { fontSize: ".78rem" } }, `standard: ${STATES.find(x => x[0] === f.default)[1].toLowerCase()}`)),
+        h("td", { "data-label": "Tilstand" }, seg(STATES, f.state, (v) => set(f.key, v))),
+        h("td", { class: "muted", "data-label": "Beskrivelse" }, f.description)))))),
+    h("p", { class: "mt" }, h("a", { class: "btn", href: "#/dofbasen" }, "Åbn DOFbasen →")));
 }
 
 /** Roller (kun superadmin): rollerne vandret, modulerne lodret – og nederst alle med en tildelt rolle. */

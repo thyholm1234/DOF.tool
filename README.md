@@ -190,6 +190,19 @@ blacklist) har en påkrævet årsag, varighed (1/7/30 dage eller indtil videre) 
 kommentarer for andre, mens den gælder. Moderatorer opretter også portalens egne ture under Ture.
 Kommentarspor opdateres live (SSE): ved enhver ændring henter åbne tråde den aktuelle version.
 
+**DOFbasen (showcase)** (`#/dofbasen`). En ny udgave af dofbasen.dk på portalens backend og data – tro mod det
+nuværende layout (blå header, fanemenu med undermenuer, grå sektionsbjælker, Verdana 11 px), men responsiv. Forside
+(kort i dag/i går, observationer pr. dag, statistik, Om DOFbasen, Fokus, Nyt på DOFbasen, sjældne fugle, Danmarks fugle),
+dagens observationer (visning, dato, sortering, summering, afdeling), søgning med alle DOFbasens filtre (tabel, kort,
+CSV; DOFbasens link-parametre virker), fænologi (artsside, første iagttagelse, samme dato, artskort), alle opslagslister,
+tekstsider, nyheder og popups for observation, lokalitet og observatør (uden adresse/telefon). Tekster og lister er
+kopieret fra dofbasen.dk som eksempel (`seed/dofbasen/content.json`, bygget med `tools/dofbasen_seed/`) – indholdet
+tilhører DOF. Modulet har eget admin-panel og egne roller (redaktør, listeansvarlig, DKU, API-ansvarlig, administrator);
+med rollen kan man redigere direkte på siderne. REST-API til egne apps: `/api/dofbasen/v1` (Bearer-token, kun læsning,
+åben CORS, grænse pr. minut) – en administrator giver adgang, brugeren laver selv tokens på sin profil.
+Alt kan slås fra, vises som forhåndsvisning (kun superadmin og DOFbasen-roller) eller slås til under **Admin → Funktioner**
+(kun superadmin). Se `docs/dofbasen-showcase.md`.
+
 ## Udvikling
 
 ```bash

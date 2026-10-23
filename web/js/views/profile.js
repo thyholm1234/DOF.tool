@@ -72,7 +72,48 @@ export async function render(view) {
           if (!confirm("Slet din konto i portalen? Dine områder, regler og grupper slettes. Dine data i DOFbasen påvirkes ikke.")) return;
           await api("/api/me", { method: "DELETE" }); location.hash = "#/"; location.reload();
         } }, "Slet min konto") : null)));
+  if (state.user.dofbasen?.features?.dofbasen_api) {
+    const apiBox = h("div", { class: "card mt2 stack" });
+    view.append(apiBox);
+    apiTokens(apiBox);
+  }
   if (location.hash.includes("matrikler")) location.hash = "#/matrikel?tab=matrikler";
+}
+
+/** API-nøgler til DOFbasen-API'et: en administrator giver adgang, brugeren laver og sletter selv sine nøgler. */
+async function apiTokens(box) {
+  let d;
+  try { d = await api("/api/dofbasen/me/api"); } catch { box.remove(); return; }
+  const title = h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "API-nøgler (DOFbasen)"), h("a", { href: "#/dofbasen/api" }, "Dokumentation →"));
+  if (!d.access) {
+    box.replaceChildren(title, h("p", { class: "muted", style: { margin: 0 } }, "Med DOFbasen-API'et kan du hente observationer, arter og lokaliteter ind i dine egne apps. En administrator skal give dig adgang, før du kan lave nøgler."));
+    return;
+  }
+  const active = d.tokens.filter(t => !t.revoked_at);
+  const name = h("input", { type: "text", placeholder: "Navn på nøglen, fx 'Min hjemmeside'", maxlength: 80 });
+  const fresh = h("div", {});
+  box.replaceChildren(title,
+    h("p", { class: "muted", style: { margin: 0 } }, `Højst ${fmtN(d.rate_per_min)} kald i minuttet pr. nøgle og ${d.max_tokens} aktive nøgler. Send nøglen som "Authorization: Bearer …".`),
+    fresh,
+    h("form", { class: "row", onsubmit: async (e) => {
+      e.preventDefault();
+      try {
+        const t = await api("/api/dofbasen/me/api/tokens", { method: "POST", body: { name: name.value.trim() || "API-nøgle" } });
+        await apiTokens(box);
+        box.querySelector(".api-fresh")?.replaceChildren(h("div", { class: "notice" }, h("b", {}, "Kopiér nøglen nu – den vises kun én gang: "),
+          h("code", { style: { wordBreak: "break-all", userSelect: "all" } }, t.token)));
+      } catch (err) { toast(err.message, "err"); }
+    } }, name, h("button", { class: "btn primary", type: "submit", disabled: active.length >= d.max_tokens }, "Lav ny nøgle")),
+    d.tokens.length ? h("div", { class: "table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 2 } },
+      h("thead", {}, h("tr", {}, h("th", {}, "Navn"), h("th", {}, "Nøgle"), h("th", {}, "Oprettet"), h("th", {}, "Kald"), h("th", {}))),
+      h("tbody", {}, ...d.tokens.map(t => h("tr", { style: t.revoked_at ? { opacity: .5 } : {} },
+        h("td", {}, t.name), h("td", { "data-label": "Nøgle" }, h("code", {}, `${t.prefix}…`)), h("td", { "data-label": "Oprettet" }, fmtDate(t.created_at)),
+        h("td", { "data-label": "Kald" }, fmtN(t.uses)),
+        h("td", {}, t.revoked_at ? "slettet" : h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => {
+          if (!confirm(`Slet nøglen "${t.name}"? Apps, der bruger den, holder op med at virke.`)) return;
+          await api(`/api/dofbasen/me/api/tokens/${t.id}`, { method: "DELETE" }); toast("Nøglen er slettet"); apiTokens(box);
+        } }, "Slet"))))))) : null);
+  fresh.className = "api-fresh";
 }
 
 const st = (v, l) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l));

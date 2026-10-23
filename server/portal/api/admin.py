@@ -21,7 +21,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
-from portal.services import activity, datasync, moderation, weather_archive
+from portal.services import activity, datasync, features, moderation, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
 
@@ -95,6 +95,24 @@ async def put_settings(body: dict[str, Any], user: User = Depends(require_user),
     if "matrikel_tag" in body:
         await bump("lists")
     return await get_settings_dict(db)
+
+
+@router.get("/admin/features")
+async def get_features(user: User = Depends(superadmin), db: AsyncSession = Depends(get_session)):
+    """Funktioner, der kan slås til/fra (kun superadmin): off / preview (kun superadmin og DOFbasen-roller) / on."""
+    flags = await features.load(db)
+    return [{"key": k, "name": name, "description": desc, "parent": parent, "default": default, "state": flags[k]}
+            for k, (name, desc, parent, default) in features.FEATURES.items()]
+
+
+@router.put("/admin/features")
+async def put_features(body: dict[str, str], user: User = Depends(superadmin), db: AsyncSession = Depends(get_session)):
+    try:
+        await features.save(db, body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await activity.track(user.id, "features", None, body)
+    return await get_features(user, db)
 
 
 class EnqueueIn(BaseModel):

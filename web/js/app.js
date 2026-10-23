@@ -13,7 +13,13 @@ const SECTIONS = [
   ["Værktøjer", [["#/laer", "learn", "Læring"], ["#/puls", "map", "Puls"], ["#/mobgang", "sound", "Mobgang"]]],
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
-const NAV = SECTIONS.flatMap(([, items]) => items);
+const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
+/** Menuens grupper for den indloggede: DOFbasen vises kun, når superadmin har slået modulet til (eller forhåndsvisning). */
+function sections() {
+  if (!state.user?.dofbasen?.features?.dofbasen) return SECTIONS;
+  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, DOFBASEN] : items]);
+}
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -48,6 +54,7 @@ const ROUTES = [
   [/^\/support$/, () => import("./views/support.js")],
   [/^\/ture(?:\/(\d+))?$/, () => import("./views/events.js")],
   [/^\/kalender(?:\/(\d+|mine))?$/, () => import("./views/calendar.js")],
+  [/^\/dofbasen(?:\/(.+))?$/, () => import("./views/dofbasen.js")],
 ];
 
 let cleanup = null;
@@ -65,7 +72,7 @@ function renderNav() {
     ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
     : []));
   const side = [];
-  for (const [title, items] of SECTIONS) side.push(h("div", { class: "nav-h" }, title), ...items.map(n => link(n)));
+  for (const [title, items] of sections()) side.push(h("div", { class: "nav-h" }, title), ...items.map(n => link(n)));
   if (state.user) {
     side.unshift(link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
@@ -85,8 +92,8 @@ function openMore() {
   const sheet = h("div", { class: "more-sheet", onclick: (e) => { if (e.target === sheet) close(); } },
     h("div", { class: "more-panel" },
       // Samme grupper som sidepanelet; punkterne fra bundmenuen er udeladt
-      ...SECTIONS.map(([title, items]) => items.filter(n => !BOTTOM.includes(n[0])))
-        .map((items, i) => items.length ? [h("div", { class: "more-h" }, SECTIONS[i][0]), h("div", { class: "more-grid" }, ...items.map(([href, ic, label]) => tile(href, ic, label)))] : [])
+      ...sections().map(([title, items]) => [title, items.filter(n => !BOTTOM.includes(n[0]))])
+        .map(([title, items]) => items.length ? [h("div", { class: "more-h" }, title), h("div", { class: "more-grid" }, ...items.map(([href, ic, label]) => tile(href, ic, label)))] : [])
         .flat(),
       h("div", { class: "more-h" }, "Konto"),
       h("div", { class: "more-grid" },

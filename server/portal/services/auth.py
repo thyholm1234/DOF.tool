@@ -37,6 +37,7 @@ MODULES = {
     "laering": "Læring: kurser og spørgsmål",
     "mobgang_presets": "Mobgang: officielle presets",
     "mobgang_season": "Mobgang: lukning i ynglesæsonen",
+    "dofbasen": "DOFbasen: alle rettigheder i DOFbasen-modulet (sider, lister, nyheder, roller, API)",
 }
 _MOD = {"moderation", "ture", "kategorier"}
 

@@ -5,9 +5,9 @@ export const state = { user: null, afdelinger: [], kommuner: [], unread: 0 };
 export const can = (module) => !!state.user?.modules?.includes(module);
 // Admin-sidens faner i rækkefølge: [modul, fanetekst]
 export const ADMIN_TABS = [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"],
-  ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["roller", "Roller"], ["arter", "Arter"], ["indhold", "Nyheder"]];
-/** Må den indloggede se admin-fanen? Roller er kun for superadmin (ikke et modul, der kan tildeles). */
-export const hasTab = (m) => m === "roller" ? state.user?.role === "superadmin" : can(m);
+  ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["roller", "Roller"], ["arter", "Arter"], ["indhold", "Nyheder"], ["funktioner", "Funktioner"]];
+/** Må den indloggede se admin-fanen? Roller og Funktioner er kun for superadmin (ikke moduler, der kan tildeles). */
+export const hasTab = (m) => ["roller", "funktioner"].includes(m) ? state.user?.role === "superadmin" : can(m);
 /** Admin-menupunktet: "Moderation" for dem med kun moderatoropgaver, ellers "Admin". null = ingen faner. */
 export function adminLink() {
   const tabs = ADMIN_TABS.filter(([m]) => hasTab(m)).map(([m]) => m);
@@ -204,6 +204,7 @@ const P = {
   bird: '<path d="M3 14c3.5-1 6-3.6 7.6-7.2.4-.9 1.6-1 2.1-.1l1 1.8 4.6-1.3c.6-.2 1 .5.6 1l-3.2 3.4c-1.4 4.3-5 6.9-9.6 6.9H3.6c-.9 0-1.2-1.2-.6-1.5z"/>',
   prev: '<path d="M15 5l-7 7 7 7"/>',
   next: '<path d="M9 5l7 7-7 7"/>',
+  db: '<rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17M8 13h8M8 16.5h5"/>',
   thumb: '<path d="M7 10.5V20H4v-9.5h3z"/><path d="M7 10.5 11 3.6c1.3 0 2.3 1.1 2 2.4l-.8 3.5h5.6c1.3 0 2.3 1.2 2 2.5l-1.3 6.2c-.2.9-1 1.6-2 1.6H7"/>',
 };
 export function icon(name) {
