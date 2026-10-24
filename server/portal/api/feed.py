@@ -122,11 +122,11 @@ async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[di
     rules = (await db.execute(select(AlertRule).where(AlertRule.user_id == user.id, AlertRule.enabled))).scalars().all()
     fetched: dict[tuple, list[dict]] = {}
 
-    async def fetch(sc: Scope, level: str, local_max: int) -> list[dict]:
-        key = (sc.key, level, local_max if level == "local" else 0)
+    async def fetch(sc: Scope, level: str, local_max: int, basis: str) -> list[dict]:
+        key = (sc.key, level, local_max if level == "local" else 0, basis if level == "local" else "")
         if key not in fetched:
-            ts = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max)]
-            fetched[key] = await reports.merge_feed(db, ts, day, sc, level, local_max, user)
+            ts = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max, local_basis=basis)]
+            fetched[key] = await reports.merge_feed(db, ts, day, sc, level, local_max, user, basis)
         return fetched[key]
 
     crossed = Crossed(db)
@@ -168,7 +168,7 @@ async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[di
                 wanted.append(("pheno", {"SU", "SUB", "bemaerk", "alm"}))
         for sc in scopes:
             for level, ok in wanted:
-                for t in await fetch(sc, level, r.local_max):
+                for t in await fetch(sc, level, r.local_max, r.local_basis or "lokalitet"):
                     if t["kategori"] not in ok or ((r.min_antal or 1) > 1 and t["max_antal"] < r.min_antal):
                         continue
                     if (r.species_include and t["artnr"] not in r.species_include) or t["artnr"] in (r.species_exclude or ()):

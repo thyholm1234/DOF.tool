@@ -7,7 +7,7 @@ import re
 
 OBS_TABLES = frozenset({
     "observers", "trips", "observations", "day_sync", "archive_files", "species_day", "effort_day", "pheno_metrics",
-    "species_season", "climate_month", "area_species_counts", "region_year_species", "region_reach", "region_totals",
+    "species_season", "climate_month", "area_species_counts", "loc_species_finds", "region_year_species", "region_reach", "region_totals",
     "location_year", "month_sync", "weather_months", "weather_cell_day",
     "dofb_obs_status",  # DKU-status på observationer (joines ind i observationsopslag)
     "species_categories", "category_overrides", "manual_finds",  # artskategorier og fund der påvirker observationer/lister

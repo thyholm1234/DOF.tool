@@ -20,8 +20,9 @@ export async function render(view) {
   const draw = (t) => ({
     drift: () => {
       const jobsBox = h("div", { class: "card stack" }), uploadBox = h("div", { class: "card stack mt" }), opsBox = h("div", { class: "mt" });
-      const storageBox = h("div", { class: "card stack mt" });
-      body.append(jobsBox, storageBox, uploadBox, opsBox);
+      const storageBox = h("div", { class: "card stack mt" }), schedBox = h("div", { class: "card stack mt" });
+      body.append(jobsBox, schedBox, storageBox, uploadBox, opsBox);
+      scheduleCard(schedBox);
       storageCard(storageBox);
       archiveUpload(uploadBox);
       every(() => jobsCard(jobsBox), 3000);
@@ -226,7 +227,7 @@ async function archiveUpload(box) {
 
 // ---------------------------------------------------------------- worker-opgaver (status opdateres hvert 3. sekund)
 
-const RUNNABLE = ["compute", "archive_import", "aggregates", "climate", "events", "forecast", "regions", "gaps", "location_years"];
+const RUNNABLE = ["compute", "archive_import", "aggregates", "climate", "events", "forecast", "regions", "gaps", "location_years", "loc_finds"];
 const JOB_STATUS = { idle: ["plain", "ikke kørt"], queued: ["bemaerk", "i kø"], running: ["local", "kører"], done: ["plain", "ok"], error: ["SU", "fejl"], interrupted: ["SUB", "afbrudt"] };
 const jobTag = (status) => { const [k, l] = JOB_STATUS[status] || ["plain", status]; return h("span", { class: `tag ${k}` }, l); };
 const dur = (s) => s == null ? "–" : s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} t`;
@@ -1034,6 +1035,103 @@ function monthGrid(d, source, refresh) {
     h("table", { class: "month-grid" }, h("thead", {}, h("tr", {}, h("th", {}, "År"), ...MONTHS.map(m => h("th", {}, m)))),
       h("tbody", {}, ...years.map(y => h("tr", {}, h("th", {}, y), ...MONTHS.map((_, i) => cell(y, i + 1)))))),
     h("div", { class: "row mt", style: { gap: "10px", fontSize: ".78rem" } }, ...legend.map(([c, t]) => h("span", { class: "row", style: { gap: "4px" } }, h("i", { class: `mg-cell ${c} mg-key` }), t))));
+}
+
+// ---------------------------------------------------------------- planlagte opgaver
+
+const SCHED_UNITS = { min: "minut(ter)", hour: "time(r)", day: "døgn", week: "uge(r)" };
+const when = (iso) => iso ? `${fmtDate(iso, false)} ${fmtTime(iso)}` : "–";
+
+async function scheduleCard(box) {
+  let d;
+  try { d = await api("/api/admin/schedule"); } catch (err) { box.replaceChildren(errorBox(err)); return; }
+  const changed = {};
+  const save = h("button", { class: "btn primary", disabled: true, onclick: async () => {
+    try { await api("/api/admin/schedule", { method: "PUT", body: changed }); toast("Planen er gemt"); scheduleCard(box); }
+    catch (err) { toast(err.message, "err"); }
+  } }, "Gem plan");
+  const rows = d.tasks.map(t => {
+    const set = (k, v) => { changed[t.key] = { ...(changed[t.key] || {}), [k]: v }; save.disabled = false; };
+    const on = h("input", { type: "checkbox", checked: t.on, onchange: () => set("on", on.checked) });
+    const at = h("input", { type: "time", value: t.at, style: { width: "auto" }, onchange: () => set("at", at.value) });
+    let interval;
+    if (t.unit === "month") {
+      interval = h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, "månedligt kl.", at,
+        h("button", { class: "btn sm", type: "button", onclick: () => locfindsModal(() => scheduleCard(box)) }, "Fordeling…"));
+    } else {
+      const every = h("input", { type: "number", min: 1, max: 1000, value: t.every, style: { width: "64px" }, oninput: () => set("every", Number(every.value) || 1) });
+      const unit = h("select", { style: { width: "auto" }, onchange: () => { set("unit", unit.value); sync(); } },
+        ...Object.entries(SCHED_UNITS).map(([u, txt]) => h("option", { value: u, selected: u === t.unit }, txt)));
+      const atWrap = h("span", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, unit.value === "hour" ? "fra kl." : "kl.", at);
+      const sync = () => { atWrap.classList.toggle("hide", unit.value === "min"); atWrap.firstChild.textContent = unit.value === "hour" ? "fra kl." : unit.value === "week" ? "mandag kl." : "kl."; };
+      sync();
+      interval = h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, "hver", every, unit, atWrap);
+    }
+    return h("tr", {},
+      h("td", {}, h("label", { class: "check" }, on, h("b", {}, t.label)), h("small", { class: "muted", style: { display: "block" } }, t.desc)),
+      h("td", {}, interval),
+      h("td", { class: "muted nowrap" }, t.last ? ago(t.last) : "–"),
+      h("td", { class: "muted nowrap" }, t.unit === "month" ? "se fordeling" : t.on ? when(t.next) : "slået fra"));
+  });
+  box.replaceChildren(h("h3", {}, "Planlagte opgaver"),
+    h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } },
+      "Hvor ofte workeren selv starter opgaverne. «Hver 6. time fra kl. 01:20» kører 01:20, 07:20, 13:20 og 19:20; ugentlige opgaver kører mandag. Ændringer gælder fra workerens næste tjek (inden for 30 sekunder). Hentning fra DOFbasen og vejrarkivet styres under Data og Vejr."),
+    h("div", { class: "table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 2 } },
+      h("thead", {}, h("tr", {}, h("th", {}, "Opgave"), h("th", {}, "Interval"), h("th", {}, "Sidst"), h("th", {}, "Næste"))),
+      h("tbody", {}, ...rows))),
+    h("div", { class: "row" }, save));
+}
+
+async function locfindsModal(onSaved) {
+  let d;
+  try { d = await api("/api/admin/locfinds"); } catch (err) { toast(err.message, "err"); return; }
+  const days = Object.fromEntries(d.batches.map(b => [b.id, b.day]));
+  const on = h("input", { type: "checkbox", checked: d.on });
+  const at = h("input", { type: "time", value: d.at, style: { width: "auto" } });
+  const first = h("input", { type: "number", min: 1, max: d.max_day, value: 1, style: { width: "64px" } });
+  const last = h("input", { type: "number", min: 1, max: d.max_day, value: d.max_day, style: { width: "64px" } });
+  const order = h("select", { style: { width: "auto" } }, h("option", { value: "navn" }, "efter navn"), h("option", { value: "size" }, "største først"));
+  const inputs = {};
+  const runOne = async (ids, label) => {
+    try { await api("/api/admin/worker/loc_finds", { method: "POST", body: ids ? { afdelinger: ids } : {} }); toast(`${label}: lagt i kø`); }
+    catch (err) { toast(err.message, "err"); }
+  };
+  const rows = d.batches.map(b => {
+    inputs[b.id] = h("input", { type: "number", min: 1, max: d.max_day, value: b.day, style: { width: "64px" }, oninput: (e) => { days[b.id] = Number(e.target.value); } });
+    const state = b.started_at && (!b.at || b.started_at > b.at) ? "kører/afbrudt" : b.queued_at && (!b.at || b.queued_at > b.at) ? "i kø" : null;
+    return h("tr", {},
+      h("td", {}, h("b", {}, b.navn)),
+      h("td", { class: "right num" }, fmtN(b.n_loc)),
+      h("td", {}, inputs[b.id]),
+      h("td", { class: "muted nowrap" }, state && !b.error ? h("span", { class: "tag bemaerk" }, state) : b.at ? `${when(b.at)} · ${dur(b.secs)} · ${fmtN(b.rows)} rækker` : "aldrig",
+        b.error ? h("div", { style: { color: "var(--err)", whiteSpace: "normal" } }, b.error) : null),
+      h("td", { class: "right" }, h("button", { class: "btn sm", type: "button", onclick: () => runOne([b.id], b.navn) }, "Kør nu")));
+  });
+  const distribute = () => {
+    const ids = d.batches.slice().sort((a, b) => order.value === "size" ? b.n_loc - a.n_loc : 0).map(b => b.id);
+    const lo = Math.min(Number(first.value), Number(last.value)), hi = Math.max(Number(first.value), Number(last.value));
+    ids.forEach((id, k) => { days[id] = lo + (ids.length > 1 ? Math.round(k * (hi - lo) / (ids.length - 1)) : 0); inputs[id].value = days[id]; });
+  };
+  const m = modal("Lokale hits: fordeling over måneden", h("div", { class: "stack" },
+    h("p", { class: "muted", style: { margin: 0 } },
+      "Estimerede fund pr. art og lokalitet gennem alle år genberegnes én gang om måneden, én lokalafdeling ad gangen, så belastningen spredes. Hver afdeling kører på sin dag i måneden fra det valgte klokkeslæt (dag 1–28, så alle måneder har dagen). Er workeren nede på dagen, køres afdelingen, så snart den er oppe igen."),
+    h("div", { class: "row", style: { gap: "1rem", flexWrap: "wrap" } },
+      h("label", { class: "check" }, on, "Slået til"),
+      h("label", { class: "row", style: { gap: "6px" } }, "Fra kl.", at)),
+    h("div", { class: "row card", style: { gap: "6px", flexWrap: "wrap", padding: ".6rem" } },
+      "Fordel jævnt fra dag", first, "til dag", last, order,
+      h("button", { class: "btn sm", type: "button", onclick: distribute }, "Fordel")),
+    h("div", { class: "table-wrap" }, h("table", { class: "data" },
+      h("thead", {}, h("tr", {}, h("th", {}, "Lokalafdeling"), h("th", { class: "right" }, "Lokaliteter"), h("th", {}, "Dag"), h("th", {}, "Seneste beregning"), h("th", {}))),
+      h("tbody", {}, ...rows))),
+    h("div", { class: "row between" },
+      h("button", { class: "btn", type: "button", onclick: () => { if (confirm("Genberegn alle lokalafdelinger nu? Det kan tage lang tid.")) runOne(null, "Alle lokalafdelinger"); } }, "Kør alle nu"),
+      h("button", { class: "btn primary", type: "button", onclick: async () => {
+        try {
+          await api("/api/admin/locfinds", { method: "PUT", body: { on: on.checked, at: at.value, days } });
+          toast("Fordelingen er gemt"); m.close(); onSaved?.();
+        } catch (err) { toast(err.message, "err"); }
+      } }, "Gem"))), { wide: true });
 }
 
 function planEditor(d, source, onDirty, onSaved) {

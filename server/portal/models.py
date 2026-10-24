@@ -306,13 +306,28 @@ class ClimateMonth(Base):
 
 
 class AreaSpeciesCount(Base):
-    """Antal historiske observationer pr. område og art – grundlag for 'lokale hits'."""
+    """Antal historiske observationer pr. område og art. n_finds = summen af estimerede fund på områdets lokaliteter
+    (LocSpeciesFinds) – grundlag for 'lokale hits' i alarmregler, der tæller i hele området."""
 
     __tablename__ = "area_species_counts"
 
     area_key: Mapped[str] = mapped_column(String(32), primary_key=True)
     artnr: Mapped[int] = mapped_column(Integer, primary_key=True)
     n_obs: Mapped[int] = mapped_column(Integer)
+    n_days: Mapped[int] = mapped_column(Integer)
+    last_date: Mapped[date | None] = mapped_column(Date)
+    n_finds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class LocSpeciesFinds(Base):
+    """Estimerede fund pr. lokalitet og art gennem alle år (services/locfinds.py) – grundlag for 'lokale hits'.
+    Genberegnes månedligt, én lokalafdeling ad gangen."""
+
+    __tablename__ = "loc_species_finds"
+
+    loknr: Mapped[int] = mapped_column(Integer, primary_key=True)
+    artnr: Mapped[int] = mapped_column(Integer, primary_key=True)
+    n_finds: Mapped[int] = mapped_column(Integer)
     n_days: Mapped[int] = mapped_column(Integer)
     last_date: Mapped[date | None] = mapped_column(Date)
 
@@ -466,6 +481,9 @@ class AlertRule(Base):
     # Kommasepareret valg af SU, SUB, bemaerk, local – eller "all"
     level: Mapped[str] = mapped_column(String(32), default="SU,SUB")
     local_max: Mapped[int] = mapped_column(Integer, default=5)
+    # Lokale hits tælles som estimerede fund på lokaliteten, meldingen kommer fra ("lokalitet"), eller i hele reglens
+    # område ("omraade")
+    local_basis: Mapped[str] = mapped_column(String(10), default="lokalitet", server_default="lokalitet")
     min_antal: Mapped[int] = mapped_column(Integer, default=1)
     species_include: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)
     species_exclude: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list)
@@ -1477,6 +1495,10 @@ EXTRA_DDL = [
     # 10 km-kvadrat (DKN, EPSG:25832) for hver lokalitet – nøgle til vejrarkivet
     "ALTER TABLE locations ADD COLUMN IF NOT EXISTS cell10 integer",
     "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS first_only boolean NOT NULL DEFAULT false",
+    # Lokale hits efter estimerede fund: eksisterende regler talte i hele området og gør det fortsat
+    "ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS local_basis varchar(10) NOT NULL DEFAULT 'omraade'",
+    "ALTER TABLE alert_rules ALTER COLUMN local_basis SET DEFAULT 'lokalitet'",
+    "ALTER TABLE area_species_counts ADD COLUMN IF NOT EXISTS n_finds integer NOT NULL DEFAULT 0",
     "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS retningslinjer boolean NOT NULL DEFAULT false",
     "ALTER TABLE field_reports ALTER COLUMN trip_id DROP NOT NULL",
     "ALTER TABLE field_reports ADD COLUMN IF NOT EXISTS antalmetode smallint",

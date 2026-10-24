@@ -222,7 +222,10 @@ uge. Abonnement i Google/Outlook/Apple via personlig ICS-adresse (egne planer el
 
 **Kategorier** (samme regler som DOF.not): SU/SUB fra artsklassifikationen → bemærk-vindue
 (sommer-/vinterforekomst) → afdelingens bemærk-tærskel. **Lokalt hit**: arten har færre end N
-observationer i området i hele databasen (beregnes hver nat pr. afdeling, kommune og eget område).
+estimerede fund gennem alle år på lokaliteten, observationen kommer fra. Dage med arten på lokaliteten med højst 7 dages
+mellemrum er ét fund (højst 1 dag for trækkende fugle). Tallene genberegnes én gang om måneden, én lokalafdeling ad gangen
+(Admin → Drift → Planlagte opgaver → Fordeling). En alarmregel kan i stedet tælle i hele sit område (summen af fundene
+på områdets lokaliteter).
 
 **Notifikationer.** En tråd udløser regel-notifikationer, når den er ny, eller når max-antallet stiger.
 Nye observationer i en eksisterende tråd går kun til dem der følger den. Egne observationer og tråde

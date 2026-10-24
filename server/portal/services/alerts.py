@@ -216,6 +216,9 @@ def _rule_matches(rule: dict, e: Event, members: dict[int, set[int]], counts: di
     if "local" in levels and e.kategori in ("alm", "bemaerk"):
         if e.art_type not in ("art", "underart"):
             return False
+        if rule["local_basis"] != "omraade":
+            # Estimerede fund på lokaliteten, meldingen kommer fra
+            return counts.get((f"lok:{e.loknr}", e.artnr), 0) < rule["local_max"]
         if rule["kommuner"] or rule["afdelinger"]:
             # Flere regioner: lokalt hit hvis arten er sjælden i mindst én af de valgte regioner fundet ligger i
             keys = [f"kom:{e.kommune_kode}"] if e.kommune_kode in rule["kommuner"] else []
@@ -344,7 +347,7 @@ async def _users(session: AsyncSession) -> dict[int, dict]:
 
 async def _rules(session: AsyncSession) -> list[dict]:
     rows = (await session.execute(text("""
-        SELECT r.id, r.user_id, r.level, r.local_max, r.min_antal, r.species_include, r.species_exclude, r.missing, r.push, r.first_only,
+        SELECT r.id, r.user_id, r.level, r.local_max, r.local_basis, r.min_antal, r.species_include, r.species_exclude, r.missing, r.push, r.first_only,
                r.area_id, a.kind AS area_kind, a.ref AS area_ref, r.kommuner, r.afdelinger
         FROM alert_rules r LEFT JOIN areas a ON a.id = r.area_id WHERE r.enabled
     """))).mappings().all()
@@ -376,17 +379,26 @@ async def _area_members(session: AsyncSession, rules: list[dict], loknrs: set) -
 
 
 async def _local_counts(session: AsyncSession, rules: list[dict], events: list[Event]) -> dict[tuple[str, int], int]:
+    """Estimerede fund i alle år: (område-nøgle, artnr) for regler der tæller i området, ('lok:N', artnr) pr. lokalitet."""
+    local = [r for r in rules if "local" in r["levels"]]
+    arts = list({e.artnr for e in events})
+    out: dict[tuple[str, int], int] = {}
     keys = set()
-    for r in rules:
-        if "local" in r["levels"]:
+    for r in local:
+        if r["local_basis"] == "omraade":
             keys |= {r["count_key"], *(f"kom:{k}" for k in r["kommuner"]), *(f"afd:{a}" for a in r["afdelinger"])}
-    keys = list(keys)
-    if not keys:
-        return {}
-    rows = (await session.execute(text("""
-        SELECT area_key, artnr, n_obs FROM area_species_counts WHERE area_key = ANY(:k) AND artnr = ANY(:a)
-    """), {"k": keys, "a": list({e.artnr for e in events})})).all()
-    return {(k, a): n for k, a, n in rows}
+    if keys:
+        rows = (await session.execute(text("""
+            SELECT area_key, artnr, n_finds FROM area_species_counts WHERE area_key = ANY(:k) AND artnr = ANY(:a)
+        """), {"k": list(keys), "a": arts})).all()
+        out.update({(k, a): n for k, a, n in rows})
+    loknrs = [e.loknr for e in events if e.loknr is not None]
+    if any(r["local_basis"] != "omraade" for r in local) and loknrs:
+        rows = (await session.execute(text("""
+            SELECT loknr, artnr, n_finds FROM loc_species_finds WHERE loknr = ANY(:l) AND artnr = ANY(:a)
+        """), {"l": list(set(loknrs)), "a": arts})).all()
+        out.update({(f"lok:{l}", a): n for l, a, n in rows})
+    return out
 
 
 async def _follows(session: AsyncSession, threads: set[tuple]) -> dict[tuple, list[int]]:

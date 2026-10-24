@@ -257,7 +257,7 @@ async def thread_reports(session: AsyncSession, day: date, artnr: int, loknr: in
 
 
 async def merge_feed(session: AsyncSession, threads: list[dict], day: date, scope: Scope, level: str, local_max: int,
-                     viewer: User | None) -> list[dict]:
+                     viewer: User | None, local_basis: str = "lokalitet") -> list[dict]:
     """Flet dagens feltmeldinger ind i feedets tråde (samme filtre som DOFbasen-data)."""
     pred, params = scope.predicate("r")
     conds = ["r.dato = :day", "(NOT r.hemmelig OR r.user_id = :viewer)", pred]
@@ -277,11 +277,19 @@ async def merge_feed(session: AsyncSession, threads: list[dict], day: date, scop
         WHERE {' AND '.join(conds)} ORDER BY r.created_at
     """), {"day": day, "viewer": viewer.id if viewer else -1, **params})).mappings().all()]
     if rows and level == "local":
-        counts = dict((await session.execute(text(
-            "SELECT artnr, n_obs FROM area_species_counts WHERE area_key = :ck AND artnr = ANY(:a)"),
-            {"ck": scope.count_key, "a": list({r["artnr"] for r in rows})})).all())
+        # Estimerede fund i alle år – på meldingens lokalitet eller i hele området (som feed.threads)
+        arts = list({r["artnr"] for r in rows})
+        if local_basis == "omraade":
+            counts = {(None, a): n for a, n in (await session.execute(text(
+                "SELECT artnr, n_finds FROM area_species_counts WHERE area_key = :ck AND artnr = ANY(:a)"),
+                {"ck": scope.count_key, "a": arts})).all()}
+        else:
+            counts = {(lok, a): n for lok, a, n in (await session.execute(text(
+                "SELECT loknr, artnr, n_finds FROM loc_species_finds WHERE loknr = ANY(:l) AND artnr = ANY(:a)"),
+                {"l": list({r["loknr"] for r in rows}), "a": arts})).all()}
+        place = (lambda r: None) if local_basis == "omraade" else (lambda r: r["loknr"])
         rows = [r for r in rows if r["kategori"] in ("SU", "SUB")
-                or (counts.get(r["artnr"], 0) < local_max and r["art_type"] in ("art", "underart"))]
+                or (counts.get((place(r), r["artnr"]), 0) < local_max and r["art_type"] in ("art", "underart"))]
     elif rows and level == "pheno":
         doy = seasons.doy365(day)
         season = {a: (fra, til, src) for a, fra, til, src in (await session.execute(text(

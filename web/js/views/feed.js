@@ -48,7 +48,8 @@ export async function render(view) {
   const localWrap = h("label", { class: "row hide", style: { fontSize: ".85rem", gap: ".4rem" } });
   const localVal = h("b", { class: "num" }, st.localMax);
   const localRange = h("input", { type: "range", min: 1, max: 100, value: st.localMax, style: { width: "130px" } });
-  localWrap.append("Færre end", localVal, "obs. historisk", localRange);
+  localWrap.title = "Lokalt hit: arten er fundet færre gange end dette på lokaliteten gennem alle år (estimerede fund – en fugl der bliver i flere dage tæller én gang)";
+  localWrap.append("Færre end", localVal, "fund på lokaliteten", localRange);
 
   // Værktøjslinje som i DOF.not: to-tilstandsknapper; kategori og område kun når egne filtre er slået fra
   const toggles = h("div", { class: "toolbar" });

@@ -20,26 +20,38 @@ PHENO_COND = ("(CASE WHEN ss.start_doy <= ss.end_doy THEN (:doy < ss.start_doy O
 
 
 async def threads(session: AsyncSession, day: date, *, scope: Scope, level: str = "bemaerk", local_max: int = 10,
-                  limit: int = 400) -> list[dict]:
-    """Dagens tråde. level: SU / SUB / bemaerk / local (lokale hits: < local_max obs historisk i området) / all."""
-    key = f"feed:{day}:{scope.key}:{level}:{local_max}:{await version('feed')}"
-    return await cached(key, 120, lambda: _threads(session, day, scope, level, local_max, limit))
+                  local_basis: str = "lokalitet", limit: int = 400) -> list[dict]:
+    """Dagens tråde. level: SU / SUB / bemaerk / local / pheno / all.
+
+    Lokale hits: arten har færre end local_max estimerede fund i alle år – på lokaliteten, observationen er fra
+    (local_basis="lokalitet", feedet), eller i hele området (local_basis="omraade", alarmregler der vælger det)."""
+    key = f"feed:{day}:{scope.key}:{level}:{local_max}:{local_basis}:{await version('feed')}"
+    return await cached(key, 120, lambda: _threads(session, day, scope, level, local_max, local_basis, limit))
 
 
-async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, local_max: int, limit: int) -> list[dict]:
+def local_join(basis: str) -> str:
+    """Join der giver c.n_finds (estimerede fund) for observationen o – på lokaliteten eller i området :ck."""
+    if basis == "omraade":
+        return "LEFT JOIN area_species_counts c ON c.area_key = :ck AND c.artnr = o.artnr"
+    return "LEFT JOIN loc_species_finds c ON c.loknr = o.loknr AND c.artnr = o.artnr"
+
+
+async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, local_max: int, local_basis: str,
+                   limit: int) -> list[dict]:
     pred, params = (await scope.with_geom(session)).predicate("o")
     min_rank = LEVELS.get(level, 1)
-    local_join = ""
+    local_join_sql = ""
     local_cond = ""
     if level == "local":
-        count_key = scope.count_key
-        local_join = "LEFT JOIN area_species_counts c ON c.area_key = :ck AND c.artnr = o.artnr"
-        local_cond = ("AND ((coalesce(c.n_obs, 0) < :lmax AND s.art_type IN ('art', 'underart')) "
+        local_join_sql = local_join(local_basis)
+        local_cond = ("AND ((coalesce(c.n_finds, 0) < :lmax AND s.art_type IN ('art', 'underart')) "
                       "OR o.kategori IN ('SU','SUB'))")
-        params.update({"ck": count_key, "lmax": local_max})
+        params["lmax"] = local_max
+        if local_basis == "omraade":
+            params["ck"] = scope.count_key
     ph_cols = ph_agg = ""
     if level == "pheno":
-        local_join = "JOIN species_season ss ON ss.artnr = s.list_or_artnr"
+        local_join_sql = "JOIN species_season ss ON ss.artnr = s.list_or_artnr"
         local_cond = f"AND s.art_type IN ('art', 'underart') AND {PHENO_COND}"
         ph_cols, ph_agg = ", ss.start_doy AS ph_from, ss.end_doy AS ph_to, ss.source AS ph_source", ", max(ph_from) AS ph_from, max(ph_to) AS ph_to, max(ph_source) AS ph_source"
         params["doy"] = seasons.doy365(day)
@@ -48,7 +60,7 @@ async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, l
         WITH sp AS (SELECT artnr, navn, klass, coalesce(list_artnr, artnr) AS list_or_artnr, art_type FROM species),
         obs AS (
             SELECT o.*, {KAT_RANK} AS rank, s.navn AS art, s.klass, s.art_type{ph_cols}
-            FROM observations o JOIN sp s ON s.artnr = o.artnr {local_join}
+            FROM observations o JOIN sp s ON s.artnr = o.artnr {local_join_sql}
             WHERE o.dato = :day AND o.hemmelig = 0 AND {pred} {kat_filter} {local_cond}
         ),
         per_trip AS (

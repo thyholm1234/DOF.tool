@@ -40,7 +40,8 @@ class Scope:
 
     @property
     def count_key(self) -> str:
-        """Nøgle til de historiske artstal ('lokale hits'). En radius om et punkt har ingen egne tal – der bruges hele landet."""
+        """Nøgle til de historiske artstal (lokale hits i hele området). En radius om et punkt har ingen egne tal – der
+        bruges hele landet."""
         return "dk" if self.kind == "near" else self.key
 
     def predicate(self, alias: str = "o", pname: str = "scope_ref") -> tuple[str, dict]:
@@ -134,7 +135,45 @@ async def refresh_area_counts(session: AsyncSession, scope: Scope) -> int:
         FROM observations o WHERE {pred} AND o.dato < current_date
         GROUP BY o.artnr
     """), {"k": scope.key, **params})
+    await refresh_area_finds(session, scope)
     return res.rowcount or 0
+
+
+async def refresh_area_finds(session: AsyncSession, scope: Scope) -> None:
+    """Estimerede fund i området = summen af fundene på dets lokaliteter (loc_species_finds). En fugl, der ses på to
+    nabolokaliteter, tæller derfor som to fund – tallet er et overslag, men det skal kun skelne sjældne arter."""
+    scope = await scope.with_geom(session)
+    if scope.kind == "afdeling":
+        pred, params = "f.loknr IN (SELECT loknr FROM locations WHERE afdeling_id = :afd)", {"afd": int(scope.ref)}
+    else:
+        pred, params = scope.predicate("f")
+    await session.execute(text(f"""
+        UPDATE area_species_counts c
+        SET n_finds = coalesce((SELECT sum(f.n_finds) FROM loc_species_finds f WHERE f.artnr = c.artnr AND {pred}), 0)
+        WHERE c.area_key = :k
+    """), {"k": scope.key, **params})
+
+
+async def refresh_region_finds(session: AsyncSession) -> None:
+    """Estimerede fund for hele DK, alle afdelinger og kommuner (efter en månedlig genberegning af lokaliteterne)."""
+    await session.execute(text("UPDATE area_species_counts SET n_finds = 0 WHERE area_key = 'dk' OR area_key LIKE 'afd:%' OR area_key LIKE 'kom:%'"))
+    await session.execute(text("""
+        UPDATE area_species_counts c SET n_finds = x.n
+        FROM (SELECT artnr, sum(n_finds) AS n FROM loc_species_finds GROUP BY artnr) x
+        WHERE c.area_key = 'dk' AND c.artnr = x.artnr
+    """))
+    await session.execute(text("""
+        UPDATE area_species_counts c SET n_finds = x.n
+        FROM (SELECT 'afd:' || l.afdeling_id AS k, f.artnr, sum(f.n_finds) AS n FROM loc_species_finds f
+              JOIN locations l USING (loknr) WHERE l.afdeling_id IS NOT NULL GROUP BY 1, 2) x
+        WHERE c.area_key = x.k AND c.artnr = x.artnr
+    """))
+    await session.execute(text("""
+        UPDATE area_species_counts c SET n_finds = x.n
+        FROM (SELECT 'kom:' || l.kommune_kode AS k, f.artnr, sum(f.n_finds) AS n FROM loc_species_finds f
+              JOIN locations l USING (loknr) WHERE l.kommune_kode IS NOT NULL GROUP BY 1, 2) x
+        WHERE c.area_key = x.k AND c.artnr = x.artnr
+    """))
 
 
 async def refresh_all_area_counts(session: AsyncSession) -> None:
@@ -155,6 +194,7 @@ async def refresh_all_area_counts(session: AsyncSession) -> None:
         FROM observations o JOIN locations l USING (loknr)
         WHERE o.dato < current_date AND l.kommune_kode IS NOT NULL GROUP BY l.kommune_kode, o.artnr
     """))
+    await refresh_region_finds(session)
     await session.commit()
     areas = (await session.execute(text("SELECT DISTINCT kind, ref, id FROM areas WHERE kind IN ('lokalitet','polygon','radius')"))).all()
     seen = set()

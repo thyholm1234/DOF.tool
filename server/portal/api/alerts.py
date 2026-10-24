@@ -32,6 +32,7 @@ class RuleIn(BaseModel):
     afdelinger: list[int] = Field(default_factory=list, max_length=30)
     level: str = Field("SU,SUB", pattern="^(all|(SU|SUB|bemaerk|local|pheno)(,(SU|SUB|bemaerk|local|pheno))*)$")
     local_max: int = Field(5, ge=1, le=1000)
+    local_basis: str = Field("lokalitet", pattern="^(lokalitet|omraade)$")
     min_antal: int = Field(1, ge=1, le=100000)
     species_include: list[int] = Field(default_factory=list, max_length=200)
     species_exclude: list[int] = Field(default_factory=list, max_length=500)
@@ -46,7 +47,7 @@ def rule_out(r: AlertRule, area: Area | None, names: dict[str, str]) -> dict:
     area_name = area.name if area else ", ".join(regions) if regions else "Hele Danmark"
     return {"id": r.id, "name": r.name, "area_id": r.area_id, "kommuner": r.kommuner or [], "afdelinger": r.afdelinger or [],
             "area_name": area_name,
-            "level": r.level, "local_max": r.local_max, "min_antal": r.min_antal, "species_include": r.species_include or [],
+            "level": r.level, "local_max": r.local_max, "local_basis": r.local_basis, "min_antal": r.min_antal, "species_include": r.species_include or [],
             "species_exclude": r.species_exclude or [], "missing": r.missing, "push": r.push, "first_only": r.first_only, "enabled": r.enabled}
 
 

@@ -22,7 +22,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
-from portal.services import account, activity, datasync, diskusage, fcm, features, moderation, weather_archive
+from portal.services import account, activity, datasync, diskusage, fcm, features, locfinds, moderation, schedule, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
 
@@ -204,11 +204,61 @@ async def clear_queue(user: User = Depends(perm_drift)):
 
 
 @router.post("/admin/worker/{cmd}")
-async def worker(cmd: str, body: dict | None = None, user: User = Depends(perm_drift)):
+async def worker(cmd: str, body: dict | None = None, user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
+    if cmd == "loc_finds":
+        ids = (body or {}).get("afdelinger")
+        return {"queued": cmd, "afdelinger": await locfinds.enqueue(db, [int(x) for x in ids] if ids else None)}
     if cmd not in ("archive_import", "compute", "climate", "aggregates", "events", "forecast", "regions", "gaps", "location_years"):
         raise HTTPException(400)
     await worker_command(cmd, **(body or {}))
     return {"queued": cmd}
+
+
+# ---------------------------------------------------------------- planlagte opgaver
+
+
+@router.get("/admin/schedule")
+async def get_schedule(user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
+    return {"tasks": await schedule.overview(db)}
+
+
+@router.put("/admin/schedule")
+async def put_schedule(body: dict[str, dict], user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
+    try:
+        await schedule.save(db, body)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"tasks": await schedule.overview(db)}
+
+
+async def _locfinds_panel(db: AsyncSession) -> dict:
+    cfg = (await schedule.load(db))["loc_finds"]
+    batches = await locfinds.batches(db)
+    plan = await locfinds.get_plan(db, [b["id"] for b in batches])
+    st = await locfinds.status(db)
+    return {"on": cfg["on"], "at": cfg["at"], "max_day": locfinds.LAST_DAY,
+            "batches": [{**b, "day": plan["days"][str(b["id"])], **(st.get(str(b["id"])) or {})} for b in batches]}
+
+
+@router.get("/admin/locfinds")
+async def get_locfinds(user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
+    return await _locfinds_panel(db)
+
+
+class LocfindsIn(BaseModel):
+    on: bool = True
+    at: str = Field("03:30", pattern=r"^\d{1,2}:\d{2}$")
+    days: dict[str, int] = Field(default_factory=dict)
+
+
+@router.put("/admin/locfinds")
+async def put_locfinds(body: LocfindsIn, user: User = Depends(perm_drift), db: AsyncSession = Depends(get_session)):
+    try:
+        await schedule.save(db, {"loc_finds": {"on": body.on, "at": body.at}})
+        await locfinds.save_plan(db, {"days": body.days})
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return await _locfinds_panel(db)
 
 
 # ---------------------------------------------------------------- upload af månedsfiler (dofbasen_ÅÅÅÅ_MM.csv)

@@ -20,20 +20,11 @@ from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, dof_events, features, imagemeta, locyear, netfugl, phenology, regions, seasons, storage, weather_archive
+from portal.services import (areas, datasync, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl, phenology, regions,
+                             schedule, seasons, storage, weather_archive)
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
-
-
-async def _once(name: str, period_key: str) -> bool:
-    """True første gang i en periode (fx dato eller dato+time)."""
-    return bool(await kv().set(f"sched:{name}:{period_key}", "1", nx=True, ex=3 * 86400))
-
-
-async def _every(name: str, seconds: int) -> bool:
-    """True højst hvert `seconds`. sekund (også på tværs af genstarter; første gang med det samme)."""
-    return bool(await kv().set(f"sched:every:{name}", "1", nx=True, ex=seconds))
 
 
 AGG_MARK = "agg:last"
@@ -131,45 +122,61 @@ async def scheduler() -> None:
         except Exception:
             await kv().delete("once:media_s3_v1")
             log.exception("Flytning til objektlageret fejlede")
+    async with SessionLocal() as s:
+        if not await locfinds.has_data(s):
+            # Første gang (eller første kørsel fejlede): alle lokalafdelinger med det samme – ellers er alle arter lokale
+            # hits indtil deres dag i måneden
+            await locfinds.enqueue(s)
     while True:
-        now = dk_now()
-        day = now.date().isoformat()
-        hour = f"{day}T{now.hour:02d}"
         try:
             await run_plans()
-            if now.minute >= 15 and await _once("forecast", hour):
-                await run_safely("forecast", dmi.forecast())
-            if now.hour == 2 and now.minute >= 30 and await _once("compute", day):
-                await run_safely("compute", nightly_compute())
-                await run_safely("gaps", gaps(None))
-            if await _every("location_years", locyear.EVERY):
-                await run_safely("location_years", location_years(None))
-            if now.hour == 3 and await _once("reference", day):
-                await jobs.enqueue_reference_refresh()
-            if now.weekday() == 0 and now.hour == 5 and await _once("climate", day):
-                await run_safely("climate", refresh_climate())
-            if now.hour % 6 == 1 and now.minute >= 20 and await _once("dof_events", hour):
-                await run_safely("events", dof_events.sync())
-            if now.hour % 6 == 0 and await _once("gap", hour):
-                await jobs.enqueue_gap_fill()
-            await netfugl_schedule()
-            if await _every("reference_sync", 3600):
-                await sync_reference()
+            async with SessionLocal() as s:
+                due = await schedule.due(s)
+                flags = await features.load(s)
+            for name in due:
+                await run_scheduled(name, flags)
+            await locfinds_schedule()
         except Exception:  # noqa: BLE001
             log.exception("Planlægger-fejl")
         await asyncio.sleep(30)
 
 
-async def netfugl_schedule() -> None:
-    """Netfugl-showcasen: krydslister fra DOFbasen hver 6. time og RSS hver time – kun når modulet ikke er slået fra."""
-    async with SessionLocal() as s:
-        flags = await features.load(s)
-    if flags.get("netfugl") == "off":
+async def run_scheduled(name: str, flags: dict) -> None:
+    """Én planlagt opgave (intervaller under Admin → Drift, services/schedule.py)."""
+    if name.startswith("netfugl_") and (flags.get("netfugl") == "off" or flags.get(name) == "off"):
         return
-    if flags.get("netfugl_kryds") != "off" and await _every("netfugl_kryds", 6 * 3600):
+    if name == "forecast":
+        await run_safely("forecast", dmi.forecast())
+    elif name == "compute":
+        await run_safely("compute", nightly_compute())
+        await run_safely("gaps", gaps(None))
+    elif name == "location_years":
+        await run_safely("location_years", location_years(None))
+    elif name == "reference":
+        await jobs.enqueue_reference_refresh()
+    elif name == "reference_sync":
+        await sync_reference()
+    elif name == "climate":
+        await run_safely("climate", refresh_climate())
+    elif name == "events":
+        await run_safely("events", dof_events.sync())
+    elif name == "gap_fill":
+        await jobs.enqueue_gap_fill()
+    elif name == "netfugl_kryds":
         await run_safely("netfugl_kryds", netfugl_kryds())
-    if flags.get("netfugl_rss") != "off" and await _every("netfugl_rss", 3600):
+    elif name == "netfugl_rss":
         await run_safely("netfugl_rss", netfugl_rss(None))
+
+
+async def locfinds_schedule() -> None:
+    """Fund pr. lokalitet: de lokalafdelinger hvis dag i måneden er nået, lægges i kø hos kommando-lytteren."""
+    async with SessionLocal() as s:
+        cfg = (await schedule.load(s))["loc_finds"]
+        if not cfg["on"]:
+            return
+        due = await locfinds.due(s, cfg["at"])
+        if due:
+            await locfinds.enqueue(s, due)
 
 
 async def netfugl_kryds() -> None:
@@ -240,6 +247,19 @@ async def area_counts(scope_ref: str) -> None:
         await s.commit()
 
 
+async def loc_finds(afdelinger: list[int] | None) -> None:
+    """Estimerede fund pr. lokalitet for de givne lokalafdelinger (None = alle), derefter områdetallene."""
+    async with SessionLocal() as s:
+        ids = afdelinger if afdelinger is not None else [b["id"] for b in await locfinds.batches(s)]
+        names = {b["id"]: b["navn"] for b in await locfinds.batches(s)}
+        for i, afd in enumerate(ids):
+            await jobstatus.step(names.get(afd, str(afd)), i, len(ids))
+            await locfinds.run(s, afd)
+        await jobstatus.step("Områdetal", len(ids), len(ids))
+        await areas.refresh_region_finds(s)
+        await s.commit()
+
+
 async def region_years(from_year: int | None) -> None:
     async with SessionLocal() as s:
         await regions.refresh(s, from_year)
@@ -291,6 +311,8 @@ async def command_listener() -> None:
                 await run_safely("events", dof_events.sync())
             elif name == "forecast":
                 await run_safely("forecast", dmi.forecast())
+            elif name == "loc_finds":
+                await run_safely("loc_finds", loc_finds(cmd.get("afdelinger")))
             elif name == "regions":
                 await run_safely("regions", region_years(cmd.get("from_year")))
             elif name == "gaps":

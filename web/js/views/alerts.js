@@ -71,7 +71,7 @@ async function rules(body) {
   if (!list.length) { body.append(h("div", { class: "card" }, empty("Ingen regler endnu", "Opret en regel for at få notifikationer."), h("div", { class: "row", style: { justifyContent: "center" } },
     h("button", { class: "btn", onclick: async () => { await api("/api/alerts/rules", { method: "POST", body: { name: "SU + SUB i Danmark", level: "SU,SUB" } }); body.replaceChildren(); rules(body); } }, "Opret 'SU + SUB i Danmark'")))); return; }
   body.append(h("div", { class: "grid" }, ...list.map(r => h("div", { class: "card row between", style: { opacity: r.enabled ? 1 : .55 } },
-    h("div", {}, h("b", {}, r.name), h("div", { class: "muted" }, `${r.area_name}${followText(r, areasList)} · ${levelText(r.level)}${r.level.includes("local") ? ` (< ${r.local_max} obs.)` : ""}${r.min_antal > 1 ? ` · min. ${r.min_antal} ind.` : ""}`,
+    h("div", {}, h("b", {}, r.name), h("div", { class: "muted" }, `${r.area_name}${followText(r, areasList)} · ${levelText(r.level)}${r.level.includes("local") ? ` (< ${r.local_max} fund ${r.local_basis === "omraade" ? "i området" : "på lokaliteten"})` : ""}${r.min_antal > 1 ? ` · min. ${r.min_antal} ind.` : ""}`,
       r.missing ? ` · kun arter jeg ${MISSING_SHORT[r.missing]}` : "", r.species_include.length ? ` · ${r.species_include.length} udvalgte arter` : "", r.species_exclude.length ? ` · ${r.species_exclude.length} fravalgt` : "", r.first_only ? " · kun første indtastning" : "", r.push ? "" : " · kun indbakke")),
     h("div", { class: "row" },
       h("label", { class: "check" }, h("input", { type: "checkbox", checked: r.enabled, onchange: async (e) => { await api(`/api/alerts/rules/${r.id}`, { method: "PUT", body: { ...strip(r), enabled: e.target.checked } }); r.enabled = e.target.checked; e.target.closest(".card").style.opacity = r.enabled ? 1 : .55; } }), "Aktiv"),
@@ -87,10 +87,10 @@ function followText(r, areasList) {
   return isPositionDevice() ? " – følger denne enhed" : ` – følger ${p.position_device.name}`;
 }
 
-const strip = (r) => ({ name: r.name, area_id: r.area_id, kommuner: r.kommuner || [], afdelinger: r.afdelinger || [], level: r.level, local_max: r.local_max, min_antal: r.min_antal, species_include: r.species_include, species_exclude: r.species_exclude, missing: r.missing || null, push: r.push, first_only: !!r.first_only, enabled: r.enabled });
+const strip = (r) => ({ name: r.name, area_id: r.area_id, kommuner: r.kommuner || [], afdelinger: r.afdelinger || [], level: r.level, local_max: r.local_max, local_basis: r.local_basis || "lokalitet", min_antal: r.min_antal, species_include: r.species_include, species_exclude: r.species_exclude, missing: r.missing || null, push: r.push, first_only: !!r.first_only, enabled: r.enabled });
 
 async function editRule(rule, areasList, done, rulesList = []) {
-  const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SU,SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], missing: null, push: true, first_only: false, enabled: true };
+  const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SU,SUB", local_max: 5, local_basis: "lokalitet", min_antal: 1, species_include: [], species_exclude: [], missing: null, push: true, first_only: false, enabled: true };
   const name = h("input", { value: r.name, placeholder: "Fx 'Lokale hits i Odsherred'", required: true });
   const hasRegions = r.kommuner.length > 0 || r.afdelinger.length > 0;
   // "Min position": en radius om enheden, der flytter sig med brugeren (Nær mig-område, ref = 'me')
@@ -127,7 +127,12 @@ async function editRule(rule, areasList, done, rulesList = []) {
   const firstOnly = h("input", { type: "checkbox", checked: r.first_only });
   const include = speciesPicker(r.species_include, "Kun disse arter (valgfrit)");
   const exclude = speciesPicker(r.species_exclude, "Ignorér disse arter");
-  const localRow = h("label", { class: "field" }, h("span", {}, "Lokalt hit = færre end N observationer i området i hele databasen"), localMax);
+  const localBasis = h("select", {}, h("option", { value: "lokalitet", selected: r.local_basis !== "omraade" }, "på lokaliteten, meldingen kommer fra"),
+    h("option", { value: "omraade", selected: r.local_basis === "omraade" }, "i hele reglens område"));
+  const localRow = h("div", { class: "stack" },
+    h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Lokalt hit = færre end N estimerede fund"), localMax),
+      h("label", { class: "field" }, h("span", {}, "Fund tælles"), localBasis)),
+    h("small", { class: "muted" }, "Fund i alle år. En fugl, der bliver på stedet i flere dage, tæller som ét fund. I et område lægges fundene på dets lokaliteter sammen."));
   const sync = () => {
     for (const [, c] of checks) c.disabled = allBox.checked;
     localRow.classList.toggle("hide", allBox.checked || !checks.find(([v]) => v === "local")[1].checked);
@@ -142,7 +147,7 @@ async function editRule(rule, areasList, done, rulesList = []) {
     if (area.value === "me") {
       try { areaId = await followMe(Number(radius.value)); } catch (err) { toast(err.message, "err"); return; }
     }
-    const payload = { ...r, name: name.value, area_id: areaId, ...reg, level: levelValue(), local_max: Number(localMax.value), min_antal: Number(minAntal.value),
+    const payload = { ...r, name: name.value, area_id: areaId, ...reg, level: levelValue(), local_max: Number(localMax.value), local_basis: localBasis.value, min_antal: Number(minAntal.value),
       species_include: include.value(), species_exclude: exclude.value(), missing: missing.value || null, push: push.checked, first_only: firstOnly.checked };
     try {
       if (rule) await api(`/api/alerts/rules/${rule.id}`, { method: "PUT", body: payload });
