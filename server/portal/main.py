@@ -20,7 +20,8 @@ from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
 from portal.config import get_settings
-from portal.db import engine
+from portal.db import router
+from portal.dbgroups import GROUPS
 from portal.services.auth import AuthError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -31,7 +32,7 @@ WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).resolve().parents[2] / "
 async def lifespan(_: FastAPI):
     await init_db()
     yield
-    await engine.dispose()
+    await router.stop()
 
 
 app = FastAPI(title=get_settings().app_name, lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
@@ -122,8 +123,9 @@ async def auth_error(_: Request, exc: AuthError):
 
 @app.get("/api/health")
 async def health():
-    async with engine.connect() as conn:
-        await conn.execute(text("SELECT 1"))
+    for group in GROUPS:  # hver gruppes primary skal svare
+        async with router.primary(group).connect() as conn:
+            await conn.execute(text("SELECT 1"))
     await kv().ping()
     return {"ok": True}
 

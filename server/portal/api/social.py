@@ -86,11 +86,13 @@ async def toggle_like(body: LikeIn, tasks: BackgroundTasks, user: User = Depends
 
 async def thread_owners(s: AsyncSession, day, artnr: int, loknr: int) -> set[int]:
     """Portalbrugere der har fuglen: observationer i tråden (DOFbasen) eller egne feltmeldinger."""
+    codes = [r[0] for r in (await s.execute(text(
+        "SELECT DISTINCT obserkode FROM observations WHERE dato = :d AND artnr = :a AND loknr = :l AND obserkode IS NOT NULL"),
+        {"d": day, "a": artnr, "l": loknr})).all()]
     rows = (await s.execute(text("""
-        SELECT u.id FROM users u WHERE NOT u.blocked AND u.obserkode IN (
-            SELECT obserkode FROM observations WHERE dato = :d AND artnr = :a AND loknr = :l)
+        SELECT u.id FROM users u WHERE NOT u.blocked AND u.obserkode = ANY(:codes)
         UNION SELECT user_id FROM field_reports WHERE dato = :d AND artnr = :a AND loknr = :l AND NOT hemmelig
-    """), {"d": day, "a": artnr, "l": loknr})).all()
+    """), {"d": day, "a": artnr, "l": loknr, "codes": codes})).all()
     return {r[0] for r in rows}
 
 

@@ -11,6 +11,9 @@ x-app: &app
   environment:
     POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
     REDIS_DSN: redis://valkey:6379/0
+    # Tom = brug POSTGRES_DSN til alt. Sæt til http://dbadmin:8100 for at opdele i bruger- og observationsdatabaser (se dbadmin).
+    DBADMIN_URL: ${DBADMIN_URL:-}
+    DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:-}
     ARCHIVE_DIR: /archive
     MEDIA_DIR: /data/media
     TZ: Europe/Copenhagen
@@ -69,6 +72,25 @@ services:
       retries: 10
       start_period: 30s
 
+  # Superadmin-panel til databaserne: noder (bruger-/observations-databaser, primary/replika), tokens, IP og port.
+  # Login med portalens superadmin-session (samme domæne). API og worker henter topologien herfra når DBADMIN_URL er sat.
+  dbadmin:
+    build:
+      context: .
+      dockerfile: dbadmin/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORTAL_URL: http://api:8000
+      REDIS_DSN: redis://valkey:6379/0
+      DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:-}
+    ports:
+      - "${DBADMIN_PORT:-8100}:8100"
+    volumes:
+      - dbadmin:/data
+    depends_on:
+      valkey:
+        condition: service_healthy
+
   # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 kald/minut)
   worker:
     <<: *app
@@ -77,6 +99,7 @@ services:
       replicas: 1
 
 volumes:
+  dbadmin:
   pgdata:
   valkeydata:
   media:

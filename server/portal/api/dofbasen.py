@@ -839,7 +839,8 @@ async def admin_oversigt(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depe
         (SELECT count(*) FROM dofb_lists) AS lister, (SELECT count(*) FROM dofb_areas) AS omraader,
         (SELECT count(*) FROM dofb_user_roles) AS roller, (SELECT count(*) FROM dofb_api_grants) AS api_brugere,
         (SELECT count(*) FROM dofb_api_tokens WHERE revoked_at IS NULL) AS tokens,
-        (SELECT coalesce(sum(uses), 0) FROM dofb_api_tokens) AS api_kald, (SELECT count(*) FROM dofb_obs_status) AS dku""")
+        (SELECT coalesce(sum(uses), 0) FROM dofb_api_tokens) AS api_kald""")
+    counts["dku"] = (await _row(db, "SELECT count(*) AS n FROM dofb_obs_status"))["n"]
     log = await _rows(db, """SELECT a.at, a.action, a.target, u.navn, u.obserkode FROM dofb_audit a LEFT JOIN users u ON u.id = a.user_id
                              ORDER BY a.at DESC LIMIT 40""")
     flags = await features.load(db)

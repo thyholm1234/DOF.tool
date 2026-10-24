@@ -16,7 +16,7 @@ from sqlalchemy import select, text
 
 from portal.cache import bump, get_json, kv, publish, set_json
 from portal.config import get_settings
-from portal.db import SessionLocal
+from portal.db import ObsSession, SessionLocal
 from portal.dof import gateway, reference
 from portal.dof.ingest import IngestResult, ingest
 from portal.dof.parse import decode, parse_text
@@ -48,7 +48,7 @@ async def live_enabled() -> bool:
 async def fetch_day(client: httpx.AsyncClient, day: date, notify: bool) -> dict:
     raw = await _get(client, EXCEL, {**BASE_PARAMS, "periode": "dato", "dato": day.strftime("%d-%m-%Y")})
     rows = parse_text(decode(raw))
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         known = await s.get(DaySync, day)
         existing = (await s.execute(text("SELECT count(*) FROM observations WHERE dato = :d"), {"d": day})).scalar() or 0
         # Sikkerhedsnet: slet ikke data hvis DOFbasen pludselig leverer markant færre rækker
@@ -117,7 +117,7 @@ async def job_month(client: httpx.AsyncClient, p: dict) -> dict:
     raw = await _get(client, EXCEL, {**BASE_PARAMS, "periode": "maanedaar", "maaned": m, "aar_first": y, "aar_second": y})
     rows = parse_text(decode(raw))
     first, last = date(y, m, 1), date(y, m, calendar.monthrange(y, m)[1])
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         existing = (await s.execute(text("SELECT count(*) FROM observations WHERE dato BETWEEN :a AND :b"),
                                     {"a": first, "b": last})).scalar() or 0
         safe = len(rows) >= existing * 0.6 or existing < 500
@@ -141,7 +141,7 @@ async def job_history(client: httpx.AsyncClient, p: dict) -> dict:
     raw = await _get(client, EXCEL, {**BASE_PARAMS, "periode": "maanedaar", "aar_first": p["year_from"],
                                      "aar_second": p["year_to"], "obserdata": kode})
     rows = parse_text(decode(raw))
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         res = await ingest(s, rows, mode="archive")
         await s.execute(text("UPDATE users SET history_synced_at = now() WHERE obserkode = :k"), {"k": kode})
         await s.commit()
@@ -335,7 +335,7 @@ async def job_artdata(client: httpx.AsyncClient, p: dict) -> dict:
     kind = p.get("list", "art")
     page = decode(await _get(client, "https://dofbasen.dk/opslag/artdata.php", {"list": kind}))
     rows = reference.parse_artdata(page, kind)
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         n = await reference.apply_artdata(s, rows)
     return {"list": kind, "species": n}
 
@@ -344,7 +344,7 @@ async def job_status(client: httpx.AsyncClient, p: dict) -> dict:
     klass = p["klass"]
     url = "https://dofbasen.dk/opslag/sudata.php" if klass == "SU" else "https://dofbasen.dk/opslag/subdata.php"
     ids = reference.parse_status_list(decode(await _get(client, url)))
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         n = await reference.apply_status(s, klass, ids)
     return {"klass": klass, "species": n}
 
@@ -353,7 +353,7 @@ async def job_bemaerk(client: httpx.AsyncClient, p: dict) -> dict:
     afd = int(p["afdeling_id"])
     code = reference.BEMAERK_LIST_BY_AFDELING[afd]
     thresholds = reference.parse_bemaerk(decode(await _get(client, "https://dofbasen.dk/opslag/bemaerk.php", {"list": code})))
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         n = await reference.apply_bemaerk(s, afd, thresholds)
     return {"afdeling": afd, "rows": n}
 
@@ -361,7 +361,7 @@ async def job_bemaerk(client: httpx.AsyncClient, p: dict) -> dict:
 async def job_wsdata(client: httpx.AsyncClient, p: dict) -> dict:
     season = p["season"]
     rows = reference.parse_wsdata(decode(await _get(client, "https://dofbasen.dk/opslag/wsdata.php", {"tid": season})))
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         n = await reference.apply_windows(s, season, rows)
     return {"season": season, "rows": n}
 

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
 
     postgres_dsn: str = "postgresql+asyncpg://portal:portal@localhost:5432/portal"
     redis_dsn: str = "redis://localhost:6379/0"
+    # Databaseregistret (db-admin-containeren). Tomt = ingen opdeling: POSTGRES_DSN bruges til både brugere og observationer.
+    dbadmin_url: str = ""
+    dbadmin_service_token: str = ""
 
     # Superadmin er denne obserkode (sættes ved opstart). Den logger ind med sin DOFbasen-adgangskode som alle andre.
     superadmin_obserkode: str = ""

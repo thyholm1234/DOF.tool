@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOF.tool databaser</title>
+<style>
+  :root { --bg:#f6f7f4; --card:#fff; --ink:#1d2320; --mute:#68726c; --line:#dfe4de; --accent:#2f6b3f; --bad:#b3261e; --warn:#a15c00; --ok:#2f6b3f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141815; --card:#1c211e; --ink:#e7ebe6; --mute:#98a39c; --line:#2c332e; --accent:#74c28a; --bad:#ff8a80; --warn:#f0b35a; --ok:#74c28a; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:0; }
+  p.sub { color:var(--mute); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+  .head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px 6px; border-top:1px solid var(--line); vertical-align:middle; }
+  th { font-size:12px; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; border-top:0; }
+  .table-wrap { overflow-x:auto; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:7px; padding:5px 10px; cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.danger { color:var(--bad); }
+  button:disabled { opacity:.5; cursor:default; }
+  input, select { font:inherit; border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:7px; padding:5px 8px; min-width:0; }
+  input.addr { width:170px; } input.port { width:76px; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; background:var(--mute); }
+  .dot.ok { background:var(--ok); } .dot.down, .dot.wrong { background:var(--bad); }
+  .tag { font-size:12px; border:1px solid var(--line); border-radius:99px; padding:1px 8px; color:var(--mute); }
+  .tag.primary { color:var(--accent); border-color:var(--accent); }
+  .mute { color:var(--mute); font-size:13px; } .err { color:var(--bad); }
+  form.add { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; align-items:end; }
+  form.add label { display:grid; gap:3px; font-size:12px; color:var(--mute); }
+  dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); max-width:min(760px, 94vw); width:100%; }
+  dialog::backdrop { background:rgba(0,0,0,.45); }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; overflow:auto; font-size:12.5px; margin:8px 0; }
+  .token { font-family:ui-monospace, monospace; word-break:break-all; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  #login { text-align:center; padding:60px 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="login" hidden>
+    <h1>Kun for superadmin</h1>
+    <p class="sub">Log ind i portalen med superadmin-kontoen og opdatér denne side.</p>
+  </div>
+  <div id="app" hidden>
+    <h1>Databaser</h1>
+    <p class="sub">Brugerdata og observationer ligger i hver sin gruppe af Postgres-noder. API'et er load balancer: skrivning til gruppens primary, læsning (valgfrit) fordelt på replikaer.</p>
+    <div id="groups"></div>
+    <div class="card">
+      <div class="head"><h2>Tilføj node</h2></div>
+      <form class="add" id="add">
+        <label>Navn<input name="name" required placeholder="obs-2" pattern="[a-z0-9][a-z0-9_-]*"></label>
+        <label>Gruppe<select name="group"><option value="users">Brugerdata</option><option value="observations">Observationer</option></select></label>
+        <label>Rolle<select name="role"><option value="primary">Primary</option><option value="replica">Replika (backup)</option></select></label>
+        <label>Primary (for replika)<select name="primary_id"></select></label>
+        <label>Replika bruges til<select name="purpose"><option value="read">Aflaste læsning</option><option value="backup">Kun backup</option></select></label>
+        <label>IP / værtsnavn<input name="host" required placeholder="10.0.0.12"></label>
+        <label>Port<input name="port" type="number" value="5432" min="1" max="65535" required></label>
+        <label>Note<input name="note" placeholder="fx server i Aarhus"></label>
+        <button class="primary">Opret og vis token</button>
+      </form>
+      <p class="mute">Tokenet er databasens adgangskode. Opret noden her, kopiér den genererede docker compose til serveren, start den – den første primary i hver gruppe skal findes, før API'et kan bruge opsætningen.</p>
+      <p class="err" id="err"></p>
+    </div>
+  </div>
+</main>
+<dialog id="dlg"><div id="dlgbody"></div><p style="text-align:right"><button onclick="dlg.close()">Luk</button></p></dialog>
+<script>
+const $ = s => document.querySelector(s);
+const NAMES = {users: 'Brugerdata', observations: 'Observationer'};
+let state = null, editing = false;
+
+async function api(path, opts = {}) {
+  const r = await fetch('api/' + path, { ...opts, headers: { 'X-Requested-With': 'fetch', 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined });
+  if (r.status === 401) { $('#app').hidden = true; $('#login').hidden = false; throw new Error('login'); }
+  const type = r.headers.get('content-type') || '';
+  const data = type.includes('json') ? await r.json() : await r.text();
+  if (!r.ok) throw new Error(data.detail || data);
+  return data;
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render() {
+  if (editing) return;
+  $('#login').hidden = true; $('#app').hidden = false;
+  const byId = Object.fromEntries(state.nodes.map(n => [n.id, n]));
+  $('#groups').innerHTML = ['users', 'observations'].map(g => {
+    const nodes = state.nodes.filter(n => n.group === g);
+    const rows = nodes.map(n => `<tr data-id="${n.id}">
+      <td><span class="dot ${n.status}" title="${esc(n.detail)}"></span><b>${esc(n.name)}</b><br><span class="mute">${esc(n.note)}</span></td>
+      <td><span class="tag ${n.role}">${n.role === 'primary' ? 'primary' : 'replika af ' + esc(byId[n.primary_id]?.name || '?')}</span>
+        ${n.role === 'replica' ? `<select data-purpose><option value="read" ${n.purpose === 'read' ? 'selected' : ''}>aflaster læsning</option><option value="backup" ${n.purpose === 'backup' ? 'selected' : ''}>kun backup</option></select>` : ''}${n.enabled ? '' : ' <span class="tag">slået fra</span>'}</td>
+      <td><input class="addr" value="${esc(n.host)}" data-f="host"> : <input class="port" type="number" value="${n.port}" data-f="port"></td>
+      <td class="mute">${n.status === 'ok' ? 'OK' + (n.lag_seconds != null ? ', forsinkelse ' + n.lag_seconds + ' s' : '') : esc(n.detail || n.status)}</td>
+      <td><div class="row-actions">
+        <button data-a="save">Gem adresse</button><button data-a="token">Token / compose</button>
+        ${n.role === 'replica' ? '<button data-a="promote">Gør til primary</button>' : '<button data-a="rotate">Nyt token</button>'}
+        <button data-a="toggle">${n.enabled ? 'Slå fra' : 'Slå til'}</button><button class="danger" data-a="delete">Slet</button></div></td></tr>`).join('');
+    return `<div class="card"><div class="head"><h2>${NAMES[g]} <span class="mute">${nodes.filter(n => n.role === 'primary' && n.enabled).length} primary, ${nodes.filter(n => n.role === 'replica' && n.enabled).length} replika(er)</span></h2>
+      <label class="mute"><input type="checkbox" data-rr="${g}" ${state.read_replicas[g] ? 'checked' : ''}> Læs fra replikaer</label></div>
+      <div class="table-wrap"><table><tr><th>Node</th><th>Rolle</th><th>Adresse</th><th>Status</th><th></th></tr>${rows || '<tr><td colspan="5" class="mute">Ingen noder endnu</td></tr>'}</table></div></div>`;
+  }).join('');
+  const sel = document.querySelector('#add [name=primary_id]'), g = document.querySelector('#add [name=group]').value;
+  sel.innerHTML = state.nodes.filter(n => n.role === 'primary' && n.group === g).map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join('');
+}
+
+async function load() { try { state = await api('nodes'); render(); } catch (e) { if (e.message !== 'login') console.error(e); } }
+
+function show(title, html) { $('#dlgbody').innerHTML = `<h2>${title}</h2>${html}`; $('#dlg').showModal(); }
+const composeBlock = c => `<p class="mute">docker-compose.yml til serveren (kopiér <code>dbnode/</code> dertil):</p><pre>${esc(c)}</pre><button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent)">Kopiér</button>`;
+
+document.addEventListener('focusin', e => { if (e.target.matches('.addr, .port')) editing = true; });
+document.addEventListener('focusout', e => { if (e.target.matches('.addr, .port')) editing = false; });
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const tr = b.closest('tr'), id = tr.dataset.id, n = state.nodes.find(x => x.id == id);
+  try {
+    switch (b.dataset.a) {
+      case 'save':
+        await api('nodes/' + id, { method: 'PATCH', body: { host: tr.querySelector('[data-f=host]').value, port: +tr.querySelector('[data-f=port]').value } });
+        editing = false; break;
+      case 'token': { const t = await api('nodes/' + id + '/token'); show('Token for ' + esc(n.name), `<div class="token">${esc(t.token)}</div>` + composeBlock(t.compose)); return; }
+      case 'toggle': await api('nodes/' + id, { method: 'PATCH', body: { enabled: !n.enabled } }); break;
+      case 'delete': if (!confirm('Slet ' + n.name + ' fra registret? Selve databasen røres ikke.')) return; await api('nodes/' + id, { method: 'DELETE' }); break;
+      case 'promote': {
+        if (!confirm('Gør ' + n.name + ' til primary? Den gamle primary slås fra. Promovér først selve databasen.')) return;
+        const r = await api('nodes/' + id + '/promote', { method: 'POST' });
+        show('Promovér databasen', `<p>Registret er opdateret. Kør på replikaens server, hvis databasen endnu ikke er promoveret:</p><pre>${esc(r.command)}</pre>`); break; }
+      case 'rotate': {
+        if (!confirm('Nyt token ændrer kun registret. Du skal også skifte databasens adgangskode og compose-filerne, ellers mister API\'et forbindelsen. Fortsæt?')) return;
+        const r = await api('nodes/' + id + '/rotate', { method: 'POST' });
+        show('Nyt token', `<div class="token">${esc(r.token)}</div><p>Kør straks på primary:</p><pre>${esc(r.command)}</pre><p class="mute">Opdatér POSTGRES_PASSWORD i compose på primary og replikaer.</p>`); break; }
+    }
+    editing = false; await load();
+  } catch (err) { alert(err.message); }
+});
+
+document.addEventListener('change', async e => {
+  if (e.target.matches('[data-rr]')) {
+    const rr = { ...state.read_replicas, [e.target.dataset.rr]: e.target.checked };
+    try { await api('settings', { method: 'PUT', body: { read_replicas: rr } }); await load(); } catch (err) { alert(err.message); }
+  }
+  if (e.target.matches('#add [name=group]')) render();
+  if (e.target.matches('[data-purpose]')) {
+    try { await api('nodes/' + e.target.closest('tr').dataset.id, { method: 'PATCH', body: { purpose: e.target.value } }); await load(); } catch (err) { alert(err.message); }
+  }
+});
+
+$('#add').addEventListener('submit', async e => {
+  e.preventDefault(); $('#err').textContent = '';
+  const f = Object.fromEntries(new FormData(e.target));
+  f.port = +f.port; f.primary_id = f.role === 'replica' ? +f.primary_id : null;
+  try {
+    const r = await api('nodes', { method: 'POST', body: f });
+    show('Node oprettet', `<p>Tokenet er databasens adgangskode og kan altid vises igen under “Token / compose”.</p><div class="token">${esc(r.token)}</div>` + composeBlock(r.compose));
+    e.target.reset(); await load();
+  } catch (err) { $('#err').textContent = err.message; }
+});
+
+load(); setInterval(load, 10000);
+</script>
+</body>
+</html>

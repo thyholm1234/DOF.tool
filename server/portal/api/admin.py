@@ -48,12 +48,14 @@ async def overview(user: User = Depends(perm_drift), db: AsyncSession = Depends(
                (SELECT count(*) FROM push_subscriptions) AS devices,
                (SELECT count(*) FROM alert_rules WHERE enabled) AS rules,
                (SELECT count(*) FROM areas) AS areas,
-               (SELECT reltuples::bigint FROM pg_class WHERE relname = 'observations') AS observations_est,
-               (SELECT min(dato) FROM observations) AS first_date,
-               (SELECT max(dato) FROM observations) AS last_date,
                (SELECT count(*) FROM notifications WHERE created_at > now() - interval '24 hours') AS notifications_24h,
                (SELECT count(*) FROM courses) AS courses
     """))).mappings().first()
+    obs = (await db.execute(text("""
+        SELECT (SELECT reltuples::bigint FROM pg_class WHERE relname = 'observations') AS observations_est,
+               (SELECT min(dato) FROM observations) AS first_date, (SELECT max(dato) FROM observations) AS last_date
+    """))).mappings().first()
+    counts = {**counts, **obs}
     r = kv()
     log = [json.loads(x) for x in await r.lrange("dof:log", 0, 49)]
     progress = await r.hgetall(PROGRESS)

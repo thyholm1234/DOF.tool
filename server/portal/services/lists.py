@@ -187,10 +187,14 @@ async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
 async def participants(session: AsyncSession, group_id: int | None = None) -> list[dict]:
     if group_id:
         rows = (await session.execute(text("""
-            SELECT m.obserkode, coalesce(u.navn, trim(coalesce(ob.fornavn,'') || ' ' || coalesce(ob.efternavn,'')), m.obserkode) AS navn
-            FROM list_group_members m LEFT JOIN users u ON u.obserkode = m.obserkode
-            LEFT JOIN observers ob ON ob.obserkode = m.obserkode WHERE m.group_id = :g
+            SELECT m.obserkode, u.navn FROM list_group_members m LEFT JOIN users u ON u.obserkode = m.obserkode
+            WHERE m.group_id = :g
         """), {"g": group_id})).all()
+        missing = [r[0] for r in rows if not r[1]]
+        names = dict((await session.execute(text(
+            "SELECT obserkode, trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = ANY(:k)"),
+            {"k": missing})).all()) if missing else {}
+        rows = [(r[0], r[1] or names.get(r[0]) or r[0]) for r in rows]
     else:
         rows = (await session.execute(text("""
             SELECT obserkode, coalesce(navn, obserkode) FROM users

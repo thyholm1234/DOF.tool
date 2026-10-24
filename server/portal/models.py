@@ -60,9 +60,9 @@ class SpeciesCategory(Base):
     kategori: Mapped[str] = mapped_column(String(1))
     valid_from: Mapped[date | None] = mapped_column(Date)  # None = altid
     note: Mapped[str | None] = mapped_column(Text)
-    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_by: Mapped[int | None] = mapped_column(Integer)  # users.id – ingen fremmednøgle (observationsgruppen)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    removed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    removed_by: Mapped[int | None] = mapped_column(Integer)  # users.id – ingen fremmednøgle (observationsgruppen)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -80,9 +80,9 @@ class CategoryOverride(Base):
     date_to: Mapped[date] = mapped_column(Date)
     kategori: Mapped[str] = mapped_column(String(1))
     note: Mapped[str | None] = mapped_column(Text)
-    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_by: Mapped[int | None] = mapped_column(Integer)  # users.id – ingen fremmednøgle (observationsgruppen)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    removed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    removed_by: Mapped[int | None] = mapped_column(Integer)  # users.id – ingen fremmednøgle (observationsgruppen)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -100,9 +100,9 @@ class ManualFind(Base):
     sted: Mapped[str | None] = mapped_column(String(200))
     antal: Mapped[int] = mapped_column(Integer, default=1)
     note: Mapped[str | None] = mapped_column(Text)
-    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_by: Mapped[int | None] = mapped_column(Integer)  # users.id – ingen fremmednøgle (observationsgruppen)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    removed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    removed_by: Mapped[int | None] = mapped_column(Integer)  # users.id – ingen fremmednøgle (observationsgruppen)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -1132,7 +1132,7 @@ class DofbObsStatus(Base):
     obsid: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     status: Mapped[str] = mapped_column(String(12))  # behandling / dku / su
     note: Mapped[str | None] = mapped_column(Text)
-    set_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    set_by: Mapped[int | None] = mapped_column(Integer)  # users.id (ingen fremmednøgle: tabellen ligger i observationsgruppen)
     set_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

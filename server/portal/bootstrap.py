@@ -9,7 +9,10 @@ from sqlalchemy import text
 
 from portal import models  # noqa: F401 – registrerer tabeller
 from portal.api.mobgang import seed_presets
-from portal.db import Base, SessionLocal, engine
+from portal.db import ObsSession, SessionLocal
+from portal.dbops import create_schema, sync_reference
+from portal.dbgroups import OBSERVATIONS
+from portal.dbrouter import router
 from portal.dof.reference import fix_list_species, seed_reference
 from portal.services.auth import ensure_roles, ensure_superadmin, seed_roles
 from portal.services.categories import seed_categories
@@ -24,17 +27,22 @@ log = logging.getLogger("portal.bootstrap")
 
 
 async def init_db() -> None:
-    async with engine.begin() as conn:
-        await conn.execute(text("SELECT pg_advisory_xact_lock(424242)"))
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
-        await conn.run_sync(Base.metadata.create_all)
-        for ddl in models.EXTRA_DDL:
-            await conn.execute(text(ddl))
-    async with SessionLocal() as s:
-        await s.execute(text("SELECT pg_advisory_lock(424243)"))
+    await router.start()
+    await create_schema()
+    # Referencedata (arter, lokaliteter …) skrives i observationsgruppen og kopieres derfra til brugergruppen
+    async with ObsSession() as s:
+        await s.execute(text("SELECT pg_advisory_lock(424244)"))
         try:
             await seed_reference(s)
             await fix_list_species(s)
+        finally:
+            await s.rollback()
+            await s.execute(text("SELECT pg_advisory_unlock(424244)"))
+            await s.commit()
+    await sync_reference()
+    async with SessionLocal() as s:
+        await s.execute(text("SELECT pg_advisory_lock(424243)"))
+        try:
             await seed_categories(s)
             await seed_danish_list(s)
             await seed_manual_finds(s)
@@ -66,7 +74,7 @@ async def build_background_indexes(delay: int = 60, attempts: int = 3) -> None:
     # Vent til de andre processers opstart (create_all og EXTRA_DDL på observations) er færdig – ellers kan
     # CREATE INDEX CONCURRENTLY gå i deadlock med dem.
     await asyncio.sleep(delay)
-    async with engine.connect() as conn:
+    async with router.primary(OBSERVATIONS).connect() as conn:
         conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
         for name, ddl in BACKGROUND_INDEXES.items():
             for attempt in range(1, attempts + 1):

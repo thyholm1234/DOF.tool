@@ -210,9 +210,8 @@ async def _observer_code(db: AsyncSession, user: User, code: str | None) -> str:
     if not code or code.upper() == user.obserkode.upper():
         return user.obserkode
     code = code.upper()
-    known = (await db.execute(text("""
-        SELECT 1 FROM users WHERE upper(obserkode) = :c UNION ALL SELECT 1 FROM observations WHERE obserkode = :c LIMIT 1
-    """), {"c": code})).scalar()
+    known = (await db.execute(text("SELECT 1 FROM users WHERE upper(obserkode) = :c LIMIT 1"), {"c": code})).scalar() or \
+        (await db.execute(text("SELECT 1 FROM observations WHERE obserkode = :c LIMIT 1"), {"c": code})).scalar()
     if not known:
         raise HTTPException(400, f"Obserkoden {code} er ikke kendt")
     return code

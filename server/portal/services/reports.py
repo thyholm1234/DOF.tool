@@ -116,43 +116,69 @@ async def nearest_locations(session: AsyncSession, lat: float, lon: float, n: in
 
 async def recent(session: AsyncSession, user: User) -> dict:
     """Seneste lokaliteter, arter og adfærd – fra portalen og brugerens egne DOFbasen-ture."""
+    args = {"u": user.id, "k": user.obserkode}
+    # Portalens egne meldinger (brugergruppen) og brugerens DOFbasen-data (observationsgruppen) hentes hver for sig og lægges sammen
+    mine_locs = (await session.execute(text("SELECT loknr, max(dato) AS dato FROM field_reports WHERE user_id = :u GROUP BY loknr"), args)).all()
+    dof_locs = (await session.execute(text("SELECT loknr, max(dato) AS dato FROM trips WHERE obserkode = :k AND dato > current_date - 400 "
+                                           "AND loknr IS NOT NULL GROUP BY loknr"), args)).all()
+    last: dict[int, date] = {}
+    for loknr, dato in [*mine_locs, *dof_locs]:
+        if loknr is not None and (loknr not in last or dato > last[loknr]):
+            last[loknr] = dato
+    top = sorted(last.items(), key=lambda kv: kv[1], reverse=True)[:12]
     locs = (await session.execute(text("""
-        SELECT x.loknr, l.navn, k.navn AS kommune, max(x.dato) AS dato FROM (
-            SELECT loknr, dato FROM field_reports WHERE user_id = :u
-            UNION ALL SELECT loknr, dato FROM trips WHERE obserkode = :k AND dato > current_date - 400
-        ) x JOIN locations l ON l.loknr = x.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
-        GROUP BY x.loknr, l.navn, k.navn ORDER BY max(x.dato) DESC LIMIT 12
-    """), {"u": user.id, "k": user.obserkode})).mappings().all()
-    species = (await session.execute(text("""
-        SELECT x.artnr, s.navn, count(*) AS n FROM (
-            SELECT artnr FROM field_reports WHERE user_id = :u AND dato > current_date - 60
-            UNION ALL SELECT artnr FROM observations WHERE obserkode = :k AND dato > current_date - 60
-        ) x JOIN species s ON s.artnr = x.artnr GROUP BY x.artnr, s.navn ORDER BY n DESC LIMIT 16
-    """), {"u": user.id, "k": user.obserkode})).mappings().all()
-    adf = (await session.execute(text("""
-        SELECT x.adfkode AS code, c.text, count(*) AS n FROM (
-            SELECT adfkode FROM field_reports WHERE user_id = :u AND adfkode IS NOT NULL
-            UNION ALL SELECT adfkode FROM observations WHERE obserkode = :k AND dato > current_date - 120 AND adfkode IS NOT NULL
-        ) x JOIN code_texts c ON c.kind = 'adf' AND c.code = x.adfkode GROUP BY x.adfkode, c.text ORDER BY n DESC LIMIT 8
-    """), {"u": user.id, "k": user.obserkode})).mappings().all()
-    return {"locations": [dict(r) for r in locs], "species": [dict(r) for r in species], "adf": [dict(r) for r in adf]}
+        SELECT l.loknr, l.navn, k.navn AS kommune FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode
+        WHERE l.loknr = ANY(:l)"""), {"l": [t[0] for t in top]})).mappings().all()
+    by_loc = {r["loknr"]: r for r in locs}
+    locs = [{**dict(by_loc[n]), "dato": d} for n, d in top if n in by_loc]
+
+    counts: dict[int, int] = {}
+    for q, w in (("SELECT artnr, count(*) FROM field_reports WHERE user_id = :u AND dato > current_date - 60 GROUP BY artnr", args),
+                 ("SELECT artnr, count(*) FROM observations WHERE obserkode = :k AND dato > current_date - 60 GROUP BY artnr", args)):
+        for artnr, n in (await session.execute(text(q), w)).all():
+            counts[artnr] = counts.get(artnr, 0) + n
+    names = dict((await session.execute(text("SELECT artnr, navn FROM species WHERE artnr = ANY(:a)"), {"a": list(counts)})).all())
+    species = [{"artnr": a, "navn": names[a], "n": n} for a, n in sorted(counts.items(), key=lambda kv: -kv[1]) if a in names][:16]
+
+    codes: dict[str, int] = {}
+    for q in ("SELECT adfkode, count(*) FROM field_reports WHERE user_id = :u AND adfkode IS NOT NULL GROUP BY adfkode",
+              "SELECT adfkode, count(*) FROM observations WHERE obserkode = :k AND dato > current_date - 120 "
+              "AND adfkode IS NOT NULL GROUP BY adfkode"):
+        for code, n in (await session.execute(text(q), args)).all():
+            codes[code] = codes.get(code, 0) + n
+    texts = dict((await session.execute(text("SELECT code, text FROM code_texts WHERE kind = 'adf' AND code = ANY(:c)"),
+                                        {"c": list(codes)})).all())
+    adf = [{"code": c, "text": texts[c], "n": n} for c, n in sorted(codes.items(), key=lambda kv: -kv[1]) if c in texts][:8]
+    return {"locations": locs, "species": species, "adf": adf}
 
 
 # ---------------------------------------------------------------- meldinger
+
+
+async def _in_dofbasen(session: AsyncSession, rows: list[dict]) -> set[tuple]:
+    """Hvilke meldinger (dato, artnr, loknr, obserkode) findes også som observation i DOFbasen (observationsgruppen)."""
+    if not rows:
+        return set()
+    found = (await session.execute(text("""
+        SELECT DISTINCT dato, artnr, loknr, obserkode FROM observations
+        WHERE obserkode = ANY(:k) AND dato BETWEEN :a AND :b AND artnr = ANY(:art) AND loknr = ANY(:lok)
+    """), {"k": list({r["obserkode"] for r in rows}), "a": min(r["dato"] for r in rows), "b": max(r["dato"] for r in rows),
+           "art": list({r["artnr"] for r in rows}), "lok": list({r["loknr"] for r in rows})})).all()
+    return {tuple(f) for f in found}
 
 
 async def my_reports(session: AsyncSession, user: User, limit: int = 2000) -> list[dict]:
     rows = (await session.execute(text("""
         SELECT r.id, r.dato, coalesce(r.obstidfra, t.turtidfra) AS tid, r.artnr, s.navn AS art, s.sortering,
                r.antal, ca.text AS adf, r.loknr, l.navn AS lok, k.navn AS kommune, r.kategori, r.sikkerhed, r.status,
-               r.status_at, jsonb_array_length(coalesce(r.media, '[]'::jsonb)) AS n_media, r.created_at,
-               EXISTS (SELECT 1 FROM observations o WHERE o.dato = r.dato AND o.artnr = r.artnr AND o.loknr = r.loknr
-                       AND o.obserkode = r.obserkode) AS i_dofbasen
+               r.status_at, jsonb_array_length(coalesce(r.media, '[]'::jsonb)) AS n_media, r.created_at, r.obserkode
         FROM field_reports r LEFT JOIN field_trips t ON t.id = r.trip_id JOIN species s ON s.artnr = r.artnr
         JOIN locations l ON l.loknr = r.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
         WHERE r.user_id = :u ORDER BY r.dato DESC, tid DESC NULLS LAST, r.id DESC LIMIT :n
     """), {"u": user.id, "n": limit})).mappings().all()
+    seen = await _in_dofbasen(session, rows)
+    rows = [{**dict(r), "i_dofbasen": (r["dato"], r["artnr"], r["loknr"], r["obserkode"]) in seen} for r in rows]
     return [{**dict(r), "dato": r["dato"].isoformat(), "live": is_live(r["status"], r["status_at"]),
              "status_at": r["status_at"].isoformat() if r["status_at"] else None, "created_at": r["created_at"].isoformat()}
             for r in rows]
@@ -186,9 +212,7 @@ async def _report_rows(session: AsyncSession, where: str, params: dict, viewer: 
     vis = "(NOT r.hemmelig OR r.user_id = :viewer)" if not include_hidden else "TRUE"
     rows = (await session.execute(text(f"""
         SELECT r.*, s.navn AS art, s.latin, ca.text AS adf, cd.text AS dragt, u.navn AS observer,
-               t.turtidfra, t.turtidtil, t.medobser, l.navn AS lok, k.navn AS kommune, l.lat AS lok_lat, l.lon AS lok_lon,
-               EXISTS (SELECT 1 FROM observations o WHERE o.dato = r.dato AND o.artnr = r.artnr AND o.loknr = r.loknr
-                       AND o.obserkode = r.obserkode) AS i_dofbasen
+               t.turtidfra, t.turtidtil, t.medobser, l.navn AS lok, k.navn AS kommune, l.lat AS lok_lat, l.lon AS lok_lon
         FROM field_reports r JOIN species s ON s.artnr = r.artnr LEFT JOIN field_trips t ON t.id = r.trip_id
         JOIN users u ON u.id = r.user_id JOIN locations l ON l.loknr = r.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
@@ -197,6 +221,8 @@ async def _report_rows(session: AsyncSession, where: str, params: dict, viewer: 
     """), {**params, "viewer": viewer.id if viewer else -1})).mappings().all()
     if not rows:
         return []
+    seen = await _in_dofbasen(session, rows)
+    rows = [{**dict(r), "i_dofbasen": (r["dato"], r["artnr"], r["loknr"], r["obserkode"]) in seen} for r in rows]
     ids = [r["id"] for r in rows]
     upd = (await session.execute(text("""
         SELECT x.report_id, x.status, x.note, x.created_at, u.navn, u.obserkode FROM field_report_updates x
@@ -336,13 +362,12 @@ async def notify_new(session: AsyncSession, report_ids: list[int]) -> int:
 
 async def rare_kategori(session: AsyncSession, day: date, artnr: int, loknr: int) -> str | None:
     """'SU'/'SUB' hvis tråden har en synlig SU- eller SUB-observation (DOFbasen eller portalen), ellers None."""
-    rank = (await session.execute(text("""
-        SELECT max(CASE kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 ELSE 0 END) FROM (
-            SELECT kategori FROM observations WHERE dato = :d AND artnr = :a AND loknr = :l AND hemmelig = 0
-            UNION ALL SELECT kategori FROM field_reports WHERE dato = :d AND artnr = :a AND loknr = :l AND NOT hemmelig
-        ) x
-    """), {"d": day, "a": artnr, "l": loknr})).scalar()
-    return {3: "SU", 2: "SUB"}.get(rank or 0)
+    args = {"d": day, "a": artnr, "l": loknr}
+    rank = max([(await session.execute(text(f"""
+        SELECT max(CASE kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 ELSE 0 END) FROM {table}
+        WHERE dato = :d AND artnr = :a AND loknr = :l AND {hidden}"""), args)).scalar() or 0
+        for table, hidden in (("observations", "hemmelig = 0"), ("field_reports", "NOT hemmelig"))])
+    return {3: "SU", 2: "SUB"}.get(rank)
 
 
 def _summary(rows: list) -> dict | None:

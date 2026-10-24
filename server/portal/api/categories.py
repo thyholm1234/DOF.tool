@@ -44,6 +44,17 @@ def _row(r) -> dict:
     return {k: (v.isoformat() if isinstance(v, (date, datetime)) else v) for k, v in dict(r).items()}
 
 
+async def _with_names(db: AsyncSession, rows, *fields: str) -> list[dict]:
+    """Erstat bruger-id'er (created_by, removed_by …) med navne. Tabellerne ligger i observationsgruppen, brugerne i brugergruppen."""
+    rows = [dict(r) for r in rows]
+    ids = {r[f] for r in rows for f in fields if r.get(f) is not None}
+    names = dict((await db.execute(text("SELECT id, navn FROM users WHERE id = ANY(:i)"), {"i": list(ids)})).all()) if ids else {}
+    for r in rows:
+        for f in fields:
+            r[f] = names.get(r[f])
+    return rows
+
+
 @router.get("/species/{artnr}")
 async def species_detail(artnr: int, year: int | None = None, user: User = Depends(moderator),
                          db: AsyncSession = Depends(get_session)):
@@ -54,15 +65,13 @@ async def species_detail(artnr: int, year: int | None = None, user: User = Depen
         artnr = sp.list_artnr  # underarter vises under listearten
         sp = await db.get(Species, artnr)
     periods = (await db.execute(text("""
-        SELECT c.id, c.kategori, c.valid_from, c.note, c.created_at, c.removed_at, cu.navn AS created_by, ru.navn AS removed_by
-        FROM species_categories c LEFT JOIN users cu ON cu.id = c.created_by LEFT JOIN users ru ON ru.id = c.removed_by
-        WHERE c.artnr = :a ORDER BY c.valid_from NULLS FIRST, c.id
+        SELECT c.id, c.kategori, c.valid_from, c.note, c.created_at, c.removed_at, c.created_by, c.removed_by
+        FROM species_categories c WHERE c.artnr = :a ORDER BY c.valid_from NULLS FIRST, c.id
     """), {"a": artnr})).mappings().all()
     overrides = (await db.execute(text("""
         SELECT v.id, v.loknr, l.navn AS lok, v.date_from, v.date_to, v.kategori, v.note, v.created_at, v.removed_at,
-               cu.navn AS created_by, ru.navn AS removed_by
+               v.created_by, v.removed_by
         FROM category_overrides v LEFT JOIN locations l ON l.loknr = v.loknr
-        LEFT JOIN users cu ON cu.id = v.created_by LEFT JOIN users ru ON ru.id = v.removed_by
         WHERE v.artnr = :a ORDER BY v.date_from DESC, v.id DESC
     """), {"a": artnr})).mappings().all()
     years = (await db.execute(text("""
@@ -71,7 +80,8 @@ async def species_detail(artnr: int, year: int | None = None, user: User = Depen
     """), {"a": artnr})).scalars().all()
     return {"artnr": artnr, "navn": sp.navn, "latin": sp.latin, "klass": sp.klass,
             "current": await categories.species_category(db, artnr), "categories": categories.CATEGORIES,
-            "periods": [_row(r) for r in periods], "overrides": [_row(r) for r in overrides], "years": years,
+            "periods": [_row(r) for r in await _with_names(db, periods, "created_by", "removed_by")],
+            "overrides": [_row(r) for r in await _with_names(db, overrides, "created_by", "removed_by")], "years": years,
             "year": year, "series": await categories.series(db, artnr, year), "gap_days": categories.SERIES_GAP_DAYS}
 
 
@@ -255,11 +265,11 @@ def _admin(user: User) -> None:
 async def list_finds(user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
         SELECT f.id, f.dato, f.artnr, s.navn AS art, f.antal, f.loknr, l.navn AS lok, f.sted, f.note, f.created_at,
-               u.navn AS created_by
+               f.created_by
         FROM manual_finds f JOIN species s ON s.artnr = f.artnr LEFT JOIN locations l ON l.loknr = f.loknr
-        LEFT JOIN users u ON u.id = f.created_by WHERE f.removed_at IS NULL ORDER BY f.dato DESC, f.id DESC
+        WHERE f.removed_at IS NULL ORDER BY f.dato DESC, f.id DESC
     """))).mappings().all()
-    return {"items": [_row(r) for r in rows], "can_edit": role_at_least(user, "admin")}
+    return {"items": [_row(r) for r in await _with_names(db, rows, "created_by")], "can_edit": role_at_least(user, "admin")}
 
 
 @router.post("/finds")

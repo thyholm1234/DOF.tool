@@ -93,16 +93,19 @@ async def record_sync(session: AsyncSession, new_obsids: list[int], changed: lis
 async def _totals(session: AsyncSession, items: dict, day) -> None:
     """Dagens samlede antal af arten på lokaliteten (DOFbasen + portalens feltmeldinger, uden hemmelige)."""
     keys = list(items)
-    rows = (await session.execute(text("""
-        SELECT k.loknr, k.artnr,
-               coalesce((SELECT sum(antal) FROM observations o WHERE o.dato = :d AND o.loknr = k.loknr AND o.artnr = k.artnr
-                         AND o.hemmelig = 0), 0)
-             + coalesce((SELECT sum(antal) FROM field_reports r WHERE r.dato = :d AND r.loknr = k.loknr AND r.artnr = k.artnr
-                         AND NOT r.hemmelig), 0) AS total
+    args = {"d": day, "l": [k[0] for k in keys], "a": [k[1] for k in keys]}
+    dof = (await session.execute(text("""
+        SELECT k.loknr, k.artnr, coalesce((SELECT sum(antal) FROM observations o WHERE o.dato = :d AND o.loknr = k.loknr
+                                           AND o.artnr = k.artnr AND o.hemmelig = 0), 0)
         FROM unnest(CAST(:l AS int[]), CAST(:a AS int[])) AS k(loknr, artnr)
-    """), {"d": day, "l": [k[0] for k in keys], "a": [k[1] for k in keys]})).all()
-    for loknr, artnr, total in rows:
-        items[(loknr, artnr)]["total"] = int(total)
+    """), args)).all()
+    portal = {(r[0], r[1]): r[2] for r in (await session.execute(text("""
+        SELECT k.loknr, k.artnr, coalesce((SELECT sum(antal) FROM field_reports r WHERE r.dato = :d AND r.loknr = k.loknr
+                                           AND r.artnr = k.artnr AND NOT r.hemmelig), 0)
+        FROM unnest(CAST(:l AS int[]), CAST(:a AS int[])) AS k(loknr, artnr)
+    """), args)).all()}
+    for loknr, artnr, total in dof:
+        items[(loknr, artnr)]["total"] = int(total) + int(portal.get((loknr, artnr), 0))
 
 
 async def record_report(session: AsyncSession, report) -> None:

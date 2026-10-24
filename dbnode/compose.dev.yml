@@ -1,0 +1,25 @@
+# Lokal prøve-klynge til udvikling: bruger-DB, observations-DB og en replika af den. På rigtige servere bruges i stedet
+# den compose, som db-admin genererer pr. node (Token / compose).
+#   docker compose -f dbnode/compose.dev.yml up -d --build
+name: dof-dev-dbs
+x-node: &node
+  build: .
+  environment: &env
+    POSTGRES_DB: portal
+    POSTGRES_USER: portal
+    POSTGRES_PASSWORD: ${DEV_DB_TOKEN:-dev-token}
+  command: postgres -c wal_level=replica -c max_wal_senders=10 -c hot_standby=on -c wal_keep_size=512MB
+services:
+  users-1:
+    <<: *node
+    environment: {<<: *env, DB_ROLE: primary}
+    ports: ["55432:5432"]
+  obs-1:
+    <<: *node
+    environment: {<<: *env, DB_ROLE: primary}
+    ports: ["55433:5432"]
+  obs-2:
+    <<: *node
+    environment: {<<: *env, DB_ROLE: replica, PRIMARY_HOST: obs-1, PRIMARY_PORT: "5432"}
+    ports: ["55434:5432"]
+    depends_on: [obs-1]

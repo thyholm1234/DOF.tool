@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.types import UserDefinedType
 
-from portal.config import get_settings
+from portal.dbrouter import ObsSession, SessionLocal, router  # noqa: F401 – genudstilles til resten af koden
 
 
 class Base(DeclarativeBase):
@@ -24,15 +24,6 @@ class Geometry(UserDefinedType):
 
     def get_col_spec(self, **_: object) -> str:
         return f"geometry({self.kind},{self.srid})"
-
-
-engine = create_async_engine(
-    get_settings().postgres_dsn,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:

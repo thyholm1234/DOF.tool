@@ -15,7 +15,7 @@ from sqlalchemy import select, text
 from portal import jobstatus
 from portal.cache import bump, kv
 from portal.config import get_settings
-from portal.db import SessionLocal
+from portal.db import ObsSession
 from portal.dof.ingest import ingest
 from portal.dof.parse import iter_records, parse_rows
 from portal.models import ArchiveFile
@@ -39,7 +39,7 @@ def archive_files() -> list[Path]:
 
 async def pending_files() -> list[Path]:
     files = archive_files()
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         done = {r.name: r for r in (await s.execute(select(ArchiveFile))).scalars()}
     out = []
     for p in files:
@@ -80,14 +80,14 @@ async def import_file(path: Path) -> tuple[int, date | None, date | None]:
                 hi = max(r.dato for r in rows)
                 dmin = lo if dmin is None or lo < dmin else dmin
                 dmax = hi if dmax is None or hi > dmax else dmax
-            async with SessionLocal() as s:
+            async with ObsSession() as s:
                 await ingest(s, rows, mode="archive")
                 await s.commit()
             total += len(rows)
             await kv().hset(PROGRESS, mapping={"file": path.name, "rows_in_file": total})
             if n_read < CHUNK:
                 break
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         await s.execute(text("""
             INSERT INTO archive_files (name, size, mtime, rows) VALUES (:n, :s, :m, :r)
             ON CONFLICT (name) DO UPDATE SET size = EXCLUDED.size, mtime = EXCLUDED.mtime, rows = EXCLUDED.rows, imported_at = now()
@@ -134,11 +134,11 @@ async def run_import(stop_after: int | None = None) -> dict:
         await jobstatus.step("Dagsaggregater", len(files), len(files))
         if earliest:
             from portal.services.phenology import refresh_aggregates
-            async with SessionLocal() as s:
+            async with ObsSession() as s:
                 await refresh_aggregates(s, earliest)
             await jobstatus.step("Arter pr. år", len(files), len(files))
             from portal.services.regions import refresh as refresh_regions
-            async with SessionLocal() as s:
+            async with ObsSession() as s:
                 await refresh_regions(s, earliest.year)
         await bump("lists")
         await bump("feed")

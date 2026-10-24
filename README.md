@@ -17,8 +17,45 @@ docker compose
 ├── postgres  (PostGIS 17)  – al data: observationer (1960'erne →), lokaliteter, kommunepolygoner, brugere …
 ├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, scoreboards, pub/sub til live-opdateringer
 ├── api       (FastAPI)  – REST + server-sent events + statisk PWA (web/)
-└── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
+├── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
+└── dbadmin   – superadmin-panel til databaserne (se Databaser): noder, tokens, IP og port
 ```
+
+### Databaser: opdeling, replikaer og backup
+
+Som standard bruger alt den ene `postgres`-container. Sættes `DBADMIN_URL` (og `DBADMIN_SERVICE_TOKEN`) i `.env`,
+deler portalen i stedet data i to **grupper** af Postgres-noder på vilkårlige servere:
+
+* **Brugerdata** (`users`): brugere, lister, push, kommentarer, kalendere, DOFbasen-/Netfugl-indhold …
+* **Observationer** (`observations`): observationer, ture, aggregater, vejr og DKU-status.
+* Referencedata (arter, lokaliteter, kommuner …) skrives i observationsgruppen og kopieres hver time til brugergruppen
+  (`dbops.sync_reference`), så joins mod dem stadig er lokale.
+
+Hver gruppe har én **primary** (skrivning) og valgfrit flere **replikaer** (streaming-replikering på andre servere). Hver
+replika har et formål: *aflaster læsning* (tager læsetrafik, hvis "Læs fra replikaer" er slået til for gruppen) eller *kun
+backup* (levende kopi, bruges aldrig til læsning; kan skiftes når som helst). **API'et er load balanceren**: det henter
+topologien fra db-admin hvert 15. sekund, sender hver sætning til den gruppe tabellen hører til (`dbgroups.py`), skriver
+til primary, læser fra replikaer (en session der har skrevet læser resten fra primary) og springer en replika over, der
+ikke svarer. En sætning må ikke blande tabeller fra begge grupper – `python3 tools/sql_groups.py` tjekker det.
+
+**db-admin** (`http://localhost:8100`, kun superadmin – login er portalens session; er portalen nede, godtages en bruger der
+tidligere er set som superadmin, så adressen kan rettes under et nedbrud):
+
+1. *Tilføj node*: navn, gruppe, primary/replika, IP og port. Panelet genererer et **token** – det er databasens adgangskode –
+   og en færdig `docker-compose.yml` til serveren (kopiér mappen `dbnode/` dertil; image med replikeringsopsætning).
+2. Start noden. Replikaer tager selv en basebackup af deres primary første gang.
+3. *Gem adresse* ændrer IP/port; API'et følger med uden genstart. Panelet viser status og replikaforsinkelse.
+4. *Gør til primary* promoverer en replika i registret (kør `pg_ctl promote` på noden; kommandoen vises).
+
+Flyt en eksisterende samlet database over (kør efter at begge gruppers primary kører, med `DBADMIN_URL` sat):
+
+```bash
+docker compose run --rm api python -m portal.dbmigrate --from postgresql+asyncpg://portal:KODE@postgres:5432/portal
+```
+
+`docker compose -f dbnode/compose.dev.yml up -d --build` giver en lokal prøve-klynge (bruger-DB, obs-DB + replika).
+Begrænsninger: skrivning går til gruppens primary (ingen automatisk failover), og skrivning på tværs af grupper i én
+forespørgsel er ikke atomisk (ingen 2PC). Data deles *mellem* grupperne, ikke endnu *inden for* en gruppe (sharding).
 
 ### Hensyn til dofbasen.dk: højst ét udtræk i minuttet
 

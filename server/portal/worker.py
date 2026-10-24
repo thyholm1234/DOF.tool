@@ -16,6 +16,7 @@ from portal.bootstrap import build_background_indexes, init_db
 from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
 from portal.db import SessionLocal
+from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
 from portal.services import areas, datasync, dmi, dof_events, features, locyear, netfugl, phenology, regions, seasons, weather_archive
 from portal.timeutil import dk_now, dk_today
@@ -137,6 +138,8 @@ async def scheduler() -> None:
             if now.hour % 6 == 0 and await _once("gap", hour):
                 await jobs.enqueue_gap_fill()
             await netfugl_schedule()
+            if await _every("reference_sync", 3600):
+                await sync_reference()
         except Exception:  # noqa: BLE001
             log.exception("Planlægger-fejl")
         await asyncio.sleep(30)

@@ -73,10 +73,10 @@ async def user_list(obserkode: str, scope: str | None = None, year: str | None =
     spec = await _spec(db, scope, year, matrikel, user)
     windows, period_info = await lists.matrikel_windows(db, kode, spec, periode)
     items = await lists.year_list(db, kode, spec, windows)
-    navn = (await db.execute(text("""
-        SELECT coalesce(u.navn, trim(coalesce(o.fornavn,'') || ' ' || coalesce(o.efternavn,''))) FROM observers o
-        FULL JOIN users u ON u.obserkode = o.obserkode WHERE coalesce(o.obserkode, u.obserkode) = :k
-    """), {"k": kode})).scalar()
+    navn = (await db.execute(text("SELECT navn FROM users WHERE obserkode = :k"), {"k": kode})).scalar()
+    if not navn:
+        navn = (await db.execute(text("SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers "
+                                      "WHERE obserkode = :k"), {"k": kode})).scalar()
     return {"obserkode": kode, "navn": navn or kode, "spec": spec.key, "count": len(items), "items": items,
             "periode": period_info}
 
