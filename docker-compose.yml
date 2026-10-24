@@ -119,8 +119,9 @@ services:
       # alle med DBADMIN_PASSWORD) fuld kontrol over Docker på serveren – fjern linjen, hvis I vil gøre det manuelt.
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # Objektlager til fotos og lyd i observationer. Bygget fra MinIO's kildekode (se minio/Dockerfile). Ingen porte ud
-  # af serveren; konsollen kan nås med MINIO_CONSOLE_BIND (fx 127.0.0.1) og en SSH-tunnel.
+  # Objektlager til fotos og lyd i observationer. Bygget fra MinIO's kildekode (se minio/Dockerfile). Ingen porte på
+  # værten – kun api og worker når den i Docker-netværket. Konsollen (MINIO_BROWSER=on) kræver en compose.override.yml
+  # med fx ports: ["127.0.0.1:19001:9001"] og en SSH-tunnel.
   minio:
     build: ./minio
     image: doftool-minio:2025-10-15
@@ -130,8 +131,6 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-doftool}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?sæt MINIO_ROOT_PASSWORD i .env (mindst 8 tegn)}
       MINIO_BROWSER: ${MINIO_BROWSER:-off}
-    ports:
-      - "${MINIO_CONSOLE_BIND:-127.0.0.1}:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio:/data
     healthcheck:
