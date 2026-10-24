@@ -1,6 +1,6 @@
-"""DOF.tool db-admin: register over databasenoderne (kun for superadmin).
+"""DOF.tool db-admin: register over databasenoderne.
 
-Superadmin opretter en node (bruger- eller observationsdatabase, primary eller replika), får et token som bruges som
+Login med eget kodeord (DBADMIN_PASSWORD), uafhængigt af portalen. Man opretter en node (bruger- eller observationsdatabase, primary eller replika), får et token som bruges som
 databasens adgangskode i dens docker compose, og kan rette IP/port bagefter. API'et og workeren henter topologien her
 (/api/topology) og er load balancer for hele DOF-økosystemet. Registret ligger i en lille SQLite i /data, så panelet
 ikke afhænger af de databaser det styrer.
@@ -19,16 +19,15 @@ from contextlib import asynccontextmanager, closing
 from pathlib import Path
 
 import asyncpg
-import httpx
-import redis.asyncio as aioredis
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-PORTAL_URL = os.environ.get("PORTAL_URL", "http://api:8000").rstrip("/")
 SERVICE_TOKEN = os.environ.get("DBADMIN_SERVICE_TOKEN", "")
-REDIS_DSN = os.environ.get("REDIS_DSN", "redis://valkey:6379/0")
-COOKIE = os.environ.get("SESSION_COOKIE", "dt_session")
+PASSWORD = os.environ.get("DBADMIN_PASSWORD", "")
+COOKIE = "dbadmin_session"
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+SESSION_HOURS = 12
 DB_PATH = Path(os.environ.get("DBADMIN_DATA", "/data")) / "registry.db"
 CHECK_SECONDS = 10
 GROUPS = ("users", "observations")
@@ -58,7 +57,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
 );
 CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS superadmins (user_id INTEGER PRIMARY KEY, seen_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, expires REAL NOT NULL);
 """
 DEFAULT_SETTINGS = {"read_replicas": {"users": False, "observations": True}, "version": 1}
 
@@ -89,59 +88,30 @@ def bump(con: sqlite3.Connection) -> None:
     con.execute("INSERT OR REPLACE INTO settings (k, v) VALUES ('version', ?)", (json.dumps(setting(con, "version") + 1),))
 
 
-# ---------------------------------------------------------------- login: portalens session, kun superadmin
+# ---------------------------------------------------------------- login med eget kodeord (DBADMIN_PASSWORD)
 
-_verdicts: dict[str, tuple[float, bool]] = {}
-_redis: aioredis.Redis | None = None
-
-
-def kv() -> aioredis.Redis:
-    global _redis
-    if _redis is None:
-        _redis = aioredis.from_url(REDIS_DSN, decode_responses=True, socket_connect_timeout=3, socket_timeout=3)
-    return _redis
+_fails: dict[str, list[float]] = {}
 
 
-async def is_superadmin(token: str | None) -> bool:
-    """Spørg portalen (/api/me). Er portalen nede (fx fordi en database er det), godtages en session for en bruger,
-    der tidligere er set som superadmin – ellers kunne panelet ikke bruges til at rette adressen på den database."""
+class LoginIn(BaseModel):
+    password: str
+
+
+def valid_session(token: str | None) -> bool:
     if not token:
         return False
-    hit = _verdicts.get(token)
-    if hit and hit[0] > time.monotonic():
-        return hit[1]
-    verdict: bool | None = None
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(PORTAL_URL + "/api/me", cookies={COOKIE: token})
-        if r.status_code == 200:
-            user = r.json().get("user")
-            verdict = bool(user and user.get("role") == "superadmin")
-            if verdict:
-                with closing(db()) as con:
-                    con.execute("INSERT OR REPLACE INTO superadmins (user_id, seen_at) VALUES (?, ?)", (user["id"], time.time()))
-                    con.commit()
-    except httpx.HTTPError:
-        verdict = None
-    if verdict is None:  # portalen svarer ikke
-        try:
-            uid = await kv().get(f"sess:{token}")
-        except Exception:  # noqa: BLE001
-            uid = None
-        with closing(db()) as con:
-            verdict = bool(uid and con.execute("SELECT 1 FROM superadmins WHERE user_id = ? AND seen_at > ?",
-                                               (int(uid), time.time() - 30 * 86400)).fetchone())
-        _verdicts[token] = (time.monotonic() + 5, verdict)
-        return verdict
-    _verdicts[token] = (time.monotonic() + 30, verdict)
-    return verdict
+    with closing(db()) as con:
+        con.execute("DELETE FROM sessions WHERE expires < ?", (time.time(),))
+        row = con.execute("SELECT 1 FROM sessions WHERE token = ?", (token,)).fetchone()
+        con.commit()
+    return row is not None
 
 
 async def superadmin(request: Request) -> None:
     if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.headers.get("x-requested-with", "").lower() != "fetch":
         raise HTTPException(403, "Mangler X-Requested-With")
-    if not await is_superadmin(request.cookies.get(COOKIE)):
-        raise HTTPException(401, "Kun superadmin – log ind i portalen først")
+    if not valid_session(request.cookies.get(COOKIE)):
+        raise HTTPException(401, "Log ind")
 
 
 async def service(request: Request) -> None:
@@ -218,6 +188,39 @@ app = FastAPI(title="DOF.tool db-admin", lifespan=lifespan, docs_url=None, redoc
 
 @app.get("/api/me", dependencies=[Depends(superadmin)])
 async def me():
+    return {"ok": True}
+
+
+@app.post("/api/login")
+async def login(body: LoginIn, request: Request, response: Response):
+    if request.headers.get("x-requested-with", "").lower() != "fetch":
+        raise HTTPException(403, "Mangler X-Requested-With")
+    if not PASSWORD:
+        raise HTTPException(503, "DBADMIN_PASSWORD er ikke sat på serveren")
+    ip = request.client.host if request.client else "?"
+    recent = [t for t in _fails.get(ip, []) if t > time.time() - 300]
+    if len(recent) >= 5:
+        raise HTTPException(429, "For mange forsøg – prøv igen om lidt")
+    if not secrets.compare_digest(body.password.encode(), PASSWORD.encode()):
+        _fails[ip] = [*recent, time.time()]
+        raise HTTPException(401, "Forkert kodeord")
+    _fails.pop(ip, None)
+    token = secrets.token_urlsafe(32)
+    with closing(db()) as con:
+        con.execute("INSERT INTO sessions (token, expires) VALUES (?, ?)", (token, time.time() + SESSION_HOURS * 3600))
+        con.commit()
+    response.set_cookie(COOKIE, token, max_age=SESSION_HOURS * 3600, httponly=True, samesite="strict", secure=COOKIE_SECURE)
+    return {"ok": True}
+
+
+@app.post("/api/logout")
+async def logout(request: Request, response: Response):
+    token = request.cookies.get(COOKIE)
+    if token:
+        with closing(db()) as con:
+            con.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            con.commit()
+    response.delete_cookie(COOKIE)
     return {"ok": True}
 
 

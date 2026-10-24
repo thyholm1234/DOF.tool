@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 TZ=Europe/Copenhagen
 WORKDIR /app
-RUN pip install "fastapi>=0.115" "uvicorn[standard]>=0.32" "httpx>=0.28" "asyncpg>=0.30" "redis>=5.2"
+RUN pip install "fastapi>=0.115" "uvicorn[standard]>=0.32" "asyncpg>=0.30"
 COPY dbadmin/ ./
 VOLUME /data
 EXPOSE 8100

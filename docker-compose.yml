@@ -72,24 +72,21 @@ services:
       retries: 10
       start_period: 30s
 
-  # Superadmin-panel til databaserne: noder (bruger-/observations-databaser, primary/replika), tokens, IP og port.
-  # Login med portalens superadmin-session (samme domæne). API og worker henter topologien herfra når DBADMIN_URL er sat.
+  # Panel til databaserne: noder (bruger-/observations-databaser, primary/replika), tokens, IP og port.
+  # Eget login (DBADMIN_PASSWORD). API og worker henter topologien herfra når DBADMIN_URL er sat.
   dbadmin:
     build:
       context: .
       dockerfile: dbadmin/Dockerfile
     restart: unless-stopped
     environment:
-      PORTAL_URL: http://api:8000
-      REDIS_DSN: redis://valkey:6379/0
       DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:-}
+      DBADMIN_PASSWORD: ${DBADMIN_PASSWORD:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     ports:
       - "${DBADMIN_PORT:-8100}:8100"
     volumes:
       - dbadmin:/data
-    depends_on:
-      valkey:
-        condition: service_healthy
 
   # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 kald/minut)
   worker:

@@ -38,8 +38,8 @@ topologien fra db-admin hvert 15. sekund, sender hver sætning til den gruppe ta
 til primary, læser fra replikaer (en session der har skrevet læser resten fra primary) og springer en replika over, der
 ikke svarer. En sætning må ikke blande tabeller fra begge grupper – `python3 tools/sql_groups.py` tjekker det.
 
-**db-admin** (`http://localhost:8100`, kun superadmin – login er portalens session; er portalen nede, godtages en bruger der
-tidligere er set som superadmin, så adressen kan rettes under et nedbrud):
+**db-admin** (`http://localhost:8100`, eget login med `DBADMIN_PASSWORD`, uafhængigt af portalen – virker også når en
+database er nede, så adressen kan rettes):
 
 1. *Tilføj node*: navn, gruppe, primary/replika, IP og port. Panelet genererer et **token** – det er databasens adgangskode –
    og en færdig `docker-compose.yml` til serveren (kopiér mappen `dbnode/` dertil; image med replikeringsopsætning).

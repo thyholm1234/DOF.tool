@@ -1,0 +1,27 @@
+# Bruger- og observationsdatabase på samme maskine som portalen (i portalens netværk).
+#   docker compose --env-file .env -f dbnode/compose.local.yml up -d --build
+# Kræver DB_TOKEN_USERS og DB_TOKEN_OBS i .env (de samme tokens registreres i db-admin).
+name: doftool-dbs
+x-node: &node
+  build: .
+  restart: unless-stopped
+  command: >
+    postgres -c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB -c effective_cache_size=4GB
+             -c max_wal_size=8GB -c random_page_cost=1.1 -c wal_level=replica -c max_wal_senders=10 -c hot_standby=on
+  networks: [portal]
+services:
+  db-users:
+    <<: *node
+    environment: {POSTGRES_DB: portal, POSTGRES_USER: portal, POSTGRES_PASSWORD: "${DB_TOKEN_USERS:?}", DB_ROLE: primary}
+    volumes: [users:/var/lib/postgresql/data]
+  db-obs:
+    <<: *node
+    environment: {POSTGRES_DB: portal, POSTGRES_USER: portal, POSTGRES_PASSWORD: "${DB_TOKEN_OBS:?}", DB_ROLE: primary}
+    volumes: [obs:/var/lib/postgresql/data]
+networks:
+  portal:
+    name: doftool_default
+    external: true
+volumes:
+  users:
+  obs:

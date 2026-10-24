@@ -42,11 +42,15 @@
 <body>
 <main>
   <div id="login" hidden>
-    <h1>Kun for superadmin</h1>
-    <p class="sub">Log ind i portalen med superadmin-kontoen og opdatér denne side.</p>
+    <h1>DOF.tool databaser</h1>
+    <form id="loginform" class="add" style="max-width:320px;margin:20px auto">
+      <label>Kodeord<input type="password" name="password" autocomplete="current-password" required autofocus></label>
+      <button class="primary">Log ind</button>
+      <p class="err" id="loginerr"></p>
+    </form>
   </div>
   <div id="app" hidden>
-    <h1>Databaser</h1>
+    <div class="head"><h1>Databaser</h1><button id="logout">Log ud</button></div>
     <p class="sub">Brugerdata og observationer ligger i hver sin gruppe af Postgres-noder. API'et er load balancer: skrivning til gruppens primary, læsning (valgfrit) fordelt på replikaer.</p>
     <div id="groups"></div>
     <div class="card">
@@ -76,7 +80,7 @@ let state = null, editing = false;
 async function api(path, opts = {}) {
   const r = await fetch('api/' + path, { ...opts, headers: { 'X-Requested-With': 'fetch', 'Content-Type': 'application/json', ...(opts.headers || {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined });
-  if (r.status === 401) { $('#app').hidden = true; $('#login').hidden = false; throw new Error('login'); }
+  if (r.status === 401 && path !== 'login') { $('#app').hidden = true; $('#login').hidden = false; throw new Error('login'); }
   const type = r.headers.get('content-type') || '';
   const data = type.includes('json') ? await r.json() : await r.text();
   if (!r.ok) throw new Error(data.detail || data);
@@ -150,6 +154,13 @@ document.addEventListener('change', async e => {
     try { await api('nodes/' + e.target.closest('tr').dataset.id, { method: 'PATCH', body: { purpose: e.target.value } }); await load(); } catch (err) { alert(err.message); }
   }
 });
+
+$('#loginform').addEventListener('submit', async e => {
+  e.preventDefault(); $('#loginerr').textContent = '';
+  try { await api('login', { method: 'POST', body: { password: new FormData(e.target).get('password') } }); e.target.reset(); await load(); }
+  catch (err) { $('#loginerr').textContent = err.message; }
+});
+$('#logout').addEventListener('click', async () => { await api('logout', { method: 'POST' }).catch(() => {}); $('#app').hidden = true; $('#login').hidden = false; });
 
 $('#add').addEventListener('submit', async e => {
   e.preventDefault(); $('#err').textContent = '';
