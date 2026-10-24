@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<title>DOF.tool – tech-stack</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 16mm 15mm;
+          @bottom-left { content: "DOF.tool · tech-stack · {{DATE}}"; font: 8pt "DejaVu Sans"; color: #777; }
+          @bottom-right { content: "side " counter(page) " af " counter(pages); font: 8pt "DejaVu Sans"; color: #777; } }
+  @page diagram { size: A2 landscape; margin: 10mm 10mm 12mm 10mm; }
+  .diagram-page { page: diagram; }
+  body { font: 9.5pt/1.45 "DejaVu Sans", sans-serif; color: #1d2329; }
+  h1 { font-size: 20pt; margin: 0 0 2mm; color: #1f5a44; }
+  h2 { font-size: 13.5pt; color: #1f5a44; margin: 7mm 0 2mm; border-bottom: 1px solid #cfd8d3; padding-bottom: 1mm;
+       break-after: avoid; }
+  h3 { font-size: 10.5pt; margin: 4mm 0 1mm; break-after: avoid; }
+  p { margin: 0 0 2mm; }
+  .lead { color: #4a555e; font-size: 10.5pt; margin-bottom: 3mm; }
+  .muted { color: #6b7780; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .diagram { width: 100%; }
+  .diagram svg { width: 100%; height: auto; max-height: 370mm; }
+  table { width: 100%; border-collapse: collapse; margin: 1mm 0 3mm; font-size: 8.5pt; }
+  th { text-align: left; background: #eef3f0; color: #2d3a33; font-weight: bold; }
+  th, td { padding: 1.2mm 1.6mm; border-bottom: 0.5pt solid #d9e0dc; vertical-align: top; }
+  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+  td.num { text-align: right; color: #555; width: 6mm; }
+  table.edges, table.kv { table-layout: fixed; }
+  .proto { display: inline-block; border: 0.8pt solid; border-radius: 2mm; padding: 0 1.4mm; font-size: 7.5pt; white-space: nowrap; }
+  .legend { margin: 1mm 0 2mm; }
+  code { font: 8pt "DejaVu Sans Mono", monospace; background: #f2f4f3; padding: 0 0.8mm; border-radius: 1mm; }
+  ul { margin: 0 0 2mm 5mm; padding: 0; } li { margin-bottom: 0.8mm; }
+  .note { border-left: 2.5pt solid #c9a96e; background: #fbf6ee; padding: 2mm 3mm; margin: 2mm 0 3mm; }
+  .cols { columns: 2; column-gap: 8mm; }
+</style>
+</head>
+<body>
+
+<section class="diagram-page">
+  <div class="head">
+    <h1>DOF.tool – kommunikationsveje</h1>
+    <span class="muted">{{DATE}} · kode {{COMMIT}}</span>
+  </div>
+  <p class="lead">Alle forbindelser mellem klienter, containere, delelementer i containerne og eksterne tjenester. Tallet på
+    hver pil henviser til tabellen «Kommunikationsveje», der beskriver type og indhold. Farven angiver protokollen.</p>
+  <div class="diagram">{{SVG}}</div>
+</section>
+
+<h1 style="margin-top:0">Teknisk dokumentation af tech-stacken</h1>
+<p class="lead">DOF.tool er en portal for feltornitologer: live-observationer fra DOFbasen, egne feltmeldinger og ture,
+  lister, kalendere, fænologi, læring og showcase-moduler for DOFbasen og Netfugl. Den kører som en samling
+  Docker-containere bag en reverse proxy og leveres som PWA i browseren og som Capacitor-app på Android/iOS.</p>
+
+<h2>Kommunikationsveje</h2>
+{{EDGES}}
+
+<h2>Containere</h2>
+<table>
+  <thead><tr><th>Container</th><th>Image / bygget af</th><th>Rolle</th><th>Porte</th><th>Volumener</th></tr></thead>
+  <tbody>
+    <tr><td><b>api</b></td><td><code>server/Dockerfile</code> (python:3.12-slim)</td><td>FastAPI-app: REST, SSE, showcase-API'er,
+      server-renderede sider, filer fra observationer og den statiske PWA.</td><td><code>PORT</code> → 8000 (til proxyen)</td>
+      <td>media, weather, archive_upload, <code>/archive</code> (ro), <code>web/</code> (ro)</td></tr>
+    <tr><td><b>worker</b></td><td>samme image som api</td><td>Præcis én proces: DOFbasen-gateway, planlagte job, arkivimport,
+      alarmer og push, engangsmigreringer.</td><td>ingen</td><td>som api</td></tr>
+    <tr><td><b>valkey</b></td><td><code>valkey/valkey:8.1</code></td><td>Sessioner, køer, cache, låse, pub/sub. AOF-persistens,
+      512 MB med <code>volatile-lru</code>.</td><td>kun internt</td><td>valkeydata</td></tr>
+    <tr><td><b>postgres</b></td><td><code>postgis/postgis:17-3.5</code></td><td>Den samlede database: al data i legacy-tilstand,
+      kilde og sikkerhedskopi efter opdelingen.</td><td>kun internt</td><td>pgdata</td></tr>
+    <tr><td><b>doftool-db-*</b></td><td><code>doftool-dbnode</code> (PostGIS + replikering)</td><td>Databasenoder i grupperne
+      users og observations; primary eller replika. Oprettes af db-admin eller med dens script.</td>
+      <td>ingen / <code>127.0.0.1</code> på samme vært</td><td>doftool_db_&lt;navn&gt;</td></tr>
+    <tr><td><b>minio</b></td><td><code>minio/Dockerfile</code> – bygget fra kildekoden</td><td>Objektlager (S3) til fotos og lyd i
+      observationer, bucket <code>doftool-media</code>.</td><td>ingen på værten</td><td>minio</td></tr>
+    <tr><td><b>dbadmin</b></td><td><code>dbadmin/Dockerfile</code></td><td>Register over databasenoder, topologi til api/worker,
+      sundhedstjek, migrering, oprettelse af noder via Docker.</td><td><code>DBADMIN_BIND</code>:8100 (standard 127.0.0.1)</td>
+      <td>dbadmin, <code>docker.sock</code></td></tr>
+    <tr><td><b>dbnode-image</b></td><td><code>dbnode/Dockerfile</code></td><td>Bygger kun billedet til nye databasenoder og afslutter.</td>
+      <td>–</td><td>–</td></tr>
+  </tbody>
+</table>
+<p class="muted">Alle containere logger til Docker med rotation (10 MB × 5 filer). Reverse proxyen (TLS) ligger uden for
+  compose-projektet.</p>
+
+<h2>Teknologier</h2>
+<table>
+  <thead><tr><th>Lag</th><th>Teknologi</th><th>Bemærkning</th></tr></thead>
+  <tbody>
+    <tr><td>Sprog og runtime</td><td>Python 3.12</td><td>Asynkron hele vejen (asyncio).</td></tr>
+    <tr><td>Web</td><td>FastAPI 0.159, Starlette 1.9, Uvicorn 0.54</td><td>Uvicorn stoler kun på proxy-headers fra
+      <code>FORWARDED_ALLOW_IPS</code> (standard: private net).</td></tr>
+    <tr><td>Database-adgang</td><td>SQLAlchemy 2.1 (async) + asyncpg 0.32</td><td>Egen <code>RoutingSession</code> sender hver
+      sætning til sin databasegruppe.</td></tr>
+    <tr><td>Database</td><td>PostgreSQL 17 + PostGIS 3.5</td><td>Al rumlig logik (områder, radius, kommuner) i PostGIS.</td></tr>
+    <tr><td>Cache, køer, pub/sub</td><td>Valkey 8.1 (redis-py 8.1)</td><td>Open source-afløseren for Redis.</td></tr>
+    <tr><td>Objektlager</td><td>MinIO RELEASE.2025-10-15T17-29-55Z, minio-py 7.2.20</td><td>Se note om vedligehold nedenfor.</td></tr>
+    <tr><td>Validering og config</td><td>Pydantic 2.14, pydantic-settings</td><td>Al konfiguration fra miljøvariabler/<code>.env</code>.</td></tr>
+    <tr><td>Udgående HTTP</td><td>httpx 0.28</td><td>DOFbasen, DMI, Open-Meteo, xeno-canto, Netfugl, dof.dk.</td></tr>
+    <tr><td>Push</td><td>pywebpush 2.5 + py-vapid 1.9 (Web Push), FCM HTTP v1</td><td>VAPID-nøglen ligger i databasen
+      (<code>settings</code>), FCM-servicekontoen i <code>.env</code>.</td></tr>
+    <tr><td>Øvrigt</td><td>numpy, orjson, cryptography</td><td>Fænologi-beregninger, hurtig JSON, kryptering.</td></tr>
+    <tr><td>Frontend</td><td>Vanilla JavaScript (ES-moduler), Leaflet 1.9.4, lamejs</td><td>Ingen byggetrin; filerne serveres
+      med build-id i adressen. Service worker til offline og push.</td></tr>
+    <tr><td>Mobilapp</td><td>Capacitor 8 (Android/iOS)</td><td>WebView med samme PWA; baggrundsposition og push-notifikationer.</td></tr>
+    <tr><td>Drift</td><td>Docker Compose</td><td>db-admin styrer databasenoder via Docker API'et.</td></tr>
+  </tbody>
+</table>
+
+<h2>Data og databaser</h2>
+<p>Tabellerne er delt i tre grupper (<code>server/portal/dbgroups.py</code>):</p>
+<ul>
+  <li><b>users</b> – alt der handler om brugere: konti, lister, områder, alarmregler, feltmeldinger, kommentarer, kalendere,
+    Netfugl-indhold, support.</li>
+  <li><b>observations</b> – observationer, ture og observatører fra DOFbasen samt alle aggregater (artsdage, fænologi,
+    regioner, vejr).</li>
+  <li><b>reference</b> – arter, afdelinger, kommuner, lokaliteter m.m. findes i begge grupper, så joins mod dem er lokale.</li>
+</ul>
+<p>En SQL-sætning må aldrig blande bruger- og observationstabeller; routeren afviser den. Data hentes i stedet i to
+  trin (fx et tegnet områdes geometri slås op i brugergruppen og sendes som parameter til observationsforespørgslen).</p>
+<p>Hver gruppe har én primary og nul eller flere replikaer. Replikaer tager en <code>pg_basebackup</code> af primary og
+  streamer derefter WAL. En replika er enten til at aflaste læsninger eller kun til backup. Topologien ligger i
+  db-admins register; api og worker henter den hvert 15. sekund og skifter forbindelser uden genstart.
+  I legacy-tilstand kører alt på den samlede database (<code>postgres</code>), som også er kilde, når db-admin migrerer.</p>
+
+<h2>Objektlager</h2>
+<p>Fotos og lyd i feltmeldinger og ture gemmes i MinIO under <code>obs/&lt;uuid&gt;.&lt;endelse&gt;</code>. Adressen er
+  <code>/media/obs/&lt;navn&gt;</code>, og api'et leverer filen efter login med Range-understøttelse (lydafspilning), ETag og
+  privat cache. Bucket'en er aldrig offentlig. Uden <code>S3_ENDPOINT</code> ligger filerne på disken som før.
+  Netfugl-fotos og læringsfiler ligger stadig på volumenet <code>media</code>.</p>
+<div class="note"><b>Vedligehold:</b> MinIO udgiver ikke længere færdige images, og projektet blev arkiveret i 2026.
+  <code>minio/Dockerfile</code> bygger den sidste udgave fra kildekoden, og den får ingen sikkerhedsopdateringer.
+  Appen taler almindelig S3, så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan overtage ved at ændre
+  <code>S3_ENDPOINT</code>, <code>S3_ACCESS_KEY</code>, <code>S3_SECRET_KEY</code> og <code>S3_BUCKET</code>.</div>
+
+<h2>Baggrundsjob</h2>
+<table>
+  <thead><tr><th>Job</th><th>Hvornår</th><th>Hvad</th></tr></thead>
+  <tbody>
+    <tr><td>Live-hentning</td><td>løbende (efter plan i Admin → Data)</td><td>Dagens observationer fra DOFbasen via gatewayen;
+      nye fund udløser alarmer, push og live-feed.</td></tr>
+    <tr><td>DOFbasen-gateway</td><td>altid</td><td>Højst ét udtræk pr. minut (globalt tidsstempel + lås i Valkey). Login og
+      medieopslag har en separat kø uden interval.</td></tr>
+    <tr><td>Vejrprognose</td><td>hver time (efter :15)</td><td>Open-Meteo.</td></tr>
+    <tr><td>Natlig beregning</td><td>kl. 02:30</td><td>Dagsaggregater, lokale tal, fænologi, sæsoner, arter pr. år, oprydning
+      (notifikationer 90 d, aktivitet 180 d, positioner 30 d uden opdatering).</td></tr>
+    <tr><td>Referencedata</td><td>kl. 03:00 + hver time til databasegrupperne</td><td>Arter, lokaliteter m.m. fra DOFbasen og
+      synkronisering mellem grupperne.</td></tr>
+    <tr><td>Hul-udfyldning</td><td>hver 6. time</td><td>Henter måneder/dage, der mangler.</td></tr>
+    <tr><td>DOF-ture</td><td>hver 6. time</td><td>dof.dk.</td></tr>
+    <tr><td>Klima</td><td>mandag kl. 05</td><td>DMI-klimadata.</td></tr>
+    <tr><td>Netfugl</td><td>krydslister hver 6. time, RSS hver time</td><td>Kun når modulet er slået til.</td></tr>
+    <tr><td>Engangsjob</td><td>ved første start</td><td>Fjern metadata fra eksisterende billeder; flyt filer fra disken til
+      objektlageret.</td></tr>
+  </tbody>
+</table>
+
+<h2>Sikkerhed</h2>
+<div class="cols">
+<ul>
+  <li><b>Login</b> kontrolleres hos DOFbasen ved hvert login; adgangskoden gemmes ikke. Grænse for forsøg pr. obserkode og IP.</li>
+  <li><b>Sessioner</b> i Valkey (<code>sess:&lt;token&gt;</code>), cookie <code>HttpOnly</code>, <code>SameSite=Lax</code>, altid
+    <code>Secure</code> når <code>PUBLIC_URL</code> er https. Alle en brugers sessioner kan lukkes på én gang.</li>
+  <li><b>CSRF</b>: ændrende kald kræver <code>X-Requested-With</code> eller <code>Sec-Fetch-Site: same-origin</code>.</li>
+  <li><b>Headers</b>: streng CSP (scripts kun egne + hash), HSTS over https, <code>X-Frame-Options: DENY</code>,
+    <code>nosniff</code>, Referrer- og Permissions-Policy. Uploads leveres med <code>sandbox</code>-CSP.</li>
+  <li><b>Klientens IP</b> tages kun fra X-Forwarded-For, når kaldet kommer fra en betroet proxy.</li>
+  <li><b>Uploads</b>: størrelsesgrænse, tilladte typer, tilfældigt filnavn; GPS og andre metadata fjernes, før filen gemmes.</li>
+  <li><b>SQL</b>: kun parametre; sortering og visning fra whitelists.</li>
+  <li><b>Showcase-API'er</b>: token gemt som hash, kun læsning, egne grænser pr. minut.</li>
+  <li><b>Netværk</b>: db-admin, databasenoder og MinIO har ingen offentlige porte; db-admin har eget kodeord og
+    begrænsning af forsøg. db-admin har adgang til Docker og skal aldrig udstilles mod internettet.</li>
+</ul>
+</div>
+
+<h2>Persondata</h2>
+<p>Privatlivspolitikken ligger på <code>/privatliv</code>. Brugeren kan selv hente alle sine data som JSON
+  (<code>GET /api/me/export</code>) og slette sin konto, hvilket også sletter uploadede filer, aktivitetslog og alle
+  sessioner. Der er ingen analyse- eller sporingsværktøjer og kun én (nødvendig) cookie. Data sendes til tredjeparter
+  som vist i diagrammet: DOFbasen (login, udtræk), OpenStreetMap (kortfliser, brugerens IP), Google FCM og browserens
+  push-tjeneste (notifikationer).</p>
+
+<h2>Drift</h2>
+<h3>Vigtige miljøvariabler (<code>.env</code>)</h3>
+<table class="kv">
+  <colgroup><col style="width:52%"><col></colgroup>
+  <thead><tr><th>Variabel</th><th>Betydning</th></tr></thead>
+  <tbody>
+    <tr><td><code>PUBLIC_URL</code>, <code>PORT</code></td><td>Portalens adresse og api'ets port mod proxyen.</td></tr>
+    <tr><td><code>POSTGRES_*</code></td><td>Den samlede database.</td></tr>
+    <tr><td><code>DBADMIN_URL</code>, <code>DBADMIN_SERVICE_TOKEN</code>, <code>DBADMIN_PASSWORD</code>, <code>DBADMIN_BIND</code></td>
+      <td>Registret, token mellem api/worker og db-admin, panelets kodeord og adresse.</td></tr>
+    <tr><td><code>MINIO_ROOT_USER</code>, <code>MINIO_ROOT_PASSWORD</code>, <code>S3_*</code></td><td>Objektlageret.</td></tr>
+    <tr><td><code>FORWARDED_ALLOW_IPS</code></td><td>Proxyer, hvis X-Forwarded-For stoles på.</td></tr>
+    <tr><td><code>PRIVACY_CONTROLLER</code>, <code>PRIVACY_EMAIL</code>, <code>PRIVACY_BACKUP_DAYS</code></td>
+      <td>Oplysninger i privatlivspolitikken.</td></tr>
+    <tr><td><code>DOF_ARCHIVE_DIR</code>, <code>DOF_MIN_INTERVAL</code>, <code>DOF_ENABLED</code></td>
+      <td>DOFbasen-arkivet og gatewayens interval (mindst 60 s).</td></tr>
+    <tr><td><code>FCM_SERVICE_ACCOUNT_B64</code>, <code>VAPID_SUBJECT</code></td><td>Push.</td></tr>
+  </tbody>
+</table>
+<h3>Overvågning</h3>
+<p>Admin → Drift viser gateway, kø, job og <b>lagerplads</b> (disk, hver databasenode med største tabeller, objektlager,
+  filer på disken og Valkey). db-admin viser hver nodes status og svartid. Sundhedstjek: <code>GET /api/health</code>.</p>
+<h3>Backup</h3>
+<p>Replikaer beskytter mod nedbrud af en node, ikke mod fejl i data eller tab af hele serveren. Brug derudover et
+  natligt <code>pg_dump</code> af hver gruppe og en kopi af bucket'en, krypteret og gemt uden for serveren.</p>
+
+</body>
+</html>

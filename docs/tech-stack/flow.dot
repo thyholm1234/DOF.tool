@@ -1,0 +1,153 @@
+digraph DOFtool {
+  graph [rankdir=LR, compound=true, splines=true, nodesep=0.12, ranksep=0.55, fontname="DejaVu Sans", fontsize=13,
+         pad=0.2, bgcolor="white", outputorder=edgesfirst];
+  node [shape=box, style="rounded,filled", fillcolor="#ffffff", color="#5b6770", fontname="DejaVu Sans", fontsize=10,
+        margin="0.08,0.03", height=0.38, penwidth=0.9];
+  edge [fontname="DejaVu Sans", fontsize=8, arrowsize=0.55, penwidth=1.0];
+  subgraph cluster_clients { label=<<b>Klienter (internettet)</b>>; style="rounded,filled"; fillcolor="#eef3f8"; color="#7f9cb8"; fontsize=13;
+    subgraph cluster_browser { label=<<b>Browser / PWA</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7f9cb8"; fontsize=11;
+      spa [label=<<b>SPA (web/js)</b><br/><font point-size="8" color="#555555">ES-moduler, hash-routing</font>>];
+      sw [label=<<b>Service worker</b><br/><font point-size="8" color="#555555">app-skal, API-cache, push</font>>];
+      leaf [label=<<b>Leaflet-kort</b><br/><font point-size="8" color="#555555">kortvisning</font>>];
+    }
+    subgraph cluster_app { label=<<b>Android-/iOS-app (Capacitor 8)</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7f9cb8"; fontsize=11;
+      webview [label=<<b>WebView</b><br/><font point-size="8" color="#555555">indlæser samme PWA</font>>];
+      bgloc [label=<<b>Baggrundsposition</b><br/><font point-size="8" color="#555555">@capgo/background-geolocation</font>>];
+      pushrx [label=<<b>Push-modtager</b><br/><font point-size="8" color="#555555">@capacitor/push-notifications</font>>];
+    }
+    guest [label=<<b>Gæst</b><br/><font point-size="8" color="#555555">delelinks, /privatliv</font>>];
+    thirdp [label=<<b>Tredjepartsapps</b><br/><font point-size="8" color="#555555">Showcase-API med token</font>>];
+    calapp [label=<<b>Kalenderapps</b><br/><font point-size="8" color="#555555">ICS-abonnement</font>>];
+    admin [label=<<b>Driftsadministrator</b><br/><font point-size="8" color="#555555">LAN / VPN</font>>];
+  }
+  subgraph cluster_server { label=<<b>Server · docker compose «doftool» · netværk doftool_default</b>>; style="rounded,filled"; fillcolor="#f6f9f6"; color="#7fa287"; fontsize=13;
+    subgraph cluster_api { label=<<b>api · FastAPI + Uvicorn :8000</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
+      mw [label=<<b>Middleware «guard»</b><br/><font point-size="8" color="#555555">session, CSRF, CORS, CSP/HSTS</font>>];
+      rest [label=<<b>REST /api/*</b><br/><font point-size="8" color="#555555">auth, feed, lister, ture, admin</font>>];
+      sse [label=<<b>SSE /api/stream</b><br/><font point-size="8" color="#555555">live-opdateringer</font>>];
+      showapi [label=<<b>Showcase-API</b><br/><font point-size="8" color="#555555">/api/dofbasen/v1, /netfugl/v1</font>>];
+      icsr [label=<<b>ICS-feeds</b><br/><font point-size="8" color="#555555">/api/ics/{token}/…</font>>];
+      mediar [label=<<b>/media/obs/{navn}</b><br/><font point-size="8" color="#555555">Range, ETag, login</font>>];
+      pages [label=<<b>Server-renderede sider</b><br/><font point-size="8" color="#555555">/del/…, /privatliv</font>>];
+      static [label=<<b>Statisk PWA</b><br/><font point-size="8" color="#555555">/v/{build}/…</font>>];
+      apisvc [label=<<b>Tjenester</b><br/><font point-size="8" color="#555555">push, imagemeta, konto, diskusage</font>>];
+      storsvc [label=<<b>storage.py</b><br/><font point-size="8" color="#555555">S3-klient (minio-py)</font>>];
+      router1 [label=<<b>dbrouter</b><br/><font point-size="8" color="#555555">gruppe + primary/replika</font>>];
+    }
+    subgraph cluster_worker { label=<<b>worker · præcis én proces</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
+      sched [label=<<b>Planlægger</b><br/><font point-size="8" color="#555555">beregning, prognose, ture, RSS</font>>];
+      gw [label=<<b>DOFbasen-gateway</b><br/><font point-size="8" color="#555555">udtræk ≤ 1/min, opslag</font>>];
+      cmds [label=<<b>Kommando-forbruger</b><br/><font point-size="8" color="#555555">worker:commands</font>>];
+      arch [label=<<b>Arkivimport</b><br/><font point-size="8" color="#555555">månedsfiler (CSV)</font>>];
+      wpush [label=<<b>Alarmer → push</b><br/><font point-size="8" color="#555555">ved nye observationer</font>>];
+      once [label=<<b>Engangsjob</b><br/><font point-size="8" color="#555555">EXIF-rensning, flyt til S3</font>>];
+      router2 [label=<<b>dbrouter</b><br/><font point-size="8" color="#555555">som i api</font>>];
+    }
+    subgraph cluster_valkey { label=<<b>valkey 8.1 :6379</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
+      vsess [label=<<b>Sessioner</b><br/><font point-size="8" color="#555555">sess:*, usess:*</font>>];
+      vq [label=<<b>Køer</b><br/><font point-size="8" color="#555555">gateway, opslag, kommandoer</font>>];
+      vcache [label=<<b>Cache + versioner</b><br/><font point-size="8" color="#555555">scoreboards, feed</font>>];
+      vps [label=<<b>Pub/sub</b><br/><font point-size="8" color="#555555">kanal «feed» m.fl.</font>>];
+      vlim [label=<<b>Låse + grænser</b><br/><font point-size="8" color="#555555">login, kald-interval</font>>];
+    }
+    subgraph cluster_db { label=<<b>PostgreSQL 17 + PostGIS 3.5</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
+      users1 [label=<<b>users-1 · primary</b><br/><font point-size="8" color="#555555">brugerdata + reference</font>>];
+      users2 [label=<<b>users-2 · replika</b><br/><font point-size="8" color="#555555">hot standby</font>>];
+      obs1 [label=<<b>obs-1 · primary</b><br/><font point-size="8" color="#555555">observationer + reference</font>>];
+      legacy [label=<<b>postgres · samlet DB</b><br/><font point-size="8" color="#555555">legacy / migreringskilde</font>>];
+    }
+    subgraph cluster_minio { label=<<b>minio :9000 (ingen port på værten)</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
+      bucket [label=<<b>Bucket doftool-media</b><br/><font point-size="8" color="#555555">obs/&lt;uuid&gt;.jpg|mp3 …</font>>];
+    }
+    subgraph cluster_dbadmin { label=<<b>dbadmin :8100 (kun DBADMIN_BIND)</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
+      panel [label=<<b>Panel</b><br/><font point-size="8" color="#555555">eget login</font>>];
+      topo [label=<<b>/api/topology</b><br/><font point-size="8" color="#555555">noder, roller, tokens</font>>];
+      probe [label=<<b>Sundhedstjek</b><br/><font point-size="8" color="#555555">asyncpg pr. node</font>>];
+      migr [label=<<b>Migrering</b><br/><font point-size="8" color="#555555">legacy → users/obs</font>>];
+      dctl [label=<<b>Docker-styring</b><br/><font point-size="8" color="#555555">opret noder, stop/start</font>>];
+      sqlite [label=<<b>Register</b><br/><font point-size="8" color="#555555">SQLite /data/registry.db</font>>];
+    }
+    dsock [label=<<b>Docker Engine</b><br/><font point-size="8" color="#555555">/var/run/docker.sock</font>>];
+    vols [label=<<b>Volumener</b><br/><font point-size="8" color="#555555">media, weather, archive_upload</font>>];
+    archdir [label=<<b>/archive (read-only)</b><br/><font point-size="8" color="#555555">DOFbasen-månedsudtræk</font>>];
+  }
+  subgraph cluster_ext { label=<<b>Eksterne tjenester</b>>; style="rounded,filled"; fillcolor="#fbf6ee"; color="#c9a96e"; fontsize=13;
+    dofb [label=<<b>DOFbasen</b><br/><font point-size="8" color="#555555">dofbasen.dk, service.dofbasen.dk</font>>];
+    dofl [label=<<b>DOFbasen login</b><br/><font point-size="8" color="#555555">krydslister.dofbasen.dk</font>>];
+    dofdk [label=<<b>dof.dk</b><br/><font point-size="8" color="#555555">DOF-ture og arrangementer</font>>];
+    netfugl [label=<<b>netfugl.dk</b><br/><font point-size="8" color="#555555">lister + RSS</font>>];
+    dmi [label=<<b>DMI Open Data</b><br/><font point-size="8" color="#555555">klima- og vejrarkiv</font>>];
+    meteo [label=<<b>Open-Meteo</b><br/><font point-size="8" color="#555555">vejrprognose</font>>];
+    xc [label=<<b>xeno-canto</b><br/><font point-size="8" color="#555555">lydoptagelser</font>>];
+    fcm [label=<<b>Google FCM</b><br/><font point-size="8" color="#555555">oauth2 + fcm v1</font>>];
+    wps [label=<<b>Browser-push</b><br/><font point-size="8" color="#555555">Google / Mozilla / Apple</font>>];
+    osm [label=<<b>OpenStreetMap</b><br/><font point-size="8" color="#555555">tile.openstreetmap.org</font>>];
+  }
+  proxy [label=<<b>Reverse proxy</b><br/><font point-size="8" color="#555555">TLS, :443 → api:8000, X-Forwarded-*</font>>, fillcolor="#f2f2f2"];
+  spa -> proxy [label="1 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  sw -> proxy [label="2 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  webview -> proxy [label="3 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  bgloc -> proxy [label="4 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  guest -> proxy [label="5 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  thirdp -> proxy [label="6 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  calapp -> proxy [label="7 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  proxy -> mw [label="8 HTTP :8000", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  admin -> panel [label="9 HTTP :8100", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mw -> rest [label="10", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mw -> sse [label="11", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mw -> showapi [label="12", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mw -> icsr [label="13", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mw -> mediar [label="14", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mw -> pages [label="15", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mw -> static [label="16", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  rest -> apisvc [label="17", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  rest -> storsvc [label="18", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  mediar -> storsvc [label="19", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  rest -> router1 [label="20", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  router1 -> topo [label="21 HTTP", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  router2 -> topo [label="22 HTTP", color="#2e7d4f", fontcolor="#2e7d4f", style=solid];
+  panel -> sqlite [label="23 SQL", color="#5b6770", fontcolor="#5b6770", style=dashed];
+  mw -> vsess [label="24 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  rest -> vq [label="25 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  rest -> vcache [label="26 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  rest -> vlim [label="27 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  sse -> vps [label="28 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  gw -> vq [label="29 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  gw -> vlim [label="30 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  cmds -> vq [label="31 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  wpush -> vps [label="32 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  sched -> vcache [label="33 RESP", color="#c0392b", fontcolor="#c0392b", style=solid];
+  router1 -> users1 [label="34 SQL", color="#c25400", fontcolor="#c25400", style=solid];
+  router1 -> users2 [label="35 SQL (læs)", color="#c25400", fontcolor="#c25400", style=solid];
+  router1 -> obs1 [label="36 SQL", color="#c25400", fontcolor="#c25400", style=solid];
+  router1 -> legacy [label="37 SQL", color="#c25400", fontcolor="#c25400", style=solid];
+  router2 -> obs1 [label="38 SQL", color="#c25400", fontcolor="#c25400", style=solid];
+  router2 -> users1 [label="39 SQL", color="#c25400", fontcolor="#c25400", style=solid];
+  probe -> users1 [label="40 SQL", color="#c25400", fontcolor="#c25400", style=solid];
+  probe -> obs1 [label="41 SQL", color="#c25400", fontcolor="#c25400", style=solid];
+  migr -> legacy [label="42 COPY", color="#c25400", fontcolor="#c25400", style=solid];
+  migr -> users1 [label="43 COPY", color="#c25400", fontcolor="#c25400", style=solid];
+  migr -> obs1 [label="44 COPY", color="#c25400", fontcolor="#c25400", style=solid];
+  users1 -> users2 [label="45 WAL", color="#8e5b2e", fontcolor="#8e5b2e", style=dashed];
+  storsvc -> bucket [label="46 S3 :9000", color="#7d3c98", fontcolor="#7d3c98", style=solid];
+  once -> bucket [label="47 S3", color="#7d3c98", fontcolor="#7d3c98", style=solid];
+  dctl -> dsock [label="48 Docker API", color="#5b6770", fontcolor="#5b6770", style=solid];
+  apisvc -> vols [label="49 fil", color="#5b6770", fontcolor="#5b6770", style=dashed];
+  once -> vols [label="50 fil", color="#5b6770", fontcolor="#5b6770", style=dashed];
+  arch -> archdir [label="51 fil", color="#5b6770", fontcolor="#5b6770", style=dashed];
+  gw -> dofb [label="52 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  gw -> dofl [label="53 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  sched -> dofdk [label="54 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  sched -> netfugl [label="55 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  sched -> dmi [label="56 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  sched -> meteo [label="57 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  apisvc -> xc [label="58 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  wpush -> fcm [label="59 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  apisvc -> fcm [label="60 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  wpush -> wps [label="61 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  apisvc -> wps [label="62 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid];
+  fcm -> pushrx [label="63 push", color="#1f5fa8", fontcolor="#1f5fa8", style=dashed, constraint=false];
+  wps -> sw [label="64 push", color="#1f5fa8", fontcolor="#1f5fa8", style=dashed, constraint=false];
+  leaf -> osm [label="65 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid, constraint=false];
+  spa -> dofb [label="66 HTTPS", color="#1f5fa8", fontcolor="#1f5fa8", style=solid, constraint=false];
+}
