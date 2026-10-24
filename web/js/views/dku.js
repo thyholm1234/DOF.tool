@@ -12,34 +12,42 @@ const STATUS_TAG = { ny: "SU", behandles: "SUB", afventer: "bemaerk", afgjort: "
 /** Er modulet synligt for den indloggede? */
 export const dkuVisible = () => !!state.user?.dku?.visible;
 
-/** Dialog: tip DKU om en observation. source = "dofbasen" (obsid) eller "portal" (feltmelding). */
+const isDku = () => !!(state.user?.dku?.member_of?.length || state.user?.dku?.admin);
+
+/** Dialog: tip DKU om en observation – eller, for DKU-ansvarlige, åbn en sag direkte.
+ *  source = "dofbasen" (obsid) eller "portal" (feltmelding). */
 export function tipDku(source, id, label) {
+  const dku = isDku();
   const reason = h("select", {}, ...REASONS.map(([v, t]) => h("option", { value: v }, t)));
-  const body = h("textarea", { maxlength: 4000, required: true, minlength: 10, style: { minHeight: "120px" },
-    placeholder: "Hvad er du i tvivl om? Fx manglende beskrivelse, usandsynlig dato, antal eller lokalitet …" });
-  const onlyDku = h("input", { type: "checkbox" });
-  const { close } = modal("Tip DKU", h("form", { class: "stack", onsubmit: async (e) => {
+  const body = h("textarea", { maxlength: 4000, required: true, minlength: 10, style: { minHeight: "110px" },
+    placeholder: dku ? "Hvad er DKU i tvivl om? (ses kun af DKU)" : "Hvad er du i tvivl om? Fx manglende beskrivelse, usandsynlig dato, antal eller lokalitet …" });
+  const toObserver = h("textarea", { maxlength: 4000, style: { minHeight: "90px" }, placeholder: "Fx: Kan du beskrive fuglen nærmere og fortælle, hvordan den blev bestemt?" });
+  const { close } = modal(dku ? "DKU-sag" : "Tip DKU", h("form", { class: "stack", onsubmit: async (e) => {
     e.preventDefault();
     try {
-      const r = await api("/api/dku/cases", { method: "POST", body: { source, id, reason: reason.value, body: body.value, visibility: onlyDku.checked ? "dku" : "alle" } });
+      const r = await api("/api/dku/cases", { method: "POST", body: { source, id, reason: reason.value, body: body.value, observer_note: dku ? toObserver.value : "" } });
       close();
-      toast(r.joined ? "Tilføjet til en sag, DKU allerede har om observationen" : "Tak – DKU har fået dit tip");
+      toast(r.origin === "dku" ? (r.joined ? "Der var allerede en sag – din note er tilføjet" : "DKU-sagen er oprettet")
+        : r.joined ? "Tilføjet til en sag, DKU allerede har om observationen" : "Tak – DKU har fået dit tip");
       location.hash = `#/dku/${r.id}`;
     } catch (err) { toast(err.message, "err"); }
   } },
     h("p", { class: "muted", style: { margin: 0 } }, label),
     h("label", { class: "field" }, h("span", {}, "Hvorfor"), reason),
-    h("label", { class: "field" }, h("span", {}, "Din begrundelse"), body),
-    h("label", { class: "check" }, onlyDku, "Kun til DKU (observatøren ser ikke begrundelsen)"),
-    h("p", { class: "muted", style: { fontSize: ".85rem", margin: 0 } },
-      "DKU vurderer tippet først. Observatøren inddrages kun, hvis DKU finder grund til det, og ser aldrig, hvem der har tippet."),
-    h("div", { class: "row" }, h("button", { class: "btn primary" }, "Send til DKU"))));
+    h("label", { class: "field" }, h("span", {}, dku ? "Intern note (kun DKU)" : "Din begrundelse til DKU"), body),
+    dku ? h("label", { class: "field" }, h("span", {}, "Skriv til observatøren nu (valgfrit)"), toObserver) : null,
+    h("p", { class: "muted", style: { fontSize: ".85rem", margin: 0 } }, dku
+      ? "Er du DKU for observationens lokalafdeling, åbnes sagen direkte under behandling – ellers sendes den som tip til de ansvarlige. Observatøren kan aldrig se, om en sag startede med et tip."
+      : "Dit tip går kun til DKU. Observatøren får aldrig at vide, at der er tippet – eller af hvem."),
+    h("div", { class: "row" }, h("button", { class: "btn primary" }, dku ? "Opret sag" : "Send til DKU"))));
 }
 
 /** Knap til observationskort; null hvis modulet er slået fra eller det er brugerens egen observation. */
 export function tipButton(source, id, { own = false, label = "" } = {}) {
   if (!dkuVisible() || own) return null;
-  return h("button", { class: "btn sm ghost", type: "button", title: "Tip DKU om en tvivlsom observation", onclick: () => tipDku(source, id, label), html: `${icon("flag")} Tip DKU` });
+  const dku = isDku();
+  return h("button", { class: "btn sm ghost", type: "button", title: dku ? "Åbn en DKU-sag om observationen" : "Tip DKU om en tvivlsom observation",
+    onclick: () => tipDku(source, id, label), html: `${icon("flag")} ${dku ? "DKU-sag" : "Tip DKU"}` });
 }
 
 export async function render(view, [sub]) {
@@ -79,8 +87,9 @@ export async function render(view, [sub]) {
           r.unread ? h("span", { class: "badge-inline", style: { marginLeft: "6px" } }, "nyt") : null),
         h("span", { class: `tag ${STATUS_TAG[r.status]}` }, r.outcome_label || r.status_label)),
       h("div", { class: "muted", style: { fontSize: ".86rem" } },
-        [r.reason, tab !== "observer" ? `observatør: ${r.observer}` : null, r.afdelinger.join(", "),
-         r.n_tippers > 1 ? `${r.n_tippers} tip` : null, r.assignee ? `hos ${r.assignee}` : null, `opdateret ${ago(r.updated_at)}`]
+        [r.reason, r.observer ? `observatør: ${r.observer}` : null, (r.afdelinger || []).join(", "),
+         r.origin === "dku" ? "oprettet af DKU" : r.n_tippers > 1 ? `${r.n_tippers} tip` : null,
+         r.assignee ? `hos ${r.assignee}` : null, `opdateret ${ago(r.updated_at)}`]
           .filter(Boolean).join(" · ")))));
   };
   draw();
@@ -94,7 +103,8 @@ async function caseView(view, id) {
   try { c = await api(`/api/dku/cases/${id}`); } catch (err) { view.replaceChildren(errorBox(err), h("p", {}, h("a", { href: "#/dku" }, "← DKU"))); return; }
   refreshUser().catch(() => {});  // ulæst-tælleren i menuen
   const reload = () => caseView(view, id);
-  const roleText = { dku: "Du behandler sagen som DKU", tipper: "Du har tippet DKU", observer: "DKU har spørgsmål til din observation" }[c.role];
+  const roleText = { dku: c.origin === "dku" ? "Sagen er oprettet af DKU" : "Sagen startede med et tip", tipper: "Du har tippet DKU",
+    observer: "DKU har et spørgsmål til din observation" }[c.role];
   const changed = new Set(c.changes.map(x => x.field));
   const fieldTable = (rows) => h("table", { class: "data dku-fields" }, h("tbody", {}, ...rows.map(f => h("tr", { class: changed.has(f.key) ? "changed" : "" },
     h("th", {}, f.label), h("td", { style: { whiteSpace: "pre-wrap" } }, f.value)))));
@@ -120,27 +130,29 @@ async function caseView(view, id) {
       h("small", { class: "muted" }, "Observationen rettes i DOFbasen; ændringen ses her, når DOF.tool har hentet den.")) : null);
 
   const msgs = h("div", { class: "support-msgs" }, ...c.messages.map(m => h("div", {
-    class: `support-msg ${m.role === "system" ? "system" : m.mine ? "admin" : "user"} ${m.visibility === "dku" ? "internal" : ""}` },
+    class: `support-msg ${m.role === "system" ? "system" : m.mine ? "admin" : "user"} ${m.visibility === "dku" && c.role === "dku" ? "internal" : ""}` },
     m.role === "system" ? null : h("div", { class: "row between" }, h("b", {}, m.author),
-      h("small", { class: "muted" }, `${m.visibility === "dku" ? "kun DKU · " : ""}${ago(m.created_at)}`)),
+      h("small", { class: "muted" }, `${m.channel ? `${m.channel} · ` : ""}${ago(m.created_at)}`)),
     h("p", { style: { margin: m.role === "system" ? 0 : "4px 0 0", whiteSpace: "pre-wrap" } }, m.body),
     m.role === "system" ? h("small", { class: "muted" }, ago(m.created_at)) : null)));
 
-  const text = h("textarea", { maxlength: 4000, placeholder: c.role === "dku" ? "Skriv til parterne eller en intern note…" : "Skriv til DKU…", style: { minHeight: "80px" } });
-  const vis = h("select", {}, h("option", { value: "alle" }, c.role === "dku" ? (c.observer_involved ? "Til tipper og observatør" : "Til tipperen") : "Til alle i sagen"),
-    h("option", { value: "dku" }, c.role === "dku" ? "Intern note (kun DKU)" : "Kun til DKU"));
-  const composer = c.can.message ? h("form", { class: "stack", onsubmit: async (e) => {
+  // Kanaler: DKU vælger (observatøren, tipperen eller intern note); tipper og observatør skriver altid kun til DKU
+  const CH = { observer: "Til observatøren", tipper: "Til tipperen", dku: "Intern note (kun DKU)" };
+  const text = h("textarea", { maxlength: 4000, placeholder: c.role === "dku" ? "Skriv til observatøren, tipperen eller en intern note…" : "Skriv til DKU…", style: { minHeight: "80px" } });
+  const ch = h("select", {}, ...c.channels.map(k => h("option", { value: k }, CH[k])));
+  const composer = c.channels.length ? h("form", { class: "stack", onsubmit: async (e) => {
     e.preventDefault();
     if (!text.value.trim()) return;
-    try { await api(`/api/dku/cases/${id}/messages`, { method: "POST", body: { body: text.value, visibility: vis.value } }); reload(); }
+    try { await api(`/api/dku/cases/${id}/messages`, { method: "POST", body: { body: text.value, channel: ch.value } }); reload(); }
     catch (err) { toast(err.message, "err"); }
-  } }, text, h("div", { class: "row" }, vis, h("button", { class: "btn primary" }, "Send"))) : h("p", { class: "muted" }, "Sagen er afgjort.");
+  } }, text, h("div", { class: "row" }, c.channels.length > 1 ? ch : h("small", { class: "muted" }, "Til DKU"), h("button", { class: "btn primary" }, "Send")))
+    : h("p", { class: "muted" }, "Sagen er afgjort.");
 
   view.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("a", { href: "#/dku", class: "muted" }, "← DKU"),
       h("h1", { style: { margin: "2px 0 0" } }, `Sag #${c.id}: ${(c.current || c.fields).find(f => f.key === "art")?.value || ""}`)),
       h("span", { class: "spacer" }), h("span", { class: `tag ${STATUS_TAG[c.status]}` }, c.outcome_label || c.status_label)),
-    h("p", { class: "muted" }, [roleText, c.reason_label, c.afdelinger.join(", "), c.assignee ? `behandles af ${c.assignee}` : null,
+    h("p", { class: "muted" }, [roleText, c.reason_label, (c.afdelinger || []).join(", "), c.assignee ? `behandles af ${c.assignee}` : null,
       `oprettet ${fmtDate(c.created_at)}`].filter(Boolean).join(" · ")),
     c.outcome ? h("div", { class: "notice" }, h("b", {}, c.outcome_label), c.outcome_note ? h("p", { style: { margin: "4px 0 0", whiteSpace: "pre-wrap" } }, c.outcome_note) : null) : null,
     h("div", { class: "grid-2 mt" }, obsCard,
@@ -170,7 +182,7 @@ function actionsCard(c, reload) {
   };
   const closed = c.status === "afgjort";
   return h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "Behandling"),
-    c.tippers.length ? h("small", { class: "muted" }, `Tippet af: ${c.tippers.join(", ")}`) : null,
+    c.tippers.length ? h("small", { class: "muted" }, `Tippet af: ${c.tippers.join(", ")} (kun synligt for DKU)`) : null,
     h("div", { class: "row" },
       !closed && c.status === "ny" ? h("button", { class: "btn", onclick: () => run("take") }, "Tag sagen") : null,
       !closed && c.observer.in_portal && !c.observer_involved ? h("button", { class: "btn", onclick: involve }, "Inddrag observatøren") : null,

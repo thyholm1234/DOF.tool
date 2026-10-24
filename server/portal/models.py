@@ -1406,13 +1406,15 @@ class DkuCase(Base):
     """En sag om én observation: DOFbasen (obsid) eller en feltmelding i portalen (report_id).
 
     snapshot er observationens data, da sagen blev oprettet – så DKU kan se, hvad der er rettet siden. Observatøren ser
-    først sagen, når DKU har inddraget vedkommende (observer_involved)."""
+    først sagen, når DKU har inddraget vedkommende (observer_involved), og får aldrig at vide, om sagen startede med et tip
+    eller hos DKU selv (origin vises kun for DKU)."""
 
     __tablename__ = "dku_cases"
     __table_args__ = (Index("ix_dku_cases_obs", "source", "obsid", "report_id"), Index("ix_dku_cases_status", "status", "updated_at"))
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     source: Mapped[str] = mapped_column(String(10))  # dofbasen / portal
+    origin: Mapped[str] = mapped_column(String(6), default="tip", server_default="tip")  # tip / dku (kun synligt for DKU)
     obsid: Mapped[int | None] = mapped_column(BigInteger)
     report_id: Mapped[int | None] = mapped_column(ForeignKey("field_reports.id", ondelete="SET NULL"))
     obserkode: Mapped[str | None] = mapped_column(String(16))
@@ -1446,7 +1448,8 @@ class DkuParticipant(Base):
 
 
 class DkuMessage(Base):
-    """Besked i en sag. visibility: alle (alle parter, når de kan se sagen) eller dku (kun DKU og afsenderen)."""
+    """Besked i en sag. visibility er kanalen: dku (intern note), tipper (DKU ↔ tippere) eller observer (DKU ↔ observatøren).
+    En tipper ser kun sine egne beskeder og DKU's svar til tippere – tippere og observatøren kan aldrig skrive til hinanden."""
 
     __tablename__ = "dku_messages"
 
@@ -1454,7 +1457,7 @@ class DkuMessage(Base):
     case_id: Mapped[int] = mapped_column(ForeignKey("dku_cases.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     role: Mapped[str] = mapped_column(String(10))  # tipper / observer / dku / system
-    visibility: Mapped[str] = mapped_column(String(6), default="alle")
+    visibility: Mapped[str] = mapped_column(String(10), default="dku")
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -1533,4 +1536,10 @@ EXTRA_DDL = [
     "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM settings WHERE key = 'module_added_dku') THEN"
     " UPDATE roles SET modules = array_append(modules, 'dku') WHERE key = 'admin' AND NOT ('dku' = ANY(modules));"
     " INSERT INTO settings (key, value) VALUES ('module_added_dku', 'true'); END IF; END $$",
+    # DKU: adskilte kanaler i stedet for «alle»; sagens oprindelse (tip eller DKU selv)
+    "ALTER TABLE dku_messages ALTER COLUMN visibility TYPE varchar(10)",
+    "ALTER TABLE dku_cases ADD COLUMN IF NOT EXISTS origin varchar(6) NOT NULL DEFAULT 'tip'",
+    "UPDATE dku_messages SET visibility = 'tipper' WHERE visibility = 'alle' AND role = 'tipper'",
+    "UPDATE dku_messages m SET visibility = CASE WHEN c.observer_involved THEN 'observer' ELSE 'tipper' END"
+    " FROM dku_cases c WHERE m.case_id = c.id AND m.visibility = 'alle'",
 ]

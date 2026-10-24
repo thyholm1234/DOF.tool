@@ -68,53 +68,80 @@ class TipIn(BaseModel):
     id: int
     reason: str = Field(pattern="^(dokumentation|usandsynlig|fejl|andet)$")
     body: str = Field(min_length=10, max_length=4000)
-    visibility: str = Field("alle", pattern="^(alle|dku)$")
+    observer_note: str = Field("", max_length=4000)  # kun DKU: skriv til observatøren med det samme
+
+
+async def _involve(db: AsyncSession, case: DkuCase, user: User, note: str) -> None:
+    """Inddrag observatøren: sagen bliver synlig for vedkommende, og DKU's besked lægges i observatørens kanal."""
+    case.status, case.observer_involved = "afventer", True
+    case.assignee_id = case.assignee_id or user.id
+    await _say(db, case, None, "system", f"{user.navn or user.obserkode} har inddraget observatøren.", "dku")
+    await _say(db, case, user.id, "dku", note, "observer")
 
 
 @router.post("/cases")
-async def tip(body: TipIn, tasks: BackgroundTasks, c: dict = Depends(ctx), user: User = Depends(require_user),
-              db: AsyncSession = Depends(get_session)):
+async def open_case(body: TipIn, tasks: BackgroundTasks, c: dict = Depends(ctx), user: User = Depends(require_user),
+                    db: AsyncSession = Depends(get_session)):
+    """Et tip fra en bruger – eller, når brugeren er DKU for observationens afdeling, en sag DKU selv åbner."""
     obs = await dku.observation(db, body.source, body.id)
     own = obs is not None and (obs["obserkode"] == user.obserkode or obs["owner_user_id"] == user.id)
     if obs is None or (obs["hemmelig"] and not own):
         raise HTTPException(404, "Observationen findes ikke")
     if own:
         raise HTTPException(400, "Det er din egen observation – ret den selv i stedet")
-    key = f"dku:tips:{user.id}:{dk_today()}"
-    n = await kv().incr(key)
-    await kv().expire(key, 86400)
-    if n > dku.TIPS_PER_DAY:
-        raise HTTPException(429, f"Du kan højst sende {dku.TIPS_PER_DAY} tip om dagen")
+    afd = obs["afdelinger"]
+    if not afd and obs["loknr"]:
+        afd = [a for a in [(await db.execute(text("SELECT afdeling_id FROM locations WHERE loknr = :l"),
+                                              {"l": obs["loknr"]})).scalar()] if a]
+    as_dku = await dku.is_dku_for(db, user, afd)
+    note = body.observer_note.strip()
+    if note and not as_dku:
+        raise HTTPException(403, "Kun DKU kan skrive til observatøren")
+    if not as_dku:
+        key = f"dku:tips:{user.id}:{dk_today()}"
+        n = await kv().incr(key)
+        await kv().expire(key, 86400)
+        if n > dku.TIPS_PER_DAY:
+            raise HTTPException(429, f"Du kan højst sende {dku.TIPS_PER_DAY} tip om dagen")
     ident = "obsid" if body.source == "dofbasen" else "report_id"
     existing = (await db.execute(text(f"""SELECT id FROM dku_cases WHERE source = :s AND {ident} = :i AND status <> 'afgjort'
         ORDER BY id LIMIT 1"""), {"s": body.source, "i": body.id})).scalar()
     if existing:
-        case = await db.get(DkuCase, existing)
-        joined = True
+        case, joined = await db.get(DkuCase, existing), True
     else:
-        afd = obs["afdelinger"]
-        if not afd and obs["loknr"]:
-            afd = [a for a in [(await db.execute(text("SELECT afdeling_id FROM locations WHERE loknr = :l"),
-                                                  {"l": obs["loknr"]})).scalar()] if a]
         observer_id = obs["owner_user_id"] or (await db.execute(text(
             "SELECT id FROM users WHERE obserkode = :k AND NOT blocked"), {"k": obs["obserkode"]})).scalar()
         case = DkuCase(source=body.source, obsid=obs["obsid"], report_id=obs["report_id"], obserkode=obs["obserkode"],
                        observer_id=observer_id, artnr=obs["artnr"], dato=datetime.fromisoformat(obs["dato"]).date(),
-                       loknr=obs["loknr"], afdelinger=afd, snapshot=obs, reason=body.reason, created_by=user.id)
+                       loknr=obs["loknr"], afdelinger=afd, snapshot=obs, reason=body.reason, created_by=user.id,
+                       origin="dku" if as_dku else "tip", status="behandles" if as_dku else "ny",
+                       assignee_id=user.id if as_dku else None)
         db.add(case)
         await db.flush()
         if observer_id:
             db.add(DkuParticipant(case_id=case.id, user_id=observer_id, role="observer"))
         joined = False
-    await db.execute(text("""INSERT INTO dku_participants (case_id, user_id, role, last_read_at) VALUES (:c, :u, 'tipper', now())
-        ON CONFLICT (case_id, user_id) DO NOTHING"""), {"c": case.id, "u": user.id})
-    prefix = "" if not joined else f"Endnu et tip ({dku.REASONS[body.reason].lower()}):\n"
-    await _say(db, case, user.id, "tipper", prefix + body.body.strip(), body.visibility)
+    reason = dku.REASONS[body.reason]
+    if as_dku:
+        await _say(db, case, user.id, "dku", f"{reason}:\n{body.body.strip()}" if not joined else body.body.strip(), "dku")
+        if note and case.status != "afgjort":
+            if not case.observer_id:
+                raise HTTPException(400, "Observatøren bruger ikke DOF.tool – kontakt vedkommende via DOFbasen")
+            await _involve(db, case, user, note)
+    else:
+        await db.execute(text("""INSERT INTO dku_participants (case_id, user_id, role, last_read_at) VALUES (:c, :u, 'tipper', now())
+            ON CONFLICT (case_id, user_id) DO NOTHING"""), {"c": case.id, "u": user.id})
+        await _say(db, case, user.id, "tipper", (f"Endnu et tip ({reason.lower()}):\n" if joined else "") + body.body.strip(), "tipper")
     await db.commit()
-    fields = obs["fields"]
-    tasks.add_task(dku.notify, case.id, to="dku", title="nyt tip" if not joined else "endnu et tip", exclude=user.id,
-                   body=f"{dku.REASONS[body.reason]}: {fields['antal']} {fields['art']}, {fields['lok']} {fields['dato']}")
-    return {"id": case.id, "joined": joined}
+    if as_dku and case.source == "dofbasen" and case.obsid:
+        await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
+    if note:
+        tasks.add_task(dku.notify, case.id, to="observer", title="spørgsmål til din observation", body=note[:200])
+    if not as_dku:
+        f = obs["fields"]
+        tasks.add_task(dku.notify, case.id, to="dku", title="nyt tip" if not joined else "endnu et tip", exclude=user.id,
+                       body=f"{reason}: {f['antal']} {f['art']}, {f['lok']} {f['dato']}")
+    return {"id": case.id, "joined": joined, "origin": "dku" if as_dku else "tip"}
 
 
 @router.get("/cases")
@@ -124,41 +151,47 @@ async def cases(view: str = Query("mine", pattern="^(mine|observer|dku)$"), stat
     if view == "dku":
         if not (afd or c["admin"]):
             raise HTTPException(403, "Kun for DKU-ansvarlige")
-        where = dku._dku_scope_sql(afd, c["admin"])
+        where, role = dku._dku_scope_sql(afd, c["admin"]), "dku"
     elif view == "mine":
-        where = "EXISTS (SELECT 1 FROM dku_participants x WHERE x.case_id = c.id AND x.user_id = :u AND x.role = 'tipper')"
+        where, role = "EXISTS (SELECT 1 FROM dku_participants x WHERE x.case_id = c.id AND x.user_id = :u AND x.role = 'tipper')", "tipper"
     else:
-        where = ("c.observer_involved AND EXISTS (SELECT 1 FROM dku_participants x WHERE x.case_id = c.id AND x.user_id = :u "
-                 "AND x.role = 'observer')")
+        where, role = ("c.observer_involved AND EXISTS (SELECT 1 FROM dku_participants x WHERE x.case_id = c.id AND x.user_id = :u "
+                       "AND x.role = 'observer')"), "observer"
     st = {"open": "c.status <> 'afgjort'", "closed": "c.status = 'afgjort'", "all": "TRUE"}[state]
-    # Ulæst: beskeder efter seneste læsning, som brugeren må se (DKU ser alt, andre kun beskeder til alle)
-    vis = "TRUE" if view == "dku" else "m.visibility = 'alle'"
     rows = (await db.execute(text(f"""
-        SELECT c.id, c.source, c.status, c.outcome, c.reason, c.dato, c.observer_involved, c.updated_at, c.created_at,
+        SELECT c.id, c.source, c.origin, c.status, c.outcome, c.reason, c.dato, c.observer_involved, c.updated_at,
                c.snapshot->'fields' AS f, c.snapshot->>'observer' AS observer, c.afdelinger, a.navn AS assignee,
                (SELECT count(*) FROM dku_participants x WHERE x.case_id = c.id AND x.role = 'tipper') AS n_tippers,
                EXISTS (SELECT 1 FROM dku_messages m LEFT JOIN dku_participants p ON p.case_id = c.id AND p.user_id = :u
-                       WHERE m.case_id = c.id AND m.user_id IS DISTINCT FROM :u AND {vis}
+                       WHERE m.case_id = c.id AND m.user_id IS DISTINCT FROM :u AND {dku.visible_sql(role)}
                          AND m.created_at > coalesce(p.last_read_at, 'epoch')) AS unread
         FROM dku_cases c LEFT JOIN users a ON a.id = c.assignee_id
         WHERE {where} AND {st} ORDER BY c.updated_at DESC LIMIT 300"""), {"u": user.id, "afd": list(afd)})).mappings().all()
     names = dict((await db.execute(text("SELECT id, navn FROM afdelinger"))).all())
-    return [{"id": r["id"], "source": r["source"], "status": r["status"], "status_label": dku.STATUSES[r["status"]],
-             "outcome": r["outcome"], "outcome_label": dku.OUTCOMES.get(r["outcome"] or ""), "reason": dku.REASONS[r["reason"]],
-             "art": r["f"].get("art"), "antal": r["f"].get("antal"), "lok": r["f"].get("lok"), "dato": r["dato"].isoformat(),
-             "observer": r["observer"], "afdelinger": [names.get(a, str(a)) for a in r["afdelinger"] or []],
-             "assignee": r["assignee"], "n_tippers": r["n_tippers"], "observer_involved": r["observer_involved"],
-             "unread": r["unread"], "updated_at": r["updated_at"].isoformat()} for r in rows]
+    out = []
+    for r in rows:
+        item = {"id": r["id"], "source": r["source"], "status": r["status"], "status_label": dku.STATUSES[r["status"]],
+                "outcome": r["outcome"], "outcome_label": dku.OUTCOMES.get(r["outcome"] or ""),
+                "art": r["f"].get("art"), "antal": r["f"].get("antal"), "lok": r["f"].get("lok"), "dato": r["dato"].isoformat(),
+                "unread": r["unread"], "updated_at": r["updated_at"].isoformat()}
+        if role != "observer":  # observatøren ser hverken grunden eller hvordan sagen startede
+            item |= {"reason": dku.REASONS[r["reason"]], "observer": r["observer"]}
+        if role == "dku":
+            item |= {"origin": r["origin"], "afdelinger": [names.get(a, str(a)) for a in r["afdelinger"] or []],
+                     "assignee": r["assignee"], "n_tippers": r["n_tippers"], "observer_involved": r["observer_involved"]}
+        out.append(item)
+    return out
 
 
 # ---------------------------------------------------------------- én sag
+
+CHANNEL_LABEL = {"dku": "intern note", "tipper": "til tipperen", "observer": "til observatøren"}
+
 
 def _author(m, role: str, names: dict[int, str]) -> str:
     if m["role"] == "system":
         return "DOF.tool"
     name = names.get(m["user_id"]) or "Slettet bruger"
-    if m["role"] == "tipper" and role == "observer":
-        return "Tipper"  # tipperen er anonym for observatøren
     return {"dku": f"{name} (DKU)", "tipper": f"{name} (tipper)", "observer": f"{name} (observatør)"}.get(m["role"], name)
 
 
@@ -168,29 +201,25 @@ async def get_case(case_id: int, c: dict = Depends(ctx), user: User = Depends(re
     snap = case.snapshot
     ident = case.obsid if case.source == "dofbasen" else case.report_id
     current = await dku.observation(db, case.source, ident) if ident else None
-    msgs = (await db.execute(text("""SELECT id, user_id, role, visibility, body, created_at FROM dku_messages
-        WHERE case_id = :c AND (:dku OR visibility = 'alle' OR user_id = :u) ORDER BY created_at, id"""),
-        {"c": case.id, "dku": role == "dku", "u": user.id})).mappings().all()
+    msgs = (await db.execute(text(f"""SELECT m.id, m.user_id, m.role, m.visibility, m.body, m.created_at FROM dku_messages m
+        WHERE m.case_id = :c AND {dku.visible_sql(role)} ORDER BY m.created_at, m.id"""), {"c": case.id, "u": user.id})).mappings().all()
     ids = {m["user_id"] for m in msgs if m["user_id"]} | {case.assignee_id, case.observer_id} - {None}
     names = dict((await db.execute(text("SELECT id, coalesce(navn, obserkode) FROM users WHERE id = ANY(:i)"),
                                    {"i": list(ids)})).all()) if ids else {}
-    tippers = (await db.execute(text("""SELECT u.id, coalesce(u.navn, u.obserkode) FROM dku_participants p JOIN users u ON u.id = p.user_id
-        WHERE p.case_id = :c AND p.role = 'tipper'"""), {"c": case.id})).all() if role == "dku" else []
-    # Læst: DKU-ansvarlige, der ikke er part i sagen, får en række med rollen dku
+    tippers = [n for _, n in (await db.execute(text("""SELECT u.id, coalesce(u.navn, u.obserkode) FROM dku_participants p
+        JOIN users u ON u.id = p.user_id WHERE p.case_id = :c AND p.role = 'tipper'"""), {"c": case.id})).all()]
     await db.execute(text("""INSERT INTO dku_participants (case_id, user_id, role, last_read_at) VALUES (:c, :u, :r, now())
         ON CONFLICT (case_id, user_id) DO UPDATE SET last_read_at = now()"""), {"c": case.id, "u": user.id, "r": role})
     await db.commit()
     is_owner = user.id == case.observer_id or (snap.get("obserkode") and snap.get("obserkode") == user.obserkode)
     closed = case.status == "afgjort"
     afd = dict((await db.execute(text("SELECT id, navn FROM afdelinger"))).all())
-    return {
+    out = {
         "id": case.id, "source": case.source, "role": role, "status": case.status, "status_label": dku.STATUSES[case.status],
         "outcome": case.outcome, "outcome_label": dku.OUTCOMES.get(case.outcome or ""), "outcome_note": case.outcome_note,
-        "reason": case.reason, "reason_label": dku.REASONS[case.reason], "observer_involved": case.observer_involved,
-        "created_at": case.created_at.isoformat(), "closed_at": case.closed_at.isoformat() if case.closed_at else None,
-        "assignee": names.get(case.assignee_id), "afdelinger": [afd.get(a, str(a)) for a in case.afdelinger or []],
+        "observer_involved": case.observer_involved, "created_at": case.created_at.isoformat(),
+        "closed_at": case.closed_at.isoformat() if case.closed_at else None,
         "observer": {"name": snap.get("observer"), "obserkode": snap.get("obserkode"), "in_portal": bool(case.observer_id)},
-        "tippers": [n for _, n in tippers],
         "fields": [{"key": k, "label": label, "value": snap["fields"].get(k, "")} for k, label in dku.FIELDS if snap["fields"].get(k)],
         "current": [{"key": k, "label": label, "value": current["fields"].get(k, "")} for k, label in dku.FIELDS
                     if current["fields"].get(k)] if current else None,
@@ -201,14 +230,22 @@ async def get_case(case_id: int, c: dict = Depends(ctx), user: User = Depends(re
                   "edit": (current or snap).get("edit") if is_owner and case.source == "portal" and not closed else None,
                   "edit_dofbasen": snap.get("url") if is_owner and case.source == "dofbasen" and not closed else None},
         "messages": [{"id": m["id"], "role": m["role"], "author": _author(m, role, names), "mine": m["user_id"] == user.id,
-                      "visibility": m["visibility"], "body": m["body"], "created_at": m["created_at"].isoformat()} for m in msgs],
-        "can": {"manage": role == "dku", "message": role == "dku" or not closed},
+                      "visibility": m["visibility"], "channel": CHANNEL_LABEL.get(m["visibility"]) if role == "dku" else None,
+                      "body": m["body"], "created_at": m["created_at"].isoformat()} for m in msgs],
+        "channels": dku.channels(role, case.observer_involved, bool(tippers)) if role == "dku" or not closed else [],
+        "can": {"manage": role == "dku"},
     }
+    if role != "observer":  # observatøren ser hverken grunden, tipperne eller hvordan sagen startede
+        out["reason_label"] = dku.REASONS[case.reason]
+    if role == "dku":
+        out |= {"origin": case.origin, "tippers": tippers, "assignee": names.get(case.assignee_id),
+                "afdelinger": [afd.get(a, str(a)) for a in case.afdelinger or []]}
+    return out
 
 
 class MessageIn(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
-    visibility: str = Field("alle", pattern="^(alle|dku)$")
+    channel: str | None = Field(None, pattern="^(dku|tipper|observer)$")
 
 
 @router.post("/cases/{case_id}/messages")
@@ -217,20 +254,24 @@ async def post_message(case_id: int, body: MessageIn, tasks: BackgroundTasks, c:
     case, role = await _case(db, case_id, user)
     if case.status == "afgjort" and role != "dku":
         raise HTTPException(400, "Sagen er afgjort – DKU kan genåbne den")
-    key = f"dku:msg:{user.id}"
-    if not await kv().set(key, "1", nx=True, ex=5):
+    has_tippers = bool(await dku.participants(db, case.id, "tipper"))
+    allowed = dku.channels(role, case.observer_involved, has_tippers)
+    channel = body.channel or allowed[0]
+    if channel not in allowed:
+        raise HTTPException(400, "Du kan ikke skrive i den kanal")
+    if not await kv().set(f"dku:msg:{user.id}", "1", nx=True, ex=5):
         raise HTTPException(429, "Vent et øjeblik før næste besked")
-    await _say(db, case, user.id, role, body.body.strip(), body.visibility)
+    await _say(db, case, user.id, role, body.body.strip(), channel)
     await db.execute(text("UPDATE dku_participants SET last_read_at = now() WHERE case_id = :c AND user_id = :u"),
                      {"c": case.id, "u": user.id})
     await db.commit()
     preview = body.body.strip()[:200]
-    if body.visibility == "dku":
-        tasks.add_task(dku.notify, case.id, to="dku", title="ny besked (kun DKU)", body=preview, exclude=user.id)
-    elif role == "dku":
-        tasks.add_task(dku.notify, case.id, to="parter", title="ny besked fra DKU", body=preview, exclude=user.id)
+    if role != "dku":
+        tasks.add_task(dku.notify, case.id, to="dku", title="ny besked", body=preview, exclude=user.id)
+    elif channel == "dku":
+        tasks.add_task(dku.notify, case.id, to="dku", title="intern note", body=preview, exclude=user.id)
     else:
-        tasks.add_task(dku.notify, case.id, to="alle", title="ny besked", body=preview, exclude=user.id)
+        tasks.add_task(dku.notify, case.id, to=channel, title="ny besked fra DKU", body=preview)
     return {"ok": True}
 
 
@@ -243,15 +284,17 @@ class ActionIn(BaseModel):
 @router.post("/cases/{case_id}/actions")
 async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict = Depends(ctx), user: User = Depends(require_user),
                  db: AsyncSession = Depends(get_session)):
+    """DKU's handlinger. Systembeskederne er interne; tipper og observatør ser status og afgørelse i sagens hoved."""
     case, role = await _case(db, case_id, user)
     if role != "dku":
         raise HTTPException(403, "Kun DKU kan behandle sagen")
     who = user.navn or user.obserkode
     note = body.note.strip()
     now = datetime.now(timezone.utc)
+    has_tippers = bool(await dku.participants(db, case.id, "tipper"))
+    if body.action in ("take", "involve") and case.status == "afgjort":
+        raise HTTPException(400, "Sagen er afgjort")
     if body.action == "take":
-        if case.status == "afgjort":
-            raise HTTPException(400, "Sagen er afgjort")
         case.status, case.assignee_id = ("behandles" if case.status == "ny" else case.status), user.id
         await _say(db, case, None, "system", f"{who} har taget sagen.", "dku")
         if note:
@@ -259,30 +302,24 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
             await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
-        tasks.add_task(dku.notify, case.id, to="tipper", title="DKU behandler dit tip", body=f"{who} har taget sagen.")
+        if has_tippers:
+            tasks.add_task(dku.notify, case.id, to="tipper", title="DKU behandler dit tip", body="DKU har taget sagen.", key="take")
     elif body.action == "involve":
         if not case.observer_id:
             raise HTTPException(400, "Observatøren bruger ikke DOF.tool – kontakt vedkommende via DOFbasen")
-        if case.status == "afgjort":
-            raise HTTPException(400, "Sagen er afgjort")
         if len(note) < 10:
             raise HTTPException(400, "Skriv til observatøren, hvad DKU er i tvivl om (mindst 10 tegn)")
-        case.status, case.observer_involved = "afventer", True
-        case.assignee_id = case.assignee_id or user.id
-        await _say(db, case, None, "system", "DKU har inddraget observatøren.", "alle")
-        await _say(db, case, user.id, "dku", note, "alle")
+        await _involve(db, case, user, note)
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
             await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
         tasks.add_task(dku.notify, case.id, to="observer", title="spørgsmål til din observation", body=note[:200])
-        tasks.add_task(dku.notify, case.id, to="tipper", title="observatøren er inddraget", body="DKU har kontaktet observatøren.",
-                       key="involve")
     elif body.action == "close":
         if not body.outcome:
             raise HTTPException(400, "Vælg en afgørelse")
         case.status, case.outcome, case.outcome_note, case.closed_at = "afgjort", body.outcome, note or None, now
         case.assignee_id = case.assignee_id or user.id
-        await _say(db, case, None, "system", f"Afgjort af {who}: {dku.OUTCOMES[body.outcome]}." + (f"\n{note}" if note else ""), "alle")
+        await _say(db, case, None, "system", f"Afgjort af {who}: {dku.OUTCOMES[body.outcome]}.", "dku")
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
             await _dofbasen_status(case.obsid, "dku" if body.outcome in ("godkendt", "rettet") else None, user.id, case.id)
@@ -291,13 +328,10 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
         if case.status != "afgjort":
             raise HTTPException(400, "Sagen er ikke afgjort")
         case.status, case.outcome, case.outcome_note, case.closed_at = ("afventer" if case.observer_involved else "behandles"), None, None, None
-        await _say(db, case, None, "system", f"{who} har genåbnet sagen.", "alle")
-        if note:
-            await _say(db, case, user.id, "dku", note, "alle")
+        await _say(db, case, None, "system", f"{who} har genåbnet sagen." + (f"\n{note}" if note else ""), "dku")
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
             await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
-        tasks.add_task(dku.notify, case.id, to="parter", title="sagen er genåbnet", body=note[:200] or "DKU har genåbnet sagen.")
     return {"ok": True, "status": case.status}
 
 

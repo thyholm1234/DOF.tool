@@ -1,12 +1,17 @@
 """DKU: tip om observationer, der mangler dokumentation eller virker forkerte, og sagsbehandling hos DKU.
 
+En sag startes enten af et tip fra en bruger eller af DKU selv (en DKU-ansvarlig åbner sagen direkte på en observation).
+
 Gangen i en sag:
   ny        – en bruger har tippet; kun tipperen og DKU kan se sagen
   behandles – en DKU-ansvarlig har taget sagen (DOFbasen-observationer får status «til behandling»)
   afventer  – DKU har inddraget observatøren, som nu kan se sagen, skrive og rette observationen
   afgjort   – godkendt, rettet, afvist eller henlagt (DOFbasen-observationer får status «behandlet af DKU» ved godkendt/rettet)
 
-Tipperen er anonym for observatøren. Beskeder er enten til alle parter eller kun til DKU (+ afsenderen).
+Observatøren må aldrig kunne se, om sagen startede med et tip eller hos DKU – og slet ikke hvem der har tippet. Derfor er
+beskederne delt i kanaler: dku (intern note), tipper (DKU ↔ tippere; en tipper ser kun egne beskeder og DKU's svar) og
+observer (DKU ↔ observatøren). Tippere og observatøren kan aldrig skrive til hinanden, og grunden til tippet vises ikke
+for observatøren.
 DKU-ansvarlige udpeges pr. lokalafdeling (afdeling 0 = landsdækkende) af brugere med admin-modulet «dku».
 
 Alle tabeller ligger i brugergruppen. Observationens data hentes for sig (DOFbasen i observationsgruppen, feltmeldinger
@@ -119,6 +124,30 @@ def is_admin(user: User) -> bool:
     return user.role == SUPERADMIN or can(user, "dku")
 
 
+async def is_dku_for(db: AsyncSession, user: User, afdelinger: list[int]) -> bool:
+    """Er brugeren DKU for en observation fra disse afdelinger (ansvarlig, landsdækkende eller administrator)?"""
+    if is_admin(user):
+        return True
+    afd = await member_afdelinger(db, user.id)
+    return 0 in afd or bool(afd & set(afdelinger or []))
+
+
+def channels(role: str, observer_involved: bool, has_tippers: bool) -> list[str]:
+    """Kanaler brugeren må skrive i: DKU vælger, tippere og observatøren har hver kun én."""
+    if role == "dku":
+        return [*(["observer"] if observer_involved else []), *(["tipper"] if has_tippers else []), "dku"]
+    return [role]
+
+
+def visible_sql(role: str) -> str:
+    """Beskeder rollen må se (alias m, parameter :u = brugerens id)."""
+    if role == "dku":
+        return "TRUE"
+    if role == "tipper":
+        return "(m.visibility = 'tipper' AND (m.role IN ('dku', 'system') OR m.user_id = :u))"
+    return "m.visibility = 'observer'"
+
+
 async def context(db: AsyncSession, user: User | None) -> dict:
     """Til /api/me og menuen: er modulet synligt, hvilke afdelinger er brugeren DKU for, og antal ulæste sager."""
     if user is None:
@@ -165,8 +194,8 @@ async def unread_count(db: AsyncSession, user: User, afd: set[int], admin: bool)
         JOIN dku_messages m ON m.case_id = c.id
         WHERE m.user_id IS DISTINCT FROM :u AND m.created_at > coalesce(p.last_read_at, 'epoch')
           AND (({_dku_scope_sql(afd, admin)})
-               OR (p.role = 'tipper' AND m.visibility = 'alle')
-               OR (p.role = 'observer' AND c.observer_involved AND m.visibility = 'alle'))
+               OR (p.role = 'tipper' AND m.visibility = 'tipper' AND m.role IN ('dku', 'system'))
+               OR (p.role = 'observer' AND c.observer_involved AND m.visibility = 'observer'))
     """), {"u": user.id, "afd": list(afd)})).scalar() or 0
 
 
@@ -237,7 +266,7 @@ async def report_changed(report_id: int) -> None:
             if body == last:
                 continue
             await s.execute(text("""INSERT INTO dku_messages (case_id, user_id, role, visibility, body)
-                VALUES (:c, NULL, 'system', 'alle', :b)"""), {"c": cid, "b": body})
+                VALUES (:c, NULL, 'system', 'observer', :b)"""), {"c": cid, "b": body})
             case.snapshot = {**case.snapshot, "current": now["fields"]}
             case.updated_at = datetime.now(timezone.utc)
             await s.commit()

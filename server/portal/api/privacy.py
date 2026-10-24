@@ -39,8 +39,9 @@ async def privacy() -> HTMLResponse:
             <li><b>Det du laver i portalen:</b> feltmeldinger med fotos og lyd, ture, kommentarer, likes, statusmeldinger,
             kalenderbesøg, lister, grupper, matrikler, områder og alarmregler, Netfugl-fotos, -artikler og -kommentarer,
             supportbeskeder og quizresultater.</li>
-            <li><b>DKU-sager:</b> tip om en observation, beskeder og DKU's afgørelse. Den, der tipper, er anonym for
-            observatøren. Observatøren inddrages kun, hvis DKU finder grund til det.</li>
+            <li><b>DKU-sager:</b> tip om en observation, beskeder og DKU's afgørelse. Et tip går kun til DKU: observatøren kan
+            ikke se, om en sag startede med et tip eller hos DKU selv, og slet ikke hvem der har tippet. Observatøren inddrages
+            kun, hvis DKU finder grund til det.</li>
             <li><b>Position</b> – kun hvis du slår deling til: din seneste position (ikke en historik).</li>
             <li><b>Push:</b> adressen på din enheds push-abonnement, hvis du slår notifikationer til.</li>
             <li><b>Teknisk:</b> en login-cookie, en aktivitetslog (sidevisninger og handlinger) og serverlogs med IP-adresse.</li>
