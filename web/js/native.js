@@ -105,19 +105,59 @@ export function watchPosition(id, { distance = 10, precise = true } = {}, onPoin
 let stopShare = null;
 const SHARE_MIN_M = 100;
 
+/** Fast id for denne installation – positionen følger én enhed ad gangen (api/position.py). */
+export function deviceId() {
+  let id = null;
+  try { id = localStorage.getItem("dof-device-id"); } catch { /* ignore */ }
+  if (!id) {
+    id = (crypto.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "");
+    try { localStorage.setItem("dof-device-id", id); } catch { /* ignore */ }
+  }
+  return id;
+}
+
+/** Et genkendeligt navn til enheden, fx "Android · SM-S911B" eller "iPhone". */
+async function deviceName() {
+  const platform = cap()?.getPlatform?.() === "ios" ? (/iPad/.test(navigator.userAgent) ? "iPad" : "iPhone") : "Android";
+  let model = "";
+  try { model = (await navigator.userAgentData?.getHighEntropyValues?.(["model"]))?.model || ""; } catch { /* ignore */ }
+  if (!model && platform === "Android") model = (navigator.userAgent.match(/Android [\d.]+; ([^;)]+)/)?.[1] || "").trim();
+  return model && model !== "K" ? `${platform} · ${model}`.slice(0, 60) : platform;
+}
+
+/** Er det denne enhed, brugerens position følger? */
+export const isPositionDevice = () => isApp() && state.user?.prefs?.position_device?.id === deviceId();
+
 export async function sendPosition(p, source = "app") {
-  await api("/api/me/location", { method: "POST", body: { lat: p.lat, lon: p.lon, accuracy_m: p.accuracy, source } });
+  await api("/api/me/location", { method: "POST", body: { lat: p.lat, lon: p.lon, accuracy_m: p.accuracy, source, device_id: deviceId() } });
+}
+
+/** Lad positionen følge denne enhed (slår delingen til; en anden enhed holder op med at opdatere Nær mig). */
+export async function takeOverPosition() {
+  const r = await api("/api/me/location/device", { method: "POST", body: { device_id: deviceId(), name: await deviceName() } });
+  state.user.prefs = { ...state.user.prefs, share_location: true, position_device: r.device };
+  stopSharing();
+  await syncSharing(r.token);
+  return r.device;
+}
+
+function stopSharing() {
+  nativeDelivery = null;
+  if (stopShare) { stopShare(); stopShare = null; }
 }
 
 /** Start eller stop deling af baggrundsposition efter brugerens valg (profilen) – kaldes ved login/logout og ændring.
  *  Androids positionstjeneste sender selv positionen med et positionstoken, så Nær mig-områderne (og alarmerne) følger
  *  brugeren, også når appen er lukket. */
-export async function syncSharing() {
-  const want = isApp() && !!state.user?.position && state.user?.prefs?.share_location === true;
+export async function syncSharing(token = null) {
+  const prefs = state.user?.prefs || {};
+  // Fra før positionen blev knyttet til én enhed: den første app, der starter, overtager
+  if (isApp() && state.user?.position && prefs.share_location === true && !prefs.position_device) { await takeOverPosition().catch(() => {}); return; }
+  const want = !!state.user?.position && prefs.share_location === true && isPositionDevice();
   if (want && !stopShare) {
     stopShare = () => {};  // optaget, mens tokenet hentes
     try {
-      const { token } = await api("/api/me/location/token", { method: "POST" });
+      token = token || (await api("/api/me/location/token", { method: "POST", body: { device_id: deviceId() } })).token;
       nativeDelivery = { url: `${location.origin}/api/location/native`, headers: { Authorization: `Bearer ${token}`, "X-Requested-With": "fetch" } };
     } catch (e) { diag("position-token-fejl", e.message); }
     // første position med det samme, så områderne flytter sig nu og ikke først efter et minut
@@ -126,8 +166,7 @@ export async function syncSharing() {
     }, (err) => { toast(err.code === 1 ? "Nær mig kræver tilladelse til position. Slå den til i Android-indstillinger." : "Position: " + err.message, "err"); });
     diag("position-deling", nativeDelivery ? "native" : "via appen");
   } else if (!want && stopShare) {
-    nativeDelivery = null;
-    stopShare(); stopShare = null;
+    stopSharing();
   }
 }
 

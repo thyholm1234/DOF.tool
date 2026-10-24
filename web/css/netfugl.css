@@ -35,7 +35,7 @@ body.nfu-mode { background: #fff; }
 .nfu .btn-edit::before { content: "✎ "; }
 
 /* Strimmel og navigation */
-.nf-strip { background: #26343c; color: #d6e2ea; font-size: 12px; padding: 4px 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.nf-strip { background: #26343c; color: #d6e2ea; font-size: 12px; padding: calc(4px + var(--safe-top)) calc(12px + var(--safe-right)) 4px calc(12px + var(--safe-left)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .nf-strip a { color: #fff !important; text-decoration: underline; }
 .nf-strip .pill { background: #f0b429; color: #222; font-weight: 700; border-radius: 9px; padding: 0 7px; font-size: 10px; }
 .nf-strip .spacer { flex: 1; }
@@ -151,7 +151,7 @@ body.nfu-mode { background: #fff; }
 .nf-score { display: inline-block; min-width: 26px; text-align: center; border-radius: 3px; color: #fff; font-weight: 700; font-size: .78rem; }
 
 /* Footer */
-.nf-footer { background: #f0f0f0; border-top: 1px solid var(--nf-red2); margin-top: 60px; padding: 30px 0 40px; }
+.nf-footer { background: #f0f0f0; border-top: 1px solid var(--nf-red2); margin-top: 60px; padding: 30px 0 calc(40px + var(--safe-bottom)); }
 .nf-footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
 .nf-footer .dof { text-align: right; font-weight: 700; line-height: 1.2; }
 
@@ -174,8 +174,9 @@ body.nfu-mode { background: #fff; }
 .nf-notice { background: #fff8d6; border: 1px solid #e3c35a; padding: 8px 12px; border-radius: .25rem; margin: 10px 0; }
 .nf-notice.err { background: #fde8e4; border-color: #e19c8e; }
 .nf-notice.info { background: #e8f3fb; border-color: #9cc6e3; }
-.nf-modal-bg { position: fixed; inset: 0; background: rgb(0 0 0 / 45%); z-index: 2000; display: grid; place-items: center; padding: 16px; }
-.nf-modal { background: #fff; width: min(720px, 100%); max-height: calc(100vh - 32px); overflow: auto; border-radius: .3rem; box-shadow: 0 10px 40px rgb(0 0 0 / 35%); }
+.nf-modal-bg { position: fixed; inset: 0; background: rgb(0 0 0 / 45%); z-index: 2000; display: grid; place-items: center;
+  padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left)); }
+.nf-modal { background: #fff; width: min(720px, 100%); max-height: calc(var(--avail-h) - 24px); overflow: auto; border-radius: .3rem; box-shadow: 0 10px 40px rgb(0 0 0 / 35%); }
 .nf-modal.wide { width: min(1000px, 100%); }
 .nf-modal-head { display: flex; align-items: center; padding: .8rem 1rem; border-bottom: 1px solid var(--nf-line); position: sticky; top: 0; background: #fff; z-index: 2; }
 .nf-modal-head h3 { flex: 1; margin: 0; font-size: 1.2rem; }

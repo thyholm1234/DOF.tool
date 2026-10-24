@@ -1,7 +1,7 @@
 import { api, state, h, fmtN, fmtDate, loadRef, requireLogin, toast, seg } from "../core.js";
 import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
-import { isApp, syncSharing } from "../native.js";
+import { isApp, isPositionDevice, takeOverPosition } from "../native.js";
 
 export async function render(view) {
   if (requireLogin(view)) return;
@@ -30,21 +30,28 @@ export async function render(view) {
   const push = h("input", { type: "checkbox", checked: p.push_enabled });
   const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], p.theme || "auto", (v) => { p.theme = v; localStorage.setItem("theme", v); state.user.prefs.theme = v; applyTheme(); });
 
-  // Baggrundsposition (kun appen): gemmes med det samme, så Android når at bede om tilladelse
-  const share = h("input", { type: "checkbox", checked: p.share_location === true, disabled: !isApp(), onchange: async () => {
+  // Baggrundsposition (kun appen): positionen følger én enhed ad gangen; tændes her, overtager denne enhed
+  const dev = p.share_location === true ? p.position_device : null;
+  const share = h("input", { type: "checkbox", checked: !!dev && isPositionDevice(), disabled: !isApp(), onchange: async () => {
     try {
-      await api("/api/me", { method: "PATCH", body: { share_location: share.checked } });
-      if (!share.checked) await api("/api/me/location", { method: "DELETE" });
+      if (share.checked) {
+        if (dev && !confirm(`Din position følges nu af «${dev.name}». Skift til denne enhed?`)) { share.checked = false; return; }
+        const d = await takeOverPosition();
+        toast(`Nær mig følger nu ${d.name}`);
+      } else {
+        await api("/api/me/location", { method: "DELETE" });
+        toast("Positionen er slettet fra serveren");
+      }
       await refreshUser();
-      toast(share.checked ? "Positionen deles i baggrunden, mens appen kører" : "Positionen er slettet fra serveren");
     } catch (err) { share.checked = !share.checked; toast(err.message, "err"); }
   } });
+  const devNote = dev && !isPositionDevice() ? `Din position følges lige nu af «${dev.name}». ` : "";
   const positionCard = u.position ? [
     h("h3", { class: "mt" }, "Position og Nær mig"),
-    h("label", { class: "check" }, share, "Del min position i baggrunden (Android-appen)"),
-    h("small", { class: "muted", style: { marginTop: "-6px" } }, isApp()
-      ? "Appen sender din seneste position, når du flytter dig, så feedet og dine alarmer kan gælde en radius omkring, hvor du er (Nær mig). Positionen bruges kun til dine egne filtre, og slettes, når du slår delingen fra."
-      : "Baggrundsposition kræver Android-appen. I browseren kan du stadig vælge Nær mig i feedet – så bruges din position, mens du vælger.")] : [];
+    h("label", { class: "check" }, share, "Følg min position med denne enhed (appen)"),
+    h("small", { class: "muted", style: { marginTop: "-6px" } }, devNote + (isApp()
+      ? "Appen sender din seneste position, når du flytter dig, så feedet og din Nær mig-alarm gælder en radius omkring, hvor du er. Positionen følger én enhed ad gangen – slå den til her for at skifte til denne. Den bruges kun til dine egne filtre og slettes, når du slår delingen fra."
+      : "Baggrundsposition kræver appen. I browseren kan du stadig vælge Nær mig i feedet – så bruges din position, mens du vælger."))] : [];
 
   const phone = h("input", { type: "tel", inputmode: "tel", value: p.phone || "", placeholder: "Fx 20 30 40 50", maxlength: 20, autocomplete: "tel" });
   const save = async () => {

@@ -1,5 +1,5 @@
 import { api, state, h, icon, fmtN, fmtDate, params, setParams, seg, loadRef, requireLogin, empty, errorBox, modal, toast, ago, searchSpecies } from "../core.js";
-import { isApp, appPushStatus, enableAppPush, pushError, currentPosition } from "../native.js";
+import { isApp, isPositionDevice, appPushStatus, enableAppPush, pushError, currentPosition } from "../native.js";
 import { refreshUser } from "../app.js";
 import { baseMap, drawTool, cssVar } from "../maps.js";
 
@@ -66,37 +66,50 @@ async function rules(body) {
   const [list, areasList] = await Promise.all([api("/api/alerts/rules"), api("/api/areas")]);
   const banner = await pushBanner();
   body.append(banner || "",
-    h("div", { class: "row mb" }, h("button", { class: "btn primary", onclick: () => editRule(null, areasList, () => { body.replaceChildren(); rules(body); }), html: `${icon("plus")} Ny regel` }),
+    h("div", { class: "row mb" }, h("button", { class: "btn primary", onclick: () => editRule(null, areasList, () => { body.replaceChildren(); rules(body); }, list), html: `${icon("plus")} Ny regel` }),
       h("span", { class: "muted" }, "Tip: Start med 'SU + SUB i hele Danmark' og 'Lokale hits' i din kommune.")));
   if (!list.length) { body.append(h("div", { class: "card" }, empty("Ingen regler endnu", "Opret en regel for at få notifikationer."), h("div", { class: "row", style: { justifyContent: "center" } },
     h("button", { class: "btn", onclick: async () => { await api("/api/alerts/rules", { method: "POST", body: { name: "SU + SUB i Danmark", level: "SU,SUB" } }); body.replaceChildren(); rules(body); } }, "Opret 'SU + SUB i Danmark'")))); return; }
   body.append(h("div", { class: "grid" }, ...list.map(r => h("div", { class: "card row between", style: { opacity: r.enabled ? 1 : .55 } },
-    h("div", {}, h("b", {}, r.name), h("div", { class: "muted" }, `${r.area_name} · ${levelText(r.level)}${r.level.includes("local") ? ` (< ${r.local_max} obs.)` : ""}${r.min_antal > 1 ? ` · min. ${r.min_antal} ind.` : ""}`,
+    h("div", {}, h("b", {}, r.name), h("div", { class: "muted" }, `${r.area_name}${followText(r, areasList)} · ${levelText(r.level)}${r.level.includes("local") ? ` (< ${r.local_max} obs.)` : ""}${r.min_antal > 1 ? ` · min. ${r.min_antal} ind.` : ""}`,
       r.missing ? ` · kun arter jeg ${MISSING_SHORT[r.missing]}` : "", r.species_include.length ? ` · ${r.species_include.length} udvalgte arter` : "", r.species_exclude.length ? ` · ${r.species_exclude.length} fravalgt` : "", r.first_only ? " · kun første indtastning" : "", r.push ? "" : " · kun indbakke")),
     h("div", { class: "row" },
       h("label", { class: "check" }, h("input", { type: "checkbox", checked: r.enabled, onchange: async (e) => { await api(`/api/alerts/rules/${r.id}`, { method: "PUT", body: { ...strip(r), enabled: e.target.checked } }); r.enabled = e.target.checked; e.target.closest(".card").style.opacity = r.enabled ? 1 : .55; } }), "Aktiv"),
-      h("button", { class: "btn sm", onclick: () => editRule(r, areasList, () => { body.replaceChildren(); rules(body); }) }, "Redigér"),
+      h("button", { class: "btn sm", onclick: () => editRule(r, areasList, () => { body.replaceChildren(); rules(body); }, list) }, "Redigér"),
       h("button", { class: "btn sm ghost danger", onclick: async () => { if (!confirm("Slet reglen?")) return; await api(`/api/alerts/rules/${r.id}`, { method: "DELETE" }); body.replaceChildren(); rules(body); } }, "Slet"))))));
+}
+
+// Hvilken enhed en Nær mig-regel følger
+function followText(r, areasList) {
+  if (!areasList.some(a => a.id === r.area_id && a.ref === "me")) return "";
+  const p = state.user?.prefs || {};
+  if (p.share_location !== true || !p.position_device) return " – følger ingen enhed";
+  return isPositionDevice() ? " – følger denne enhed" : ` – følger ${p.position_device.name}`;
 }
 
 const strip = (r) => ({ name: r.name, area_id: r.area_id, kommuner: r.kommuner || [], afdelinger: r.afdelinger || [], level: r.level, local_max: r.local_max, min_antal: r.min_antal, species_include: r.species_include, species_exclude: r.species_exclude, missing: r.missing || null, push: r.push, first_only: !!r.first_only, enabled: r.enabled });
 
-async function editRule(rule, areasList, done) {
+async function editRule(rule, areasList, done, rulesList = []) {
   const r = rule ? strip(rule) : { name: "", area_id: null, kommuner: [], afdelinger: [], level: "SU,SUB", local_max: 5, min_antal: 1, species_include: [], species_exclude: [], missing: null, push: true, first_only: false, enabled: true };
   const name = h("input", { value: r.name, placeholder: "Fx 'Lokale hits i Odsherred'", required: true });
   const hasRegions = r.kommuner.length > 0 || r.afdelinger.length > 0;
   // "Min position": en radius om enheden, der flytter sig med brugeren (Nær mig-område, ref = 'me')
+  // Kun én regel kan følge positionen, og den følger én enhed ad gangen (kan skiftes)
+  const isMe = (id) => areasList.some(a => a.id === id && a.ref === "me");
   const curMe = areasList.find(a => a.id === r.area_id && a.ref === "me");
+  const meOwner = rulesList.find(x => x.id !== rule?.id && isMe(x.area_id));
   const canFollow = !!state.user?.position;
   const area = h("select", {}, h("option", { value: "" }, "Hele Danmark"),
-    canFollow ? h("option", { value: "me", selected: !!curMe }, "📍 Min position – følger mig") : null,
+    canFollow ? h("option", { value: "me", selected: !!curMe, disabled: !!meOwner }, meOwner ? `📍 Min position – bruges af «${meOwner.name}»` : "📍 Min position – følger mig") : null,
     h("option", { value: "regions", selected: !r.area_id && hasRegions }, "Lokalafdelinger og kommuner…"),
     areasList.filter(a => a.ref !== "me").length ? h("optgroup", { label: "Mine områder" }, ...areasList.filter(a => a.ref !== "me").map(a => h("option", { value: a.id, selected: a.id === r.area_id }, `${a.name} (${KIND_LABEL[a.kind]})`))) : null);
   const radius = h("select", {}, ...[1, 2, 5, 10, 15, 25, 50, 100].map(km => h("option", { value: km, selected: km === (curMe ? curMe.radius_m / 1000 : 10) }, `${km} km`)));
+  const dev = state.user?.prefs?.share_location === true ? state.user.prefs.position_device : null;
+  const devText = !dev ? "" : isPositionDevice() ? "Følger denne enhed. " : `Følger lige nu «${dev.name}»${isApp() ? " – gem for at skifte til denne enhed" : ""}. `;
   const meRow = h("div", { class: "stack", style: { gap: "4px" } }, h("label", { class: "field" }, h("span", {}, "Radius om min position"), radius),
-    h("small", { class: "muted" }, isApp()
-      ? "Appen sender din position i baggrunden (også når den er lukket), og reglen gælder hele tiden inden for radius af, hvor du er. Android viser en fast notifikation, mens positionen følges."
-      : "Positionen følger kun med i Android-appen. Her i browseren bruges din position, når du gemmer reglen."));
+    h("small", { class: "muted" }, devText + (isApp()
+      ? "Appen sender din position i baggrunden (også når den er lukket), og reglen gælder hele tiden inden for radius af, hvor du er. Du kan have én sådan regel, og den følger én enhed ad gangen."
+      : "Positionen følger kun med i appen. Her i browseren bruges din position, når du gemmer reglen.")));
   const regions = regionPicker(r.kommuner, r.afdelinger);
   const syncArea = () => { regions.el.classList.toggle("hide", area.value !== "regions"); meRow.classList.toggle("hide", area.value !== "me"); };
   area.onchange = syncArea; syncArea();
@@ -152,18 +165,22 @@ async function editRule(rule, areasList, done) {
     h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => m.close() }, "Annullér"))), { wide: true });
 }
 
-/** Nær mig-område med radius om brugerens position (genbruges pr. radius). I appen slås positionsdeling i baggrunden til,
- *  så området – og dermed reglen – følger med. Returnerer områdets id. */
+/** Brugerens ene Nær mig-område med radius om positionen. I appen kommer positionen fra denne enhed (den overtager fra
+ *  en anden enhed efter bekræftelse), så området – og dermed reglen – følger med. Returnerer områdets id. */
 async function followMe(km) {
+  const dev = state.user?.prefs?.share_location === true ? state.user.prefs.position_device : null;
+  if (isApp() && !isPositionDevice() && dev && !confirm(`Din position følges nu af «${dev.name}». Skal reglen følge denne enhed i stedet?`)) {
+    throw new Error("Reglen er ikke gemt");
+  }
   const where = await api("/api/me/location").catch(() => ({ location: null }));
   const fresh = where.location && Date.now() - new Date(where.location.updated_at) < 30 * 60000;
   const payload = { radius_km: km };
   if (!fresh) { const p = await currentPosition({ timeout: 20000 }); payload.lat = p.lat; payload.lon = p.lon; }
   const a = await api("/api/areas/near-me", { method: "PUT", body: payload });
-  if (isApp() && state.user?.prefs?.share_location !== true) {
-    await api("/api/me", { method: "PATCH", body: { share_location: true } });
-    await refreshUser();  // starter positionstjenesten (Android spørger om tilladelse)
-    toast("Positionsdeling i baggrunden er slået til – kan slås fra under Profil");
+  if (isApp() && !isPositionDevice()) {
+    const d = await takeOverPosition();  // starter positionstjenesten (telefonen spørger om tilladelse)
+    await refreshUser();
+    toast(dev ? `Reglen følger nu ${d.name}` : "Positionsdeling i baggrunden er slået til – kan slås fra under Profil");
   }
   return a.id;
 }

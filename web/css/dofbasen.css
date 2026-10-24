@@ -33,7 +33,7 @@ body.dofb-mode { background: #fff; }
 .dofb .small { font-size: 10px; }
 
 /* Showcase-strimmel over headeren */
-.db-strip { background: #26343c; color: #d6e2ea; font-size: 11px; padding: 4px 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.db-strip { background: #26343c; color: #d6e2ea; font-size: 11px; padding: calc(4px + var(--safe-top)) calc(10px + var(--safe-right)) 4px calc(10px + var(--safe-left)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .db-strip a { color: #fff !important; }
 .db-strip .db-pill { background: #f0b429; color: #222; font-weight: 700; border-radius: 9px; padding: 0 7px; font-size: 10px; }
 .db-strip .spacer { flex: 1; }
@@ -71,7 +71,7 @@ body.dofb-mode { background: #fff; }
 .db-col { min-width: 0; }
 .db-col.l { border-right: 1px solid var(--db-grey); padding-right: 12px; }
 .db-col.r { border-left: 1px solid #c9c9c9; padding-left: 6px; }
-.db-footer { margin: 14px 9px 0; padding: 7px; text-align: center; border: 1px solid #ccc; background: #bccbd7; color: #000; }
+.db-footer { margin: 14px 9px var(--safe-bottom); padding: 7px; text-align: center; border: 1px solid #ccc; background: #bccbd7; color: #000; }
 .db-timing { text-align: center; font-size: 11px; padding: 3px 0 20px; }
 
 /* Sektionsbjælke: grå gradient med hvid etiket (som .tophead + .menuheader) */
@@ -246,8 +246,9 @@ body.dofb-mode { background: #fff; }
   word-break: break-word; overflow-x: auto; }
 .db-chip { display: inline-block; padding: 0 6px; border-radius: 8px; background: #e3ecf2; border: 1px solid #b9cddb; font-size: 10px; margin: 1px; }
 .db-chip.on { background: #d5ecd9; border-color: #8cc29a; }
-.db-modal-bg { position: fixed; inset: 0; background: rgb(0 0 0 / 35%); z-index: 1000; display: grid; place-items: center; padding: 16px; }
-.db-modal { background: #fff; width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; border: 1px solid #555; box-shadow: 0 8px 30px rgb(0 0 0 / 35%);
+.db-modal-bg { position: fixed; inset: 0; background: rgb(0 0 0 / 35%); z-index: 1000; display: grid; place-items: center;
+  padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left)); }
+.db-modal { background: #fff; width: min(760px, 100%); max-height: calc(var(--avail-h) - 24px); overflow: auto; border: 1px solid #555; box-shadow: 0 8px 30px rgb(0 0 0 / 35%);
   font: 11px/1.45 verdana, arial, sans-serif; color: #333; }
 .db-modal.wide { width: min(1100px, 100%); }
 .db-modal .db-modal-head { background: var(--db-blue); color: #fff; padding: 6px 10px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 2; }

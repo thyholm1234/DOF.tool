@@ -93,7 +93,8 @@ export function toast(msg, kind = "") {
 }
 
 export function modal(title, content, { wide = false, onClose } = {}) {
-  const close = () => { bg.remove(); document.removeEventListener("keydown", key); onClose?.(); };
+  // Sideskift (fx Androids tilbageknap) lukker også modalen, så den ikke bliver hængende over en anden side
+  const close = () => { if (!bg.isConnected) return; bg.remove(); document.removeEventListener("keydown", key); window.removeEventListener("hashchange", close); onClose?.(); };
   const key = (e) => { if (e.key === "Escape") close(); };
   const bg = h("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) close(); } },
     h("div", { class: `modal ${wide ? "wide" : ""}`, role: "dialog", "aria-modal": "true" },
@@ -101,6 +102,7 @@ export function modal(title, content, { wide = false, onClose } = {}) {
       content));
   document.body.append(bg);
   document.addEventListener("keydown", key);
+  window.addEventListener("hashchange", close);
   return { close, el: bg };
 }
 

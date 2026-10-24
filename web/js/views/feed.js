@@ -239,7 +239,7 @@ async function nearMe({ here, saved }) {
     useHere,
     keep ? h("div", { class: "stack" }, h("hr", {}), h("p", { class: "muted", style: { margin: 0 } }, fresh
       ? `Alternativt: gem filtret som et område, der følger dig (din position fra appen er opdateret ${ago(loc.updated_at)}). Det kan også bruges i alarmer.`
-      : isApp() ? "Alternativt: gem et område, der følger dig. Slå «Del min position i baggrunden» til under Profil, så flytter det sig med dig."
+      : isApp() ? "Alternativt: gem et område, der følger dig. Slå «Følg min position med denne enhed» til under Profil, så flytter det sig med dig."
         : "Alternativt: gem et område om din nuværende position. Det flytter sig kun med dig i Android-appen."), keep) : null);
   const m = modal("Nær mig", body);
   useHere.onclick = async () => {

@@ -1,7 +1,10 @@
 """Brugerens position (fra appen i baggrunden eller browseren) og 'Nær mig'-området, der følger positionen.
 
 Positionen bruges kun til brugerens egne filtre: et radius-område (`areas.ref = 'me'`) flyttes, hver gang positionen
-ændrer sig, så feed, lister og alarmregler automatisk gælder omkring, hvor brugeren er. Den kan slås fra og slettes."""
+ændrer sig, så feed, lister og alarmregler automatisk gælder omkring, hvor brugeren er. Den kan slås fra og slettes.
+
+Positionen følger én enhed ad gangen (`prefs.position_device`), så to telefoner ikke trækker området frem og tilbage.
+Brugeren skifter enhed fra appen på den nye enhed; den gamle enheds positionstoken bliver så ugyldigt."""
 
 from __future__ import annotations
 
@@ -26,6 +29,12 @@ router = APIRouter(prefix="/api", tags=["position"])
 ME = "me"
 MOVE_M = 150  # mindre flytning end dette opdaterer ikke områdets geometri
 TOKEN_TTL = 180 * 86400  # positionstokenet fornyes, hver gang appen starter delingen
+DEVICE_ID = r"^[A-Za-z0-9_-]{8,64}$"
+
+
+def device_of(user: User) -> dict | None:
+    """Enheden, hvis position brugerens 'Nær mig' følger: {id, name, since}."""
+    return (user.prefs or {}).get("position_device")
 
 
 async def require_position(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> User:
@@ -40,18 +49,20 @@ class LocationIn(BaseModel):
     lon: float = Field(ge=-180, le=180)
     accuracy_m: float | None = Field(None, ge=0, le=100_000)
     source: str = Field("app", pattern="^(app|web)$")
+    device_id: str | None = Field(None, pattern=DEVICE_ID)
 
 
-def _out(loc: UserLocation | None) -> dict:
+def _out(loc: UserLocation | None, user: User) -> dict:
+    device = device_of(user)
     if loc is None:
-        return {"location": None}
+        return {"location": None, "device": device}
     return {"location": {"lat": loc.lat, "lon": loc.lon, "accuracy_m": loc.accuracy_m, "source": loc.source,
-                         "updated_at": loc.updated_at}}
+                         "updated_at": loc.updated_at}, "device": device}
 
 
 @router.get("/me/location")
 async def get_location(user: User = Depends(require_position), db: AsyncSession = Depends(get_session)):
-    return _out(await db.get(UserLocation, user.id))
+    return _out(await db.get(UserLocation, user.id), user)
 
 
 async def store_location(db: AsyncSession, user_id: int, lat: float, lon: float, accuracy: float | None, source: str) -> bool:
@@ -77,20 +88,48 @@ async def store_location(db: AsyncSession, user_id: int, lat: float, lon: float,
 
 @router.post("/me/location")
 async def put_location(body: LocationIn, user: User = Depends(require_position), db: AsyncSession = Depends(get_session)):
+    device = device_of(user)
+    if device and body.device_id != device["id"]:
+        return {"ok": True, "moved": False, "skipped": "anden enhed"}
     return {"ok": True, "moved": await store_location(db, user.id, body.lat, body.lon, body.accuracy_m, body.source)}
 
 
-@router.post("/me/location/token")
-async def location_token(user: User = Depends(require_position)):
-    """Token til appens positionstjeneste, der sender positionen direkte fra Android – også når appen er lukket, hvor
-    login-cookien ikke er tilgængelig. Tokenet kan kun bruges til at melde en position."""
-    old = await kv().get(f"loctok:user:{user.id}")
+async def _revoke_token(user_id: int) -> None:
+    old = await kv().get(f"loctok:user:{user_id}")
     if old:
-        await kv().delete(f"loctok:{old}")
+        await kv().delete(f"loctok:{old}", f"loctok:user:{user_id}")
+
+
+async def _new_token(user_id: int, device_id: str) -> str:
+    await _revoke_token(user_id)
     token = secrets.token_urlsafe(32)
-    await kv().set(f"loctok:{token}", user.id, ex=TOKEN_TTL)
-    await kv().set(f"loctok:user:{user.id}", token, ex=TOKEN_TTL)
-    return {"token": token}
+    await kv().set(f"loctok:{token}", f"{user_id}:{device_id}", ex=TOKEN_TTL)
+    await kv().set(f"loctok:user:{user_id}", token, ex=TOKEN_TTL)
+    return token
+
+
+class DeviceIn(BaseModel):
+    device_id: str = Field(pattern=DEVICE_ID)
+    name: str = Field("", max_length=60)
+
+
+@router.post("/me/location/device")
+async def take_over(body: DeviceIn, user: User = Depends(require_position), db: AsyncSession = Depends(get_session)):
+    """Lad denne enhed følge brugerens position (og slå delingen til). En anden enhed, der fulgte, mister sit token."""
+    device = {"id": body.device_id, "name": body.name.strip() or "App", "since": datetime.now(timezone.utc).isoformat()}
+    user.prefs = {**(user.prefs or {}), "share_location": True, "position_device": device}
+    await db.commit()
+    return {"token": await _new_token(user.id, body.device_id), "device": device}
+
+
+@router.post("/me/location/token")
+async def location_token(body: DeviceIn, user: User = Depends(require_position)):
+    """Token til appens positionstjeneste, der sender positionen direkte fra Android – også når appen er lukket, hvor
+    login-cookien ikke er tilgængelig. Tokenet kan kun bruges til at melde en position, og kun fra den valgte enhed."""
+    device = device_of(user)
+    if not device or device["id"] != body.device_id:
+        raise HTTPException(409, "Din position følges af en anden enhed")
+    return {"token": await _new_token(user.id, body.device_id)}
 
 
 class NativeLocationIn(BaseModel):
@@ -105,10 +144,14 @@ class NativeLocationIn(BaseModel):
 @router.post("/location/native")
 async def native_location(body: NativeLocationIn, authorization: str = Header(""), db: AsyncSession = Depends(get_session)):
     token = authorization.removeprefix("Bearer ").strip()
-    user_id = await kv().get(f"loctok:{token}") if token else None
+    owner = await kv().get(f"loctok:{token}") if token else None
+    user_id, _, device_id = str(owner or "").partition(":")
     user = await db.get(User, int(user_id)) if user_id else None
     if user is None or user.blocked or not user.approved or not (user.prefs or {}).get("share_location"):
         raise HTTPException(401, "Ugyldigt positionstoken")
+    device = device_of(user)
+    if (device or {}).get("id", "") != device_id:
+        raise HTTPException(401, "Positionen følges af en anden enhed")
     if body.accuracy is not None and body.accuracy > 500:
         return {"ok": True, "moved": False, "skipped": "unøjagtig"}
     return {"ok": True, "moved": await store_location(db, user.id, body.latitude, body.longitude, body.accuracy, "app")}
@@ -120,10 +163,11 @@ async def delete_location(user: User = Depends(require_position), db: AsyncSessi
     loc = await db.get(UserLocation, user.id)
     if loc is not None:
         await db.delete(loc)
-        await db.commit()
-    token = await kv().get(f"loctok:user:{user.id}")
-    if token:
-        await kv().delete(f"loctok:{token}", f"loctok:user:{user.id}")
+    prefs = {**(user.prefs or {}), "share_location": False}
+    prefs.pop("position_device", None)
+    user.prefs = prefs
+    await db.commit()
+    await _revoke_token(user.id)
     return {"ok": True}
 
 
@@ -143,17 +187,19 @@ async def near_me(body: NearMeIn, user: User = Depends(require_position), db: As
         center = (loc.lat, loc.lon)
     else:
         raise HTTPException(400, "Positionen kendes ikke endnu – tillad position og prøv igen")
-    if (await db.execute(text("SELECT count(*) FROM areas WHERE user_id = :u"), {"u": user.id})).scalar() >= 30:
-        raise HTTPException(400, "Højst 30 områder pr. bruger")
     radius_m = int(round(body.radius_km * 1000))
     name = f"Nær mig ({body.radius_km:g} km)".replace(".", ",")
-    # Ét område pr. radius, så flere regler (fx 5 km for SU, 25 km for lokale hits) kan følge brugeren samtidig
-    area = (await db.execute(select(Area).where(Area.user_id == user.id, Area.kind == "radius", Area.ref == ME,
-                                                Area.radius_m == radius_m))).scalars().first()
+    # Kun ét Nær mig-område pr. bruger (det følger én enhed); en ny radius retter det eksisterende. Ældre brugere kan
+    # have flere – så genbruges det, en regel bruger.
+    area = (await db.execute(select(Area).where(Area.user_id == user.id, Area.kind == "radius", Area.ref == ME).order_by(
+        text("EXISTS (SELECT 1 FROM alert_rules r WHERE r.area_id = areas.id) DESC"), Area.id))).scalars().first()
     if area is None:
+        if (await db.execute(text("SELECT count(*) FROM areas WHERE user_id = :u"), {"u": user.id})).scalar() >= 30:
+            raise HTTPException(400, "Højst 30 områder pr. bruger")
         area = Area(user_id=user.id, name=name, kind="radius", ref=ME, radius_m=radius_m, use_for_lists=False)
         db.add(area)
         await db.flush()
+    area.name, area.radius_m = name, radius_m
     await set_geometry(db, area, None, center)
     await db.commit()
     await worker_command("area_counts", scope=scope_for_area(area).key)

@@ -56,7 +56,7 @@ async def _region_names(db: AsyncSession) -> dict[str, str]:
     return {**{f"kom:{k}": n for k, n in kom}, **{f"afd:{i}": n for i, n in afd}}
 
 
-async def _check_area(db: AsyncSession, user: User, body: RuleIn) -> Area | None:
+async def _check_area(db: AsyncSession, user: User, body: RuleIn, rule_id: int | None = None) -> Area | None:
     if body.level != "all":
         body.level = ",".join(k for k in LEVEL_ORDER if k in body.level.split(","))
     body.kommuner = sorted(set(body.kommuner))
@@ -75,6 +75,14 @@ async def _check_area(db: AsyncSession, user: User, body: RuleIn) -> Area | None
     area = await db.get(Area, body.area_id)
     if area is None or area.user_id != user.id:
         raise HTTPException(404, "Område findes ikke")
+    if area.ref == "me":
+        # Kun én regel følger enhedens position – den følger én enhed ad gangen (api/position.py)
+        other = (await db.execute(text("""
+            SELECT r.name FROM alert_rules r JOIN areas a ON a.id = r.area_id
+            WHERE r.user_id = :u AND a.ref = 'me' AND r.id <> :r LIMIT 1
+        """), {"u": user.id, "r": rule_id or 0})).scalar()
+        if other:
+            raise HTTPException(400, f"Du har allerede en regel med din position («{other}») – redigér den i stedet")
     return area
 
 
@@ -102,7 +110,7 @@ async def update_rule(rule_id: int, body: RuleIn, user: User = Depends(require_u
     rule = await db.get(AlertRule, rule_id)
     if rule is None or rule.user_id != user.id:
         raise HTTPException(404)
-    area = await _check_area(db, user, body)
+    area = await _check_area(db, user, body, rule_id)
     for k, v in body.model_dump().items():
         setattr(rule, k, v)
     await db.commit()
