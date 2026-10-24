@@ -45,16 +45,17 @@ export async function render(view) {
   const sideEl = h("div", { class: "stack" });
   const updatedEl = h("small", { class: "muted" });
   const scopeSel = h("select", { "aria-label": "Område", style: { width: "auto", maxWidth: "240px" } });
-  const localWrap = h("label", { class: "row hide", style: { fontSize: ".85rem", gap: ".4rem" } });
+  // Må krympe og bryde linjen på smalle skærme – ellers skubber den værktøjslinjen (og siden) ud over kanten
+  const localWrap = h("label", { class: "row hide", style: { fontSize: ".85rem", gap: ".4rem", flex: "1 1 240px", minWidth: 0 } });
   const localVal = h("b", { class: "num" }, st.localMax);
-  const localRange = h("input", { type: "range", min: 1, max: 100, value: st.localMax, style: { width: "130px" } });
+  const localRange = h("input", { type: "range", min: 1, max: 100, value: st.localMax, style: { flex: "1 1 90px", width: "auto", minWidth: "80px", maxWidth: "160px" } });
   localWrap.title = "Lokalt hit: arten er fundet færre gange end dette på lokaliteten gennem alle år (estimerede fund – en fugl der bliver i flere dage tæller én gang)";
   localWrap.append("Færre end", localVal, "fund på lokaliteten", localRange);
 
   // Værktøjslinje som i DOF.not: to-tilstandsknapper; kategori og område kun når egne filtre er slået fra
   const toggles = h("div", { class: "toolbar" });
   const chips = h("div", { class: "chips" });
-  const filterRow = h("div", { class: "row between wrap", style: { gap: "8px" } }, chips, h("div", { class: "row", style: { gap: "8px" } }, localWrap, scopeSel,
+  const filterRow = h("div", { class: "row between wrap", style: { gap: "8px" } }, chips, h("div", { class: "row", style: { gap: "8px", minWidth: 0, maxWidth: "100%" } }, localWrap, scopeSel,
     h("button", { class: "btn sm", type: "button", title: "Filtrér på en radius om din position", html: `${icon("pin")} Nær mig`, onclick: () => nearMe({
       here: (km) => { setHere(km); },
       saved: async (area) => {

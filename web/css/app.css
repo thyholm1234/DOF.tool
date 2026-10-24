@@ -682,7 +682,8 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .chip .solo.active, .chip .solo:hover { opacity: 1; background: color-mix(in srgb, currentColor 22%, transparent); }
 
 /* forsidens værktøjslinje (som DOF.not): to-tilstandsknapper */
-.toolbox { padding: 8px 10px; display: grid; gap: 8px; }
+.toolbox { padding: 8px 10px; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+.toolbox > * { min-width: 0; }
 .toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .toolbar .spacer { flex: 1; }
 .toolbar > small { white-space: nowrap; }
