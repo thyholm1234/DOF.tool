@@ -4,6 +4,7 @@ import { baseMap, katColor } from "../maps.js";
 import { reportCard, statusBadge, threadStatusCard } from "../reportui.js";
 import { likeWidget } from "../likes.js";
 import { banForm } from "../moderation.js";
+import { tipButton } from "./dku.js";
 
 export async function render(view, [date, artnr, loknr]) {
   view.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } }));
@@ -19,6 +20,7 @@ export async function render(view, [date, artnr, loknr]) {
   const repList = h("div", { class: "stack" });
   const drawReports = () => repList.replaceChildren(...reps.map(r => reportCard(r, {
     onEdit: r.own ? () => { location.hash = r.trip_id ? `#/indtast/tur/${r.trip_id}` : `#/indtast/obs/${r.id}`; } : null,
+    extra: tipButton("portal", r.id, { own: r.own, label: `${fmtN(r.antal)} ${r.art} · ${r.observer || ""} · ${date}` }),
   })));
   drawReports();
   // Status på SU/SUB-tråde: meldt af alle på selve tråden. Ellers vises indtasterens egen status fra portalen.
@@ -208,7 +210,9 @@ function obsRow(o, ms, mediaRows) {
     o.turnoter ? h("p", { class: "muted", style: { margin: "4px 0 0", fontSize: ".85rem" } }, "Tur: ", o.turnoter) : null,
     h("div", { class: "row mt" }, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
       rare ? h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", title: "Indsend dokumentation til DKU (kræver login i DOFbasen)",
-        href: `https://dofbasen.dk/mine/sendmailtodku.php?obsid=${o.obsid}`, html: `${icon("external")} DKU` }) : null),
+        href: `https://dofbasen.dk/mine/sendmailtodku.php?obsid=${o.obsid}`, html: `${icon("external")} DKU` }) : null,
+      tipButton("dofbasen", o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
+        label: `${fmtN(o.antal)} · ${o.observer || o.obserkode || ""} · ${o.dato || ""}` })),
     media);
 }
 

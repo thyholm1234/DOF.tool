@@ -849,3 +849,9 @@ body.kbd main#view { padding-bottom: 24px; }
 body.kbd .tur-bar, body.kbd .sheet-page .sheet-foot { bottom: 0; }
 /* Fokuseret felt rulles fri af sticky top- og bundbarer */
 html { scroll-padding-top: calc(var(--top-h) + 12px); scroll-padding-bottom: calc(var(--nav-h) + 90px + var(--safe-bottom)); }
+
+/* DKU: interne noter, systembeskeder og rettede felter */
+.support-msg.internal { border: 1px dashed var(--warn); background: var(--warn-soft); }
+.support-msg.system { justify-self: center; background: transparent; border: 1px dashed var(--line); max-width: 100%; font-size: .85rem; color: var(--text-2); }
+.dku-fields th { width: 34%; color: var(--text-2); font-weight: 600; }
+.dku-fields tr.changed td { background: var(--bem-soft); font-weight: 600; }

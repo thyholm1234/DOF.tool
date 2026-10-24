@@ -17,7 +17,7 @@ export function statusBadge(status, live, at) {
 export const certaintyTag = (s) => s && s !== "sikker" ? h("span", { class: `tag certainty ${s}`, title: "Bestemmelsessikkerhed" }, SIKKERHED[s]) : null;
 
 /** Kort for én feltmelding. */
-export function reportCard(r, { onEdit, showObserver = true } = {}) {
+export function reportCard(r, { onEdit, showObserver = true, extra = null } = {}) {
   const tid = [r.obstidfra || r.turtidfra, r.obstidtil].filter(Boolean).join("–");
   const details = [r.adf, r.koen === "M" ? "han" : r.koen === "F" ? "hun" : null, r.alderkode, r.dragt, r.metode && r.metode !== "Uspecificeret/tilfældig" ? r.metode : null].filter(Boolean);
   return h("div", { class: `report ${r.kategori}` },
@@ -29,7 +29,7 @@ export function reportCard(r, { onEdit, showObserver = true } = {}) {
         h("div", { class: "muted", style: { fontSize: ".86rem" } },
           [details.join(", "), showObserver ? r.observer : null, tid].filter(Boolean).join(" · "))),
       h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, statusBadge(r.status, r.live, r.status_at),
-        onEdit ? h("button", { class: "btn sm danger solid", onclick: onEdit, html: `${icon("edit")} Redigér` }) : null)),
+        onEdit ? h("button", { class: "btn sm danger solid", onclick: onEdit, html: `${icon("edit")} Redigér` }) : null, extra)),
     r.grundlag?.length ? h("div", { class: "row", style: { gap: "4px", marginTop: "6px" } },
       h("small", { class: "muted" }, "Grundlag:"), ...r.grundlag.map(g => h("span", { class: "tag plain" }, GRUNDLAG[g] || g))) : null,
     r.fuglnoter ? h("p", { style: { margin: "6px 0 0", whiteSpace: "pre-wrap" } }, r.fuglnoter) : null,

@@ -20,7 +20,7 @@ from portal.api.reports import ReportIn, TIME, _check_guidelines, _hhmm, _in_bac
 from portal.cache import publish
 from portal.db import get_session
 from portal.models import FieldBreedingPair, FieldDisturbance, FieldReport, FieldTrip, ThreadFollow, User
-from portal.services import activity, pulse, reports
+from portal.services import activity, dku, pulse, reports
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.trips")
@@ -350,6 +350,8 @@ async def update_trip(trip_id: int, body: TripIn, tasks: BackgroundTasks, user: 
     created, changed, gone = await _save(db, user, trip, body)
     await db.commit()
     await _after(db, tasks, user, trip, created, changed, gone)
+    for rid in (await db.execute(select(FieldReport.id).where(FieldReport.trip_id == trip.id))).scalars():
+        tasks.add_task(dku.report_changed, rid)  # åbne DKU-sager om turens meldinger får ændringerne
     return await trip_out(db, trip, user)
 
 

@@ -16,7 +16,7 @@ from portal.api.learn import MEDIA_TYPES
 from portal.cache import publish
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, ThreadFollow, User
-from portal.services import activity, imagemeta, pulse, reports, storage
+from portal.services import activity, dku, imagemeta, pulse, reports, storage
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.reports")
@@ -204,7 +204,8 @@ async def get_report(report_id: int, user: User = Depends(require_user), db: Asy
 
 
 @router.patch("/{report_id}")
-async def patch_report(report_id: int, body: dict, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+async def patch_report(report_id: int, body: dict, tasks: BackgroundTasks, user: User = Depends(require_user),
+                       db: AsyncSession = Depends(get_session)):
     r = await _own_report(db, report_id, user)
     try:
         merged = ReportIn(**{**{k: getattr(r, k) for k in ReportIn.model_fields if k != "status"}, **body,
@@ -229,6 +230,7 @@ async def patch_report(report_id: int, body: dict, user: User = Depends(require_
         if not r.hemmelig and r.dato == dk_today():
             await pulse.record_report(db, r)
     await publish("feed", {"type": "feed", "portal": True})
+    tasks.add_task(dku.report_changed, report_id)  # åbne DKU-sager om meldingen får ændringerne
     return await _one(db, r, user)
 
 
@@ -245,7 +247,7 @@ async def delete_report(report_id: int, user: User = Depends(require_user), db: 
 
 
 @router.post("/{report_id}/media")
-async def upload_media(report_id: int, file: UploadFile = File(...), user: User = Depends(require_user),
+async def upload_media(report_id: int, tasks: BackgroundTasks, file: UploadFile = File(...), user: User = Depends(require_user),
                        db: AsyncSession = Depends(get_session)):
     r = await _own_report(db, report_id, user)
     if len(r.media or []) >= 8:
@@ -273,15 +275,18 @@ async def upload_media(report_id: int, file: UploadFile = File(...), user: User 
     if kind == "audio" and "lyd" not in (r.grundlag or []):
         r.grundlag = [*(r.grundlag or []), "lyd"]
     await db.commit()
+    tasks.add_task(dku.report_changed, report_id)
     return {"media": r.media, "grundlag": r.grundlag}
 
 
 @router.delete("/{report_id}/media")
-async def delete_media(report_id: int, url: str, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+async def delete_media(report_id: int, url: str, tasks: BackgroundTasks, user: User = Depends(require_user),
+                       db: AsyncSession = Depends(get_session)):
     r = await _own_report(db, report_id, user)
     if not any(m["url"] == url for m in r.media or []):
         raise HTTPException(404)
     r.media = [m for m in r.media if m["url"] != url]
     await db.commit()
     await _remove_files([{"url": url}])
+    tasks.add_task(dku.report_changed, report_id)
     return {"media": r.media}

@@ -19,10 +19,12 @@ const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
 /** Menuens grupper for den indloggede: DOFbasen og Netfugl vises kun, når superadmin har slået modulerne til (eller forhåndsvisning). */
 function sections() {
   const extra = [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null].filter(Boolean);
-  if (!extra.length) return SECTIONS;
-  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : items]);
+  // DKU under "Mit" (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
+  const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
+  if (!extra.length && !dku) return SECTIONS;
+  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku] : items]);
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ["#/dku", "check", "DKU"]];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -55,6 +57,7 @@ const ROUTES = [
   [/^\/indtast\/tur\/(ny|\d+|lokal\/[\w-]+)(?:\/(ret))?$/, () => import("./views/tur.js")],
   [/^\/indtast(?:\/obs\/(\d+))?$/, () => import("./views/report.js")],
   [/^\/support$/, () => import("./views/support.js")],
+  [/^\/dku(?:\/(\d+))?$/, () => import("./views/dku.js")],
   [/^\/ture(?:\/(\d+))?$/, () => import("./views/events.js")],
   [/^\/kalender(?:\/(\d+|mine))?$/, () => import("./views/calendar.js")],
   [/^\/dofbasen(?:\/(.+))?$/, () => import("./views/dofbasen.js")],

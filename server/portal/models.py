@@ -1388,6 +1388,77 @@ class NfAudit(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+
+# ---------------------------------------------------------------- DKU: tip om tvivlsomme observationer
+
+class DkuMember(Base):
+    """DKU-ansvarlig for en lokalafdeling. afdeling_id 0 = landsdækkende (ser sager fra alle afdelinger)."""
+
+    __tablename__ = "dku_members"
+
+    afdeling_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DkuCase(Base):
+    """En sag om én observation: DOFbasen (obsid) eller en feltmelding i portalen (report_id).
+
+    snapshot er observationens data, da sagen blev oprettet – så DKU kan se, hvad der er rettet siden. Observatøren ser
+    først sagen, når DKU har inddraget vedkommende (observer_involved)."""
+
+    __tablename__ = "dku_cases"
+    __table_args__ = (Index("ix_dku_cases_obs", "source", "obsid", "report_id"), Index("ix_dku_cases_status", "status", "updated_at"))
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(10))  # dofbasen / portal
+    obsid: Mapped[int | None] = mapped_column(BigInteger)
+    report_id: Mapped[int | None] = mapped_column(ForeignKey("field_reports.id", ondelete="SET NULL"))
+    obserkode: Mapped[str | None] = mapped_column(String(16))
+    observer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    artnr: Mapped[int] = mapped_column(Integer)
+    dato: Mapped[date] = mapped_column(Date)
+    loknr: Mapped[int | None] = mapped_column(Integer)
+    afdelinger: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), default=list)
+    snapshot: Mapped[dict] = mapped_column(JSONB)
+    reason: Mapped[str] = mapped_column(String(16))  # dokumentation / usandsynlig / fejl / andet
+    status: Mapped[str] = mapped_column(String(12), default="ny")  # ny / behandles / afventer / afgjort
+    outcome: Mapped[str | None] = mapped_column(String(12))  # godkendt / rettet / afvist / henlagt
+    outcome_note: Mapped[str | None] = mapped_column(Text)
+    observer_involved: Mapped[bool] = mapped_column(Boolean, default=False)
+    assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DkuParticipant(Base):
+    """Hvem der er med i en sag (tipper, observer eller dku) og hvornår de sidst har læst den."""
+
+    __tablename__ = "dku_participants"
+
+    case_id: Mapped[int] = mapped_column(ForeignKey("dku_cases.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(10))
+    last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DkuMessage(Base):
+    """Besked i en sag. visibility: alle (alle parter, når de kan se sagen) eller dku (kun DKU og afsenderen)."""
+
+    __tablename__ = "dku_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("dku_cases.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    role: Mapped[str] = mapped_column(String(10))  # tipper / observer / dku / system
+    visibility: Mapped[str] = mapped_column(String(6), default="alle")
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # Ekstra DDL der ikke kan udtrykkes pænt i modellerne
 EXTRA_DDL = [
     # Portalen gemmer ikke længere noget om adgangskoder – login tjekkes altid hos DOFbasen
@@ -1458,4 +1529,8 @@ EXTRA_DDL = [
     "ALTER TABLE mob_presets ALTER COLUMN user_id DROP NOT NULL",
     "UPDATE locations SET cell10 = (floor(ST_Y(ST_Transform(geom, 25832)) / 10000)::int * 1000"
     " + floor(ST_X(ST_Transform(geom, 25832)) / 10000)::int) WHERE cell10 IS NULL AND geom IS NOT NULL",
+    # Nyt admin-modul: administratorrollen får det én gang (markør i settings), så superadmin bagefter kan fjerne det igen
+    "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM settings WHERE key = 'module_added_dku') THEN"
+    " UPDATE roles SET modules = array_append(modules, 'dku') WHERE key = 'admin' AND NOT ('dku' = ANY(modules));"
+    " INSERT INTO settings (key, value) VALUES ('module_added_dku', 'true'); END IF; END $$",
 ]

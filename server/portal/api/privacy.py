@@ -39,6 +39,8 @@ async def privacy() -> HTMLResponse:
             <li><b>Det du laver i portalen:</b> feltmeldinger med fotos og lyd, ture, kommentarer, likes, statusmeldinger,
             kalenderbesøg, lister, grupper, matrikler, områder og alarmregler, Netfugl-fotos, -artikler og -kommentarer,
             supportbeskeder og quizresultater.</li>
+            <li><b>DKU-sager:</b> tip om en observation, beskeder og DKU's afgørelse. Den, der tipper, er anonym for
+            observatøren. Observatøren inddrages kun, hvis DKU finder grund til det.</li>
             <li><b>Position</b> – kun hvis du slår deling til: din seneste position (ikke en historik).</li>
             <li><b>Push:</b> adressen på din enheds push-abonnement, hvis du slår notifikationer til.</li>
             <li><b>Teknisk:</b> en login-cookie, en aktivitetslog (sidevisninger og handlinger) og serverlogs med IP-adresse.</li>
@@ -53,6 +55,7 @@ async def privacy() -> HTMLResponse:
             art. 6, stk. 1, litra f.</li>
             <li>At vise observationer fra DOFbasen, som observatørerne har indtastet til offentlig visning: legitim interesse i
             at formidle fugleobservationer, art. 6, stk. 1, litra f.</li>
+            <li>Kvalitetssikring af observationer (DKU-sager): legitim interesse i korrekte data, art. 6, stk. 1, litra f.</li>
             <li>Position og push-notifikationer: dit samtykke, art. 6, stk. 1, litra a. Du kan til enhver tid slå dem fra
             under Profil; det påvirker ikke behandlingen før.</li>
             </ul><p>Der træffes ingen automatiske afgørelser om dig.</p>"""),
@@ -71,6 +74,8 @@ async def privacy() -> HTMLResponse:
         _section("Hvor længe",
             f"""<ul>
             <li>Konto og indhold: indtil du sletter kontoen.</li>
+            <li>DKU-sager: gemmes som dokumentation for kvalitetssikringen. Sletter du kontoen, bevares dine beskeder uden
+            dit navn.</li>
             <li>Notifikationer: 90 dage. Aktivitetslog: 180 dage. Login: {s.session_days} dage eller til du logger ud.</li>
             <li>Position: til du slår delingen fra, eller 30 dage efter seneste opdatering.</li>
             <li>Serverlogs: roteres løbende og fylder højst nogle få dages trafik.</li>
