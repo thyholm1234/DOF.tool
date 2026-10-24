@@ -235,18 +235,20 @@ class RoutingSession(Session):
 
     def _classify(self, mapper, clause) -> tuple[str, bool]:
         """(gruppe, er_skrivning)"""
-        if mapper is not None:
-            return group_of_table(mapper.local_table.name) or self._home(), self._flushing
-        if clause is None:
-            return self._home(), True
+        # ORM-sætninger (update(Model), delete(Model)) kommer med både mapper og clause – sætningstypen afgør, ikke mapperen
         if isinstance(clause, (Insert, Update, Delete)):
             return group_of_table(clause.table.name) or self._home(), True
+        if mapper is not None:
+            locks = isinstance(clause, Select) and clause._for_update_arg is not None
+            return group_of_table(mapper.local_table.name) or self._home(), self._flushing or locks
+        if clause is None:
+            return self._home(), True
         if isinstance(clause, Select):
             groups = {g for t in find_tables(clause, check_columns=False, include_joins=False, include_aliases=False)
                       if (g := group_of_table(t.name))}
             if len(groups) > 1:
                 raise ValueError("Forespørgslen blander bruger- og observationstabeller")
-            return next(iter(groups), self._home()), False
+            return next(iter(groups), self._home()), clause._for_update_arg is not None
         sql = str(clause)
         return group_of_sql(sql) or self._home(), not is_read_sql(sql)
 

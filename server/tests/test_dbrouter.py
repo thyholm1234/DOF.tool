@@ -82,3 +82,50 @@ def test_area_scope_with_geom_stays_in_observations():
     assert group_of_sql("SELECT 1 FROM observations o WHERE " + pred) == OBSERVATIONS and params == {"scope_ref_geom": "SRID=4326;POINT(12 55)"}
     assert Scope("area", "7", geom="").predicate("o") == ("FALSE", {})
     assert Scope("area", "7", geom="x") == sc and Scope("area", "7", geom="x").key == sc.key
+
+
+def test_orm_dml_and_locking_selects_go_to_primary():
+    from sqlalchemy import delete, select, update
+    from portal.models import Notification
+    s = RoutingSession()
+    mapper = Notification.__mapper__
+    assert s._classify(mapper, update(Notification).values(read=True)) == (USERS, True)  # gik før til replikaen
+    assert s._classify(mapper, delete(Notification)) == (USERS, True)
+    assert s._classify(mapper, select(Notification)) == (USERS, False)
+    assert s._classify(mapper, select(Notification).with_for_update()) == (USERS, True)
+    assert s._classify(None, select(Notification).with_for_update()) == (USERS, True)
+
+
+def test_no_assembled_sql_mixes_groups():
+    """SQL bygget af stumper i variabler (fx joins = "...") må heller ikke blande grupperne – det fanger router-tjekket
+    først, når sætningen køres. Variablerne slås op i funktionens egne tildelinger."""
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1] / "portal"
+
+    def consts(node):
+        return [n.value for n in ast.walk(node) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+
+    bad = []
+    for f in root.rglob("*.py"):
+        for fn in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(fn, (ast.AsyncFunctionDef, ast.FunctionDef)):
+                continue
+            assigned: dict[str, list[str]] = {}
+            for n in ast.walk(fn):
+                if isinstance(n, (ast.Assign, ast.AugAssign)):
+                    for t in n.targets if isinstance(n, ast.Assign) else [n.target]:
+                        for nm in ast.walk(t):
+                            if isinstance(nm, ast.Name):
+                                assigned.setdefault(nm.id, []).append(" ".join(consts(n.value)))
+            for n in ast.walk(fn):
+                if not isinstance(n, ast.JoinedStr):
+                    continue
+                base = "".join(v.value for v in n.values if isinstance(v, ast.Constant))
+                if not any(k in base.upper() for k in ("SELECT", "UPDATE ", "INSERT", "DELETE")):
+                    continue
+                extra = [x for v in n.values if isinstance(v, ast.FormattedValue) for nm in ast.walk(v.value)
+                         if isinstance(nm, ast.Name) for x in assigned.get(nm.id, [])]
+                if len({group_of_table(t) for t in tables_in(base + " " + " ".join(extra))} - {None}) > 1:
+                    bad.append(f"{f.relative_to(root)}:{n.lineno} {fn.name}")
+    assert not bad, bad

@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import cached, version
 from portal.dof.classify import get_classifier
 from portal.models import FieldReport, FieldReportUpdate, ThreadStatus, User
-from portal.services import alerts, feed, seasons
+from portal.services import alerts, seasons
 from portal.services.areas import Scope
 from portal.timeutil import TZ
 
@@ -261,29 +261,42 @@ async def merge_feed(session: AsyncSession, threads: list[dict], day: date, scop
     """Flet dagens feltmeldinger ind i feedets tråde (samme filtre som DOFbasen-data)."""
     pred, params = scope.predicate("r")
     conds = ["r.dato = :day", "(NOT r.hemmelig OR r.user_id = :viewer)", pred]
-    joins = ""
-    if level == "local":
-        joins = "LEFT JOIN area_species_counts c ON c.area_key = :ck AND c.artnr = r.artnr"
-        conds.append("((coalesce(c.n_obs, 0) < :lmax AND s.art_type IN ('art', 'underart')) OR r.kategori IN ('SU','SUB'))")
-        params.update(ck=scope.count_key, lmax=local_max)
-    elif level == "pheno":
-        joins = "JOIN species_season ss ON ss.artnr = coalesce(s.list_artnr, s.artnr)"
-        conds += ["s.art_type IN ('art', 'underart')", feed.PHENO_COND]
-        params["doy"] = seasons.doy365(day)
-    elif level != "all":
+    if level not in ("local", "pheno", "all"):
         conds.append("r.kategori = ANY(:kats)")
         params["kats"] = [k for k, v in RANK.items() if v >= LEVELS.get(level, 1)]
-    ph = ", ss.start_doy AS ph_from, ss.end_doy AS ph_to, ss.source AS ph_source" if level == "pheno" else ""
-    rows = (await session.execute(text(f"""
+    # Feltmeldinger ligger i brugergruppen; lokale artstal og fænologi i observationsgruppen. De slås derfor op for sig
+    # bagefter og filtreres her – en sætning må ikke blande de to grupper.
+    rows = [dict(r) for r in (await session.execute(text(f"""
         SELECT r.id, r.artnr, r.loknr, r.antal, r.kategori, r.status, r.status_at, r.sikkerhed, r.created_at, r.obserkode,
-               r.obstidfra, r.afdelinger, s.navn AS art, l.navn AS lok, l.lat, l.lon, k.navn AS kommune, u.navn AS observer,
-               ca.text AS adf, t.turtidfra{ph}
+               r.obstidfra, r.afdelinger, s.navn AS art, s.art_type, coalesce(s.list_artnr, s.artnr) AS list_or_artnr,
+               l.navn AS lok, l.lat, l.lon, k.navn AS kommune, u.navn AS observer, ca.text AS adf, t.turtidfra
         FROM field_reports r JOIN species s ON s.artnr = r.artnr JOIN locations l ON l.loknr = r.loknr
         LEFT JOIN field_trips t ON t.id = r.trip_id JOIN users u ON u.id = r.user_id
         LEFT JOIN kommuner k ON k.kode = l.kommune_kode
-        LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode {joins}
+        LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = r.adfkode
         WHERE {' AND '.join(conds)} ORDER BY r.created_at
-    """), {"day": day, "viewer": viewer.id if viewer else -1, **params})).mappings().all()
+    """), {"day": day, "viewer": viewer.id if viewer else -1, **params})).mappings().all()]
+    if rows and level == "local":
+        counts = dict((await session.execute(text(
+            "SELECT artnr, n_obs FROM area_species_counts WHERE area_key = :ck AND artnr = ANY(:a)"),
+            {"ck": scope.count_key, "a": list({r["artnr"] for r in rows})})).all())
+        rows = [r for r in rows if r["kategori"] in ("SU", "SUB")
+                or (counts.get(r["artnr"], 0) < local_max and r["art_type"] in ("art", "underart"))]
+    elif rows and level == "pheno":
+        doy = seasons.doy365(day)
+        season = {a: (fra, til, src) for a, fra, til, src in (await session.execute(text(
+            "SELECT artnr, start_doy, end_doy, source FROM species_season WHERE artnr = ANY(:a)"),
+            {"a": list({r["list_or_artnr"] for r in rows})})).all()}
+        kept = []
+        for r in rows:
+            ss = season.get(r["list_or_artnr"])
+            if ss is None or r["art_type"] not in ("art", "underart"):
+                continue
+            fra, til, src = ss
+            outside = (doy < fra or doy > til) if fra <= til else (til < doy < fra)  # samme regel som feed.PHENO_COND
+            if outside:
+                kept.append({**r, "ph_from": fra, "ph_to": til, "ph_source": src})
+        rows = kept
     if not rows:
         return threads
     by_id = {t["id"]: t for t in threads}
