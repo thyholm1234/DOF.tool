@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     archive_upload_dir: str = "/data/archive-upload"
 
     media_dir: str = "/data/media"
+    # Objektlager (S3/MinIO) til filer i observationer. Tom S3_ENDPOINT = filerne ligger under media_dir/obs.
+    s3_endpoint: str = ""  # fx minio:9000
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_bucket: str = "doftool-media"
+    s3_secure: bool = False
+    s3_region: str = ""
     weather_dir: str = "/data/weather"  # midlertidige DMI-månedsfiler (≈0,5 GB, slettes efter parsing)
 
     vapid_subject: str = "mailto:admin@example.org"

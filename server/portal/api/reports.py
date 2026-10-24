@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import date, datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -15,10 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import require_user
 from portal.api.learn import MEDIA_TYPES
 from portal.cache import publish
-from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, ThreadFollow, User
-from portal.services import activity, imagemeta, pulse, reports
+from portal.services import activity, imagemeta, pulse, reports, storage
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.reports")
@@ -95,12 +93,8 @@ async def _own_report(db: AsyncSession, report_id: int, user: User) -> FieldRepo
     return r
 
 
-def _remove_files(media: list | None) -> None:
-    root = Path(get_settings().media_dir) / "obs"
-    for m in media or []:
-        path = root / Path(m.get("url", "")).name
-        if path.is_file():
-            path.unlink()
+async def _remove_files(media: list | None) -> None:
+    await storage.delete_urls(m.get("url") for m in media or [])
 
 
 def _check_guidelines(r: FieldReport) -> None:
@@ -245,7 +239,7 @@ async def delete_report(report_id: int, user: User = Depends(require_user), db: 
     await db.delete(r)
     await db.commit()
     await pulse.record_deleted([-report_id])
-    _remove_files(media)
+    await _remove_files(media)
     await publish("feed", {"type": "feed", "portal": True})
     return {"ok": True}
 
@@ -267,12 +261,13 @@ async def upload_media(report_id: int, file: UploadFile = File(...), user: User 
             data = imagemeta.strip(data)  # GPS-position og andre metadata fjernes, før filen gemmes
         except ValueError as exc:
             raise HTTPException(400, "Billedet kunne ikke læses") from exc
-    root = Path(get_settings().media_dir) / "obs"
-    root.mkdir(parents=True, exist_ok=True)
-    name = f"{uuid.uuid4().hex}{ext}"
-    (root / name).write_bytes(data)
+    try:
+        url = await storage.put(f"{uuid.uuid4().hex}{ext}", data, file.content_type or "application/octet-stream")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Upload til objektlageret fejlede: %s", exc)
+        raise HTTPException(503, "Filen kunne ikke gemmes lige nu – prøv igen om lidt") from exc
     kind = "audio" if ext in (".mp3", ".ogg", ".wav", ".m4a", ".webm") else "image"
-    r.media = [*(r.media or []), {"url": f"/media/obs/{name}", "kind": kind}]
+    r.media = [*(r.media or []), {"url": url, "kind": kind}]
     if kind == "image" and "foto" not in (r.grundlag or []):
         r.grundlag = [*(r.grundlag or []), "foto"]
     if kind == "audio" and "lyd" not in (r.grundlag or []):
@@ -288,5 +283,5 @@ async def delete_media(report_id: int, url: str, user: User = Depends(require_us
         raise HTTPException(404)
     r.media = [m for m in r.media if m["url"] != url]
     await db.commit()
-    _remove_files([{"url": url}])
+    await _remove_files([{"url": url}])
     return {"media": r.media}

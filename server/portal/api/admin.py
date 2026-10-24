@@ -22,7 +22,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
-from portal.services import account, activity, datasync, fcm, features, moderation, weather_archive
+from portal.services import account, activity, datasync, diskusage, fcm, features, moderation, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
 
@@ -39,6 +39,12 @@ perm_vejr = require_perm("vejr")
 SETTINGS = {"live_enabled": True, "matrikel_tag": "#BB", "welcome": "", "require_approval": True}
 # Indstillinger der styres fra et andet modul end Drift
 SETTING_MODULE = {"require_approval": "brugere"}
+
+
+@router.get("/admin/storage")
+async def storage_usage(refresh: bool = False, user: User = Depends(perm_drift)):
+    """Lagerforbrug: databaser, objektlager, filer på disken og Valkey (gemt 5 minutter; refresh=1 måler igen)."""
+    return await diskusage.measure(refresh)
 
 
 @router.get("/admin/overview")

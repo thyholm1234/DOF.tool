@@ -273,7 +273,7 @@ async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> 
         keep.add(r.id)
     gone = [i for i in existing if i not in keep]
     for i in gone:
-        _remove_files(existing[i].media)
+        await _remove_files(existing[i].media)
         await db.delete(existing[i])
 
     for p in body.breeding_pairs:
@@ -361,6 +361,6 @@ async def delete_trip(trip_id: int, user: User = Depends(require_user), db: Asyn
     await db.commit()
     await pulse.record_deleted([-i for i, _ in rows])
     for _, media in rows:
-        _remove_files(media)
+        await _remove_files(media)
     await publish("feed", {"type": "feed", "portal": True})
     return {"ok": True}

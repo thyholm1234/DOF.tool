@@ -20,7 +20,7 @@ from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, dof_events, features, imagemeta, locyear, netfugl, phenology, regions, seasons, weather_archive
+from portal.services import areas, datasync, dmi, dof_events, features, imagemeta, locyear, netfugl, phenology, regions, seasons, storage, weather_archive
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -124,6 +124,13 @@ async def scheduler() -> None:
         # Engang: fjern GPS-position og andre metadata fra billeder uploadet før rensningen ved upload fandtes
         n = await asyncio.to_thread(imagemeta.strip_tree, Path(get_settings().media_dir))
         log.info("Metadata fjernet fra %s eksisterende billeder", n)
+    if storage.enabled() and await kv().set("once:media_s3_v1", "1", nx=True):
+        # Engang: flyt filer fra observationer fra disken til objektlageret (ved fejl prøves igen ved næste start)
+        try:
+            log.info("Flyttede %s filer fra disken til objektlageret", await storage.migrate_local())
+        except Exception:
+            await kv().delete("once:media_s3_v1")
+            log.exception("Flytning til objektlageret fejlede")
     while True:
         now = dk_now()
         day = now.date().isoformat()

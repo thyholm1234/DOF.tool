@@ -18,6 +18,7 @@ from portal.config import get_settings
 from portal.db import Base
 from portal.dbgroups import USER_TABLES
 from portal.models import User
+from portal.services import storage
 
 SECRET_COLUMNS = {"test_pw_hash", "token_hash"}
 SECRET_PREFS = {"ics_token"}
@@ -84,8 +85,9 @@ async def delete(db: AsyncSession, user: User) -> None:
     await db.execute(text("DELETE FROM activity WHERE user_id = :u"), {"u": user.id})
     await db.execute(sql_delete(User).where(User.id == user.id))
     await db.commit()
+    await storage.delete_urls(urls)  # filer fra observationer ligger i objektlageret
     for url in urls:
-        p = _media_path(url)
+        p = None if storage.name_of(url) else _media_path(url)
         if p and p.is_file():
             p.unlink()
     await destroy_sessions(user.id)

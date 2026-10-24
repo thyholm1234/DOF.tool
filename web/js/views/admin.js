@@ -20,7 +20,9 @@ export async function render(view) {
   const draw = (t) => ({
     drift: () => {
       const jobsBox = h("div", { class: "card stack" }), uploadBox = h("div", { class: "card stack mt" }), opsBox = h("div", { class: "mt" });
-      body.append(jobsBox, uploadBox, opsBox);
+      const storageBox = h("div", { class: "card stack mt" });
+      body.append(jobsBox, storageBox, uploadBox, opsBox);
+      storageCard(storageBox);
       archiveUpload(uploadBox);
       every(() => jobsCard(jobsBox), 3000);
       every(() => { opsBox.replaceChildren(); ops(opsBox); }, 15000);
@@ -87,6 +89,46 @@ async function ops(body) {
 }
 
 const st = (v, l) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l));
+
+// ---------------------------------------------------------------- lagerforbrug (måles på forespørgsel, gemmes 5 min på serveren)
+
+const fmtBytes = (b) => {
+  if (b == null) return "–";
+  const [div, unit] = b >= 1e12 ? [1e12, "TB"] : b >= 1e9 ? [1e9, "GB"] : b >= 1e6 ? [1e6, "MB"] : b >= 1e3 ? [1e3, "kB"] : [1, "B"];
+  return `${(b / div).toLocaleString("da-DK", { maximumFractionDigits: b >= div * 100 ? 0 : 1 })} ${unit}`;
+};
+
+async function storageCard(box, refresh = false) {
+  const btn = h("button", { class: "btn sm ghost", onclick: () => storageCard(box, true) }, "Mål igen");
+  box.replaceChildren(h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Lagerplads"), btn), h("p", { class: "muted" }, "Måler …"));
+  let d;
+  try { d = await api(`/api/admin/storage${refresh ? "?refresh=1" : ""}`); } catch (err) { box.append(errorBox(err)); return; }
+  // Én serie (bytes) → én farve; tal i tekstfarve; søjlen er relativ til den største post i oversigten
+  const rows = [
+    ...d.databases.map(x => ({ group: "Databaser", name: x.name, bytes: x.bytes, note: x.error ? `fejl: ${x.error}` : `${x.tables.length ? "største: " + x.tables.slice(0, 3).map(t => `${t.name} ${fmtBytes(t.bytes)}`).join(", ") : ""}`, tables: x.tables })),
+    { group: "Objektlager", name: d.objects.name, bytes: d.objects.bytes, note: d.objects.error ? `fejl: ${d.objects.error}` : `${fmtN(d.objects.files ?? 0)} filer (fotos og lyd i observationer)` },
+    ...d.files.map(x => ({ group: "Filer på disken", name: x.name, bytes: x.bytes, note: `${fmtN(x.files)} filer` })),
+    { group: "Hukommelse", name: d.valkey.name, bytes: d.valkey.bytes, note: `${fmtN(d.valkey.keys)} nøgler` },
+  ];
+  const max = Math.max(1, ...rows.map(r => r.bytes || 0));
+  const total = rows.filter(r => r.group !== "Hukommelse").reduce((t, r) => t + (r.bytes || 0), 0);
+  const groups = [...new Set(rows.map(r => r.group))];
+  const disk = d.disk;
+  box.replaceChildren(
+    h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Lagerplads"),
+      h("span", { class: "row" }, h("small", { class: "muted" }, `målt ${ago(d.measured_at)}`), btn)),
+    disk ? h("div", { title: `${fmtBytes(disk.used)} brugt af ${fmtBytes(disk.total)} – ${fmtBytes(disk.free)} fri` },
+      h("div", { class: "row between" }, h("span", {}, "Serverens disk (mediemappen)"), h("b", { class: "num" }, `${fmtBytes(disk.used)} af ${fmtBytes(disk.total)} · ${fmtBytes(disk.free)} fri`)),
+      h("div", { class: "bar-inline", role: "meter", "aria-valuemin": 0, "aria-valuemax": disk.total, "aria-valuenow": disk.used, "aria-label": "Brugt diskplads", style: { height: "8px" } },
+        h("i", { style: { width: `${Math.max(1, disk.used / disk.total * 100)}%` } }))) : null,
+    h("p", { class: "muted", style: { margin: 0 } }, `DOF.tool fylder i alt ${fmtBytes(total)} (databaser, objektlager og filer).`),
+    ...groups.map(g => h("div", {}, h("h4", { style: { margin: ".6rem 0 .2rem" } }, g),
+      h("ul", { class: "mini-list" }, ...rows.filter(r => r.group === g).map(r => h("li", { class: "bar-row", title: `${r.name}: ${fmtBytes(r.bytes)}${r.note ? " – " + r.note : ""}` },
+        h("span", {}, r.name, r.note ? h("small", { class: "muted" }, ` · ${r.note}`) : null), h("b", { class: "num" }, fmtBytes(r.bytes)),
+        h("div", { class: "bar-inline" }, h("i", { style: { width: `${r.bytes ? Math.max(1, r.bytes / max * 100) : 0}%` } })),
+        r.tables?.length ? h("details", { style: { gridColumn: "1 / -1" } }, h("summary", { class: "muted" }, "Største tabeller"),
+          h("table", { class: "data" }, h("tbody", {}, ...r.tables.map(t => h("tr", {}, h("td", {}, t.name), h("td", { class: "right num muted" }, `${fmtN(t.rows)} rækker`), h("td", { class: "right num" }, fmtBytes(t.bytes))))))) : null))))));
+}
 
 // ---------------------------------------------------------------- upload af månedsfiler (gentegnes ikke af 15 s-opdateringen)
 

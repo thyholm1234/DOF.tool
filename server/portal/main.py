@@ -14,14 +14,15 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
-from portal.api import (admin, alerts, auth, calendar, categories, dofbasen, dofbasen_v1, feed, geo, learn, lists, mobgang, netfugl, position,
-                        netfugl_v1, privacy, reports, science, share, social, trips)
+from portal.api import (admin, alerts, auth, calendar, categories, dofbasen, dofbasen_v1, feed, geo, learn, lists, media, mobgang, netfugl,
+                        position, netfugl_v1, privacy, reports, science, share, social, trips)
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
 from portal.config import get_settings
 from portal.db import router
 from portal.dbgroups import GROUPS
+from portal.services import storage
 from portal.services.auth import AuthError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -31,6 +32,7 @@ WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).resolve().parents[2] / "
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
+    await storage.init()
     yield
     await router.stop()
 
@@ -139,7 +141,7 @@ async def health():
 
 
 for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, share,
-               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy):
+               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, media):  # media før /media-mounten
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer

@@ -18,8 +18,16 @@ docker compose
 ├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, scoreboards, pub/sub til live-opdateringer
 ├── api       (FastAPI)  – REST + server-sent events + statisk PWA (web/)
 ├── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
+├── minio     – objektlager (S3) til fotos og lyd i observationer; leveres med login via /media/obs/<navn>
 └── dbadmin   – superadmin-panel til databaserne (se Databaser): noder, tokens, IP og port
 ```
+
+**Objektlager.** Filer uploadet til feltmeldinger og ture gemmes i MinIO (bucket `doftool-media`), ikke på disken.
+MinIO udgiver ikke længere færdige images, og projektet blev arkiveret i 2026, så `minio/Dockerfile` bygger den sidste
+udgave (RELEASE.2025-10-15T17-29-55Z) fra kildekoden – den får ingen sikkerhedsopdateringer. Appen taler almindelig S3,
+så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan tage over via `S3_ENDPOINT`, `S3_ACCESS_KEY`,
+`S3_SECRET_KEY` og `S3_BUCKET`. Eksisterende filer under `/data/media/obs` flyttes til lageret første gang workeren
+starter. Lagerforbruget for databaser, objektlager, filer og Valkey kan følges under **Admin → Drift → Lagerplads**.
 
 ### Databaser: opdeling, replikaer og backup
 

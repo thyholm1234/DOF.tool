@@ -71,3 +71,26 @@ def test_export_covers_user_tables():
 def test_client_ip_ignores_spoofed_header():
     req = SimpleNamespace(headers={"x-forwarded-for": "1.2.3.4"}, client=SimpleNamespace(host="10.0.1.7"))
     assert client_ip(req) == "10.0.1.7"
+
+
+def test_storage_names_reject_traversal():
+    from portal.services import storage
+    assert storage.name_of("/media/obs/abc.jpg") == "abc.jpg"
+    for bad in ("/media/obs/../x", "/media/obs/a/b.jpg", "/media/netfugl/x.jpg", "/media/obs/", None):
+        assert storage.name_of(bad) is None
+
+
+def test_local_storage_roundtrip(tmp_path, monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from portal.services import storage
+    monkeypatch.setattr(storage, "get_settings", lambda: SimpleNamespace(s3_endpoint="", media_dir=str(tmp_path)))
+
+    async def run():
+        url = await storage.put("a.mp3", b"0123456789", "audio/mpeg")
+        assert url == "/media/obs/a.mp3" and (tmp_path / "obs" / "a.mp3").read_bytes() == b"0123456789"
+        assert (await storage.get("a.mp3", 2, 4)).data == b"234" and await storage.stat("a.mp3") == 10
+        assert await storage.usage() == (1, 10)
+        await storage.delete_urls([url, "/media/netfugl/x.jpg"])
+        assert await storage.get("a.mp3") is None
+    asyncio.run(run())
