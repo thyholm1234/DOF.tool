@@ -78,7 +78,7 @@ def test_list_species_names():
     assert not is_listable_name("Måge sp.")
     assert not is_listable_name("Gråand x Spidsand (hybrid)")
     assert not is_listable_name("Rødstrubet Lom/Sortstrubet Lom")
-    assert not is_listable_name("Klippedue (tamdue)")
+    assert is_listable_name("Klippedue (tamdue)")  # DOFbasens eneste Columba livia – kategori C på Den Danske Liste
     assert is_listable_name("Rødstrubet Lom")
 
 

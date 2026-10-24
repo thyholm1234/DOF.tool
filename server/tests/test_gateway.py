@@ -1,6 +1,7 @@
 """Gatewayens rate-grænse og planlægning testes mod en falsk Valkey i hukommelsen."""
 
 import asyncio
+import fnmatch
 import time
 
 import pytest
@@ -10,7 +11,7 @@ from portal.dof import gateway
 
 class FakeRedis:
     def __init__(self):
-        self.kv, self.z, self.h, self.lists = {}, {}, {}, {}
+        self.kv, self.z, self.h, self.lists, self.sets = {}, {}, {}, {}, {}
 
     async def get(self, k):
         return self.kv.get(k)
@@ -22,8 +23,84 @@ class FakeRedis:
         return True
 
     async def delete(self, *ks):
+        n = 0
         for k in ks:
-            self.kv.pop(k, None)
+            for store in (self.kv, self.z, self.h, self.lists, self.sets):
+                n += store.pop(k, None) is not None
+        return n
+
+    async def getdel(self, k):
+        return self.kv.pop(k, None)
+
+    async def exists(self, *ks):
+        return sum(any(k in store for store in (self.kv, self.z, self.h, self.lists, self.sets)) for k in ks)
+
+    async def expire(self, k, seconds):
+        return True  # udløb er ligegyldigt i testene
+
+    async def scan_iter(self, match="*"):
+        for k in list({*self.kv, *self.z, *self.h, *self.lists, *self.sets}):
+            if fnmatch.fnmatchcase(k, match):
+                yield k
+
+    # hashes
+    async def hset(self, k, field=None, value=None, mapping=None):
+        h = self.h.setdefault(k, {})
+        h.update(mapping or {field: value})
+        return len(mapping or {field: value})
+
+    async def hgetall(self, k):
+        return {f: str(v) for f, v in self.h.get(k, {}).items()}
+
+    async def hincrby(self, k, field, amount=1):
+        h = self.h.setdefault(k, {})
+        h[field] = int(h.get(field, 0)) + amount
+        return h[field]
+
+    # lister
+    async def rpush(self, k, *vs):
+        self.lists.setdefault(k, []).extend(vs)
+        return len(self.lists[k])
+
+    async def lpush(self, k, *vs):
+        lst = self.lists.setdefault(k, [])
+        for v in vs:
+            lst.insert(0, v)
+        return len(lst)
+
+    async def ltrim(self, k, a, b):
+        lst = self.lists.get(k, [])
+        self.lists[k] = lst[a:(b + 1 if b >= 0 else len(lst) + b + 1)]
+        return True
+
+    async def blpop(self, keys, timeout=0):
+        for k in [keys] if isinstance(keys, str) else keys:
+            if self.lists.get(k):
+                return k, self.lists[k].pop(0)
+        await asyncio.sleep(0)
+        return None
+
+    # mængder
+    async def sadd(self, k, *ms):
+        st = self.sets.setdefault(k, set())
+        n = len(st)
+        st.update(ms)
+        return len(st) - n
+
+    async def srem(self, k, *ms):
+        st = self.sets.get(k, set())
+        n = len(st)
+        st.difference_update(ms)
+        return n - len(st)
+
+    async def smembers(self, k):
+        return set(self.sets.get(k, set()))
+
+    async def sismember(self, k, m):
+        return m in self.sets.get(k, set())
+
+    async def scard(self, k):
+        return len(self.sets.get(k, set()))
 
     async def zadd(self, k, mapping):
         self.z.setdefault(k, {}).update(mapping)
@@ -38,6 +115,16 @@ class FakeRedis:
 
     async def zcard(self, k):
         return len(self.z.get(k, {}))
+
+    async def zrank(self, k, m):
+        order = [i[0] for i in sorted(self.z.get(k, {}).items(), key=lambda x: x[1])]
+        return order.index(m) if m in order else None
+
+    async def zpopmin(self, k, count=1):
+        items = sorted(self.z.get(k, {}).items(), key=lambda x: x[1])[:count]
+        for m, _ in items:
+            self.z[k].pop(m)
+        return items
 
     def pipeline(self):
         return FakePipe(self)
