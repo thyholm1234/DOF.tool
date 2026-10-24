@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import shutil
 import os
 import re
 import secrets
@@ -479,13 +481,63 @@ async def checker() -> None:
 
 # ---------------------------------------------------------------- opsætning og migrering fra den samlede database
 
-mig: dict = {"running": False, "step": "", "log": [], "error": None, "started": None, "finished": None}
+mig: dict = {"running": False, "step": "", "log": [], "error": None, "started": None, "finished": None, "status": None}
+log = logging.getLogger("dbadmin")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
 async def say(msg: str) -> None:
     mig["step"] = msg
     mig["log"].append(f"{time.strftime('%H:%M:%S')} {msg}")
-    del mig["log"][:-300]
+    del mig["log"][:-500]
+    log.info("migrering: %s", msg)  # også i 'docker logs <dbadmin>'
+
+
+async def set_status(st: dict | None) -> None:
+    mig["status"] = {**st, "at": time.time()} if st else None
+
+
+def _asyncpg_dsn(dsn: str) -> str:
+    return dsn.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+
+ACTIVITY_SQL = """
+    SELECT pid, state, wait_event_type, wait_event, round(extract(epoch FROM now() - query_start)) AS seconds,
+           left(regexp_replace(query, '\\s+', ' ', 'g'), 160) AS query
+    FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND state <> 'idle'
+    ORDER BY query_start"""
+
+
+@app.get("/api/migration/activity", dependencies=[Depends(superadmin)])
+async def migration_activity():
+    """Hvad laver databaserne lige nu? Aktive forespørgsler, ventetilstande (fx låse) og COPY/indeks-fremdrift."""
+    targets = [("samlet (kilde)", _asyncpg_dsn(LEGACY_DSN))] if LEGACY_DSN else []
+    with closing(db()) as con:
+        for r in con.execute("SELECT * FROM nodes WHERE role = 'primary' AND enabled = 1"):
+            targets.append((r["name"], {"host": r["host"], "port": r["port"], "user": r["user"], "password": r["token"],
+                                        "database": r["dbname"]}))
+    out = []
+    for name, target in targets:
+        try:
+            conn = await (asyncpg.connect(target, timeout=5) if isinstance(target, str) else asyncpg.connect(**target, timeout=5))
+        except Exception as exc:  # noqa: BLE001
+            out.append({"node": name, "error": str(exc)})
+            continue
+        try:
+            act = [dict(r) for r in await conn.fetch(ACTIVITY_SQL)]
+            copy = [dict(r) for r in await conn.fetch(
+                "SELECT relid::regclass::text AS tabel, command, type, bytes_processed, tuples_processed FROM pg_stat_progress_copy")]
+            idx = [dict(r) for r in await conn.fetch(
+                "SELECT relid::regclass::text AS tabel, index_relid::regclass::text AS indeks, phase, blocks_done, blocks_total, "
+                "tuples_done, tuples_total FROM pg_stat_progress_create_index")]
+            size = await conn.fetchval("SELECT pg_size_pretty(pg_database_size(current_database()))")
+            out.append({"node": name, "size": size, "activity": act, "copy": copy, "index": idx})
+        except Exception as exc:  # noqa: BLE001
+            out.append({"node": name, "error": str(exc)})
+        finally:
+            await conn.close()
+    disk = shutil.disk_usage("/tmp")
+    return {"nodes": out, "panel_tmp_free_gb": round(disk.free / 1e9, 1)}
 
 
 class MigrateIn(BaseModel):
@@ -509,7 +561,7 @@ async def migration_start(body: MigrateIn):
         raise HTTPException(409, "En migrering kører allerede")
     if not LEGACY_DSN:
         raise HTTPException(400, "LEGACY_POSTGRES_DSN er ikke sat på panelet")
-    mig.update(running=True, step="Starter", log=[], error=None, started=time.time(), finished=None)
+    mig.update(running=True, step="Starter", log=[], error=None, started=time.time(), finished=None, status=None)
     asyncio.create_task(run_migration(body))
     return {"ok": True}
 
@@ -583,15 +635,17 @@ async def run_migration(opts: MigrateIn) -> None:
             await wait_ready(r)
         router.set_nodes([Node(r["id"], r["name"], r["grp"], "primary", r["host"], r["port"], r["dbname"], r["user"], r["token"])
                           for r in rows])
-        await migrate(LEGACY_DSN, wipe=opts.wipe, progress=say)
+        await migrate(LEGACY_DSN, wipe=opts.wipe, progress=say, status=set_status)
         with closing(db()) as con:
             con.execute("INSERT OR REPLACE INTO settings (k, v) VALUES ('mode', ?)", (json.dumps("split"),))
             bump(con)
             con.commit()
         await say("Migrering færdig – opdelingen er slået til")
     except Exception as exc:  # noqa: BLE001
+        log.exception("Migrering fejlede")
         mig["error"] = str(exc) or exc.__class__.__name__
-        await say("FEJL: " + mig["error"] + " – portalen bruger stadig den samlede database")
+        await say("FEJL: " + mig["error"] + " – portalen bruger stadig den samlede database. Start igen for at fortsætte, "
+                  "hvor den slap (færdige tabeller og bidder springes over).")
     finally:
         for c in stopped:
             try:
