@@ -1,7 +1,7 @@
 """DOF.tool db-admin: register over databasenoderne.
 
 Login med eget kodeord (DBADMIN_PASSWORD), uafhængigt af portalen. Man opretter en node (bruger- eller observationsdatabase, primary eller replika), får et token som bruges som
-databasens adgangskode i dens docker compose, og kan rette IP/port bagefter. API'et og workeren henter topologien her
+databasens adgangskode, og et script der opretter noden på serveren, og kan rette IP/port bagefter. API'et og workeren henter topologien her
 (/api/topology) og er load balancer for hele DOF-økosystemet. Registret ligger i en lille SQLite i /data, så panelet
 ikke afhænger af de databaser det styrer.
 """
@@ -15,6 +15,7 @@ import shutil
 import os
 import re
 import secrets
+import shlex
 import sqlite3
 import time
 from contextlib import asynccontextmanager, closing, suppress
@@ -265,7 +266,7 @@ async def create_node(body: NodeIn):
             raise HTTPException(409, "Navnet findes allerede") from None
         bump(con)
         con.commit()
-        return {"id": cur.lastrowid, "token": token, "compose": compose(con, get_node(con, cur.lastrowid))}
+        return {"id": cur.lastrowid, "token": token, "script": setup_script(con, get_node(con, cur.lastrowid), await asyncio.to_thread(panel_network))}
 
 
 @app.patch("/api/nodes/{node_id}", dependencies=[Depends(superadmin)])
@@ -321,7 +322,7 @@ async def delete_node(node_id: int):
 async def show_token(node_id: int):
     with closing(db()) as con:
         row = get_node(con, node_id)
-        return {"token": row["token"], "compose": compose(con, row)}
+        return {"token": row["token"], "script": setup_script(con, row, await asyncio.to_thread(panel_network))}
 
 
 @app.post("/api/nodes/{node_id}/promote", dependencies=[Depends(superadmin)])
@@ -344,7 +345,7 @@ async def promote(node_id: int):
 @app.post("/api/nodes/{node_id}/rotate", dependencies=[Depends(superadmin)])
 async def rotate(node_id: int):
     """Nyt token til en primary (og dens replikaer). Databasens egen adgangskode skal skiftes med kommandoen i svaret,
-    og compose-filerne opdateres – ellers mister API'et forbindelsen."""
+    og containerne genstartes med det nye token – ellers mister API'et forbindelsen."""
     with closing(db()) as con:
         row = get_node(con, node_id)
         if row["role"] != "primary":
@@ -383,51 +384,107 @@ async def topology():
                            "purpose": r["purpose"], "enabled": True, "status": r["status"]} for r in rows]}
 
 
-# ---------------------------------------------------------------- compose
+# ---------------------------------------------------------------- opsætningsscript
 
-TUNING = "-c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB -c effective_cache_size=4GB -c max_wal_size=4GB -c random_page_cost=1.1"
+DBNODE_DIR = Path(__file__).resolve().parent.parent / "dbnode"  # Dockerfile og scripts til doftool-dbnode-billedet
+IP = re.compile(r"[0-9.]+|.*:.*|localhost")
 
 
-def compose(con: sqlite3.Connection, row: sqlite3.Row) -> str:
-    """docker-compose.yml til serveren hvor noden skal køre (mappen dbnode/ fra projektet kopieres dertil)."""
-    env = [f"      POSTGRES_DB: {row['dbname']}", f"      POSTGRES_USER: {row['user']}", f"      POSTGRES_PASSWORD: {row['token']}",
-           f"      DB_ROLE: {row['role']}"]
-    note = ""
+def panel_network() -> str:
+    """Portalens Docker-netværk (det panelet selv kører i); noder på samme vært lægges i det og nås ved containernavn."""
+    if dockerops.available():
+        with suppress(Exception):
+            return dockerops.context(dockerops.client())[1]
+    return "doftool_default"
+
+
+def setup_script(con: sqlite3.Connection, row: sqlite3.Row, network: str) -> str:
+    """Bash-script der opretter og starter noden på serveren – indsættes direkte i en terminal. Bygger doftool-dbnode
+    (filerne er indlejret), hvis billedet mangler, og lægger containeren i portalens netværk, hvis det findes på serveren."""
+    q = shlex.quote
+    # Er registrets adresse et navn (ikke IP), bruges det som containernavn, så portalen kan nå noden ved navn
+    container = row["host"] if not IP.fullmatch(row["host"]) else f"doftool-db-{row['name']}"
+    env = {"POSTGRES_DB": row["dbname"], "POSTGRES_USER": row["user"], "POSTGRES_PASSWORD": row["token"], "DB_ROLE": row["role"],
+           "TZ": "Europe/Copenhagen"}
+    note = primary = ""
     if row["role"] == "replica":
         p = con.execute("SELECT * FROM nodes WHERE id = ?", (row["primary_id"],)).fetchone()
-        env += [f"      PRIMARY_HOST: {p['host'] if p else 'ADRESSE-PÅ-PRIMARY'}", f"      PRIMARY_PORT: \"{p['port'] if p else 5432}\""]
-        note = f"# Replika af {p['name'] if p else '?'} ({'aflaster læsninger' if row['purpose'] == 'read' else 'kun backup'}): tager en basebackup af primary ved første start og streamer derefter.\n"
+        env |= {"PRIMARY_HOST": "$PRIMARY_HOST", "PRIMARY_PORT": "$PRIMARY_PORT"}
+        primary = (f"PRIMARY_HOST={q(p['host'] if p else 'ADRESSE-PÅ-PRIMARY')}\nPRIMARY_PORT={int(p['port'] if p else 5432)}\n"
+                   "# Kører primary som container på samme vært, nås den i netværket på sin interne port\n"
+                   'if docker container inspect "$PRIMARY_HOST" >/dev/null 2>&1; then PRIMARY_PORT=5432; fi\n')
+        note = (f"# Replika af {p['name'] if p else '?'} ({'aflaster læsninger' if row['purpose'] == 'read' else 'kun backup'}): "
+                "tager en basebackup af primary ved første start og streamer derefter.\n")
+    files = "".join(f"    cat > \"$dir/{f}\" <<'DOFNODE_FILE'\n{(DBNODE_DIR / f).read_text().rstrip()}\nDOFNODE_FILE\n"
+                    for f in ("Dockerfile", "node-entrypoint.sh", "10-replication.sh"))
+    envs = " ".join(f"-e {k}=" + (f'"{v}"' if v.startswith("$") else q(v)) for k, v in env.items())
     return f"""# {row['name']} – {'brugerdata' if row['grp'] == 'users' else 'observationer'} ({row['role']})
-# Kopiér mappen dbnode/ fra projektet til serveren ved siden af denne fil.
-{note}name: dof-db-{row['name']}
-services:
-  postgres:
-    build: ./dbnode
-    restart: unless-stopped
-    environment:
-{chr(10).join(env)}
-      TZ: Europe/Copenhagen
-    command: >
-      postgres {TUNING}
-               -c wal_level=replica -c max_wal_senders=10 -c hot_standby=on -c wal_keep_size=2GB
-    ports:
-      - "{row['port']}:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {row['user']} -d {row['dbname']}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-volumes:
-  pgdata:
+# Indsæt det hele i en terminal på serveren, hvor noden skal køre (root eller bruger i docker-gruppen). Kan køres igen.
+{note}bash <<'DOFNODE'
+set -euo pipefail
+NAME={q(row['name'])}
+CONTAINER={q(container)}
+VOLUME={q('doftool_db_' + row['name'])}
+IMAGE=doftool-dbnode:latest
+NETWORK={q(network)}
+PORT={int(row['port'])}
+REG_HOST={q(row['host'])}
+REG_PORT={int(row['port'])}
+{primary}
+if docker container inspect "$CONTAINER" >/dev/null 2>&1; then
+  echo "$CONTAINER findes allerede – starter den (data i volumen $VOLUME bevares)"
+  docker start "$CONTAINER" >/dev/null
+else
+  if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+    echo "Bygger $IMAGE"
+    dir=$(mktemp -d)
+{files}    docker build -q -t "$IMAGE" "$dir" >/dev/null
+    rm -rf "$dir"
+  fi
+  net=()
+  if docker network inspect "$NETWORK" >/dev/null 2>&1; then
+    net=(--network "$NETWORK")
+  else
+    echo "Netværket $NETWORK findes ikke her – noden nås på serverens IP, port $PORT"
+  fi
+  docker run -d --name "$CONTAINER" --restart unless-stopped --label dof.dbnode="$NAME" ${{net[@]+"${{net[@]}}"}} \\
+    -p "$PORT:5432" -v "$VOLUME:/var/lib/postgresql/data" \\
+    {envs} \\
+    --health-cmd {q(f"pg_isready -h 127.0.0.1 -U {row['user']} -d {row['dbname']}")} --health-interval 5s --health-timeout 5s \\
+    --health-retries 20 --health-start-period 1h \\
+    "$IMAGE" postgres {' '.join(dockerops.TUNING)} >/dev/null
+fi
+
+echo "Venter på at $CONTAINER bliver klar (en replika kopierer først hele primary – det kan tage et stykke tid) ..."
+docker logs -f "$CONTAINER" 2>&1 &
+logs=$!
+stop_logs() {{ {{ kill $logs; wait $logs; }} 2>/dev/null || true; }}
+trap stop_logs EXIT
+while :; do
+  case "$(docker inspect -f '{{{{.State.Status}}}} {{{{.State.Health.Status}}}}' "$CONTAINER")" in
+    "running healthy") break ;;
+    exited*|dead*|restarting*) sleep 1; echo; echo "FEJL: $CONTAINER stoppede – se 'docker logs $CONTAINER'"; exit 1 ;;
+  esac
+  sleep 3
+done
+sleep 1
+stop_logs
+echo
+echo "OK: $CONTAINER kører."
+if [ "$(docker inspect -f '{{{{index .NetworkSettings.Networks "'"$NETWORK"'"}}}}' "$CONTAINER")" != "<no value>" ]; then
+  [ "$REG_HOST:$REG_PORT" = "$CONTAINER:5432" ] || echo "Ret adressen i panelet til $CONTAINER, port 5432 (samme Docker-netværk som portalen)."
+else
+  echo "Sæt adressen i panelet til serverens IP og port $PORT (nu: $REG_HOST:$REG_PORT)."
+fi
+DOFNODE
 """
 
 
-@app.get("/api/nodes/{node_id}/compose", dependencies=[Depends(superadmin)], response_class=PlainTextResponse)
-async def node_compose(node_id: int):
+@app.get("/api/nodes/{node_id}/script", dependencies=[Depends(superadmin)], response_class=PlainTextResponse)
+async def node_script(node_id: int):
+    network = await asyncio.to_thread(panel_network)
     with closing(db()) as con:
-        return compose(con, get_node(con, node_id))
+        return setup_script(con, get_node(con, node_id), network)
 
 
 # ---------------------------------------------------------------- sundhedstjek

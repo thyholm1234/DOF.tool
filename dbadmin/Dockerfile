@@ -9,6 +9,8 @@ COPY server/ ./
 RUN pip install --no-deps -e .
 WORKDIR /app/dbadmin
 COPY dbadmin/ ./
+# Indlejres i opsætningsscriptet til nye noder
+COPY dbnode/ /app/dbnode/
 VOLUME /data
 EXPOSE 8100
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8100", "--proxy-headers", "--forwarded-allow-ips=*"]

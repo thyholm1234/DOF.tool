@@ -42,7 +42,7 @@ ikke svarer. En sætning må ikke blande tabeller fra begge grupper – `python3
 database er nede, så adressen kan rettes):
 
 1. *Tilføj node*: navn, gruppe, primary/replika, IP og port. Panelet genererer et **token** – det er databasens adgangskode –
-   og en færdig `docker-compose.yml` til serveren (kopiér mappen `dbnode/` dertil; image med replikeringsopsætning).
+   og et script, der indsættes i en terminal på serveren og opretter og starter noden (bygger image med replikeringsopsætning, hvis det mangler).
 2. Start noden. Replikaer tager selv en basebackup af deres primary første gang.
 3. *Gem adresse* ændrer IP/port; API'et følger med uden genstart. Panelet viser status og replikaforsinkelse.
 4. *Gør til primary* promoverer en replika i registret (kør `pg_ctl promote` på noden; kommandoen vises).

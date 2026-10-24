@@ -84,7 +84,7 @@
         <label>Note<input name="note" placeholder="fx server i Aarhus"></label>
         <button class="primary">Opret og vis token</button>
       </form>
-      <p class="mute">Tokenet er databasens adgangskode. Opret noden her, kopiér den genererede docker compose til serveren, start den – den første primary i hver gruppe skal findes, før API'et kan bruge opsætningen.</p>
+      <p class="mute">Tokenet er databasens adgangskode. Opret noden her, indsæt det genererede script i en terminal på serveren – den første primary i hver gruppe skal findes, før API'et kan bruge opsætningen.</p>
       <p class="err" id="err"></p>
     </div>
   </div>
@@ -119,7 +119,7 @@ function render() {
       <td><input class="addr" value="${esc(n.host)}" data-f="host"> : <input class="port" type="number" value="${n.port}" data-f="port"></td>
       <td class="mute">${n.status === 'ok' ? 'OK' + (n.lag_seconds != null ? ', forsinkelse ' + n.lag_seconds + ' s' : '') : esc(n.detail || n.status)}</td>
       <td><div class="row-actions">
-        <button data-a="save">Gem adresse</button><button data-a="token">Token / compose</button>
+        <button data-a="save">Gem adresse</button><button data-a="token">Token / script</button>
         ${n.role === 'replica' ? '<button data-a="promote">Gør til primary</button>' : '<button data-a="rotate">Nyt token</button>'}
         <button data-a="toggle">${n.enabled ? 'Slå fra' : 'Slå til'}</button><button class="danger" data-a="delete">Slet</button></div></td></tr>`).join('');
     return `<div class="card"><div class="head"><h2>${NAMES[g]} <span class="mute">${nodes.filter(n => n.role === 'primary' && n.enabled).length} primary, ${nodes.filter(n => n.role === 'replica' && n.enabled).length} replika(er)</span></h2>
@@ -133,7 +133,7 @@ function render() {
 async function load() { try { state = await api('nodes'); render(); } catch (e) { if (e.message !== 'login') console.error(e); } }
 
 function show(title, html) { $('#dlgbody').innerHTML = `<h2>${title}</h2>${html}`; $('#dlg').showModal(); }
-const composeBlock = c => `<p class="mute">docker-compose.yml til serveren (kopiér <code>dbnode/</code> dertil):</p><pre>${esc(c)}</pre><button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent)">Kopiér</button>`;
+const scriptBlock = c => `<p class="mute">Indsæt i en terminal på serveren – opretter og starter noden (kan køres igen):</p><pre>${esc(c)}</pre><button onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent)">Kopiér</button>`;
 
 document.addEventListener('focusin', e => { if (e.target.matches('.addr, .port')) editing = true; });
 document.addEventListener('focusout', e => { if (e.target.matches('.addr, .port')) editing = false; });
@@ -146,7 +146,7 @@ document.addEventListener('click', async e => {
       case 'save':
         await api('nodes/' + id, { method: 'PATCH', body: { host: tr.querySelector('[data-f=host]').value, port: +tr.querySelector('[data-f=port]').value } });
         editing = false; break;
-      case 'token': { const t = await api('nodes/' + id + '/token'); show('Token for ' + esc(n.name), `<div class="token">${esc(t.token)}</div>` + composeBlock(t.compose)); return; }
+      case 'token': { const t = await api('nodes/' + id + '/token'); show('Token for ' + esc(n.name), `<div class="token">${esc(t.token)}</div>` + scriptBlock(t.script)); return; }
       case 'toggle': await api('nodes/' + id, { method: 'PATCH', body: { enabled: !n.enabled } }); break;
       case 'delete': if (!confirm('Slet ' + n.name + ' fra registret? Selve databasen røres ikke.')) return; await api('nodes/' + id, { method: 'DELETE' }); break;
       case 'promote': {
@@ -154,9 +154,9 @@ document.addEventListener('click', async e => {
         const r = await api('nodes/' + id + '/promote', { method: 'POST' });
         show('Promovér databasen', `<p>Registret er opdateret. Kør på replikaens server, hvis databasen endnu ikke er promoveret:</p><pre>${esc(r.command)}</pre>`); break; }
       case 'rotate': {
-        if (!confirm('Nyt token ændrer kun registret. Du skal også skifte databasens adgangskode og compose-filerne, ellers mister API\'et forbindelsen. Fortsæt?')) return;
+        if (!confirm('Nyt token ændrer kun registret. Du skal også skifte databasens adgangskode og containernes POSTGRES_PASSWORD, ellers mister API\'et forbindelsen. Fortsæt?')) return;
         const r = await api('nodes/' + id + '/rotate', { method: 'POST' });
-        show('Nyt token', `<div class="token">${esc(r.token)}</div><p>Kør straks på primary:</p><pre>${esc(r.command)}</pre><p class="mute">Opdatér POSTGRES_PASSWORD i compose på primary og replikaer.</p>`); break; }
+        show('Nyt token', `<div class="token">${esc(r.token)}</div><p>Kør straks på primary:</p><pre>${esc(r.command)}</pre><p class="mute">Replikaerne skal også have den nye adgangskode (primary_conninfo).</p>`); break; }
     }
     editing = false; await load();
   } catch (err) { alert(err.message); }
@@ -186,7 +186,7 @@ $('#add').addEventListener('submit', async e => {
   f.port = +f.port; f.primary_id = f.role === 'replica' ? +f.primary_id : null;
   try {
     const r = await api('nodes', { method: 'POST', body: f });
-    show('Node oprettet', `<p>Tokenet er databasens adgangskode og kan altid vises igen under “Token / compose”.</p><div class="token">${esc(r.token)}</div>` + composeBlock(r.compose));
+    show('Node oprettet', `<p>Tokenet er databasens adgangskode og kan altid vises igen under “Token / script”.</p><div class="token">${esc(r.token)}</div>` + scriptBlock(r.script));
     e.target.reset(); await load();
   } catch (err) { $('#err').textContent = err.message; }
 });
