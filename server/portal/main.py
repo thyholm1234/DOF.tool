@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import logging
+import mimetypes
 import os
 import re
 import time
@@ -24,6 +25,9 @@ from portal.db import router
 from portal.dbgroups import GROUPS
 from portal.services import storage
 from portal.services.auth import AuthError
+
+# Containerens mimetypes kender ikke woff2 – skrifterne i web/vendor skal have deres rigtige type
+mimetypes.add_type("font/woff2", ".woff2")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).resolve().parents[2] / "web"))

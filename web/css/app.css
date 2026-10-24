@@ -1,4 +1,13 @@
 /* DOF.tool – designsystem. Lys/mørk via tokens. */
+
+/* Inter ligger på serveren (vendor/inter, SIL OFL), så skriften er den samme overalt – også i Android-appens WebView,
+   hvor system-ui ellers følger telefonens skrifttypevalg og kan skifte undervejs. */
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("/vendor/inter/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("/vendor/inter/inter-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 :root {
   --bg: #f4f2ec;
   --bg-2: #ebe8df;
@@ -196,6 +205,12 @@ input, select, textarea {
   padding: 0 12px; height: 40px; width: 100%; min-width: 0;
 }
 textarea { padding: 10px 12px; height: auto; min-height: 90px; resize: vertical; }
+/* Egen pil i stedet for WebView'ens grå standardknap (ens i browser og app, lys og mørk) */
+select:not([multiple]) { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer; text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%237f8a84' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 8px; }
+/* DOFbasen- og Netfugl-modulerne efterligner de rigtige sider og beholder browserens egne dropdowns */
+.dofb select, .nfu select { appearance: auto; -webkit-appearance: menulist; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; flex: none; accent-color: var(--brand); }
 input[type="range"] { padding: 0; accent-color: var(--brand); }
 label.field { display: block; }
@@ -677,7 +692,7 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .chip.toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
 .chip.toggle:not(.on) { opacity: .55; }
 .chip .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-.chip .solo { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 4px; font: 700 .68rem/1 inherit;
+.chip .solo { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 4px; font: 700 .68rem/1 var(--font);
   padding: 2px 4px; margin-left: 2px; cursor: pointer; opacity: .7; }
 .chip .solo.active, .chip .solo:hover { opacity: 1; background: color-mix(in srgb, currentColor 22%, transparent); }
 
@@ -688,7 +703,7 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .toolbar .spacer { flex: 1; }
 .toolbar > small { white-space: nowrap; }
 .twostate { border: 1px solid var(--line-strong); background: transparent; color: var(--text-2); border-radius: 99px;
-  padding: 5px 12px; font: 600 .84rem/1.2 inherit; cursor: pointer; }
+  padding: 5px 12px; font: 600 .84rem/1.2 var(--font); cursor: pointer; }
 .twostate.on { background: var(--brand); border-color: var(--brand); color: #fff; }
 .twostate:hover:not(.on) { border-color: var(--text-3); color: var(--text); }
 
@@ -698,7 +713,7 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .toolbar .spacer { flex: 1; }
 .toolbar > small { white-space: nowrap; }
 .twostate { border: 1px solid var(--line-strong); background: transparent; color: var(--text-2); border-radius: 99px;
-  padding: 5px 12px; font: 600 .84rem/1.2 inherit; cursor: pointer; }
+  padding: 5px 12px; font: 600 .84rem/1.2 var(--font); cursor: pointer; }
 .twostate.on { background: var(--brand); border-color: var(--brand); color: #fff; }
 .twostate:hover:not(.on) { border-color: var(--text-3); color: var(--text); }
 .row.wrap { flex-wrap: wrap; }
@@ -733,7 +748,7 @@ blockquote.quote a { display: inline-block; margin-top: 2px; font-size: .85rem; 
 .map-tool-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); }
 @media (max-width: 560px) { .map-tool { grid-template-columns: 1fr; gap: 6px; } }
 .seg-n { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 99px; overflow: hidden; }
-.seg-n button { border: 0; background: transparent; color: var(--text-2); padding: 5px 11px; font: 600 .82rem/1.2 inherit; cursor: pointer; }
+.seg-n button { border: 0; background: transparent; color: var(--text-2); padding: 5px 11px; font: 600 .82rem/1.2 var(--font); cursor: pointer; }
 .seg-n button + button { border-left: 1px solid var(--line); }
 .seg-n button.on { background: var(--brand); color: #fff; }
 

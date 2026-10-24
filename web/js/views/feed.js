@@ -46,13 +46,14 @@ export async function render(view) {
   const updatedEl = h("small", { class: "muted" });
   const scopeSel = h("select", { "aria-label": "Område", style: { width: "auto", maxWidth: "240px" } });
   // Må krympe og bryde linjen på smalle skærme – ellers skubber den værktøjslinjen (og siden) ud over kanten
-  const localWrap = h("label", { class: "row hide", style: { fontSize: ".85rem", gap: ".4rem", flex: "1 1 240px", minWidth: 0 } });
-  const localVal = h("b", { class: "num" }, st.localMax);
+  // Én linje uanset tallet: tallet har fast plads til tre cifre, og slideren krymper i stedet for at hoppe ned
+  const localWrap = h("label", { class: "row hide", style: { fontSize: ".85rem", gap: ".4rem", flex: "1 1 240px", minWidth: 0, flexWrap: "nowrap", whiteSpace: "nowrap" } });
+  const localVal = h("b", { class: "num", style: { display: "inline-block", minWidth: "3ch", textAlign: "center" } }, st.localMax);
   // Trin i stedet for 1–100: de lave tal (sjældne arter) er dem, der betyder noget, og skal kunne rammes på en telefon
   const LOCAL_STEPS = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 50, 100];
   const stepOf = (n) => { const i = LOCAL_STEPS.findIndex(x => x >= n); return i < 0 ? LOCAL_STEPS.length - 1 : i; };
   const localRange = h("input", { type: "range", min: 0, max: LOCAL_STEPS.length - 1, step: 1, value: stepOf(st.localMax), "aria-label": "Færre end antal fund på lokaliteten",
-    style: { flex: "1 1 90px", width: "auto", minWidth: "80px", maxWidth: "200px" } });
+    style: { flex: "1 1 90px", width: "auto", minWidth: "60px", maxWidth: "200px" } });
   localWrap.title = "Lokalt hit: arten er fundet færre gange end dette på lokaliteten gennem alle år (estimerede fund – en fugl der bliver i flere dage tæller én gang)";
   localWrap.append("Færre end", localVal, "fund på lokaliteten", localRange);
 
