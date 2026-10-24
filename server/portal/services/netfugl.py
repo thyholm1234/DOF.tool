@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, kv, version, bump
 from portal.config import SEED_DIR, get_settings
+from portal.db import ObsSession
 from portal.models import (NfArticle, NfAudit, NfFamily, NfFeed, NfLink, NfPage, NfRole, NfSpecies,
                            NfUserRole, Setting, User)
 from portal.services import features
@@ -248,13 +249,14 @@ async def participants(session: AsyncSession) -> dict[str, str]:
 async def refresh_active(session: AsyncSession) -> None:
     """De mest aktive observatører (flest arter i DK de seneste 3 år) til demo-tilstanden 'aktive'."""
     st = await settings(session)
-    await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
-    rows = (await session.execute(text(f"""
-        SELECT o.obserkode, trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS navn
-        FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN observers ob ON ob.obserkode = o.obserkode
-        WHERE o.dato >= :d AND s.list_artnr IS NOT NULL AND o.antal > 0 AND o.hemmelig = 0
-        GROUP BY o.obserkode, ob.fornavn, ob.efternavn ORDER BY count(DISTINCT s.list_artnr) DESC LIMIT {int(st['aktive_max'])}
-    """), {"d": dk_today() - timedelta(days=3 * 365)})).all()
+    async with ObsSession() as obs:  # SET LOCAL skal ramme den database, der læser observationerne
+        await obs.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+        rows = (await obs.execute(text(f"""
+            SELECT o.obserkode, trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS navn
+            FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN observers ob ON ob.obserkode = o.obserkode
+            WHERE o.dato >= :d AND s.list_artnr IS NOT NULL AND o.antal > 0 AND o.hemmelig = 0
+            GROUP BY o.obserkode, ob.fornavn, ob.efternavn ORDER BY count(DISTINCT s.list_artnr) DESC LIMIT {int(st['aktive_max'])}
+        """), {"d": dk_today() - timedelta(days=3 * 365)})).all()
     await kv().set("nf:aktive", json.dumps([[r[0], r[1] or r[0]] for r in rows]))
 
 
@@ -287,15 +289,26 @@ async def refresh_auto(session: AsyncSession) -> int:
             {base.replace('WHERE', 'JOIN locations l ON l.loknr = o.loknr WHERE l.kommune_kode IS NOT NULL AND', 1)}
             ORDER BY o.obserkode, l.kommune_kode, s.list_artnr, o.dato, o.obsid""",
     ]
+    # Observationerne ligger i observationsgruppen og nf_auto i brugergruppen: en sætning må ikke blande dem, så krydsene
+    # læses for sig og skrives samlet bagefter (én INSERT pr. portion via unnest)
     total = 0
     for i in range(0, len(codes), 25):
         batch = codes[i:i + 25]
-        await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+        rows: list = []
+        async with ObsSession() as obs:
+            await obs.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+            for q in queries:
+                rows += (await obs.execute(text(q), {"codes": batch, "y0": y0})).all()
         await session.execute(text("DELETE FROM nf_auto WHERE obserkode = ANY(:c)"), {"c": batch})
-        for q in queries:
-            r = await session.execute(text(f"INSERT INTO nf_auto (obserkode, liste, artnr, dato, obsid, loknr) {q}"),
-                                      {"codes": batch, "y0": y0})
-            total += r.rowcount or 0
+        if rows:
+            cols = list(zip(*rows))
+            await session.execute(text("""
+                INSERT INTO nf_auto (obserkode, liste, artnr, dato, obsid, loknr)
+                SELECT * FROM unnest(CAST(:k AS varchar[]), CAST(:l AS varchar[]), CAST(:a AS integer[]), CAST(:d AS date[]),
+                                     CAST(:o AS bigint[]), CAST(:lok AS integer[]))
+            """), {"k": list(cols[0]), "l": list(cols[1]), "a": list(cols[2]), "d": list(cols[3]), "o": list(cols[4]),
+                   "lok": list(cols[5])})
+        total += len(rows)
         await session.commit()
     await bump(KRYDS_VERSION)
     await kv().set("nf:auto:at", datetime.now(timezone.utc).isoformat())
