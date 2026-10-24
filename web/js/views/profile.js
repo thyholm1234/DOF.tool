@@ -92,9 +92,11 @@ export async function render(view) {
         u.history_synced_at ? ` Historik hentet ${fmtDate(u.history_synced_at)}.` : " Historik er i kø."),
       h("div", { class: "row" },
         h("button", { class: "btn", onclick: async () => { try { const r = await api("/api/me/sync", { method: "POST" }); toast(`Lagt i kø (${r.queue} job foran – ét kald pr. minut)`); } catch (err) { toast(err.message, "err"); } } }, "Hent min historik igen"),
+        h("a", { class: "btn", href: "/api/me/export", download: "" }, "Hent mine data"),
+        h("a", { class: "btn ghost", href: "/privatliv" }, "Privatlivspolitik"),
         h("span", { style: { flex: 1 } }),
         u.role !== "superadmin" ? h("button", { class: "btn ghost danger", onclick: async () => {
-          if (!confirm("Slet din konto i portalen? Dine områder, regler og grupper slettes. Dine data i DOFbasen påvirkes ikke.")) return;
+          if (!confirm("Slet din konto i portalen? Alt hvad du har lavet her slettes – områder, regler, grupper, feltmeldinger, fotos og kommentarer. Dine data i DOFbasen påvirkes ikke.")) return;
           await api("/api/me", { method: "DELETE" }); location.hash = "#/"; location.reload();
         } }, "Slet min konto") : null)));
   // API-nøgler til showcase-modulerne: en administrator giver adgang, brugeren laver selv sine nøgler

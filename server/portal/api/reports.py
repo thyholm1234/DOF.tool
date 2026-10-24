@@ -18,7 +18,7 @@ from portal.cache import publish
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, ThreadFollow, User
-from portal.services import activity, pulse, reports
+from portal.services import activity, imagemeta, pulse, reports
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.reports")
@@ -262,6 +262,11 @@ async def upload_media(report_id: int, file: UploadFile = File(...), user: User 
     data = await file.read(15 * 1024 * 1024 + 1)
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(400, "Filen er større end 15 MB")
+    if not ext.endswith((".mp3", ".ogg", ".wav", ".m4a", ".webm")):
+        try:
+            data = imagemeta.strip(data)  # GPS-position og andre metadata fjernes, før filen gemmes
+        except ValueError as exc:
+            raise HTTPException(400, "Billedet kunne ikke læses") from exc
     root = Path(get_settings().media_dir) / "obs"
     root.mkdir(parents=True, exist_ok=True)
     name = f"{uuid.uuid4().hex}{ext}"

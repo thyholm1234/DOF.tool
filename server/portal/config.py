@@ -26,7 +26,12 @@ class Settings(BaseSettings):
     superadmin_obserkode: str = ""
 
     session_days: int = 90
-    cookie_secure: bool = False
+    cookie_secure: bool = False  # login-cookien er altid Secure, når PUBLIC_URL er https
+
+    # Privatlivspolitikken (/privatliv): den dataansvarlige og kontakt, og hvor længe sikkerhedskopier gemmes
+    privacy_controller: str = ""
+    privacy_email: str = ""
+    privacy_backup_days: int = 30
 
     # DOFbasen: højst ét kald pr. dof_min_interval sekunder, uanset hvem der beder om det.
     dof_min_interval: float = 60.0

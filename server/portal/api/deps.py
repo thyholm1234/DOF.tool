@@ -51,7 +51,6 @@ def require_perm(module: str):
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    """Klientens IP. Uvicorn sætter den fra X-Forwarded-For, men kun når forespørgslen kommer fra en betroet proxy
+    (FORWARDED_ALLOW_IPS) – headeren læses aldrig direkte, for den kan klienten selv skrive."""
     return request.client.host if request.client else "?"

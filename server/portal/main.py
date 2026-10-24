@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from portal.api import (admin, alerts, auth, calendar, categories, dofbasen, dofbasen_v1, feed, geo, learn, lists, mobgang, netfugl, position,
-                        netfugl_v1, reports, science, share, social, trips)
+                        netfugl_v1, privacy, reports, science, share, social, trips)
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
@@ -72,6 +72,10 @@ async def guard(request: Request, call_next):
         token = request.cookies.get(COOKIE)
         if not token or not await kv().exists(f"sess:{token}"):
             return JSONResponse({"detail": "Log ind for at bruge portalen"}, status_code=401)
+    # Uploads fra feltmeldinger og læring er kun for indloggede; Netfugl-fotos er offentlige (vises også via showcase-API'et)
+    private_media = path.startswith("/media/") and not path.startswith("/media/netfugl/")
+    if private_media and not await kv().exists(f"sess:{request.cookies.get(COOKIE) or '-'}"):
+        return JSONResponse({"detail": "Log ind for at se filen"}, status_code=401)
     mob_audio = bool(MOB_AUDIO.match(path))
     if mob_audio:
         # Mobgang-lyde: kun indloggede med bestået etiktest og uden for ynglesæsonen
@@ -85,6 +89,10 @@ async def guard(request: Request, call_next):
     if mob_audio:
         # Aldrig i delt cache (CDN), og browseren skal spørge igen, så lukningen også gælder cachede filer
         response.headers["Cache-Control"] = "private, no-cache"
+    if private_media:
+        response.headers["Cache-Control"] = "private, max-age=86400"  # aldrig i en delt cache (CDN)
+    if request.url.scheme == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "DENY")
@@ -131,7 +139,7 @@ async def health():
 
 
 for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, share,
-               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position):
+               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy):
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer

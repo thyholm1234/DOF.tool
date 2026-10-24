@@ -15,7 +15,7 @@ from portal.api.deps import optional_user, require_perm, require_user
 from portal.config import get_settings
 from portal.db import get_session
 from portal.models import Course, Question, QuizResult, User
-from portal.services import learning
+from portal.services import imagemeta, learning
 from portal.services.auth import can
 
 router = APIRouter(prefix="/api/learn", tags=["learn"])
@@ -226,6 +226,11 @@ async def upload(file: UploadFile = File(...), user: User = Depends(require_perm
     data = await file.read(15 * 1024 * 1024 + 1)
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(400, "Filen er større end 15 MB")
+    if not ext.endswith((".mp3", ".ogg", ".wav", ".m4a", ".webm")):
+        try:
+            data = imagemeta.strip(data)  # GPS-position og andre metadata fjernes, før filen gemmes
+        except ValueError as exc:
+            raise HTTPException(400, "Billedet kunne ikke læses") from exc
     root = Path(get_settings().media_dir)
     root.mkdir(parents=True, exist_ok=True)
     name = f"{uuid.uuid4().hex}{ext}"

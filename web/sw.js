@@ -15,7 +15,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
-  if (url.pathname === "/api/stream") return;
+  if (url.pathname === "/api/stream" || url.pathname === "/api/me/export") return;  // udtrækket må aldrig ligge i cachen
   if (url.origin !== location.origin) {
     // Kortfliser: cache-først
     if (url.hostname.endsWith("tile.openstreetmap.org")) {

@@ -14,3 +14,8 @@ coverage/
 *.egg-info/
 
 data/
+
+# Nøgler og miljøfiler må aldrig i repoet (også i Old Apps)
+*.pem
+.env.*
+!.env.example

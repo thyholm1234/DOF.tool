@@ -51,6 +51,7 @@ export async function render(view) {
         h("label", { class: "field" }, h("span", {}, "Obserkode"), kode),
         h("label", { class: "field" }, h("span", {}, "Adgangskode (som på DOFbasen)"), pw),
         btn, msg,
-        h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } }, "Adgangskoden sendes kun til DOFbasen ved første login og gemmes derefter som en krypteret hash – aldrig i klartekst. Portalen er kun for indloggede brugere.")))));
+        h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } }, "Adgangskoden kontrolleres hos DOFbasen ved hvert login og gemmes ikke i DOF.tool. Portalen er kun for indloggede brugere. ",
+          h("a", { href: "/privatliv" }, "Privatlivspolitik"))))));
   kode.focus();
 }

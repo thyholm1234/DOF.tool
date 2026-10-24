@@ -48,6 +48,7 @@ def create_primary(cli, project: str, network: str, name: str, token: str, dbnam
         raise RuntimeError(f"Billedet {IMAGE} findes ikke – kør 'docker compose build dbnode-image' (eller 'up -d --build')") from exc
     cli.containers.run(IMAGE, ["postgres", *TUNING], name=cname, detach=True, network=network,
                        restart_policy={"Name": "unless-stopped"}, labels={"dof.dbnode": name},
+                       log_config={"Type": "json-file", "Config": {"max-size": "10m", "max-file": "5"}},
                        environment={"POSTGRES_DB": dbname, "POSTGRES_USER": user, "POSTGRES_PASSWORD": token, "DB_ROLE": "primary",
                                     "TZ": "Europe/Copenhagen"},
                        volumes={f"{project}_db_{name}": {"bind": "/var/lib/postgresql/data", "mode": "rw"}})

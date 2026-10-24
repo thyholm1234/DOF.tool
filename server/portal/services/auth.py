@@ -236,7 +236,11 @@ async def _notify_pending(session: AsyncSession, user: User) -> None:
 
 async def create_session(user: User) -> str:
     token = secrets.token_urlsafe(32)
-    await kv().set(f"sess:{token}", user.id, ex=get_settings().session_days * 86400)
+    ttl = get_settings().session_days * 86400
+    await kv().set(f"sess:{token}", user.id, ex=ttl)
+    # Brugerens sessioner samlet, så de alle kan lukkes, når kontoen slettes eller blokeres
+    await kv().sadd(f"usess:{user.id}", token)
+    await kv().expire(f"usess:{user.id}", ttl)
     return token
 
 
@@ -255,7 +259,9 @@ async def user_from_token(session: AsyncSession, token: str | None) -> User | No
 
 async def destroy_session(token: str | None) -> None:
     if token:
-        await kv().delete(f"sess:{token}")
+        user_id = await kv().getdel(f"sess:{token}")
+        if user_id:
+            await kv().srem(f"usess:{user_id}", token)
 
 
 def role_at_least(user: User | None, role: str) -> bool:

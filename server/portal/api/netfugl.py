@@ -22,7 +22,7 @@ from portal.db import get_session
 from portal.models import (NfApiGrant, NfApiToken, NfArticle, NfComment, NfFeed, NfKryds, NfLike, NfLink, NfPage, NfPhoto,
                            NfRole, NfSpecies, Setting, User)
 from portal.services import dofbasen as dofb
-from portal.services import features
+from portal.services import features, imagemeta
 from portal.services import netfugl as svc
 from portal.timeutil import dk_today
 
@@ -438,6 +438,10 @@ async def upload(file: UploadFile = File(...), art_navn: str = Form(..., max_len
     data = await file.read(10 * 1024 * 1024 + 1)
     if len(data) > 10 * 1024 * 1024:
         raise HTTPException(400, "Billedet er større end 10 MB")
+    try:
+        data = imagemeta.strip(data)  # GPS-position og andre metadata fjernes, før filen gemmes
+    except ValueError as exc:
+        raise HTTPException(400, "Billedet kunne ikke læses") from exc
     if obsid:
         own = (await db.execute(text("SELECT 1 FROM observations WHERE obsid = :o AND obserkode = :k"), {"o": obsid, "k": ctx.user.obserkode})).scalar()
         if not own:

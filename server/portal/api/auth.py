@@ -5,8 +5,9 @@ import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import COOKIE, client_ip, optional_user, require_user
@@ -16,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import archive_files
 from portal.models import User
-from portal.services import activity, auth, dofbasen, features, netfugl
+from portal.services import account, activity, auth, dofbasen, features, netfugl
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -39,8 +40,9 @@ async def login(body: LoginIn, request: Request, response: Response, db: AsyncSe
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
     token = await auth.create_session(user)
-    response.set_cookie(COOKIE, token, max_age=get_settings().session_days * 86400, httponly=True,
-                        secure=get_settings().cookie_secure, samesite="lax", path="/")
+    s = get_settings()
+    response.set_cookie(COOKIE, token, max_age=s.session_days * 86400, httponly=True,
+                        secure=s.cookie_secure or s.public_url.startswith("https://"), samesite="lax", path="/")
     if new or user.history_synced_at is None:
         await enqueue_history(user.obserkode)
     if new:
@@ -113,12 +115,18 @@ async def delete_me(request: Request, response: Response, user: User = Depends(r
                     db: AsyncSession = Depends(get_session)):
     if user.role == "superadmin":
         raise HTTPException(400, "Superadmin kan ikke slettes her")
-    await db.execute(delete(User).where(User.id == user.id))
-    await db.commit()
-    await auth.destroy_session(request.cookies.get(COOKIE))
+    await account.delete(db, user)
     response.delete_cookie(COOKIE, path="/")
     await bump("lists")
     return {"ok": True}
+
+
+@router.get("/me/export")
+async def export_me(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Alle dine data i portalen som JSON (art. 15 og 20)."""
+    data = await account.export(db, user)
+    return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="dof-tool-{user.obserkode}.json"',
+                                       "Cache-Control": "no-store"})
 
 
 @router.post("/me/sync")

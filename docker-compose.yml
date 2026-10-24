@@ -2,11 +2,19 @@
 # Start:  cp .env.example .env  (ret værdier)  &&  docker compose up -d --build
 name: doftool
 
+# Docker-logs (med klienters IP-adresser) roteres i stedet for at vokse for evigt
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 x-app: &app
   build:
     context: .
     dockerfile: server/Dockerfile
   restart: unless-stopped
+  logging: *logging
   env_file: .env
   environment:
     POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
@@ -17,6 +25,8 @@ x-app: &app
     ARCHIVE_DIR: /archive
     MEDIA_DIR: /data/media
     TZ: Europe/Copenhagen
+    # Proxyer, hvis X-Forwarded-For stoles på (bag Cloudflare: tilføj deres adresser)
+    FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
   volumes:
     - media:/data/media
     - weather:/data/weather
@@ -35,6 +45,7 @@ services:
   postgres:
     image: postgis/postgis:17-3.5
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-portal}
       POSTGRES_USER: ${POSTGRES_USER:-portal}
@@ -54,6 +65,7 @@ services:
   valkey:
     image: valkey/valkey:8.1
     restart: unless-stopped
+    logging: *logging
     command: ["valkey-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "volatile-lru"]
     volumes:
       - valkeydata:/data
@@ -81,15 +93,19 @@ services:
       context: .
       dockerfile: dbadmin/Dockerfile
     restart: unless-stopped
+    logging: *logging
     environment:
       DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:?sæt DBADMIN_SERVICE_TOKEN i .env}
       DBADMIN_PASSWORD: ${DBADMIN_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       # Den nuværende samlede database – kilden når panelet migrerer
       LEGACY_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       DBNODE_IMAGE: doftool-dbnode:latest
     ports:
-      - "${DBADMIN_PORT:-8100}:8100"
+      # Kun på DBADMIN_BIND (standard: kun serveren selv). Panelet styrer Docker – udstil det aldrig mod internettet;
+      # sæt DBADMIN_BIND til serverens LAN-IP, hvis en proxy på et andet maskine skal nå det.
+      - "${DBADMIN_BIND:-127.0.0.1}:${DBADMIN_PORT:-8100}:8100"
     volumes:
       - dbadmin:/data
       # Lader panelet oprette database-containere og stoppe/starte api+worker under migrering. Giver panelet (og dermed

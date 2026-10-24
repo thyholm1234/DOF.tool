@@ -9,16 +9,18 @@ import asyncio
 import json
 import logging
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import text
 
 from portal.bootstrap import build_background_indexes, init_db
 from portal import jobstatus
 from portal.cache import COMMANDS, bump, kv
+from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import areas, datasync, dmi, dof_events, features, locyear, netfugl, phenology, regions, seasons, weather_archive
+from portal.services import areas, datasync, dmi, dof_events, features, imagemeta, locyear, netfugl, phenology, regions, seasons, weather_archive
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -72,6 +74,8 @@ async def nightly_compute() -> None:
         await s.execute(text("DELETE FROM notifications WHERE created_at < now() - interval '90 days'"))
         await s.execute(text("DELETE FROM thread_follows WHERE dato < current_date - 7"))
         await s.execute(text("DELETE FROM activity WHERE created_at < now() - interval '180 days'"))
+        # En position, appen ikke har opdateret i 30 dage (fx afinstalleret), gemmes ikke længere
+        await s.execute(text("DELETE FROM user_locations WHERE updated_at < now() - interval '30 days'"))
         await s.commit()
     await bump("lists")
 
@@ -116,6 +120,10 @@ async def scheduler() -> None:
         await run_safely("events", dof_events.sync())
     async with SessionLocal() as s:
         await datasync.apply_live_interval((await datasync.get_plan(s, "dof"))["tiers"]["today"])
+    if await kv().set("once:media_meta_v1", "1", nx=True):
+        # Engang: fjern GPS-position og andre metadata fra billeder uploadet før rensningen ved upload fandtes
+        n = await asyncio.to_thread(imagemeta.strip_tree, Path(get_settings().media_dir))
+        log.info("Metadata fjernet fra %s eksisterende billeder", n)
     while True:
         now = dk_now()
         day = now.date().isoformat()

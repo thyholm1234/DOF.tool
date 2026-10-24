@@ -441,14 +441,16 @@ else
 {files}    docker build -q -t "$IMAGE" "$dir" >/dev/null
     rm -rf "$dir"
   fi
-  net=()
   if docker network inspect "$NETWORK" >/dev/null 2>&1; then
-    net=(--network "$NETWORK")
+    # Portalen når noden i Docker-netværket; porten på værten er kun til lokal adgang (psql på serveren)
+    net=(--network "$NETWORK" -p "127.0.0.1:$PORT:5432")
   else
-    echo "Netværket $NETWORK findes ikke her – noden nås på serverens IP, port $PORT"
+    echo "Netværket $NETWORK findes ikke her – noden nås på serverens IP, port $PORT."
+    echo "Begræns porten i firewallen til portalens server – databasen må ikke være åben mod internettet."
+    net=(-p "$PORT:5432")
   fi
-  docker run -d --name "$CONTAINER" --restart unless-stopped --label dof.dbnode="$NAME" ${{net[@]+"${{net[@]}}"}} \\
-    -p "$PORT:5432" -v "$VOLUME:/var/lib/postgresql/data" \\
+  docker run -d --name "$CONTAINER" --restart unless-stopped --label dof.dbnode="$NAME" "${{net[@]}}" \\
+    --log-opt max-size=10m --log-opt max-file=5 -v "$VOLUME:/var/lib/postgresql/data" \\
     {envs} \\
     --health-cmd {q(f"pg_isready -h 127.0.0.1 -U {row['user']} -d {row['dbname']}")} --health-interval 5s --health-timeout 5s \\
     --health-retries 20 --health-start-period 1h \\

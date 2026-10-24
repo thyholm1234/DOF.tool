@@ -22,7 +22,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
-from portal.services import activity, datasync, fcm, features, moderation, weather_archive
+from portal.services import account, activity, datasync, fcm, features, moderation, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
 
@@ -408,8 +408,7 @@ async def delete_user(user_id: int, user: User = Depends(perm_brugere), db: Asyn
     # Sletning af eksisterende brugere kræver superadmin; en afventende (afvist) ansøgning kan fjernes af dem, der styrer brugere
     if target.approved and not target.is_test and user.role != "superadmin":
         raise HTTPException(403, "Kun superadmin kan slette godkendte brugere")
-    await db.delete(target)
-    await db.commit()
+    await account.delete(db, target)
     await bump("lists")
     return {"ok": True}
 
