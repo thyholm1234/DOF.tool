@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import tempfile
 
@@ -57,20 +58,91 @@ async def _fingerprint(conn, table: str) -> str:
                                f"FROM (SELECT t::text AS r FROM {table} t) q")
 
 
-async def _copy(src, dst, table: str, *, delete: bool) -> int:
-    """Kopiér en tabel fra src til dst (asyncpg-forbindelser) via CSV i en midlertidig fil."""
+async def _copy(src, dst, table: str, *, delete: bool, where: str = "") -> int:
+    """Kopiér en tabel (eller et udsnit, `where`) fra src til dst (asyncpg-forbindelser) via CSV i en midlertidig fil."""
     cols = await _columns(src, table)
     dcols = set(await _columns(dst, table))
     cols = [c for c in cols if c in dcols]
     quoted = ", ".join(f'"{c}"' for c in cols)
     with tempfile.TemporaryFile() as buf:
-        await src.copy_from_query(f"SELECT {quoted} FROM {table}", output=buf, format="csv")
+        await src.copy_from_query(f"SELECT {quoted} FROM {table} {where}", output=buf, format="csv")
         buf.seek(0)
         async with dst.transaction():
             if delete:
                 await dst.execute(f"DELETE FROM {table}")
             result = await dst.copy_to_table(table, source=buf, columns=cols, format="csv")
     return int(result.split()[-1])
+
+
+BIG_ROWS = 300_000  # tabeller over denne størrelse kopieres uden sekundære indekser og (hvis muligt) i parallelle udsnit
+PARALLEL = 4
+
+
+async def _int_pk(conn, table: str) -> str | None:
+    """Primærnøglekolonnen, hvis den er ét heltal (så tabellen kan deles i intervaller)."""
+    rows = await conn.fetch("""
+        SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS typ FROM pg_index i
+        JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+        WHERE i.indrelid = $1::regclass AND i.indisprimary""", table)
+    return rows[0]["attname"] if len(rows) == 1 and rows[0]["typ"] in ("integer", "bigint", "smallint") else None
+
+
+async def _secondary_indexes(conn, table: str) -> list[tuple[str, str]]:
+    """(navn, definition) for ikke-unikke indekser – dem bygges bedre til sidst end opdateres række for række."""
+    rows = await conn.fetch("""
+        SELECT i.relname, pg_get_indexdef(i.oid) AS def FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid
+        WHERE x.indrelid = $1::regclass AND NOT x.indisprimary AND NOT x.indisunique""", table)
+    return [(r["relname"], r["def"]) for r in rows]
+
+
+async def _copy_big(legacy, dst_engine, src, dst, table: str, total: int, say) -> int:
+    """Stor tabel: slip sekundære indekser, kopiér i parallelle intervaller på primærnøglen, byg indekserne parallelt igen."""
+    indexes = await _secondary_indexes(dst, table)
+    for name, _ in indexes:
+        await dst.execute(f'DROP INDEX IF EXISTS "{name}"')
+    pk = await _int_pk(src, table)
+    await dst.execute(f"DELETE FROM {table}")
+    ranges: list[str] = [""]
+    if pk:
+        lo, hi = await src.fetchrow(f'SELECT min("{pk}"), max("{pk}") FROM {table}')
+        if lo is not None and hi > lo:
+            step = (hi - lo) // PARALLEL + 1
+            ranges = [f'WHERE "{pk}" >= {lo + i * step} AND "{pk}" < {lo + (i + 1) * step}' for i in range(PARALLEL)]
+    await say(f"{table}: {total} rækker, kopierer i {len(ranges)} dele uden indekser")
+
+    async def part(i: int, where: str) -> int:
+        s_raw, d_raw = await legacy.raw_connection(), await dst_engine.raw_connection()
+        try:
+            d = d_raw.driver_connection
+            await d.execute("SET session_replication_role = replica")
+            await d.execute("SET synchronous_commit = off")
+            n = await _copy(s_raw.driver_connection, d, table, delete=False, where=where)
+            await say(f"{table}: del {i + 1} af {len(ranges)} færdig ({n} rækker)")
+            return n
+        finally:
+            s_raw.close()
+            d_raw.close()
+
+    try:
+        n = sum(await asyncio.gather(*(part(i, w) for i, w in enumerate(ranges))))
+    except BaseException:
+        await dst.execute(f"TRUNCATE {table}")  # ingen halvfyldt tabel, der bliver sprunget over ved næste forsøg
+        raise
+    if indexes:
+        await say(f"{table}: bygger {len(indexes)} indekser")
+
+        async def build(ddl: str) -> None:
+            raw = await dst_engine.raw_connection()
+            try:
+                c = raw.driver_connection
+                await c.execute("SET maintenance_work_mem = '1GB'")
+                await c.execute("SET max_parallel_maintenance_workers = 4")
+                await c.execute(ddl)
+            finally:
+                raw.close()
+
+        await asyncio.gather(*(build(ddl) for _, ddl in indexes))
+    return n
 
 
 async def _reset_sequences(dst, tables) -> None:
@@ -132,8 +204,11 @@ async def migrate(legacy_dsn: str, *, wipe: bool = False, progress=None) -> dict
                     if await dst.fetchval(f"SELECT EXISTS (SELECT 1 FROM {table})") and not wipe:
                         await say(f"{group}/{table} har allerede data – springes over (brug --wipe for at erstatte)")
                         continue
-                    n = await _copy(src, dst, table, delete=True)
                     expected = await src.fetchval(f"SELECT count(*) FROM {table}")
+                    if expected >= BIG_ROWS:
+                        n = await _copy_big(legacy, router.primary(group), src, dst, table, expected, say)
+                    else:
+                        n = await _copy(src, dst, table, delete=True)
                     if n != expected:
                         raise RuntimeError(f"{group}/{table}: kopierede {n} rækker, kilden har {expected}")
                     out[f"{group}/{table}"] = n
