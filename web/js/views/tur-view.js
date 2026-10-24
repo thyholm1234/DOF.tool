@@ -1,10 +1,12 @@
 // Tur: kun denne turs observationer. Her tilføjes og rettes observationer (+1 / +10 på hver), og ynglepar.
 // Selve turens oplysninger redigeres på sin egen side (tur-form.js).
-import { h, icon, fmtN, fmtDate, tag, toast, store, KAT } from "../core.js";
+import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT } from "../core.js";
 import { baseMap } from "../maps.js";
-import { tracker, trackStart, trackPause, trackStop, trackLength } from "../tur-data.js";
+import { tracker, trackStart, trackPause, trackStop, trackLength, nowHM } from "../tur-data.js";
 import { isApp } from "../native.js";
+import { newId } from "../offline.js";
 import { openObsSheet, openPairSheet } from "../obs-sheet.js";
+import { speciesIndex, bestParse, voiceAvailable, listen } from "../voice.js";
 
 const STATE = { ok: ["Gemt", "ok"], gemmer: ["Gemmer …", "busy"], offline: ["Ikke sendt – sendes, når der er net", "off"], fejl: ["Kunne ikke gemmes", "err"] };
 
@@ -44,8 +46,9 @@ export function view(page, ref, store_, recent) {
     drawMap();
   };
 
-  const edit = (o = null) => openObsSheet({
-    ref, recent, T, obs: o, files: o ? files[o.client_id] || [] : [], adfDefault: reuse.on ? lastAdf() : "", guideDefault: T.observations.some(x => x.retningslinjer),
+  // isNew: o er udfyldt på forhånd (tale-indtastning), men endnu ikke lagt på turen
+  const edit = (o = null, isNew = false) => openObsSheet({
+    ref, recent, T, obs: o, files: o && !isNew ? files[o.client_id] || [] : [], adfDefault: reuse.on ? lastAdf() : "", guideDefault: T.observations.some(x => x.retningslinjer),
     onSave: (O, newFiles) => {
       const i = o ? T.observations.findIndex(x => x.client_id === o.client_id) : -1;
       if (i >= 0) T.observations[i] = O; else T.observations.push(O);
@@ -114,6 +117,63 @@ export function view(page, ref, store_, recent) {
   }
   setTimeout(() => { if (map || !mapEl.isConnected) return; map = baseMap(mapEl, { center: [56, 10.5], zoom: 7 }); layer = L.layerGroup().addTo(map); drawMap(); }, 100);
 
+  // --- tale-indtastning (kun i appen): hold knappen inde, sig fx «2 bomlærker syd», slip
+  const voiceStatus = h("div", { class: "voice-status hide", "aria-live": "polite" });
+  const voiceBtn = h("button", { type: "button", class: "btn voice-btn hide", title: "Hold inde og sig fx «2 bomlærker syd»", html: `${icon("mic")} Hold og tal` });
+  let vIndex = null, vCodes = null, stopVoice = null, vBusy = false;
+  const say = (...parts) => { voiceStatus.replaceChildren(...parts); voiceStatus.classList.remove("hide"); };
+  const describe = (O) => `${fmtN(O.antal)} ${O.art}${O.adfkode ? ` · ${adfText(O.adfkode) || O.adfkode}` : ""}`;
+  const pressStart = async (e) => {
+    e.preventDefault();
+    if (stopVoice || vBusy) return;
+    vBusy = true;
+    voiceBtn.classList.add("on");
+    navigator.vibrate?.(25);
+    say(h("span", { class: "muted" }, "Lytter …"));
+    try { stopVoice = await listen((t) => say(h("i", {}, t))); }
+    catch (err) { voiceBtn.classList.remove("on"); say(h("span", { class: "err" }, err.message || "Mikrofonen kunne ikke startes")); }
+    finally { vBusy = false; }
+    if (stopVoice && !voiceBtn.classList.contains("on")) pressEnd();  // sluppet mens optagelsen startede
+  };
+  const pressEnd = async () => {
+    voiceBtn.classList.remove("on");
+    const stop = stopVoice;
+    if (!stop) return;
+    stopVoice = null;
+    say(h("span", { class: "muted" }, "Tolker …"));
+    const matches = await stop();
+    if (!matches.length) { say(h("span", { class: "muted" }, "Hørte ingenting – hold knappen inde, mens du taler.")); return; }
+    vIndex ||= speciesIndex(ref.species);
+    vCodes ||= new Set(ref.codes.adf.map(a => a.code));
+    const items = bestParse(matches, vIndex, vCodes);
+    const added = [], sheets = [], missed = [];
+    for (const it of items) {
+      if (!it.art) { missed.push(it.heard); continue; }
+      const O = { client_id: newId(), artnr: it.art.artnr, art: it.art.navn, klass: it.art.klass, antal: it.antal, antalmetode: 1,
+        maerker: [], grundlag: ["set"], sikkerhed: "sikker", status: "ukendt", obstidfra: nowHM(), adfkode: it.adfkode || (reuse.on ? lastAdf() : ""),
+        retningslinjer: false, hemmelig: false, skjul_position: false };
+      // SU/SUB kræver sikkerhed, grundlag og retningslinjer, og uden adfærd mangler et påkrævet felt: åbn formularen udfyldt
+      if (!O.adfkode || ["SU", "SUB"].includes(O.klass)) sheets.push(O); else added.push(O);
+    }
+    if (added.length) { T.observations.push(...added); store_.save(); drawRows(); navigator.vibrate?.([20, 60, 20]); }
+    const undo = added.length ? h("button", { type: "button", class: "btn sm ghost", onclick: () => {
+      const ids = new Set(added.map(o => o.client_id));
+      T.observations = T.observations.filter(o => !ids.has(o.client_id)); store_.save(); drawRows();
+      say(h("span", { class: "muted" }, "Fortrudt."));
+    } }, "Fortryd") : null;
+    say(h("div", { class: "stack", style: { gap: "4px" } },
+      ...added.map(O => h("div", {}, h("b", {}, "Tilføjet: "), describe(O))),
+      ...sheets.map(O => h("div", { class: "muted" }, `Udfyld resten: ${describe(O)}`)),
+      ...missed.map(t => h("div", { class: "err" }, `Forstod ikke: «${t}»`)),
+      !items.length ? h("div", { class: "err" }, `Forstod ikke: «${matches[0]}»`) : null,
+      h("small", { class: "muted" }, `Hørt: «${matches[0]}»`)), undo);
+    if (sheets.length) edit(sheets[0], true);
+  };
+  voiceBtn.addEventListener("pointerdown", pressStart);
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) voiceBtn.addEventListener(ev, () => { if (voiceBtn.classList.contains("on")) pressEnd(); });
+  voiceBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+  if (isApp() && state.user?.voice) voiceAvailable().then((ok) => voiceBtn.classList.toggle("hide", !ok));
+
   const reuseBox = h("input", { type: "checkbox", checked: reuse.on, onchange: (e) => { reuse.on = e.target.checked; store("turreuse", reuse.on); } });
   const time = [T.turtidfra, T.turtidtil].filter(Boolean).join(" – ");
   page.replaceChildren(
@@ -128,8 +188,9 @@ export function view(page, ref, store_, recent) {
     pairCard, dist,
     h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "GPS-rute"), gpsBtns, gpsInfo),
     h("div", { class: "card" }, mapEl),
-    h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"),
+    voiceStatus,
+    h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"), voiceBtn,
       h("button", { class: "btn primary grow", type: "button", html: `${icon("plus")} Observation`, onclick: () => edit() })));
   drawRows(); drawPairs(); drawGps();
-  return () => { unsub(); tracker.listeners.delete(onPoint); map?.remove(); };
+  return () => { unsub(); tracker.listeners.delete(onPoint); map?.remove(); stopVoice?.(); };
 }

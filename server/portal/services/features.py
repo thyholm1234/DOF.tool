@@ -22,6 +22,9 @@ STATES = ("off", "preview", "on")
 FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "position": ("Position og 'Nær mig' (app)", "Appen sender brugerens position i baggrunden, og feed og alarmer kan filtreres på en radius "
                  "om, hvor man er (Nær mig). Brugeren kan slå positionsdeling fra og slette sin position.", None, "on"),
+    "voice": ("Tale-indtastning på ture (app, eksperiment)", "I Android-appen kan man holde en knap inde på turen og sige fx "
+              "«2 bomlærker syd»; talen genkendes på dansk af telefonen og lægges ind som observationer (antal, art, adfærd). "
+              "Kræver en APK bygget med talegenkendelse.", None, "preview"),
     "dku": ("DKU: tip om tvivlsomme observationer", "Brugere kan tippe DKU om observationer, der mangler dokumentation eller "
             "virker forkerte. DKU-ansvarlige pr. lokalafdeling behandler sagen, kan inddrage observatøren og skrive frem og "
             "tilbage. Forhåndsvisning ses af superadmin, DKU-ansvarlige og dem med admin-modulet DKU.", None, "preview"),
