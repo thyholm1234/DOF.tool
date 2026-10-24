@@ -121,6 +121,10 @@ class Router:
                                  headers={"Authorization": f"Bearer {s.dbadmin_service_token}"})
             r.raise_for_status()
             data = r.json()
+        if data.get("mode") == "legacy":  # db-admin: opdelingen er ikke slået til endnu (eller rullet tilbage)
+            self._apply_legacy(s.postgres_dsn)
+            self._drop_unused(old=self.engines)
+            return
         nodes = [Node(n["id"], n["name"], n["group"], n["role"], n["host"], int(n["port"]), n["dbname"], n["user"], n["token"],
                       n.get("status") != "down", n.get("purpose", "read")) for n in data["nodes"] if n.get("enabled", True)]
         for g in GROUPS:
@@ -130,10 +134,21 @@ class Router:
         self.read_replicas = {g: bool(data.get("read_replicas", {}).get(g, g == OBSERVATIONS)) for g in GROUPS}
         if nodes != self.nodes:
             log.info("Databasetopologi opdateret: %s", ", ".join(f"{n.group}/{n.role}:{n.name}@{n.host}:{n.port}" for n in nodes))
-        old, self.nodes, self.version = self.engines, nodes, data.get("version", 0)
-        keep = {n.key for n in nodes}
+        self.nodes, self.version = nodes, data.get("version", 0)
+        self._drop_unused(old=self.engines)
+
+    def _drop_unused(self, old: dict[str, AsyncEngine]) -> None:
+        keep = {n.key for n in self.nodes}
         for k in [k for k in old if k not in keep]:
             asyncio.create_task(old.pop(k).dispose())
+
+    def set_nodes(self, nodes: list[Node], read_replicas: dict[str, bool] | None = None) -> None:
+        """Brug en given nodeliste uden at hente topologien (db-admin bruger det under migrering)."""
+        self.legacy, self._started = False, True
+        self.nodes = nodes
+        if read_replicas:
+            self.read_replicas = read_replicas
+        self._drop_unused(old=self.engines)
 
     async def _refresh_loop(self) -> None:
         while True:

@@ -11,9 +11,9 @@ x-app: &app
   environment:
     POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
     REDIS_DSN: redis://valkey:6379/0
-    # Tom = brug POSTGRES_DSN til alt. Sæt til http://dbadmin:8100 for at opdele i bruger- og observationsdatabaser (se dbadmin).
-    DBADMIN_URL: ${DBADMIN_URL:-}
-    DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:-}
+    # Registret (dbadmin) afgør, om POSTGRES_DSN bruges til alt (standard) eller om data er delt i bruger- og observationsdatabaser.
+    DBADMIN_URL: ${DBADMIN_URL:-http://dbadmin:8100}
+    DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:?sæt DBADMIN_SERVICE_TOKEN i .env (tilfældig streng)}
     ARCHIVE_DIR: /archive
     MEDIA_DIR: /data/media
     TZ: Europe/Copenhagen
@@ -24,6 +24,8 @@ x-app: &app
     - archive_upload:/data/archive-upload
     - ./web:/app/web:ro
   depends_on:
+    dbadmin:
+      condition: service_started
     postgres:
       condition: service_healthy
     valkey:
@@ -80,13 +82,26 @@ services:
       dockerfile: dbadmin/Dockerfile
     restart: unless-stopped
     environment:
-      DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:-}
+      DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:?sæt DBADMIN_SERVICE_TOKEN i .env}
       DBADMIN_PASSWORD: ${DBADMIN_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Den nuværende samlede database – kilden når panelet migrerer
+      LEGACY_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
+      DBNODE_IMAGE: doftool-dbnode:latest
     ports:
       - "${DBADMIN_PORT:-8100}:8100"
     volumes:
       - dbadmin:/data
+      # Lader panelet oprette database-containere og stoppe/starte api+worker under migrering. Giver panelet (og dermed
+      # alle med DBADMIN_PASSWORD) fuld kontrol over Docker på serveren – fjern linjen, hvis I vil gøre det manuelt.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # Bygger billedet panelet bruger til nye databaser (afslutter med det samme)
+  dbnode-image:
+    build: ./dbnode
+    image: doftool-dbnode:latest
+    restart: "no"
+    entrypoint: ["true"]
 
   # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 kald/minut)
   worker:

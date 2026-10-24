@@ -106,11 +106,18 @@ async def sync_reference() -> dict[str, int]:
     return copied
 
 
-async def migrate(legacy_dsn: str, *, wipe: bool = False) -> dict[str, int]:
+async def migrate(legacy_dsn: str, *, wipe: bool = False, progress=None) -> dict[str, int]:
     """Flyt data fra én samlet database (den gamle) ud på gruppernes primaries. Referencedata kopieres til begge."""
     from sqlalchemy.ext.asyncio import create_async_engine
     legacy = create_async_engine(legacy_dsn)
     out: dict[str, int] = {}
+
+    async def say(msg: str) -> None:
+        log.info(msg)
+        if progress:
+            await progress(msg)
+
+    await say("Opretter tabeller på de nye databaser")
     await create_schema()
     l_raw = await legacy.raw_connection()
     try:
@@ -123,11 +130,15 @@ async def migrate(legacy_dsn: str, *, wipe: bool = False) -> dict[str, int]:
                 ordered = [t.name for t in Base.metadata.sorted_tables if t.name in tables_for(group)]
                 for table in ordered:
                     if await dst.fetchval(f"SELECT EXISTS (SELECT 1 FROM {table})") and not wipe:
-                        log.warning("%s/%s har allerede data – springes over (brug --wipe for at erstatte)", group, table)
+                        await say(f"{group}/{table} har allerede data – springes over (brug --wipe for at erstatte)")
                         continue
                     n = await _copy(src, dst, table, delete=True)
+                    expected = await src.fetchval(f"SELECT count(*) FROM {table}")
+                    if n != expected:
+                        raise RuntimeError(f"{group}/{table}: kopierede {n} rækker, kilden har {expected}")
                     out[f"{group}/{table}"] = n
-                    log.info("%s/%s: %s rækker", group, table, n)
+                    if n:
+                        await say(f"{group}/{table}: {n} rækker")
                 await _reset_sequences(dst, ordered)
                 await dst.execute("SET session_replication_role = DEFAULT")
             finally:

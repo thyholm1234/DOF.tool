@@ -52,6 +52,18 @@
   <div id="app" hidden>
     <div class="head"><h1>Databaser</h1><button id="logout">Log ud</button></div>
     <p class="sub">Brugerdata og observationer ligger i hver sin gruppe af Postgres-noder. API'et er load balancer: skrivning til gruppens primary, læsning (valgfrit) fordelt på replikaer.</p>
+    <div class="card" id="migcard">
+      <div class="head"><h2>Opsætning og migrering</h2><span class="tag" id="modetag"></span></div>
+      <div id="migidle">
+        <p class="mute">Portalen bruger i dag den ene samlede database. Her opretter panelet selv en brugerdata-database og en observations-database (hvis de ikke findes), flytter alle eksisterende data over, kontrollerer rækkeantal og slår opdelingen til. Den gamle database bliver stående uændret som sikkerhedskopi.</p>
+        <label class="mute"><input type="checkbox" id="mig-stop" checked> Stop api og worker under flytningen (portalen er nede imens) og start dem igen bagefter</label><br>
+        <label class="mute"><input type="checkbox" id="mig-wipe"> Erstat data, der allerede ligger i de nye databaser</label><br><br>
+        <button class="primary" id="mig-start">Opret databaser og migrér</button>
+        <button id="mig-back" hidden>Tilbage til samlet database</button>
+        <p class="mute" id="mig-nodocker" hidden>Panelet har ikke adgang til Docker (/var/run/docker.sock), så databaserne skal oprettes under “Tilføj node” først, og api/worker skal stoppes manuelt.</p>
+      </div>
+      <pre id="miglog" hidden style="max-height:260px"></pre>
+    </div>
     <div id="groups"></div>
     <div class="card">
       <div class="head"><h2>Tilføj node</h2></div>
@@ -173,7 +185,29 @@ $('#add').addEventListener('submit', async e => {
   } catch (err) { $('#err').textContent = err.message; }
 });
 
-load(); setInterval(load, 10000);
+let mig = null;
+async function loadMig() {
+  try {
+    mig = await api('migration');
+    $('#modetag').textContent = mig.mode === 'split' ? 'opdelt i bruger- og observations-databaser' : 'samlet database (ikke opdelt)';
+    $('#mig-start').hidden = mig.mode === 'split' || mig.running; $('#mig-start').disabled = !mig.legacy_configured;
+    $('#mig-back').hidden = mig.mode !== 'split' || mig.running;
+    $('#mig-nodocker').hidden = mig.docker;
+    $('#mig-stop').closest('label').hidden = mig.mode === 'split';
+    $('#mig-wipe').closest('label').hidden = mig.mode === 'split';
+    const box = $('#miglog'); box.hidden = !mig.log.length;
+    box.textContent = mig.log.join('\n') + (mig.running ? '\n…' : ''); box.scrollTop = box.scrollHeight;
+  } catch (e) { if (e.message !== 'login') console.error(e); }
+}
+$('#mig-start').addEventListener('click', async () => {
+  if (!confirm('Starte migreringen? ' + ($('#mig-stop').checked ? 'Portalen er nede, til den er færdig.' : 'Skriv ikke til portalen imens.'))) return;
+  try { await api('migration', { method: 'POST', body: { stop_services: $('#mig-stop').checked, wipe: $('#mig-wipe').checked } }); await loadMig(); } catch (e) { alert(e.message); }
+});
+$('#mig-back').addEventListener('click', async () => {
+  if (!confirm('Skift tilbage til den gamle samlede database? Alt der er skrevet siden migreringen går tabt for portalen.')) return;
+  try { await api('mode', { method: 'POST', body: { mode: 'legacy' } }); await loadMig(); } catch (e) { alert(e.message); }
+});
+load(); loadMig(); setInterval(load, 10000); setInterval(loadMig, 2500);
 </script>
 </body>
 </html>

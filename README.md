@@ -23,8 +23,8 @@ docker compose
 
 ### Databaser: opdeling, replikaer og backup
 
-Som standard bruger alt den ene `postgres`-container. Sættes `DBADMIN_URL` (og `DBADMIN_SERVICE_TOKEN`) i `.env`,
-deler portalen i stedet data i to **grupper** af Postgres-noder på vilkårlige servere:
+Som standard bruger alt den ene `postgres`-container (`DBADMIN_SERVICE_TOKEN` skal være sat i `.env`). Efter
+migreringen i panelet deler portalen i stedet data i to **grupper** af Postgres-noder på vilkårlige servere:
 
 * **Brugerdata** (`users`): brugere, lister, push, kommentarer, kalendere, DOFbasen-/Netfugl-indhold …
 * **Observationer** (`observations`): observationer, ture, aggregater, vejr og DKU-status.
@@ -47,11 +47,12 @@ database er nede, så adressen kan rettes):
 3. *Gem adresse* ændrer IP/port; API'et følger med uden genstart. Panelet viser status og replikaforsinkelse.
 4. *Gør til primary* promoverer en replika i registret (kør `pg_ctl promote` på noden; kommandoen vises).
 
-Flyt en eksisterende samlet database over (kør efter at begge gruppers primary kører, med `DBADMIN_URL` sat):
-
-```bash
-docker compose run --rm api python -m portal.dbmigrate --from postgresql+asyncpg://portal:KODE@postgres:5432/portal
-```
+**Første opsætning og migrering sker i panelet** (kortet *Opsætning og migrering*): panelet opretter selv en brugerdata- og en
+observations-database som containere (kræver `/var/run/docker.sock`, som compose monterer), stopper api og worker, kopierer
+alle data fra den nuværende samlede database, kontrollerer rækkeantal pr. tabel, slår opdelingen til og starter api/worker igen.
+Fejler noget, bruger portalen stadig den gamle database. Den gamle database røres ikke og kan bruges til *Tilbage til samlet
+database*. Uden Docker-adgang oprettes noderne manuelt (*Tilføj node*), og panelet flytter dataene. Kommandolinje:
+`docker compose run --rm api python -m portal.dbmigrate --from <dsn>` (kun når opdelingen allerede er slået til).
 
 `docker compose -f dbnode/compose.dev.yml up -d --build` giver en lokal prøve-klynge (bruger-DB, obs-DB + replika).
 Begrænsninger: skrivning går til gruppens primary (ingen automatisk failover), og skrivning på tværs af grupper i én
