@@ -256,7 +256,7 @@ class Crossed:
             return self.memo[key]
         hit = await get_json(key)
         if hit is None:
-            where, params = _where(spec, await matrikel_prefix(self.session))
+            where, params = await _where(self.session, spec, await matrikel_prefix(self.session))
             hit = list((await self.session.execute(text(f"""
                 SELECT DISTINCT s.list_artnr FROM observations o
                 JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr

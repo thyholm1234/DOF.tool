@@ -128,8 +128,9 @@ async def load_periods(session: AsyncSession, codes: list[str], nummer: int) -> 
     return out
 
 
-def _where(spec: ListSpec, prefix: str, windows: list[tuple[date, date]] | None = None) -> tuple[str, dict]:
-    pred, params = spec.scope.predicate("o")
+async def _where(session: AsyncSession, spec: ListSpec, prefix: str, windows: list[tuple[date, date]] | None = None
+                 ) -> tuple[str, dict]:
+    pred, params = (await spec.scope.with_geom(session)).predicate("o")
     parts = [pred, "s.list_artnr IS NOT NULL", "NOT ls.excluded", "o.antal > 0", countable_sql()]
     if spec.year:
         parts.append("o.dato BETWEEN :y0 AND :y1")
@@ -166,7 +167,7 @@ async def matrikel_windows(session: AsyncSession, obserkode: str, spec: ListSpec
 async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
                     windows: list[tuple[date, date]] | None = None) -> list[dict]:
     prefix = await matrikel_prefix(session)
-    where, params = _where(spec, prefix, windows)
+    where, params = await _where(session, spec, prefix, windows)
     sql = f"""
         SELECT DISTINCT ON (s.list_artnr) s.list_artnr AS artnr, ls.navn AS art, ls.klass, ls.sortering,
                o.dato, o.loknr, l.navn AS lok, o.obsid
@@ -206,7 +207,7 @@ async def participants(session: AsyncSession, group_id: int | None = None) -> li
 async def _list_filter(session: AsyncSession, spec: ListSpec, codes: list[str]) -> tuple[str, dict, str]:
     """WHERE-udtryk, parametre og evt. join på matrikelperioder for deltagernes observationer."""
     prefix = await matrikel_prefix(session)
-    where, params = _where(spec, prefix)
+    where, params = await _where(session, spec, prefix)
     window_join = ""
     if spec.matrikel:
         # Hver deltager tæller kun sin aktive matrikelperiode (ingen perioder = alle fund med tagget)

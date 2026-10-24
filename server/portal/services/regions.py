@@ -215,7 +215,7 @@ async def gaps(session: AsyncSession, scope, year: int | None, mine: set[int]) -
             tot = (await session.execute(text(
                 "SELECT n_trips, n_observers FROM region_totals WHERE region = :r AND year = :y"), {"r": region, "y": y})).first()
         else:
-            pred, params = scope.predicate("o")
+            pred, params = (await scope.with_geom(session)).predicate("o")
             base = (_BASE.format(join="") + f" AND {pred}").replace(":a", ":ya").replace(":b", ":yb")
             params.update({"ya": date(y or 1900, 1, 1), "yb": date(y + 1 if y else 3000, 1, 1)})
             rows = (await session.execute(text(f"""

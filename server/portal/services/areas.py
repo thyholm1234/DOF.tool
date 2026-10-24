@@ -7,7 +7,7 @@ Al rumlig logik sker i PostGIS. Et område oversættes til et SQL-prædikat på 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,15 @@ class Scope:
 
     kind: str  # dk / afdeling / kommune / lokalitet / area / near
     ref: str = ""  # near: "lat,lon,km" – en radius om et punkt, uden at oprette et område
+    # area: områdets geometri (EWKT) slået op med with_geom. areas er brugerdata, så forespørgsler mod observationsgruppen
+    # skal have geometrien som parameter i stedet for et join; uden den joines areas (kun i brugergruppen, fx feltmeldinger).
+    geom: str | None = field(default=None, compare=False, repr=False)
+
+    async def with_geom(self, session: AsyncSession) -> Scope:
+        if self.kind != "area" or self.geom is not None:
+            return self
+        g = (await session.execute(text("SELECT ST_AsEWKT(geom) FROM areas WHERE id = :id"), {"id": int(self.ref)})).scalar()
+        return replace(self, geom=g or "")
 
     @property
     def key(self) -> str:
@@ -43,6 +52,11 @@ class Scope:
             return (f"{alias}.loknr IN (SELECT loknr FROM locations WHERE kommune_kode = :{pname})", {pname: self.ref})
         if self.kind == "lokalitet":
             return f"{alias}.loknr = :{pname}", {pname: int(self.ref)}
+        if self.kind == "area" and self.geom is not None:
+            if not self.geom:
+                return "FALSE", {}
+            return (f"{alias}.loknr IN (SELECT lx.loknr FROM locations lx "
+                    f"WHERE ST_Intersects(ST_GeomFromEWKT(CAST(:{pname}_geom AS text)), lx.geom))", {f"{pname}_geom": self.geom})
         if self.kind == "area":
             return (f"{alias}.loknr IN (SELECT lx.loknr FROM locations lx JOIN areas ax ON ST_Intersects(ax.geom, lx.geom) "
                     f"WHERE ax.id = :{pname})", {pname: int(self.ref)})
@@ -112,7 +126,7 @@ async def area_geojson(session: AsyncSession, area_id: int) -> dict | None:
 
 async def refresh_area_counts(session: AsyncSession, scope: Scope) -> int:
     """Historiske antal observationer pr. art i et område (grundlag for 'lokale hits')."""
-    pred, params = scope.predicate("o")
+    pred, params = (await scope.with_geom(session)).predicate("o")
     await session.execute(text("DELETE FROM area_species_counts WHERE area_key = :k"), {"k": scope.key})
     res = await session.execute(text(f"""
         INSERT INTO area_species_counts (area_key, artnr, n_obs, n_days, last_date)

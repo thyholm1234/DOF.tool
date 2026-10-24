@@ -71,3 +71,14 @@ def test_only_read_replicas_serve_reads():
     assert picked == {r.engine_for(r.nodes[2])}  # backup-replikaen (2) bruges aldrig
     r.nodes = [mk(1, "primary", "read"), mk(2, "replica", "backup")]
     assert r.reader(OBSERVATIONS) is r.primary(OBSERVATIONS)  # kun backup tilbage: primary læser
+
+
+def test_area_scope_with_geom_stays_in_observations():
+    from portal.services.areas import Scope
+    sc = Scope("area", "7")
+    pred, _ = sc.predicate("o")
+    assert group_of_sql(pred) == USERS  # uden geometri joines areas – kun til brugergruppen (feltmeldinger)
+    pred, params = Scope("area", "7", geom="SRID=4326;POINT(12 55)").predicate("o")
+    assert group_of_sql("SELECT 1 FROM observations o WHERE " + pred) == OBSERVATIONS and params == {"scope_ref_geom": "SRID=4326;POINT(12 55)"}
+    assert Scope("area", "7", geom="").predicate("o") == ("FALSE", {})
+    assert Scope("area", "7", geom="x") == sc and Scope("area", "7", geom="x").key == sc.key

@@ -27,7 +27,7 @@ async def threads(session: AsyncSession, day: date, *, scope: Scope, level: str 
 
 
 async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, local_max: int, limit: int) -> list[dict]:
-    pred, params = scope.predicate("o")
+    pred, params = (await scope.with_geom(session)).predicate("o")
     min_rank = LEVELS.get(level, 1)
     local_join = ""
     local_cond = ""
