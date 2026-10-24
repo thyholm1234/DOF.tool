@@ -48,13 +48,17 @@ export async function render(view) {
   // Må krympe og bryde linjen på smalle skærme – ellers skubber den værktøjslinjen (og siden) ud over kanten
   const localWrap = h("label", { class: "row hide", style: { fontSize: ".85rem", gap: ".4rem", flex: "1 1 240px", minWidth: 0 } });
   const localVal = h("b", { class: "num" }, st.localMax);
-  const localRange = h("input", { type: "range", min: 1, max: 100, value: st.localMax, style: { flex: "1 1 90px", width: "auto", minWidth: "80px", maxWidth: "160px" } });
+  // Trin i stedet for 1–100: de lave tal (sjældne arter) er dem, der betyder noget, og skal kunne rammes på en telefon
+  const LOCAL_STEPS = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 50, 100];
+  const stepOf = (n) => { const i = LOCAL_STEPS.findIndex(x => x >= n); return i < 0 ? LOCAL_STEPS.length - 1 : i; };
+  const localRange = h("input", { type: "range", min: 0, max: LOCAL_STEPS.length - 1, step: 1, value: stepOf(st.localMax), "aria-label": "Færre end antal fund på lokaliteten",
+    style: { flex: "1 1 90px", width: "auto", minWidth: "80px", maxWidth: "200px" } });
   localWrap.title = "Lokalt hit: arten er fundet færre gange end dette på lokaliteten gennem alle år (estimerede fund – en fugl der bliver i flere dage tæller én gang)";
   localWrap.append("Færre end", localVal, "fund på lokaliteten", localRange);
 
   // Værktøjslinje som i DOF.not: to-tilstandsknapper; kategori og område kun når egne filtre er slået fra
   const toggles = h("div", { class: "toolbar" });
-  const chips = h("div", { class: "chips" });
+  const chips = h("div", { class: "chips wrap", style: { marginTop: 0 } });
   const filterRow = h("div", { class: "row between wrap", style: { gap: "8px" } }, chips, h("div", { class: "row", style: { gap: "8px", minWidth: 0, maxWidth: "100%" } }, localWrap, scopeSel,
     h("button", { class: "btn sm", type: "button", title: "Filtrér på en radius om din position", html: `${icon("pin")} Nær mig`, onclick: () => nearMe({
       here: (km) => { setHere(km); },
@@ -117,8 +121,8 @@ export async function render(view) {
   else if (st.scope !== "mine" && !opts.some(o => o[0] === st.scope)) st.scope = "dk";
   drawChips();
   scopeSel.addEventListener("change", () => { st.scope = scopeSel.value; st.prevScope = st.scope; st.autoScope = false; if (st.level === "all" && st.scope === "dk") st.level = "bemaerk"; drawChips(); load(); });
-  localRange.addEventListener("input", () => { localVal.textContent = localRange.value; });
-  localRange.addEventListener("change", () => { st.localMax = Number(localRange.value); load(); });
+  localRange.addEventListener("input", () => { localVal.textContent = LOCAL_STEPS[localRange.value]; });
+  localRange.addEventListener("change", () => { st.localMax = LOCAL_STEPS[localRange.value]; load(); });
 
   let threads = [];
   let known = new Set();
