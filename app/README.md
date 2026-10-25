@@ -35,7 +35,9 @@ Modellen (int8, ca. 355 MB) ligger ikke i APK'en: den bygges på serveren (volum
 appen tilbyder at hente den første gang en tur åbnes. En ny model på serveren tilbydes automatisk. Byggeriet køres af
 compose-servicen `speech-model` (`tools/speech-model/agent.py`) på kommando fra Admin → Drift (boksen «Talemodel til
 tale-indtastning», eller «Kør nu» under Worker-opgaver); workeren starter det også ugentligt, men en model bygget af samme
-revision springes over. `tools/speech-model/build.sh` gør det samme i hånden.
+revision springes over. `tools/speech-model/build.sh` gør det samme i hånden. Byggeriet kræver ca. 6,5 GB fri hukommelse; har
+serveren mindre, bygges modellen på en anden maskine, pakkes med `tools/speech-model/pack.sh` og lægges på serveren med
+`tools/speech-model/install.sh speech-model.tar`.
 
 ## Push via Firebase (FCM)
 
