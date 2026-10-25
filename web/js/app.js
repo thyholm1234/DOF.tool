@@ -1,9 +1,11 @@
 import { api, state, h, $, icon, toast, ago, trackView, adminLink } from "./core.js";
 import { live } from "./live.js";
 import { syncSharing, syncPush, stopAppPush } from "./native.js";
+import { initSelectMenu } from "./select-menu.js";
 
 // Build-id fra den versionerede sti (/v/<build>/js/app.js) – vises i brugermenuen
 const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
+initSelectMenu();
 
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [

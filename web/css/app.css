@@ -201,7 +201,7 @@ main#view { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 24px +
 .tag.alm, .tag.plain { background: var(--bg-2); color: var(--text-2); }
 
 input, select, textarea {
-  font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
+  font: inherit; font-family: var(--font); color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
   padding: 0 12px; height: 40px; width: 100%; min-width: 0;
 }
 textarea { padding: 10px 12px; height: auto; min-height: 90px; resize: vertical; }
@@ -209,6 +209,15 @@ textarea { padding: 10px 12px; height: auto; min-height: 90px; resize: vertical;
 select:not([multiple]) { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer; text-overflow: ellipsis;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%237f8a84' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 8px; }
+/* Egen menu til select i Android-appen (js/select-menu.js) */
+.sel-back { position: fixed; inset: 0; z-index: 1000; }
+.sel-menu { position: fixed; z-index: 1001; overflow-y: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px;
+  box-shadow: var(--shadow-lg); padding: 4px; display: grid; gap: 1px; align-content: start; max-width: calc(100vw - 16px); }
+.sel-menu button { text-align: left; border: 0; background: none; color: var(--text); font: inherit; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+.sel-menu button:active, .sel-menu button:hover { background: var(--bg-2); }
+.sel-menu button.on { background: var(--brand-soft); color: var(--brand); font-weight: 650; }
+.sel-menu button:disabled { opacity: .45; }
+.sel-group { padding: 8px 12px 2px; font-size: .75rem; font-weight: 700; color: var(--text-3); }
 /* DOFbasen- og Netfugl-modulerne efterligner de rigtige sider og beholder browserens egne dropdowns */
 .dofb select, .nfu select { appearance: auto; -webkit-appearance: menulist; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; flex: none; accent-color: var(--brand); }
