@@ -29,12 +29,15 @@ function show(sel) {
   }
   const back = h("div", { class: "sel-back" });
   document.body.append(back, menu);
+  // Menuen holdes mellem topbjælken og bundmenuen, så de altid er synlige
+  const edge = (q, side, dflt) => { const b = document.querySelector(q)?.getBoundingClientRect(); return b?.height ? b[side] : dflt; };
   const r = sel.getBoundingClientRect(), vh = window.innerHeight;
-  const below = vh - r.bottom - 8, above = r.top - 8, up = below < 200 && above > below;
+  const minY = edge(".topbar", "bottom", 0) + 8, maxY = Math.min(vh, edge(".bottomnav", "top", vh)) - 8;
+  const below = maxY - r.bottom - 4, above = r.top - 4 - minY, up = below < 200 && above > below;
   menu.style.minWidth = r.width + "px"; menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8)) + "px";
-  menu.style.maxHeight = Math.max(120, Math.min(up ? above : below, vh * 0.6)) + "px";
+  menu.style.maxHeight = Math.max(80, Math.min(up ? above : below, vh * 0.6)) + "px";
   if (up) menu.style.bottom = (vh - r.top + 4) + "px"; else menu.style.top = (r.bottom + 4) + "px";
-  cur?.scrollIntoView({ block: "center" });
+  if (cur) menu.scrollTop = cur.offsetTop - menu.clientHeight / 2;
   back.addEventListener("click", close);
   open = { sel, menu, close: () => { back.remove(); menu.remove(); } };
 }

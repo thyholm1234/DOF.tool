@@ -252,28 +252,24 @@ async function boot() {
   }
 }
 
-/** Skærmtastatur på telefoner: skjul bundmenuen, mens der skrives, og rul feltet fri af sticky bundknapper (Gem/Annullér),
- *  som ellers kan dække det nederste felt i en formular. */
+/** Skærmtastatur på telefoner: rul feltet fri af bundmenuen og sticky bundknapper (Gem/Annullér), som ellers kan dække
+ *  det nederste felt i en formular. Bundmenuen bliver stående. */
 function keyboardAware() {
   const touch = matchMedia("(pointer: coarse)");
   const typing = (el) => el?.matches?.("textarea, select, [contenteditable=true], input:not([type=checkbox], [type=radio], [type=button], [type=submit], [type=range], [type=color], [type=file])");
-  let off = 0;
   document.addEventListener("focusin", (e) => {
     if (!touch.matches || !typing(e.target)) return;
-    clearTimeout(off);
-    document.body.classList.add("kbd");
     const el = e.target;
     // Når tastaturet er åbent (og viewporten krympet), tjekkes om feltet er dækket af en sticky/fast bjælke
     setTimeout(() => {
       if (document.activeElement !== el) return;
       const vh = window.visualViewport?.height || window.innerHeight;
       const r = el.getBoundingClientRect();
-      const foot = [...document.querySelectorAll(".sheet-foot, .tur-bar")].filter(f => f.offsetParent && !f.contains(el))
+      const foot = [...document.querySelectorAll(".sheet-foot, .tur-bar, .bottomnav")].filter(f => f.offsetParent && !f.contains(el))
         .reduce((m, f) => Math.max(m, vh - f.getBoundingClientRect().top), 0);
       if (r.bottom > vh - foot - 8 || r.top < 0) el.scrollIntoView({ block: "center", behavior: "smooth" });
     }, 350);
   });
-  document.addEventListener("focusout", () => { off = setTimeout(() => { if (!typing(document.activeElement)) document.body.classList.remove("kbd"); }, 120); });
 }
 
 export { renderUser, renderNav, applyTheme };

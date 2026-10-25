@@ -875,10 +875,6 @@ body.sheet-open { overflow: hidden; }
   .modal-head h2 { font-size: 1.1rem; }
   .sheet-head { padding: 14px 16px 10px; } .sheet-body { padding: 14px 16px; } .sheet-foot { padding: 10px 16px 12px; }
 }
-/* Tastatur åbent (sat i app.js): bundmenuen skjules, så sticky bundknapper og feltet med fokus ikke dækkes */
-body.kbd .bottomnav { display: none !important; }
-body.kbd main#view { padding-bottom: 24px; }
-body.kbd .tur-bar, body.kbd .sheet-page .sheet-foot { bottom: 0; }
 /* Fokuseret felt rulles fri af sticky top- og bundbarer */
 html { scroll-padding-top: calc(var(--top-h) + 12px); scroll-padding-bottom: calc(var(--nav-h) + 90px + var(--safe-bottom)); }
 
