@@ -3,7 +3,9 @@
 DOFbasens referencedata hentes jævnligt og overskriver tabellerne; ændringer herfra gemmes derfor også i
 reference_edits og lægges oven på igen efter hver hentning (dof/reference.py). Alt skrives i observationsgruppen, hvor
 referencedata hører hjemme, og kopieres derefter til brugergruppen. Ændringerne gælder nye og ændrede observationer –
-eksisterende observationer beholder deres kategori, til de hentes igen."""
+eksisterende observationer beholder deres kategori, til de hentes igen.
+
+SU- og SUB-arter er altid bemærkelsesværdige (klassifikationen har forrang), så de vises ikke og kan ikke tilføjes her."""
 
 from __future__ import annotations
 
@@ -53,9 +55,15 @@ class WindowsIn(BaseModel):
         return [(_valid_ddmm(a), _valid_ddmm(b)) for a, b in v]
 
 
+NOT_SU = "coalesce(s.klass, 'Alm') NOT IN ('SU', 'SUB')"  # s = species
+
+
 async def _species_exists(s: AsyncSession, navn: str) -> None:
-    if not (await s.execute(text("SELECT 1 FROM species WHERE navn = :n"), {"n": navn})).scalar():
+    klass = (await s.execute(text("SELECT coalesce(klass, 'Alm') FROM species WHERE navn = :n LIMIT 1"), {"n": navn})).scalar()
+    if klass is None:
         raise HTTPException(400, f"Arten {navn} findes ikke")
+    if klass in ("SU", "SUB"):
+        raise HTTPException(400, f"{navn} er en {klass}-art og er altid bemærkelsesværdig")
 
 
 async def _edit(s: AsyncSession, kind: str, afdeling_id: int, artnavn: str) -> ReferenceEdit:
@@ -97,14 +105,15 @@ async def thresholds(afdeling: int | None = None, user: User = Depends(perm_arte
         if afdeling is None:
             return {"afdelinger": afdelinger, "rows": [], "removed": []}
         await _afdeling(s, afdeling)
-        rows = (await s.execute(text("""
+        rows = (await s.execute(text(f"""
             SELECT b.artnavn, b.antal, s.artnr, e.id AS edit_id, e.dof_antal, s.sortering
             FROM bemaerk_thresholds b LEFT JOIN species s ON s.navn = b.artnavn
             LEFT JOIN reference_edits e ON e.kind = 'bemaerk' AND e.afdeling_id = b.afdeling_id AND e.artnavn = b.artnavn
-            WHERE b.afdeling_id = :a ORDER BY s.sortering NULLS LAST, b.artnavn"""), {"a": afdeling})).mappings().all()
-        removed = (await s.execute(text("""
-            SELECT id AS edit_id, artnavn, dof_antal FROM reference_edits
-            WHERE kind = 'bemaerk' AND afdeling_id = :a AND removed ORDER BY artnavn"""), {"a": afdeling})).mappings().all()
+            WHERE b.afdeling_id = :a AND {NOT_SU} ORDER BY s.sortering NULLS LAST, b.artnavn"""), {"a": afdeling})).mappings().all()
+        removed = (await s.execute(text(f"""
+            SELECT e.id AS edit_id, e.artnavn, e.dof_antal FROM reference_edits e LEFT JOIN species s ON s.navn = e.artnavn
+            WHERE e.kind = 'bemaerk' AND e.afdeling_id = :a AND e.removed AND {NOT_SU} ORDER BY e.artnavn"""),
+            {"a": afdeling})).mappings().all()
     return {"afdelinger": afdelinger,
             "rows": [{k: r[k] for k in ("artnavn", "antal", "artnr", "edit_id", "dof_antal")} for r in rows],
             "removed": [dict(r) for r in removed]}
@@ -141,16 +150,17 @@ async def remove_threshold(afdeling_id: int, artnavn: str = Query(min_length=1),
 @router.get("/phenology")
 async def phenology(user: User = Depends(perm_arter)):
     async with ObsSession() as s:
-        rows = (await s.execute(text("""
+        rows = (await s.execute(text(f"""
             SELECT w.artnavn, s.artnr, s.sortering, json_agg(json_build_array(w.fra, w.til) ORDER BY w.id) AS windows,
                    e.id AS edit_id, e.dof_windows
             FROM phenology_windows w LEFT JOIN species s ON s.navn = w.artnavn
             LEFT JOIN reference_edits e ON e.kind = 'pheno' AND e.afdeling_id = 0 AND e.artnavn = w.artnavn
+            WHERE {NOT_SU}
             GROUP BY w.artnavn, s.artnr, s.sortering, e.id, e.dof_windows
             ORDER BY s.sortering NULLS LAST, w.artnavn"""))).mappings().all()
-        removed = (await s.execute(text("""
-            SELECT id AS edit_id, artnavn, dof_windows FROM reference_edits WHERE kind = 'pheno' AND removed
-            ORDER BY artnavn"""))).mappings().all()
+        removed = (await s.execute(text(f"""
+            SELECT e.id AS edit_id, e.artnavn, e.dof_windows FROM reference_edits e LEFT JOIN species s ON s.navn = e.artnavn
+            WHERE e.kind = 'pheno' AND e.removed AND {NOT_SU} ORDER BY e.artnavn"""))).mappings().all()
     return {"rows": [{k: r[k] for k in ("artnavn", "artnr", "windows", "edit_id", "dof_windows")} for r in rows],
             "removed": [dict(r) for r in removed]}
 

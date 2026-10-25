@@ -523,11 +523,14 @@ function speciesInput(all, onPick, placeholder = "Art …") {
   return { el: h("div", { class: "dd-wrap", style: { flex: "1 1 220px" } }, input, suggest), clear: () => { input.value = ""; onPick(null); } };
 }
 
-const NOTE_REF = "Ændringer herfra bevares, når referencedata hentes fra DOFbasen igen, og gælder nye og ændrede observationer. «Fortryd» sætter DOFbasens værdi ind igen.";
+const NOTE_REF = "SU- og SUB-arter er altid bemærkelsesværdige og vises derfor ikke. Ændringer herfra bevares, når referencedata hentes fra DOFbasen igen, og gælder nye og ændrede observationer. «Fortryd» sætter DOFbasens værdi ind igen.";
+
+const notSU = (s) => !["SU", "SUB"].includes(s.klass);  // altid bemærkelsesværdige – hører ikke til i filtrene
 
 async function bemaerkPanel(body) {
   let d, all;
   try { [d, all] = await Promise.all([api("/api/admin/bemaerk"), api("/api/species/index")]); } catch (err) { body.append(errorBox(err)); return; }
+  all = all.filter(notSU);
   let afd = Number(params().afd) || d.afdelinger[0]?.id;
   const afdSel = h("select", { style: { maxWidth: "280px" } }, ...d.afdelinger.map(a => h("option", { value: a.id, selected: a.id === afd }, a.navn)));
   const filter = h("input", { type: "search", placeholder: "Filtrér arter …", style: { maxWidth: "240px" } });
@@ -578,7 +581,7 @@ async function bemaerkPanel(body) {
 
 async function phenoPanel(body) {
   let all;
-  try { all = await api("/api/species/index"); } catch (err) { body.append(errorBox(err)); return; }
+  try { all = (await api("/api/species/index")).filter(notSU); } catch (err) { body.append(errorBox(err)); return; }
   const list = h("div", { class: "card table-wrap mt" });
   const filter = h("input", { type: "search", placeholder: "Filtrér arter …", style: { maxWidth: "240px" } });
   const ddmm = (v = "") => h("input", { type: "text", value: v, placeholder: "DD-MM", maxlength: 5, inputmode: "numeric", style: { width: "80px", height: "32px" } });
