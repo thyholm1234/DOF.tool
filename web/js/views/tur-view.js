@@ -189,10 +189,11 @@ export function view(page, ref, store_, recent) {
   if (isApp() && state.user?.voice) voiceEngine().then(async (e) => {
     engine = e;
     if (e !== "local") { voiceBtn.classList.toggle("hide", !e); return; }
-    const st = await modelStatus().catch(() => null);
+    const st = await modelStatus().catch((err) => { say(h("span", { class: "err" }, `Talemodellen kunne ikke undersøges: ${err.message || err}`)); return null; });
     if (!st) return;
     if (st.installed) { voiceBtn.classList.remove("hide"); prepareModel(); }
     if (st.manifest && (!st.installed || !st.current)) offerModel(st);
+    else if (!st.manifest && !st.installed) say(h("span", { class: "muted" }, "Tale-indtastning: talemodellen ligger ikke på serveren endnu (kør tools/speech-model/build.sh dér)."));
   });
 
   const reuseBox = h("input", { type: "checkbox", checked: reuse.on, onchange: (e) => { reuse.on = e.target.checked; store("turreuse", reuse.on); } });
