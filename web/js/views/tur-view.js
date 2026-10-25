@@ -6,7 +6,7 @@ import { tracker, trackStart, trackPause, trackStop, trackLength, nowHM } from "
 import { isApp } from "../native.js";
 import { newId } from "../offline.js";
 import { openObsSheet, openPairSheet } from "../obs-sheet.js";
-import { voiceEngine, voiceContext, listen, modelStatus, installModel, prepareModel } from "../voice.js";
+import { voiceEngine, voiceContext, listen, mergeItems, modelStatus, installModel, prepareModel } from "../voice.js";
 
 const STATE = { ok: ["Gemt", "ok"], gemmer: ["Gemmer …", "busy"], offline: ["Ikke sendt – sendes, når der er net", "off"], fejl: ["Kunne ikke gemmes", "err"] };
 
@@ -145,13 +145,16 @@ export function view(page, ref, store_, recent) {
     voiceBtn.style.removeProperty("--lvl");
     let res;
     try { res = await stop(); } catch (err) { say(h("span", { class: "err" }, err.message || "Talen kunne ikke genkendes")); return; }
-    const { items, heard } = res;
+    const { heard } = res;
+    // «Samme adfærd som sidst» gælder fugle uden talt adfærd – først derefter er det afgjort, hvilke der har samme art og adfærd
+    const dflt = reuse.on ? lastAdf() : "";
+    const items = mergeItems(res.items.map(it => ({ ...it, adfkode: it.adfkode || (it.art ? dflt : "") })));
     if (!heard && !items.length) { say(h("span", { class: "muted" }, "Hørte ingenting – hold knappen inde, mens du taler.")); return; }
     const added = [], sheets = [], missed = [];
     for (const it of items) {
       if (!it.art) { missed.push(it.heard); continue; }
       const O = { client_id: newId(), artnr: it.art.artnr, art: it.art.navn, klass: it.art.klass, antal: it.antal, antalmetode: 1,
-        maerker: [], grundlag: ["set"], sikkerhed: "sikker", status: "ukendt", obstidfra: nowHM(), adfkode: it.adfkode || (reuse.on ? lastAdf() : ""),
+        maerker: [], grundlag: ["set"], sikkerhed: "sikker", status: "ukendt", obstidfra: nowHM(), adfkode: it.adfkode,
         retningslinjer: false, hemmelig: false, skjul_position: false };
       // SU/SUB kræver sikkerhed, grundlag og retningslinjer, og uden adfærd mangler et påkrævet felt: åbn formularen udfyldt
       if (!O.adfkode || ["SU", "SUB"].includes(O.klass)) sheets.push(O); else added.push(O);

@@ -242,10 +242,28 @@ export function itemsFromWords(words, ctx) {
   });
 }
 
+/**
+ * Samme art med samme adfærd i én sætning er én observation, hvor antallene lægges sammen («2 bomlærker syd og 5 bomlærker
+ * syd» → 7 bomlærker syd). Forskellig adfærd (eller ingen) forbliver hver sin observation. Rækkefølgen er den talte.
+ * Ord, der ikke blev til en art, rører vi ikke.
+ */
+export function mergeItems(items) {
+  const out = [], seen = new Map();
+  for (const it of items) {
+    const key = it.art ? `${it.art.artnr}|${it.adfkode || ""}` : null;
+    const prev = key && seen.get(key);
+    if (prev) { prev.antal += it.antal; prev.heard = `${prev.heard} + ${it.heard}`; continue; }
+    const copy = { ...it };
+    if (key) seen.set(key, copy);
+    out.push(copy);
+  }
+  return out;
+}
+
 /** Talemodellens log-sandsynligheder → observationer. Returnerer { items, heard } (heard = modellens egen tekst). */
 export function parseLogprobs(logprobs, ctx) {
   const r = decode(logprobs, ctx.lex);
-  return { items: itemsFromWords(r.words, ctx), heard: r.greedy, words: r.words.map(w => w.text) };
+  return { items: mergeItems(itemsFromWords(r.words, ctx)), heard: r.greedy, words: r.words.map(w => w.text) };
 }
 
 // ---------------------------------------------------------------- Android: talemodellen på telefonen
@@ -341,6 +359,6 @@ async function listenSystem(ctx, on) {
     // Slutresultatet kommer som et sidste event lidt efter stop – vent kort på det (også hvis det kom under stop-kaldet)
     for (let t = 0; events === before && t < 1200; t += 50) await new Promise((r) => setTimeout(r, 50));
     handle?.remove?.();
-    return { items: matches.length ? bestParse(matches, ctx.index, ctx.codes) : [], heard: matches[0] || "" };
+    return { items: matches.length ? mergeItems(bestParse(matches, ctx.index, ctx.codes)) : [], heard: matches[0] || "" };
   };
 }
