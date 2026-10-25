@@ -22,7 +22,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
 from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
-from portal.services import account, activity, datasync, diskusage, fcm, features, locfinds, moderation, schedule, weather_archive
+from portal.services import account, activity, datasync, diskusage, fcm, features, locfinds, moderation, schedule, speechmodel, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
 
@@ -208,6 +208,9 @@ async def worker(cmd: str, body: dict | None = None, user: User = Depends(perm_d
     if cmd == "loc_finds":
         ids = (body or {}).get("afdelinger")
         return {"queued": cmd, "afdelinger": await locfinds.enqueue(db, [int(x) for x in ids] if ids else None)}
+    if cmd == "speech_model":
+        await speechmodel.request(force=bool((body or {}).get("force")))
+        return {"queued": cmd}
     if cmd not in ("archive_import", "compute", "climate", "aggregates", "events", "forecast", "regions", "gaps", "location_years"):
         raise HTTPException(400)
     await worker_command(cmd, **(body or {}))
@@ -322,6 +325,12 @@ async def archive_upload_delete(name: str, user: User = Depends(perm_drift)):
         raise HTTPException(404)
     path.unlink()
     return {"ok": True}
+
+
+@router.get("/admin/speech-model")
+async def speech_model(user: User = Depends(perm_drift)):
+    """Talemodellen til tale-indtastning: den version serveren leverer, og om byggeagenten kører."""
+    return await speechmodel.status()
 
 
 @router.get("/admin/jobs")

@@ -13,15 +13,18 @@ from transformers import Wav2Vec2ForCTC
 
 REPO = "CoRal-project/roest-v3-wav2vec2-315m"
 REV = os.environ.get("ROEST_REVISION", "beb3e790246d6b9dec1df596b0b21d5c42f4d99c")
-OUT = "/work/out"
+OUT = os.environ.get("OUT_DIR", "/work/out")
 os.makedirs(OUT, exist_ok=True)
 
+print("step: henter modellen fra Hugging Face", flush=True)
 model = Wav2Vec2ForCTC.from_pretrained(REPO, revision=REV).eval()
 dummy = torch.zeros(1, 16000 * 3)
 fp32 = f"{OUT}/roest-v3-fp32.onnx"
+print("step: eksporterer til ONNX", flush=True)
 torch.onnx.export(model, (dummy,), fp32, input_names=["input_values"], output_names=["logits"],
                   dynamic_axes={"input_values": {1: "samples"}, "logits": {1: "frames"}}, opset_version=17,
                   do_constant_folding=True, dynamo=False)
+print("step: kvantiserer til int8", flush=True)
 quantize_dynamic(fp32, f"{OUT}/roest-v3-int8.onnx", weight_type=QuantType.QInt8, op_types_to_quantize=["MatMul", "Gemm"])
 
 from huggingface_hub import hf_hub_download  # noqa: E402

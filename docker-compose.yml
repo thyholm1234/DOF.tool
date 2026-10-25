@@ -166,6 +166,28 @@ services:
       timeout: 5s
       retries: 20
 
+  # Bygger talemodellen til appens tale-indtastning (CoRal → ONNX int8) på kommando fra Admin → Drift (workeren lægger
+  # kommandoen i Valkey). Ligger for sig, fordi PyTorch og Hugging Face-værktøjerne fylder ca. 1 GB og kun bruges her.
+  # Tom mellem byggerier; under et byggeri bruges op til ca. 6 GB hukommelse og 3 GB disk i volumen speech_work.
+  speech-model:
+    build: ./tools/speech-model
+    image: doftool-speech-model:latest
+    restart: unless-stopped
+    logging: *logging
+    command: ["python", "-u", "/opt/agent.py"]
+    mem_limit: 8g
+    environment:
+      REDIS_DSN: redis://valkey:6379/0
+      MODELS_DIR: /data/models
+      WORK_DIR: /work
+      TZ: Europe/Copenhagen
+    volumes:
+      - models:/data/models
+      - speech_work:/work
+    depends_on:
+      valkey:
+        condition: service_healthy
+
   # Bygger billedet panelet bruger til nye databaser (afslutter med det samme)
   dbnode-image:
     build: ./dbnode
@@ -183,6 +205,7 @@ services:
 volumes:
   dbadmin:
   models:
+  speech_work:
   minio:
   rustfs:
   pgdata:

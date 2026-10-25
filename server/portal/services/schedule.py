@@ -43,6 +43,9 @@ TASKS: dict[str, tuple[str, str, dict]] = {
                       {"on": True, "every": 6, "unit": "hour", "at": "00:10"}),
     "netfugl_rss": ("Netfugl: RSS-kilder", "Henter nyheder fra RSS-kilderne (kun når Netfugl er slået til)",
                     {"on": True, "every": 1, "unit": "hour", "at": "00:05"}),
+    "speech_model": ("Talemodel til appen", "Bygger tale-indtastningens model (CoRal) første gang og når modellen er ændret; "
+                     "ellers sker der ingenting",
+                     {"on": True, "every": 1, "unit": "week", "at": "04:00"}),
     "loc_finds": ("Lokale hits: fund pr. lokalitet", "Én gang om måneden, fordelt på lokalafdelinger (se Fordeling)",
                   {"on": True, "every": 1, "unit": "month", "at": "03:30"}),
 }

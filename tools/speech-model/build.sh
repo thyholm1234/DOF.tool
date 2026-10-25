@@ -28,24 +28,4 @@ if [ "${1:-}" = "--evaluate" ]; then
   docker run --rm -v "$WORK:/work" doftool-speech-model python /opt/evaluate.py out/roest-v3-fp32.onnx out/roest-v3-int8.onnx
 fi
 
-docker run --rm -i -v "$WORK:/work" -v "$VOLUME:/models" doftool-speech-model python - <<'PY'
-import hashlib, json, os, shutil
-src = "/work/out/roest-v3-int8.onnx"
-h = hashlib.sha256()
-with open(src, "rb") as f:
-    for chunk in iter(lambda: f.read(1 << 20), b""):
-        h.update(chunk)
-sha = h.hexdigest()
-version = f"roest-v3-int8-{sha[:12]}"
-name = f"{version}.onnx"
-for old in os.listdir("/models"):
-    if old.startswith("roest-") and old != name:
-        os.remove(f"/models/{old}")
-shutil.copyfile(src, f"/models/{name}")
-shutil.copyfile("/work/out/roest-v3-vocab.json", "/models/roest-v3-vocab.json")
-manifest = {"version": version, "url": f"/models/{name}", "size": os.path.getsize(src), "sha256": sha,
-            "model": "CoRal-project/roest-v3-wav2vec2-315m", "license": "CoRal (OpenRAIL-M-afledt)",
-            "vocab": "/models/roest-v3-vocab.json"}
-json.dump(manifest, open("/models/speech.json", "w"), indent=1)
-print(json.dumps(manifest, indent=1))
-PY
+docker run --rm -v "$WORK:/work" -v "$VOLUME:/models" doftool-speech-model python /opt/publish.py /work/out /models

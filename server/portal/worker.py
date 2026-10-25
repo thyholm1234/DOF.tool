@@ -21,7 +21,7 @@ from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
 from portal.services import (areas, datasync, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl, phenology, regions,
-                             schedule, seasons, storage, weather_archive)
+                             schedule, seasons, speechmodel, storage, weather_archive)
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -166,6 +166,8 @@ async def run_scheduled(name: str, flags: dict) -> None:
         await run_safely("netfugl_kryds", netfugl_kryds())
     elif name == "netfugl_rss":
         await run_safely("netfugl_rss", netfugl_rss(None))
+    elif name == "speech_model":
+        await speechmodel.request()
 
 
 async def locfinds_schedule() -> None:

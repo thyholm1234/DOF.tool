@@ -20,8 +20,9 @@ export async function render(view) {
   const draw = (t) => ({
     drift: () => {
       const jobsBox = h("div", { class: "card stack" }), uploadBox = h("div", { class: "card stack mt" }), opsBox = h("div", { class: "mt" });
-      const storageBox = h("div", { class: "card stack mt" }), schedBox = h("div", { class: "card stack mt" });
-      body.append(jobsBox, schedBox, storageBox, uploadBox, opsBox);
+      const storageBox = h("div", { class: "card stack mt" }), schedBox = h("div", { class: "card stack mt" }), speechBox = h("div", { class: "card stack mt" });
+      body.append(jobsBox, schedBox, speechBox, storageBox, uploadBox, opsBox);
+      every(() => speechCard(speechBox), 10000);
       scheduleCard(schedBox);
       storageCard(storageBox);
       archiveUpload(uploadBox);
@@ -227,10 +228,33 @@ async function archiveUpload(box) {
 
 // ---------------------------------------------------------------- worker-opgaver (status opdateres hvert 3. sekund)
 
-const RUNNABLE = ["compute", "archive_import", "aggregates", "climate", "events", "forecast", "regions", "gaps", "location_years", "loc_finds"];
+const RUNNABLE = ["compute", "archive_import", "aggregates", "climate", "events", "forecast", "regions", "gaps", "location_years", "loc_finds", "speech_model"];
 const JOB_STATUS = { idle: ["plain", "ikke kørt"], queued: ["bemaerk", "i kø"], running: ["local", "kører"], done: ["plain", "ok"], error: ["SU", "fejl"], interrupted: ["SUB", "afbrudt"] };
 const jobTag = (status) => { const [k, l] = JOB_STATUS[status] || ["plain", status]; return h("span", { class: `tag ${k}` }, l); };
 const dur = (s) => s == null ? "–" : s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} t`;
+
+/** Talemodellen til tale-indtastning i appen: versionen serveren leverer, og byggeagenten. */
+async function speechCard(box) {
+  let d;
+  try { d = await api("/api/admin/speech-model"); } catch (err) { box.replaceChildren(errorBox(err)); return; }
+  const m = d.manifest;
+  const build = (force) => async () => {
+    if (force && !confirm("Bygge modellen forfra? Det henter 1,3 GB fra Hugging Face og tager ca. 5 minutter.")) return;
+    try { await api("/api/admin/worker/speech_model", { method: "POST", body: { force } }); toast("Talemodellen lægges i kø"); speechCard(box); } catch (err) { toast(err.message, "err"); }
+  };
+  box.replaceChildren(
+    h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Talemodel til tale-indtastning"),
+      h("span", { class: "row" }, h("button", { class: "btn sm", onclick: build(false) }, m ? "Tjek / opdatér" : "Byg modellen"), m ? h("button", { class: "btn sm ghost", onclick: build(true) }, "Byg forfra") : null)),
+    m ? h("ul", { class: "mini-list" },
+      h("li", {}, h("span", {}, "Version"), h("b", { class: "num" }, m.version)),
+      h("li", {}, h("span", {}, "Størrelse (hentes til telefonen)"), h("b", { class: "num" }, fmtBytes(m.size))),
+      h("li", {}, h("span", {}, "Model"), h("b", {}, m.model)),
+      h("li", {}, h("span", {}, "Bygget"), h("b", {}, m.built_at ? ago(m.built_at) : "–")))
+      : h("p", { class: "muted", style: { margin: 0 } }, "Modellen er ikke bygget endnu – appen kan ikke tilbyde tale-indtastning, før den er det."),
+    h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } },
+      d.agent_alive ? `Byggeagenten kører${d.pending ? ` · ${d.pending} i kø` : ""}.` : "Byggeagenten (compose-servicen speech-model) kører ikke – start den med «docker compose up -d speech-model».",
+      " Fremdrift og seneste kørsler står under Worker-opgaver."));
+}
 
 async function jobsCard(box) {
   let d;

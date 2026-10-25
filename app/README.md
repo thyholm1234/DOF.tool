@@ -31,9 +31,11 @@ danske model `roest-v3-wav2vec2-315m`, kørt med ONNX Runtime (MIT) i pluginnet 
 og der bruges ingen Google-tjenester. Modellens output afkodes i `web/js/voice-ctc.js` mod artslisten, tallene og
 adfærdslisten, så kun ord derfra kan komme ud.
 
-Modellen (int8, ca. 355 MB) ligger ikke i APK'en: den bygges på serveren med `tools/speech-model/build.sh` (lægges i
-volumen `models`, leveres fra `/models/`), og appen tilbyder at hente den første gang en tur åbnes. En ny model på
-serveren tilbydes automatisk.
+Modellen (int8, ca. 355 MB) ligger ikke i APK'en: den bygges på serveren (volumen `models`, leveres fra `/models/`), og
+appen tilbyder at hente den første gang en tur åbnes. En ny model på serveren tilbydes automatisk. Byggeriet køres af
+compose-servicen `speech-model` (`tools/speech-model/agent.py`) på kommando fra Admin → Drift (boksen «Talemodel til
+tale-indtastning», eller «Kør nu» under Worker-opgaver); workeren starter det også ugentligt, men en model bygget af samme
+revision springes over. `tools/speech-model/build.sh` gør det samme i hånden.
 
 ## Push via Firebase (FCM)
 

@@ -52,7 +52,7 @@ def _files() -> list[dict]:
         n, b = _du(media / sub)
         if sub != "obs" or n:
             out.append({"name": label, "files": n, "bytes": b})
-    for path, label in ((s.weather_dir, "Vejrdata (midlertidige DMI-filer)"), (s.archive_upload_dir, "Uploadede månedsfiler"),
+    for path, label in ((s.models_dir, "Talemodel (tale-indtastning i appen)"), (s.weather_dir, "Vejrdata (midlertidige DMI-filer)"), (s.archive_upload_dir, "Uploadede månedsfiler"),
                         (s.archive_dir, "DOFbasen-arkiv (månedsudtræk)")):
         n, b = _du(Path(path))
         out.append({"name": label, "files": n, "bytes": b})
