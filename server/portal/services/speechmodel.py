@@ -38,6 +38,7 @@ async def request(force: bool = False) -> None:
 MODEL_RE = re.compile(r"^roest-v3-int8-[0-9a-f]{12}\.onnx$")
 MEMBERS = ("roest-v3-vocab.json", "speech.json.new")
 MAX_BYTES = 1_000_000_000
+MAX_UPLOAD = 600_000_000  # selve arkivet (modellen er ca. 355 MB)
 
 
 def install(tar_path: Path) -> dict:

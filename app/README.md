@@ -38,8 +38,9 @@ tale-indtastning», eller «Kør nu» under Worker-opgaver); workeren starter de
 revision springes over. `tools/speech-model/build.sh` gør det samme i hånden. Byggeriet kræver ca. 6,5 GB fri hukommelse; har
 serveren mindre, bygges modellen på en anden maskine, pakkes med `tools/speech-model/pack.sh` og lægges på serveren med
 `tools/speech-model/install.sh speech-model.tar` – eller uploades under Admin → Drift → «Talemodel til tale-indtastning» →
-«Upload model …». Filen er ca. 355 MB, så en proxy foran portalen (Cloudflare tillader 100 MB) skal slås fra under
-uploaden; arkivet kontrolleres (kun forventede filer, SHA-256), før modellen tages i brug.
+«Upload model …». Filen sendes i små bidder (16 MB, der halveres automatisk ned til 256 kB, hvis en proxy afviser dem med
+413), så proxyen ikke behøver at slås fra; en afbrudt upload fortsætter, hvor serveren nåede til. Arkivet kontrolleres
+(kun forventede filer, SHA-256), før modellen tages i brug.
 
 ## Push via Firebase (FCM)
 

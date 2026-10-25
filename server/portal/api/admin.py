@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import secrets
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -334,23 +336,56 @@ async def speech_model(user: User = Depends(perm_drift)):
     return await speechmodel.status()
 
 
-@router.post("/admin/speech-model/upload")
-async def speech_model_upload(file: UploadFile = File(...), user: User = Depends(perm_drift)):
-    """Upload en færdigbygget talemodel (speech-model.tar fra tools/speech-model/pack.sh) – til servere med for lidt
-    hukommelse til selv at bygge den. Filen er ca. 355 MB, så en proxy foran portalen må tillade så store uploads."""
-    root = Path(get_settings().models_dir)
-    root.mkdir(parents=True, exist_ok=True)
-    tmp = root / ".upload.tar.part"
+UPLOAD_ID = re.compile(r"^[a-z0-9]{8,32}$")
+
+
+def _part(upload_id: str) -> Path:
+    if not UPLOAD_ID.match(upload_id):
+        raise HTTPException(400, "Ugyldigt upload-id")
+    return Path(get_settings().models_dir) / f".upload-{upload_id}.part"
+
+
+@router.post("/admin/speech-model/upload/{upload_id}")
+async def speech_model_chunk(upload_id: str, request: Request, offset: int = Query(ge=0), user: User = Depends(perm_drift)):
+    """Én bid af en uploadet talemodel (speech-model.tar fra tools/speech-model/pack.sh). Filen er ca. 355 MB og sendes i
+    små bidder, så ingen proxy foran portalen skal tillade så store forespørgsler. Bidderne skal komme i rækkefølge;
+    ved et afbrud svarer serveren 409 med, hvor langt den er nået, så uploaden kan fortsætte derfra."""
+    part = _part(upload_id)
+    part.parent.mkdir(parents=True, exist_ok=True)
+    have = part.stat().st_size if part.exists() else 0
+    if offset == 0 and have:
+        part.unlink()  # forfra
+        have = 0
+    if offset != have:
+        raise HTTPException(409, f"Serveren har {have} bytes")
+    if offset == 0:
+        for old in part.parent.glob(".upload-*.part"):  # rester af opgivne uploads
+            if old != part and time.time() - old.stat().st_mtime > 3600:
+                old.unlink(missing_ok=True)
+    size = have
+    with part.open("ab") as fh:
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > speechmodel.MAX_UPLOAD:
+                fh.close()
+                part.unlink(missing_ok=True)
+                raise HTTPException(413, "Filen er for stor til at være en talemodel")
+            fh.write(chunk)
+    return {"size": size}
+
+
+@router.post("/admin/speech-model/upload/{upload_id}/finish")
+async def speech_model_finish(upload_id: str, user: User = Depends(perm_drift)):
+    """Alle bidder er sendt: kontrollér arkivet og tag modellen i brug."""
+    part = _part(upload_id)
+    if not part.exists():
+        raise HTTPException(404, "Uploaden findes ikke (eller er ryddet væk) – prøv igen")
     try:
-        with tmp.open("wb") as fh:
-            while chunk := await file.read(1 << 20):
-                fh.write(chunk)
-        try:
-            m = await asyncio.to_thread(speechmodel.install, tmp)
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from exc
+        m = await asyncio.to_thread(speechmodel.install, part)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     finally:
-        tmp.unlink(missing_ok=True)
+        part.unlink(missing_ok=True)
     return {"version": m["version"], "size": m["size"]}
 
 

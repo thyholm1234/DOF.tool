@@ -138,13 +138,13 @@ const FILE_RE = /^dofbasen_\d{4}_\d{2}\.csv$/;
 const fmtMB = (b) => `${(b / 1e6).toLocaleString("da-DK", { maximumFractionDigits: 1 })} MB`;
 
 /** POST med upload-fremdrift (fetch kan ikke rapportere hvor meget der er sendt). */
-function uploadFile(file, onProgress, url = "/api/admin/archive/upload") {
+function uploadFile(file, onProgress) {
   return new Promise((resolve, reject) => {
     const form = new FormData();
     form.append("file", file);
     form.append("mtime", String(file.lastModified / 1000));
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
+    xhr.open("POST", "/api/admin/archive/upload");
     xhr.setRequestHeader("X-Requested-With", "fetch");
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
@@ -156,6 +156,38 @@ function uploadFile(file, onProgress, url = "/api/admin/archive/upload") {
     xhr.onerror = () => reject(new Error(`${file.name}: forbindelsen blev afbrudt`));
     xhr.send(form);
   });
+}
+
+/**
+ * Upload i små bidder (en proxy foran portalen afviser ellers store forespørgsler med 413): hver bid sendes for sig, og
+ * bliver proxyen ved med at afvise, halveres bidden ned til 256 kB. Afbrydes forbindelsen, fortsætter uploaden, hvor
+ * serveren nåede til. Til sidst bedes serveren kontrollere og tage filen i brug.
+ */
+async function uploadChunked(file, base, onProgress) {
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => (b % 36).toString(36)).join("");
+  const send = (url, init) => fetch(url, { method: "POST", headers: { "X-Requested-With": "fetch" }, ...init });
+  let offset = 0, chunk = 16 * 1024 * 1024, failures = 0;
+  while (offset < file.size) {
+    const end = Math.min(file.size, offset + chunk);
+    let res;
+    try { res = await send(`${base}/${id}?offset=${offset}`, { body: file.slice(offset, end) }); }
+    catch { if (++failures > 5) throw new Error("Forbindelsen blev afbrudt"); await new Promise(r => setTimeout(r, 1000 * failures)); continue; }
+    if (res.status === 413 && chunk > 256 * 1024) { chunk = Math.max(256 * 1024, chunk >> 1); continue; }
+    if (res.status === 409) {  // serveren er et andet sted: fortsæt derfra (eller forfra)
+      const m = /(\d+) bytes/.exec((await res.json().catch(() => ({}))).detail || "");
+      offset = m ? Number(m[1]) : 0;
+      if (++failures > 5) throw new Error("Uploaden kom ud af takt med serveren – prøv igen");
+      continue;
+    }
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || `Fejl ${res.status} ved upload`);
+    failures = 0;
+    offset = end;
+    onProgress(offset / file.size);
+  }
+  const done = await send(`${base}/${id}/finish`, {});
+  const data = await done.json().catch(() => ({}));
+  if (!done.ok) throw new Error(data.detail || `Fejl ${done.status}`);
+  return data;
 }
 
 async function archiveUpload(box) {
@@ -250,7 +282,7 @@ async function speechCard(box) {
     if (!f) return;
     upBtn.disabled = true;
     try {
-      const r = await uploadFile(f, (p) => { upBtn.textContent = p < 1 ? `Uploader … ${Math.round(p * 100)} %` : "Kontrollerer …"; }, "/api/admin/speech-model/upload");
+      const r = await uploadChunked(f, "/api/admin/speech-model/upload", (p) => { upBtn.textContent = p < 1 ? `Uploader … ${Math.round(p * 100)} %` : "Kontrollerer …"; });
       toast(`Talemodellen er lagt på serveren (${r.version})`);
     } catch (err) { toast(err.message, "err"); }
     speechCard(box);
