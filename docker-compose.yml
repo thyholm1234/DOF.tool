@@ -168,14 +168,14 @@ services:
 
   # Bygger talemodellen til appens tale-indtastning (CoRal → ONNX int8) på kommando fra Admin → Drift (workeren lægger
   # kommandoen i Valkey). Ligger for sig, fordi PyTorch og Hugging Face-værktøjerne fylder ca. 1 GB og kun bruges her.
-  # Tom mellem byggerier; under et byggeri bruges op til ca. 6 GB hukommelse og 3 GB disk i volumen speech_work.
+  # Tom mellem byggerier; under et byggeri bruges op til ca. 6 GB hukommelse (hold mindst 6,5 GB fri, ellers melder agenten det) og 3 GB disk i volumen speech_work.
   speech-model:
     build: ./tools/speech-model
     image: doftool-speech-model:latest
     restart: unless-stopped
     logging: *logging
     command: ["python", "-u", "/opt/agent.py"]
-    mem_limit: 8g
+    mem_limit: 8g  # hæves, hvis serveren har mere og byggeriet melder for lidt hukommelse
     environment:
       REDIS_DSN: redis://valkey:6379/0
       MODELS_DIR: /data/models

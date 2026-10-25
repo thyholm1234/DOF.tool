@@ -48,6 +48,23 @@ def finish(status: str, t0: float, started: str, error: str | None = None, step:
     r.ltrim("worker:job_log", 0, 49)
 
 
+NEED_MB = int(os.environ.get("NEED_MB", "6500"))  # målt toppen under eksporten: 5,7 GB (ONNX-sporing af 315M parametre i fp32) plus lidt luft
+
+
+def available_mb() -> int:
+    """Hukommelse byggeriet kan få: det mindste af containerens grænse og værtens ledige hukommelse (inkl. swap)."""
+    meminfo = {k: int(v.split()[0]) for k, v in (l.split(":", 1) for l in open("/proc/meminfo"))}
+    avail = (meminfo["MemAvailable"] + meminfo.get("SwapFree", 0)) // 1024
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            lim = open(path).read().strip()
+            if lim.isdigit() and int(lim) < 1 << 50:
+                avail = min(avail, int(lim) // (1024 * 1024))
+        except OSError:
+            continue
+    return avail
+
+
 def build(force: bool) -> None:
     t0, started = time.time(), now()
     put(status="running", started_at=started, step="Starter", last=current().get("last"))
@@ -55,10 +72,15 @@ def build(force: bool) -> None:
     if not force and m and m.get("revision") == REV and os.path.exists(f"{MODELS}/{m['url'].rsplit('/', 1)[-1]}"):
         finish("done", t0, started, step=f"Uændret ({m['version']})")
         return
+    free = available_mb()
+    if free < NEED_MB:
+        finish("error", t0, started, f"For lidt hukommelse: byggeriet kræver ca. {NEED_MB / 1000:.1f} GB fri hukommelse, men der er {free / 1000:.1f} GB "
+               "(inkl. swap). Luk andet, tilføj swap eller hæv mem_limit for speech-model i docker-compose.yml.")
+        return
     out = f"{WORK}/out"
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(out, exist_ok=True)
-    env = {**os.environ, "OUT_DIR": out, "HF_HOME": f"{WORK}/hf"}
+    env = {**os.environ, "OUT_DIR": out, "HF_HOME": f"{WORK}/hf", "PYTHONWARNINGS": "ignore"}
     try:
         p = subprocess.Popen([sys.executable, "-u", "/opt/export.py"], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         tail = []
@@ -66,10 +88,14 @@ def build(force: bool) -> None:
             line = line.strip()
             if line.startswith("step: "):
                 put(status="running", started_at=started, step=line[6:], last=current().get("last"))
-            elif line:
+            elif line and "Warning" not in line and not line.startswith(("if ", "warnings.warn", "hukommelse efter")):
                 tail = (tail + [line])[-6:]
-        if p.wait() != 0:
-            raise RuntimeError("Eksporten fejlede: " + " | ".join(tail)[-400:])
+        code = p.wait()
+        if code in (-9, 137):  # dræbt af kernen: ude af hukommelse (ingen traceback, kun advarsler før)
+            raise RuntimeError(f"Eksporten blev stoppet, fordi hukommelsen slap op (kræver ca. 6 GB). "
+                               "Tilføj swap eller hæv mem_limit for speech-model i docker-compose.yml.")
+        if code != 0:
+            raise RuntimeError(f"Eksporten fejlede (kode {code}): " + " | ".join(tail)[-400:])
         put(status="running", started_at=started, step="Lægger modellen på serveren", last=current().get("last"))
         q = subprocess.run([sys.executable, "/opt/publish.py", out, MODELS], capture_output=True, text=True)
         if q.returncode:
