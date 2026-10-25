@@ -503,7 +503,136 @@ function permissionsModal(u, meta, onSaved) {
     h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => dlg.close() }, "Annullér"))));
 }
 
-async function species(body) {
+// Admin → Arter: arternes klassifikation, bemærk-filtre pr. lokalafdeling og fænologiens perioder
+function species(body) {
+  let vis = params().vis || "arter";
+  const inner = h("div", {});
+  const draw = () => { inner.replaceChildren(); setParams({ vis: vis === "arter" ? "" : vis }); ({ arter: speciesList, bemaerk: bemaerkPanel, faenologi: phenoPanel }[vis] || speciesList)(inner); };
+  body.append(h("div", { class: "row mb" }, seg([["arter", "Arter"], ["bemaerk", "Bemærk-filtre"], ["faenologi", "Fænologi"]], vis, (v) => { vis = v; setParams({ afd: "" }); draw(); })), inner);
+  draw();
+}
+
+/** Søgefelt med forslag fra artslisten; onPick(art) ved valg. */
+function speciesInput(all, onPick, placeholder = "Art …") {
+  const input = h("input", { type: "search", placeholder, autocomplete: "off", spellcheck: "false" });
+  const suggest = h("div", { class: "suggest dropdown" });
+  const pick = (sp) => { input.value = sp.navn; suggest.replaceChildren(); onPick(sp); };
+  input.oninput = () => { onPick(null); suggest.replaceChildren(...searchSpecies(all, input.value).map(sp => h("button", { type: "button", onmousedown: (e) => e.preventDefault(), onclick: () => pick(sp) }, h("span", {}, sp.navn)))); };
+  input.onblur = () => setTimeout(() => suggest.replaceChildren(), 150);
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } };
+  return { el: h("div", { class: "dd-wrap", style: { flex: "1 1 220px" } }, input, suggest), clear: () => { input.value = ""; onPick(null); } };
+}
+
+const NOTE_REF = "Ændringer herfra bevares, når referencedata hentes fra DOFbasen igen, og gælder nye og ændrede observationer. «Fortryd» sætter DOFbasens værdi ind igen.";
+
+async function bemaerkPanel(body) {
+  let d, all;
+  try { [d, all] = await Promise.all([api("/api/admin/bemaerk"), api("/api/species/index")]); } catch (err) { body.append(errorBox(err)); return; }
+  let afd = Number(params().afd) || d.afdelinger[0]?.id;
+  const afdSel = h("select", { style: { maxWidth: "280px" } }, ...d.afdelinger.map(a => h("option", { value: a.id, selected: a.id === afd }, a.navn)));
+  const filter = h("input", { type: "search", placeholder: "Filtrér arter …", style: { maxWidth: "240px" } });
+  const list = h("div", { class: "card table-wrap mt" });
+  let picked = null;
+  const sp = speciesInput(all, (x) => { picked = x; }, "Tilføj art …");
+  const antal = h("input", { type: "number", min: 1, inputmode: "numeric", placeholder: "Antal", style: { width: "110px" } });
+  const save = async (artnavn, n) => {
+    try { await api(`/api/admin/bemaerk/${afd}`, { method: "PUT", body: { artnavn, antal: n } }); toast("Gemt"); return true; } catch (err) { toast(err.message, "err"); return false; }
+  };
+  const call = async (url, opts, msg) => { try { await api(url, opts); toast(msg); load(); } catch (err) { toast(err.message, "err"); } };
+  const add = h("form", { class: "row card mt", style: { gap: "8px", alignItems: "center" }, onsubmit: async (e) => {
+    e.preventDefault();
+    if (!picked) return toast("Vælg en art fra listen", "err");
+    if (!(Number(antal.value) >= 1)) return toast("Angiv et antal på mindst 1", "err");
+    if (await save(picked.navn, Number(antal.value))) { sp.clear(); antal.value = ""; load(); }
+  } }, sp.el, antal, h("button", { class: "btn primary" }, "Tilføj / ret"));
+  let rows = [], removed = [];
+  const draw = () => {
+    const f = filter.value.trim().toLowerCase();
+    const shown = rows.filter(r => !f || r.artnavn.toLowerCase().includes(f));
+    list.replaceChildren(
+      h("table", { class: "data" }, h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Bemærk fra antal"), h("th", {}, ""), h("th", {}, ""))),
+        h("tbody", {}, ...shown.map(r => {
+          const inp = h("input", { type: "number", min: 1, value: r.antal, style: { width: "100px", height: "32px" } });
+          inp.onchange = async () => { if (Number(inp.value) >= 1 && await save(r.artnavn, Number(inp.value))) load(); else inp.value = r.antal; };
+          return h("tr", {}, h("td", {}, r.artnavn), h("td", {}, inp),
+            h("td", { class: "muted" }, r.edit_id ? h("span", {}, h("span", { class: "tag local" }, "ændret"), ` DOFbasen: ${r.dof_antal ?? "ingen"} `,
+              h("button", { class: "link-btn", type: "button", onclick: () => call(`/api/admin/reference-edits/${r.edit_id}`, { method: "DELETE" }, "Fortrudt") }, "Fortryd")) : ""),
+            h("td", { class: "right" }, h("button", { class: "btn sm ghost danger", type: "button", onclick: () => {
+              if (confirm(`Fjern bemærk-filteret for ${r.artnavn}?`)) call(`/api/admin/bemaerk/${afd}?artnavn=${encodeURIComponent(r.artnavn)}`, { method: "DELETE" }, "Fjernet");
+            } }, "Fjern")));
+        }))),
+      shown.length ? null : h("p", { class: "muted" }, "Ingen arter."),
+      removed.length ? h("div", { class: "mt" }, h("h3", {}, "Fjernet i portalen"), ...removed.map(r => h("div", { class: "row between" },
+        h("span", {}, r.artnavn, h("small", { class: "muted" }, ` DOFbasen: ${r.dof_antal ?? "ingen"}`)),
+        h("button", { class: "btn sm", type: "button", onclick: () => call(`/api/admin/reference-edits/${r.edit_id}`, { method: "DELETE" }, "Fortrudt") }, "Fortryd")))) : null);
+  };
+  const load = async () => {
+    try { const r = await api(`/api/admin/bemaerk?afdeling=${afd}`); rows = r.rows; removed = r.removed; draw(); } catch (err) { list.replaceChildren(errorBox(err)); }
+  };
+  afdSel.onchange = () => { afd = Number(afdSel.value); setParams({ afd }); load(); };
+  filter.oninput = draw;
+  body.append(h("p", { class: "muted" }, "En observation er bemærkelsesværdig, når antallet er mindst tærsklen i én af observationens lokalafdelinger. ", NOTE_REF),
+    h("div", { class: "row", style: { gap: "8px" } }, afdSel, filter), add, list);
+  await load();
+}
+
+async function phenoPanel(body) {
+  let all;
+  try { all = await api("/api/species/index"); } catch (err) { body.append(errorBox(err)); return; }
+  const list = h("div", { class: "card table-wrap mt" });
+  const filter = h("input", { type: "search", placeholder: "Filtrér arter …", style: { maxWidth: "240px" } });
+  const ddmm = (v = "") => h("input", { type: "text", value: v, placeholder: "DD-MM", maxlength: 5, inputmode: "numeric", style: { width: "80px", height: "32px" } });
+  const call = async (url, opts, msg) => { try { await api(url, opts); toast(msg); load(); return true; } catch (err) { toast(err.message, "err"); return false; } };
+  // Én eller flere perioder (fx sommer og vinter) som redigerbare par
+  const windowsEditor = (windows) => {
+    const box = h("div", { class: "stack", style: { gap: "4px" } });
+    const pair = (a, b) => { const row = h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } }, ddmm(a), h("span", { class: "muted" }, "–"), ddmm(b),
+      h("button", { class: "btn sm ghost", type: "button", "aria-label": "Fjern periode", onclick: () => { if (box.children.length > 1) row.remove(); } }, "×")); box.append(row); };
+    (windows.length ? windows : [["", ""]]).forEach(([a, b]) => pair(a, b));
+    return { el: h("div", { class: "stack", style: { gap: "4px" } }, box, h("button", { class: "link-btn", type: "button", onclick: () => pair("", "") }, "+ periode")),
+      value: () => [...box.children].map(r => [...r.querySelectorAll("input")].map(i => i.value.trim())) };
+  };
+  let picked = null;
+  const sp = speciesInput(all, (x) => { picked = x; }, "Tilføj art …");
+  const newWin = windowsEditor([]);
+  const add = h("form", { class: "row card mt", style: { gap: "8px", alignItems: "flex-start" }, onsubmit: async (e) => {
+    e.preventDefault();
+    if (!picked) return toast("Vælg en art fra listen", "err");
+    if (await call("/api/admin/phenology", { method: "PUT", body: { artnavn: picked.navn, windows: newWin.value() } }, "Gemt")) { sp.clear(); newWin.el.querySelectorAll("input").forEach(i => { i.value = ""; }); }
+  } }, sp.el, newWin.el, h("button", { class: "btn primary" }, "Tilføj / ret"));
+  let rows = [], removed = [];
+  const draw = () => {
+    const f = filter.value.trim().toLowerCase();
+    const shown = rows.filter(r => !f || r.artnavn.toLowerCase().includes(f));
+    list.replaceChildren(
+      h("table", { class: "data" }, h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Bemærk i perioden"), h("th", {}, ""), h("th", {}, ""))),
+        h("tbody", {}, ...shown.map(r => {
+          const ed = windowsEditor(r.windows);
+          return h("tr", {}, h("td", {}, r.artnavn), h("td", {}, ed.el),
+            h("td", { class: "muted" }, r.edit_id ? h("span", {}, h("span", { class: "tag local" }, "ændret"),
+              ` DOFbasen: ${r.dof_windows?.length ? r.dof_windows.map(w => w.join("–")).join(", ") : "ingen"} `,
+              h("button", { class: "link-btn", type: "button", onclick: () => call(`/api/admin/reference-edits/${r.edit_id}`, { method: "DELETE" }, "Fortrudt") }, "Fortryd")) : ""),
+            h("td", { class: "right" }, h("div", { class: "row", style: { gap: "4px", justifyContent: "flex-end" } },
+              h("button", { class: "btn sm", type: "button", onclick: () => call("/api/admin/phenology", { method: "PUT", body: { artnavn: r.artnavn, windows: ed.value() } }, "Gemt") }, "Gem"),
+              h("button", { class: "btn sm ghost danger", type: "button", onclick: () => {
+                if (confirm(`Fjern ${r.artnavn} fra fænologien?`)) call(`/api/admin/phenology?artnavn=${encodeURIComponent(r.artnavn)}`, { method: "DELETE" }, "Fjernet");
+              } }, "Fjern"))));
+        }))),
+      shown.length ? null : h("p", { class: "muted" }, "Ingen arter."),
+      removed.length ? h("div", { class: "mt" }, h("h3", {}, "Fjernet i portalen"), ...removed.map(r => h("div", { class: "row between" },
+        h("span", {}, r.artnavn, h("small", { class: "muted" }, ` DOFbasen: ${r.dof_windows?.length ? r.dof_windows.map(w => w.join("–")).join(", ") : "ingen"}`)),
+        h("button", { class: "btn sm", type: "button", onclick: () => call(`/api/admin/reference-edits/${r.edit_id}`, { method: "DELETE" }, "Fortrudt") }, "Fortryd")))) : null);
+  };
+  const load = async () => {
+    try { const r = await api("/api/admin/phenology"); rows = r.rows; removed = r.removed; draw(); } catch (err) { list.replaceChildren(errorBox(err)); }
+  };
+  filter.oninput = draw;
+  body.append(h("p", { class: "muted" }, "Observationer af arten i perioden (DD-MM, fx 21-04 – 25-09; en periode kan gå hen over nytår) bliver bemærkelsesværdige, og perioden bruges i fænologifilteret. ", NOTE_REF),
+    filter, add, list);
+  await load();
+}
+
+async function speciesList(body) {
   const q = h("input", { type: "search", placeholder: "Søg art…", style: { maxWidth: "280px" } });
   const out = h("div", { class: "card table-wrap mt" });
   body.append(h("p", { class: "muted" }, "Klassifikation og listeregler. 'Tæller som' bestemmer hvilken art en underart tæller som på årslister; tom = tæller ikke. 'Udeluk' fjerner arten fra lister og notifikationer."), q, out);

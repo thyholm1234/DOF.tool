@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import bump, worker_command
 from portal.config import SEED_DIR
-from portal.models import Afdeling, BemaerkThreshold, Kommune, PhenologyWindow, Setting, Species
+from portal.models import Afdeling, BemaerkThreshold, Kommune, PhenologyWindow, ReferenceEdit, Setting, Species
 from portal.timeutil import dk_today
 
 AFDELINGER = [
@@ -269,6 +269,11 @@ async def apply_bemaerk(session: AsyncSession, afdeling_id: int, thresholds: dic
     await _insert_chunks(session, BemaerkThreshold, [
         {"afdeling_id": afdeling_id, "artnavn": k, "antal": v} for k, v in thresholds.items()
     ])
+    # Admin → Arter: egne tærskler lægges oven på; DOFbasens nye værdi huskes til fortryd
+    for e in (await session.execute(select(ReferenceEdit).where(ReferenceEdit.kind == "bemaerk",
+                                                                ReferenceEdit.afdeling_id == afdeling_id))).scalars():
+        e.dof_antal = thresholds.get(e.artnavn)
+        await put_threshold(session, afdeling_id, e.artnavn, None if e.removed else e.antal)
     await session.commit()
     await bump("reference")
     return len(thresholds)
@@ -281,9 +286,31 @@ async def apply_windows(session: AsyncSession, season: str, rows: list[tuple[str
     names = sorted({r[0] for r in rows})
     await session.execute(delete(PhenologyWindow).where(PhenologyWindow.artnavn.in_(names)))
     await _insert_chunks(session, PhenologyWindow, [{"artnavn": n, "fra": a, "til": b} for n, a, b in rows])
+    # Admin → Arter: egne vinduer erstatter DOFbasens for arten; DOFbasens nye vinduer huskes til fortryd
+    for e in (await session.execute(select(ReferenceEdit).where(ReferenceEdit.kind == "pheno"))).scalars():
+        if e.artnavn in names:
+            e.dof_windows = [[a, b] for n, a, b in rows if n == e.artnavn]
+        await put_windows(session, e.artnavn, [] if e.removed else e.windows or [])
     await session.commit()
     await bump("reference")
     return len(rows)
+
+
+async def put_threshold(session: AsyncSession, afdeling_id: int, artnavn: str, antal: int | None) -> None:
+    """Sæt (eller fjern, antal=None) én bemærk-tærskel."""
+    await session.execute(delete(BemaerkThreshold).where(BemaerkThreshold.afdeling_id == afdeling_id,
+                                                         BemaerkThreshold.artnavn == artnavn))
+    if antal is not None:
+        session.add(BemaerkThreshold(afdeling_id=afdeling_id, artnavn=artnavn, antal=antal))
+    await session.flush()
+
+
+async def put_windows(session: AsyncSession, artnavn: str, windows: list) -> None:
+    """Erstat artens fænologivinduer (tom liste = arten er ikke med i fænologien)."""
+    await session.execute(delete(PhenologyWindow).where(PhenologyWindow.artnavn == artnavn))
+    for fra, til in windows:
+        session.add(PhenologyWindow(artnavn=artnavn, fra=fra, til=til))
+    await session.flush()
 
 
 LIST_FIX_KEY = "list_species_v2"

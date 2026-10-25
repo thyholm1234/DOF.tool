@@ -242,7 +242,7 @@ async def _reset_sequences(dst, tables) -> None:
         await dst.execute(f"SELECT setval(pg_get_serial_sequence('{t}', '{c}'), coalesce(max(\"{c}\"), 1), max(\"{c}\") IS NOT NULL) FROM {t}")
 
 
-async def sync_reference() -> dict[str, int]:
+async def sync_reference(tables: tuple[str, ...] = REFERENCE_ORDER) -> dict[str, int]:
     """Kopiér referencedata fra observationsgruppen (hvor DOFbasen-indlæsningen skriver dem) til brugergruppen.
     Tabeller der allerede er ens springes over. Gør ingenting når grupperne deler database."""
     if not router.separate():
@@ -254,7 +254,7 @@ async def sync_reference() -> dict[str, int]:
         s, d = s_raw.driver_connection, d_raw.driver_connection
         await d.execute("SELECT pg_advisory_lock(424245)")  # kun én proces ad gangen (api og worker starter samtidig)
         try:
-            for table in REFERENCE_ORDER:
+            for table in tables:
                 if await _fingerprint(s, table) != await _fingerprint(d, table):
                     copied[table] = await _copy(s, d, table, delete=True)
         finally:

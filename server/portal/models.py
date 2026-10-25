@@ -155,6 +155,26 @@ class PhenologyWindow(Base):
     til: Mapped[str] = mapped_column(String(5))
 
 
+class ReferenceEdit(Base):
+    """Ændringer fra Admin → Arter i bemærk-tærskler (pr. lokalafdeling) og fænologivinduer. De lægges oven på DOFbasens
+    værdier hver gang referencedata hentes, så de overlever opdateringen. dof_* er DOFbasens værdi (til fortryd)."""
+
+    __tablename__ = "reference_edits"
+    __table_args__ = (UniqueConstraint("kind", "afdeling_id", "artnavn"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(8))  # bemaerk / pheno
+    afdeling_id: Mapped[int] = mapped_column(SmallInteger, default=0)  # 0 for fænologi (gælder hele landet)
+    artnavn: Mapped[str] = mapped_column(String(200))
+    antal: Mapped[int | None] = mapped_column(Integer)  # bemaerk
+    windows: Mapped[list | None] = mapped_column(JSONB)  # pheno: [["DD-MM", "DD-MM"], …]
+    removed: Mapped[bool] = mapped_column(Boolean, default=False)
+    dof_antal: Mapped[int | None] = mapped_column(Integer)
+    dof_windows: Mapped[list | None] = mapped_column(JSONB)
+    user_id: Mapped[int | None] = mapped_column(Integer)  # brugeren ligger i den anden databasegruppe – ingen fremmednøgle
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CodeText(Base):
     """Opslag for adfærds-/dragt-/alderskoder → beskrivelse."""
 
