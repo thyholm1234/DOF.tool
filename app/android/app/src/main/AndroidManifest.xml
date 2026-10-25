@@ -39,4 +39,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Tale-indtastning på ture (optages og genkendes på telefonen) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>

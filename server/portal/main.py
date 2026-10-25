@@ -89,7 +89,9 @@ async def guard(request: Request, call_next):
         if not user_id or not await mobgang.audio_allowed(int(user_id), path):
             return JSONResponse({"detail": "Arten er lukket i ynglesæsonen, eller Mobgang kræver bestået etiktest"}, status_code=403)
     response = await call_next(request)
-    if not path.startswith(("/api/", "/media/", "/vendor/", "/icons/", "/v/")):
+    if path.startswith("/models/") and not path.endswith(".json"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"  # filnavnet skifter med versionen
+    elif not path.startswith(("/api/", "/media/", "/vendor/", "/icons/", "/v/")):
         # App-filer (html/js/css/sw): browseren skal altid tjekke for ny version (billigt via etag)
         response.headers["Cache-Control"] = "no-cache"
     if mob_audio:
@@ -185,5 +187,8 @@ async def versioned(build: str, path: str):
 media = Path(get_settings().media_dir)
 media.mkdir(parents=True, exist_ok=True)
 app.mount("/media", StaticFiles(directory=media), name="media")
+models = Path(get_settings().models_dir)
+models.mkdir(parents=True, exist_ok=True)
+app.mount("/models", StaticFiles(directory=models), name="models")  # talemodellen (offentlig, åben model)
 if WEB_DIR.is_dir():
     app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")

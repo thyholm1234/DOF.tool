@@ -840,6 +840,8 @@ progress { accent-color: var(--brand); height: 10px; }
 .voice-btn { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .voice-btn.on { background: var(--su); border-color: var(--su); color: #fff; animation: voice-pulse 1.1s ease-in-out infinite; }
 @keyframes voice-pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--su) 25%, transparent); } }
+/* Talemodellen på telefonen melder lydniveauet (--lvl 0–1): ringen følger stemmen i stedet for at pulsere */
+.voice-btn.on[style*="--lvl"] { animation: none; box-shadow: 0 0 0 calc(2px + var(--lvl) * 10px) color-mix(in srgb, var(--su) 30%, transparent); transition: box-shadow .08s; }
 .voice-status { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 10px 12px;
   border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: .9rem; }
 .voice-status .err { color: var(--err); }

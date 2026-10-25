@@ -24,6 +24,17 @@ DOF_SERVER_URL=https://portal.example.dk ./build.sh      # → dist/DOF-tool.apk
   uden nøglen kan en ny version ikke installeres oven på en gammel.
 * Installér: `adb install -r dist/DOF-tool.apk`, eller send filen til telefonen og tillad installation fra ukendte kilder.
 
+## Tale-indtastning (talemodel på telefonen)
+
+Tale-indtastningen på ture (Admin → Funktioner → «Tale-indtastning») genkender talen på telefonen med CoRal-projektets
+danske model `roest-v3-wav2vec2-315m`, kørt med ONNX Runtime (MIT) i pluginnet `DofAsr`. Lyden forlader ikke telefonen,
+og der bruges ingen Google-tjenester. Modellens output afkodes i `web/js/voice-ctc.js` mod artslisten, tallene og
+adfærdslisten, så kun ord derfra kan komme ud.
+
+Modellen (int8, ca. 355 MB) ligger ikke i APK'en: den bygges på serveren med `tools/speech-model/build.sh` (lægges i
+volumen `models`, leveres fra `/models/`), og appen tilbyder at hente den første gang en tur åbnes. En ny model på
+serveren tilbydes automatisk.
+
 ## Push via Firebase (FCM)
 
 Web Push findes ikke i en WebView, så appen bruger Firebase. Appen henter et token (`@capacitor/push-notifications`),

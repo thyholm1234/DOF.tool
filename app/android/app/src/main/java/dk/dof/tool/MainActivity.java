@@ -7,7 +7,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(DofSpeech.class); // tale-indtastning på ture (genkendelse på telefonen)
+        registerPlugin(DofAsr.class); // tale-indtastning på ture: dansk talemodel (CoRal) på telefonen
         super.onCreate(savedInstanceState);
     }
 }

@@ -12,6 +12,8 @@ android {
         // Appen indpakker portalen: http-adresser (test på lokalt net) kræver, at klartekst er tilladt
         manifestPlaceholders = [usesCleartext: (System.getenv("DOF_SERVER_URL") ?: "").startsWith("http://") ? "true" : "false"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Kun telefonernes arkitekturer: ONNX Runtime (talemodellen) har native biblioteker pr. arkitektur
+        ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -52,6 +54,8 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // Tale-indtastning: CoRal-modellen køres på telefonen (MIT-licens, ingen netværk eller Google-tjenester)
+    implementation "com.microsoft.onnxruntime:onnxruntime-android:1.30.0"
 }
 
 apply from: 'capacitor.build.gradle'

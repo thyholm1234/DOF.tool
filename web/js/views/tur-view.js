@@ -6,7 +6,7 @@ import { tracker, trackStart, trackPause, trackStop, trackLength, nowHM } from "
 import { isApp } from "../native.js";
 import { newId } from "../offline.js";
 import { openObsSheet, openPairSheet } from "../obs-sheet.js";
-import { speciesIndex, bestParse, voiceAvailable, listen } from "../voice.js";
+import { voiceEngine, voiceContext, listen, modelStatus, installModel, prepareModel } from "../voice.js";
 
 const STATE = { ok: ["Gemt", "ok"], gemmer: ["Gemmer …", "busy"], offline: ["Ikke sendt – sendes, når der er net", "off"], fejl: ["Kunne ikke gemmes", "err"] };
 
@@ -120,7 +120,7 @@ export function view(page, ref, store_, recent) {
   // --- tale-indtastning (kun i appen): hold knappen inde, sig fx «2 bomlærker syd», slip
   const voiceStatus = h("div", { class: "voice-status hide", "aria-live": "polite" });
   const voiceBtn = h("button", { type: "button", class: "btn voice-btn hide", title: "Hold inde og sig fx «2 bomlærker syd»", html: `${icon("mic")} Hold og tal` });
-  let vIndex = null, vCodes = null, stopVoice = null, vBusy = false;
+  let vCtx = null, engine = null, stopVoice = null, vBusy = false;
   const say = (...parts) => { voiceStatus.replaceChildren(...parts); voiceStatus.classList.remove("hide"); };
   const describe = (O) => `${fmtN(O.antal)} ${O.art}${O.adfkode ? ` · ${adfText(O.adfkode) || O.adfkode}` : ""}`;
   const pressStart = async (e) => {
@@ -130,7 +130,8 @@ export function view(page, ref, store_, recent) {
     voiceBtn.classList.add("on");
     navigator.vibrate?.(25);
     say(h("span", { class: "muted" }, "Lytter …"));
-    try { stopVoice = await listen((t) => say(h("i", {}, t))); }
+    vCtx ||= voiceContext(ref.species, ref.codes.adf);
+    try { stopVoice = await listen(engine, vCtx, { partial: (t) => say(h("i", {}, t)), level: (v) => voiceBtn.style.setProperty("--lvl", v.toFixed(2)) }); }
     catch (err) { voiceBtn.classList.remove("on"); say(h("span", { class: "err" }, err.message || "Mikrofonen kunne ikke startes")); }
     finally { vBusy = false; }
     if (stopVoice && !voiceBtn.classList.contains("on")) pressEnd();  // sluppet mens optagelsen startede
@@ -141,11 +142,11 @@ export function view(page, ref, store_, recent) {
     if (!stop) return;
     stopVoice = null;
     say(h("span", { class: "muted" }, "Tolker …"));
-    const matches = await stop();
-    if (!matches.length) { say(h("span", { class: "muted" }, "Hørte ingenting – hold knappen inde, mens du taler.")); return; }
-    vIndex ||= speciesIndex(ref.species);
-    vCodes ||= new Set(ref.codes.adf.map(a => a.code));
-    const items = bestParse(matches, vIndex, vCodes);
+    voiceBtn.style.removeProperty("--lvl");
+    let res;
+    try { res = await stop(); } catch (err) { say(h("span", { class: "err" }, err.message || "Talen kunne ikke genkendes")); return; }
+    const { items, heard } = res;
+    if (!heard && !items.length) { say(h("span", { class: "muted" }, "Hørte ingenting – hold knappen inde, mens du taler.")); return; }
     const added = [], sheets = [], missed = [];
     for (const it of items) {
       if (!it.art) { missed.push(it.heard); continue; }
@@ -165,14 +166,34 @@ export function view(page, ref, store_, recent) {
       ...added.map(O => h("div", {}, h("b", {}, "Tilføjet: "), describe(O))),
       ...sheets.map(O => h("div", { class: "muted" }, `Udfyld resten: ${describe(O)}`)),
       ...missed.map(t => h("div", { class: "err" }, `Forstod ikke: «${t}»`)),
-      !items.length ? h("div", { class: "err" }, `Forstod ikke: «${matches[0]}»`) : null,
-      h("small", { class: "muted" }, `Hørt: «${matches[0]}»`)), undo);
+      !items.length ? h("div", { class: "err" }, `Forstod ikke: «${heard}»`) : null,
+      h("small", { class: "muted" }, `Hørt: «${heard}»`)), undo);
     if (sheets.length) edit(sheets[0], true);
   };
   voiceBtn.addEventListener("pointerdown", pressStart);
   for (const ev of ["pointerup", "pointercancel", "pointerleave"]) voiceBtn.addEventListener(ev, () => { if (voiceBtn.classList.contains("on")) pressEnd(); });
   voiceBtn.addEventListener("contextmenu", (e) => e.preventDefault());
-  if (isApp() && state.user?.voice) voiceAvailable().then((ok) => voiceBtn.classList.toggle("hide", !ok));
+  // Talemodellen ligger på telefonen og hentes én gang fra serveren (ca. 355 MB – helst over wi-fi)
+  const offerModel = (st) => {
+    const mb = Math.round((st.manifest?.size || 0) / 1e6);
+    const btn = h("button", { type: "button", class: "btn sm", onclick: async () => {
+      btn.disabled = true;
+      try {
+        await installModel(st.manifest, (done, total) => { btn.textContent = `Henter talemodel … ${Math.floor((done / total) * 100)} %`; });
+        voiceStatus.classList.add("hide"); voiceBtn.classList.remove("hide"); prepareModel();
+      } catch (err) { btn.disabled = false; btn.textContent = "Prøv igen"; toast(err.message, "err"); }
+    } }, st.installed ? `Opdatér talemodel (${mb} MB)` : `Hent talemodel (${mb} MB)`);
+    say(h("div", { class: "row", style: { gap: "8px", alignItems: "center" } }, btn,
+      h("small", { class: "muted" }, "Tale-indtastning genkender talen på telefonen. Modellen hentes én gang – brug gerne wi-fi.")));
+  };
+  if (isApp() && state.user?.voice) voiceEngine().then(async (e) => {
+    engine = e;
+    if (e !== "local") { voiceBtn.classList.toggle("hide", !e); return; }
+    const st = await modelStatus().catch(() => null);
+    if (!st) return;
+    if (st.installed) { voiceBtn.classList.remove("hide"); prepareModel(); }
+    if (st.manifest && (!st.installed || !st.current)) offerModel(st);
+  });
 
   const reuseBox = h("input", { type: "checkbox", checked: reuse.on, onchange: (e) => { reuse.on = e.target.checked; store("turreuse", reuse.on); } });
   const time = [T.turtidfra, T.turtidtil].filter(Boolean).join(" – ");

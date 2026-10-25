@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     s3_bucket: str = "doftool-media"
     s3_secure: bool = False
     s3_region: str = ""
+    # Talemodellen til appens tale-indtastning (bygges af tools/speech-model/build.sh); hentes af telefonen fra /models/
+    models_dir: str = "/data/models"
     weather_dir: str = "/data/weather"  # midlertidige DMI-månedsfiler (≈0,5 GB, slettes efter parsing)
 
     vapid_subject: str = "mailto:admin@example.org"

@@ -36,6 +36,7 @@ x-app: &app
   volumes:
     - media:/data/media
     - weather:/data/weather
+    - models:/data/models
     - ${DOF_ARCHIVE_DIR:-./data/archive}:/archive:ro
     - archive_upload:/data/archive-upload
     - ./web:/app/web:ro
@@ -181,6 +182,7 @@ services:
 
 volumes:
   dbadmin:
+  models:
   minio:
   rustfs:
   pgdata:
