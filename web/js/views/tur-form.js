@@ -1,5 +1,5 @@
 // Opret/redigér tur på sin egen side: Turens data · Vejret · Forstyrrelser. Gemmer og går derefter til turens observationer.
-import { api, h, icon, fmtDate, todayISO, toast } from "../core.js";
+import { api, h, icon, fmtDate, todayISO, toast, state } from "../core.js";
 import { nowHM, tripHash } from "../tur-data.js";
 import { tabs, field, reqField, fail, pickPosition } from "../tur-ui.js";
 
@@ -25,7 +25,7 @@ export function form(page, ref, store_, recent, isNew) {
   const setLok = (loknr) => {
     T.loknr = loknr || null; T.lok = known.get(T.loknr) || null;
     const c = T.__coords?.[T.loknr]; if (c) { T.lok_lat = c[0]; T.lok_lon = c[1]; }
-    titleEl.textContent = T.lok || "Ny tur"; lokF.refresh(); lokSel.classList.remove("invalid");
+    titleEl.textContent = T.lok || "Ny tur"; lokF.refresh(); lokSel.classList.remove("invalid"); autoWeather();
   };
   lokSel.onchange = () => setLok(Number(lokSel.value));
   const lokQ = h("input", { type: "search", placeholder: "Søg lokalitet …", autocomplete: "off" });
@@ -54,13 +54,13 @@ export function form(page, ref, store_, recent, isNew) {
     h("div", { class: "row", style: { gap: "8px" } }, h("button", { class: "btn primary grow", type: "button", onclick: near }, "Nærmeste lokaliteter"),
       h("button", { class: "btn primary", type: "button", onclick: onMap }, "Kort"))), () => !!T.loknr);
 
-  const dato = bind(h("input", { type: "date", max: todayISO() }), "dato", (v) => v, () => { datoF.refresh(); sub.textContent = fmtDate(T.dato); });
+  const dato = bind(h("input", { type: "date", max: todayISO() }), "dato", (v) => v, () => { datoF.refresh(); sub.textContent = fmtDate(T.dato); autoWeather(); });
   const datoF = reqField("Dato", h("div", { class: "row", style: { gap: "8px", flexWrap: "nowrap" } }, dato,
     h("button", { class: "btn sm accent", type: "button", onclick: () => { dato.value = todayISO(); dato.dispatchEvent(new Event("input")); } }, "I dag")), () => !!T.dato);
-  const start = bind(h("input", { type: "time" }), "turtidfra");
+  const start = bind(h("input", { type: "time" }), "turtidfra", (v) => v, () => autoWeather());
   const slut = bind(h("input", { type: "time" }), "turtidtil");
   const timeBox = (label, input, key, nowToo) => h("div", { class: "field" }, h("div", { class: "row between" }, h("span", { class: "label", style: { margin: 0 } }, label),
-    h("span", { class: "row", style: { gap: "10px" } }, link("Nu", () => { input.value = nowHM(); T[key] = input.value; }), link("Ryd", () => { input.value = ""; T[key] = ""; }))), input);
+    h("span", { class: "row", style: { gap: "10px" } }, link("Nu", () => { input.value = nowHM(); T[key] = input.value; autoWeather(); }), link("Ryd", () => { input.value = ""; T[key] = ""; }))), input);
   const metode = h("select", {}, ...ref.metoder.map(m => h("option", { value: m.id }, `${m.navn}${m.kort && m.kort !== "-" ? ` (${m.kort})` : ""}`)));
   metode.value = T.metode_id; metode.onchange = () => { T.metode_id = Number(metode.value); };
   const komplet = h("select", {}, h("option", { value: "" }, "Ikke angivet"), h("option", { value: "1" }, "Ja – komplet artsliste"), h("option", { value: "0" }, "Nej"));
@@ -73,8 +73,44 @@ export function form(page, ref, store_, recent, isNew) {
     h("div", { class: "mt stack" }, field("Observatørens obserkode", behalf), h("small", { class: "muted" }, "Observationerne registreres på den obserkode, men vises som indtastet af dig.")));
 
   // --- Vejret
-  const sel = (key, opts, ph) => { const s = h("select", {}, h("option", { value: "" }, ph), ...opts.map(o => h("option", { value: o[0] }, o[1]))); s.value = T[key] ?? ""; s.onchange = () => { T[key] = s.value === "" ? null : (typeof opts[0][0] === "number" ? Number(s.value) : s.value); }; return s; };
-  const numIn = (key, ph, min, max) => bind(h("input", { type: "number", inputmode: "numeric", step: 1, min, max, placeholder: ph }), key, num);
+  const wx = {};  // vejrfelternes inputs, så DMI-vejret kan sættes ind
+  const sel = (key, opts, ph) => { const s = h("select", {}, h("option", { value: "" }, ph), ...opts.map(o => h("option", { value: o[0] }, o[1]))); s.value = T[key] ?? ""; s.onchange = () => { T[key] = s.value === "" ? null : (typeof opts[0][0] === "number" ? Number(s.value) : s.value); }; return wx[key] = s; };
+  const numIn = (key, ph, min, max) => wx[key] = bind(h("input", { type: "number", inputmode: "numeric", step: 1, min, max, placeholder: ph }), key, num);
+
+  // DMI: målt vejr ved de nærmeste stationer i turens tidsrum. Nye ture får de tomme felter udfyldt automatisk, når
+  // lokalitet, dato og starttid er på plads; knappen henter igen og overskriver.
+  const dmiOn = !!state.user?.trip_weather;
+  const wxNote = h("small", { class: "muted" });
+  const wxBtn = h("button", { class: "btn sm", type: "button", html: `${icon("refresh")} Hent vejr fra DMI` });
+  const WX = ["temperatur", "skydaekke", "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed"];
+  let wxDone = "", wxT;
+  const fetchWeather = async (overwrite) => {
+    const lat = T.lat ?? T.lok_lat, lon = T.lat != null ? T.lon : T.lok_lon;
+    if (!T.dato || lat == null) { if (overwrite) toast("Vælg lokalitet og dato først", "err"); return; }
+    const q = new URLSearchParams({ lat, lon, dato: T.dato });
+    if (T.turtidfra) q.set("fra", T.turtidfra);
+    if (T.turtidtil) q.set("til", T.turtidtil);
+    wxBtn.disabled = true; wxNote.textContent = "Henter vejret fra DMI …";
+    try {
+      const r = await api(`/api/trips/weather?${q}`);
+      const filled = WX.filter(k => r.values[k] != null && (overwrite || T[k] == null));
+      for (const k of filled) { T[k] = r.values[k]; wx[k].value = String(r.values[k]); }
+      const st = [...new Set(filled.map(k => r.sources[k]?.station).filter(Boolean))];
+      wxNote.textContent = !Object.keys(r.values).length ? "DMI har ingen målinger i nærheden for tidsrummet."
+        : filled.length ? `Fra DMI kl. ${r.fra}–${r.til}: ${st.join(", ")}. Ret gerne felterne.` : "Vejrfelterne er allerede udfyldt.";
+    } catch (err) {
+      wxNote.textContent = overwrite ? "" : "Vejret kunne ikke hentes fra DMI.";
+      if (overwrite) toast(err.message, "err");
+    } finally { wxBtn.disabled = false; }
+  };
+  wxBtn.onclick = () => fetchWeather(true);
+  function autoWeather() {
+    if (!dmiOn || !isNew || !T.loknr || !T.dato || !T.turtidfra || (T.lat ?? T.lok_lat) == null || WX.some(k => T[k] != null)) return;
+    const k = `${T.loknr}|${T.dato}|${T.turtidfra}`;
+    if (k === wxDone) return;
+    clearTimeout(wxT);
+    wxT = setTimeout(() => { wxDone = k; fetchWeather(false); }, 600);
+  }
 
   // --- Forstyrrelser
   const distList = h("div", { class: "stack", style: { gap: "6px" } });
@@ -98,7 +134,7 @@ export function form(page, ref, store_, recent, isNew) {
       field("Metode", metode), field("Komplet artsliste?", komplet),
       h("label", { class: "check" }, spontan, h("span", {}, "Spontan observation (ikke planlagt tur)")),
       field("Medobservatører", medobs), field("Turnoter", noter), behalfBox]],
-    ["vejr", "Vejret", [h("div", { class: "form-grid two" },
+    ["vejr", "Vejret", [dmiOn ? h("div", { class: "stack", style: { gap: "6px" } }, h("div", {}, wxBtn), wxNote) : null, h("div", { class: "form-grid two" },
       field("Temperatur (°C)", numIn("temperatur", "fx 8", -60, 60)), field("Skydække (ottendedele)", sel("skydaekke", [...Array(9).keys()].map(i => [i, String(i)]), "–")),
       field("Vindretning", sel("vindretning", ref.vindretninger.map(v => [v, v]), "–")), field("Vindstyrke (m/s)", numIn("vindstyrke", "hele tal", 0, 50)),
       field("Nedbør (mm)", numIn("nedboer", "mm", 0, 1000)), field("Type af nedbør", sel("nedboertype", ref.nedboertyper.map(v => [v, v]), "–")),
@@ -107,6 +143,7 @@ export function form(page, ref, store_, recent, isNew) {
       h("button", { class: "btn", type: "button", onclick: addDist }, "Tilføj forstyrrelse"))]],
   ]);
 
+  autoWeather();
   const submit = h("button", { class: "btn primary", type: "button" }, isNew ? "Gem tur" : "Gem rettelser");
   submit.onclick = async () => {
     if (!T.dato) { t.show("data"); return fail("Angiv dato", dato); }

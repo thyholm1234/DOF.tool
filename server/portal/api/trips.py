@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,8 +20,9 @@ from portal.api.reports import ReportIn, TIME, _check_guidelines, _hhmm, _in_bac
 from portal.cache import publish
 from portal.db import get_session
 from portal.models import FieldBreedingPair, FieldDisturbance, FieldReport, FieldTrip, ThreadFollow, User
-from portal.services import activity, dku, pulse, reports
-from portal.timeutil import dk_today
+from portal.services import activity, dku, dmi, features, pulse, reports
+from portal.services.auth import SUPERADMIN
+from portal.timeutil import TZ, dk_now, dk_today
 
 log = logging.getLogger("portal.trips")
 router = APIRouter(prefix="/api/trips", tags=["trips"])
@@ -145,6 +146,35 @@ class TripIn(BaseModel):
 @router.get("/lookups")
 async def lookups():
     return {**LOOKUPS, "vindretninger": VIND, "nedboertyper": NEDBOER}
+
+
+@router.get("/weather")
+async def weather(lat: float = Query(ge=54.4, le=57.9), lon: float = Query(ge=7.8, le=15.4), dato: date = Query(),
+                  fra: str | None = Query(None, pattern=TIME), til: str | None = Query(None, pattern=TIME),
+                  user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Forslag til turens vejrfelter: DMI's målinger ved de nærmeste stationer i turens tidsrum (lokal tid).
+    Uden starttid bruges den seneste time i dag og ellers formiddagen; uden sluttid den første time af turen."""
+    if not features.visible(await features.load(db), "trip_weather", superadmin=user.role == SUPERADMIN, insider=False):
+        raise HTTPException(404, "Funktionen er ikke slået til")
+    now = dk_now()
+    at = lambda hm: datetime.combine(dato, datetime.strptime(_hhmm(hm), "%H:%M").time(), TZ)
+    if fra:
+        start = at(fra)
+        end = at(til) if til else start + timedelta(hours=1)
+    elif dato == now.date():
+        start, end = now - timedelta(hours=1), now
+    else:
+        start, end = at("06:00"), at("12:00")
+    end = min(end, now, start + timedelta(hours=12))
+    if start >= end:
+        start = end - timedelta(hours=1)  # turen er lige startet: brug den seneste time
+    if start > now:
+        raise HTTPException(400, "Tidsrummet ligger i fremtiden")
+    # Hentes i hele timer, så timenedbøren (målt på klokkeslettet) kommer med
+    h0 = start.replace(minute=0, second=0, microsecond=0)
+    h1 = min(now, end.replace(minute=0, second=0, microsecond=0) + (timedelta(hours=1) if end.minute or end.second else timedelta()))
+    out = await dmi.trip_weather(lat, lon, h0.astimezone(timezone.utc), h1.astimezone(timezone.utc))
+    return {**out, "fra": start.strftime("%H:%M"), "til": end.strftime("%H:%M")}
 
 
 @router.get("/mine")

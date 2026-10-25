@@ -298,3 +298,112 @@ async def climate_months(since_year: int = 2000) -> list[tuple[int, int, float]]
                 break
             offset += 1000
     return [(y, m, t) for (y, m), t in sorted(out.items())]
+
+
+# ---------------------------------------------------------------- vejret på en tur (målt, metObs)
+
+# Turens vejrfelter ← DMI-parametre. Hver parameter tages fra den nærmeste station, der måler den i tidsrummet.
+TRIP_PARAMS = ("temp_dry", "wind_speed", "wind_dir", "cloud_cover", "precip_past1h", "visibility", "weather")
+COMPASS = ["N", "NNØ", "NØ", "ØNØ", "Ø", "ØSØ", "SØ", "SSØ", "S", "SSV", "SV", "VSV", "V", "VNV", "NV", "NNV"]
+TRIP_RADIUS_KM = 60
+
+
+def _km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    p = math.pi / 180
+    a = math.sin((lat2 - lat1) * p / 2) ** 2 + math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin((lon2 - lon1) * p / 2) ** 2
+    return 12742 * math.asin(math.sqrt(a))
+
+
+def _precip_type(codes: list[float]) -> str | None:
+    """Nedbørstype ud fra 'nuværende vejr' (WMO-tabel 4680 for automatstationer, DMI lægger 100 til; 4677 for manuelle)."""
+    kinds = []
+    for c in codes:
+        c = int(c)
+        if c >= 100:
+            c -= 100
+            kind = "Hagl" if c == 89 else "Slud" if c in (67, 68) else "Sne" if 70 <= c <= 79 or 85 <= c <= 87 \
+                else "Regn" if 50 <= c <= 69 or 80 <= c <= 84 else None
+        else:
+            kind = "Hagl" if 87 <= c <= 90 or c in (93, 94, 96, 99) else "Slud" if c in (68, 69, 83, 84) \
+                else "Sne" if 70 <= c <= 79 or c in (85, 86) else "Regn" if 50 <= c <= 67 or 80 <= c <= 82 or c in (91, 92, 95, 97) else None
+        if kind:
+            kinds.append(kind)
+    return max(set(kinds), key=kinds.count) if kinds else None
+
+
+async def _station_names(client: httpx.AsyncClient) -> dict[str, str]:
+    hit = await get_json("dmi:stations")
+    if hit is not None:
+        return hit
+    data = await _get(client, f"{get_settings().dmi_base}/v2/metObs/collections/station/items",
+                      {"bbox": "7.5,54.4,15.3,57.9", "status": "Active", "limit": "10000"})
+    names = {f["properties"]["stationId"]: (f["properties"].get("name") or "").strip()
+             for f in (data or {}).get("features", []) if not f["properties"].get("validTo")}
+    if names:
+        await set_json("dmi:stations", names, 86400)
+    return names
+
+
+async def trip_weather(lat: float, lon: float, start: datetime, end: datetime) -> dict:
+    """Målt vejr i tidsrummet [start, end] (UTC) ved de nærmeste DMI-stationer, omsat til turens felter.
+
+    Svar: {"values": {temperatur, skydaekke, vindretning, vindstyrke, nedboer, nedboertype, sigtbarhed},
+           "sources": {felt: {"station", "km"}}}. Felter uden målinger i nærheden udelades."""
+    key = f"dmi:trip:{lat:.2f}:{lon:.2f}:{start:%Y%m%d%H%M}:{end:%Y%m%d%H%M}"
+    hit = await get_json(key)
+    if hit is not None:
+        return hit
+    dlat, dlon = TRIP_RADIUS_KM / 111, TRIP_RADIUS_KM / (111 * math.cos(lat * math.pi / 180))
+    params = {"bbox": f"{lon - dlon:.3f},{lat - dlat:.3f},{lon + dlon:.3f},{lat + dlat:.3f}", "limit": "10000",
+              "datetime": f"{start:%Y-%m-%dT%H:%M:%SZ}/{end:%Y-%m-%dT%H:%M:%SZ}"}
+    base = f"{get_settings().dmi_base}/v2/metObs/collections/observation/items"
+    picked: dict[str, tuple[str, float, list[float]]] = {}  # parameter -> (station, km, værdier)
+    async with httpx.AsyncClient(timeout=30, headers=UA) as client:
+        for param in TRIP_PARAMS:
+            data = await _get(client, base, {**params, "parameterId": param})
+            by_station: dict[str, tuple[float, list[float]]] = {}
+            for f in (data or {}).get("features", []):
+                p = f["properties"]
+                if p.get("value") is None:
+                    continue
+                slon, slat = f["geometry"]["coordinates"][:2]
+                st = by_station.setdefault(p["stationId"], (_km(lat, lon, slat, slon), []))
+                st[1].append(float(p["value"]))
+            near = [(sid, km, vals) for sid, (km, vals) in by_station.items() if km <= TRIP_RADIUS_KM]
+            if near:
+                picked[param] = min(near, key=lambda s: s[1])
+        names = await _station_names(client) if picked else {}
+
+    values: dict = {}
+    sources: dict = {}
+
+    def put(field: str, param: str, value) -> None:
+        if value is None:
+            return
+        sid, km, _ = picked[param]
+        values[field] = value
+        sources[field] = {"station": names.get(sid) or sid, "km": round(km, 1)}
+
+    mean = lambda v: sum(v) / len(v)
+    if "temp_dry" in picked:
+        put("temperatur", "temp_dry", round(mean(picked["temp_dry"][2])))
+    if "wind_speed" in picked:
+        put("vindstyrke", "wind_speed", round(mean(picked["wind_speed"][2])))
+    if "wind_dir" in picked:
+        dirs = [d for d in picked["wind_dir"][2] if 0 < d <= 360]  # 0 = stille
+        if dirs:  # cirkulært gennemsnit, så N (350° og 10°) ikke bliver S
+            s = sum(math.sin(math.radians(d)) for d in dirs); c = sum(math.cos(math.radians(d)) for d in dirs)
+            put("vindretning", "wind_dir", COMPASS[round((math.degrees(math.atan2(s, c)) % 360) / 22.5) % 16])
+    if "cloud_cover" in picked:  # procent; 113 = himlen ikke synlig (tåge) → 8/8
+        put("skydaekke", "cloud_cover", round(mean([min(8.0, v / 12.5) for v in picked["cloud_cover"][2]])))
+    if "precip_past1h" in picked:  # timesummer
+        put("nedboer", "precip_past1h", round(sum(picked["precip_past1h"][2])))
+    if "visibility" in picked:
+        put("sigtbarhed", "visibility", min(100_000, int(round(mean(picked["visibility"][2]), -2))))
+    if "weather" in picked:
+        put("nedboertype", "weather", _precip_type(picked["weather"][2]))
+
+    out = {"values": values, "sources": sources}
+    recent = (datetime.now(timezone.utc) - end) < timedelta(hours=3)
+    await set_json(key, out, 900 if recent else 7 * 86400)
+    return out

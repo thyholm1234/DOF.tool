@@ -127,7 +127,7 @@ async def recent(session: AsyncSession, user: User) -> dict:
             last[loknr] = dato
     top = sorted(last.items(), key=lambda kv: kv[1], reverse=True)[:12]
     locs = (await session.execute(text("""
-        SELECT l.loknr, l.navn, k.navn AS kommune FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode
+        SELECT l.loknr, l.navn, l.lat, l.lon, k.navn AS kommune FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         WHERE l.loknr = ANY(:l)"""), {"l": [t[0] for t in top]})).mappings().all()
     by_loc = {r["loknr"]: r for r in locs}
     locs = [{**dict(by_loc[n]), "dato": d} for n, d in top if n in by_loc]
