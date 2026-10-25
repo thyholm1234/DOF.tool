@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import secrets
@@ -331,6 +332,26 @@ async def archive_upload_delete(name: str, user: User = Depends(perm_drift)):
 async def speech_model(user: User = Depends(perm_drift)):
     """Talemodellen til tale-indtastning: den version serveren leverer, og om byggeagenten kører."""
     return await speechmodel.status()
+
+
+@router.post("/admin/speech-model/upload")
+async def speech_model_upload(file: UploadFile = File(...), user: User = Depends(perm_drift)):
+    """Upload en færdigbygget talemodel (speech-model.tar fra tools/speech-model/pack.sh) – til servere med for lidt
+    hukommelse til selv at bygge den. Filen er ca. 355 MB, så en proxy foran portalen må tillade så store uploads."""
+    root = Path(get_settings().models_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    tmp = root / ".upload.tar.part"
+    try:
+        with tmp.open("wb") as fh:
+            while chunk := await file.read(1 << 20):
+                fh.write(chunk)
+        try:
+            m = await asyncio.to_thread(speechmodel.install, tmp)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+    finally:
+        tmp.unlink(missing_ok=True)
+    return {"version": m["version"], "size": m["size"]}
 
 
 @router.get("/admin/jobs")

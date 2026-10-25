@@ -138,13 +138,13 @@ const FILE_RE = /^dofbasen_\d{4}_\d{2}\.csv$/;
 const fmtMB = (b) => `${(b / 1e6).toLocaleString("da-DK", { maximumFractionDigits: 1 })} MB`;
 
 /** POST med upload-fremdrift (fetch kan ikke rapportere hvor meget der er sendt). */
-function uploadFile(file, onProgress) {
+function uploadFile(file, onProgress, url = "/api/admin/archive/upload") {
   return new Promise((resolve, reject) => {
     const form = new FormData();
     form.append("file", file);
     form.append("mtime", String(file.lastModified / 1000));
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/admin/archive/upload");
+    xhr.open("POST", url);
     xhr.setRequestHeader("X-Requested-With", "fetch");
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
@@ -242,9 +242,22 @@ async function speechCard(box) {
     if (force && !confirm("Bygge modellen forfra? Det henter 1,3 GB fra Hugging Face og tager ca. 5 minutter.")) return;
     try { await api("/api/admin/worker/speech_model", { method: "POST", body: { force } }); toast("Talemodellen lægges i kø"); speechCard(box); } catch (err) { toast(err.message, "err"); }
   };
+  const pick = h("input", { type: "file", accept: ".tar", class: "hide" });
+  const upBtn = h("button", { class: "btn sm ghost", onclick: () => pick.click() }, "Upload model …");
+  pick.onchange = async () => {
+    const f = pick.files[0];
+    pick.value = "";
+    if (!f) return;
+    upBtn.disabled = true;
+    try {
+      const r = await uploadFile(f, (p) => { upBtn.textContent = p < 1 ? `Uploader … ${Math.round(p * 100)} %` : "Kontrollerer …"; }, "/api/admin/speech-model/upload");
+      toast(`Talemodellen er lagt på serveren (${r.version})`);
+    } catch (err) { toast(err.message, "err"); }
+    speechCard(box);
+  };
   box.replaceChildren(
     h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Talemodel til tale-indtastning"),
-      h("span", { class: "row" }, h("button", { class: "btn sm", onclick: build(false) }, m ? "Tjek / opdatér" : "Byg modellen"), m ? h("button", { class: "btn sm ghost", onclick: build(true) }, "Byg forfra") : null)),
+      h("span", { class: "row" }, pick, upBtn, h("button", { class: "btn sm", onclick: build(false) }, m ? "Tjek / opdatér" : "Byg modellen"), m ? h("button", { class: "btn sm ghost", onclick: build(true) }, "Byg forfra") : null)),
     m ? h("ul", { class: "mini-list" },
       h("li", {}, h("span", {}, "Version"), h("b", { class: "num" }, m.version)),
       h("li", {}, h("span", {}, "Størrelse (hentes til telefonen)"), h("b", { class: "num" }, fmtBytes(m.size))),
@@ -252,7 +265,7 @@ async function speechCard(box) {
       h("li", {}, h("span", {}, "Bygget"), h("b", {}, m.built_at ? ago(m.built_at) : "–")))
       : h("p", { class: "muted", style: { margin: 0 } }, "Modellen er ikke bygget endnu – appen kan ikke tilbyde tale-indtastning, før den er det."),
     h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } },
-      d.agent_alive ? `Byggeagenten kører${d.pending ? ` · ${d.pending} i kø` : ""}.` : "Byggeagenten (compose-servicen speech-model) kører ikke – start den med «docker compose up -d speech-model».",
+      d.agent_alive ? `Byggeagenten kører${d.pending ? ` · ${d.pending} i kø` : ""}.` : "Byggeagenten (compose-servicen speech-model) kører ikke – start den med «docker compose up -d speech-model», eller upload en model bygget et andet sted (speech-model.tar fra tools/speech-model/pack.sh).",
       " Fremdrift og seneste kørsler står under Worker-opgaver."));
 }
 
