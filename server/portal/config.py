@@ -48,8 +48,8 @@ class Settings(BaseSettings):
     archive_upload_dir: str = "/data/archive-upload"
 
     media_dir: str = "/data/media"
-    # Objektlager (S3/MinIO) til filer i observationer. Tom S3_ENDPOINT = filerne ligger under media_dir/obs.
-    s3_endpoint: str = ""  # fx minio:9000
+    # Objektlager (S3, RustFS i compose) til filer i observationer. Tom S3_ENDPOINT = filerne ligger under media_dir/obs.
+    s3_endpoint: str = ""  # fx rustfs:9000
     s3_access_key: str = ""
     s3_secret_key: str = ""
     s3_bucket: str = "doftool-media"

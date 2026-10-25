@@ -56,7 +56,7 @@ digraph DOFtool {
       obs1 [label=<<b>obs-1 · primary</b><br/><font point-size="8" color="#555555">observationer + reference</font>>];
       legacy [label=<<b>postgres · samlet DB</b><br/><font point-size="8" color="#555555">legacy / migreringskilde</font>>];
     }
-    subgraph cluster_minio { label=<<b>minio :9000 (ingen port på værten)</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
+    subgraph cluster_rustfs { label=<<b>rustfs :9000 (ingen port på værten)</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
       bucket [label=<<b>Bucket doftool-media</b><br/><font point-size="8" color="#555555">obs/&lt;uuid&gt;.jpg|mp3 …</font>>];
     }
     subgraph cluster_dbadmin { label=<<b>dbadmin :8100 (kun DBADMIN_BIND)</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;

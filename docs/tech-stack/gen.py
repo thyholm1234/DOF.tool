@@ -66,7 +66,7 @@ CLUSTERS = [
             ("obs1", "obs-1 · primary", "observationer + reference"),
             ("legacy", "postgres · samlet DB", "legacy / migreringskilde"),
         ]),
-        ("minio", "minio :9000 (ingen port på værten)", [
+        ("rustfs", "rustfs :9000 (ingen port på værten)", [
             ("bucket", "Bucket doftool-media", "obs/<uuid>.jpg|mp3 …"),
         ]),
         ("dbadmin", "dbadmin :8100 (kun DBADMIN_BIND)", [

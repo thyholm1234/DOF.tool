@@ -1,8 +1,8 @@
 """Objektlager til filer uploadet til observationer (fotos og lyd i feltmeldinger og ture).
 
-Med S3_ENDPOINT gemmes filerne i en S3-bucket (MinIO i compose, men alt S3-kompatibelt virker); uden ligger de på
+Med S3_ENDPOINT gemmes filerne i en S3-bucket (RustFS i compose, men alt S3-kompatibelt virker); uden ligger de på
 disken under MEDIA_DIR som før. Adresserne er de samme i begge tilfælde (/media/obs/<navn>), og filerne leveres af
-api/media.py, så de aldrig er offentlige i bucket'en. MinIO-klienten er synkron og køres i en tråd.
+api/media.py, så de aldrig er offentlige i bucket'en. S3-klienten (minio-py) er synkron og køres i en tråd.
 """
 
 from __future__ import annotations

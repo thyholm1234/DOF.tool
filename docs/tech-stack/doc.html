@@ -71,8 +71,8 @@
     <tr><td><b>doftool-db-*</b></td><td><code>doftool-dbnode</code> (PostGIS + replikering)</td><td>Databasenoder i grupperne
       users og observations; primary eller replika. Oprettes af db-admin eller med dens script.</td>
       <td>ingen / <code>127.0.0.1</code> på samme vært</td><td>doftool_db_&lt;navn&gt;</td></tr>
-    <tr><td><b>minio</b></td><td><code>minio/Dockerfile</code> – bygget fra kildekoden</td><td>Objektlager (S3) til fotos og lyd i
-      observationer, bucket <code>doftool-media</code>.</td><td>ingen på værten</td><td>minio</td></tr>
+    <tr><td><b>rustfs</b></td><td><code>rustfs/rustfs:1.0.3</code></td><td>Objektlager (S3) til fotos og lyd i
+      observationer, bucket <code>doftool-media</code>.</td><td>ingen på værten</td><td>rustfs</td></tr>
     <tr><td><b>dbadmin</b></td><td><code>dbadmin/Dockerfile</code></td><td>Register over databasenoder, topologi til api/worker,
       sundhedstjek, migrering, oprettelse af noder via Docker.</td><td><code>DBADMIN_BIND</code>:8100 (standard 127.0.0.1)</td>
       <td>dbadmin, <code>docker.sock</code></td></tr>
@@ -94,7 +94,7 @@
       sætning til sin databasegruppe.</td></tr>
     <tr><td>Database</td><td>PostgreSQL 17 + PostGIS 3.5</td><td>Al rumlig logik (områder, radius, kommuner) i PostGIS.</td></tr>
     <tr><td>Cache, køer, pub/sub</td><td>Valkey 8.1 (redis-py 8.1)</td><td>Open source-afløseren for Redis.</td></tr>
-    <tr><td>Objektlager</td><td>MinIO RELEASE.2025-10-15T17-29-55Z, minio-py 7.2.20</td><td>Se note om vedligehold nedenfor.</td></tr>
+    <tr><td>Objektlager</td><td>RustFS 1.0.3 (Apache-2.0), S3-klienten minio-py 7.2.20</td><td>Afløste MinIO (se note nedenfor).</td></tr>
     <tr><td>Validering og config</td><td>Pydantic 2.14, pydantic-settings</td><td>Al konfiguration fra miljøvariabler/<code>.env</code>.</td></tr>
     <tr><td>Udgående HTTP</td><td>httpx 0.28</td><td>DOFbasen, DMI, Open-Meteo, xeno-canto, Netfugl, dof.dk.</td></tr>
     <tr><td>Push</td><td>pywebpush 2.5 + py-vapid 1.9 (Web Push), FCM HTTP v1</td><td>VAPID-nøglen ligger i databasen
@@ -124,13 +124,12 @@
   I legacy-tilstand kører alt på den samlede database (<code>postgres</code>), som også er kilde, når db-admin migrerer.</p>
 
 <h2>Objektlager</h2>
-<p>Fotos og lyd i feltmeldinger og ture gemmes i MinIO under <code>obs/&lt;uuid&gt;.&lt;endelse&gt;</code>. Adressen er
+<p>Fotos og lyd i feltmeldinger og ture gemmes i RustFS under <code>obs/&lt;uuid&gt;.&lt;endelse&gt;</code>. Adressen er
   <code>/media/obs/&lt;navn&gt;</code>, og api'et leverer filen efter login med Range-understøttelse (lydafspilning), ETag og
   privat cache. Bucket'en er aldrig offentlig. Uden <code>S3_ENDPOINT</code> ligger filerne på disken som før.
   Netfugl-fotos og læringsfiler ligger stadig på volumenet <code>media</code>.</p>
-<div class="note"><b>Vedligehold:</b> MinIO udgiver ikke længere færdige images, og projektet blev arkiveret i 2026.
-  <code>minio/Dockerfile</code> bygger den sidste udgave fra kildekoden, og den får ingen sikkerhedsopdateringer.
-  Appen taler almindelig S3, så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan overtage ved at ændre
+<div class="note"><b>Vedligehold:</b> RustFS afløste MinIO, som ikke længere udgiver images og blev arkiveret i 2026.
+  Filerne flyttes over én gang med <code>tools/minio-to-rustfs.sh</code>. Appen taler almindelig S3, så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan overtage ved at ændre
   <code>S3_ENDPOINT</code>, <code>S3_ACCESS_KEY</code>, <code>S3_SECRET_KEY</code> og <code>S3_BUCKET</code>.</div>
 
 <h2>Baggrundsjob</h2>
@@ -168,7 +167,7 @@
   <li><b>Uploads</b>: størrelsesgrænse, tilladte typer, tilfældigt filnavn; GPS og andre metadata fjernes, før filen gemmes.</li>
   <li><b>SQL</b>: kun parametre; sortering og visning fra whitelists.</li>
   <li><b>Showcase-API'er</b>: token gemt som hash, kun læsning, egne grænser pr. minut.</li>
-  <li><b>Netværk</b>: db-admin, databasenoder og MinIO har ingen offentlige porte; db-admin har eget kodeord og
+  <li><b>Netværk</b>: db-admin, databasenoder og RustFS har ingen offentlige porte; db-admin har eget kodeord og
     begrænsning af forsøg. db-admin har adgang til Docker og skal aldrig udstilles mod internettet.</li>
 </ul>
 </div>
@@ -190,7 +189,7 @@
     <tr><td><code>POSTGRES_*</code></td><td>Den samlede database.</td></tr>
     <tr><td><code>DBADMIN_URL</code>, <code>DBADMIN_SERVICE_TOKEN</code>, <code>DBADMIN_PASSWORD</code>, <code>DBADMIN_BIND</code></td>
       <td>Registret, token mellem api/worker og db-admin, panelets kodeord og adresse.</td></tr>
-    <tr><td><code>MINIO_ROOT_USER</code>, <code>MINIO_ROOT_PASSWORD</code>, <code>S3_*</code></td><td>Objektlageret.</td></tr>
+    <tr><td><code>RUSTFS_ACCESS_KEY</code>, <code>RUSTFS_SECRET_KEY</code>, <code>S3_*</code></td><td>Objektlageret.</td></tr>
     <tr><td><code>FORWARDED_ALLOW_IPS</code></td><td>Proxyer, hvis X-Forwarded-For stoles på.</td></tr>
     <tr><td><code>PRIVACY_CONTROLLER</code>, <code>PRIVACY_EMAIL</code>, <code>PRIVACY_BACKUP_DAYS</code></td>
       <td>Oplysninger i privatlivspolitikken.</td></tr>

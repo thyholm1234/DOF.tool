@@ -18,15 +18,17 @@ docker compose
 ├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, scoreboards, pub/sub til live-opdateringer
 ├── api       (FastAPI)  – REST + server-sent events + statisk PWA (web/)
 ├── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
-├── minio     – objektlager (S3) til fotos og lyd i observationer; leveres med login via /media/obs/<navn>
+├── rustfs    – objektlager (S3) til fotos og lyd i observationer; leveres med login via /media/obs/<navn>
 └── dbadmin   – superadmin-panel til databaserne (se Databaser): noder, tokens, IP og port
 ```
 
-**Objektlager.** Filer uploadet til feltmeldinger og ture gemmes i MinIO (bucket `doftool-media`), ikke på disken.
-MinIO udgiver ikke længere færdige images, og projektet blev arkiveret i 2026, så `minio/Dockerfile` bygger den sidste
-udgave (RELEASE.2025-10-15T17-29-55Z) fra kildekoden – den får ingen sikkerhedsopdateringer. Appen taler almindelig S3,
-så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan tage over via `S3_ENDPOINT`, `S3_ACCESS_KEY`,
-`S3_SECRET_KEY` og `S3_BUCKET`. Eksisterende filer under `/data/media/obs` flyttes til lageret første gang workeren
+**Objektlager.** Filer uploadet til feltmeldinger og ture gemmes i RustFS (`rustfs/rustfs`, Apache-2.0; bucket
+`doftool-media`), ikke på disken. RustFS afløste MinIO, som ikke længere udgiver images og blev arkiveret i 2026.
+Nøglerne er `RUSTFS_ACCESS_KEY` og `RUSTFS_SECRET_KEY` (de gamle `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` virker stadig).
+**Fra MinIO:** efter opdateringen køres `tools/minio-to-rustfs.sh` én gang; det starter den gamle MinIO, kopierer alle
+objekter over og stopper den igen (volumen `minio` slettes ikke af scriptet). Appen taler almindelig S3, så en anden
+tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan tage over via `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` og
+`S3_BUCKET`. Eksisterende filer under `/data/media/obs` flyttes til lageret første gang workeren
 starter. Lagerforbruget for databaser, objektlager, filer og Valkey kan følges under **Admin → Drift → Lagerplads**.
 
 ### Databaser: opdeling, replikaer og backup
