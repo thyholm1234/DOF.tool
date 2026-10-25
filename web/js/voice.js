@@ -134,36 +134,68 @@ export function bestParse(matches, index, codes) {
 
 // ---------------------------------------------------------------- Android-genkendelse
 
-const SR = "SpeechRecognition";
+// Nyere APK'er har appens eget plugin DofSpeech (genkendelse på telefonen, eget slut-event); ældre har kun
+// SpeechRecognition (@capacitor-community/speech-recognition), hvor slutresultatet ikke kan skelnes fra de løbende.
+const SR = "SpeechRecognition", DS = "DofSpeech";
 const cap = () => window.Capacitor;
-const call = (method, options) => cap().nativePromise(SR, method, options);
+const own = () => !!cap()?.isPluginAvailable?.(DS);
+const call = (plugin, method, options) => cap().nativePromise(plugin, method, options);
 
 /** Findes talegenkendelse i appen (pluginnet er med i APK'en, og telefonen har en genkendelsestjeneste)? */
 export async function voiceAvailable() {
   if (!isApp() || typeof cap()?.nativePromise !== "function") return false;
-  try { return !!(await call("available")).available; } catch { return false; }
+  try { return !!(await call(own() ? DS : SR, "available")).available; } catch { return false; }
 }
 
 async function ensurePermission() {
-  let { speechRecognition } = await call("checkPermissions");
-  if (speechRecognition !== "granted") ({ speechRecognition } = await call("requestPermissions"));
+  if (own()) {
+    if (!(await call(DS, "requestMicrophone")).granted) throw new Error("Appen må ikke bruge mikrofonen – slå det til i Android-indstillinger");
+    return;
+  }
+  let { speechRecognition } = await call(SR, "checkPermissions");
+  if (speechRecognition !== "granted") ({ speechRecognition } = await call(SR, "requestPermissions"));
   if (speechRecognition !== "granted") throw new Error("Appen må ikke bruge mikrofonen – slå det til i Android-indstillinger");
 }
 
 /** Start optagelse. onPartial(tekst) kaldes løbende. Returnerer stop(), der giver alle alternativer for det sagte. */
 export async function listen(onPartial) {
   await ensurePermission();
-  let matches = [], waiting = null;
+  return own() ? listenOwn(onPartial) : listenCommunity(onPartial);
+}
+
+async function listenOwn(onPartial) {
+  let matches = [], done = null;
+  const finished = new Promise((resolve) => { done = resolve; });
+  const handles = [
+    cap().addListener(DS, "partial", (r) => { if (r?.matches?.length) { matches = r.matches; onPartial?.(matches[0]); } }),
+    cap().addListener(DS, "final", (r) => done(r?.matches?.length ? r.matches : matches)),
+    cap().addListener(DS, "error", (r) => done(r?.matches?.length ? r.matches : matches)),
+  ];
+  const cleanup = () => handles.forEach(h => h?.remove?.());
+  try { await call(DS, "start", { language: "da-DK", maxResults: 5 }); } catch (err) { cleanup(); throw err; }
+  return async () => {
+    await call(DS, "stop").catch(() => {});
+    // Slutresultatet kommer kort efter stop (på telefonen: typisk under ½ s); ellers bruges det seneste løbende resultat
+    const out = await Promise.race([finished, new Promise((r) => setTimeout(() => r(matches), 2500))]);
+    cleanup();
+    if (out === matches) call(DS, "cancel").catch(() => {});
+    return out;
+  };
+}
+
+async function listenCommunity(onPartial) {
+  let matches = [], events = 0;
   const handle = cap().addListener(SR, "partialResults", (r) => {
-    if (r?.matches?.length) { matches = r.matches; onPartial?.(matches[0]); waiting?.(); }
+    if (r?.matches?.length) { matches = r.matches; events++; onPartial?.(matches[0]); }
   });
   try {
-    await call("start", { language: "da-DK", maxResults: 5, partialResults: true, popup: false });
+    await call(SR, "start", { language: "da-DK", maxResults: 5, partialResults: true, popup: false });
   } catch (err) { handle?.remove?.(); throw err; }
   return async () => {
-    try { await call("stop"); } catch { /* allerede stoppet (pause i talen) */ }
-    // Slutresultatet kommer som et sidste event lidt efter stop – vent kort på det
-    await new Promise((resolve) => { waiting = resolve; setTimeout(resolve, 1200); });
+    const before = events;
+    try { await call(SR, "stop"); } catch { /* allerede stoppet (pause i talen) */ }
+    // Slutresultatet kommer som et sidste event lidt efter stop – vent kort på det (også hvis det kom under stop-kaldet)
+    for (let t = 0; events === before && t < 1200; t += 50) await new Promise((r) => setTimeout(r, 50));
     handle?.remove?.();
     return matches;
   };
