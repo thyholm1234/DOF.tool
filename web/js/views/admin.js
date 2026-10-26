@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal, can, hasTab, ADMIN_TABS, MOD_TABS } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal, can, hasTab, ADMIN_TABS, MOD_TABS, searchSpecies } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { conversation, KINDS } from "./support.js";
 import { eventForm } from "./events.js";
