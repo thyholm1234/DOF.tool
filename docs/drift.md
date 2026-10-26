@@ -74,10 +74,11 @@ database er nede, så adressen kan rettes):
    indekser, begrænsninger og et udsnit af rækkerne. Alt er skrivebeskyttet, og kolonner med adgangskoder, tokens o.l. skjules.
 6. *Gør til primary* promoverer en replika i registret (kør `pg_ctl promote` på noden; kommandoen vises).
 
-**Første opsætning:** opret en primary for hver gruppe under *Tilføj node* (brugerdata og observationer); panelet giver et
-script, der opretter og starter noden. Portalen starter først, når begge grupper har en primary. Tabeller oprettes ved
-opstart. Uden `DBADMIN_URL` (lokal udvikling og test) bruges `POSTGRES_DSN` som én enkelt node for begge grupper.
-*Databaseaktivitet* i panelet viser forespørgsler, ventetilstande og COPY-/indeksfremdrift pr. primary.
+**Første opsætning og migrering sker i panelet** (kortet *Opsætning og migrering*): panelet opretter selv en brugerdata- og en
+observations-database som containere (kræver `/var/run/docker.sock`, som compose monterer), stopper api og worker, kopierer
+alle data fra den nuværende samlede database, kontrollerer rækkeantal pr. tabel, slår opdelingen til og starter api/worker igen.
+Uden Docker-adgang oprettes noderne manuelt (*Tilføj node*), og panelet flytter dataene. Kommandolinje:
+`docker compose run --rm api python -m portal.dbmigrate --from <dsn>` (kun når opdelingen allerede er slået til).
 
 `docker compose -f dbnode/compose.dev.yml up -d --build` giver en lokal prøve-klynge (bruger-DB, obs-DB + replika).
 Begrænsninger: skrivning går til gruppens primary (ingen automatisk failover), og skrivning på tværs af grupper i én
