@@ -56,6 +56,25 @@ export function trackStop() {
   tracker.cid = null; tracker.points = []; tracker.paused = false;
 }
 
+/** Beskærer ruten til turens start- og sluttidspunkt (punkternes tidsstempel er sekunder; turens tider er lokale).
+ *  Uden sluttid beskæres kun starten. Bliver intet tilbage, rører vi ikke ruten – så er tiderne sandsynligvis forkerte. */
+export function trimTrack(T) {
+  const at = (hm) => new Date(`${T.dato}T${hm}`).getTime() / 1000;
+  if (!T.gps_track?.length || !T.dato || !T.turtidfra) return;
+  const from = at(T.turtidfra);
+  let to = T.turtidtil ? at(T.turtidtil) + 59 : Infinity;  // sluttiden gælder hele minuttet
+  if (to < from) to += 86400;                                // turen gik over midnat
+  const kept = T.gps_track.filter(p => p[2] >= from && p[2] <= to);
+  if (kept.length) T.gps_track = kept;
+}
+
+/** Afslutter ruten: stopper optagelsen, hvis den kører for turen, og beskærer til turens tidsrum. */
+export function finishTrack(T) {
+  if (tracker.cid === T.client_id) { const pts = tracker.points; trackStop(); T.gps_track = pts; }
+  trimTrack(T);
+  T.gps_aktiv = T.gps_track.length > 0;
+}
+
 // ---------------------------------------------------------------- tur-modellen
 
 const TRIP_FIELDS = ["dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "medobser", "turnoter", "on_behalf_of", "lat", "lon",

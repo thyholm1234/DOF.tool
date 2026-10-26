@@ -1,6 +1,6 @@
 // Opret/redigér tur på sin egen side: Turens data · Vejret · Forstyrrelser. Gemmer og går derefter til turens observationer.
 import { api, h, icon, fmtDate, todayISO, toast, state } from "../core.js";
-import { nowHM, tripHash, tracker, trackStart } from "../tur-data.js";
+import { nowHM, tripHash, tracker, trackStart, finishTrack, trimTrack } from "../tur-data.js";
 import { isApp } from "../native.js";
 import { tabs, field, reqField, fail, pickPosition } from "../tur-ui.js";
 
@@ -151,6 +151,8 @@ export function form(page, ref, store_, recent, isNew) {
     if (!T.loknr) { t.show("data"); return fail("Vælg en lokalitet", lokSel); }
     if (!T.turtidfra) { t.show("data"); return fail("Angiv starttidspunkt", start); }
     if (T.turtidtil && T.turtidtil < T.turtidfra) { t.show("data"); return fail("Sluttidspunktet ligger før starten", slut); }
+    // Med en sluttid er turen slut: kører ruten stadig, afsluttes den, og ruten beskæres til start- og sluttidspunktet
+    if (!isNew && T.turtidtil && T.gps_track.length) { if (tracker.cid === T.client_id) finishTrack(T); else trimTrack(T); }
     submit.disabled = true;
     const status = await store_.saveNow();
     submit.disabled = false;

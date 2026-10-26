@@ -177,6 +177,16 @@ async def weather(lat: float = Query(ge=54.4, le=57.9), lon: float = Query(ge=7.
     return {**out, "fra": start.strftime("%H:%M"), "til": end.strftime("%H:%M")}
 
 
+@router.get("/common")
+async def common(loknr: int, n: int = Query(30, ge=1, le=100), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """De mest almindelige arter på lokaliteten (flest dage med fund) – til hurtig indtastning efter turen. Bruger
+    lokalitetens cachede artsliste, så den ikke belaster databasen på de store lokaliteter."""
+    from portal.cache import cached
+    from portal.services import locyear
+    data = await cached(locyear.species_key(loknr, None), 3600, lambda: locyear.species_list(db, loknr, None))
+    return [{"artnr": r["artnr"], "navn": r["navn"], "n_obs": r["n_obs"]} for r in data["species"][:n]]
+
+
 @router.get("/mine")
 async def mine(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""

@@ -911,3 +911,11 @@ html { scroll-padding-top: calc(var(--top-h) + 12px); scroll-padding-bottom: cal
 .support-msg.system { justify-self: center; background: transparent; border: 1px dashed var(--line); max-width: 100%; font-size: .85rem; color: var(--text-2); }
 .dku-fields th { width: 34%; color: var(--text-2); font-weight: 600; }
 .dku-fields tr.changed td { background: var(--bem-soft); font-weight: 600; }
+
+/* Hurtig indtastning af almindelige arter efter en afsluttet tur */
+.quick-list { display: flex; flex-direction: column; gap: 4px; max-height: 55vh; overflow-y: auto; }
+.quick-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--surface-2, transparent); border: 1px solid var(--line); flex-wrap: wrap; }
+.quick-row.seen { border-color: var(--accent, currentColor); }
+.quick-name { flex: 1 1 140px; font-weight: 600; min-width: 0; }
+.quick-count { display: flex; align-items: center; gap: 6px; }
+.quick-count input { width: 70px; }

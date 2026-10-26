@@ -1,7 +1,8 @@
 // Tur: kun denne turs observationer. Her tilføjes og rettes observationer (+1 / +10 på hver), og ynglepar.
 // Selve turens oplysninger redigeres på sin egen side (tur-form.js).
-import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT } from "../core.js";
-import { tracker, trackStart, trackPause, trackStop, trackLength, nowHM } from "../tur-data.js";
+import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT, todayISO } from "../core.js";
+import { tracker, trackStart, trackPause, trackStop, trackLength, nowHM, finishTrack } from "../tur-data.js";
+import { quickSpecies } from "../tur-quick.js";
 import { isApp } from "../native.js";
 import { newId } from "../offline.js";
 import { openObsSheet, openPairSheet } from "../obs-sheet.js";
@@ -98,6 +99,18 @@ export function view(page, ref, store_, recent) {
     trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
     store_.save(); drawGps();
   };
+  // Afslut tur: sluttid (nu, hvis den mangler), ruten stoppes og beskæres til turens tidsrum, turen gemmes – og så tilbydes
+  // de almindelige arter på lokaliteten, som endnu ikke står på turen
+  const finishBtn = h("button", { class: "btn", type: "button", onclick: async () => {
+    if (!T.turtidtil && T.dato === todayISO()) T.turtidtil = nowHM();
+    finishTrack(T); drawGps();
+    finishBtn.disabled = true;
+    const status = await store_.saveNow();
+    finishBtn.disabled = false;
+    if (status === "fejl") return;
+    if (status === "offline") toast("Ingen forbindelse – turen er gemt på enheden og sendes automatisk", "ok");
+    await quickSpecies(T, ref, (added) => { T.observations.push(...added); store_.save(); drawRows(); });
+  } }, "Afslut tur");
   if (tracker.cid === T.client_id) T.gps_track = tracker.points;
   let lastSave = 0;
   const onPoint = () => { drawGps(); if (Date.now() - lastSave > 60000) { lastSave = Date.now(); store_.save(); } };
@@ -294,7 +307,7 @@ export function view(page, ref, store_, recent) {
     T.on_behalf_of ? h("div", { class: "notice warn mb" }, `Indtastet på vegne af ${T.on_behalf_of}.`) : null,
     showTale ? tabsEl.bar : null, showTale ? tabsEl.panels : obsCard,
     extras,
-    h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"),
+    h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"), finishBtn,
       h("button", { class: "btn primary grow", type: "button", html: `${icon("plus")} Observation`, onclick: () => edit() })),
     showTale ? [voiceStatus, voiceBtn] : null);
   drawRows(); drawSpeech(); drawPairs(); drawGps();
