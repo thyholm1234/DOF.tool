@@ -36,21 +36,23 @@ MIN_YEARS_TREND = 6
 # ---------------------------------------------------------------- aggregater
 
 
-async def refresh_aggregates(session: AsyncSession, since: date) -> None:
-    await session.execute(text("DELETE FROM species_day WHERE dato >= :d"), {"d": since})
+async def refresh_aggregates(session: AsyncSession, since: date, until: date | None = None) -> None:
+    """Dagsaggregater fra since til until (None = i dag)."""
+    p = {"d": since, "u": until or date.today()}
+    await session.execute(text("DELETE FROM species_day WHERE dato >= :d AND dato <= :u"), p)
     await session.execute(text("""
         INSERT INTO species_day (artnr, dato, n_obs, n_ind, n_trips, n_migr)
         SELECT artnr, dato, count(*), sum(antal), count(DISTINCT turid),
                coalesce(sum(antal) FILTER (WHERE split_part(coalesce(adfkode,''), ' ', 1)
                     IN ('T','TF','N','NØ','Ø','SØ','S','SV','V','NV')), 0)
-        FROM observations WHERE dato >= :d AND dato <= current_date GROUP BY artnr, dato
-    """), {"d": since})
-    await session.execute(text("DELETE FROM effort_day WHERE dato >= :d"), {"d": since})
+        FROM observations WHERE dato >= :d AND dato <= least(:u, current_date) GROUP BY artnr, dato
+    """), p)
+    await session.execute(text("DELETE FROM effort_day WHERE dato >= :d AND dato <= :u"), p)
     await session.execute(text("""
         INSERT INTO effort_day (dato, n_trips, n_observers)
         SELECT dato, count(DISTINCT turid), count(DISTINCT obserkode)
-        FROM observations WHERE dato >= :d AND dato <= current_date GROUP BY dato
-    """), {"d": since})
+        FROM observations WHERE dato >= :d AND dato <= least(:u, current_date) GROUP BY dato
+    """), p)
     await session.commit()
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -24,7 +25,7 @@ from portal.cache import bump, kv, worker_command
 from portal.config import get_settings
 from portal.db import get_session
 from portal.dof import gateway
-from portal.dof.archive import FILE_RE, PROGRESS, archive_files, pending_files
+from portal.dof.archive import FILE_RE, PROGRESS, archive_files, is_month_file, pending_files
 from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
 from portal.services import account, activity, backup, datasync, diskusage, fcm, features, locfinds, moderation, schedule, speechmodel, weather_archive
 from portal.services import auth as auth_service
@@ -379,7 +380,7 @@ async def put_locfinds(body: LocfindsIn, user: User = Depends(perm_drift), db: A
     return await _locfinds_panel(db)
 
 
-# ---------------------------------------------------------------- upload af månedsfiler (dofbasen_ÅÅÅÅ_MM.csv)
+# ---------------------------------------------------------------- upload af DOFbasen-udtræk (CSV)
 
 
 @router.get("/admin/archive/files")
@@ -399,25 +400,31 @@ async def archive_list(user: User = Depends(perm_drift), db: AsyncSession = Depe
 
 @router.post("/admin/archive/upload")
 async def archive_upload(file: UploadFile = File(...), mtime: float | None = Form(None), user: User = Depends(perm_drift)):
-    """Gem én månedsfil i upload-arkivet. Importen startes separat (worker: archive_import), når alle filer er sendt,
-    og filen slettes, når den er i databasen."""
+    """Gem ét DOFbasen-udtræk i upload-arkivet. Importen startes separat (worker: archive_import), når alle filer er sendt,
+    og filen slettes, når den er i databasen. Månedsfiler (dofbasen_ÅÅÅÅ_MM.csv) beholder navnet; andre udtræk (fx
+    search_result(3).csv) gemmes under navn + indholdets hash, så filer med samme navn fra browseren ikke overskriver
+    hinanden, og en fil der allerede er importeret uændret, genkendes."""
     name = Path(file.filename or "").name
-    if not FILE_RE.match(name):
-        raise HTTPException(400, f"{name or 'Filen'}: navnet skal være dofbasen_ÅÅÅÅ_MM.csv")
+    if not name.lower().endswith(".csv"):
+        raise HTTPException(400, f"{name or 'Filen'}: skal være en CSV-fil fra DOFbasen")
     head = (await file.read(4096)).decode("latin-1", errors="replace").split("\n", 1)[0].lstrip("\ufeff")
     cols = head.strip().split(";")
     if not cols or cols[0] != "Dato" or not {"Artnr", "Obsid", "Turid", "Loknr"} <= set(cols):
         raise HTTPException(400, f"{name}: ligner ikke et DOFbasen-udtræk (mangler kolonner som Dato, Artnr, Obsid)")
     root = Path(get_settings().archive_upload_dir)
     root.mkdir(parents=True, exist_ok=True)
-    tmp = root / f".{name}.part"
-    size = 0
+    tmp = root / f".{secrets.token_hex(8)}.part"
+    size, digest = 0, hashlib.sha1()
     try:
         await file.seek(0)
         with tmp.open("wb") as fh:
             while chunk := await file.read(1 << 20):
                 fh.write(chunk)
+                digest.update(chunk)
                 size += len(chunk)
+        if not is_month_file(name):
+            stem = re.sub(r"[^\w().-]+", "_", Path(name).stem)[:50]
+            name = f"{stem}_{digest.hexdigest()[:10]}.csv"
         # Behold filens egen ændringstid: en fil der allerede er importeret fra arkivet, importeres så ikke igen
         if mtime:
             os.utime(tmp, (mtime, mtime))

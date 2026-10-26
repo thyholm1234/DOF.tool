@@ -173,8 +173,11 @@ async def ingest(
                 result.changed.append((obsid, old[obsid], antal))
 
     if mode == "archive":
+        # Findes observationen, røres den ikke – men står den i en anden lokalafdelings udtræk, kommer afdelingen med
         await apg.execute("""
-            INSERT INTO observations SELECT * FROM tmp_obs ON CONFLICT (obsid) DO NOTHING
+            INSERT INTO observations SELECT * FROM tmp_obs ON CONFLICT (obsid) DO UPDATE
+            SET afdelinger = (SELECT array_agg(DISTINCT a ORDER BY a) FROM unnest(observations.afdelinger || EXCLUDED.afdelinger) a)
+            WHERE NOT EXCLUDED.afdelinger <@ observations.afdelinger
         """)
     else:
         await apg.execute("""

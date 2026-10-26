@@ -15,7 +15,7 @@ from portal.cache import bump, kv
 from portal.config import get_settings
 from portal.db import get_session
 from portal.dof import gateway
-from portal.dof.archive import archive_files
+from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
 from portal.services import account, activity, auth, dku, dofbasen, features, netfugl
 from portal.timeutil import dk_today
@@ -53,7 +53,7 @@ async def login(body: LoginIn, request: Request, response: Response, db: AsyncSe
 
 async def enqueue_history(obserkode: str) -> None:
     """Hent brugerens ældre observationer, som arkivet ikke dækker (ét kald)."""
-    years = sorted(int(p.name[9:13]) for p in archive_files())
+    years = sorted(int(m.group(1)) for p in archive_files() if (m := MONTH_RE.match(p.name)))
     # Arkivet er komplet fra første år med alle 12 måneder; før det hentes brugerens egne data
     complete_from = next((y for y in years if years.count(y) >= 12), None)
     year_to = (complete_from - 1) if complete_from else dk_today().year

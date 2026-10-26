@@ -32,9 +32,9 @@ _LEVELS = {
 }
 
 
-async def refresh(session: AsyncSession, first_year: int | None = None) -> int:
-    """Genberegn fra first_year (None = alle år) til i år. Returnerer antal år."""
-    last = dk_today().year
+async def refresh(session: AsyncSession, first_year: int | None = None, last_year: int | None = None) -> int:
+    """Genberegn fra first_year (None = alle år) til last_year (None = i år). Returnerer antal år."""
+    last = min(last_year or dk_today().year, dk_today().year)
     if first_year is None:
         first_year = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar() or last
     years = list(range(first_year, last + 1))

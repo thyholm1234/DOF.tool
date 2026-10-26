@@ -145,9 +145,9 @@ async function storageCard(box, refresh = false) {
           h("table", { class: "data" }, h("tbody", {}, ...r.tables.map(t => h("tr", {}, h("td", {}, t.name), h("td", { class: "right num muted" }, `${fmtN(t.rows)} rækker`), h("td", { class: "right num" }, fmtBytes(t.bytes))))))) : null))))));
 }
 
-// ---------------------------------------------------------------- upload af månedsfiler (gentegnes ikke af 15 s-opdateringen)
+// ---------------------------------------------------------------- upload af DOFbasen-udtræk (gentegnes ikke af 15 s-opdateringen)
 
-const FILE_RE = /^dofbasen_\d{4}_\d{2}\.csv$/;
+const CSV_RE = /\.csv$/i;
 const fmtMB = (b) => `${(b / 1e6).toLocaleString("da-DK", { maximumFractionDigits: 1 })} MB`;
 
 /** POST med upload-fremdrift (fetch kan ikke rapportere hvor meget der er sendt). */
@@ -206,7 +206,7 @@ async function uploadChunked(file, base, onProgress) {
 async function archiveUpload(box) {
   const input = h("input", { type: "file", accept: ".csv", multiple: true, class: "hide" });
   const drop = h("label", { class: "dropzone", onclick: () => input.click() },
-    h("b", {}, "Vælg eller træk månedsfiler hertil"), h("span", { class: "muted" }, "dofbasen_ÅÅÅÅ_MM.csv – flere ad gangen"));
+    h("b", {}, "Vælg eller træk DOFbasen-udtræk hertil"), h("span", { class: "muted" }, "CSV-filer fra DOFbasens søgning – flere ad gangen"));
   const status = h("div", { class: "stack" });
   const list = h("div", {});
   let busy = false;
@@ -231,15 +231,14 @@ async function archiveUpload(box) {
 
   const run = async (all) => {
     if (busy) return;
-    const files = [...all].filter(f => f.name.endsWith(".csv"));
-    const bad = files.filter(f => !FILE_RE.test(f.name));
-    const good = files.filter(f => FILE_RE.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
-    if (!good.length) { toast(bad.length ? "Filnavnene skal være dofbasen_ÅÅÅÅ_MM.csv" : "Ingen CSV-filer valgt", "err"); return; }
+    const bad = [...all].filter(f => !CSV_RE.test(f.name));
+    const good = [...all].filter(f => CSV_RE.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
+    if (!good.length) { toast("Ingen CSV-filer valgt", "err"); return; }
     busy = true; drop.classList.add("busy");
     const total = good.reduce((n, f) => n + f.size, 0);
     const bar = h("progress", { max: 1, value: 0, style: { width: "100%" } });
     const line = h("div", { class: "muted" });
-    const errors = h("div", { class: "stack" }, ...bad.map(f => h("div", { class: "notice err" }, `${f.name}: springes over – navnet skal være dofbasen_ÅÅÅÅ_MM.csv`)));
+    const errors = h("div", { class: "stack" }, ...bad.map(f => h("div", { class: "notice err" }, `${f.name}: springes over – ikke en CSV-fil`)));
     status.replaceChildren(line, bar, errors);
     let sent = 0, ok = 0, newOrChanged = 0;
     for (const [i, f] of good.entries()) {
@@ -265,8 +264,8 @@ async function archiveUpload(box) {
   drop.ondragleave = () => drop.classList.remove("over");
   drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); run(e.dataTransfer.files); };
 
-  box.append(h("h3", { style: { margin: 0 } }, "Upload af DOFbasen-månedsfiler"),
-    h("p", { class: "muted", style: { margin: 0 } }, "Månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv) importeres direkte uden kald til dofbasen.dk. Dage der er dækket af en fil, hentes ikke for at fylde huller. Uploadede filer slettes fra serveren, så snart de er importeret; filer der allerede er importeret uændret, slettes med det samme."),
+  box.append(h("h3", { style: { margin: 0 } }, "Upload af DOFbasen-udtræk"),
+    h("p", { class: "muted", style: { margin: 0 } }, "CSV-udtræk fra DOFbasens søgning importeres direkte uden kald til dofbasen.dk – månedsfiler (dofbasen_ÅÅÅÅ_MM.csv) såvel som andre udtræk, fx én lokalafdeling over en årrække. Dage der er dækket af en månedsfil, hentes ikke for at fylde huller; andre udtræk dækker ikke nødvendigvis alt og markerer ingen dage. Står en observation i flere lokalafdelingers udtræk, lægges afdelingerne sammen. Uploadede filer slettes fra serveren, så snart de er importeret; filer der allerede er importeret uændret, slettes med det samme."),
     drop, input, status, list);
   await loadList();
 }

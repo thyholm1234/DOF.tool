@@ -1,4 +1,9 @@
-"""Import af lokale månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv) – helt uden kald til DOFbasen."""
+"""Import af lokale DOFbasen-udtræk (CSV fra search_result1.php) – helt uden kald til DOFbasen.
+
+Månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv) dækker hele måneden, så dagene markeres som hentet og springes over af hulfyldningen.
+Andre udtræk (fx én lokalafdeling over en årrække, search_result(3).csv) importeres også, men dækker ikke nødvendigvis
+alle observationer på dagene og markerer derfor ingenting. Står samme observation i flere filer (en observation kan høre
+til flere lokalafdelinger), lægges afdelingerne sammen."""
 
 from __future__ import annotations
 
@@ -21,7 +26,8 @@ from portal.dof.parse import iter_records, parse_rows
 from portal.models import ArchiveFile
 
 log = logging.getLogger("portal.archive")
-FILE_RE = re.compile(r"^dofbasen_(\d{4})_(\d{2})\.csv$")
+MONTH_RE = re.compile(r"^dofbasen_(\d{4})_(\d{2})\.csv$")
+FILE_RE = re.compile(r"^[\w().\- ]{1,76}\.csv$")  # alle udtræk, arkiv- og uploadnavne (archive_files.name er højst 80 tegn)
 CHUNK = 40_000
 PROGRESS = "archive:progress"
 
@@ -52,6 +58,10 @@ async def pending_files() -> list[Path]:
         elif (rec.size != st.st_size or abs(rec.mtime - st.st_mtime) > 1) and st.st_mtime > rec.imported_at.timestamp():
             out.append(p)
     return out
+
+
+def is_month_file(name: str) -> bool:
+    return bool(MONTH_RE.match(name))
 
 
 async def import_file(path: Path) -> tuple[int, date | None, date | None]:
@@ -92,7 +102,7 @@ async def import_file(path: Path) -> tuple[int, date | None, date | None]:
             INSERT INTO archive_files (name, size, mtime, rows) VALUES (:n, :s, :m, :r)
             ON CONFLICT (name) DO UPDATE SET size = EXCLUDED.size, mtime = EXCLUDED.mtime, rows = EXCLUDED.rows, imported_at = now()
         """), {"n": path.name, "s": st.st_size, "m": st.st_mtime, "r": total})
-        if dmin and dmax:
+        if dmin and dmax and is_month_file(path.name):
             # Dage der er dækket komplet af arkivet (sidste dag i en løbende måned kan være ufuldstændig)
             last_complete = dmax - timedelta(days=1)
             await s.execute(text("""
@@ -119,15 +129,18 @@ async def run_import(stop_after: int | None = None) -> dict:
                                         "rows_total": 0, "started": time.time()})
         rows_total = 0
         earliest: date | None = None
+        latest: date | None = None
         for i, path in enumerate(files, start=1):
             await jobstatus.step(path.name, i - 1, len(files))
             t0 = time.time()
-            n, dmin, _ = await import_file(path)
+            n, dmin, dmax = await import_file(path)
             if path.parent == Path(get_settings().archive_upload_dir):
                 path.unlink(missing_ok=True)  # uploadede filer er nu i databasen og skal ikke ligge tilbage
             rows_total += n
             if dmin and (earliest is None or dmin < earliest):
                 earliest = dmin
+            if dmax and (latest is None or dmax > latest):
+                latest = dmax
             await r.hset(PROGRESS, mapping={"files_done": i, "rows_total": rows_total, "last_file": path.name})
             log.info("Arkiv %s: %s rækker (%.1fs)", path.name, n, time.time() - t0)
         await r.hset(PROGRESS, mapping={"status": "aggregating"})
@@ -135,11 +148,11 @@ async def run_import(stop_after: int | None = None) -> dict:
         if earliest:
             from portal.services.phenology import refresh_aggregates
             async with ObsSession() as s:
-                await refresh_aggregates(s, earliest)
+                await refresh_aggregates(s, earliest, latest)
             await jobstatus.step("Arter pr. år", len(files), len(files))
             from portal.services.regions import refresh as refresh_regions
             async with ObsSession() as s:
-                await refresh_regions(s, earliest.year)
+                await refresh_regions(s, earliest.year, latest.year)
         await bump("lists")
         await bump("feed")
         await r.hset(PROGRESS, mapping={"status": "done", "finished": time.time()})
