@@ -1,7 +1,7 @@
 // Tur: kun denne turs observationer. Her tilføjes og rettes observationer (+1 / +10 på hver), og ynglepar.
 // Selve turens oplysninger redigeres på sin egen side (tur-form.js).
 import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT, todayISO } from "../core.js";
-import { tracker, trackStart, trackPause, trackStop, trackLength, nowHM, finishTrack } from "../tur-data.js";
+import { tracker, nowHM, finishTrack } from "../tur-data.js";
 import { quickSpecies } from "../tur-quick.js";
 import { isApp } from "../native.js";
 import { newId } from "../offline.js";
@@ -78,32 +78,11 @@ export function view(page, ref, store_, recent) {
     ...T.disturbances.map(d => h("div", {}, h("b", {}, ref.forstyrrelser.find(x => x.id === d.type_id)?.navn || "Forstyrrelse"),
       h("small", { class: "muted" }, [d.antal != null ? ` · ${d.antal} stk.` : "", d.noter ? ` · ${d.noter}` : ""].join(""))))) : null;
 
-  // --- GPS-rute
-  const gpsInfo = h("span", {});
-  const gpsBtns = h("div", { class: "row", style: { gap: "6px" } });
-  const gpsRow = h("div", { class: "gps-row" }, h("span", { class: "gps-info", html: icon("pin") }, gpsInfo), gpsBtns);
-  const drawGps = () => {
-    const n = T.gps_track.length, active = tracker.cid === T.client_id && tracker.watch != null;
-    gpsInfo.textContent = n ? `Rute: ${(trackLength(T.gps_track) / 1000).toFixed(2).replace(".", ",")} km · ${n} punkter${active ? " · optager" : ""}` : "Ingen GPS-rute";
-    gpsRow.classList.toggle("on", active);
-    gpsBtns.replaceChildren(
-      active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); store_.save(); drawGps(); } }, "Pause")
-        : h("button", { class: "btn sm", type: "button", html: `${icon("pin")} ${n ? "Fortsæt rute" : "Start rute"}`, onclick: startGps }),
-      n || active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); T.gps_aktiv = n > 0; store_.save(); drawGps(); } }, "Stop") : null,
-      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { if (confirm("Slet den optagede rute?")) { trackStop(); T.gps_track = []; T.gps_aktiv = false; store_.save(); drawGps(); } } }, "Slet rute") : null);
-  };
-  const startGps = () => {
-    if (!navigator.geolocation) return toast("Enheden understøtter ikke positionsbestemmelse", "err");
-    if (!T.gps_aktiv && state.user?.prefs?.trip_gps !== "on" && !confirm("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. " + (isApp() ? "I appen optages ruten også med slukket skærm." : "Hold appen åben under turen."))) return;
-    T.gps_aktiv = true;
-    trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
-    store_.save(); drawGps();
-  };
   // Afslut tur: sluttid (nu, hvis den mangler), ruten stoppes og beskæres til turens tidsrum, turen gemmes – og så tilbydes
   // de almindelige arter på lokaliteten, som endnu ikke står på turen
-  const finishBtn = h("button", { class: "btn", type: "button", onclick: async () => {
+  const finishBtn = h("button", { class: "btn danger solid tur-finish", type: "button", onclick: async () => {
     if (!T.turtidtil && T.dato === todayISO()) T.turtidtil = nowHM();
-    finishTrack(T); drawGps();
+    finishTrack(T);
     finishBtn.disabled = true;
     const status = await store_.saveNow();
     finishBtn.disabled = false;
@@ -111,9 +90,10 @@ export function view(page, ref, store_, recent) {
     if (status === "offline") toast("Ingen forbindelse – turen er gemt på enheden og sendes automatisk", "ok");
     await quickSpecies(T, ref, (added) => { T.observations.push(...added); store_.save(); drawRows(); });
   } }, "Afslut tur");
+  // GPS-ruten styres under turens data (tur-form.js); mens den optages, gemmes turen her mindst hvert minut
   if (tracker.cid === T.client_id) T.gps_track = tracker.points;
   let lastSave = 0;
-  const onPoint = () => { drawGps(); if (Date.now() - lastSave > 60000) { lastSave = Date.now(); store_.save(); } };
+  const onPoint = () => { if (tracker.cid === T.client_id && Date.now() - lastSave > 60000) { lastSave = Date.now(); store_.save(); } };
   tracker.listeners.add(onPoint);
 
   // --- tale-indtastning (kun i appen): hold knappen inde på fanen Tale, sig fx «2 bomlærker syd», slip.
@@ -136,11 +116,12 @@ export function view(page, ref, store_, recent) {
     if (!voiceBtn.classList.contains("on")) padLabel.textContent = voiceReady ? "Hold nede og tal" : "Talemodellen mangler – se ovenfor";
   };
   const fitFeed = () => {
-    if (curTab !== "tale") { speechScroll.style.maxHeight = ""; return; }
+    if (curTab !== "tale") { speechScroll.style.height = ""; return; }
     window.scrollTo(0, 0);
-    // Feedet slutter over fortolkningsboksen (hvis den vises), som igen står lige over mikrofonfeltet – begge er faste
+    // Feedet fylder op til fortolkningsboksen (hvis den vises), som igen står lige over mikrofonfeltet – begge er faste.
+    // Posterne står nederst i feedet (CSS), så den nyeste altid er lige over boksen
     const stop = (voiceStatus.classList.contains("hide") ? voiceBtn : voiceStatus).getBoundingClientRect().top;
-    speechScroll.style.maxHeight = `${Math.max(120, Math.floor(stop - speechScroll.getBoundingClientRect().top - 10))}px`;
+    speechScroll.style.height = `${Math.max(120, Math.floor(stop - speechScroll.getBoundingClientRect().top - 8))}px`;
   };
   const toBottom = () => requestAnimationFrame(() => { fitFeed(); speechScroll.scrollTop = speechScroll.scrollHeight; });
   window.addEventListener("resize", fitFeed);
@@ -291,25 +272,29 @@ export function view(page, ref, store_, recent) {
   const reuseBox = h("input", { type: "checkbox", checked: reuse.on, onchange: (e) => { reuse.on = e.target.checked; store("turreuse", reuse.on); } });
   const time = [T.turtidfra, T.turtidtil].filter(Boolean).join(" – ");
   const obsCard = h("div", { class: "card stack" }, h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Observationer"), countEl),
-    gpsRow, h("label", { class: "check" }, reuseBox, h("span", {}, "Genanvend adfærd")), obsList);
-  // Tale: kun feedet med de indtalte poster (nyeste nederst, ved mikrofonen) – ingen GPS, ynglepar eller knapper
+    h("label", { class: "check" }, reuseBox, h("span", {}, "Genanvend adfærd")), obsList);
+  // Tale: kun feedet med de indtalte poster (nyeste nederst, ved mikrofonen) – ingen ynglepar eller knapper
   const taleCard = h("div", { class: "stack" }, speechScroll);
   speechScroll.append(speechList);
   const extras = h("div", { class: "tur-extra stack" }, pairCard, dist);
   const tabsEl = showTale ? tabs([["obs", "Observationer", obsCard], ["tale", "Tale", taleCard]], {
     onChange: (k) => { curTab = k; page.classList.toggle("tale-mode", k === "tale"); syncVoiceBtn(); if (k === "tale") toBottom(); } }) : null;
+  tabsEl?.panels.classList.add("tur-panels");
   page.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("p", { style: { margin: 0 } }, h("a", { href: "#/indtast" }, "← Mine indtastninger")),
       h("h1", { style: { marginTop: "4px" } }, T.lok || "Tur"),
       h("p", { class: "lead tur-date", html: `${icon("calendar")} ` }, [fmtDate(T.dato), time].filter(Boolean).join(" · "))),
       h("span", { class: "spacer" }), chip,
-      h("a", { class: "btn tur-edit", href: `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}/ret`, html: `${icon("edit")} Redigér tur` })),
+      h("div", { class: "row tur-actions" }, finishBtn,
+        h("a", { class: "btn tur-edit", href: `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}/ret`, html: `${icon("edit")} Redigér tur` }))),
     T.on_behalf_of ? h("div", { class: "notice warn mb" }, `Indtastet på vegne af ${T.on_behalf_of}.`) : null,
     showTale ? tabsEl.bar : null, showTale ? tabsEl.panels : obsCard,
     extras,
-    h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"), finishBtn,
-      h("button", { class: "btn primary grow", type: "button", html: `${icon("plus")} Observation`, onclick: () => edit() })),
+    // Ynglepar (1/3) og Observation (2/3) som store felter i samme stil som mikrofonfeltet på fanen Tale
+    h("div", { class: "tur-bar" },
+      h("button", { class: "tur-pad", type: "button", onclick: () => addPair() }, h("span", { class: "tur-pad-icon", html: icon("home") }), "Ynglepar"),
+      h("button", { class: "tur-pad primary", type: "button", onclick: () => edit() }, h("span", { class: "tur-pad-icon", html: icon("plus") }), "Observation")),
     showTale ? [voiceStatus, voiceBtn] : null);
-  drawRows(); drawSpeech(); drawPairs(); drawGps();
+  drawRows(); drawSpeech(); drawPairs();
   return () => { unsub(); tracker.listeners.delete(onPoint); clearInterval(fadeTimer); window.removeEventListener("resize", fitFeed); page.classList.remove("tale-mode"); stopVoice?.(); };
 }

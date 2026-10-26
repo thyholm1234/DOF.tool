@@ -144,6 +144,7 @@ function startOffline() {
   if (offlineStarted) return;
   offlineStarted = true;
   import("./offline.js").then(m => m.start());
+  import("./tur-data.js").then(m => m.warmOffline());  // opslag, lokaliteter og de seneste ture til indtastning uden net
 }
 
 export async function refreshUnread() {

@@ -834,8 +834,16 @@ progress { accent-color: var(--brand); height: 10px; }
 .link-btn { border: 0; background: none; padding: 0; font: inherit; font-size: .82rem; font-weight: 650; color: var(--brand); cursor: pointer; }
 .sync-chip { font-size: .78rem; font-weight: 650; padding: 4px 10px; border-radius: 99px; background: var(--bg-2); color: var(--text-2); align-self: center; }
 .sync-chip.ok { color: var(--ok); } .sync-chip.off { color: var(--warn); } .sync-chip.err { color: var(--err); }
-.tur-bar { position: sticky; bottom: 0; display: flex; gap: 10px; padding: 10px 0; margin-top: 12px; background: var(--bg); border-top: 1px solid var(--line); z-index: 5; }
-.tur-bar .btn { height: 46px; font-size: 1rem; }
+/* Bunden af turen: Ynglepar (1/3) og Observation (2/3) som store felter i samme stil som mikrofonfeltet på fanen Tale */
+.tur-bar { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 2fr; gap: 10px; padding: 12px 0; margin-top: 12px; background: var(--bg); z-index: 5; }
+.tur-pad { height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 16px;
+  border: 2px solid color-mix(in srgb, var(--brand) 40%, transparent); background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+  color: var(--brand); font: 700 1rem/1.2 var(--font); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.tur-pad.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.tur-pad:active { filter: brightness(.94); }
+.tur-pad-icon svg { width: 26px; height: 26px; }
+.tur-actions { gap: 8px; flex-wrap: nowrap; }
+.tur-panels { margin-top: 12px; }
 /* Tale-indtastning: knappen holdes inde; mens den lytter, pulserer den */
 /* Tale-fanen: kun feedet og et fast mikrofonfelt nederst (flytter sig ikke, og siden scroller ikke under fingeren) */
 .voice-pad { position: fixed; z-index: 55; left: 16px; right: 16px; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); height: 72px;
@@ -848,9 +856,11 @@ progress { accent-color: var(--brand); height: 10px; }
   box-shadow: 0 0 0 calc(2px + var(--lvl, 0) * 12px) color-mix(in srgb, var(--su) 30%, transparent); transition: box-shadow .08s; }
 .voice-pad.disabled { opacity: .55; cursor: default; }
 .tale-mode .voice-pad { display: flex; }
-.tale-mode .tur-bar, .tale-mode .tur-extra, .tale-mode .tur-edit, .tale-mode .tur-date { display: none; }
+.tale-mode .tur-bar, .tale-mode .tur-extra, .tale-mode .tur-actions, .tale-mode .tur-date { display: none; }
 .tale-mode .page-head { margin-bottom: 4px; }
-.speech-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; gap: 8px; align-content: start; }
+/* Posterne står nederst (margin-top: auto), så den nyeste er lige over fortolkningsboksen – også når der kun er få */
+.speech-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; }
+.speech-scroll > .speech-feed { margin-top: auto; }
 /* Fortolkningen står i en fast boks lige over mikrofonfeltet (Hørt, Tilføjet, Fortryd) – ikke inde i feedet */
 .voice-status { display: none; }
 .tale-mode .voice-status:not(.hide) { display: flex; position: fixed; z-index: 55; left: 16px; right: 16px; margin: 0; max-height: 28vh; overflow-y: auto;
@@ -859,7 +869,7 @@ progress { accent-color: var(--brand); height: 10px; }
 .speech-feed .obs-row.speech-old { opacity: .45; }
 @media (min-width: 900px) { .voice-pad { left: auto; right: 24px; bottom: 24px; width: 420px; }
   .tale-mode .voice-status:not(.hide) { left: auto; right: 24px; width: 420px; bottom: calc(24px + 72px + 8px); } }
-/* GPS-ruten som én linje øverst i Observationer */
+/* GPS-ruten som én linje under turens data */
 .gps-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 6px 10px;
   border-radius: 10px; background: var(--bg-2); font-size: .88rem; color: var(--text-2); }
 .gps-row .gps-info { display: inline-flex; align-items: center; gap: 6px; }

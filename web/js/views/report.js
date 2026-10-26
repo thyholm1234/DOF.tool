@@ -3,7 +3,7 @@
 import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
 import { baseMap } from "../maps.js";
 import { statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
-import { listLocal, syncAll } from "../offline.js";
+import { listLocal, syncAll, cachedApi } from "../offline.js";
 
 let CODES = null;
 let SPECIES = null;
@@ -33,7 +33,7 @@ async function startPage(view) {
   const loadMine = async () => { try { drawMine(listEl, await api("/api/reports/mine")); } catch (err) { listEl.replaceChildren(errorBox(err)); } };
   const loadTrips = async () => {
     const local = await listLocal().catch(() => []);
-    try { drawTrips(tripsEl, await api("/api/trips/mine"), local, loadTrips); } catch (err) { drawTrips(tripsEl, null, local, loadTrips, err); }
+    try { drawTrips(tripsEl, await cachedApi("tripsmine", "/api/trips/mine"), local, loadTrips); } catch (err) { drawTrips(tripsEl, null, local, loadTrips, err); }
   };
   let recent = { locations: [], species: [], adf: [] };
   try { recent = await api("/api/reports/recent"); } catch { /* formularen virker uden */ }

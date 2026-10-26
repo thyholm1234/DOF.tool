@@ -1,8 +1,9 @@
 // Opret/redigér tur på sin egen side: Turens data · Vejret · Forstyrrelser. Gemmer og går derefter til turens observationer.
 import { api, h, icon, fmtDate, todayISO, toast, state } from "../core.js";
-import { nowHM, tripHash, tracker, trackStart, finishTrack, trimTrack } from "../tur-data.js";
+import { nowHM, tripHash, tracker, trackStart, trackStop, finishTrack, trimTrack, findLocations, nearestLocations } from "../tur-data.js";
+import { forgetTrip } from "../offline.js";
 import { isApp } from "../native.js";
-import { tabs, field, reqField, fail, pickPosition } from "../tur-ui.js";
+import { tabs, field, reqField, fail, pickPosition, gpsControl } from "../tur-ui.js";
 
 const num = (v) => v === "" || v == null ? null : Number(v);
 
@@ -36,12 +37,12 @@ export function form(page, ref, store_, recent, isNew) {
     lokT = setTimeout(async () => {
       const q = lokQ.value.trim();
       if (q.length < 2) return;
-      try { fillLocs(await api(`/api/locations?q=${encodeURIComponent(q)}`), "Vælg blandt søgeresultaterne …"); } catch (err) { toast(err.message, "err"); }
+      try { fillLocs(await findLocations(q), "Vælg blandt søgeresultaterne …"); } catch (err) { toast(err.message, "err"); }
     }, 250);
   };
   const nearTo = async (lat, lon) => {
     try {
-      const rows = (await api(`/api/reports/near?lat=${lat}&lon=${lon}`)).slice(0, 12);
+      const rows = await nearestLocations(lat, lon, 12);
       fillLocs(rows, "Nærmeste lokaliteter …");
       if (rows[0]) { lokSel.value = String(rows[0].loknr); setLok(rows[0].loknr); }
     } catch (err) { toast(err.message, "err"); }
@@ -72,6 +73,9 @@ export function form(page, ref, store_, recent, isNew) {
   const behalf = bind(h("input", { type: "text", maxlength: 16, placeholder: "Obserkode, fx 8220CVH", style: { textTransform: "uppercase" } }), "on_behalf_of", (v) => v.trim().toUpperCase());
   const behalfBox = h("details", { class: "more", open: !!T.on_behalf_of }, h("summary", {}, "Indtast på vegne af en anden observatør"),
     h("div", { class: "mt stack" }, field("Observatørens obserkode", behalf), h("small", { class: "muted" }, "Observationerne registreres på den obserkode, men vises som indtastet af dig.")));
+
+  // GPS-ruten styres her under turens data; den gemmes med turen
+  const gps = gpsControl(T);
 
   // --- Vejret
   const wx = {};  // vejrfelternes inputs, så DMI-vejret kan sættes ind
@@ -132,6 +136,7 @@ export function form(page, ref, store_, recent, isNew) {
   const t = tabs([
     ["data", "Turens data", [lokF.el, datoF.el,
       h("div", { class: "form-grid two" }, timeBox("Starttid", start, "turtidfra"), timeBox("Sluttid", slut, "turtidtil")),
+      h("div", { class: "field" }, h("span", { class: "label" }, "GPS-rute"), gps.el),
       field("Metode", metode), field("Komplet artsliste?", komplet),
       h("label", { class: "check" }, spontan, h("span", {}, "Spontan observation (ikke planlagt tur)")),
       field("Medobservatører", medobs), field("Turnoter", noter), behalfBox]],
@@ -159,8 +164,8 @@ export function form(page, ref, store_, recent, isNew) {
     if (status === "fejl") return;
     if (status === "offline") toast("Ingen forbindelse – turen er gemt på enheden og sendes automatisk", "ok");
     // GPS-rute på en ny tur i dag: efter brugerens valg i profilen (spørg / altid / aldrig)
-    const gps = state.user?.prefs?.trip_gps || "ask";
-    if (isNew && T.dato === todayISO() && navigator.geolocation && (gps === "on" || (gps === "ask" && confirm(
+    const gpsPref = state.user?.prefs?.trip_gps || "ask";
+    if (isNew && !T.gps_aktiv && T.dato === todayISO() && navigator.geolocation && (gpsPref === "on" || (gpsPref === "ask" && confirm(
       "Vil du optage din rute med GPS på turen?\n\nRuten gemmes på din enhed og sendes med turen. " +
       (isApp() ? "I appen optages den også med slukket skærm. " : "Hold siden åben under turen. ") +
       "Du kan stoppe den på turen, og under Min profil kan du vælge, om der skal spørges næste gang.")))) {
@@ -175,9 +180,9 @@ export function form(page, ref, store_, recent, isNew) {
     h("div", { class: "sheet-head" }, h("div", {}, h("small", { class: "kicker" }, isNew ? "Ny tur" : "Ret tur"), titleEl, h("div", { class: "sheet-sub", html: `${icon("calendar")} ` }, sub)),
       !isNew ? h("button", { class: "btn sm danger solid", type: "button", html: `${icon("trash")} Slet tur`, onclick: async () => {
         if (!confirm("Er du sikker på at du vil slette turen og alle dens observationer?")) return;
-        try { if (T.server_id) await api(`/api/trips/${T.server_id}`, { method: "DELETE" }); await store_.discard(); toast("Turen er slettet"); location.hash = "#/indtast"; } catch (err) { toast(err.message, "err"); }
+        try { if (T.server_id) { await api(`/api/trips/${T.server_id}`, { method: "DELETE" }); await forgetTrip(T.server_id); } await store_.discard(); toast("Turen er slettet"); location.hash = "#/indtast"; } catch (err) { toast(err.message, "err"); }
       } }) : null),
     t.bar, h("div", { class: "sheet-body" }, t.panels),
-    h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: async () => { if (isNew) await store_.discard(); back(); } }, "Annullér"), submit)));
-  return () => {};
+    h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: async () => { if (isNew) { if (tracker.cid === T.client_id) trackStop(); await store_.discard(); } back(); } }, "Annullér"), submit)));
+  return () => gps.destroy();
 }

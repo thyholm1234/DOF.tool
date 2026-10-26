@@ -10,14 +10,16 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+import gzip
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.api.reports import ReportIn, TIME, _check_guidelines, _hhmm, _in_background, _location_exists, _remove_files, _validate_codes
-from portal.cache import publish
+from portal.cache import cached, publish, version
 from portal.db import get_session
 from portal.models import FieldBreedingPair, FieldDisturbance, FieldReport, FieldTrip, ThreadFollow, User
 from portal.services import activity, dku, dmi, features, pulse, reports
@@ -235,6 +237,33 @@ async def trip_out(db: AsyncSession, t: FieldTrip, user: User) -> dict:
                                for p in pairs],
             "disturbances": [{"id": d.id, "client_id": d.client_id, "type_id": d.type_id, "antal": d.antal, "noter": d.noter}
                              for d in dist]}
+
+
+@router.get("/offline/locations")
+async def offline_locations(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Alle lokaliteter i kompakt form, så telefonen kan søge og finde nærmeste lokalitet uden net. Hentes ca. en gang om
+    ugen; kommunerne står én gang og refereres med indeks. Sendes gzip'et (et par MB som rå JSON)."""
+    async def produce():
+        rows = (await db.execute(text("""
+            SELECT l.loknr, l.navn, l.lat, l.lon, k.navn FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode
+            ORDER BY l.loknr"""))).all()
+        kommuner: dict[str, int] = {}
+        out = [[n, navn, round(lat, 5) if lat is not None else None, round(lon, 5) if lon is not None else None,
+                kommuner.setdefault(kom, len(kommuner)) if kom else None] for n, navn, lat, lon, kom in rows]
+        return {"kommuner": list(kommuner), "rows": out}
+    data = await cached(f"trip:offlinelocs:{await version('reference')}", 86400, produce)
+    raw = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()
+    if "gzip" in request.headers.get("accept-encoding", ""):
+        return Response(gzip.compress(raw, 6), media_type="application/json", headers={"Content-Encoding": "gzip", "Vary": "Accept-Encoding"})
+    return Response(raw, media_type="application/json")
+
+
+@router.get("/recent")
+async def recent_trips(days: int = Query(14, ge=1, le=31), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Egne ture fra de seneste dage i fuld form – telefonen gemmer dem, så de kan åbnes og rettes uden net."""
+    trips = (await db.execute(select(FieldTrip).where(FieldTrip.user_id == user.id, FieldTrip.dato >= dk_today() - timedelta(days=days))
+                              .order_by(FieldTrip.dato.desc(), FieldTrip.id.desc()).limit(100))).scalars().all()
+    return [await trip_out(db, t, user) for t in trips]
 
 
 @router.get("/{trip_id:int}")

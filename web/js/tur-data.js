@@ -1,15 +1,60 @@
 // Fælles data og logik for tur-siderne: opslag, GPS-rute, tur-modellen og lagring (server eller offline-kø).
 import { api, toast, todayISO } from "./core.js";
 import { watchPosition, isApp } from "./native.js";
-import { newId, putLocal, getLocal, deleteLocal, listLocal, upload, isNetworkError } from "./offline.js";
+import { newId, putLocal, getLocal, deleteLocal, listLocal, upload, isNetworkError, cachedApi, cacheGet, cachePut, cachedTrip, rememberTrip, RECENT_DAYS } from "./offline.js";
 
 export const nowHM = () => new Date().toTimeString().slice(0, 5);
 
-let REF = null;  // arter, kodelister, turopslag
+let REF = null;  // arter, kodelister, turopslag – gemt på enheden, så formularerne virker uden net
 export async function loadRef() {
   if (REF) return REF;
-  const [species, codes, lookups] = await Promise.all([api("/api/reports/species"), api("/api/reports/codes"), api("/api/trips/lookups")]);
+  const [species, codes, lookups] = await Promise.all([cachedApi("species", "/api/reports/species"), cachedApi("codes", "/api/reports/codes"),
+    cachedApi("lookups", "/api/trips/lookups")]);
   return REF = { species, codes, ...lookups };
+}
+/** Seneste lokaliteter, arter og adfærd (også uden net). */
+export const loadRecent = () => cachedApi("recent", "/api/reports/recent").catch(() => ({ locations: [], species: [], adf: [] }));
+
+// ---------------------------------------------------------------- lokaliteter på enheden (søgning og nærmeste uden net)
+
+const LOC_MAX_AGE = 7 * 86400000;
+let LOCS = null, locLoading = null;
+const unpackLocs = ({ kommuner, rows }) => rows.map(([loknr, navn, lat, lon, k]) => ({ loknr, navn, lat, lon, kommune: k == null ? null : kommuner[k] }));
+function refreshLocs() {
+  return locLoading ||= api("/api/trips/offline/locations")
+    .then((v) => { LOCS = unpackLocs(v); return cachePut("locations", v); })
+    .catch(() => {}).finally(() => { locLoading = null; });
+}
+/** Alle lokaliteter fra enheden (hentes igen, når kopien er over en uge gammel). null, hvis de aldrig er hentet. */
+async function locIndex() {
+  if (LOCS) return LOCS;
+  const c = await cacheGet("locations");
+  if (c) LOCS = unpackLocs(c.value);
+  if (!c || Date.now() - c.at > LOC_MAX_AGE) { const p = refreshLocs(); if (!c) await p; }
+  return LOCS;
+}
+/** Søg lokalitet på navn – som /api/locations (navne der begynder med søgeordet først, så de korteste). */
+export async function findLocations(q) {
+  const locs = await locIndex();
+  if (!locs) return api(`/api/locations?q=${encodeURIComponent(q)}`);
+  const ql = q.toLowerCase();
+  return locs.filter(l => l.navn.toLowerCase().includes(ql))
+    .sort((a, b) => b.navn.toLowerCase().startsWith(ql) - a.navn.toLowerCase().startsWith(ql) || a.navn.length - b.navn.length).slice(0, 25);
+}
+/** Nærmeste lokaliteter med afstand i km – som /api/reports/near. */
+export async function nearestLocations(lat, lon, n = 20) {
+  const locs = await locIndex();
+  if (!locs) return api(`/api/reports/near?lat=${lat}&lon=${lon}`);
+  return locs.filter(l => l.lat != null).map(l => ({ ...l, km: Math.round(meters([lat, lon], [l.lat, l.lon]) / 10) / 100 }))
+    .sort((a, b) => a.km - b.km).slice(0, n);
+}
+
+/** Lægger opslag, lokaliteter og de seneste ture på enheden. Kaldes ved opstart (højst hvert 10. minut). */
+export async function warmOffline() {
+  try { if (Date.now() - Number(localStorage.getItem("offline-warm") || 0) < 600000) return; localStorage.setItem("offline-warm", String(Date.now())); } catch { /* ingen localStorage */ }
+  await Promise.allSettled([loadRef(), loadRecent(), locIndex(), cachedApi("tripsmine", "/api/trips/mine"),
+    api(`/api/trips/recent?days=${RECENT_DAYS}`).then(v => cachePut("trips14", v))]);
+  import("./views/tur.js").catch(() => {});  // tur-siderne hentes, så service workeren har dem til brug uden net
 }
 
 // ---------------------------------------------------------------- GPS-rute (lever videre, når man forlader siden)
@@ -120,7 +165,14 @@ export async function openTrip(which, ref) {
     : (await listLocal()).find(r => r.server_id === Number(which));
   if (local?.draft) return { T: { ...local.draft, server_id: local.server_id ?? local.draft.server_id }, files: local.files || {} };
   if (which.startsWith("lokal/")) throw new Error("Turen findes ikke på denne enhed");
-  return { T: fromServer(await api(`/api/trips/${which}`), ref), files: {} };
+  let t;
+  try { t = await api(`/api/trips/${which}`); rememberTrip(t); }
+  catch (err) {
+    if (!isNetworkError(err)) throw err;
+    t = await cachedTrip(Number(which));  // uden net: kopien fra de seneste 14 dage
+    if (!t) throw new Error(`Ingen forbindelse – kun ture fra de seneste ${RECENT_DAYS} dage kan åbnes uden net`);
+  }
+  return { T: fromServer(t, ref), files: {} };
 }
 
 export const tripHash = (T, suffix = "") => `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}${suffix}`;

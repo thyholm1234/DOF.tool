@@ -16,6 +16,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
   if (url.pathname === "/api/stream" || url.pathname === "/api/me/export") return;  // udtrækket må aldrig ligge i cachen
+  // Ture og deres opslag caches af siden selv i IndexedDB (offline.js) – en forældet kopi her ville skjule, at vi er offline
+  if (url.pathname.startsWith("/api/trips/")) return;
   if (url.origin !== location.origin) {
     // Kortfliser: cache-først
     if (url.hostname.endsWith("tile.openstreetmap.org")) {

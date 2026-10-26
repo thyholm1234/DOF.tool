@@ -4,21 +4,55 @@ import { api, toast } from "./core.js";
 
 const DB = "doftool-ture";
 let dbp = null;
+// v2: lageret "cache" med opslag (arter, koder, lokaliteter) og de seneste ture, så der kan indtastes og rettes uden net
 const open = () => dbp ||= new Promise((resolve, reject) => {
-  const req = indexedDB.open(DB, 1);
-  req.onupgradeneeded = () => req.result.createObjectStore("ture", { keyPath: "client_id" });
+  const req = indexedDB.open(DB, 2);
+  req.onupgradeneeded = () => {
+    const db = req.result;
+    if (!db.objectStoreNames.contains("ture")) db.createObjectStore("ture", { keyPath: "client_id" });
+    if (!db.objectStoreNames.contains("cache")) db.createObjectStore("cache", { keyPath: "key" });
+  };
   req.onsuccess = () => resolve(req.result);
   req.onerror = () => reject(req.error);
 });
-const tx = async (mode, fn) => {
+const tx = async (mode, fn, store = "ture") => {
   const db = await open();
   return new Promise((resolve, reject) => {
-    const t = db.transaction("ture", mode);
-    const out = fn(t.objectStore("ture"));
+    const t = db.transaction(store, mode);
+    const out = fn(t.objectStore(store));
     t.oncomplete = () => resolve(out?.result);
     t.onerror = () => reject(t.error);
   });
 };
+
+/** Lokal cache: { key, value, at }. Fejl (fx privat vindue uden IndexedDB) giver bare ingen cache. */
+export const cachePut = (key, value) => tx("readwrite", (s) => s.put({ key, value, at: Date.now() }), "cache").catch(() => {});
+export const cacheGet = (key) => tx("readonly", (s) => s.get(key), "cache").catch(() => null);
+
+/** Henter fra serveren og gemmer svaret lokalt; uden forbindelse bruges den lokale kopi (andre fejl kastes videre). */
+export async function cachedApi(key, path) {
+  try { const v = await api(path); cachePut(key, v); return v; }
+  catch (err) {
+    if (!isNetworkError(err)) throw err;
+    const c = await cacheGet(key);
+    if (c) return c.value;
+    throw err;
+  }
+}
+
+// De seneste 14 dages ture i fuld form ("trips14"), så de kan åbnes og rettes uden net. Holdes ajour ved hver gemning.
+export const RECENT_DAYS = 14;
+const recentCutoff = () => new Date(Date.now() - RECENT_DAYS * 86400000).toISOString().slice(0, 10);
+export async function rememberTrip(saved) {
+  const list = ((await cacheGet("trips14"))?.value || []).filter(t => t.id !== saved.id && t.dato >= recentCutoff());
+  if (saved.dato >= recentCutoff()) list.unshift(saved);
+  await cachePut("trips14", list);
+}
+export async function forgetTrip(id) {
+  const c = await cacheGet("trips14");
+  if (c) await cachePut("trips14", c.value.filter(t => t.id !== id));
+}
+export const cachedTrip = async (id) => (await cacheGet("trips14"))?.value.find(t => t.id === id) || null;
 
 export const newId = () => (crypto.randomUUID?.() || `${Date.now()}${Math.random()}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 36);
 
@@ -35,6 +69,7 @@ export async function upload(rec) {
   const saved = rec.server_id
     ? await api(`/api/trips/${rec.server_id}`, { method: "PUT", body: rec.body })
     : await api("/api/trips", { method: "POST", body: rec.body });
+  rememberTrip(saved);
   const left = {};
   for (const [cid, files] of Object.entries(rec.files || {})) {
     const obs = saved.observations.find(o => o.client_id === cid);

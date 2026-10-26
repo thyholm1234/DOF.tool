@@ -1,6 +1,8 @@
 // Fælles byggeklodser til tur-siderne: faner, bund-ark (popup), felter med "Udfyldt"-mærke, artsvælger og kortvalg.
-import { h, icon, tag, toast, searchSpecies, modal } from "./core.js";
+import { h, icon, tag, toast, searchSpecies, modal, state } from "./core.js";
 import { baseMap } from "./maps.js";
+import { tracker, trackStart, trackPause, trackStop, trackLength } from "./tur-data.js";
+import { isApp } from "./native.js";
 
 export const req = () => h("span", { class: "req", title: "Påkrævet" }, "påkrævet");
 export const field = (label, el, required) => h("label", { class: "field" }, h("span", {}, label, required ? [" ", req()] : null), el);
@@ -114,4 +116,34 @@ export function pickPosition(current, center, done) {
   const set = (p, fly) => { pos = p; marker?.remove(); marker = L.marker(p).addTo(mp); info.textContent = `${p[0].toFixed(5)}, ${p[1].toFixed(5)}`; if (fly) mp.setView(p, 16); };
   if (pos) set(pos);
   mp.on("click", (e) => set([e.latlng.lat, e.latlng.lng]));
+}
+
+/** GPS-rute: én linje med længde og Start/Pause/Stop/Slet. onChange() kaldes efter hver ændring af turen (fx for at gemme).
+ *  Ruten optages videre, når man forlader siden; destroy() fjerner kun visningens lytter. */
+export function gpsControl(T, onChange = () => {}) {
+  const info = h("span", {});
+  const btns = h("div", { class: "row", style: { gap: "6px" } });
+  const el = h("div", { class: "gps-row" }, h("span", { class: "gps-info", html: icon("pin") }, info), btns);
+  const changed = () => { onChange(); draw(); };
+  const start = () => {
+    if (!navigator.geolocation) return toast("Enheden understøtter ikke positionsbestemmelse", "err");
+    if (!T.gps_aktiv && state.user?.prefs?.trip_gps !== "on" && !confirm("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. " + (isApp() ? "I appen optages ruten også med slukket skærm." : "Hold appen åben under turen."))) return;
+    T.gps_aktiv = true;
+    trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
+    changed();
+  };
+  function draw() {
+    const n = T.gps_track.length, active = tracker.cid === T.client_id && tracker.watch != null;
+    info.textContent = n ? `Rute: ${(trackLength(T.gps_track) / 1000).toFixed(2).replace(".", ",")} km · ${n} punkter${active ? " · optager" : ""}` : "Ingen GPS-rute";
+    el.classList.toggle("on", active);
+    btns.replaceChildren(
+      active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); changed(); } }, "Pause")
+        : h("button", { class: "btn sm", type: "button", html: `${icon("pin")} ${n ? "Fortsæt rute" : "Start rute"}`, onclick: start }),
+      n || active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); T.gps_aktiv = n > 0; changed(); } }, "Stop") : null,
+      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { if (confirm("Slet den optagede rute?")) { trackStop(); T.gps_track = []; T.gps_aktiv = false; changed(); } } }, "Slet rute") : null);
+  }
+  if (tracker.cid === T.client_id) T.gps_track = tracker.points;
+  tracker.listeners.add(draw);
+  draw();
+  return { el, destroy: () => tracker.listeners.delete(draw) };
 }
