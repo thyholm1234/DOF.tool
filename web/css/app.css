@@ -838,29 +838,34 @@ progress { accent-color: var(--brand); height: 10px; }
 .tur-bar .btn { height: 46px; font-size: 1rem; }
 /* Tale-indtastning: knappen holdes inde; mens den lytter, pulserer den */
 /* Tale-fanen: kun feedet og et fast mikrofonfelt nederst (flytter sig ikke, og siden scroller ikke under fingeren) */
-.voice-pad { position: fixed; z-index: 55; left: 16px; right: 16px; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); height: 120px;
-  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-radius: 18px;
+.voice-pad { position: fixed; z-index: 55; left: 16px; right: 16px; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); height: 72px;
+  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 16px;
   border: 2px solid color-mix(in srgb, var(--su) 45%, transparent); background: color-mix(in srgb, var(--su) 14%, var(--surface));
   color: var(--su); font: 700 1rem/1.2 var(--font); cursor: pointer;
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-.voice-pad-icon svg { width: 38px; height: 38px; }
+.voice-pad-icon svg { width: 28px; height: 28px; }
 .voice-pad.on { background: var(--su); border-color: var(--su); color: #fff;
   box-shadow: 0 0 0 calc(2px + var(--lvl, 0) * 12px) color-mix(in srgb, var(--su) 30%, transparent); transition: box-shadow .08s; }
 .voice-pad.disabled { opacity: .55; cursor: default; }
 .tale-mode .voice-pad { display: flex; }
-.tale-mode .tur-bar, .tale-mode .tur-extra { display: none; }
+.tale-mode .tur-bar, .tale-mode .tur-extra, .tale-mode .tur-edit, .tale-mode .tur-date { display: none; }
+.tale-mode .page-head { margin-bottom: 4px; }
 .speech-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; gap: 8px; align-content: start; }
-.speech-scroll > .voice-status { margin-top: 0; }
+/* Fortolkningen står i en fast boks lige over mikrofonfeltet (Hørt, Tilføjet, Fortryd) – ikke inde i feedet */
+.voice-status { display: none; }
+.tale-mode .voice-status:not(.hide) { display: flex; position: fixed; z-index: 55; left: 16px; right: 16px; margin: 0; max-height: 28vh; overflow-y: auto;
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px + 72px + 8px); box-shadow: var(--shadow); }
 .speech-feed .obs-row { transition: opacity .6s; }
 .speech-feed .obs-row.speech-old { opacity: .45; }
-@media (min-width: 900px) { .voice-pad { left: auto; right: 24px; bottom: 24px; width: 420px; } }
+@media (min-width: 900px) { .voice-pad { left: auto; right: 24px; bottom: 24px; width: 420px; }
+  .tale-mode .voice-status:not(.hide) { left: auto; right: 24px; width: 420px; bottom: calc(24px + 72px + 8px); } }
 /* GPS-ruten som én linje øverst i Observationer */
 .gps-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 6px 10px;
   border-radius: 10px; background: var(--bg-2); font-size: .88rem; color: var(--text-2); }
 .gps-row .gps-info { display: inline-flex; align-items: center; gap: 6px; }
 .gps-row .gps-info svg { width: 16px; height: 16px; }
 .gps-row.on { background: var(--brand-soft); color: var(--brand); }
-.voice-status { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 10px 12px;
+.voice-status { justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 12px;
   border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: .9rem; }
 .voice-status .err { color: var(--err); }
 @media (max-width: 899px) { .tur-bar { bottom: calc(var(--nav-h) + var(--safe-bottom)); } }

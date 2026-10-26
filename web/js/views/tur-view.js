@@ -115,9 +115,8 @@ export function view(page, ref, store_, recent) {
   const speechList = h("div", { class: "obs-list speech-feed" });
   // Feedet ruller i sin egen boks, der slutter lige over mikrofonfeltet – så glider intet ind under feltet
   const speechScroll = h("div", { class: "speech-scroll" });
-  const speechCount = h("small", { class: "muted" });
   let vCtx = null, stopVoice = null, vBusy = false, voiceReady = false, curTab = "obs";
-  const say = (...parts) => { voiceStatus.replaceChildren(...parts); voiceStatus.classList.remove("hide"); };
+  const say = (...parts) => { voiceStatus.replaceChildren(...parts); voiceStatus.classList.remove("hide"); toBottom(); };
   const describe = (e) => `${fmtN(e.antal)} ${e.art}${e.adfkode ? ` · ${adfText(e.adfkode) || e.adfkode}` : ""}`;
   const syncVoiceBtn = () => {
     voiceBtn.classList.toggle("disabled", !voiceReady);
@@ -126,8 +125,9 @@ export function view(page, ref, store_, recent) {
   const fitFeed = () => {
     if (curTab !== "tale") { speechScroll.style.maxHeight = ""; return; }
     window.scrollTo(0, 0);
-    const padTop = voiceBtn.getBoundingClientRect().top;  // fast felt: samme sted uanset scroll
-    speechScroll.style.maxHeight = `${Math.max(140, Math.floor(padTop - speechScroll.getBoundingClientRect().top - 12))}px`;
+    // Feedet slutter over fortolkningsboksen (hvis den vises), som igen står lige over mikrofonfeltet – begge er faste
+    const stop = (voiceStatus.classList.contains("hide") ? voiceBtn : voiceStatus).getBoundingClientRect().top;
+    speechScroll.style.maxHeight = `${Math.max(120, Math.floor(stop - speechScroll.getBoundingClientRect().top - 10))}px`;
   };
   const toBottom = () => requestAnimationFrame(() => { fitFeed(); speechScroll.scrollTop = speechScroll.scrollHeight; });
   window.addEventListener("resize", fitFeed);
@@ -197,7 +197,6 @@ export function view(page, ref, store_, recent) {
   const drawSpeech = () => {
     speechList.replaceChildren(...(T.speech.length ? T.speech.map(speechRow)
       : [h("p", { class: "muted", style: { margin: 0 } }, "Ingen indtalte poster endnu – hold knappen nede og sig fx «2 bomlærker syd».")]));
-    speechCount.textContent = T.speech.length ? `${T.speech.length} poster · ${fmtN(T.speech.reduce((t, e) => t + e.antal, 0))} fugle` : "";
   };
   const fadeTimer = setInterval(() => {
     for (const r of speechList.children) if (r.dataset.ts != null) r.classList.toggle("speech-old", Date.now() - Number(r.dataset.ts) > OLD_MS);
@@ -260,7 +259,7 @@ export function view(page, ref, store_, recent) {
       btn.disabled = true;
       try {
         await installModel(st.manifest, (done, total) => { btn.textContent = `Henter talemodel … ${Math.floor((done / total) * 100)} %`; });
-        voiceStatus.classList.add("hide"); voiceReady = true; syncVoiceBtn(); prepareModel();
+        voiceStatus.classList.add("hide"); toBottom(); voiceReady = true; syncVoiceBtn(); prepareModel();
       } catch (err) { btn.disabled = false; btn.textContent = "Prøv igen"; toast(err.message, "err"); }
     } }, st.installed ? `Opdatér talemodel (${mb} MB)` : `Hent talemodel (${mb} MB)`);
     say(h("div", { class: "row", style: { gap: "8px", alignItems: "center" } }, btn,
@@ -281,25 +280,23 @@ export function view(page, ref, store_, recent) {
   const obsCard = h("div", { class: "card stack" }, h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Observationer"), countEl),
     gpsRow, h("label", { class: "check" }, reuseBox, h("span", {}, "Genanvend adfærd")), obsList);
   // Tale: kun feedet med de indtalte poster (nyeste nederst, ved mikrofonen) – ingen GPS, ynglepar eller knapper
-  const taleCard = h("div", { class: "stack", style: { gap: "8px" } }, h("div", { class: "row between", style: { flexWrap: "nowrap" } },
-      h("small", { class: "muted" }, "Hver post for sig – under Observationer er samme art og adfærd lagt sammen."), speechCount),
-    speechScroll);
-  speechScroll.append(speechList, voiceStatus);
+  const taleCard = h("div", { class: "stack" }, speechScroll);
+  speechScroll.append(speechList);
   const extras = h("div", { class: "tur-extra stack" }, pairCard, dist);
   const tabsEl = showTale ? tabs([["obs", "Observationer", obsCard], ["tale", "Tale", taleCard]], {
     onChange: (k) => { curTab = k; page.classList.toggle("tale-mode", k === "tale"); syncVoiceBtn(); if (k === "tale") toBottom(); } }) : null;
   page.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("p", { style: { margin: 0 } }, h("a", { href: "#/indtast" }, "← Mine indtastninger")),
       h("h1", { style: { marginTop: "4px" } }, T.lok || "Tur"),
-      h("p", { class: "lead", html: `${icon("calendar")} ` }, [fmtDate(T.dato), time].filter(Boolean).join(" · "))),
+      h("p", { class: "lead tur-date", html: `${icon("calendar")} ` }, [fmtDate(T.dato), time].filter(Boolean).join(" · "))),
       h("span", { class: "spacer" }), chip,
-      h("a", { class: "btn", href: `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}/ret`, html: `${icon("edit")} Redigér tur` })),
+      h("a", { class: "btn tur-edit", href: `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}/ret`, html: `${icon("edit")} Redigér tur` })),
     T.on_behalf_of ? h("div", { class: "notice warn mb" }, `Indtastet på vegne af ${T.on_behalf_of}.`) : null,
     showTale ? tabsEl.bar : null, showTale ? tabsEl.panels : obsCard,
     extras,
     h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"),
       h("button", { class: "btn primary grow", type: "button", html: `${icon("plus")} Observation`, onclick: () => edit() })),
-    showTale ? voiceBtn : null);
+    showTale ? [voiceStatus, voiceBtn] : null);
   drawRows(); drawSpeech(); drawPairs(); drawGps();
   return () => { unsub(); tracker.listeners.delete(onPoint); clearInterval(fadeTimer); window.removeEventListener("resize", fitFeed); page.classList.remove("tale-mode"); stopVoice?.(); };
 }
