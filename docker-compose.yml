@@ -167,13 +167,6 @@ services:
       valkey:
         condition: service_healthy
 
-  # Bygger billedet panelet bruger til nye databaser (afslutter med det samme)
-  dbnode-image:
-    build: ./dbnode
-    image: doftool-dbnode:latest
-    restart: "no"
-    entrypoint: ["true"]
-
   # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 kald/minut)
   worker:
     <<: *app

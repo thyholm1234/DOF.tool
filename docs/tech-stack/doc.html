@@ -79,8 +79,6 @@
     <tr><td><b>speech-model</b></td><td><code>tools/speech-model/Dockerfile</code> (PyTorch, Hugging Face-værktøj)</td>
       <td>Byggeagent: bygger talemodellen til appens tale-indtastning (CoRal → ONNX int8) på kommando fra Admin → Drift.
       Hviler mellem byggerier; bruger under et byggeri op til ca. 6 GB hukommelse.</td><td>ingen</td><td>models, speech_work</td></tr>
-    <tr><td><b>dbnode-image</b></td><td><code>dbnode/Dockerfile</code></td><td>Bygger kun billedet til nye databasenoder og afslutter.</td>
-      <td>–</td><td>–</td></tr>
   </tbody>
 </table>
 <p class="muted">Alle containere logger til Docker med rotation (10 MB × 5 filer). Reverse proxyen (TLS) ligger uden for

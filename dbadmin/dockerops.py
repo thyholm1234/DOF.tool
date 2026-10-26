@@ -9,6 +9,7 @@ import socket
 
 SOCKET = "/var/run/docker.sock"
 IMAGE = os.environ.get("DBNODE_IMAGE", "doftool-dbnode:latest")
+BUILD_CONTEXT = "/app/dbnode"  # kopieret ind i panelets billede, så noden altid bygges af den kode panelet er bygget med
 TUNING = ["-c", "shared_buffers=1GB", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=512MB", "-c", "effective_cache_size=4GB",
           "-c", "max_wal_size=8GB", "-c", "random_page_cost=1.1", "-c", "wal_level=replica", "-c", "max_wal_senders=10",
           "-c", "hot_standby=on", "-c", "wal_keep_size=2GB"]
@@ -42,10 +43,7 @@ def services(cli, project: str, names: tuple[str, ...]):
 def create_primary(cli, project: str, network: str, name: str, token: str, dbname: str, user: str) -> str:
     """Opret og start en primary-container; returnerer værtsnavnet (containernavnet) i compose-netværket."""
     cname = f"{project}-db-{name}"
-    try:
-        cli.images.get(IMAGE)
-    except Exception as exc:  # noqa: BLE001
-        raise RuntimeError(f"Billedet {IMAGE} findes ikke – kør 'docker compose build dbnode-image' (eller 'up -d --build')") from exc
+    cli.images.build(path=BUILD_CONTEXT, tag=IMAGE, rm=True)  # bygges hver gang (lagcachen gør det hurtigt)
     cli.containers.run(IMAGE, ["postgres", *TUNING], name=cname, detach=True, network=network,
                        restart_policy={"Name": "unless-stopped"}, labels={"dof.dbnode": name},
                        log_config={"Type": "json-file", "Config": {"max-size": "10m", "max-file": "5"}},
