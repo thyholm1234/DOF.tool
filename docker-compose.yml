@@ -17,9 +17,8 @@ x-app: &app
   logging: *logging
   env_file: .env
   environment:
-    POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
     REDIS_DSN: redis://valkey:6379/0
-    # Registret (dbadmin) afgør, om POSTGRES_DSN bruges til alt (standard) eller om data er delt i bruger- og observationsdatabaser.
+    # Databasernes adresser kommer fra registret i dbadmin (bruger- og observationsnoder).
     DBADMIN_URL: ${DBADMIN_URL:-http://dbadmin:8100}
     DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:?sæt DBADMIN_SERVICE_TOKEN i .env (tilfældig streng)}
     ARCHIVE_DIR: /archive
@@ -28,10 +27,9 @@ x-app: &app
     # Proxyer, hvis X-Forwarded-For stoles på (bag Cloudflare: tilføj deres adresser)
     FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
     # Filer i observationer (fotos og lyd) ligger i objektlageret. S3_* kan pege på en anden S3-tjeneste i stedet for RustFS.
-    # Nøglerne er RustFS' (RUSTFS_*); de gamle MINIO_ROOT_* i .env virker stadig.
     S3_ENDPOINT: ${S3_ENDPOINT:-rustfs:9000}
-    S3_ACCESS_KEY: ${S3_ACCESS_KEY:-${RUSTFS_ACCESS_KEY:-${MINIO_ROOT_USER:-doftool}}}
-    S3_SECRET_KEY: ${S3_SECRET_KEY:-${RUSTFS_SECRET_KEY:-${MINIO_ROOT_PASSWORD:?sæt RUSTFS_SECRET_KEY i .env (mindst 8 tegn)}}}
+    S3_ACCESS_KEY: ${S3_ACCESS_KEY:-${RUSTFS_ACCESS_KEY:-doftool}}
+    S3_SECRET_KEY: ${S3_SECRET_KEY:-${RUSTFS_SECRET_KEY:?sæt RUSTFS_SECRET_KEY i .env (mindst 8 tegn)}}
     S3_BUCKET: ${S3_BUCKET:-doftool-media}
   volumes:
     - media:/data/media
@@ -45,32 +43,10 @@ x-app: &app
       condition: service_started
     rustfs:
       condition: service_healthy
-    postgres:
-      condition: service_healthy
     valkey:
       condition: service_healthy
 
 services:
-  postgres:
-    image: postgis/postgis:17-3.5
-    restart: unless-stopped
-    logging: *logging
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-portal}
-      POSTGRES_USER: ${POSTGRES_USER:-portal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
-      TZ: Europe/Copenhagen
-    command: >
-      postgres -c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB
-               -c effective_cache_size=4GB -c max_wal_size=4GB -c random_page_cost=1.1
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portal} -d ${POSTGRES_DB:-portal}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   valkey:
     image: valkey/valkey:8.1
     restart: unless-stopped
@@ -108,8 +84,6 @@ services:
       DBADMIN_PASSWORD: ${DBADMIN_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
-      # Den nuværende samlede database – kilden når panelet migrerer
-      LEGACY_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       DBNODE_IMAGE: doftool-dbnode:latest
     ports:
       # Kun på DBADMIN_BIND (standard: kun serveren selv). Panelet styrer Docker – udstil det aldrig mod internettet;
@@ -129,8 +103,8 @@ services:
     restart: unless-stopped
     logging: *logging
     environment:
-      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-${RUSTFS_ACCESS_KEY:-${MINIO_ROOT_USER:-doftool}}}
-      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-${RUSTFS_SECRET_KEY:-${MINIO_ROOT_PASSWORD:?sæt RUSTFS_SECRET_KEY i .env (mindst 8 tegn)}}}
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-${RUSTFS_ACCESS_KEY:-doftool}}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-${RUSTFS_SECRET_KEY:?sæt RUSTFS_SECRET_KEY i .env (mindst 8 tegn)}}
       RUSTFS_CONSOLE_ENABLE: ${RUSTFS_CONSOLE_ENABLE:-false}
       RUSTFS_OBS_LOG_DIRECTORY: ""  # logs til stdout (Docker roterer dem) i stedet for en fil i containeren
       RUSTFS_CHECK_UPDATES: "false"
@@ -145,26 +119,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-
-  # Kun til flytningen fra MinIO (tools/minio-to-rustfs.sh): den gamle MinIO startes med sine data, filerne kopieres
-  # over i RustFS, og den stoppes igen. Volumen minio kan slettes, når flytningen er tjekket.
-  minio:
-    profiles: ["minio-migrate"]
-    build: ./minio
-    image: doftool-minio:2025-10-15
-    restart: "no"
-    logging: *logging
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-doftool}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
-      MINIO_BROWSER: "off"
-    volumes:
-      - minio:/data
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
 
   # Bygger talemodellen til appens tale-indtastning (CoRal → ONNX int8) på kommando fra Admin → Drift (workeren lægger
   # kommandoen i Valkey). Ligger for sig, fordi PyTorch og Hugging Face-værktøjerne fylder ca. 1 GB og kun bruges her.
@@ -206,9 +160,7 @@ volumes:
   dbadmin:
   models:
   speech_work:
-  minio:
   rustfs:
-  pgdata:
   valkeydata:
   media:
   weather:
