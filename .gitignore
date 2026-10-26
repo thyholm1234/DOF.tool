@@ -19,3 +19,6 @@ data/
 *.pem
 .env.*
 !.env.example
+
+# Personlige Claude Code-indstillinger
+.claude/settings.local.json
