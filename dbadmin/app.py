@@ -524,8 +524,61 @@ async def check_all() -> None:
         con.commit()
 
 
+# ---------------------------------------------------------------- automatisk tilslutning af database-containere
+
+def sync_containers() -> list[str]:
+    """Find database-containere (label dof.dbnode) via Docker og sørg for, at de kan nås fra panelet og står i registret:
+    containere uden for panelets netværk tilsluttes, og ukendte noder oprettes i registret med oplysningerne fra containerens
+    miljø (gruppen af navnet: users-… / obs-…). Eksisterende registerposter røres ikke. Returnerer, hvad der blev gjort."""
+    if not dockerops.available():
+        return []
+    done: list[str] = []
+    cli = dockerops.client()
+    _, network = dockerops.context(cli)
+    for c in dockerops.dbnode_containers(cli):
+        name = c.labels.get("dof.dbnode", "")
+        try:
+            if dockerops.connect(cli, c, network):
+                done.append(f"{c.name} tilsluttet netværket {network}")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Kunne ikke tilslutte %s til %s: %s", c.name, network, exc)
+        env = dockerops.env_of(c)
+        group = "users" if name.startswith(("users", "bruger")) else "observations" if name.startswith("obs") else None
+        with closing(db()) as con:
+            if con.execute("SELECT 1 FROM nodes WHERE name = ?", (name,)).fetchone():
+                continue
+            if group is None or "POSTGRES_PASSWORD" not in env:
+                log.warning("Database-container %s er ikke i registret og kan ikke gættes (navnet skal starte med users eller obs)", c.name)
+                continue
+            role = "replica" if env.get("DB_ROLE") == "replica" else "primary"
+            primary_id = None
+            if role == "replica":
+                row = con.execute("SELECT id FROM nodes WHERE host = ? OR name = ?", (env.get("PRIMARY_HOST", ""), env.get("PRIMARY_HOST", ""))).fetchone()
+                primary_id = row["id"] if row else None
+            con.execute("INSERT INTO nodes (name, grp, role, host, port, dbname, user, token, primary_id, note) VALUES (?, ?, ?, ?, 5432, ?, ?, ?, ?, ?)",
+                        (name, group, role, c.name, env.get("POSTGRES_DB", "portal"), env.get("POSTGRES_USER", "portal"),
+                         env["POSTGRES_PASSWORD"], primary_id, "fundet automatisk i Docker"))
+            bump(con)
+            con.commit()
+        done.append(f"{c.name} føjet til registret som {name} ({group}, {role})")
+    return done
+
+
+@app.post("/api/nodes/discover", dependencies=[Depends(superadmin)])
+async def discover():
+    """Find og tilslut database-containere nu (sker ellers automatisk hver gang noderne tjekkes)."""
+    if not dockerops.available():
+        raise HTTPException(400, "Panelet har ikke adgang til Docker (/var/run/docker.sock)")
+    return {"done": await asyncio.to_thread(sync_containers)}
+
+
 async def checker() -> None:
     while True:
+        try:
+            for line in await asyncio.to_thread(sync_containers):
+                log.info("docker: %s", line)
+        except Exception:  # noqa: BLE001
+            log.exception("Automatisk tilslutning af database-containere fejlede")
         try:
             await check_all()
         except Exception:  # noqa: BLE001
@@ -576,6 +629,91 @@ async def migration_activity():
             await conn.close()
     disk = shutil.disk_usage("/tmp")
     return {"nodes": out, "panel_tmp_free_gb": round(disk.free / 1e9, 1)}
+
+
+# ---------------------------------------------------------------- tabeloverblik (skrivebeskyttet, som Webmins PostgreSQL-modul)
+
+SENSITIVE = re.compile(r"pass|hash|token|secret|cookie|session|salt|api_?key|private|auth_|vapid|p256dh|endpoint", re.I)
+MAX_CELL = 300
+
+
+async def _connect(node_id: int) -> asyncpg.Connection:
+    with closing(db()) as con:
+        row = get_node(con, node_id)
+    try:
+        return await asyncpg.connect(host=row["host"], port=row["port"], user=row["user"], password=row["token"],
+                                     database=row["dbname"], timeout=5)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, f"Kan ikke forbinde til {row['name']}: {str(exc)[:160]}") from exc
+
+
+def _cell(col: str, v):
+    if v is None:
+        return None
+    if SENSITIVE.search(col):
+        return "•••"
+    if isinstance(v, (int, float, bool)):
+        return v
+    if isinstance(v, (bytes, bytearray, memoryview)):
+        return f"<{len(v)} bytes>"
+    s = v if isinstance(v, str) else str(v)
+    return s if len(s) <= MAX_CELL else s[:MAX_CELL] + "…"
+
+
+@app.get("/api/nodes/{node_id}/tables", dependencies=[Depends(superadmin)])
+async def node_tables(node_id: int):
+    """Alle tabeller i nodens database: størrelse, rækker (skønnet), indekser og aktivitet."""
+    conn = await _connect(node_id)
+    try:
+        info = dict(await conn.fetchrow("""SELECT version() AS version, pg_is_in_recovery() AS replica,
+            pg_size_pretty(pg_database_size(current_database())) AS size, current_database() AS db,
+            (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()) AS connections"""))
+        info["extensions"] = [r[0] for r in await conn.fetch("SELECT extname || ' ' || extversion FROM pg_extension ORDER BY 1")]
+        rows = await conn.fetch("""
+            SELECT c.relname AS name, c.reltuples::bigint AS rows, pg_total_relation_size(c.oid) AS total_bytes,
+                   pg_relation_size(c.oid) AS table_bytes, pg_indexes_size(c.oid) AS index_bytes,
+                   (SELECT count(*) FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped) AS columns,
+                   (SELECT count(*) FROM pg_index i WHERE i.indrelid = c.oid) AS indexes,
+                   coalesce(s.seq_scan, 0) AS seq_scan, coalesce(s.idx_scan, 0) AS idx_scan, coalesce(s.n_live_tup, 0) AS live,
+                   coalesce(s.n_dead_tup, 0) AS dead, greatest(s.last_autovacuum, s.last_vacuum) AS vacuumed,
+                   greatest(s.last_autoanalyze, s.last_analyze) AS analyzed
+            FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
+            WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') ORDER BY total_bytes DESC, name""")
+    finally:
+        await conn.close()
+    tables = [{**dict(r), "rows": max(r["rows"], 0), "vacuumed": r["vacuumed"].isoformat() if r["vacuumed"] else None,
+               "analyzed": r["analyzed"].isoformat() if r["analyzed"] else None} for r in rows]
+    return {**info, "tables": tables}
+
+
+@app.get("/api/nodes/{node_id}/tables/{table}", dependencies=[Depends(superadmin)])
+async def node_table(node_id: int, table: str, limit: int = 50, offset: int = 0, count: bool = False):
+    """Kolonner, indekser og et udsnit af rækkerne (følsomme kolonner skjules). Kun læsning."""
+    limit, offset = max(1, min(limit, 200)), max(0, offset)
+    conn = await _connect(node_id)
+    try:
+        if not await conn.fetchval("SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = $1", table):
+            raise HTTPException(404, "Ukendt tabel")
+        cols = await conn.fetch("""
+            SELECT a.attname AS name, format_type(a.atttypid, a.atttypmod) AS type, NOT a.attnotnull AS nullable,
+                   pg_get_expr(d.adbin, d.adrelid) AS "default", coalesce(a.attnum = ANY(i.indkey), false) AS pk
+            FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+            LEFT JOIN pg_index i ON i.indrelid = a.attrelid AND i.indisprimary
+            WHERE a.attrelid = format('public.%I', $1::text)::regclass AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum""", table)
+        idx = await conn.fetch("""SELECT indexname AS name, indexdef AS def, pg_size_pretty(pg_relation_size(format('public.%I', indexname)::regclass)) AS size
+            FROM pg_indexes WHERE schemaname = 'public' AND tablename = $1 ORDER BY indexname""", table)
+        cons = await conn.fetch("""SELECT conname AS name, contype::text AS type, pg_get_constraintdef(oid) AS def FROM pg_constraint
+            WHERE conrelid = format('public.%I', $1::text)::regclass AND contype IN ('p', 'f', 'u', 'c') ORDER BY contype, conname""", table)
+        quoted = '"' + table.replace('"', '""') + '"'
+        order = ", ".join('"' + c["name"].replace('"', '""') + '"' for c in cols if c["pk"])
+        async with conn.transaction(readonly=True):
+            data = await conn.fetch(f"SELECT * FROM public.{quoted}{' ORDER BY ' + order if order else ''} LIMIT $1 OFFSET $2", limit, offset)
+            total = await conn.fetchval(f"SELECT count(*) FROM public.{quoted}") if count else None
+    finally:
+        await conn.close()
+    names = [c["name"] for c in cols]
+    return {"table": table, "columns": [dict(c) for c in cols], "indexes": [dict(i) for i in idx], "constraints": [dict(c) for c in cons],
+            "rows": [[_cell(n, r[n]) for n in names] for r in data], "limit": limit, "offset": offset, "total": total}
 
 
 @app.get("/", include_in_schema=False)

@@ -67,7 +67,12 @@ database er nede, så adressen kan rettes):
    og et script, der indsættes i en terminal på serveren og opretter og starter noden (bygger image med replikeringsopsætning, hvis det mangler).
 2. Start noden. Replikaer tager selv en basebackup af deres primary første gang.
 3. *Gem adresse* ændrer IP/port; API'et følger med uden genstart. Panelet viser status og replikaforsinkelse.
-4. *Gør til primary* promoverer en replika i registret (kør `pg_ctl promote` på noden; kommandoen vises).
+4. *Automatisk tilslutning:* hver gang noderne tjekkes (og med knappen *Find og tilslut containere*) finder panelet database-containere
+   med label `dof.dbnode` via Docker, lægger dem i panelets netværk og føjer ukendte til registret (navnet skal starte med `users` eller
+   `obs`; token og database læses fra containerens miljø). Eksisterende registerposter røres ikke.
+5. *Tabeller* viser alle tabeller i en nodes database (størrelse, skønnede rækker, indekser, scans, døde rækker) og pr. tabel kolonner,
+   indekser, begrænsninger og et udsnit af rækkerne. Alt er skrivebeskyttet, og kolonner med adgangskoder, tokens o.l. skjules.
+6. *Gør til primary* promoverer en replika i registret (kør `pg_ctl promote` på noden; kommandoen vises).
 
 **Første opsætning:** opret en primary for hver gruppe under *Tilføj node* (brugerdata og observationer); panelet giver et
 script, der opretter og starter noden. Portalen starter først, når begge grupper har en primary. Tabeller oprettes ved

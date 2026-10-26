@@ -36,6 +36,11 @@
   pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; overflow:auto; font-size:12.5px; margin:8px 0; }
   .token { font-family:ui-monospace, monospace; word-break:break-all; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; }
   .row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  tr.link { cursor:pointer; } tr.link:hover td { background:var(--bg); }
+  .cell { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace, monospace; font-size:12.5px; }
+  .null { color:var(--mute); font-style:italic; }
+  .bar { height:6px; border-radius:3px; background:var(--accent); opacity:.55; min-width:1px; }
   #login { text-align:center; padding:60px 0; }
 </style>
 </head>
@@ -58,8 +63,15 @@
       <div id="activity"></div>
     </div>
     <div id="groups"></div>
+    <div class="card" id="tblcard">
+      <div class="head"><h2>Tabeller</h2>
+        <span class="row-actions"><select id="tbl-node"></select><button id="tbl-load">Vis tabeller</button></span></div>
+      <div id="tbl-info" class="mute"></div>
+      <div id="tbl-list"></div>
+      <div id="tbl-detail"></div>
+    </div>
     <div class="card">
-      <div class="head"><h2>Tilføj node</h2></div>
+      <div class="head"><h2>Tilføj node</h2><button id="discover" title="Finder database-containere i Docker, lægger dem i panelets netværk og føjer ukendte til registret">Find og tilslut containere</button></div>
       <form class="add" id="add">
         <label>Navn<input name="name" required placeholder="obs-2" pattern="[a-z0-9][a-z0-9_-]*"></label>
         <label>Gruppe<select name="group"><option value="users">Brugerdata</option><option value="observations">Observationer</option></select></label>
@@ -94,6 +106,7 @@ async function api(path, opts = {}) {
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function render() {
+  fillTblNodes();
   if (editing) return;
   $('#login').hidden = true; $('#app').hidden = false;
   const byId = Object.fromEntries(state.nodes.map(n => [n.id, n]));
@@ -190,6 +203,70 @@ $('#mig-activity').addEventListener('click', async () => {
          ${n.copy.length ? '<b class="mute">COPY i gang</b>' + tbl(n.copy, ['tabel', 'command', 'bytes_processed', 'tuples_processed']) : ''}
          ${n.index.length ? '<b class="mute">Indeks bygges</b>' + tbl(n.index, ['tabel', 'indeks', 'phase', 'blocks_done', 'blocks_total']) : ''}`).join('');
   } catch (e) { el.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+});
+
+// ---------------------------------------------------------------- tabeloverblik
+const fmtBytes = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' kB' : b < 1073741824 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1073741824).toFixed(2) + ' GB';
+const fmtN = n => Number(n).toLocaleString('da-DK');
+let tblNode = null, tblData = null, tblSort = 'total_bytes', tblFilter = '';
+
+function fillTblNodes() {
+  const sel = $('#tbl-node'), cur = sel.value;
+  const nodes = state.nodes.filter(n => n.enabled);
+  const html = nodes.map(n => `<option value="${n.id}">${esc(NAMES[n.group])} · ${esc(n.name)} (${n.role === 'primary' ? 'primary' : 'replika'})</option>`).join('');
+  if (sel.dataset.h !== html) { sel.innerHTML = html; sel.dataset.h = html; if (cur) sel.value = cur; }
+}
+async function loadTables() {
+  tblNode = $('#tbl-node').value; if (!tblNode) return;
+  $('#tbl-list').innerHTML = '<p class="mute">Henter…</p>'; $('#tbl-detail').innerHTML = '';
+  try { tblData = await api('nodes/' + tblNode + '/tables'); drawTables(); } catch (e) { $('#tbl-list').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+function drawTables() {
+  const d = tblData; if (!d) return;
+  $('#tbl-info').innerHTML = `${esc(d.db)} · ${esc(d.size)} · ${d.tables.length} tabeller · ${d.connections} forbindelser · ${d.replica ? 'replika' : 'primary'} · ${esc(d.extensions.join(', '))}<br>${esc(d.version.split(' on ')[0])}`;
+  const f = tblFilter.toLowerCase(), max = Math.max(1, ...d.tables.map(t => t.total_bytes));
+  const rows = d.tables.filter(t => t.name.includes(f)).sort((a, b) => tblSort === 'name' ? a.name.localeCompare(b.name) : b[tblSort] - a[tblSort]);
+  const th = (k, t, cls = 'num') => `<th class="${cls}" style="cursor:pointer" data-sort="${k}">${t}${tblSort === k ? ' ▾' : ''}</th>`;
+  $('#tbl-list').innerHTML = `<p><input id="tbl-filter" placeholder="Filtrér tabeller" value="${esc(tblFilter)}"></p><div class="table-wrap"><table>
+    <tr>${th('name', 'Tabel', '')}${th('rows', 'Rækker (skøn)')}${th('total_bytes', 'Størrelse')}${th('index_bytes', 'Indekser')}${th('columns', 'Kolonner')}${th('seq_scan', 'Seq. scan')}${th('idx_scan', 'Idx. scan')}${th('dead', 'Døde rækker')}<th>Analyseret</th></tr>
+    ${rows.map(t => `<tr class="link" data-t="${esc(t.name)}"><td><b>${esc(t.name)}</b><div class="bar" style="width:${Math.round(t.total_bytes / max * 100)}%"></div></td>
+      <td class="num">${fmtN(t.rows)}</td><td class="num">${fmtBytes(t.total_bytes)}</td><td class="num">${fmtBytes(t.index_bytes)} <span class="mute">(${t.indexes})</span></td>
+      <td class="num">${t.columns}</td><td class="num">${fmtN(t.seq_scan)}</td><td class="num">${fmtN(t.idx_scan)}</td><td class="num">${fmtN(t.dead)}</td>
+      <td class="mute">${t.analyzed ? new Date(t.analyzed).toLocaleString('da-DK') : '–'}</td></tr>`).join('') || '<tr><td colspan="9" class="mute">Ingen tabeller</td></tr>'}</table></div>`;
+  const inp = $('#tbl-filter'); inp.addEventListener('input', () => { tblFilter = inp.value; const p = inp.selectionStart; drawTables(); const n = $('#tbl-filter'); n.focus(); n.setSelectionRange(p, p); });
+}
+async function openTable(name, offset = 0, count = false) {
+  const box = $('#tbl-detail'); box.innerHTML = '<p class="mute">Henter…</p>';
+  try {
+    const d = await api(`nodes/${tblNode}/tables/${encodeURIComponent(name)}?limit=50&offset=${offset}${count ? '&count=true' : ''}`);
+    const cell = v => v === null ? '<span class="null">NULL</span>' : `<div class="cell" title="${esc(v)}">${esc(v)}</div>`;
+    const total = d.total ?? tblData.tables.find(t => t.name === name)?.rows;
+    box.innerHTML = `<hr><div class="head"><h2>${esc(name)}</h2><span class="row-actions"><button data-close>Luk</button></span></div>
+      <h3 class="mute">Kolonner</h3><div class="table-wrap"><table><tr><th>Navn</th><th>Type</th><th>Null</th><th>Standard</th><th>PK</th></tr>
+      ${d.columns.map(c => `<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.type)}</td><td>${c.nullable ? 'ja' : 'nej'}</td><td class="mute">${esc(c.default || '')}</td><td>${c.pk ? '🔑' : ''}</td></tr>`).join('')}</table></div>
+      <h3 class="mute">Indekser og begrænsninger</h3><div class="table-wrap"><table>
+      ${d.indexes.map(i => `<tr><td>${esc(i.name)}</td><td class="mute">${esc(i.def.replace(/^CREATE (UNIQUE )?INDEX \S+ ON public\.\S+ /, '$1'))}</td><td class="num">${esc(i.size)}</td></tr>`).join('')}
+      ${d.constraints.map(c => `<tr><td>${esc(c.name)}</td><td class="mute" colspan="2">${esc(c.def)}</td></tr>`).join('')}</table></div>
+      <h3 class="mute">Rækker ${d.offset + 1}–${d.offset + d.rows.length}${total != null ? ' af ' + (d.total != null ? '' : '≈') + fmtN(total) : ''} <span class="mute">(skrivebeskyttet; følsomme kolonner skjult)</span></h3>
+      <div class="row-actions"><button data-prev ${d.offset ? '' : 'disabled'}>← Forrige</button><button data-next ${d.rows.length < d.limit ? 'disabled' : ''}>Næste →</button>${d.total == null ? '<button data-count>Tæl præcist</button>' : ''}</div>
+      <div class="table-wrap"><table><tr>${d.columns.map(c => `<th>${esc(c.name)}</th>`).join('')}</tr>
+      ${d.rows.map(r => `<tr>${r.map(v => `<td>${cell(v)}</td>`).join('')}</tr>`).join('') || `<tr><td class="mute" colspan="${d.columns.length}">Tom</td></tr>`}</table></div>`;
+    box.querySelector('[data-close]').onclick = () => { box.innerHTML = ''; };
+    box.querySelector('[data-prev]').onclick = () => openTable(name, Math.max(0, d.offset - d.limit), d.total != null);
+    box.querySelector('[data-next]').onclick = () => openTable(name, d.offset + d.limit, d.total != null);
+    box.querySelector('[data-count]')?.addEventListener('click', () => openTable(name, d.offset, true));
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+$('#tbl-load').addEventListener('click', loadTables);
+$('#tbl-node').addEventListener('change', () => { tblData = null; $('#tbl-list').innerHTML = ''; $('#tbl-detail').innerHTML = ''; $('#tbl-info').textContent = ''; });
+$('#tblcard').addEventListener('click', e => {
+  const th = e.target.closest('th[data-sort]'); if (th) { tblSort = th.dataset.sort; drawTables(); return; }
+  const tr = e.target.closest('tr[data-t]'); if (tr) openTable(tr.dataset.t);
+});
+$('#discover').addEventListener('click', async () => {
+  try { const r = await api('nodes/discover', { method: 'POST' }); alert(r.done.length ? r.done.join('\n') : 'Alle database-containere er allerede tilsluttet og i registret.'); load(); }
+  catch (e) { alert(e.message); }
 });
 load(); setInterval(load, 10000);
 </script>

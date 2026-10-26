@@ -1,6 +1,6 @@
-"""Docker-styring til panelet: opret database-containere og stop/start portalens egne api/worker under en migrering.
+"""Docker-styring til panelet: opret database-containere, find eksisterende og læg dem i panelets netværk.
 
-Kræver /var/run/docker.sock i panel-containeren. Uden den må noderne oprettes og migreringen køres manuelt."""
+Kræver /var/run/docker.sock i panel-containeren. Uden den må noderne oprettes og tilsluttes manuelt."""
 
 from __future__ import annotations
 
@@ -53,3 +53,21 @@ def create_primary(cli, project: str, network: str, name: str, token: str, dbnam
                                     "TZ": "Europe/Copenhagen"},
                        volumes={f"{project}_db_{name}": {"bind": "/var/lib/postgresql/data", "mode": "rw"}})
     return cname
+
+
+def dbnode_containers(cli) -> list:
+    """Alle database-containere, der er oprettet af panelet eller af scriptet fra 'Tilføj node' (label dof.dbnode)."""
+    return cli.containers.list(all=True, filters={"label": "dof.dbnode"})
+
+
+def connect(cli, container, network: str) -> bool:
+    """Læg containeren i panelets netværk, hvis den ikke allerede er der. Returnerer True, hvis den blev tilsluttet."""
+    container.reload()
+    if network in container.attrs["NetworkSettings"]["Networks"]:
+        return False
+    cli.networks.get(network).connect(container)
+    return True
+
+
+def env_of(container) -> dict[str, str]:
+    return dict(e.split("=", 1) for e in container.attrs["Config"].get("Env") or [] if "=" in e)
