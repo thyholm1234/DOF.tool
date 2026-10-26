@@ -189,7 +189,7 @@ async def candidates(days: int = Query(7, ge=1, le=30), kriterier: str = Query("
                      hist_years: int = Query(10, ge=1, le=30), antal_min: int = Query(5, ge=1, le=100000),
                      faktor: float = Query(2.0, ge=1, le=100), ny_max: int = Query(0, ge=0, le=1000),
                      saeson_dage: int = Query(14, ge=1, le=90), afdeling: int | None = Query(None, ge=0),
-                     c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
+                     kun_bemaerk: bool = Query(False), vis_behandlede: bool = Query(False), c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
     """Kandidater til DKU-sager: nylige observationer, der afviger fra det lokale. Kun for DKU-ansvarlige og administratorer."""
     member = set(c["member_of"])
     if not (member or c["admin"]):
@@ -204,8 +204,45 @@ async def candidates(days: int = Query(7, ge=1, le=30), kriterier: str = Query("
         scope = {afdeling}
     rows = await dku.candidates(db, afd=scope, days=days, criteria=crit, min_match=min(min_kriterier, len(crit)), level=niveau,
                                 hist_years=hist_years, antal_min=antal_min, antal_factor=faktor, ny_max=ny_max,
-                                season_days=saeson_dage)
+                                season_days=saeson_dage, only_notable=kun_bemaerk, include_reviewed=vis_behandlede)
+    names = dict((await db.execute(text("SELECT id, navn FROM afdelinger"))).all())
+    for r in rows:
+        r["afdelinger_navne"] = [names.get(a, str(a)) for a in r["afdelinger"]]
     return {"criteria": {k: dku.CRITERIA[k] for k in crit}, "rows": rows}
+
+
+class ReviewIn(BaseModel):
+    obsids: list[int] = Field(min_length=1, max_length=200)
+    note: str = Field("", max_length=1000)
+
+
+@router.post("/review")
+async def approve(body: ReviewIn, c: dict = Depends(ctx), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Godkend kandidater: observationen er set igennem af den ansvarlige og kræver ingen sag. Kun for DKU på observationens afdeling."""
+    if not (c["member_of"] or c["admin"]):
+        raise HTTPException(403, "Kun for DKU-ansvarlige")
+    done = 0
+    for obsid in dict.fromkeys(body.obsids):
+        obs = await dku.observation(db, "dofbasen", obsid)
+        if obs is None or obs["hemmelig"] or not await dku.is_dku_for(db, user, obs["afdelinger"]):
+            continue
+        res = await db.execute(text("""INSERT INTO dku_reviews (obsid, decision, note, afdelinger, reviewed_by)
+            VALUES (:o, 'godkendt', :n, CAST(:a AS smallint[]), :u) ON CONFLICT (obsid) DO NOTHING"""),
+                               {"o": obsid, "n": body.note.strip(), "a": obs["afdelinger"], "u": user.id})
+        done += res.rowcount
+    await db.commit()
+    return {"approved": done}
+
+
+@router.delete("/review/{obsid}")
+async def unapprove(obsid: int, c: dict = Depends(ctx), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Fortryd en godkendelse, så observationen kommer tilbage i kandidatlisten."""
+    obs = await dku.observation(db, "dofbasen", obsid)
+    if obs is None or not await dku.is_dku_for(db, user, obs["afdelinger"]):
+        raise HTTPException(404, "Observationen findes ikke")
+    await db.execute(text("DELETE FROM dku_reviews WHERE obsid = :o"), {"o": obsid})
+    await db.commit()
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------- én sag

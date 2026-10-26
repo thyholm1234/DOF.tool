@@ -1440,6 +1440,20 @@ class DkuMember(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class DkuReview(Base):
+    """DKU-ansvarliges gennemgang af en kandidat (lokal afvigelse): godkendt = ingen sag nødvendig. Godkendte observationer
+    vises ikke igen i kandidatlisten. (En sag oprettes som almindelig DkuCase.)"""
+
+    __tablename__ = "dku_reviews"
+
+    obsid: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    decision: Mapped[str] = mapped_column(String(10), default="godkendt", server_default="godkendt")
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    afdelinger: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), default=list)
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class DkuCase(Base):
     """En sag om én observation: DOFbasen (obsid) eller en feltmelding i portalen (report_id).
 

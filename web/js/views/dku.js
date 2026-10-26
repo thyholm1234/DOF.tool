@@ -230,24 +230,40 @@ function candidatesPanel(body) {
   const on = Object.fromEntries(CRITERIA.map(([k]) => [k, true]));
   const boxes = CRITERIA.map(([k, label, tip]) => h("label", { class: "check", title: tip },
     h("input", { type: "checkbox", checked: true, onchange: (e) => { on[k] = e.target.checked; } }), ` ${label}`));
+  const notable = h("input", { type: "checkbox" }), reviewed = h("input", { type: "checkbox" });
   const days = num(7, "64px", 1), min = num(1, "64px", 1), hist = num(10, "64px", 1);
   const antalMin = num(5), factor = num(2, "70px", 1, 0.5), nyMax = num(0), sd = num(14, "70px", 1);
   const level = h("select", {}, h("option", { value: "lok" }, "lokaliteten"), h("option", { value: "kommune" }, "kommunen"));
+  const afdSel = h("select", {}, h("option", { value: "" }, "Alle mine afdelinger"));
+  api("/api/dku/members").then(m => { for (const a of m.afdelinger) if (state.user.dku.admin || state.user.dku.member_of.includes(0) || state.user.dku.member_of.includes(a.id))
+    afdSel.append(h("option", { value: a.id }, a.navn)); }).catch(() => {});
   const out = h("div", { class: "stack mt" });
   const lab = (t, el) => h("label", { class: "field" }, h("span", {}, t), el);
+  const picked = new Set();
+  const approve = async (ids) => {
+    try { const r = await api("/api/dku/review", { method: "POST", body: { obsids: ids } }); toast(`${r.approved} godkendt`); run(); }
+    catch (err) { toast(err.message, "err"); }
+  };
   const run = async () => {
     const crit = CRITERIA.map(c => c[0]).filter(k => on[k]);
     if (!crit.length) { toast("Vælg mindst ét kriterium", "err"); return; }
+    picked.clear();
     out.replaceChildren(h("div", { class: "skeleton", style: { height: "120px" } }));
     const q = new URLSearchParams({ kriterier: crit.join(","), days: days.value, min: Math.min(+min.value || 1, crit.length), niveau: level.value,
-      hist_years: hist.value, antal_min: antalMin.value, faktor: factor.value, ny_max: nyMax.value, saeson_dage: sd.value });
+      hist_years: hist.value, antal_min: antalMin.value, faktor: factor.value, ny_max: nyMax.value, saeson_dage: sd.value,
+      kun_bemaerk: notable.checked, vis_behandlede: reviewed.checked });
+    if (afdSel.value) q.set("afdeling", afdSel.value);
     let r;
     try { r = await api(`/api/dku/candidates?${q}`); } catch (err) { out.replaceChildren(errorBox(err)); return; }
-    if (!r.rows.length) { out.replaceChildren(empty("Ingen afvigelser", "Ingen observationer rammer kriterierne. Prøv færre kriterier eller løsere grænser.")); return; }
-    out.replaceChildren(h("p", { class: "muted", style: { margin: 0 } }, `${r.rows.length} observationer`),
-      ...r.rows.map(x => h("div", { class: "card stack" },
+    if (!r.rows.length) { out.replaceChildren(empty("Ingen afvigelser", "Alt er gennemgået, eller ingen observationer rammer kriterierne. Prøv færre kriterier eller løsere grænser.")); return; }
+    const bulk = h("button", { class: "btn sm", type: "button", disabled: true, onclick: () => approve([...picked]) }, "Godkend valgte");
+    const card = (x) => {
+      const pick = h("input", { type: "checkbox", disabled: !!x.case || x.reviewed, onchange: (e) => {
+        e.target.checked ? picked.add(x.obsid) : picked.delete(x.obsid); bulk.disabled = !picked.size; bulk.textContent = picked.size ? `Godkend valgte (${picked.size})` : "Godkend valgte"; } });
+      return h("div", { class: "card stack" + (x.reviewed ? " dim" : "") },
         h("div", { class: "row between" },
-          h("div", {}, h("b", {}, `${x.antal} ${x.art}`), h("span", { class: "muted" }, ` · ${x.lok || "–"}${x.kommune ? `, ${x.kommune}` : ""} · ${fmtDate(x.dato)}`)),
+          h("label", { class: "check" }, pick, h("span", {}, h("b", {}, `${x.antal} ${x.art}`),
+            h("span", { class: "muted" }, ` · ${x.lok || "–"}${x.kommune ? `, ${x.kommune}` : ""} · ${fmtDate(x.dato)}`))),
           h("span", { class: "row", style: { gap: "6px" } }, ...x.matched.map(k => h("span", { class: "tag bemaerk" }, r.criteria[k])))),
         h("div", { class: "muted", style: { fontSize: ".86rem" } }, [x.observer ? `observatør: ${x.observer}` : null,
           x.kategori !== "alm" ? `kategori ${x.kategori}` : null,
@@ -255,16 +271,27 @@ function candidatesPanel(body) {
           .filter(Boolean).join(" · ")),
         h("div", { class: "row" },
           x.case ? h("a", { class: "btn sm", href: `#/dku/${x.case.id}` }, `Sag #${x.case.id}`)
-            : h("button", { class: "btn sm primary", type: "button", html: `${icon("flag")} Åbn sag`,
-              onclick: () => tipDku("dofbasen", x.obsid, `${x.antal} ${x.art} · ${x.lok || "–"} · ${fmtDate(x.dato)}`) }),
+            : x.reviewed ? h("button", { class: "btn sm", type: "button", onclick: async () => {
+                try { await api(`/api/dku/review/${x.obsid}`, { method: "DELETE" }); run(); } catch (err) { toast(err.message, "err"); } } }, "Fortryd godkendelse")
+            : [h("button", { class: "btn sm", type: "button", html: `${icon("check")} Godkend`, onclick: () => approve([x.obsid]) }),
+               h("button", { class: "btn sm primary", type: "button", html: `${icon("flag")} Start DKU-sag`,
+                 onclick: () => tipDku("dofbasen", x.obsid, `${x.antal} ${x.art} · ${x.lok || "–"} · ${fmtDate(x.dato)}`) })],
           x.thread ? h("a", { class: "btn sm ghost", href: x.thread }, "Tråden") : null,
-          h("a", { class: "btn sm ghost", href: x.url, target: "_blank", rel: "noopener", html: `${icon("external")} DOFbasen` })))));
+          h("a", { class: "btn sm ghost", href: x.url, target: "_blank", rel: "noopener", html: `${icon("external")} DOFbasen` })));
+    };
+    // Oversigt pr. lokalafdeling
+    const groups = new Map();
+    for (const x of r.rows) { const g = x.afdelinger_navne[0] || "Uden afdeling"; (groups.get(g) || groups.set(g, []).get(g)).push(x); }
+    out.replaceChildren(h("div", { class: "row between" }, h("p", { class: "muted", style: { margin: 0 } }, `${r.rows.length} observationer til gennemsyn`), bulk),
+      ...[...groups].flatMap(([g, rows]) => [h("h3", { style: { margin: "12px 0 0" } }, `${g} `, h("span", { class: "muted" }, `(${rows.length})`)), ...rows.map(card)]));
   };
   body.append(h("div", { class: "card stack" },
-    h("p", { class: "muted", style: { margin: 0 } }, "Find observationer, der afviger fra det lokale billede i de afdelinger, du er DKU-ansvarlig for. Hemmelige observationer indgår ikke."),
-    h("div", { class: "row", style: { gap: "14px" } }, ...boxes),
+    h("p", { class: "muted", style: { margin: 0 } }, "Gennemgå observationer, der afviger fra det lokale billede, i de afdelinger, du er DKU-ansvarlig for: godkend dem, der er i orden, eller start en DKU-sag. Hemmelige observationer indgår ikke."),
+    h("div", { class: "row", style: { gap: "14px" } }, ...boxes,
+      h("label", { class: "check", title: "Kun observationer med en anden kategori end alm" }, notable, " Kun bemærkelsesværdige"),
+      h("label", { class: "check" }, reviewed, " Vis også godkendte")),
     h("div", { class: "row", style: { gap: "12px", alignItems: "flex-end" } },
-      lab("Seneste dage", days), lab("Mindst antal kriterier", min), lab("Sammenlign med", level), lab("Historik (år)", hist),
+      lab("Afdeling", afdSel), lab("Seneste dage", days), lab("Mindst antal kriterier", min), lab("Sammenlign med", level), lab("Historik (år)", hist),
       lab("Antal ≥", antalMin), lab("× lokal 95-percentil", factor), lab("Ny art: set højst (gange)", nyMax), lab("Sæson ± dage", sd),
       h("button", { class: "btn primary", type: "button", onclick: run }, "Find afvigelser"))), out);
 }

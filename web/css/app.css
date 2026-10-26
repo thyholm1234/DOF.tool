@@ -929,3 +929,4 @@ html { scroll-padding-top: calc(var(--top-h) + 12px); scroll-padding-bottom: cal
 .quick-name { flex: 1 1 140px; font-weight: 600; min-width: 0; }
 .quick-count { display: flex; align-items: center; gap: 6px; }
 .quick-count input { width: 70px; }
+.card.dim { opacity: .6; }

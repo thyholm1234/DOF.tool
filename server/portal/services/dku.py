@@ -282,7 +282,7 @@ MIN_HISTORY = 5  # så mange tidligere observationer skal der til, før et antal
 
 async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, criteria: list[str], min_match: int, level: str,
                      hist_years: int, antal_min: int, antal_factor: float, ny_max: int, season_days: int,
-                     limit: int = 300) -> list[dict]:
+                     only_notable: bool = False, include_reviewed: bool = False, limit: int = 300) -> list[dict]:
     """DOFbasen-observationer fra de seneste dage, der afviger fra det lokale (lokaliteten eller kommunen) historisk set.
 
     Kriterier (kryds af efter behov; en observation skal ramme mindst `min_match` af de valgte):
@@ -290,7 +290,8 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
       ny      – arten er set højst ny_max gange lokalt i de seneste hist_years år
       saeson  – arten er set lokalt før, men aldrig inden for ± season_days dage af datoen
       dok     – bemærk-art uden fuglenoter, fotos og lyd
-    afd None = alle afdelinger. Hemmelige observationer indgår ikke."""
+    only_notable: kun bemærkelsesværdige observationer (kategori ud over «alm»). Gennemgåede (godkendte) vises kun med
+    include_reviewed. afd None = alle afdelinger. Hemmelige observationer indgår ikke."""
     from portal.dof.jobs import media_many
     from portal.timeutil import dk_today
 
@@ -305,6 +306,7 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
              "saeson": "q.n > 0 AND q.n_sd = 0",
              "dok": "(q.kategori <> 'alm' AND coalesce(q.fuglnoter, '') = '')"}
     pre = " OR ".join(f"({conds[k]})" for k in criteria)
+    notable = "AND o.kategori <> 'alm'" if only_notable else ""
     rows = (await db.execute(text(f"""
         SELECT q.*, s.navn AS art, l.navn AS lok, k.navn AS kommune,
                trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS observer
@@ -312,7 +314,7 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
             SELECT c.obsid, c.dato, c.artnr, c.antal, c.loknr, c.kategori, c.fuglnoter, c.afdelinger, c.obserkode,
                    b.n, b.p95, b.n_sd
             FROM (SELECT o.*, l.kommune_kode FROM observations o LEFT JOIN locations l ON l.loknr = o.loknr
-                  WHERE o.dato >= :since AND o.hemmelig = 0
+                  WHERE o.dato >= :since AND o.hemmelig = 0 {notable}
                     AND (CAST(:all AS boolean) OR o.afdelinger && CAST(:afd AS smallint[]))) c
             CROSS JOIN LATERAL (
                 SELECT count(*) AS n, percentile_cont(0.95) WITHIN GROUP (ORDER BY h.antal) AS p95,
@@ -357,7 +359,12 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
             WHERE source = 'dofbasen' AND obsid = ANY(:o) ORDER BY obsid, id DESC"""),
                                   {"o": [r["obsid"] for r in out]})).mappings().all()
         by = {c["obsid"]: c for c in cases}
+        reviewed = set((await db.execute(text("SELECT obsid FROM dku_reviews WHERE obsid = ANY(:o)"),
+                                         {"o": [r["obsid"] for r in out]})).scalars())
         for r in out:
             c = by.get(r["obsid"])
             r["case"] = {"id": c["id"], "status": c["status"]} if c else None
+            r["reviewed"] = r["obsid"] in reviewed
+        if not include_reviewed:
+            out = [r for r in out if not r["reviewed"]]
     return out
