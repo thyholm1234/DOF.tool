@@ -28,6 +28,8 @@ export async function render(view) {
   const qe = h("input", { type: "time", value: p.quiet_hours?.end || "" });
   const pub = h("input", { type: "checkbox", checked: p.lists_public });
   const push = h("input", { type: "checkbox", checked: p.push_enabled });
+  // GPS-rute på nye ture: spørg ved oprettelse (standard), start altid, eller aldrig
+  const tripGps = seg([["ask", "Spørg"], ["on", "Altid"], ["off", "Aldrig"]], p.trip_gps || "ask", (v) => { p.trip_gps = v; });
   const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], p.theme || "auto", (v) => { p.theme = v; localStorage.setItem("theme", v); state.user.prefs.theme = v; applyTheme(); });
 
   // Baggrundsposition (kun appen): positionen følger én enhed ad gangen; tændes her, overtager denne enhed
@@ -57,7 +59,7 @@ export async function render(view) {
   const save = async () => {
     try {
       await api("/api/me", { method: "PATCH", body: { afdelinger: p.afdelinger, kommuner: p.kommuner, lists_public: pub.checked, push_enabled: push.checked,
-        quiet_hours: qs.value && qe.value ? { start: qs.value, end: qe.value } : null, theme: p.theme || "auto", phone: phone.value.trim() } });
+        quiet_hours: qs.value && qe.value ? { start: qs.value, end: qe.value } : null, theme: p.theme || "auto", phone: phone.value.trim(), trip_gps: p.trip_gps || "ask" } });
       await refreshUser();
       toast("Indstillinger gemt");
     } catch (err) { toast(err.message, "err"); }
@@ -82,6 +84,8 @@ export async function render(view) {
         ...positionCard,
         h("h3", { class: "mt" }, "Lister og privatliv"),
         h("label", { class: "check" }, pub, "Vis mig på scoreboards og lad andre se mine lister"),
+        h("h3", { class: "mt" }, "Ture"),
+        h("div", {}, h("p", { class: "muted", style: { marginBottom: "6px" } }, "Optag GPS-rute, når du opretter en tur med dags dato. Ruten kan altid startes og stoppes på turen."), tripGps),
         h("h3", { class: "mt" }, "Udseende"), theme)),
     h("div", { class: "row mt" }, h("button", { class: "btn primary", onclick: save }, "Gem indstillinger")),
     h("div", { class: "card mt2 row between" }, h("div", {}, h("h3", { style: { margin: 0 } }, "Boligbirding"),

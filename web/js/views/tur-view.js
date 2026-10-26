@@ -1,7 +1,6 @@
 // Tur: kun denne turs observationer. Her tilføjes og rettes observationer (+1 / +10 på hver), og ynglepar.
 // Selve turens oplysninger redigeres på sin egen side (tur-form.js).
 import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT } from "../core.js";
-import { baseMap } from "../maps.js";
 import { tracker, trackStart, trackPause, trackStop, trackLength, nowHM } from "../tur-data.js";
 import { isApp } from "../native.js";
 import { newId } from "../offline.js";
@@ -44,7 +43,6 @@ export function view(page, ref, store_, recent) {
   const drawRows = () => {
     obsList.replaceChildren(...(T.observations.length ? [...T.observations].reverse().map(row) : [h("p", { class: "muted", style: { margin: 0 } }, "Ingen observationer endnu – tryk på + Observation.")]));
     countEl.textContent = `${T.observations.length} observation${T.observations.length === 1 ? "" : "er"} · ${new Set(T.observations.map(o => o.artnr)).size} arter`;
-    drawMap();
   };
 
   // isNew: o er udfyldt på forhånd (tale-indtastning), men endnu ikke lagt på turen
@@ -72,7 +70,6 @@ export function view(page, ref, store_, recent) {
     pairCard.classList.toggle("hide", !T.breeding_pairs.length);
     pairList.replaceChildren(...T.breeding_pairs.map(p => h("button", { type: "button", class: "obs-row pair", onclick: () => addPair(p) },
       h("span", { class: "obs-main" }, h("span", { class: "obs-title" }, h("b", {}, p.art || sp(p.artnr)?.navn), h("small", { class: "muted" }, `${p.antal} par`)), h("small", { class: "muted" }, adfText(p.adfkode) || "")))));
-    drawMap();
   };
 
   // --- forstyrrelser (redigeres i turens data)
@@ -81,56 +78,51 @@ export function view(page, ref, store_, recent) {
       h("small", { class: "muted" }, [d.antal != null ? ` · ${d.antal} stk.` : "", d.noter ? ` · ${d.noter}` : ""].join(""))))) : null;
 
   // --- GPS-rute
-  const gpsInfo = h("small", { class: "muted" });
+  const gpsInfo = h("span", {});
   const gpsBtns = h("div", { class: "row", style: { gap: "6px" } });
+  const gpsRow = h("div", { class: "gps-row" }, h("span", { class: "gps-info", html: icon("pin") }, gpsInfo), gpsBtns);
   const drawGps = () => {
     const n = T.gps_track.length, active = tracker.cid === T.client_id && tracker.watch != null;
-    gpsInfo.textContent = n ? `${n} punkter · ${(trackLength(T.gps_track) / 1000).toFixed(2).replace(".", ",")} km${active ? " · optager" : ""}` : "Ruten gemmes og sendes med turen.";
+    gpsInfo.textContent = n ? `Rute: ${(trackLength(T.gps_track) / 1000).toFixed(2).replace(".", ",")} km · ${n} punkter${active ? " · optager" : ""}` : "Ingen GPS-rute";
+    gpsRow.classList.toggle("on", active);
     gpsBtns.replaceChildren(
       active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); store_.save(); drawGps(); } }, "Pause")
         : h("button", { class: "btn sm", type: "button", html: `${icon("pin")} ${n ? "Fortsæt rute" : "Start rute"}`, onclick: startGps }),
       n || active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); T.gps_aktiv = n > 0; store_.save(); drawGps(); } }, "Stop") : null,
-      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { if (confirm("Slet den optagede rute?")) { trackStop(); T.gps_track = []; T.gps_aktiv = false; store_.save(); drawGps(); drawMap(); } } }, "Slet rute") : null);
+      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { if (confirm("Slet den optagede rute?")) { trackStop(); T.gps_track = []; T.gps_aktiv = false; store_.save(); drawGps(); } } }, "Slet rute") : null);
   };
   const startGps = () => {
     if (!navigator.geolocation) return toast("Enheden understøtter ikke positionsbestemmelse", "err");
-    if (!T.gps_aktiv && !confirm("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. " + (isApp() ? "I appen optages ruten også med slukket skærm." : "Hold appen åben under turen."))) return;
+    if (!T.gps_aktiv && state.user?.prefs?.trip_gps !== "on" && !confirm("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. " + (isApp() ? "I appen optages ruten også med slukket skærm." : "Hold appen åben under turen."))) return;
     T.gps_aktiv = true;
     trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
     store_.save(); drawGps();
   };
   if (tracker.cid === T.client_id) T.gps_track = tracker.points;
   let lastSave = 0;
-  const onPoint = () => { drawGps(); drawMap(); if (Date.now() - lastSave > 60000) { lastSave = Date.now(); store_.save(); } };
+  const onPoint = () => { drawGps(); if (Date.now() - lastSave > 60000) { lastSave = Date.now(); store_.save(); } };
   tracker.listeners.add(onPoint);
-
-  // --- kort
-  const mapEl = h("div", { class: "map small", style: { height: "240px" } });
-  let map = null, layer = null;
-  function drawMap() {
-    if (!map) return;
-    layer.clearLayers();
-    const pts = [];
-    if (T.lok_lat) pts.push([T.lok_lat, T.lok_lon]);
-    if (T.gps_track.length > 1) { const line = T.gps_track.map(p => [p[0], p[1]]); L.polyline(line, { color: "#c0392b", weight: 3 }).addTo(layer); pts.push(...line); }
-    for (const o of T.observations) if (o.obs_lat) { pts.push([o.obs_lat, o.obs_lon]); L.marker([o.obs_lat, o.obs_lon]).addTo(layer).bindPopup(`${fmtN(o.antal)} ${o.art}`); }
-    for (const p of T.breeding_pairs) if (p.lat) { pts.push([p.lat, p.lon]); L.circleMarker([p.lat, p.lon], { radius: 7, color: "#fff", weight: 2, fillColor: "#e67e22", fillOpacity: 1 }).addTo(layer).bindPopup(`Ynglepar: ${p.art}`); }
-    if (pts.length === 1) map.setView(pts[0], 14); else if (pts.length) map.fitBounds(pts, { padding: [20, 20], maxZoom: 16 });
-  }
-  setTimeout(() => { if (map || !mapEl.isConnected) return; map = baseMap(mapEl, { center: [56, 10.5], zoom: 7 }); layer = L.layerGroup().addTo(map); drawMap(); }, 100);
 
   // --- tale-indtastning (kun i appen): hold knappen inde på fanen Tale, sig fx «2 bomlærker syd», slip.
   // Hver indtalt post står for sig under Tale (kan slettes eller lægges antal til), mens den almindelige liste viser summen:
   // en post lægges til den observation på turen, der har samme art og adfærd (ellers oprettes den).
   T.speech ||= [];
   const voiceStatus = h("div", { class: "voice-status hide", "aria-live": "polite" });
-  const voiceBtn = h("button", { type: "button", class: "btn voice-btn grow hide", title: "Hold inde og sig fx «2 bomlærker syd»", html: `${icon("mic")} Hold og tal` });
-  const speechList = h("div", { class: "obs-list" });
+  // Fast felt nederst på fanen Tale: hold nede og tal. Det flytter sig ikke (position: fixed), og siden scroller ikke under fingeren.
+  const padLabel = h("span", {}, "Hold nede og tal");
+  const voiceBtn = h("button", { type: "button", class: "voice-pad disabled", "aria-label": "Hold nede og tal", title: "Hold nede og sig fx «2 bomlærker syd»" },
+    h("span", { class: "voice-pad-icon", html: icon("mic") }), padLabel);
+  const speechList = h("div", { class: "obs-list speech-feed" });
+  const speechEnd = h("div", { class: "speech-end" });
   const speechCount = h("small", { class: "muted" });
   let vCtx = null, stopVoice = null, vBusy = false, voiceReady = false, curTab = "obs";
   const say = (...parts) => { voiceStatus.replaceChildren(...parts); voiceStatus.classList.remove("hide"); };
   const describe = (e) => `${fmtN(e.antal)} ${e.art}${e.adfkode ? ` · ${adfText(e.adfkode) || e.adfkode}` : ""}`;
-  const syncVoiceBtn = () => voiceBtn.classList.toggle("hide", !(voiceReady && curTab === "tale"));
+  const syncVoiceBtn = () => {
+    voiceBtn.classList.toggle("disabled", !voiceReady);
+    if (!voiceBtn.classList.contains("on")) padLabel.textContent = voiceReady ? "Hold nede og tal" : "Talemodellen mangler – se ovenfor";
+  };
+  const toBottom = () => requestAnimationFrame(() => speechEnd.scrollIntoView({ block: "end" }));
 
   const findObs = (artnr, adf) => T.observations.findLast(o => o.artnr === artnr && (o.adfkode || "") === (adf || ""));
   const obsOf = (e) => e.obs_cid && T.observations.find(o => o.client_id === e.obs_cid);
@@ -141,7 +133,7 @@ export function view(page, ref, store_, recent) {
 
   /** En ny indtalt post. Lægges til en eksisterende observation med samme art og adfærd, ellers oprettes en ny (eller venter på formularen). */
   const addEntry = (it, adfkode) => {
-    const e = { id: newId(), artnr: it.art.artnr, art: it.art.navn, klass: it.art.klass, antal: it.antal, adfkode, t: nowHM(), heard: it.heard, obs_cid: null, pending: false };
+    const e = { id: newId(), artnr: it.art.artnr, art: it.art.navn, klass: it.art.klass, antal: it.antal, adfkode, t: nowHM(), ts: Date.now(), heard: it.heard, obs_cid: null, pending: false };
     const O = findObs(e.artnr, e.adfkode);
     if (O) { O.antal = (Number(O.antal) || 0) + e.antal; e.obs_cid = O.client_id; }
     else if (needsForm(e)) e.pending = true;
@@ -180,9 +172,11 @@ export function view(page, ref, store_, recent) {
     edit(obsFor(group[0], sum, cid), true);
   };
 
+  const OLD_MS = 2 * 60 * 1000;
+  const isOld = (e) => !e.ts || Date.now() - e.ts > OLD_MS;
   const speechRow = (e) => {
     const O = obsOf(e);
-    return h("div", { class: `obs-row ${e.klass === "SU" ? "SU" : e.klass === "SUB" ? "SUB" : ""}` },
+    return h("div", { class: `obs-row ${e.klass === "SU" ? "SU" : e.klass === "SUB" ? "SUB" : ""} ${isOld(e) ? "speech-old" : ""}`, "data-ts": e.ts || 0 },
       h("span", { class: "obs-main" },
         h("span", { class: "obs-title" }, h("b", {}, e.art), e.klass && e.klass !== "Alm" ? tag(e.klass, KAT[e.klass] || e.klass) : null,
           e.pending ? h("span", { class: "tag bemaerk" }, "mangler oplysninger") : null),
@@ -193,18 +187,22 @@ export function view(page, ref, store_, recent) {
       h("button", { type: "button", class: "btn sm ghost danger", "aria-label": "Slet", html: icon("trash"), onclick: () => removeEntry(e) }));
   };
   const drawSpeech = () => {
-    speechList.replaceChildren(...(T.speech.length ? [...T.speech].reverse().map(speechRow)
+    speechList.replaceChildren(...(T.speech.length ? T.speech.map(speechRow)
       : [h("p", { class: "muted", style: { margin: 0 } }, "Ingen indtalte poster endnu – hold knappen nede og sig fx «2 bomlærker syd».")]));
     speechCount.textContent = T.speech.length ? `${T.speech.length} poster · ${fmtN(T.speech.reduce((t, e) => t + e.antal, 0))} fugle` : "";
   };
+  const fadeTimer = setInterval(() => {
+    for (const r of speechList.children) if (r.dataset.ts != null) r.classList.toggle("speech-old", Date.now() - Number(r.dataset.ts) > OLD_MS);
+  }, 10000);
 
   const pressStart = async (e) => {
     e.preventDefault();
-    if (stopVoice || vBusy) return;
+    if (!voiceReady || stopVoice || vBusy) return;
+    voiceBtn.setPointerCapture?.(e.pointerId);  // fingeren må glide uden at stoppe optagelsen
+    padLabel.textContent = "Lytter … slip for at tilføje";
     vBusy = true;
     voiceBtn.classList.add("on");
     navigator.vibrate?.(25);
-    say(h("span", { class: "muted" }, "Lytter …"));
     vCtx ||= voiceContext(ref.species, ref.codes.adf);
     try { stopVoice = await listen(vCtx, { level: (v) => voiceBtn.style.setProperty("--lvl", v.toFixed(2)) }); }
     catch (err) { voiceBtn.classList.remove("on"); say(h("span", { class: "err" }, err.message || "Mikrofonen kunne ikke startes")); }
@@ -213,6 +211,7 @@ export function view(page, ref, store_, recent) {
   };
   const pressEnd = async () => {
     voiceBtn.classList.remove("on");
+    syncVoiceBtn();
     const stop = stopVoice;
     if (!stop) return;
     stopVoice = null;
@@ -229,6 +228,7 @@ export function view(page, ref, store_, recent) {
       added.push(addEntry(it, it.adfkode || dflt));
     }
     if (added.length) { store_.save(); drawRows(); drawSpeech(); navigator.vibrate?.([20, 60, 20]); }
+    toBottom();
     const undo = added.length ? h("button", { type: "button", class: "btn sm ghost", onclick: () => {
       [...added].reverse().forEach(removeEntry);
       say(h("span", { class: "muted" }, "Fortrudt."));
@@ -242,7 +242,7 @@ export function view(page, ref, store_, recent) {
     if (pending) completeGroup(pending);
   };
   voiceBtn.addEventListener("pointerdown", pressStart);
-  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) voiceBtn.addEventListener(ev, () => { if (voiceBtn.classList.contains("on")) pressEnd(); });
+  for (const ev of ["pointerup", "pointercancel"]) voiceBtn.addEventListener(ev, () => { if (voiceBtn.classList.contains("on")) pressEnd(); });
   voiceBtn.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Talemodellen ligger på telefonen og hentes én gang fra serveren (ca. 355 MB – helst over wi-fi)
@@ -271,11 +271,14 @@ export function view(page, ref, store_, recent) {
   const reuseBox = h("input", { type: "checkbox", checked: reuse.on, onchange: (e) => { reuse.on = e.target.checked; store("turreuse", reuse.on); } });
   const time = [T.turtidfra, T.turtidtil].filter(Boolean).join(" – ");
   const obsCard = h("div", { class: "card stack" }, h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Observationer"), countEl),
-    h("label", { class: "check" }, reuseBox, h("span", {}, "Genanvend adfærd")), obsList);
-  const taleCard = h("div", { class: "card stack" }, h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Tale"), speechCount),
-    voiceStatus, speechList,
-    h("small", { class: "muted" }, "Hver post står for sig her og kan slettes eller lægges antal til. Under Observationer er poster med samme art og adfærd lagt sammen."));
-  const tabsEl = showTale ? tabs([["obs", "Observationer", obsCard], ["tale", "Tale", taleCard]], { onChange: (k) => { curTab = k; syncVoiceBtn(); } }) : null;
+    gpsRow, h("label", { class: "check" }, reuseBox, h("span", {}, "Genanvend adfærd")), obsList);
+  // Tale: kun feedet med de indtalte poster (nyeste nederst, ved mikrofonen) – ingen GPS, ynglepar eller knapper
+  const taleCard = h("div", { class: "stack" }, h("div", { class: "row between" }, h("small", { class: "muted" },
+      "Hver post står for sig og kan slettes eller lægges antal til. Under Observationer er samme art og adfærd lagt sammen."), speechCount),
+    speechList, voiceStatus, speechEnd);
+  const extras = h("div", { class: "tur-extra stack" }, pairCard, dist);
+  const tabsEl = showTale ? tabs([["obs", "Observationer", obsCard], ["tale", "Tale", taleCard]], {
+    onChange: (k) => { curTab = k; page.classList.toggle("tale-mode", k === "tale"); syncVoiceBtn(); if (k === "tale") toBottom(); } }) : null;
   page.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("p", { style: { margin: 0 } }, h("a", { href: "#/indtast" }, "← Mine indtastninger")),
       h("h1", { style: { marginTop: "4px" } }, T.lok || "Tur"),
@@ -284,11 +287,10 @@ export function view(page, ref, store_, recent) {
       h("a", { class: "btn", href: `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}/ret`, html: `${icon("edit")} Redigér tur` })),
     T.on_behalf_of ? h("div", { class: "notice warn mb" }, `Indtastet på vegne af ${T.on_behalf_of}.`) : null,
     showTale ? tabsEl.bar : null, showTale ? tabsEl.panels : obsCard,
-    pairCard, dist,
-    h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "GPS-rute"), gpsBtns, gpsInfo),
-    h("div", { class: "card" }, mapEl),
-    h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"), voiceBtn,
-      h("button", { class: "btn primary grow", type: "button", html: `${icon("plus")} Observation`, onclick: () => edit() })));
+    extras,
+    h("div", { class: "tur-bar" }, h("button", { class: "btn", type: "button", onclick: () => addPair() }, "Ynglepar"),
+      h("button", { class: "btn primary grow", type: "button", html: `${icon("plus")} Observation`, onclick: () => edit() })),
+    showTale ? voiceBtn : null);
   drawRows(); drawSpeech(); drawPairs(); drawGps();
-  return () => { unsub(); tracker.listeners.delete(onPoint); map?.remove(); stopVoice?.(); };
+  return () => { unsub(); tracker.listeners.delete(onPoint); clearInterval(fadeTimer); page.classList.remove("tale-mode"); stopVoice?.(); };
 }

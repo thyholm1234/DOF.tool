@@ -1,6 +1,7 @@
 // Opret/redigér tur på sin egen side: Turens data · Vejret · Forstyrrelser. Gemmer og går derefter til turens observationer.
 import { api, h, icon, fmtDate, todayISO, toast, state } from "../core.js";
-import { nowHM, tripHash } from "../tur-data.js";
+import { nowHM, tripHash, tracker, trackStart } from "../tur-data.js";
+import { isApp } from "../native.js";
 import { tabs, field, reqField, fail, pickPosition } from "../tur-ui.js";
 
 const num = (v) => v === "" || v == null ? null : Number(v);
@@ -155,6 +156,16 @@ export function form(page, ref, store_, recent, isNew) {
     submit.disabled = false;
     if (status === "fejl") return;
     if (status === "offline") toast("Ingen forbindelse – turen er gemt på enheden og sendes automatisk", "ok");
+    // GPS-rute på en ny tur i dag: efter brugerens valg i profilen (spørg / altid / aldrig)
+    const gps = state.user?.prefs?.trip_gps || "ask";
+    if (isNew && T.dato === todayISO() && navigator.geolocation && (gps === "on" || (gps === "ask" && confirm(
+      "Vil du optage din rute med GPS på turen?\n\nRuten gemmes på din enhed og sendes med turen. " +
+      (isApp() ? "I appen optages den også med slukket skærm. " : "Hold siden åben under turen. ") +
+      "Du kan stoppe den på turen, og under Min profil kan du vælge, om der skal spørges næste gang.")))) {
+      T.gps_aktiv = true;
+      trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
+      store_.save();
+    }
     location.hash = tripHash(T);
   };
   const sub = h("span", {}, fmtDate(T.dato));
