@@ -71,7 +71,7 @@ async def share_thread(day: date, artnr: int, loknr: int, request: Request, db: 
     t = await _thread(db, day, artnr, loknr)
     login_url = escape(f"/#/login?next={quote('#' + app_url[2:], safe='')}")
     if t is None:
-        return HTMLResponse(_page("Fundet findes ikke", "", f"""
+        return HTMLResponse(_page("Fundet findes ikke", "", """
             <section class="card share-card"><h1>Fundet findes ikke (længere)</h1>
             <p class="muted">Observationen kan være slettet eller rettet i DOFbasen.</p></section>""", login_url), status_code=404)
 

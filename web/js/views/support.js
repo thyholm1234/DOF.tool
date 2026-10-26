@@ -1,5 +1,5 @@
 // Feedback og support: beskeder til administratorerne, med svar i samme samtale.
-import { api, state, h, icon, ago, fmtDate, params, setParams, requireLogin, toast, empty, errorBox, seg } from "../core.js";
+import { api, h, icon, ago, fmtDate, params, setParams, requireLogin, toast, empty, errorBox, seg } from "../core.js";
 import { refreshUnread } from "../app.js";
 
 export const KINDS = { feedback: "Feedback", support: "Hjælp", fejl: "Fejl", ide: "Idé", moderation: "Moderation" };

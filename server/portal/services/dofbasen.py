@@ -22,7 +22,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.config import SEED_DIR
-from portal.models import (DofbArea, DofbAudit, DofbFocus, DofbList, DofbNews, DofbPage, DofbRole, DofbUserRole, User)
+from portal.models import DofbArea, DofbAudit, DofbFocus, DofbList, DofbNews, DofbPage, DofbRole, DofbUserRole, User
 from portal.services import features
 from portal.services.auth import SUPERADMIN, can
 from portal.timeutil import dk_today

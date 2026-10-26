@@ -7,10 +7,10 @@ hele DOF-økosystemet:
 * skrivninger går altid til gruppens primary
 * læsninger kan fordeles på replikaer med formålet 'read' (slås til pr. gruppe i db-admin; standard: kun observationer);
   replikaer med formålet 'backup' er kun kopier og bruges aldrig til læsning
-* en session der har skrevet i en gruppe læser resten af transaktionen fra primary (ingen forældet læsning)
+* en session der har skrevet i en gruppe læser derefter fra primary, til den lukkes (ingen forældet læsning)
 * en sætning må kun røre én gruppe; referencedata (arter, lokaliteter …) findes i begge og holdes ens af sync_reference()
 
-Uden DBADMIN_URL bruges POSTGRES_DSN som én enkelt node for begge grupper (som før).
+Uden DBADMIN_URL bruges POSTGRES_DSN som én enkelt node for begge grupper.
 """
 
 from __future__ import annotations
@@ -74,6 +74,7 @@ class Router:
         self._down: dict[str, float] = {}
         self._rr = itertools.count()
         self._task: asyncio.Task | None = None
+        self._disposing: set[asyncio.Task] = set()
         self._started = False
         self.legacy = True
 
@@ -140,7 +141,9 @@ class Router:
     def _drop_unused(self, old: dict[str, AsyncEngine]) -> None:
         keep = {n.key for n in self.nodes}
         for k in [k for k in old if k not in keep]:
-            asyncio.create_task(old.pop(k).dispose())
+            task = asyncio.create_task(old.pop(k).dispose())
+            self._disposing.add(task)
+            task.add_done_callback(self._disposing.discard)
 
     def set_nodes(self, nodes: list[Node], read_replicas: dict[str, bool] | None = None) -> None:
         """Brug en given nodeliste uden at hente topologien (db-admin bruger det under migrering)."""
@@ -205,8 +208,7 @@ class Router:
 
     def separate(self) -> bool:
         """Er brugere og observationer på hver sin database?"""
-        return self.primary(USERS) is not self.primary(OBSERVATIONS) and \
-            self.primary_node(USERS).key != self.primary_node(OBSERVATIONS).key
+        return self.primary_node(USERS).key != self.primary_node(OBSERVATIONS).key
 
 
 router = Router()
@@ -260,26 +262,13 @@ class RoutingSession(Session):
             return router.primary(group).sync_engine
         return router.reader(group).sync_engine
 
-    def _forget(self) -> None:
-        self._written.clear()
-
-    def commit(self):
-        try:
-            return super().commit()
-        finally:
-            self._forget()
-
-    def rollback(self):
-        try:
-            return super().rollback()
-        finally:
-            self._forget()
-
+    # Huskes til sessionen lukkes, ikke kun til commit: et typisk "commit og refresh" skal kunne se sin egen skrivning,
+    # og en replika er måske ikke nået så langt endnu.
     def close(self):
         try:
             return super().close()
         finally:
-            self._forget()
+            self._written.clear()
 
 
 def _factory(**info) -> async_sessionmaker[AsyncSession]:

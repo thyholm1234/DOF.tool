@@ -92,7 +92,7 @@ def build(force: bool) -> None:
                 tail = (tail + [line])[-6:]
         code = p.wait()
         if code in (-9, 137):  # dræbt af kernen: ude af hukommelse (ingen traceback, kun advarsler før)
-            raise RuntimeError(f"Eksporten blev stoppet, fordi hukommelsen slap op (kræver ca. 6 GB). "
+            raise RuntimeError("Eksporten blev stoppet, fordi hukommelsen slap op (kræver ca. 6 GB). "
                                "Tilføj swap eller hæv mem_limit for speech-model i docker-compose.yml.")
         if code != 0:
             raise RuntimeError(f"Eksporten fejlede (kode {code}): " + " | ".join(tail)[-400:])

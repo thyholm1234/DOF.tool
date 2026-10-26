@@ -1,4 +1,4 @@
-import { api, h, fmtN, fmtDate, doyLabel, params, setParams, seg, empty, errorBox, windArrow, compass } from "../core.js";
+import { api, h, fmtDate, doyLabel, params, setParams, seg, empty, errorBox, windArrow, compass } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
 
 // Oprydning for den aktive fane (kort og animation)

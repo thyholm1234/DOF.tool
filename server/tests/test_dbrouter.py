@@ -129,3 +129,21 @@ def test_no_assembled_sql_mixes_groups():
                 if len({group_of_table(t) for t in tables_in(base + " " + " ".join(extra))} - {None}) > 1:
                     bad.append(f"{f.relative_to(root)}:{n.lineno} {fn.name}")
     assert not bad, bad
+
+
+def test_reads_stay_on_primary_after_commit(monkeypatch):
+    from sqlalchemy import text
+
+    from portal.dbrouter import Node, router
+    mk = lambda i, role: Node(i, f"n{i}", OBSERVATIONS, role, "h", 5432, "portal", "portal", f"t{i}")
+    monkeypatch.setattr(router, "nodes", [mk(1, "primary"), mk(2, "replica")])
+    monkeypatch.setattr(router, "read_replicas", {USERS: False, OBSERVATIONS: True})
+    primary, replica = router.engine_for(router.nodes[0]).sync_engine, router.engine_for(router.nodes[1]).sync_engine
+    s = RoutingSession()
+    read = text("SELECT * FROM observations")
+    assert s.get_bind(clause=read) is replica
+    s.get_bind(clause=text("UPDATE observations SET antal = 1"))
+    s.commit()
+    assert s.get_bind(clause=read) is primary  # commit og refresh skal kunne se sin egen skrivning
+    s.close()
+    assert s.get_bind(clause=read) is replica

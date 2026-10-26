@@ -85,8 +85,9 @@ def _new_acc() -> list:
 
 def parse_member(zip_path: str, member: str) -> dict:
     """Én døgnfil → {(kvadrat, 'YYYY-MM-DD'): akkumulator}. Kaldes i en underproces."""
-    import orjson
     from zoneinfo import ZoneInfo
+
+    import orjson
 
     tz = ZoneInfo("Europe/Copenhagen")
     latest: dict[tuple, tuple] = {}

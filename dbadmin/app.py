@@ -11,11 +11,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import shutil
 import os
 import re
 import secrets
 import shlex
+import shutil
 import sqlite3
 import time
 from contextlib import asynccontextmanager, closing, suppress
@@ -339,7 +339,7 @@ async def promote(node_id: int):
         con.execute("UPDATE nodes SET primary_id = ? WHERE primary_id = ? AND id <> ?", (node_id, row["primary_id"], node_id))
         bump(con)
         con.commit()
-    return {"ok": True, "command": f"docker exec -u postgres <container> pg_ctl promote -D /var/lib/postgresql/data"}
+    return {"ok": True, "command": "docker exec -u postgres <container> pg_ctl promote -D /var/lib/postgresql/data"}
 
 
 @app.post("/api/nodes/{node_id}/rotate", dependencies=[Depends(superadmin)])
@@ -541,6 +541,7 @@ async def checker() -> None:
 # ---------------------------------------------------------------- opsætning og migrering fra den samlede database
 
 mig: dict = {"running": False, "step": "", "log": [], "error": None, "started": None, "finished": None, "status": None}
+mig_task: asyncio.Task | None = None
 log = logging.getLogger("dbadmin")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -621,7 +622,8 @@ async def migration_start(body: MigrateIn):
     if not LEGACY_DSN:
         raise HTTPException(400, "LEGACY_POSTGRES_DSN er ikke sat på panelet")
     mig.update(running=True, step="Starter", log=[], error=None, started=time.time(), finished=None, status=None)
-    asyncio.create_task(run_migration(body))
+    global mig_task  # asyncio holder kun en svag reference; uden den kan en lang migrering blive samlet op undervejs
+    mig_task = asyncio.create_task(run_migration(body))
     return {"ok": True}
 
 

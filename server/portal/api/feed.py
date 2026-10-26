@@ -11,16 +11,16 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import optional_user, require_user
+from portal.api.social import like_summary, notify_comment
 from portal.cache import kv, publish
 from portal.db import SessionLocal, get_session
 from portal.dof import gateway
 from portal.dof.jobs import ensure_media_obs, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, ThreadStatus, User
-from portal.api.social import like_summary, notify_comment
 from portal.services import activity, feed, finds, moderation, pulse, reports
-from portal.services.auth import can, modules
 from portal.services.alerts import Crossed
 from portal.services.areas import Scope, parse_scope, scope_for_area
+from portal.services.auth import can, modules
 from portal.services.lists import ListSpec
 from portal.timeutil import dk_today
 

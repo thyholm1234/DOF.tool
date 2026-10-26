@@ -19,8 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_perm
 from portal.cache import bump
-from portal.dbops import sync_reference
 from portal.db import ObsSession
+from portal.dbops import sync_reference
 from portal.dof.reference import put_threshold, put_windows
 from portal.models import ReferenceEdit, User
 

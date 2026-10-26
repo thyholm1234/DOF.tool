@@ -19,8 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import optional_user, require_user
 from portal.cache import bump, cached, worker_command
 from portal.db import get_session
-from portal.models import (NfApiGrant, NfApiToken, NfArticle, NfComment, NfFeed, NfKryds, NfLike, NfLink, NfPage, NfPhoto,
-                           NfRole, NfSpecies, Setting, User)
+from portal.models import (NfApiGrant, NfApiToken, NfArticle, NfComment, NfFeed, NfKryds, NfLike, NfLink, NfPage, NfPhoto, NfRole,
+                           NfSpecies, Setting, User)
 from portal.services import dofbasen as dofb
 from portal.services import features, imagemeta
 from portal.services import netfugl as svc

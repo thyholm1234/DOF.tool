@@ -1,6 +1,6 @@
 // Indtastning: én fugl ad gangen med dato, koordinat og DOFbasens felter + status (under observation) og sikkerhed.
 // Lokaliteten foreslås ud fra fuglens position (nærmeste i DOFbasen) og kan skiftes.
-import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, searchSpecies, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
+import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
 import { baseMap } from "../maps.js";
 import { statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
 import { listLocal, syncAll, cachedApi } from "../offline.js";

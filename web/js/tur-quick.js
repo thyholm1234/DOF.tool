@@ -1,6 +1,6 @@
 // Efter en afsluttet tur: de mest almindelige arter på lokaliteten, som ikke står på turen, med hurtig indtastning af
 // antal – støttehjul til komplette lister. Arter man ikke har set, lader man bare stå.
-import { api, h, modal, fmtN } from "./core.js";
+import { api, h, modal } from "./core.js";
 import { newId } from "./offline.js";
 
 const TOP = 30;

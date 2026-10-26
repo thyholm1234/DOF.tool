@@ -10,7 +10,8 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import delete as sql_delete, text
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv

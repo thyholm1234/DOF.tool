@@ -5,12 +5,11 @@ den, og et gentaget kald med samme client_id giver ikke dubletter."""
 
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-
-import gzip
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -18,7 +17,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
-from portal.api.reports import ReportIn, TIME, _check_guidelines, _hhmm, _in_background, _location_exists, _remove_files, _validate_codes
+from portal.api.reports import TIME, ReportIn, _check_guidelines, _hhmm, _in_background, _location_exists, _remove_files, _validate_codes
 from portal.cache import cached, publish, version
 from portal.db import get_session
 from portal.models import FieldBreedingPair, FieldDisturbance, FieldReport, FieldTrip, ThreadFollow, User

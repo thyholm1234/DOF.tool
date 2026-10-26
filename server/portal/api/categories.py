@@ -10,11 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_perm
-from portal.services.auth import role_at_least
 from portal.cache import bump, kv
 from portal.db import get_session
 from portal.models import CategoryOverride, ManualFind, Species, SpeciesCategory, User
 from portal.services import activity, categories, danish_list, manual_finds
+from portal.services.auth import role_at_least
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 moderator = require_perm("kategorier")
@@ -25,7 +25,7 @@ PORTAL_ARTNR = 900000  # arter oprettet i portalen uden DOFbasen-artsnummer
 @router.get("/species")
 async def species(q: str = "", user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
     """Søgning i listearter. Uden søgning: arter der ikke er kategori A i dag, eller som har overstyrede serier."""
-    rows = (await db.execute(text(f"""
+    rows = (await db.execute(text("""
         SELECT s.artnr, s.navn, s.latin, s.klass,
                bird_category(s.artnr, s.artnr, NULL, current_date) AS kategori,
                EXISTS (SELECT 1 FROM species_categories c WHERE c.artnr = s.artnr AND c.removed_at IS NULL) AS own,

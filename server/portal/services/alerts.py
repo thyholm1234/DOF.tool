@@ -97,13 +97,13 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
     crossed = Crossed(session)
 
     outbox: dict[tuple[int, str], dict] = {}
-    # 1) Regler – én repræsentativ (seneste) observation pr. ændret tråd
+    # 1) Regler – én repræsentativ observation pr. ændret tråd: helst en sjælden (ikke alm.), og ellers den seneste.
+    # Den sjældne må ikke fortrænges af en senere alm. observation, så ville regler for Bemærk+ ikke længere matche.
+    rank = lambda e: (e.kategori != "alm", e.tid or "")
     rep: dict[tuple, Event] = {}
     for e in events:
-        if e.thread in changed_threads:
-            cur = rep.get(e.thread)
-            if cur is None or (e.kategori != "alm" and cur.kategori == "alm") or (e.tid or "") > (cur.tid or ""):
-                rep[e.thread] = e
+        if e.thread in changed_threads and (e.thread not in rep or rank(e) > rank(rep[e.thread])):
+            rep[e.thread] = e
     for rule in rules:
         user = users.get(rule["user_id"])
         if not user:

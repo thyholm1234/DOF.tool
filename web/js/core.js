@@ -226,9 +226,8 @@ export function compass(deg) {
   return d[Math.round(deg / 22.5) % 16];
 }
 
-// Artssøgning i browseren: ord i det danske navn matches fra ordstart (alle ord skal passe; fra 4 tegn også
-// inde i sammensatte navne),
-// latinske navne kun fra starten af slægts- eller artsnavnet. Danske navnetræf sorteres først.
+// Artssøgning i browseren: alle ord skal passe med starten af et ord i det danske navn (fra 4 tegn også inde i
+// sammensatte navne). Latinske navne matches kun fra starten af slægts- eller artsnavnet. Danske træf sorteres først.
 const fold = (s) => (s || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 export function searchSpecies(list, query, n = 8) {
   const q = fold(query.trim());

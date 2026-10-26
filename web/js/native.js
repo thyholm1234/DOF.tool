@@ -151,7 +151,7 @@ function stopSharing() {
  *  brugeren, også når appen er lukket. */
 export async function syncSharing(token = null) {
   const prefs = state.user?.prefs || {};
-  // Fra før positionen blev knyttet til én enhed: den første app, der starter, overtager
+  // Ingen enhed er valgt til positionsdeling endnu: den første app, der starter, tager den
   if (isApp() && state.user?.position && prefs.share_location === true && !prefs.position_device) { await takeOverPosition().catch(() => {}); return; }
   const want = !!state.user?.position && prefs.share_location === true && isPositionDevice();
   if (want && !stopShare) {

@@ -25,11 +25,10 @@ import httpx
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import cached, kv, version, bump
+from portal.cache import bump, cached, kv, version
 from portal.config import SEED_DIR, get_settings
 from portal.db import ObsSession
-from portal.models import (NfArticle, NfAudit, NfFamily, NfFeed, NfLink, NfPage, NfRole, NfSpecies,
-                           NfUserRole, Setting, User)
+from portal.models import NfArticle, NfAudit, NfFamily, NfFeed, NfLink, NfPage, NfRole, NfSpecies, NfUserRole, Setting, User
 from portal.services import features
 from portal.services.auth import SUPERADMIN, can
 from portal.services.categories import countable_sql

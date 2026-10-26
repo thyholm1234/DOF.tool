@@ -9,7 +9,6 @@ import tempfile
 import time
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from portal import models
 from portal.db import Base

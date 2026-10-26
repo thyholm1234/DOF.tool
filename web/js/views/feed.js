@@ -28,7 +28,7 @@ export async function scopeOptions() {
 
 export async function render(view) {
   const p = params();
-  // v2: "Mine filtre" er ny standard for indloggede – ældre gemte valg nulstilles én gang
+  // Gemte valg uden v: 2 er fra før "Mine filtre" blev standard og ignoreres
   const saved = (store("feed") || {}).v === 2 ? store("feed") : {};
   const st = {
     date: p.date || todayISO(),
@@ -45,8 +45,7 @@ export async function render(view) {
   const sideEl = h("div", { class: "stack" });
   const updatedEl = h("small", { class: "muted" });
   const scopeSel = h("select", { "aria-label": "Område", style: { width: "auto", maxWidth: "240px" } });
-  // Må krympe og bryde linjen på smalle skærme – ellers skubber den værktøjslinjen (og siden) ud over kanten
-  // Én linje uanset tallet: tallet har fast plads til tre cifre, og slideren krymper i stedet for at hoppe ned
+  // Altid én linje: tallet har plads til tre cifre, og det er slideren, der krymper på smalle skærme
   const localWrap = h("label", { class: "row hide", style: { fontSize: ".85rem", gap: ".4rem", flex: "1 1 240px", minWidth: 0, flexWrap: "nowrap", whiteSpace: "nowrap" } });
   const localVal = h("b", { class: "num", style: { display: "inline-block", minWidth: "3ch", textAlign: "center" } }, st.localMax);
   // Trin i stedet for 1–100: de lave tal (sjældne arter) er dem, der betyder noget, og skal kunne rammes på en telefon

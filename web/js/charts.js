@@ -1,5 +1,5 @@
 // Små, afhængighedsfri SVG-grafer med tooltip.
-import { h } from "./core.js";
+import { h, esc } from "./core.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const s = (tag, attrs = {}) => { const el = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); return el; };
@@ -76,7 +76,7 @@ export function lineChart({ series, band, height = 260, xFormat = String, yForma
     const rows = series.map((se, i) => {
       let best = null;
       for (const p of se.points) { if (step ? p[0] <= x : true) { if (!best || Math.abs(p[0] - x) < Math.abs(best[0] - x) || (step && p[0] <= x)) best = p; } }
-      return best ? `<span style="color:${se.color || PALETTE[i % PALETTE.length]}">●</span> ${se.name}: <b>${yFormat(best[1])}</b>` : null;
+      return best ? `<span style="color:${se.color || PALETTE[i % PALETTE.length]}">●</span> ${esc(se.name)}: <b>${yFormat(best[1])}</b>` : null;
     }).filter(Boolean);
     if (!tip) { tip = h("div", { class: "chart-tip" }); document.body.append(tip); }
     tip.innerHTML = `<div style="opacity:.7">${xFormat(Math.round(x))}</div>` + rows.slice(0, 12).join("<br>");

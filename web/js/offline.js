@@ -1,10 +1,10 @@
 // Lokal kø til ture: kladder og ikke-sendte ture ligger i IndexedDB (med foto/lyd) og sendes, når der er forbindelse.
 // En tur har et client_id; serveren bruger det til at undgå dubletter, hvis et svar går tabt undervejs.
-import { api, toast } from "./core.js";
+import { api, state, toast } from "./core.js";
 
 const DB = "doftool-ture";
 let dbp = null;
-// v2: lageret "cache" med opslag (arter, koder, lokaliteter) og de seneste ture, så der kan indtastes og rettes uden net
+// "ture" er køen af ture; "cache" har opslag (arter, koder, lokaliteter) og de seneste ture, så man kan indtaste og rette uden net
 const open = () => dbp ||= new Promise((resolve, reject) => {
   const req = indexedDB.open(DB, 2);
   req.onupgradeneeded = () => {
@@ -56,10 +56,13 @@ export const cachedTrip = async (id) => (await cacheGet("trips14"))?.value.find(
 
 export const newId = () => (crypto.randomUUID?.() || `${Date.now()}${Math.random()}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 36);
 
-/** Poster: { client_id, server_id, state: "kladde" | "klar" | "fejl", error, body, files: { [obs.client_id]: File[] }, updated } */
-export const putLocal = (rec) => tx("readwrite", (s) => s.put({ ...rec, updated: Date.now() }));
-export const getLocal = (cid) => tx("readonly", (s) => s.get(cid));
-export const listLocal = async () => (await tx("readonly", (s) => s.getAll()) || []).sort((a, b) => b.updated - a.updated);
+/** Poster: { client_id, server_id, owner, state: "kladde" | "klar" | "fejl", error, body, files: { [obs.client_id]: File[] }, updated }
+ *  owner er brugerens id, så en anden, der logger ind på samme enhed, hverken ser eller kommer til at sende turen.
+ *  Poster fra før owner fandtes, regnes som den indloggedes. */
+const mine = (rec) => rec && (rec.owner ?? state.user?.id) === state.user?.id;
+export const putLocal = (rec) => tx("readwrite", (s) => s.put({ owner: state.user?.id, ...rec, updated: Date.now() }));
+export const getLocal = async (cid) => { const rec = await tx("readonly", (s) => s.get(cid)); return mine(rec) ? rec : undefined; };
+export const listLocal = async () => (await tx("readonly", (s) => s.getAll()) || []).filter(mine).sort((a, b) => b.updated - a.updated);
 export const deleteLocal = (cid) => tx("readwrite", (s) => s.delete(cid));
 
 const isNetworkError = (err) => !err.status || err.status === 503 || err.status === 502 || err.status === 504;
@@ -87,7 +90,7 @@ export async function upload(rec) {
 let syncing = false;
 /** Sender alle ture, der er markeret klar. Returnerer antal sendte. Ture med forbindelsesfejl beholdes til næste forsøg. */
 export async function syncAll({ quiet = false } = {}) {
-  if (syncing || !navigator.onLine) return 0;
+  if (syncing || !navigator.onLine || !state.user) return 0;
   syncing = true;
   let sent = 0;
   try {
@@ -110,6 +113,13 @@ export async function syncAll({ quiet = false } = {}) {
 }
 
 export { isNetworkError };
+
+/** Ved logud: slet opslag, de seneste ture og API-svarene i service workerens cache, så den næste bruger på enheden
+ *  ikke kan se dem offline. Ture, der ikke er sendt endnu, bliver liggende til ejeren logger ind igen. */
+export async function forgetUser() {
+  await tx("readwrite", (s) => s.clear(), "cache").catch(() => {});
+  await globalThis.caches?.delete("doftool-api").catch(() => {});
+}
 
 /** Kaldes én gang ved opstart: send, når forbindelsen kommer tilbage, og forsøg også nu. */
 export function start() {

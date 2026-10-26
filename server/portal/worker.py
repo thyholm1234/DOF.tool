@@ -13,15 +13,15 @@ from pathlib import Path
 
 from sqlalchemy import text
 
-from portal.bootstrap import build_background_indexes, init_db
 from portal import jobstatus
+from portal.bootstrap import build_background_indexes, init_db
 from portal.cache import COMMANDS, bump, kv
 from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import (areas, datasync, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl, phenology, regions,
-                             schedule, seasons, speechmodel, storage, weather_archive)
+from portal.services import (areas, datasync, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl, phenology,
+                             regions, schedule, seasons, speechmodel, storage, weather_archive)
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -79,54 +79,70 @@ async def refresh_climate() -> None:
         log.info("DMI klimadata: %s måneder", len(rows))
 
 
-async def scheduler() -> None:
-    await asyncio.sleep(20)
-    # Efter opstart: udfyld huller og sørg for klimadata
+async def _exists(s, sql: str) -> bool:
+    return bool((await s.execute(text(f"SELECT EXISTS ({sql})"))).scalar())
+
+
+async def _once(key: str, fn) -> None:
+    """Kør fn én gang for altid. Fejler den, slettes mærket, så den prøves igen ved næste start."""
+    if not await kv().set(key, "1", nx=True):
+        return
+    try:
+        await fn()
+    except Exception:
+        await kv().delete(key)
+        log.exception("Engangsopgaven %s fejlede", key)
+
+
+async def _strip_old_media() -> None:
+    n = await asyncio.to_thread(imagemeta.strip_tree, Path(get_settings().media_dir))
+    log.info("Metadata fjernet fra %s eksisterende billeder", n)
+
+
+async def _move_media_to_s3() -> None:
+    log.info("Flyttede %s filer fra disken til objektlageret", await storage.migrate_local())
+
+
+async def startup_tasks() -> None:
+    """Efter opstart: udfyld huller og sæt de beregninger i gang, der mangler."""
     await jobs.enqueue_gap_fill()
     async with SessionLocal() as s:
-        has_climate = (await s.execute(text("SELECT count(*) FROM climate_month"))).scalar()
-        has_metrics = (await s.execute(text("SELECT count(*) FROM pheno_metrics"))).scalar()
-        has_regions = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM region_year_species)"))).scalar()
+        has_climate = await _exists(s, "SELECT 1 FROM climate_month")
+        has_metrics = await _exists(s, "SELECT 1 FROM pheno_metrics")
+        has_regions = await _exists(s, "SELECT 1 FROM region_year_species")
+        has_reach = await _exists(s, "SELECT 1 FROM region_reach WHERE year = 0")
+        has_seasons = await _exists(s, "SELECT 1 FROM species_season")
+        has_days = await _exists(s, "SELECT 1 FROM species_day")
+        has_events = await _exists(s, "SELECT 1 FROM dof_events")
+        await datasync.apply_live_interval((await datasync.get_plan(s, "dof"))["tiers"]["today"])
     if not has_climate:
         await run_safely("climate", refresh_climate())
     if not has_metrics or not await kv().exists("pheno:overview"):
-        await kv().rpush(COMMANDS, json.dumps({"cmd": "compute"}))
-        await jobstatus.queued("compute")
+        await rpush_cmd("compute")
     elif not has_regions:
-        await kv().rpush(COMMANDS, json.dumps({"cmd": "regions"}))
-        await jobstatus.queued("regions")
-    async with SessionLocal() as s:
-        has_reach = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM region_reach WHERE year = 0)"))).scalar()
+        await rpush_cmd("regions")
     if not has_reach:
-        await kv().rpush(COMMANDS, json.dumps({"cmd": "gaps"}))
-        await jobstatus.queued("gaps")
-    async with SessionLocal() as s:
-        has_seasons = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM species_season)"))).scalar()
-        has_days = (await s.execute(text("SELECT EXISTS (SELECT 1 FROM species_day)"))).scalar()
+        await rpush_cmd("gaps")
     if has_days and not has_seasons:
         await rpush_cmd("seasons")
-    async with SessionLocal() as s:
-        has_events = (await s.execute(text("SELECT count(*) FROM dof_events"))).scalar()
     if not has_events:
         await run_safely("events", dof_events.sync())
-    async with SessionLocal() as s:
-        await datasync.apply_live_interval((await datasync.get_plan(s, "dof"))["tiers"]["today"])
-    if await kv().set("once:media_meta_v1", "1", nx=True):
-        # Engang: fjern GPS-position og andre metadata fra billeder uploadet før rensningen ved upload fandtes
-        n = await asyncio.to_thread(imagemeta.strip_tree, Path(get_settings().media_dir))
-        log.info("Metadata fjernet fra %s eksisterende billeder", n)
-    if storage.enabled() and await kv().set("once:media_s3_v1", "1", nx=True):
-        # Engang: flyt filer fra observationer fra disken til objektlageret (ved fejl prøves igen ved næste start)
-        try:
-            log.info("Flyttede %s filer fra disken til objektlageret", await storage.migrate_local())
-        except Exception:
-            await kv().delete("once:media_s3_v1")
-            log.exception("Flytning til objektlageret fejlede")
+    # Billeder uploadet før metadata blev fjernet ved upload, og filer fra før objektlageret
+    await _once("once:media_meta_v1", _strip_old_media)
+    if storage.enabled():
+        await _once("once:media_s3_v1", _move_media_to_s3)
     async with SessionLocal() as s:
         if not await locfinds.has_data(s):
-            # Første gang (eller første kørsel fejlede): alle lokalafdelinger med det samme – ellers er alle arter lokale
-            # hits indtil deres dag i måneden
+            # Ellers er alle arter lokale hits, indtil lokalafdelingens dag i måneden kommer
             await locfinds.enqueue(s)
+
+
+async def scheduler() -> None:
+    await asyncio.sleep(20)
+    try:
+        await startup_tasks()
+    except Exception:  # noqa: BLE001 – planlæggeren skal køre alligevel
+        log.exception("Opstartsopgaver fejlede")
     while True:
         try:
             await run_plans()
@@ -155,7 +171,10 @@ async def run_scheduled(name: str, flags: dict) -> None:
     elif name == "reference":
         await jobs.enqueue_reference_refresh()
     elif name == "reference_sync":
-        await sync_reference()
+        try:  # kører hver time og skal ikke fylde i jobhistorikken, men må heller ikke stoppe resten af runden
+            await sync_reference()
+        except Exception:  # noqa: BLE001
+            log.exception("Kopiering af referencedata fejlede")
     elif name == "climate":
         await run_safely("climate", refresh_climate())
     elif name == "events":
@@ -201,8 +220,8 @@ async def run_plans(force: dict[str, list[str]] | None = None) -> dict:
     """Opdateringsplaner: læg de vinduer i kø, hvis interval er gået (eller som er tvunget via 'Kør nu')."""
     out: dict[str, dict] = {"dof": {}, "weather": {}}
     async with SessionLocal() as s:
-        due_dof = (force or {}).get("dof") if force else await datasync.due_tiers(s, "dof")
-        due_weather = (force or {}).get("weather") if force else await datasync.due_tiers(s, "weather")
+        due_dof = force.get("dof") if force else await datasync.due_tiers(s, "dof")
+        due_weather = force.get("weather") if force else await datasync.due_tiers(s, "weather")
         start_year = (await datasync.get_plan(s, "weather"))["start_year"]
     for tier in due_dof or []:
         n = 0
@@ -353,8 +372,7 @@ async def main() -> None:
     ]
     if await archive.pending_files():
         log.info("Nye arkivfiler fundet – starter import i baggrunden")
-        await kv().rpush(COMMANDS, json.dumps({"cmd": "archive_import"}))
-        await jobstatus.queued("archive_import")
+        await rpush_cmd("archive_import")
     await asyncio.gather(*tasks)
 
 

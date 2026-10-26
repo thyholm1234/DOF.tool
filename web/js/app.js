@@ -167,6 +167,7 @@ function openMenu() {
   const u = state.user;
   const close = () => { menu.remove(); document.removeEventListener("click", outside, true); };
   const outside = (e) => { if (!menu.contains(e.target) && e.target !== $("#userbtn")) close(); };
+  const mod = moderationLink(), adm = adminLink();
   const menu = h("div", { class: "menu" },
     h("div", { class: "who" }, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, `${u.obserkode} · ${u.role}`)),
     h("a", { href: "#/indtast", onclick: close, html: `${icon("list")} Mine indtastninger` }),
@@ -174,12 +175,22 @@ function openMenu() {
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
-    moderationLink() ? h("a", { href: moderationLink().href, onclick: close, html: `${icon("check")} ${moderationLink().long}` }) : null,
-    adminLink() ? h("a", { href: adminLink().href, onclick: close, html: `${icon("shield")} ${adminLink().long}` }) : null,
-    h("button", { onclick: async () => { close(); await stopAppPush(); await api("/api/auth/logout", { method: "POST" }); state.user = null; syncSharing(); renderUser(); renderNav(); live.stop(); location.hash = "#/login"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
+    mod ? h("a", { href: mod.href, onclick: close, html: `${icon("check")} ${mod.long}` }) : null,
+    adm ? h("a", { href: adm.href, onclick: close, html: `${icon("shield")} ${adm.long}` }) : null,
+    h("button", { onclick: () => { close(); logout(); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
   document.body.append(menu);
   setTimeout(() => document.addEventListener("click", outside, true));
+}
+
+async function logout() {
+  await stopAppPush();
+  await api("/api/auth/logout", { method: "POST" });
+  state.user = null;
+  await (await import("./offline.js")).forgetUser();
+  syncSharing(); renderUser(); renderNav(); live.stop();
+  location.hash = "#/login";
+  toast("Du er logget ud");
 }
 
 /** Notifikationer der peger på siden man står på (fx tråden) markeres som læst i indbakken. */
@@ -211,7 +222,7 @@ async function route() {
     location.replace("#/login" + (path && path !== "/" ? `?next=${encodeURIComponent("#" + location.hash.slice(1))}` : ""));
     return;
   }
-  // Kortet bor nu under Træk
+  // Gamle bogmærker til kortet
   if (path === "/kort") { location.replace("#/traek?tab=kort"); return; }
   renderNav();
   if (state.user) trackView(path);

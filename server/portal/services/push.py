@@ -15,8 +15,8 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.config import get_settings
-from portal.services import fcm
 from portal.models import PushSubscription, Setting
+from portal.services import fcm
 
 log = logging.getLogger("portal.push")
 _vapid: Vapid01 | None = None

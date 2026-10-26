@@ -16,8 +16,6 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
-from portal.timeutil import dk_today
-
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +23,7 @@ from portal.cache import cached, version
 from portal.models import Setting
 from portal.services.areas import Scope, parse_scope
 from portal.services.categories import countable_sql
+from portal.timeutil import dk_today
 
 
 @dataclass(frozen=True)
@@ -330,21 +329,13 @@ async def _tag_stats(session: AsyncSession, obserkode: str) -> dict[int, dict]:
     return {int(n): {"n_trips": c, "first": a.isoformat(), "last": b.isoformat()} for n, c, a, b in rows if str(n).isdigit()}
 
 
-async def matrikel_numbers(session: AsyncSession, obserkode: str) -> list[int]:
-    stats = await _tag_stats(session, obserkode)
-    defined = (await session.execute(text("""
-        SELECT m.nummer FROM matrikler m JOIN users u ON u.id = m.user_id WHERE u.obserkode = :k
-    """), {"k": obserkode})).scalars().all()
-    return sorted({1, *stats, *defined})
-
-
 async def matrikel_overview(session: AsyncSession, user_id: int, obserkode: str) -> dict:
     prefix = await matrikel_prefix(session)
     stats = await _tag_stats(session, obserkode)
     defined = {r[0]: {"id": r[1], "navn": r[2]} for r in (await session.execute(text(
         "SELECT nummer, id, navn FROM matrikler WHERE user_id = :u"), {"u": user_id})).all()}
-    yy = str(dk_today().year)[2:]
     today = dk_today()
+    yy = str(today.year)[2:]
     out = []
     for n in sorted({1, *stats, *defined}):
         plist = (await load_periods(session, [obserkode], n)).get(obserkode, [])

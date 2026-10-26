@@ -2,6 +2,7 @@ import { api, state, h, fmtN, fmtDate, loadRef, requireLogin, toast, seg } from 
 import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
 import { isApp, isPositionDevice, takeOverPosition } from "../native.js";
+import { forgetUser } from "../offline.js";
 
 export async function render(view) {
   if (requireLogin(view)) return;
@@ -101,7 +102,9 @@ export async function render(view) {
         h("span", { style: { flex: 1 } }),
         u.role !== "superadmin" ? h("button", { class: "btn ghost danger", onclick: async () => {
           if (!confirm("Slet din konto i portalen? Alt hvad du har lavet her slettes – områder, regler, grupper, feltmeldinger, fotos og kommentarer. Dine data i DOFbasen påvirkes ikke.")) return;
-          await api("/api/me", { method: "DELETE" }); location.hash = "#/"; location.reload();
+          await api("/api/me", { method: "DELETE" });
+          await forgetUser();
+          location.hash = "#/"; location.reload();
         } }, "Slet min konto") : null)));
   // API-nøgler til showcase-modulerne: en administrator giver adgang, brugeren laver selv sine nøgler
   for (const [mod, label] of [["dofbasen", "DOFbasen"], ["netfugl", "Netfugl"]]) {
