@@ -35,6 +35,8 @@ LABELS = {
     "netfugl_rss": "Netfugl: RSS-kilder",
     "speech_model": "Talemodel (CoRal) til tale-indtastning",
     "backup": "Backup til SFTP (pg_dump)",
+    "dku_candidates": "DKU: løbende kandidater (hele perioden)",
+    "dku_analysis": "DKU: kandidatanalyse",
 }
 
 _current: ContextVar[str | None] = ContextVar("job", default=None)

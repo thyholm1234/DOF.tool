@@ -13,7 +13,7 @@ from portal.api.deps import require_user
 from portal.cache import kv
 from portal.db import SessionLocal, get_session
 from portal.models import DkuCase, DkuMessage, DkuParticipant, User
-from portal.services import dku
+from portal.services import dku, dku_candidates
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api/dku", tags=["dku"])
@@ -145,15 +145,13 @@ async def open_case(body: TipIn, tasks: BackgroundTasks, c: dict = Depends(ctx),
 
 
 @router.get("/cases")
-async def cases(view: str = Query("mine", pattern="^(mine|observer|dku)$"), state: str = Query("open", pattern="^(open|closed|all)$"),
+async def cases(view: str = Query("observer", pattern="^(observer|dku)$"), state: str = Query("open", pattern="^(open|closed|all)$"),
                 c: dict = Depends(ctx), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     afd = set(c["member_of"])
     if view == "dku":
         if not (afd or c["admin"]):
             raise HTTPException(403, "Kun for DKU-ansvarlige")
         where, role = dku._dku_scope_sql(afd, c["admin"]), "dku"
-    elif view == "mine":
-        where, role = "EXISTS (SELECT 1 FROM dku_participants x WHERE x.case_id = c.id AND x.user_id = :u AND x.role = 'tipper')", "tipper"
     else:
         where, role = ("c.observer_involved AND EXISTS (SELECT 1 FROM dku_participants x WHERE x.case_id = c.id AND x.user_id = :u "
                        "AND x.role = 'observer')"), "observer"
@@ -191,24 +189,107 @@ async def candidates(days: int = Query(7, ge=1, le=30), kriterier: str = Query("
                      saeson_dage: int = Query(14, ge=1, le=90), afdeling: int | None = Query(None, ge=0),
                      kun_bemaerk: bool = Query(False), vis_behandlede: bool = Query(False), c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
     """Kandidater til DKU-sager: nylige observationer, der afviger fra det lokale. Kun for DKU-ansvarlige og administratorer."""
-    member = set(c["member_of"])
-    if not (member or c["admin"]):
-        raise HTTPException(403, "Kun for DKU-ansvarlige")
+    scope = _candidate_scope(c, afdeling)
     crit = [k for k in dict.fromkeys(x.strip() for x in kriterier.split(",")) if k in dku.CRITERIA]
     if not crit:
         raise HTTPException(400, "Vælg mindst ét kriterium")
+    rows = await dku.candidates(db, afd=scope, days=days, criteria=crit, min_match=min(min_kriterier, len(crit)), level=niveau,
+                                hist_years=hist_years, antal_min=antal_min, antal_factor=faktor, ny_max=ny_max,
+                                season_days=saeson_dage, only_notable=kun_bemaerk)
+    return await _candidate_rows(db, await dku.annotate(db, rows, vis_behandlede))
+
+
+def _candidate_scope(c: dict, afdeling: int | None) -> set[int] | None:
+    """Afdelingerne en kandidatsøgning må dække (None = alle)."""
+    member = set(c["member_of"])
+    if not (member or c["admin"]):
+        raise HTTPException(403, "Kun for DKU-ansvarlige")
     scope = None if (c["admin"] or 0 in member) else member
     if afdeling:
         if scope is not None and afdeling not in scope:
             raise HTTPException(403, "Du er ikke DKU-ansvarlig for den afdeling")
         scope = {afdeling}
-    rows = await dku.candidates(db, afd=scope, days=days, criteria=crit, min_match=min(min_kriterier, len(crit)), level=niveau,
-                                hist_years=hist_years, antal_min=antal_min, antal_factor=faktor, ny_max=ny_max,
-                                season_days=saeson_dage, only_notable=kun_bemaerk, include_reviewed=vis_behandlede)
+    return scope
+
+
+async def _candidate_rows(db: AsyncSession, rows: list[dict]) -> dict:
     names = dict((await db.execute(text("SELECT id, navn FROM afdelinger"))).all())
     for r in rows:
         r["afdelinger_navne"] = [names.get(a, str(a)) for a in r["afdelinger"]]
-    return {"criteria": {k: dku.CRITERIA[k] for k in crit}, "rows": rows}
+    return {"criteria": dku.CRITERIA, "rows": rows}
+
+
+class FilterIn(BaseModel):
+    """Et kandidatfilter, som det sendes til workeren eller gemmes som det løbende filter (services/dku_candidates.py)."""
+    kriterier: list[str] = Field(min_length=1, max_length=4)
+    days: int = Field(7, ge=1, le=30)
+    min: int = Field(1, ge=1, le=4)
+    niveau: str = Field("lok", pattern="^(lok|kommune)$")
+    hist_years: int = Field(10, ge=1, le=30)
+    antal_min: int = Field(5, ge=1, le=100000)
+    faktor: float = Field(2.0, ge=1, le=100)
+    ny_max: int = Field(0, ge=0, le=1000)
+    saeson_dage: int = Field(14, ge=1, le=90)
+    kun_bemaerk: bool = False
+
+    def clean(self) -> dict:
+        crit = [k for k in dict.fromkeys(self.kriterier) if k in dku.CRITERIA]
+        if not crit:
+            raise HTTPException(400, "Vælg mindst ét kriterium")
+        return {**self.model_dump(), "kriterier": crit, "min": min(self.min, len(crit))}
+
+
+class StandingIn(FilterIn):
+    on: bool = True
+
+
+@router.get("/candidates/standing")
+async def standing(afdeling: int | None = Query(None, ge=0), vis_behandlede: bool = Query(False), c: dict = Depends(ctx),
+                   db: AsyncSession = Depends(get_session)):
+    """Kandidaterne fra det løbende filter, som workeren holder opdateret efterhånden som observationerne kommer ind."""
+    scope = _candidate_scope(c, afdeling)
+    f = await dku_candidates.load_filter(db)
+    out = await _candidate_rows(db, await dku_candidates.standing(db, f, scope, vis_behandlede) if f["on"] else [])
+    return {**out, "filter": f, "status": await dku_candidates.status(), "can_edit": c["admin"] or 0 in c["member_of"]}
+
+
+@router.put("/candidates/standing")
+async def save_standing(body: StandingIn, c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
+    if not (c["admin"] or 0 in c["member_of"]):
+        raise HTTPException(403, "Kun landsdækkende DKU-ansvarlige og administratorer kan ændre det løbende filter")
+    return await dku_candidates.save_filter(db, {**body.clean(), "on": body.on})
+
+
+class AnalysisIn(FilterIn):
+    afdeling: int | None = Field(None, ge=0)
+
+
+@router.post("/candidates/analyses")
+async def start_analysis(body: AnalysisIn, c: dict = Depends(ctx), user: User = Depends(require_user),
+                         db: AsyncSession = Depends(get_session)):
+    """Send en kandidatsøgning til workeren – resultatet hentes bagefter under analyserne."""
+    scope = _candidate_scope(c, body.afdeling)
+    f = {k: v for k, v in body.clean().items() if k != "afdeling"}
+    afd = (await db.execute(text("SELECT navn FROM afdelinger WHERE id = :a"), {"a": body.afdeling})).scalar() if body.afdeling else None
+    label = f"{afd or 'Alle mine afdelinger'}, {f['days']} dage, {', '.join(dku.CRITERIA[k].lower() for k in f['kriterier'])}"
+    return {"id": await dku_candidates.start_analysis(user.id, f, scope, label)}
+
+
+@router.get("/candidates/analyses")
+async def list_analyses(c: dict = Depends(ctx), user: User = Depends(require_user)):
+    _candidate_scope(c, None)
+    return await dku_candidates.analyses(user.id)
+
+
+@router.get("/candidates/analyses/{aid}")
+async def get_analysis(aid: str, vis_behandlede: bool = Query(False), c: dict = Depends(ctx), user: User = Depends(require_user),
+                       db: AsyncSession = Depends(get_session)):
+    _candidate_scope(c, None)
+    job = await dku_candidates.analysis(aid)
+    if job is None or job["user_id"] != user.id:
+        raise HTTPException(404, "Analysen findes ikke (den gemmes en uge)")
+    rows = await dku.annotate(db, job.pop("rows", None) or [], vis_behandlede)
+    return {**job, **await _candidate_rows(db, rows)}
 
 
 class ReviewIn(BaseModel):

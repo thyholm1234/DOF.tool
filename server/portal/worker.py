@@ -20,8 +20,8 @@ from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import (areas, backup, datasync, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl, phenology,
-                             regions, schedule, seasons, speechmodel, storage, weather_archive)
+from portal.services import (areas, backup, datasync, dku_candidates, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl,
+                             phenology, regions, schedule, seasons, speechmodel, storage, weather_archive)
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -369,6 +369,10 @@ async def command_listener() -> None:
                 await run_safely("backup", run_backup())
             elif name == "aggregates":
                 await run_safely("aggregates", aggregates(int(cmd.get("days", 30))))
+            elif name == "dku_candidates":
+                await run_safely("dku_candidates", dku_candidates.scan(full=True, wait=True))
+            elif name == "dku_analysis":
+                await run_safely("dku_analysis", dku_candidates.run_analysis(cmd["id"]))
         except Exception:  # noqa: BLE001
             log.exception("Kommando-fejl")
             await asyncio.sleep(2)
@@ -388,6 +392,7 @@ async def main() -> None:
         asyncio.create_task(weather_archive.loop(), name="weather"),
         asyncio.create_task(jobs.media_scanner(), name="media"),
         asyncio.create_task(build_background_indexes(), name="indexes"),
+        asyncio.create_task(dku_candidates.loop(), name="dku_candidates"),
     ]
     if await archive.pending_files():
         log.info("Nye arkivfiler fundet – starter import i baggrunden")

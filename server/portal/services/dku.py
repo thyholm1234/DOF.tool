@@ -282,7 +282,7 @@ MIN_HISTORY = 5  # så mange tidligere observationer skal der til, før et antal
 
 async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, criteria: list[str], min_match: int, level: str,
                      hist_years: int, antal_min: int, antal_factor: float, ny_max: int, season_days: int,
-                     only_notable: bool = False, include_reviewed: bool = False, limit: int = 300) -> list[dict]:
+                     only_notable: bool = False, obsids: list[int] | None = None, limit: int = 300) -> list[dict]:
     """DOFbasen-observationer fra de seneste dage, der afviger fra det lokale (lokaliteten eller kommunen) historisk set.
 
     Kriterier (kryds af efter behov; en observation skal ramme mindst `min_match` af de valgte):
@@ -290,8 +290,9 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
       ny      – arten er set højst ny_max gange lokalt i de seneste hist_years år
       saeson  – arten er set lokalt før, men aldrig inden for ± season_days dage af datoen
       dok     – bemærk-art uden fuglenoter, fotos og lyd
-    only_notable: kun bemærkelsesværdige observationer (kategori ud over «alm»). Gennemgåede (godkendte) vises kun med
-    include_reviewed. afd None = alle afdelinger. Hemmelige observationer indgår ikke."""
+    only_notable: kun bemærkelsesværdige observationer (kategori ud over «alm»). afd None = alle afdelinger. obsids: vurdér
+    kun disse (den løbende kørsel i services/dku_candidates.py). Hemmelige observationer indgår ikke. Sager og godkendelser
+    ligger i brugergruppen og sættes på bagefter med annotate()."""
     from portal.dof.jobs import media_many
     from portal.timeutil import dk_today
 
@@ -307,6 +308,8 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
              "dok": "(q.kategori <> 'alm' AND coalesce(q.fuglnoter, '') = '')"}
     pre = " OR ".join(f"({conds[k]})" for k in criteria)
     notable = "AND o.kategori <> 'alm'" if only_notable else ""
+    if obsids is not None:
+        notable += " AND o.obsid = ANY(:obsids)"
     rows = (await db.execute(text(f"""
         SELECT q.*, s.navn AS art, l.navn AS lok, k.navn AS kommune,
                trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS observer
@@ -331,7 +334,7 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
         ORDER BY q.dato DESC, q.obsid DESC LIMIT :cap"""),
         {"since": since, "hist_from": hist_from, "all": afd is None, "afd": sorted(afd or []), "sd": season_days,
          "antal_min": antal_min, "min_hist": MIN_HISTORY, "factor": antal_factor, "ny_max": ny_max,
-         "cap": limit * 3})).mappings().all()
+         "obsids": obsids or [], "cap": limit * 3})).mappings().all()
 
     media = await media_many([r["obsid"] for r in rows if "dok" in criteria and r["kategori"] != "alm" and not r["fuglnoter"]])
     out = []
@@ -353,18 +356,20 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
                     "matched": matched, "url": f"https://dofbasen.dk/popobs.php?obsid={r['obsid']}&summering=tur&obs=obs",
                     "thread": f"/#/traad/{r['dato'].isoformat()}/{r['artnr']}/{r['loknr']}" if r["loknr"] else None})
     out.sort(key=lambda x: (len(x["matched"]), x["dato"], x["obsid"]), reverse=True)  # flest ramte kriterier, så nyeste
-    out = out[:limit]
-    if out:  # sager findes i brugergruppen – slås op for sig
-        cases = (await db.execute(text("""SELECT DISTINCT ON (obsid) obsid, id, status FROM dku_cases
-            WHERE source = 'dofbasen' AND obsid = ANY(:o) ORDER BY obsid, id DESC"""),
-                                  {"o": [r["obsid"] for r in out]})).mappings().all()
-        by = {c["obsid"]: c for c in cases}
-        reviewed = set((await db.execute(text("SELECT obsid FROM dku_reviews WHERE obsid = ANY(:o)"),
-                                         {"o": [r["obsid"] for r in out]})).scalars())
-        for r in out:
-            c = by.get(r["obsid"])
-            r["case"] = {"id": c["id"], "status": c["status"]} if c else None
-            r["reviewed"] = r["obsid"] in reviewed
-        if not include_reviewed:
-            out = [r for r in out if not r["reviewed"]]
-    return out
+    return out[:limit]
+
+
+async def annotate(db: AsyncSession, rows: list[dict], include_reviewed: bool = False) -> list[dict]:
+    """Sæt sag og godkendelse på kandidaterne (brugergruppen – slås op for sig). Godkendte fjernes uden include_reviewed."""
+    if not rows:
+        return rows
+    ids = [r["obsid"] for r in rows]
+    cases = (await db.execute(text("""SELECT DISTINCT ON (obsid) obsid, id, status FROM dku_cases
+        WHERE source = 'dofbasen' AND obsid = ANY(:o) ORDER BY obsid, id DESC"""), {"o": ids})).mappings().all()
+    by = {c["obsid"]: c for c in cases}
+    reviewed = set((await db.execute(text("SELECT obsid FROM dku_reviews WHERE obsid = ANY(:o)"), {"o": ids})).scalars())
+    for r in rows:
+        c = by.get(r["obsid"])
+        r["case"] = {"id": c["id"], "status": c["status"]} if c else None
+        r["reviewed"] = r["obsid"] in reviewed
+    return rows if include_reviewed else [r for r in rows if not r["reviewed"]]

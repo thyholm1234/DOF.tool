@@ -1456,6 +1456,21 @@ class DkuReview(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class DkuCandidate(Base):
+    """Kandidat fundet af det løbende filter (services/dku_candidates.py). data er rækken som fra dku.candidates();
+    sag og godkendelse slås op, når listen vises. found_at er første gang observationen ramte filtret."""
+
+    __tablename__ = "dku_candidates"
+
+    obsid: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    dato: Mapped[date] = mapped_column(Date, index=True)
+    afdelinger: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), default=list)
+    matched: Mapped[list[str]] = mapped_column(ARRAY(String(10)), default=list)
+    data: Mapped[dict] = mapped_column(JSONB)
+    found_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class DkuCase(Base):
     """En sag om én observation: DOFbasen (obsid) eller en feltmelding i portalen (report_id).
 
