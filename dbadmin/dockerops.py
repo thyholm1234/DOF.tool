@@ -12,7 +12,10 @@ IMAGE = os.environ.get("DBNODE_IMAGE", "doftool-dbnode:latest")
 BUILD_CONTEXT = "/app/dbnode"  # kopieret ind i panelets billede, så noden altid bygges af den kode panelet er bygget med
 TUNING = ["-c", "shared_buffers=1GB", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=512MB", "-c", "effective_cache_size=4GB",
           "-c", "max_wal_size=8GB", "-c", "random_page_cost=1.1", "-c", "wal_level=replica", "-c", "max_wal_senders=10",
-          "-c", "hot_standby=on", "-c", "wal_keep_size=2GB"]
+          "-c", "hot_standby=on", "-c", "wal_keep_size=2GB",
+          # En replika må ikke afbryde læsninger, fordi primary har ryddet rækker op, som læsningen stadig ser
+          # ("terminating connection due to conflict with recovery" midt i en request)
+          "-c", "hot_standby_feedback=on"]
 
 
 def available() -> bool:

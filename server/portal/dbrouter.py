@@ -26,6 +26,7 @@ from urllib.parse import quote
 
 import httpx
 from sqlalchemy import event
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import ClauseElement
@@ -271,8 +272,37 @@ class RoutingSession(Session):
             self._written.clear()
 
 
+class RetryingSession(AsyncSession):
+    """En session der kun har læst, prøver sætningen én gang til, hvis forbindelsen er tabt (fx en replika der genstarter
+    eller afbryder en læsning ved en konflikt med replikeringen). Noden er da markeret som nede, så forsøget går til en anden;
+    rollback er ufarligt, fordi intet er skrevet. Har sessionen skrevet, sendes fejlen videre som før."""
+
+    async def _retry(self, fn, *a, **kw):
+        try:
+            return await fn(*a, **kw)
+        except DBAPIError as exc:
+            if not exc.connection_invalidated or self.sync_session._written or self.sync_session.new or self.sync_session.dirty \
+                    or self.sync_session.deleted:
+                raise
+            log.warning("Læsning mistede forbindelsen (%s) – prøver igen", exc.orig)
+            await self.rollback()
+            return await fn(*a, **kw)
+
+    async def execute(self, *a, **kw):
+        return await self._retry(super().execute, *a, **kw)
+
+    async def scalar(self, *a, **kw):
+        return await self._retry(super().scalar, *a, **kw)
+
+    async def scalars(self, *a, **kw):
+        return await self._retry(super().scalars, *a, **kw)
+
+    async def get(self, *a, **kw):
+        return await self._retry(super().get, *a, **kw)
+
+
 def _factory(**info) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(class_=AsyncSession, sync_session_class=RoutingSession, expire_on_commit=False, info=info)
+    return async_sessionmaker(class_=RetryingSession, sync_session_class=RoutingSession, expire_on_commit=False, info=info)
 
 
 SessionLocal = _factory(home=USERS)

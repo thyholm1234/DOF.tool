@@ -504,6 +504,13 @@ async def probe(row: sqlite3.Row) -> tuple[str, str, float | None]:
             return "wrong", "Registreret som primary, men databasen kører som replika", lag
         if row["role"] == "replica" and not recovery:
             return "wrong", "Registreret som replika, men databasen er primary", None
+        if recovery and await conn.fetchval("SHOW hot_standby_feedback") == "off":
+            # Replikaer oprettet før indstillingen kom med (dockerops.TUNING): uden den kan replikaen afbryde læsninger
+            # ved konflikter med replikeringen. Kan slås til uden genstart.
+            with suppress(Exception):
+                await conn.execute("ALTER SYSTEM SET hot_standby_feedback = on")
+                await conn.execute("SELECT pg_reload_conf()")
+                log.info("hot_standby_feedback slået til på %s", row["name"])
         return "ok", "", float(lag) if lag is not None else None
     except Exception as exc:  # noqa: BLE001
         return "down", str(exc)[:200], None
