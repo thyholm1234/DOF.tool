@@ -94,12 +94,12 @@ async def species_list(session: AsyncSession) -> list[dict]:
 
     async def produce():
         rows = (await session.execute(text("""
-            SELECT artnr, navn, latin, klass, art_type FROM species WHERE NOT excluded
+            SELECT artnr, navn, latin, klass, art_type, list_artnr FROM species WHERE NOT excluded
             ORDER BY art_type <> 'art', sortering NULLS LAST, navn
         """))).mappings().all()
         return [dict(r) for r in rows]
 
-    return await cached(f"report:species:{await version('reference')}", 86400, produce)
+    return await cached(f"report:species:v2:{await version('reference')}", 86400, produce)  # v2: med list_artnr
 
 
 async def nearest_locations(session: AsyncSession, lat: float, lon: float, n: int = 20) -> list[dict]:

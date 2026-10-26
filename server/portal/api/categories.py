@@ -278,6 +278,8 @@ async def add_find(body: FindIn, user: User = Depends(moderator), db: AsyncSessi
     sp = await db.get(Species, body.artnr)
     if sp is None:
         raise HTTPException(400, "Arten findes ikke")
+    if sp.list_artnr != sp.artnr or sp.excluded:  # fundet tæller i Arter pr. år – kun arter fra artslisten
+        raise HTTPException(400, f"{sp.navn} er ikke en art på artslisten – vælg arten (fx nominatarten i stedet for underarten)")
     if body.loknr is not None and not (await db.execute(text("SELECT 1 FROM locations WHERE loknr = :l"), {"l": body.loknr})).first():
         raise HTTPException(400, "Lokaliteten findes ikke")
     f = ManualFind(**body.model_dump(exclude={"sted", "note"}), sted=(body.sted or "").strip() or None,

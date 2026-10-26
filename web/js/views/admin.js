@@ -1137,9 +1137,10 @@ async function manualFinds(box) {
   };
   const findForm = (onSaved) => {
     let artnr = null, loknr = null;
-    const art = h("input", { type: "search", placeholder: "Søg art…", autocomplete: "off", required: true });
+    const art = h("input", { type: "search", placeholder: "Søg art på artslisten…", autocomplete: "off", required: true });
     const artHits = h("div", { class: "suggest" });
-    const ready = api("/api/reports/species").then(l => { all = l; });
+    // Kun arter fra artslisten (tæller som sig selv) – fundet tæller i Arter pr. år
+    const ready = api("/api/reports/species").then(l => { all = l.filter(s => s.list_artnr === s.artnr); });
     art.addEventListener("input", () => ready.then(() => {
       artnr = null;
       artHits.replaceChildren(...searchSpecies(all, art.value).map(sp => h("button", { type: "button", onclick: () => { artnr = sp.artnr; art.value = sp.navn; artHits.replaceChildren(); } },
@@ -1163,7 +1164,7 @@ async function manualFinds(box) {
     const note = h("input", { maxlength: 2000, placeholder: "Kilde, fx 'Godkendt af SU 2023' (valgfri)" });
     return h("form", { class: "stack", style: { background: "var(--surface-2)", padding: "12px", borderRadius: "10px" }, onsubmit: async (e) => {
       e.preventDefault();
-      if (!artnr) { toast("Vælg arten på listen", "err"); return; }
+      if (!artnr) { toast("Vælg arten fra artslisten", "err"); return; }
       if (lok.value.trim() && !loknr) { toast("Vælg lokaliteten på listen – eller ryd feltet og skriv stedet", "err"); return; }
       try {
         await api("/api/categories/finds", { method: "POST", body: { artnr, dato: dato.value, antal: Number(antal.value), loknr, sted: sted.value || null, note: note.value || null } });
