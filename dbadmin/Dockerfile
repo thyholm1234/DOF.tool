@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 TZ=Europe/Copenhagen
-# Portalens pakke er med, så panelet selv kan oprette skemaer og flytte data (migrering)
+# Portalens afhængigheder (asyncpg, FastAPI …) installeres via pakken
 WORKDIR /app/server
 COPY server/pyproject.toml ./
 RUN mkdir portal && touch portal/__init__.py && pip install . "docker>=7" && pip uninstall -y dof-portal

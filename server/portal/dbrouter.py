@@ -10,7 +10,7 @@ hele DOF-økosystemet:
 * en session der har skrevet i en gruppe læser derefter fra primary, til den lukkes (ingen forældet læsning)
 * en sætning må kun røre én gruppe; referencedata (arter, lokaliteter …) findes i begge og holdes ens af sync_reference()
 
-Uden DBADMIN_URL bruges POSTGRES_DSN som én enkelt node for begge grupper.
+Uden DBADMIN_URL (lokal udvikling og test) bruges POSTGRES_DSN som én enkelt node for begge grupper.
 """
 
 from __future__ import annotations
@@ -76,7 +76,6 @@ class Router:
         self._task: asyncio.Task | None = None
         self._disposing: set[asyncio.Task] = set()
         self._started = False
-        self.legacy = True
 
     # ------------------------------------------------------------ opsætning
 
@@ -85,7 +84,7 @@ class Router:
             return
         s = get_settings()
         if not s.dbadmin_url:
-            self._apply_legacy(s.postgres_dsn)
+            self._apply_single(s.postgres_dsn)
         else:
             for attempt in range(1, 31):
                 try:
@@ -107,10 +106,9 @@ class Router:
         self.engines.clear()
         self._started = False
 
-    def _apply_legacy(self, dsn: str) -> None:
+    def _apply_single(self, dsn: str) -> None:
         from sqlalchemy.engine import make_url
         u = make_url(dsn)
-        self.legacy = True
         self.nodes = [Node(0, "postgres", g, "primary", u.host or "localhost", u.port or 5432, u.database or "portal",
                            u.username or "portal", u.password or "") for g in GROUPS]
         self.version = 0
@@ -122,16 +120,11 @@ class Router:
                                  headers={"Authorization": f"Bearer {s.dbadmin_service_token}"})
             r.raise_for_status()
             data = r.json()
-        if data.get("mode") == "legacy":  # db-admin: opdelingen er ikke slået til endnu (eller rullet tilbage)
-            self._apply_legacy(s.postgres_dsn)
-            self._drop_unused(old=self.engines)
-            return
         nodes = [Node(n["id"], n["name"], n["group"], n["role"], n["host"], int(n["port"]), n["dbname"], n["user"], n["token"],
                       n.get("status") != "down", n.get("purpose", "read")) for n in data["nodes"] if n.get("enabled", True)]
         for g in GROUPS:
             if not any(n.group == g and n.role == "primary" for n in nodes):
                 raise RuntimeError(f"Ingen primary i gruppen '{g}' – opret en under Admin → databaser")
-        self.legacy = False
         self.read_replicas = {g: bool(data.get("read_replicas", {}).get(g, g == OBSERVATIONS)) for g in GROUPS}
         if nodes != self.nodes:
             log.info("Databasetopologi opdateret: %s", ", ".join(f"{n.group}/{n.role}:{n.name}@{n.host}:{n.port}" for n in nodes))
@@ -147,7 +140,7 @@ class Router:
 
     def set_nodes(self, nodes: list[Node], read_replicas: dict[str, bool] | None = None) -> None:
         """Brug en given nodeliste uden at hente topologien (db-admin bruger det under migrering)."""
-        self.legacy, self._started = False, True
+        self._started = True
         self.nodes = nodes
         if read_replicas:
             self.read_replicas = read_replicas

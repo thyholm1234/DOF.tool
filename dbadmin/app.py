@@ -64,7 +64,6 @@ CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, expires REAL NOT NULL);
 """
 DEFAULT_SETTINGS = {"read_replicas": {"users": False, "observations": True}, "version": 1}
-LEGACY_DSN = os.environ.get("LEGACY_POSTGRES_DSN", "")
 
 
 def db() -> sqlite3.Connection:
@@ -81,10 +80,6 @@ def init() -> None:
             con.execute("ALTER TABLE nodes ADD COLUMN purpose TEXT NOT NULL DEFAULT 'read'")
         for k, v in DEFAULT_SETTINGS.items():
             con.execute("INSERT OR IGNORE INTO settings (k, v) VALUES (?, ?)", (k, json.dumps(v)))
-        # mode: 'legacy' = portalen bruger stadig den samlede database; 'split' = bruger-/observationsnoderne bruges.
-        # Et register der allerede har aktive primaries (oprettet før mode fandtes) regnes som split.
-        has_nodes = con.execute("SELECT 1 FROM nodes WHERE role = 'primary' AND enabled = 1").fetchone() is not None
-        con.execute("INSERT OR IGNORE INTO settings (k, v) VALUES ('mode', ?)", (json.dumps("split" if has_nodes else "legacy"),))
         con.commit()
 
 
@@ -378,7 +373,7 @@ async def topology():
     """Til API og worker: aktive noder med token, i den rækkefølge de skal bruges."""
     with closing(db()) as con:
         rows = con.execute("SELECT * FROM nodes WHERE enabled = 1 ORDER BY id").fetchall()
-        return {"version": setting(con, "version"), "read_replicas": setting(con, "read_replicas"), "mode": setting(con, "mode"),
+        return {"version": setting(con, "version"), "read_replicas": setting(con, "read_replicas"),
                 "nodes": [{"id": r["id"], "name": r["name"], "group": r["grp"], "role": r["role"], "host": r["host"],
                            "port": r["port"], "dbname": r["dbname"], "user": r["user"], "token": r["token"],
                            "purpose": r["purpose"], "enabled": True, "status": r["status"]} for r in rows]}
@@ -538,27 +533,10 @@ async def checker() -> None:
         await asyncio.sleep(CHECK_SECONDS)
 
 
-# ---------------------------------------------------------------- opsætning og migrering fra den samlede database
+# ---------------------------------------------------------------- databaseaktivitet
 
-mig: dict = {"running": False, "step": "", "log": [], "error": None, "started": None, "finished": None, "status": None}
-mig_task: asyncio.Task | None = None
 log = logging.getLogger("dbadmin")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-
-
-async def say(msg: str) -> None:
-    mig["step"] = msg
-    mig["log"].append(f"{time.strftime('%H:%M:%S')} {msg}")
-    del mig["log"][:-500]
-    log.info("migrering: %s", msg)  # også i 'docker logs <dbadmin>'
-
-
-async def set_status(st: dict | None) -> None:
-    mig["status"] = {**st, "at": time.time()} if st else None
-
-
-def _asyncpg_dsn(dsn: str) -> str:
-    return dsn.replace("postgresql+asyncpg://", "postgresql://", 1)
 
 
 ACTIVITY_SQL = """
@@ -568,10 +546,10 @@ ACTIVITY_SQL = """
     ORDER BY query_start"""
 
 
-@app.get("/api/migration/activity", dependencies=[Depends(superadmin)])
+@app.get("/api/activity", dependencies=[Depends(superadmin)])
 async def migration_activity():
     """Hvad laver databaserne lige nu? Aktive forespørgsler, ventetilstande (fx låse) og COPY/indeks-fremdrift."""
-    targets = [("samlet (kilde)", _asyncpg_dsn(LEGACY_DSN))] if LEGACY_DSN else []
+    targets = []
     with closing(db()) as con:
         for r in con.execute("SELECT * FROM nodes WHERE role = 'primary' AND enabled = 1"):
             targets.append((r["name"], {"host": r["host"], "port": r["port"], "user": r["user"], "password": r["token"],
@@ -598,126 +576,6 @@ async def migration_activity():
             await conn.close()
     disk = shutil.disk_usage("/tmp")
     return {"nodes": out, "panel_tmp_free_gb": round(disk.free / 1e9, 1)}
-
-
-class MigrateIn(BaseModel):
-    stop_services: bool = True  # stop api/worker under flytningen, så der ikke skrives i den gamle database
-    wipe: bool = False  # erstat eksisterende data i de nye databaser
-
-
-@app.get("/api/migration", dependencies=[Depends(superadmin)])
-async def migration_state():
-    with closing(db()) as con:
-        mode = setting(con, "mode")
-    return {**mig, "mode": mode, "docker": dockerops.available(), "legacy_configured": bool(LEGACY_DSN)}
-
-
-@app.post("/api/migration", dependencies=[Depends(superadmin)])
-async def migration_start(body: MigrateIn):
-    with closing(db()) as con:
-        if setting(con, "mode") == "split" and not body.wipe:
-            raise HTTPException(400, "Opdelingen er allerede slået til")
-    if mig["running"]:
-        raise HTTPException(409, "En migrering kører allerede")
-    if not LEGACY_DSN:
-        raise HTTPException(400, "LEGACY_POSTGRES_DSN er ikke sat på panelet")
-    mig.update(running=True, step="Starter", log=[], error=None, started=time.time(), finished=None, status=None)
-    global mig_task  # asyncio holder kun en svag reference; uden den kan en lang migrering blive samlet op undervejs
-    mig_task = asyncio.create_task(run_migration(body))
-    return {"ok": True}
-
-
-@app.post("/api/mode", dependencies=[Depends(superadmin)])
-async def set_mode(body: dict):
-    """Skift tilbage til den samlede database (data skrevet siden migreringen følger ikke med)."""
-    if body.get("mode") not in ("legacy", "split"):
-        raise HTTPException(400, "Ugyldig tilstand")
-    with closing(db()) as con:
-        con.execute("INSERT OR REPLACE INTO settings (k, v) VALUES ('mode', ?)", (json.dumps(body["mode"]),))
-        bump(con)
-        con.commit()
-    return {"mode": body["mode"]}
-
-
-async def wait_ready(row: dict, seconds: int = 120) -> None:
-    deadline = time.monotonic() + seconds
-    while True:
-        try:
-            conn = await asyncpg.connect(host=row["host"], port=row["port"], user=row["user"], password=row["token"],
-                                         database=row["dbname"], timeout=3)
-            await conn.close()
-            return
-        except Exception:  # noqa: BLE001
-            if time.monotonic() > deadline:
-                raise RuntimeError(f"{row['name']} svarer ikke på {row['host']}:{row['port']}") from None
-            await asyncio.sleep(2)
-
-
-async def run_migration(opts: MigrateIn) -> None:
-    from portal.dbops import migrate
-    from portal.dbrouter import Node, router
-
-    stopped: list = []
-    cli = project = network = None
-    try:
-        use_docker = dockerops.available()
-        if use_docker:
-            cli = await asyncio.to_thread(dockerops.client)
-            project, network = await asyncio.to_thread(dockerops.context, cli)
-        if opts.stop_services and use_docker:
-            await say("Stopper api og worker")
-            for c in await asyncio.to_thread(dockerops.services, cli, project, ("api", "worker")):
-                if c.status == "running":
-                    await asyncio.to_thread(c.stop, timeout=30)
-                    stopped.append(c)
-        elif opts.stop_services:
-            await say("Docker er ikke tilgængelig i panelet – stop api og worker selv under flytningen")
-
-        for group, label in (("users", "brugerdata"), ("observations", "observationer")):
-            with closing(db()) as con:
-                node = con.execute("SELECT * FROM nodes WHERE grp = ? AND role = 'primary' AND enabled = 1", (group,)).fetchone()
-            if node is not None:
-                await say(f"Bruger eksisterende {label}-node {node['name']}")
-                continue
-            if not use_docker:
-                raise RuntimeError(f"Der er ingen primary for {label}. Opret den under 'Tilføj node' (eller giv panelet adgang til Docker).")
-            name, token = ("users-1" if group == "users" else "obs-1"), new_token()
-            await say(f"Opretter {label}-database {name}")
-            host = await asyncio.to_thread(dockerops.create_primary, cli, project, network, name, token, "portal", "portal")
-            with closing(db()) as con:
-                con.execute("INSERT INTO nodes (name, grp, role, host, port, dbname, user, token, note) "
-                            "VALUES (?, ?, 'primary', ?, 5432, 'portal', 'portal', ?, 'oprettet af panelet')", (name, group, host, token))
-                bump(con)
-                con.commit()
-        with closing(db()) as con:
-            rows = [dict(r) for r in con.execute("SELECT * FROM nodes WHERE role = 'primary' AND enabled = 1")]
-        for r in rows:
-            await say(f"Venter på {r['name']} ({r['host']}:{r['port']})")
-            await wait_ready(r)
-        router.set_nodes([Node(r["id"], r["name"], r["grp"], "primary", r["host"], r["port"], r["dbname"], r["user"], r["token"])
-                          for r in rows])
-        await migrate(LEGACY_DSN, wipe=opts.wipe, progress=say, status=set_status)
-        with closing(db()) as con:
-            con.execute("INSERT OR REPLACE INTO settings (k, v) VALUES ('mode', ?)", (json.dumps("split"),))
-            bump(con)
-            con.commit()
-        await say("Migrering færdig – opdelingen er slået til")
-    except Exception as exc:  # noqa: BLE001
-        log.exception("Migrering fejlede")
-        mig["error"] = str(exc) or exc.__class__.__name__
-        await say("FEJL: " + mig["error"] + " – portalen bruger stadig den samlede database. Start igen for at fortsætte, "
-                  "hvor den slap (færdige tabeller og bidder springes over).")
-    finally:
-        for c in stopped:
-            try:
-                await asyncio.to_thread(c.start)
-            except Exception as exc:  # noqa: BLE001
-                await say(f"Kunne ikke starte {c.name}: {exc}")
-        if stopped:
-            await say("Api og worker startet igen")
-        mig.update(running=False, finished=time.time())
-        with suppress(Exception):
-            await router.stop()
 
 
 @app.get("/", include_in_schema=False)
