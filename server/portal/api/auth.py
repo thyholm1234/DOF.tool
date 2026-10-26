@@ -78,7 +78,8 @@ async def me(user: User | None = Depends(optional_user), db: AsyncSession = Depe
                      "netfugl": (await netfugl.context(db, user)).out(), "dku": await dku.context(db, user),
                      "position": features.visible(flags, "position", superadmin=user.role == "superadmin", insider=False),
                      "voice": features.visible(flags, "voice", superadmin=user.role == "superadmin", insider=False),
-                     "trip_weather": features.visible(flags, "trip_weather", superadmin=user.role == "superadmin", insider=False)}}
+                     "trip_weather": features.visible(flags, "trip_weather", superadmin=user.role == "superadmin", insider=False),
+                     "search": features.visible(flags, "search", superadmin=user.role == "superadmin", insider=False)}}
 
 
 ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "push_enabled", "quiet_hours", "theme", "home",

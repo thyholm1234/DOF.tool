@@ -34,6 +34,7 @@ LABELS = {
     "netfugl_kryds": "Netfugl: krydslister fra DOFbasen",
     "netfugl_rss": "Netfugl: RSS-kilder",
     "speech_model": "Talemodel (CoRal) til tale-indtastning",
+    "backup": "Backup til SFTP (pg_dump)",
 }
 
 _current: ContextVar[str | None] = ContextVar("job", default=None)

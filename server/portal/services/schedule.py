@@ -46,6 +46,8 @@ TASKS: dict[str, tuple[str, str, dict]] = {
     "speech_model": ("Talemodel til appen", "Bygger tale-indtastningens model (CoRal) første gang og når modellen er ændret; "
                      "ellers sker der ingenting",
                      {"on": True, "every": 1, "unit": "week", "at": "04:00"}),
+    "backup": ("Backup til SFTP", "pg_dump af databaserne sendes til SFTP-serveren (opsættes under Backup; ellers sker der ingenting)",
+               {"on": True, "every": 1, "unit": "day", "at": "01:30"}),
     "loc_finds": ("Lokale hits: fund pr. lokalitet", "Én gang om måneden, fordelt på lokalafdelinger (se Fordeling)",
                   {"on": True, "every": 1, "unit": "month", "at": "03:30"}),
 }

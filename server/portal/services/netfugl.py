@@ -3,7 +3,7 @@
 * Indhold (tekstsider, ordforklaringer, DK-/VP-listen, fuglefamilier, links, RSS-kilder, artikel-uddrag) ligger i
   nf_*-tabellerne og lægges ind fra seed/netfugl/content.json første gang. Kopieret fra netfugl.dk som eksempel.
 * Krydslister beregnes automatisk: workeren finder hver deltagers første fund pr. art i DOFbasen (DK, årsarter,
-  månedsarter, lokalafdelinger og kommuner) og gemmer dem i nf_auto. Manuelle kryds (nf_kryds) supplerer: arter fra før
+  månedsarter, lokalafdelinger og kommuner) og gemmer dem i nf_auto_lists. Manuelle kryds (nf_kryds) supplerer: arter fra før
   DOFbasen, VP-arter, ringmærkningsarter og ædelarter – og kan skjule et automatisk kryds.
 * RSS (Netfugl live): workeren henter kilderne hver time; mangler feed-adressen, findes den via <link rel="alternate">.
 * Modulet har egne roller (nf_roles) med rettigheder (PERMS). Superadmin og portal-modulet "netfugl" har alle.
@@ -265,7 +265,7 @@ async def refresh_auto(session: AsyncSession) -> int:
     if st["participants"] == "aktive":
         await refresh_active(session)
     codes = sorted(await participants(session))
-    await session.execute(text("DELETE FROM nf_auto WHERE NOT (obserkode = ANY(:c))"), {"c": codes})
+    await session.execute(text("DELETE FROM nf_auto_lists WHERE NOT (obserkode = ANY(:c))"), {"c": codes})
     await session.commit()
     y0 = date(dk_today().year - int(st["year_lists"]) + 1, 1, 1)
     base = f"""FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
@@ -288,26 +288,25 @@ async def refresh_auto(session: AsyncSession) -> int:
             {base.replace('WHERE', 'JOIN locations l ON l.loknr = o.loknr WHERE l.kommune_kode IS NOT NULL AND', 1)}
             ORDER BY o.obserkode, l.kommune_kode, s.list_artnr, o.dato, o.obsid""",
     ]
-    # Observationerne ligger i observationsgruppen og nf_auto i brugergruppen: en sætning må ikke blande dem, så krydsene
-    # læses for sig og skrives samlet bagefter (én INSERT pr. portion via unnest)
+    # Observationerne ligger i observationsgruppen og nf_auto_lists i brugergruppen: en sætning må ikke blande dem, så
+    # krydsene læses for sig og skrives samlet bagefter – én række (med arrays) pr. deltager og liste
     total = 0
     for i in range(0, len(codes), 25):
         batch = codes[i:i + 25]
-        rows: list = []
+        lists: dict[tuple[str, str], list[list]] = {}
         async with ObsSession() as obs:
             await obs.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
             for q in queries:
-                rows += (await obs.execute(text(q), {"codes": batch, "y0": y0})).all()
-        await session.execute(text("DELETE FROM nf_auto WHERE obserkode = ANY(:c)"), {"c": batch})
-        if rows:
-            cols = list(zip(*rows))
+                for kode, liste, artnr, dato, obsid, loknr in (await obs.execute(text(q), {"codes": batch, "y0": y0})).all():
+                    cols = lists.setdefault((kode, liste), [[], [], [], []])
+                    for col, v in zip(cols, (artnr, dato, obsid, loknr)):
+                        col.append(v)
+                    total += 1
+        await session.execute(text("DELETE FROM nf_auto_lists WHERE obserkode = ANY(:c)"), {"c": batch})
+        if lists:
             await session.execute(text("""
-                INSERT INTO nf_auto (obserkode, liste, artnr, dato, obsid, loknr)
-                SELECT * FROM unnest(CAST(:k AS varchar[]), CAST(:l AS varchar[]), CAST(:a AS integer[]), CAST(:d AS date[]),
-                                     CAST(:o AS bigint[]), CAST(:lok AS integer[]))
-            """), {"k": list(cols[0]), "l": list(cols[1]), "a": list(cols[2]), "d": list(cols[3]), "o": list(cols[4]),
-                   "lok": list(cols[5])})
-        total += len(rows)
+                INSERT INTO nf_auto_lists (obserkode, liste, artnr, dato, obsid, loknr) VALUES (:k, :l, :a, :d, :o, :lok)
+            """), [{"k": k, "l": li, "a": a, "d": d, "o": o, "lok": lok} for (k, li), (a, d, o, lok) in lists.items()])
         await session.commit()
     await bump(KRYDS_VERSION)
     await kv().set("nf:auto:at", datetime.now(timezone.utc).isoformat())
@@ -327,8 +326,9 @@ async def load_kryds(session: AsyncSession, key: str) -> dict:
         if LISTS[base]["auto"] or base == "vp":
             auto_list = "dk" if base == "vp" else key
             auto = (await session.execute(text("""
-                SELECT a.obserkode, a.artnr, s.navn, s.latin, a.dato, a.obsid, a.loknr, l.navn AS lok
-                FROM nf_auto a JOIN species s ON s.artnr = a.artnr LEFT JOIN locations l ON l.loknr = a.loknr
+                SELECT a.obserkode, u.artnr, s.navn, s.latin, u.dato, u.obsid, u.loknr, l.navn AS lok
+                FROM nf_auto_lists a CROSS JOIN LATERAL unnest(a.artnr, a.dato, a.obsid, a.loknr) AS u(artnr, dato, obsid, loknr)
+                JOIN species s ON s.artnr = u.artnr LEFT JOIN locations l ON l.loknr = u.loknr
                 WHERE a.liste = :l AND a.obserkode = ANY(:c)
             """), {"l": auto_list, "c": codes})).mappings().all()
             for r in auto:

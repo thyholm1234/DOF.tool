@@ -67,8 +67,9 @@ brugeren laver selv nøgler på profilen eller under Netfugl → API-nøgler. En
 
 * Backend: `api/netfugl.py`, `api/netfugl_v1.py`, `services/netfugl.py`; tabeller `nf_*`, fyldt fra `seed/netfugl/content.json`
   (bygget med `tools/dofbasen_seed/netfugl_build_seed.py`).
-* Workeren beregner `nf_auto` hver 6. time (og når indstillingerne ændres): fem `INSERT … SELECT DISTINCT ON` over deltagernes
-  observationer, 25 deltagere ad gangen. Listerne caches i Valkey og invalideres ved hver ændring.
+* Workeren beregner `nf_auto_lists` hver 6. time (og når indstillingerne ændres): fem `SELECT DISTINCT ON` over deltagernes
+  observationer, 25 deltagere ad gangen, gemt som én række pr. deltager og liste med arrays (artnr, dato, obsid, loknr) –
+  ikke én række pr. kryds. Listerne caches i Valkey og invalideres ved hver ændring.
 * RSS: hver time, én kilde ad gangen, højst 3 MB pr. svar; feed-adressen findes via `<link rel="alternate">` eller
   almindelige stier (`/feed/`, `/rss.xml` …). Feeds med `<!ENTITY>` afvises.
 * Fotos gemmes i `media/netfugl/` (skaleret i browseren til højst 2048 px).

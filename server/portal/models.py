@@ -1358,17 +1358,19 @@ class NfKryds(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class NfAuto(Base):
-    """Automatiske kryds beregnet af workeren ud fra DOFbasen-observationer: første fund pr. art pr. liste."""
+class NfAutoList(Base):
+    """Automatiske kryds beregnet af workeren ud fra DOFbasen-observationer: første fund pr. art på én deltagers liste.
+    Én række pr. deltager og liste med parallelle arrays (element i = én art) – ikke én række pr. kryds, som kostede en
+    rækkeheader og en indekspost pr. kryds; store arrays komprimeres desuden af Postgres."""
 
-    __tablename__ = "nf_auto"
+    __tablename__ = "nf_auto_lists"
 
     obserkode: Mapped[str] = mapped_column(String(16), primary_key=True)
     liste: Mapped[str] = mapped_column(String(24), primary_key=True)  # dk / aar:2026 / md:1 / afd:574 / kom:0101
-    artnr: Mapped[int] = mapped_column(Integer, primary_key=True)
-    dato: Mapped[date] = mapped_column(Date)
-    obsid: Mapped[int | None] = mapped_column(BigInteger)
-    loknr: Mapped[int | None] = mapped_column(Integer)
+    artnr: Mapped[list[int]] = mapped_column(ARRAY(Integer))
+    dato: Mapped[list[date]] = mapped_column(ARRAY(Date))
+    obsid: Mapped[list[int | None]] = mapped_column(ARRAY(BigInteger))
+    loknr: Mapped[list[int | None]] = mapped_column(ARRAY(Integer))
 
 
 class NfRole(Base):
@@ -1516,6 +1518,8 @@ class DkuMessage(Base):
 
 # Ekstra DDL der ikke kan udtrykkes pænt i modellerne
 EXTRA_DDL = [
+    # Netfugls automatiske kryds ligger nu i nf_auto_lists (én række pr. deltager og liste); den gamle tabel var afledt data
+    "DROP TABLE IF EXISTS nf_auto",
     # Portalen gemmer ikke længere noget om adgangskoder – login tjekkes altid hos DOFbasen
     "ALTER TABLE users DROP COLUMN IF EXISTS password_hash",
     "ALTER TABLE notifications ALTER COLUMN pushed SET DEFAULT false",

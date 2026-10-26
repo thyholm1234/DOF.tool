@@ -18,15 +18,18 @@ const SECTIONS = [
 ];
 const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
 const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
+const SEARCH = ["#/soeg", "search", "Søg"];
 /** Menuens grupper for den indloggede: DOFbasen og Netfugl vises kun, når superadmin har slået modulerne til (eller forhåndsvisning). */
 function sections() {
   const extra = [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null].filter(Boolean);
   // DKU under "Mit" (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
-  if (!extra.length && !dku) return SECTIONS;
-  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku] : items]);
+  const search = state.user?.search ? SEARCH : null;  // Søg under Statistik, når funktionen er synlig for brugeren
+  if (!extra.length && !dku && !search) return SECTIONS;
+  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku]
+    : t === "Statistik" && search ? [...items, search] : items]);
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ["#/dku", "check", "DKU"]];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, SEARCH, ["#/dku", "check", "DKU"]];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -48,6 +51,7 @@ const ROUTES = [
   [/^\/arter$/, () => import("./views/arter.js")],
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
   [/^\/lokaliteter$/, () => import("./views/lokaliteter.js")],
+  [/^\/soeg$/, () => import("./views/soeg.js")],
   [/^\/lok\/(\d+)$/, () => import("./views/location.js")],
   [/^\/lok\/(\d+)\/art\/(\d+)$/, () => import("./views/locspecies.js")],
   [/^\/laer(?:\/(.+))?$/, () => import("./views/learn.js")],

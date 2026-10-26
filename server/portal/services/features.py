@@ -31,6 +31,9 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "dku": ("DKU: tip om tvivlsomme observationer", "Brugere kan tippe DKU om observationer, der mangler dokumentation eller "
             "virker forkerte. DKU-ansvarlige pr. lokalafdeling behandler sagen, kan inddrage observatøren og skrive frem og "
             "tilbage. Forhåndsvisning ses af superadmin, DKU-ansvarlige og dem med admin-modulet DKU.", None, "preview"),
+    "search": ("Søg i observationer", "Søgeside (menuen Statistik → Søg) med samme felter som DOFbasens søgning: resultatet "
+               "listes efter dato og kan sorteres på alle kolonner, et kort viser alle fundene, og resultatet kan hentes som CSV, "
+               "ODS eller XLSX.", None, "preview"),
     "dofbasen": ("DOFbasen (showcase)", "Hele modulet: en ny udgave af dofbasen.dk med forside, observationer, lister, fænologi, "
                  "tekstsider og eget admin-panel. Menupunktet DOFbasen vises kun, når modulet er synligt for brugeren.", None, "preview"),
     "dofbasen_search": ("DOFbasen: søgning", "Søgesiden med alle filtre, kort og CSV-udtræk.", "dofbasen", "on"),

@@ -187,6 +187,10 @@ SPECIES_GROUPS = {"alle": "Fugle - alle", "weird": "Fugle - bemærkelsesværdige
 # Sortering på søgningens kolonner (ydre forespørgsel, se search)
 SORTS = {"dato": "dato DESC, sortering, obsid", "art": "sortering, dato DESC, obsid",
          "lokalitet": "lokalitet, dato DESC, sortering", "observat": "observator, dato DESC, sortering"}
+# Sortering efter en vilkårlig kolonne (Søg-siden): kolonnens udtryk i den ydre forespørgsel
+SORT_COLUMNS = {"dato": "dato", "art": "sortering", "antal": "antal", "koen": "koen", "adf": "adfkode", "alder": "alderkode",
+                "dragt": "dragtkode", "lokalitet": "lokalitet", "afdeling": "afdeling", "kommune": "kommune",
+                "observator": "observator", "tid": "coalesce(obstidfra, turtidfra)", "kommentar": "nullif(fuglnoter, '')"}
 MAX_PAGE = 500
 MAX_CSV = 50_000
 MAX_DAYS = 3660  # én søgning dækker højst ti år, medmindre der er valgt art, lokalitet, område eller observatør
@@ -232,6 +236,8 @@ class SearchIn(BaseModel):
     biggestobs: int | None = Field(None, ge=1, le=1000)
     textsearch: str = Field("", max_length=80)
     sortering: str = Field("dato", pattern="^(dato|art|lokalitet|observat)$")
+    sort: str = Field("", pattern="^(|" + "|".join(SORT_COLUMNS) + ")$")  # vinder over sortering
+    desc: bool = False
     page: int = Field(1, ge=1, le=10_000)
     limit: int = Field(100, ge=1, le=MAX_PAGE)
 
@@ -393,6 +399,9 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
     limit = MAX_CSV if csv else p.limit
     offset = 0 if csv else (p.page - 1) * p.limit
     order = SORTS[p.sortering]
+    if p.sort:
+        col = "sum_antal" if p.sort == "antal" and p.summering else SORT_COLUMNS[p.sort]
+        order = f"{col} {'DESC' if p.desc else 'ASC'} NULLS LAST, " + order
     if p.biggestobs:
         order = ("sum_antal" if p.summering else "antal") + " DESC, " + order
         limit = min(limit, max(0, p.biggestobs - offset))
@@ -420,6 +429,27 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
     d1, d2 = args.get("d1"), args.get("d2")
     return {"rows": out, "total": total, "capped": total > 50000, "page": p.page, "limit": p.limit,
             "period": [d1.isoformat() if d1 else None, d2.isoformat() if d2 else None], "notes": notes}
+
+
+MAX_POINTS = 5000
+
+
+async def search_points(session: AsyncSession, p: SearchIn, viewer: str | None) -> dict:
+    """Alle søgningens observationer til et kort: én prik pr. position (fuglens eller lokalitetens) med antal observationer."""
+    where, args, notes = search_sql(p, viewer)
+    frm = FROM.format(interval=INTERVAL_JOIN if "fa.sortering" in where else "")
+    await session.execute(text("SET LOCAL statement_timeout = '25s'"))
+    await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+    rows = (await session.execute(text(f"""
+        SELECT coalesce(o.obs_lat, l.lat) AS lat, coalesce(o.obs_lon, l.lon) AS lon, bool_or(o.obs_lat IS NOT NULL) AS praecis,
+               min(o.loknr) AS loknr, min(l.navn) AS lokalitet, count(*) AS n,
+               CASE WHEN bool_or(o.kategori = 'SU') THEN 'SU' WHEN bool_or(o.kategori = 'SUB') THEN 'SUB'
+                    WHEN bool_or(o.kategori = 'bemaerk') THEN 'bemaerk' END AS kategori,
+               (array_agg(DISTINCT s.navn))[1:6] AS arter
+        {frm} WHERE {where} AND coalesce(o.obs_lat, l.lat) IS NOT NULL
+        GROUP BY 1, 2 ORDER BY n DESC LIMIT :lim
+    """), {**args, "lim": MAX_POINTS + 1})).mappings().all()
+    return {"points": [dict(r) for r in rows[:MAX_POINTS]], "capped": len(rows) > MAX_POINTS, "notes": notes}
 
 
 def _row(r, summed: bool) -> dict:

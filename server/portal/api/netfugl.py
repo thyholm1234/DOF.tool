@@ -872,7 +872,8 @@ async def admin_oversigt(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depe
     counts = (await _rows(db, """SELECT (SELECT count(*) FROM nf_articles) AS artikler, (SELECT count(*) FROM nf_comments) AS kommentarer,
         (SELECT count(*) FROM nf_photos WHERE status = 'publiceret') AS fotos, (SELECT count(*) FROM nf_photos WHERE status = 'afventer') AS afventer,
         (SELECT count(*) FROM nf_feeds WHERE active) AS kilder, (SELECT count(*) FROM nf_feed_items) AS rss,
-        (SELECT count(DISTINCT obserkode) FROM nf_auto) AS deltagere, (SELECT count(*) FROM nf_auto) AS auto_kryds,
+        (SELECT count(DISTINCT obserkode) FROM nf_auto_lists) AS deltagere,
+        (SELECT coalesce(sum(cardinality(artnr)), 0) FROM nf_auto_lists) AS auto_kryds,
         (SELECT count(*) FROM nf_kryds) AS manuelle_kryds, (SELECT count(*) FROM nf_species WHERE liste = 'dk') AS dk_arter,
         (SELECT count(*) FROM nf_species WHERE liste = 'vp') AS vp_arter, (SELECT count(*) FROM nf_user_roles) AS roller,
         (SELECT count(*) FROM nf_api_grants) AS api_brugere, (SELECT coalesce(sum(uses), 0) FROM nf_api_tokens) AS api_kald"""))[0]

@@ -34,6 +34,7 @@ async function shell(view, allTabs, title) {
       const jobsBox = h("div", { class: "card stack" }), uploadBox = h("div", { class: "card stack mt" }), opsBox = h("div", { class: "mt" });
       const storageBox = h("div", { class: "card stack mt" }), schedBox = h("div", { class: "card stack mt" }), speechBox = h("div", { class: "card stack mt" });
       body.append(jobsBox, schedBox, speechBox, storageBox, uploadBox, opsBox);
+      if (state.user.role === "superadmin") { const backupBox = h("div", { class: "card stack mt" }); schedBox.after(backupBox); backupCard(backupBox); }
       every(() => speechCard(speechBox), 10000);
       scheduleCard(schedBox);
       storageCard(storageBox);
@@ -311,6 +312,62 @@ async function speechCard(box) {
     h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } },
       d.agent_alive ? `Byggeagenten kører${d.pending ? ` · ${d.pending} i kø` : ""}.` : "Byggeagenten (compose-servicen speech-model) kører ikke – start den med «docker compose up -d speech-model», eller upload en model bygget et andet sted (speech-model.tar fra tools/speech-model/pack.sh).",
       " Fremdrift og seneste kørsler står under Worker-opgaver."));
+}
+
+/** Backup (kun superadmin): pg_dump til SFTP efter den faste plan (Planlagte opgaver → Backup til SFTP) og som download. */
+async function backupCard(box) {
+  let d;
+  try { d = await api("/api/admin/backup"); } catch (err) { box.replaceChildren(errorBox(err)); return; }
+  const inp = (v, attrs = {}) => h("input", { value: v ?? "", ...attrs });
+  const host = inp(d.host, { placeholder: "backup.example.dk" }), port = inp(d.port, { type: "number", min: 1, max: 65535, style: { width: "90px" } });
+  const user = inp(d.user), path = inp(d.path), keep = inp(d.keep, { type: "number", min: 1, max: 1000, style: { width: "90px" } });
+  const pw = inp("", { type: "password", autocomplete: "new-password", placeholder: d.has_password ? "(gemt – lad stå tomt for at beholde)" : "" });
+  const key = h("textarea", { rows: 3, placeholder: d.has_key ? "(gemt – lad stå tomt for at beholde)" : "-----BEGIN OPENSSH PRIVATE KEY----- …", style: { fontFamily: "monospace", fontSize: ".8rem" } });
+  const field = (label, el) => h("label", { class: "field" }, h("span", {}, label), el);
+  const call = async (fn, ok) => { try { const r = await fn(); if (ok) toast(ok); return r; } catch (err) { toast(err.message, "err"); } };
+  const save = () => call(async () => {
+    const body = { host: host.value.trim(), port: Number(port.value) || 22, user: user.value.trim(), path: path.value.trim(), keep: Number(keep.value) || 14 };
+    if (pw.value) body.password = pw.value;
+    if (key.value.trim()) body.private_key = key.value;
+    await api("/api/admin/backup", { method: "PUT", body });
+    backupCard(box);
+  }, "Gemt");
+  const clear = (k, label) => h("button", { class: "btn sm ghost danger", type: "button", onclick: () => confirm(`Fjern ${label}?`) && call(async () => {
+    await api("/api/admin/backup", { method: "PUT", body: { host: d.host, port: d.port, user: d.user, path: d.path, keep: d.keep, [k]: "" } }); backupCard(box);
+  }, "Fjernet") }, `Fjern ${label}`);
+  const trust = () => call(async () => {
+    const k = await api("/api/admin/backup/host-key");
+    if (!confirm(`Serverens værtsnøgle har fingeraftrykket\n\n${k.fingerprint}\n\nPasser det med serverens (ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub)? Så godkendes den.`)) return;
+    await api("/api/admin/backup/host-key", { method: "POST", body: { key: k.key } });
+    backupCard(box);
+  }, null);
+  const test = () => call(async () => {
+    const r = await api("/api/admin/backup/test", { method: "POST" });
+    toast(`Forbindelsen virker – ${r.files.length} backupfiler i mappen`);
+  });
+  const run = () => call(() => api("/api/admin/backup/run", { method: "POST" }), "Backup lagt i kø – følg den under Worker-opgaver");
+  const l = d.last;
+  box.replaceChildren(
+    h("h3", { style: { margin: 0 } }, "Backup (pg_dump)"),
+    h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } },
+      "Workeren sender en dump af hver database til SFTP-serveren efter planen (Planlagte opgaver → Backup til SFTP). Filerne er i pg_dumps eget format og gendannes med pg_restore. Kun de nyeste beholdes pr. database."),
+    h("div", { class: "row" }, h("b", {}, "Download nu:"), ...d.targets.map(t => h("a", { class: "btn sm", href: `/api/admin/backup/download/${t}`, download: "" },
+      { portal: "Hele databasen", users: "Brugerdata", observations: "Observationer" }[t] || t))),
+    l ? h("p", { style: { margin: 0 } }, l.ok ? "✅ " : "⚠️ ", `Seneste SFTP-backup ${ago(l.at)}: `,
+      l.files.map(f => `${f.name} (${fmtBytes(f.size)})`).join(", ") || "ingen filer", l.error ? h("span", { style: { color: "var(--err)" } }, ` – ${l.error}`) : null) : null,
+    h("div", { class: "grid-2" },
+      field("SFTP-server", h("div", { class: "row", style: { flexWrap: "nowrap" } }, host, port)),
+      field("Bruger", user),
+      field("Kodeord", h("div", { class: "row", style: { flexWrap: "nowrap" } }, pw, d.has_password ? clear("password", "kodeord") : null)),
+      field("Mappe på serveren", path),
+      field("Privat nøgle (i stedet for kodeord, uden adgangskode)", h("div", { class: "stack" }, key, d.has_key ? clear("private_key", "nøgle") : null)),
+      field("Behold antal pr. database", keep)),
+    h("p", { style: { margin: 0 } }, "Værtsnøgle: ", d.host_key ? h("code", {}, d.host_key) : h("span", { class: "muted" }, "ikke godkendt – workeren forbinder ikke, før den er")),
+    h("div", { class: "row" },
+      h("button", { class: "btn primary", onclick: save }, "Gem"),
+      d.host ? h("button", { class: "btn", onclick: trust }, d.host_key ? "Hent værtsnøgle igen" : "Hent og godkend værtsnøgle") : null,
+      d.configured ? h("button", { class: "btn", onclick: test }, "Test forbindelse") : null,
+      d.configured ? h("button", { class: "btn", onclick: run }, "Kør backup nu") : null));
 }
 
 async function jobsCard(box) {

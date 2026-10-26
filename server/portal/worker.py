@@ -20,7 +20,7 @@ from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import (areas, datasync, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl, phenology,
+from portal.services import (areas, backup, datasync, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl, phenology,
                              regions, schedule, seasons, speechmodel, storage, weather_archive)
 from portal.timeutil import dk_now, dk_today
 
@@ -114,6 +114,8 @@ async def startup_tasks() -> None:
         has_seasons = await _exists(s, "SELECT 1 FROM species_season")
         has_days = await _exists(s, "SELECT 1 FROM species_day")
         has_events = await _exists(s, "SELECT 1 FROM dof_events")
+        has_kryds = await _exists(s, "SELECT 1 FROM nf_auto_lists")
+        netfugl_on = (await features.load(s)).get("netfugl") != "off"
         await datasync.apply_live_interval((await datasync.get_plan(s, "dof"))["tiers"]["today"])
     if not has_climate:
         await run_safely("climate", refresh_climate())
@@ -127,6 +129,8 @@ async def startup_tasks() -> None:
         await rpush_cmd("seasons")
     if not has_events:
         await run_safely("events", dof_events.sync())
+    if netfugl_on and not has_kryds:  # fx lige efter skiftet fra nf_auto til nf_auto_lists
+        await rpush_cmd("netfugl_kryds")
     # Billeder uploadet før metadata blev fjernet ved upload, og filer fra før objektlageret
     await _once("once:media_meta_v1", _strip_old_media)
     if storage.enabled():
@@ -187,6 +191,19 @@ async def run_scheduled(name: str, flags: dict) -> None:
         await run_safely("netfugl_rss", netfugl_rss(None))
     elif name == "speech_model":
         await speechmodel.request()
+    elif name == "backup":
+        async with SessionLocal() as s:
+            cfg = await backup.load(s)
+        if backup.configured(cfg):  # ellers springes den planlagte kørsel stille over
+            await run_safely("backup", backup.to_sftp(cfg))
+
+
+async def run_backup() -> None:
+    async with SessionLocal() as s:
+        cfg = await backup.load(s)
+    if not backup.configured(cfg):
+        raise RuntimeError("SFTP-backup er ikke sat op (Admin → Drift → Backup)")
+    await backup.to_sftp(cfg)
 
 
 async def locfinds_schedule() -> None:
@@ -348,6 +365,8 @@ async def command_listener() -> None:
                 await run_safely("netfugl_kryds", netfugl_kryds())
             elif name == "netfugl_rss":
                 await run_safely("netfugl_rss", netfugl_rss(cmd.get("feed")))
+            elif name == "backup":
+                await run_safely("backup", run_backup())
             elif name == "aggregates":
                 await run_safely("aggregates", aggregates(int(cmd.get("days", 30))))
         except Exception:  # noqa: BLE001

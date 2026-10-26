@@ -26,7 +26,7 @@ USER_TABLES = frozenset({
     "site_calendars", "calendar_visits", "dofb_pages", "dofb_news", "dofb_focus", "dofb_lists", "dofb_areas", "dofb_roles",
     "dofb_user_roles", "dofb_api_grants", "dofb_api_tokens", "dofb_audit", "nf_pages", "nf_articles",
     "nf_comments", "nf_photos", "nf_likes", "nf_species", "nf_families", "nf_links", "nf_feeds", "nf_feed_items", "nf_kryds",
-    "nf_auto", "nf_roles", "nf_user_roles", "nf_api_grants", "nf_api_tokens", "nf_audit",
+    "nf_auto_lists", "nf_roles", "nf_user_roles", "nf_api_grants", "nf_api_tokens", "nf_audit",
     "dku_members", "dku_reviews", "dku_cases", "dku_participants", "dku_messages",
 })
 ALL_TABLES = OBS_TABLES | REFERENCE_TABLES | USER_TABLES
