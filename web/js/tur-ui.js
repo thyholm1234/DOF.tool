@@ -33,7 +33,9 @@ export function tabs(list, { onChange } = {}) {
 /** Popup i samme stil som app.dofbasen.dk: titel + dato øverst, faner, og Annullér/Gem nederst.
  *  onConfirm() returnerer false for at holde ark'et åbent (efter fx en valideringsfejl). */
 export function sheet({ kicker, title, sub, onDelete, tabList, confirmLabel, onConfirm, onCancel }) {
-  const t = tabs(tabList);
+  const body = h("div", { class: "sheet-body" });
+  const t = tabs(tabList, { onChange: () => { body.scrollTop = 0; } });  // hver fane begynder øverst
+  body.append(t.panels);
   const close = () => { bg.remove(); document.body.classList.remove("sheet-open"); };
   const cancel = () => { close(); onCancel?.(); };
   const confirm = h("button", { class: "btn primary", type: "button", onclick: async () => { if (await onConfirm() !== false) close(); } }, confirmLabel);
@@ -41,7 +43,7 @@ export function sheet({ kicker, title, sub, onDelete, tabList, confirmLabel, onC
     h("div", { class: "sheet-head" },
       h("div", {}, h("small", { class: "kicker" }, kicker), h("h2", {}, title), h("div", { class: "sheet-sub", html: `${icon("calendar")} ` }, sub)),
       onDelete ? h("button", { class: "btn sm danger solid", type: "button", html: `${icon("trash")} Slet`, onclick: async () => { if (await onDelete() !== false) close(); } }) : null),
-    t.bar, h("div", { class: "sheet-body" }, t.panels),
+    t.bar, body,
     h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: cancel }, "Annullér"), confirm)));
   document.body.append(bg);
   document.body.classList.add("sheet-open");

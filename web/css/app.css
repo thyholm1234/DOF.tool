@@ -849,8 +849,8 @@ progress { accent-color: var(--brand); height: 10px; }
 .voice-pad.disabled { opacity: .55; cursor: default; }
 .tale-mode .voice-pad { display: flex; }
 .tale-mode .tur-bar, .tale-mode .tur-extra { display: none; }
-.tale-mode { padding-bottom: 150px; }  /* sidste post står over mikrofonfeltet */
-.speech-end { scroll-margin-bottom: 160px; }
+.speech-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; gap: 8px; align-content: start; }
+.speech-scroll > .voice-status { margin-top: 0; }
 .speech-feed .obs-row { transition: opacity .6s; }
 .speech-feed .obs-row.speech-old { opacity: .45; }
 @media (min-width: 900px) { .voice-pad { left: auto; right: 24px; bottom: 24px; width: 420px; } }
@@ -877,7 +877,10 @@ progress { accent-color: var(--brand); height: 10px; }
 .sheet-foot { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; padding: 12px 20px 16px; border-top: 1px solid var(--line); background: var(--surface); }
 .sheet-foot .btn { height: 46px; font-size: 1rem; justify-content: center; }
 .modal.sheet { padding: 0; display: flex; flex-direction: column; width: min(520px, 100%); max-height: calc(var(--avail-h) - 16px); overflow: hidden; }
-.modal.sheet .sheet-body { overflow: auto; flex: 1; }
+.modal.sheet .sheet-body { overflow: auto; flex: 1; min-height: 0; }
+/* Arket har samme højde på alle faner (ellers hopper hoved, faner og knapper, når man skifter), og kun indholdet ruller */
+.modal.sheet { height: min(780px, calc(var(--avail-h) - 16px)); }
+.modal.sheet > .sheet-head, .modal.sheet > .tabs, .modal.sheet > .sheet-foot { flex: none; }
 /* overflow: clip (ikke hidden): hidden gør kortet til scroll-container, og så lægger den sticky bundbjælke sig oven på
    formularens sidste felter i stedet for at følge siden */
 .sheet-page { padding: 0; overflow: clip; max-width: 640px; margin-inline: auto; }

@@ -113,7 +113,8 @@ export function view(page, ref, store_, recent) {
   const voiceBtn = h("button", { type: "button", class: "voice-pad disabled", "aria-label": "Hold nede og tal", title: "Hold nede og sig fx «2 bomlærker syd»" },
     h("span", { class: "voice-pad-icon", html: icon("mic") }), padLabel);
   const speechList = h("div", { class: "obs-list speech-feed" });
-  const speechEnd = h("div", { class: "speech-end" });
+  // Feedet ruller i sin egen boks, der slutter lige over mikrofonfeltet – så glider intet ind under feltet
+  const speechScroll = h("div", { class: "speech-scroll" });
   const speechCount = h("small", { class: "muted" });
   let vCtx = null, stopVoice = null, vBusy = false, voiceReady = false, curTab = "obs";
   const say = (...parts) => { voiceStatus.replaceChildren(...parts); voiceStatus.classList.remove("hide"); };
@@ -122,7 +123,14 @@ export function view(page, ref, store_, recent) {
     voiceBtn.classList.toggle("disabled", !voiceReady);
     if (!voiceBtn.classList.contains("on")) padLabel.textContent = voiceReady ? "Hold nede og tal" : "Talemodellen mangler – se ovenfor";
   };
-  const toBottom = () => requestAnimationFrame(() => speechEnd.scrollIntoView({ block: "end" }));
+  const fitFeed = () => {
+    if (curTab !== "tale") { speechScroll.style.maxHeight = ""; return; }
+    window.scrollTo(0, 0);
+    const padTop = voiceBtn.getBoundingClientRect().top;  // fast felt: samme sted uanset scroll
+    speechScroll.style.maxHeight = `${Math.max(140, Math.floor(padTop - speechScroll.getBoundingClientRect().top - 12))}px`;
+  };
+  const toBottom = () => requestAnimationFrame(() => { fitFeed(); speechScroll.scrollTop = speechScroll.scrollHeight; });
+  window.addEventListener("resize", fitFeed);
 
   const findObs = (artnr, adf) => T.observations.findLast(o => o.artnr === artnr && (o.adfkode || "") === (adf || ""));
   const obsOf = (e) => e.obs_cid && T.observations.find(o => o.client_id === e.obs_cid);
@@ -198,7 +206,7 @@ export function view(page, ref, store_, recent) {
   const pressStart = async (e) => {
     e.preventDefault();
     if (!voiceReady || stopVoice || vBusy) return;
-    voiceBtn.setPointerCapture?.(e.pointerId);  // fingeren må glide uden at stoppe optagelsen
+    try { voiceBtn.setPointerCapture(e.pointerId); } catch { /* ingen aktiv pointer (fx tastatur) */ }  // fingeren må glide uden at stoppe optagelsen
     padLabel.textContent = "Lytter … slip for at tilføje";
     vBusy = true;
     voiceBtn.classList.add("on");
@@ -273,9 +281,10 @@ export function view(page, ref, store_, recent) {
   const obsCard = h("div", { class: "card stack" }, h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Observationer"), countEl),
     gpsRow, h("label", { class: "check" }, reuseBox, h("span", {}, "Genanvend adfærd")), obsList);
   // Tale: kun feedet med de indtalte poster (nyeste nederst, ved mikrofonen) – ingen GPS, ynglepar eller knapper
-  const taleCard = h("div", { class: "stack" }, h("div", { class: "row between" }, h("small", { class: "muted" },
-      "Hver post står for sig og kan slettes eller lægges antal til. Under Observationer er samme art og adfærd lagt sammen."), speechCount),
-    speechList, voiceStatus, speechEnd);
+  const taleCard = h("div", { class: "stack", style: { gap: "8px" } }, h("div", { class: "row between", style: { flexWrap: "nowrap" } },
+      h("small", { class: "muted" }, "Hver post for sig – under Observationer er samme art og adfærd lagt sammen."), speechCount),
+    speechScroll);
+  speechScroll.append(speechList, voiceStatus);
   const extras = h("div", { class: "tur-extra stack" }, pairCard, dist);
   const tabsEl = showTale ? tabs([["obs", "Observationer", obsCard], ["tale", "Tale", taleCard]], {
     onChange: (k) => { curTab = k; page.classList.toggle("tale-mode", k === "tale"); syncVoiceBtn(); if (k === "tale") toBottom(); } }) : null;
@@ -292,5 +301,5 @@ export function view(page, ref, store_, recent) {
       h("button", { class: "btn primary grow", type: "button", html: `${icon("plus")} Observation`, onclick: () => edit() })),
     showTale ? voiceBtn : null);
   drawRows(); drawSpeech(); drawPairs(); drawGps();
-  return () => { unsub(); tracker.listeners.delete(onPoint); clearInterval(fadeTimer); page.classList.remove("tale-mode"); stopVoice?.(); };
+  return () => { unsub(); tracker.listeners.delete(onPoint); clearInterval(fadeTimer); window.removeEventListener("resize", fitFeed); page.classList.remove("tale-mode"); stopVoice?.(); };
 }
