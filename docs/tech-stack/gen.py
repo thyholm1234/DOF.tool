@@ -22,6 +22,7 @@ CLUSTERS = [
             ("webview", "WebView", "indlæser samme PWA"),
             ("bgloc", "Baggrundsposition", "@capgo/background-geolocation"),
             ("pushrx", "Push-modtager", "@capacitor/push-notifications"),
+            ("asr", "Talegenkendelse (DofAsr)", "ONNX Runtime, CoRal-model på telefonen"),
         ]),
         (None, None, [
             ("guest", "Gæst", "delelinks, /privatliv"),
@@ -40,6 +41,8 @@ CLUSTERS = [
             ("mediar", "/media/obs/{navn}", "Range, ETag, login"),
             ("pages", "Server-renderede sider", "/del/…, /privatliv"),
             ("static", "Statisk PWA", "/v/{build}/…"),
+            ("models", "/models/*", "talemodel + speech.json (åben)"),
+            ("modelup", "Modelupload", "Admin → Drift, bidder + SHA-256"),
             ("apisvc", "Tjenester", "push, imagemeta, konto, diskusage"),
             ("storsvc", "storage.py", "S3-klient (minio-py)"),
             ("router1", "dbrouter", "gruppe + primary/replika"),
@@ -66,6 +69,10 @@ CLUSTERS = [
             ("obs1", "obs-1 · primary", "observationer + reference"),
             ("legacy", "postgres · samlet DB", "legacy / migreringskilde"),
         ]),
+        ("speech", "speech-model · byggeagent (hviler mellem byggerier)", [
+            ("sagent", "Agent", "venter på speech:cmd"),
+            ("sbuild", "Eksport", "PyTorch → ONNX int8 (≈355 MB)"),
+        ]),
         ("rustfs", "rustfs :9000 (ingen port på værten)", [
             ("bucket", "Bucket doftool-media", "obs/<uuid>.jpg|mp3 …"),
         ]),
@@ -80,6 +87,7 @@ CLUSTERS = [
         (None, None, [
             ("dsock", "Docker Engine", "/var/run/docker.sock"),
             ("vols", "Volumener", "media, weather, archive_upload"),
+            ("modelvol", "Volumen models", "model.onnx, speech.json"),
             ("archdir", "/archive (read-only)", "DOFbasen-månedsudtræk"),
         ]),
     ]),
@@ -93,6 +101,7 @@ CLUSTERS = [
             ("meteo", "Open-Meteo", "vejrprognose"),
             ("xc", "xeno-canto", "lydoptagelser"),
             ("fcm", "Google FCM", "oauth2 + fcm v1"),
+            ("hf", "Hugging Face", "CoRal roest-v3 (kilde til modellen)"),
             ("wps", "Browser-push", "Google / Mozilla / Apple"),
             ("osm", "OpenStreetMap", "tile.openstreetmap.org"),
         ]),
@@ -129,6 +138,17 @@ EDGES = [
     ("router1", "topo", "HTTP", "HTTP", "GET /api/topology hvert 15. s med Bearer servicetoken → JSON: noder, roller, adresser, adgangskoder", True),
     ("router2", "topo", "HTTP", "HTTP", "Samme som api", True),
     ("panel", "sqlite", "Fil", "SQL", "Registret over noder, indstillinger og sessioner (lokal SQLite-fil)", True),
+    # Tale-indtastning
+    ("asr", "proxy", "HTTPS", "HTTPS", "GET /models/speech.json og model.onnx (≈355 MB) én gang; derefter genkendes talen på telefonen – lyden forlader den ikke", True),
+    ("mw", "models", "Kald", "", "Talemodellen leveres uden login (åben model) med lang cache", True),
+    ("rest", "modelup", "Kald", "", "Upload af en færdigbygget model i bidder (kræver Drift-rettighed)", True),
+    ("cmds", "vq", "RESP", "RESP", "RPUSH speech:cmd: start modelbyggeri (Kør nu i Admin → Drift eller ugentlig plan)", True),
+    ("sagent", "vq", "RESP", "RESP", "BLPOP speech:cmd; byggestatus og log skrives til worker:jobs, så de vises i Drift", True),
+    ("sagent", "sbuild", "Kald", "", "Kører eksporten; afbryder tydeligt, hvis hukommelsen er for lille (≈6,5 GB fri)", True),
+    ("sbuild", "hf", "HTTPS", "HTTPS", "GET modelvægte, ordliste og konfiguration ved en fastlåst revision (kun ved byggeri)", True),
+    ("sbuild", "modelvol", "Fil", "fil", "Skriver model.onnx og manifestet speech.json", True),
+    ("modelup", "modelvol", "Fil", "fil", "Lægger den uploadede model på plads efter kontrol af indhold og SHA-256", True),
+    ("models", "modelvol", "Fil", "fil", "Læser modelfilerne fra volumen models (read-only)", True),
     # Valkey
     ("mw", "vsess", "RESP", "RESP", "Slår sessionstoken op (sess:<token> → bruger-id)", True),
     ("rest", "vq", "RESP", "RESP", "ZADD gateway-job (fx login – adgangskoden ligger højst 3 min), RPUSH worker-kommandoer", True),

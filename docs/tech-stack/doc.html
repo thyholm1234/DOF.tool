@@ -76,6 +76,9 @@
     <tr><td><b>dbadmin</b></td><td><code>dbadmin/Dockerfile</code></td><td>Register over databasenoder, topologi til api/worker,
       sundhedstjek, migrering, oprettelse af noder via Docker.</td><td><code>DBADMIN_BIND</code>:8100 (standard 127.0.0.1)</td>
       <td>dbadmin, <code>docker.sock</code></td></tr>
+    <tr><td><b>speech-model</b></td><td><code>tools/speech-model/Dockerfile</code> (PyTorch, Hugging Face-værktøj)</td>
+      <td>Byggeagent: bygger talemodellen til appens tale-indtastning (CoRal → ONNX int8) på kommando fra Admin → Drift.
+      Hviler mellem byggerier; bruger under et byggeri op til ca. 6 GB hukommelse.</td><td>ingen</td><td>models, speech_work</td></tr>
     <tr><td><b>dbnode-image</b></td><td><code>dbnode/Dockerfile</code></td><td>Bygger kun billedet til nye databasenoder og afslutter.</td>
       <td>–</td><td>–</td></tr>
   </tbody>
@@ -102,7 +105,10 @@
     <tr><td>Øvrigt</td><td>numpy, orjson, cryptography</td><td>Fænologi-beregninger, hurtig JSON, kryptering.</td></tr>
     <tr><td>Frontend</td><td>Vanilla JavaScript (ES-moduler), Leaflet 1.9.4, lamejs</td><td>Ingen byggetrin; filerne serveres
       med build-id i adressen. Service worker til offline og push.</td></tr>
-    <tr><td>Mobilapp</td><td>Capacitor 8 (Android/iOS)</td><td>WebView med samme PWA; baggrundsposition og push-notifikationer.</td></tr>
+    <tr><td>Mobilapp</td><td>Capacitor 8 (Android/iOS)</td><td>WebView med samme PWA; baggrundsposition og push-notifikationer.
+      Android bygges lokalt (<code>app/build.sh</code>), iOS som kildepakke til Xcode eller via GitHub Actions.</td></tr>
+    <tr><td>Tale-indtastning</td><td>CoRal <code>roest-v3-wav2vec2-315m</code> (ONNX int8), ONNX Runtime (MIT)</td><td>Kører på telefonen i
+      pluginnet <code>DofAsr</code>; ingen Google-genkender. Output afkodes i <code>web/js/voice-ctc.js</code> mod artslisten, tal og adfærdskoder.</td></tr>
     <tr><td>Drift</td><td>Docker Compose</td><td>db-admin styrer databasenoder via Docker API'et.</td></tr>
   </tbody>
 </table>
@@ -132,6 +138,25 @@
   Filerne flyttes over én gang med <code>tools/minio-to-rustfs.sh</code>. Appen taler almindelig S3, så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan overtage ved at ændre
   <code>S3_ENDPOINT</code>, <code>S3_ACCESS_KEY</code>, <code>S3_SECRET_KEY</code> og <code>S3_BUCKET</code>.</div>
 
+<h2>Tale-indtastning og talemodel</h2>
+<p>Under en tur kan observationer indtales i appen. Talen genkendes <b>på telefonen</b>: pluginnet <code>DofAsr</code> optager
+  16 kHz mono og kører en dansk wav2vec2-model (CoRal <code>roest-v3</code>, ONNX int8) med ONNX Runtime. Lyden sendes aldrig til
+  serveren eller til tredjepart. Modellens output afkodes mod artslisten, tallene og adfærdslisten, så kun ord derfra kan komme ud.</p>
+<p>Modellen (≈355 MB) ligger ikke i appen. Den bygges af containeren <code>speech-model</code> på kommando fra Admin → Drift
+  (workeren lægger kommandoen i Valkey-listen <code>speech:cmd</code>; også ugentligt, men en model bygget af samme revision
+  springes over). Agenten henter CoRal-modellen fra Hugging Face ved en fastlåst revision, eksporterer den og lægger den i
+  volumen <code>models</code> sammen med manifestet <code>speech.json</code>. Api'et leverer filerne under <code>/models/</code>, og
+  appen henter dem én gang og tilbyder opdatering, når manifestet ændres. Har serveren for lidt hukommelse, bygges modellen på en
+  anden maskine (<code>tools/speech-model/pack.sh</code>) og uploades under Admin → Drift i bidder; arkivet kontrolleres
+  (kun forventede filer, SHA-256), før det tages i brug.</p>
+
+<h2>Ture og GPS-ruter</h2>
+<p>En tur sendes og gemmes i ét kald og kan lægges i en lokal kø på enheden (IndexedDB), når der ikke er net. Ruten optages i
+  appen af den native positionstjeneste (også med slukket skærm) og i browseren af <code>navigator.geolocation</code>.
+  Når turen afsluttes, stoppes optagelsen, og ruten beskæres til turens start- og sluttidspunkt. Efter afslutningen tilbyder appen
+  de 30 mest almindelige arter på lokaliteten (<code>GET /api/trips/common</code>, bygget på lokalitetens cachede artsliste), som endnu ikke
+  står på turen, til hurtig indtastning af antal.</p>
+
 <h2>Baggrundsjob</h2>
 <table>
   <thead><tr><th>Job</th><th>Hvornår</th><th>Hvad</th></tr></thead>
@@ -149,6 +174,7 @@
     <tr><td>DOF-ture</td><td>hver 6. time</td><td>dof.dk.</td></tr>
     <tr><td>Klima</td><td>mandag kl. 05</td><td>DMI-klimadata.</td></tr>
     <tr><td>Netfugl</td><td>krydslister hver 6. time, RSS hver time</td><td>Kun når modulet er slået til.</td></tr>
+    <tr><td>Talemodel</td><td>ugentligt + «Kør nu»</td><td>Starter modelbyggeriet i <code>speech-model</code>; springes over, hvis modellen allerede er bygget af samme revision.</td></tr>
     <tr><td>Engangsjob</td><td>ved første start</td><td>Fjern metadata fra eksisterende billeder; flyt filer fra disken til
       objektlageret.</td></tr>
   </tbody>
@@ -177,7 +203,8 @@
   (<code>GET /api/me/export</code>) og slette sin konto, hvilket også sletter uploadede filer, aktivitetslog og alle
   sessioner. Der er ingen analyse- eller sporingsværktøjer og kun én (nødvendig) cookie. Data sendes til tredjeparter
   som vist i diagrammet: DOFbasen (login, udtræk), OpenStreetMap (kortfliser, brugerens IP), Google FCM og browserens
-  push-tjeneste (notifikationer).</p>
+  push-tjeneste (notifikationer). Hugging Face kontaktes kun af byggeagenten ved modelbyggeri, aldrig med brugerdata, og
+  indtalt lyd forlader ikke telefonen.</p>
 
 <h2>Drift</h2>
 <h3>Vigtige miljøvariabler (<code>.env</code>)</h3>
@@ -198,6 +225,9 @@
     <tr><td><code>FCM_SERVICE_ACCOUNT_B64</code>, <code>VAPID_SUBJECT</code></td><td>Push.</td></tr>
   </tbody>
 </table>
+<p class="muted">Android-appen bygges med <code>app/build.sh</code> (signeret APK). iOS kan kun bygges på macOS; kildepakken
+  <code>DOF-tool-ios.zip</code> åbnes i Xcode, eller GitHub Actions-workflowen <code>ios.yml</code> bygger den. Appen indlæser portalen fra
+  serveren, så ændringer i web-delen kommer med serveren, ikke med en ny app.</p>
 <h3>Overvågning</h3>
 <p>Admin → Drift viser gateway, kø, job og <b>lagerplads</b> (disk, hver databasenode med største tabeller, objektlager,
   filer på disken og Valkey). db-admin viser hver nodes status og svartid. Sundhedstjek: <code>GET /api/health</code>.</p>
