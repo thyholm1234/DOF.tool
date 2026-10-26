@@ -180,7 +180,8 @@ def to_row(rec: dict[str, str]) -> Row | None:
 
 def iter_records(text: str | io.TextIOBase) -> Iterator[dict[str, str]]:
     stream = io.StringIO(text) if isinstance(text, str) else text
-    reader = csv.reader(stream, delimiter=";")
+    # DOFbasen har enkelte NUL-tegn i fritekst (fx fuglenoter i gamle observationer); Postgres kan ikke gemme dem i tekst
+    reader = csv.reader((line.replace("\x00", "") for line in stream), delimiter=";")
     header = next(reader, None)
     if not header:
         return
