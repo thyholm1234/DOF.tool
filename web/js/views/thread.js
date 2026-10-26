@@ -197,7 +197,6 @@ function obsRow(o, ms, mediaRows) {
   };
   if (!o.media && ms.pending) mediaRows.set(o.obsid, show);
   show(o.media, ms);
-  const rare = ["SU", "SUB"].includes(o.kategori);
   return h("div", { style: { borderBottom: "1px dashed var(--line)", paddingBottom: "10px" } },
     h("div", { class: "row between" },
       h("div", {}, h("b", { class: "num" }, `${fmtN(o.antal)} `), [o.adf, o.dragt && o.dragt !== "Uspecificeret dragt" ? o.dragt : null, o.koen && o.koen !== "-" ? o.koen : null].filter(Boolean).join(", ")),
@@ -209,8 +208,6 @@ function obsRow(o, ms, mediaRows) {
     o.fuglnoter ? h("p", { style: { margin: "4px 0 0" } }, o.fuglnoter) : null,
     o.turnoter ? h("p", { class: "muted", style: { margin: "4px 0 0", fontSize: ".85rem" } }, "Tur: ", o.turnoter) : null,
     h("div", { class: "row mt" }, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
-      rare ? h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", title: "Indsend dokumentation til DKU (kræver login i DOFbasen)",
-        href: `https://dofbasen.dk/mine/sendmailtodku.php?obsid=${o.obsid}`, html: `${icon("external")} DKU` }) : null,
       tipButton("dofbasen", o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
         label: `${fmtN(o.antal)} · ${o.observer || o.obserkode || ""} · ${o.dato || ""}` })),
     media);
