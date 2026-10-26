@@ -722,7 +722,9 @@ async function phenoPanel(body) {
 async function speciesList(body) {
   const q = h("input", { type: "search", placeholder: "Søg art…", style: { maxWidth: "280px" } });
   const out = h("div", { class: "card table-wrap mt" });
-  body.append(h("p", { class: "muted" }, "Klassifikation og listeregler. 'Tæller som' bestemmer hvilken art en underart tæller som på årslister; tom = tæller ikke. 'Udeluk' fjerner arten fra lister og notifikationer."), q, out);
+  body.append(h("p", { class: "muted" }, "Klassifikation og listeregler. 'Tæller som' bestemmer hvilken art en underart tæller som på årslister; tom = tæller ikke. 'Udeluk' fjerner arten fra lister og notifikationer."),
+    h("div", { class: "row" }, q, can("kategorier") ? h("button", { class: "btn", html: `${icon("plus")} Opret art`, title: "Opret en art, der ikke findes i listen",
+      onclick: () => newSpeciesForm(q.value, () => load()) }) : null), out);
   const load = async () => {
     const rows = await api(`/api/admin/species?q=${encodeURIComponent(q.value)}`);
     out.replaceChildren(h("table", { class: "data stack-sm", style: { "--cols": 3 } }, h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Nr."), h("th", {}, "Type"), h("th", {}, "Status"), h("th", {}, "Tæller som"), h("th", {}, "Udeluk"))),
