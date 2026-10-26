@@ -56,7 +56,7 @@ export async function render(view, [sub]) {
   if (sub && /^\d+$/.test(sub)) return caseView(view, +sub);
   const d = state.user.dku;
   const tabs = [["mine", "Mine tip"], ["observer", "Mine observationer"], ...(d.member_of.length || d.admin ? [["dku", "DKU-sager"]] : []),
-    ...(d.member_of.length || d.admin ? [["ansvarlige", "Ansvarlige"]] : [])];
+    ...(d.member_of.length || d.admin ? [["kandidater", "Kandidater"], ["ansvarlige", "Ansvarlige"]] : [])];
   let tab = params().tab || (d.member_of.length ? "dku" : "mine");
   if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
   let st = params().st || "open";
@@ -66,6 +66,7 @@ export async function render(view, [sub]) {
   const draw = async () => {
     body.replaceChildren();
     if (tab === "ansvarlige") return membersPanel(body);
+    if (tab === "kandidater") return candidatesPanel(body);
     const filter = seg([["open", "Åbne"], ["closed", "Afgjorte"], ["all", "Alle"]], st, (v) => { st = v; setParams({ tab, st: v }); draw(); });
     body.append(h("div", { class: "row between" }, h("p", { class: "muted", style: { margin: 0 } }, {
       mine: "Observationer, du har tippet DKU om.",
@@ -215,4 +216,55 @@ async function membersPanel(body) {
             catch (err) { toast(err.message, "err"); }
           } }, kode, h("button", { class: "btn sm" }, "Tilføj"))) : null);
       })))));
+}
+
+// ---------------------------------------------------------------- kandidater: lokale afvigelser
+
+const CRITERIA = [["antal", "Antal over lokalt normalt", "Antal ≥ minimum og ≥ faktor × den lokale 95-percentil for arten"],
+  ["ny", "Ny/sjælden art lokalt", "Arten er set højst så mange gange lokalt i historikken"],
+  ["saeson", "Uden for lokal sæson", "Arten er set lokalt før, men aldrig inden for ± dage af datoen"],
+  ["dok", "Mangler dokumentation", "Bemærk-art uden fuglenoter, fotos og lyd"]];
+const num = (v, w = "78px", min = 0, step = 1) => h("input", { type: "number", value: v, min, step, style: { width: w } });
+
+function candidatesPanel(body) {
+  const on = Object.fromEntries(CRITERIA.map(([k]) => [k, true]));
+  const boxes = CRITERIA.map(([k, label, tip]) => h("label", { class: "check", title: tip },
+    h("input", { type: "checkbox", checked: true, onchange: (e) => { on[k] = e.target.checked; } }), ` ${label}`));
+  const days = num(7, "64px", 1), min = num(1, "64px", 1), hist = num(10, "64px", 1);
+  const antalMin = num(5), factor = num(2, "70px", 1, 0.5), nyMax = num(0), sd = num(14, "70px", 1);
+  const level = h("select", {}, h("option", { value: "lok" }, "lokaliteten"), h("option", { value: "kommune" }, "kommunen"));
+  const out = h("div", { class: "stack mt" });
+  const lab = (t, el) => h("label", { class: "field" }, h("span", {}, t), el);
+  const run = async () => {
+    const crit = CRITERIA.map(c => c[0]).filter(k => on[k]);
+    if (!crit.length) { toast("Vælg mindst ét kriterium", "err"); return; }
+    out.replaceChildren(h("div", { class: "skeleton", style: { height: "120px" } }));
+    const q = new URLSearchParams({ kriterier: crit.join(","), days: days.value, min: Math.min(+min.value || 1, crit.length), niveau: level.value,
+      hist_years: hist.value, antal_min: antalMin.value, faktor: factor.value, ny_max: nyMax.value, saeson_dage: sd.value });
+    let r;
+    try { r = await api(`/api/dku/candidates?${q}`); } catch (err) { out.replaceChildren(errorBox(err)); return; }
+    if (!r.rows.length) { out.replaceChildren(empty("Ingen afvigelser", "Ingen observationer rammer kriterierne. Prøv færre kriterier eller løsere grænser.")); return; }
+    out.replaceChildren(h("p", { class: "muted", style: { margin: 0 } }, `${r.rows.length} observationer`),
+      ...r.rows.map(x => h("div", { class: "card stack" },
+        h("div", { class: "row between" },
+          h("div", {}, h("b", {}, `${x.antal} ${x.art}`), h("span", { class: "muted" }, ` · ${x.lok || "–"}${x.kommune ? `, ${x.kommune}` : ""} · ${fmtDate(x.dato)}`)),
+          h("span", { class: "row", style: { gap: "6px" } }, ...x.matched.map(k => h("span", { class: "tag bemaerk" }, r.criteria[k])))),
+        h("div", { class: "muted", style: { fontSize: ".86rem" } }, [x.observer ? `observatør: ${x.observer}` : null,
+          x.kategori !== "alm" ? `kategori ${x.kategori}` : null,
+          x.historik ? `lokalt set ${x.historik} gange${x.p95 != null ? ` (95-percentil ${x.p95})` : ""}, ${x.i_saesonen} i sæsonen` : "aldrig set lokalt i perioden"]
+          .filter(Boolean).join(" · ")),
+        h("div", { class: "row" },
+          x.case ? h("a", { class: "btn sm", href: `#/dku/${x.case.id}` }, `Sag #${x.case.id}`)
+            : h("button", { class: "btn sm primary", type: "button", html: `${icon("flag")} Åbn sag`,
+              onclick: () => tipDku("dofbasen", x.obsid, `${x.antal} ${x.art} · ${x.lok || "–"} · ${fmtDate(x.dato)}`) }),
+          x.thread ? h("a", { class: "btn sm ghost", href: x.thread }, "Tråden") : null,
+          h("a", { class: "btn sm ghost", href: x.url, target: "_blank", rel: "noopener", html: `${icon("external")} DOFbasen` })))));
+  };
+  body.append(h("div", { class: "card stack" },
+    h("p", { class: "muted", style: { margin: 0 } }, "Find observationer, der afviger fra det lokale billede i de afdelinger, du er DKU-ansvarlig for. Hemmelige observationer indgår ikke."),
+    h("div", { class: "row", style: { gap: "14px" } }, ...boxes),
+    h("div", { class: "row", style: { gap: "12px", alignItems: "flex-end" } },
+      lab("Seneste dage", days), lab("Mindst antal kriterier", min), lab("Sammenlign med", level), lab("Historik (år)", hist),
+      lab("Antal ≥", antalMin), lab("× lokal 95-percentil", factor), lab("Ny art: set højst (gange)", nyMax), lab("Sæson ± dage", sd),
+      h("button", { class: "btn primary", type: "button", onclick: run }, "Find afvigelser"))), out);
 }

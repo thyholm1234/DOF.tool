@@ -183,6 +183,31 @@ async def cases(view: str = Query("mine", pattern="^(mine|observer|dku)$"), stat
     return out
 
 
+@router.get("/candidates")
+async def candidates(days: int = Query(7, ge=1, le=30), kriterier: str = Query("antal,ny,saeson,dok"),
+                     min_kriterier: int = Query(1, ge=1, le=4, alias="min"), niveau: str = Query("lok", pattern="^(lok|kommune)$"),
+                     hist_years: int = Query(10, ge=1, le=30), antal_min: int = Query(5, ge=1, le=100000),
+                     faktor: float = Query(2.0, ge=1, le=100), ny_max: int = Query(0, ge=0, le=1000),
+                     saeson_dage: int = Query(14, ge=1, le=90), afdeling: int | None = Query(None, ge=0),
+                     c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
+    """Kandidater til DKU-sager: nylige observationer, der afviger fra det lokale. Kun for DKU-ansvarlige og administratorer."""
+    member = set(c["member_of"])
+    if not (member or c["admin"]):
+        raise HTTPException(403, "Kun for DKU-ansvarlige")
+    crit = [k for k in dict.fromkeys(x.strip() for x in kriterier.split(",")) if k in dku.CRITERIA]
+    if not crit:
+        raise HTTPException(400, "Vælg mindst ét kriterium")
+    scope = None if (c["admin"] or 0 in member) else member
+    if afdeling:
+        if scope is not None and afdeling not in scope:
+            raise HTTPException(403, "Du er ikke DKU-ansvarlig for den afdeling")
+        scope = {afdeling}
+    rows = await dku.candidates(db, afd=scope, days=days, criteria=crit, min_match=min(min_kriterier, len(crit)), level=niveau,
+                                hist_years=hist_years, antal_min=antal_min, antal_factor=faktor, ny_max=ny_max,
+                                season_days=saeson_dage)
+    return {"criteria": {k: dku.CRITERIA[k] for k in crit}, "rows": rows}
+
+
 # ---------------------------------------------------------------- én sag
 
 CHANNEL_LABEL = {"dku": "intern note", "tipper": "til tipperen", "observer": "til observatøren"}

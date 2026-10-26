@@ -21,7 +21,7 @@ i brugergruppen) og gemmes som et øjebliksbillede i sagen, så der aldrig joine
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -271,3 +271,93 @@ async def report_changed(report_id: int) -> None:
             case.updated_at = datetime.now(timezone.utc)
             await s.commit()
             await notify(cid, to="dku", title="observationen er rettet", body=lines)
+
+
+# ---------------------------------------------------------------- kandidater: lokale afvigelser
+
+CRITERIA = {"antal": "Antal over lokalt normalt", "ny": "Ny/sjælden art lokalt", "saeson": "Uden for lokal sæson",
+            "dok": "Mangler dokumentation"}
+MIN_HISTORY = 5  # så mange tidligere observationer skal der til, før et antal kan kaldes afvigende
+
+
+async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, criteria: list[str], min_match: int, level: str,
+                     hist_years: int, antal_min: int, antal_factor: float, ny_max: int, season_days: int,
+                     limit: int = 300) -> list[dict]:
+    """DOFbasen-observationer fra de seneste dage, der afviger fra det lokale (lokaliteten eller kommunen) historisk set.
+
+    Kriterier (kryds af efter behov; en observation skal ramme mindst `min_match` af de valgte):
+      antal   – antal ≥ antal_min og ≥ antal_factor × den lokale 95-percentil for arten
+      ny      – arten er set højst ny_max gange lokalt i de seneste hist_years år
+      saeson  – arten er set lokalt før, men aldrig inden for ± season_days dage af datoen
+      dok     – bemærk-art uden fuglenoter, fotos og lyd
+    afd None = alle afdelinger. Hemmelige observationer indgår ikke."""
+    from portal.dof.jobs import media_many
+    from portal.timeutil import dk_today
+
+    today = dk_today()
+    since = today - timedelta(days=days)
+    hist_from = today - timedelta(days=365 * hist_years)
+    # Lokalt = samme lokalitet, eller samme kommune
+    local = "h.loknr = c.loknr" if level == "lok" else \
+        "h.loknr IN (SELECT x.loknr FROM locations x WHERE x.kommune_kode = c.kommune_kode)"
+    conds = {"antal": "q.antal >= :antal_min AND q.n >= :min_hist AND q.antal >= :factor * greatest(q.p95, 1)",
+             "ny": "q.n <= :ny_max",
+             "saeson": "q.n > 0 AND q.n_sd = 0",
+             "dok": "(q.kategori <> 'alm' AND coalesce(q.fuglnoter, '') = '')"}
+    pre = " OR ".join(f"({conds[k]})" for k in criteria)
+    rows = (await db.execute(text(f"""
+        SELECT q.*, s.navn AS art, l.navn AS lok, k.navn AS kommune,
+               trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS observer
+        FROM (
+            SELECT c.obsid, c.dato, c.artnr, c.antal, c.loknr, c.kategori, c.fuglnoter, c.afdelinger, c.obserkode,
+                   b.n, b.p95, b.n_sd
+            FROM (SELECT o.*, l.kommune_kode FROM observations o LEFT JOIN locations l ON l.loknr = o.loknr
+                  WHERE o.dato >= :since AND o.hemmelig = 0
+                    AND (CAST(:all AS boolean) OR o.afdelinger && CAST(:afd AS smallint[]))) c
+            CROSS JOIN LATERAL (
+                SELECT count(*) AS n, percentile_cont(0.95) WITHIN GROUP (ORDER BY h.antal) AS p95,
+                       count(*) FILTER (WHERE least(abs(extract(doy FROM h.dato) - extract(doy FROM c.dato)),
+                                                    365 - abs(extract(doy FROM h.dato) - extract(doy FROM c.dato))) <= :sd) AS n_sd
+                FROM observations h
+                WHERE h.artnr = c.artnr AND h.dato >= :hist_from AND h.dato < :since AND {local}
+            ) b
+        ) q
+        JOIN species s ON s.artnr = q.artnr
+        LEFT JOIN locations l ON l.loknr = q.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
+        LEFT JOIN observers ob ON ob.obserkode = q.obserkode
+        WHERE {pre}
+        ORDER BY q.dato DESC, q.obsid DESC LIMIT :cap"""),
+        {"since": since, "hist_from": hist_from, "all": afd is None, "afd": sorted(afd or []), "sd": season_days,
+         "antal_min": antal_min, "min_hist": MIN_HISTORY, "factor": antal_factor, "ny_max": ny_max,
+         "cap": limit * 3})).mappings().all()
+
+    media = await media_many([r["obsid"] for r in rows if "dok" in criteria and r["kategori"] != "alm" and not r["fuglnoter"]])
+    out = []
+    for r in rows:
+        hit = {
+            "antal": r["antal"] >= antal_min and r["n"] >= MIN_HISTORY and r["antal"] >= antal_factor * max(r["p95"] or 0, 1),
+            "ny": r["n"] <= ny_max,
+            "saeson": r["n"] > 0 and r["n_sd"] == 0,
+            "dok": r["kategori"] != "alm" and not (r["fuglnoter"] or "").strip()
+            and not (media.get(r["obsid"]) or {}).get("images") and not (media.get(r["obsid"]) or {}).get("sounds"),
+        }
+        matched = [k for k in criteria if hit[k]]
+        if len(matched) < min_match:
+            continue
+        out.append({"obsid": r["obsid"], "dato": r["dato"].isoformat(), "artnr": r["artnr"], "art": r["art"], "antal": r["antal"],
+                    "loknr": r["loknr"], "lok": r["lok"], "kommune": r["kommune"], "kategori": r["kategori"],
+                    "observer": r["observer"] or r["obserkode"], "afdelinger": list(r["afdelinger"] or []),
+                    "historik": r["n"], "p95": round(r["p95"], 1) if r["p95"] is not None else None, "i_saesonen": r["n_sd"],
+                    "matched": matched, "url": f"https://dofbasen.dk/popobs.php?obsid={r['obsid']}&summering=tur&obs=obs",
+                    "thread": f"/#/traad/{r['dato'].isoformat()}/{r['artnr']}/{r['loknr']}" if r["loknr"] else None})
+    out.sort(key=lambda x: (len(x["matched"]), x["dato"], x["obsid"]), reverse=True)  # flest ramte kriterier, så nyeste
+    out = out[:limit]
+    if out:  # sager findes i brugergruppen – slås op for sig
+        cases = (await db.execute(text("""SELECT DISTINCT ON (obsid) obsid, id, status FROM dku_cases
+            WHERE source = 'dofbasen' AND obsid = ANY(:o) ORDER BY obsid, id DESC"""),
+                                  {"o": [r["obsid"] for r in out]})).mappings().all()
+        by = {c["obsid"]: c for c in cases}
+        for r in out:
+            c = by.get(r["obsid"])
+            r["case"] = {"id": c["id"], "status": c["status"]} if c else None
+    return out
