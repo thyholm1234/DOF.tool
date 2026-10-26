@@ -1,4 +1,4 @@
-"""Manuelle fund (Admin → Kategorier): fund der ikke står i DOFbasen, spejlet ind i observations med obsid = -id.
+"""Manuelle fund (Moderation → Arter → Kategorier): fund der ikke står i DOFbasen, spejlet ind i observations med obsid = -id.
 
 Spejlingen gør, at fundet tæller som en almindelig observation alle steder, der læser observations (Arter pr. år,
 lokaliteten, artens side, tråden). Det har ingen obserkode og kommer derfor ikke på nogens personlige liste.

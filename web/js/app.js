@@ -1,4 +1,4 @@
-import { api, state, h, $, icon, toast, ago, trackView, adminLink } from "./core.js";
+import { api, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab } from "./core.js";
 import { live } from "./live.js";
 import { syncSharing, syncPush, stopAppPush } from "./native.js";
 import { initSelectMenu } from "./select-menu.js";
@@ -55,6 +55,7 @@ const ROUTES = [
   [/^\/alarmer$/, () => import("./views/alerts.js")],
   [/^\/profil$/, () => import("./views/profile.js")],
   [/^\/admin$/, () => import("./views/admin.js")],
+  [/^\/moderation$/, () => import("./views/moderation.js")],
   [/^\/login$/, () => import("./views/login.js")],
   [/^\/indtast\/tur\/(ny|\d+|lokal\/[\w-]+)(?:\/(ret))?$/, () => import("./views/tur.js")],
   [/^\/indtast(?:\/obs\/(\d+))?$/, () => import("./views/report.js")],
@@ -70,7 +71,7 @@ let cleanup = null;
 
 function renderNav() {
   const path = "#" + (location.hash.slice(1).split("?")[0] || "/");
-  const current = activeHref(path, [...NAV.map(n => n[0]), "#/profil", "#/support", "#/admin"]);
+  const current = activeHref(path, [...NAV.map(n => n[0]), "#/profil", "#/support", "#/admin", "#/moderation"]);
   const link = ([href, ic, label], cls = "") =>
     h("a", { href, class: `${cls} ${href === current ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
   document.body.classList.toggle("anon", !state.user);
@@ -87,8 +88,11 @@ function renderNav() {
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: current === "#/profil" ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
-    const adm = adminLink();
-    if (adm) side.push(h("a", { href: adm.href, class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>${adm.label}${state.adminSupportUnread ? ` <span class="badge-inline">${state.adminSupportUnread}</span>` : ""}</span>` }));
+    // Ulæste samtaler vises på Admin for dem med support-modulet, ellers på Moderation
+    const adm = adminLink(), mod = moderationLink(), unread = state.adminSupportUnread, onAdmin = adm && hasTab("support");
+    const badge = (n) => n ? ` <span class="badge-inline">${n}</span>` : "";
+    if (mod) side.push(h("a", { href: mod.href, class: current === "#/moderation" ? "active" : "", html: `${icon("check")}<span>${mod.label}${badge(onAdmin ? 0 : unread)}</span>` }));
+    if (adm) side.push(h("a", { href: adm.href, class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>${adm.label}${badge(onAdmin ? unread : 0)}</span>` }));
   }
   $("#sidenav").replaceChildren(...side);
 }
@@ -107,7 +111,8 @@ function openMore() {
       h("div", { class: "more-h" }, "Konto"),
       h("div", { class: "more-grid" },
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
-        u && adminLink() ? tile(adminLink().href, "shield", adminLink().label, state.adminSupportUnread) : null),
+        u && moderationLink() ? tile(moderationLink().href, "check", moderationLink().label, hasTab("support") ? 0 : state.adminSupportUnread) : null,
+        u && adminLink() ? tile(adminLink().href, "shield", adminLink().label, hasTab("support") ? state.adminSupportUnread : 0) : null),
       h("button", { class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
   document.body.append(sheet);
 }
@@ -168,6 +173,7 @@ function openMenu() {
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
+    moderationLink() ? h("a", { href: moderationLink().href, onclick: close, html: `${icon("check")} ${moderationLink().long}` }) : null,
     adminLink() ? h("a", { href: adminLink().href, onclick: close, html: `${icon("shield")} ${adminLink().long}` }) : null,
     h("button", { onclick: async () => { close(); await stopAppPush(); await api("/api/auth/logout", { method: "POST" }); state.user = null; syncSharing(); renderUser(); renderNav(); live.stop(); location.hash = "#/login"; toast("Du er logget ud"); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));

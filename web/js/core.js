@@ -5,15 +5,18 @@ export const state = { user: null, afdelinger: [], kommuner: [], unread: 0 };
 export const can = (module) => !!state.user?.modules?.includes(module);
 // Admin-sidens faner i rækkefølge: [modul, fanetekst]
 export const ADMIN_TABS = [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"],
-  ["moderation", "Moderation"], ["ture", "Ture"], ["kategorier", "Kategorier"], ["brugere", "Brugere"], ["roller", "Roller"], ["arter", "Arter"], ["indhold", "Nyheder"], ["funktioner", "Funktioner"]];
-/** Må den indloggede se admin-fanen? Roller og Funktioner er kun for superadmin (ikke moduler, der kan tildeles). */
-export const hasTab = (m) => ["roller", "funktioner"].includes(m) ? state.user?.role === "superadmin" : can(m);
-/** Admin-menupunktet: "Moderation" for dem med kun moderatoropgaver, ellers "Admin". null = ingen faner. */
+  ["brugere", "Brugere"], ["roller", "Roller"], ["funktioner", "Funktioner"]];
+// Moderationssidens faner (eget menupunkt): [modul, fanetekst]. Arter rummer også listekategorierne (modul "kategorier").
+export const MOD_TABS = [["moderation", "Kommentarer"], ["indhold", "Nyheder"], ["ture", "Ture"], ["arter", "Arter"]];
+/** Må den indloggede se fanen? Roller og Funktioner er kun for superadmin (ikke moduler, der kan tildeles). */
+export const hasTab = (m) => ["roller", "funktioner"].includes(m) ? state.user?.role === "superadmin"
+  : m === "arter" ? can("arter") || can("kategorier") : can(m);
+/** Menupunkterne for admin og moderation: null = ingen faner. */
 export function adminLink() {
-  const tabs = ADMIN_TABS.filter(([m]) => hasTab(m)).map(([m]) => m);
-  if (!tabs.length) return null;
-  const mod = tabs.every(m => ["moderation", "ture", "kategorier"].includes(m));
-  return { href: "#/admin", label: mod ? "Moderation" : "Admin", long: mod ? "Moderation" : "Administration" };
+  return ADMIN_TABS.some(([m]) => hasTab(m)) ? { href: "#/admin", label: "Admin", long: "Administration" } : null;
+}
+export function moderationLink() {
+  return MOD_TABS.some(([m]) => hasTab(m)) ? { href: "#/moderation", label: "Moderation", long: "Moderation" } : null;
 }
 
 // append/replaceChildren ignorerer null/undefined/false, så betingede børn kan skrives som `x ? el : null`

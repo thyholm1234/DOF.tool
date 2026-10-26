@@ -1,18 +1,30 @@
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal, can, hasTab, ADMIN_TABS, adminLink, searchSpecies } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, seg, params, setParams, toast, errorBox, empty, modal, can, hasTab, ADMIN_TABS, MOD_TABS, adminLink, moderationLink, searchSpecies } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { conversation, KINDS } from "./support.js";
 import { eventForm } from "./events.js";
 import { banForm } from "../moderation.js";
 import { refreshUnread, refreshUser } from "../app.js";
 
-export async function render(view) {
+/** Før lå moderationsfanerne under Admin – gamle links (fx i notifikationer) sendes videre. */
+const MOVED_TO_MODERATION = new Set(MOD_TABS.map(t => t[0]).concat("kategorier"));
+
+export const render = (view) => shell(view, ADMIN_TABS, "Administration");
+export const renderModeration = (view) => shell(view, MOD_TABS, "Moderation");
+
+async function shell(view, allTabs, title) {
+  const isMod = allTabs === MOD_TABS;
+  if (!isMod && MOVED_TO_MODERATION.has(params().tab)) {
+    const q = new URLSearchParams(location.hash.split("?")[1] || "");
+    if (q.get("tab") === "kategorier") { q.set("tab", "arter"); q.set("vis", "kategorier"); }
+    location.replace(`#/moderation?${q}`); return;
+  }
   // Fanerne følger brugerens moduler (rollens standard eller individuelle rettigheder)
-  const tabs = ADMIN_TABS.filter(([m]) => hasTab(m));
-  if (!tabs.length) { view.append(errorBox(new Error("Du har ikke adgang til nogen admin-moduler"))); return; }
+  const tabs = allTabs.filter(([m]) => hasTab(m));
+  if (!tabs.length) { view.append(errorBox(new Error("Du har ikke adgang til nogen moduler her"))); return; }
   let tab = params().tab || tabs[0][0];
   if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
   const body = h("div", {});
-  view.append(h("div", { class: "page-head" }, h("h1", {}, adminLink().long), h("span", { class: "spacer" }),
+  view.append(h("div", { class: "page-head" }, h("h1", {}, title), h("span", { class: "spacer" }),
     seg(tabs, tab, (v) => { setParams({ tab: v, t: "" }); body.replaceChildren(); stop(); draw(v); })), body);
   let timers = [];
   const stop = () => { timers.forEach(clearInterval); timers = []; };
@@ -32,7 +44,7 @@ export async function render(view) {
     data: () => dataPanel(body, "dof", (f) => every(f, 20000)),
     vejr: () => dataPanel(body, "weather", (f) => every(f, 5000)),
     aktivitet: () => activityPanel(body), support: () => supportPanel(body),
-    moderation: () => moderation(body), ture: () => portalEvents(body), kategorier: () => categoriesPanel(body),
+    moderation: () => moderation(body), ture: () => portalEvents(body),
     brugere: () => users(body), roller: () => rolesPanel(body), arter: () => species(body), indhold: () => content(body),
     funktioner: () => featuresPanel(body),
   }[t] || ops)();
@@ -572,12 +584,15 @@ function permissionsModal(u, meta, onSaved) {
     h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"), h("button", { type: "button", class: "btn ghost", onclick: () => dlg.close() }, "Annullér"))));
 }
 
-// Admin → Arter: arternes klassifikation, bemærk-filtre pr. lokalafdeling og fænologiens perioder
+// Moderation → Arter: arternes klassifikation, bemærk-filtre pr. lokalafdeling og fænologiens perioder
 function species(body) {
-  let vis = params().vis || "arter";
+  // Arter, Bemærk-filtre og Fænologi hører under modulet arter, listekategorierne under kategorier
+  const views = [["arter", "Arter", speciesList, "arter"], ["bemaerk", "Bemærk-filtre", bemaerkPanel, "arter"], ["faenologi", "Fænologi", phenoPanel, "arter"],
+    ["kategorier", "Kategorier", categoriesPanel, "kategorier"]].filter(v => can(v[3]));
+  let vis = views.some(v => v[0] === params().vis) ? params().vis : views[0][0];
   const inner = h("div", {});
-  const draw = () => { inner.replaceChildren(); setParams({ vis: vis === "arter" ? "" : vis }); ({ arter: speciesList, bemaerk: bemaerkPanel, faenologi: phenoPanel }[vis] || speciesList)(inner); };
-  body.append(h("div", { class: "row mb" }, seg([["arter", "Arter"], ["bemaerk", "Bemærk-filtre"], ["faenologi", "Fænologi"]], vis, (v) => { vis = v; setParams({ afd: "" }); draw(); })), inner);
+  const draw = () => { inner.replaceChildren(); setParams({ vis: vis === views[0][0] ? "" : vis }); views.find(v => v[0] === vis)[2](inner); };
+  body.append(h("div", { class: "row mb" }, seg(views.map(v => [v[0], v[1]]), vis, (v) => { vis = v; setParams({ afd: "", art: "", y: "", q: "" }); draw(); })), inner);
   draw();
 }
 
@@ -788,7 +803,7 @@ function messageForm(x) {
     try {
       const r = await api(`/api/admin/users/${x.user_id}/message`, { method: "POST", body: { subject: subject.value, body: text.value, comment_id: x.body ? x.id : null } });
       m.close(); toast("Beskeden er sendt");
-      location.hash = `#/admin?tab=moderation&vis=beskeder&t=${r.thread}`;
+      location.hash = `#/moderation?tab=moderation&vis=beskeder&t=${r.thread}`;
     } catch (err) { toast(err.message, "err"); }
   } },
     x.body ? h("blockquote", { class: "quote" }, x.body) : null,

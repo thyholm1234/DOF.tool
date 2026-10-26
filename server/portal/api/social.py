@@ -309,9 +309,9 @@ async def reply(thread_id: int, body: MessageIn, request: Request, tasks: Backgr
         tasks.add_task(_notify, [t.user_id], f"Svar fra {sender}: {t.subject}", body.body, f"/#/support?t={t.id}",
                        f"support:{t.id}:{m.id}")
     else:
-        tab = "moderation&vis=beskeder" if t.kind == "moderation" else "support"
+        page, tab = ("moderation", "moderation&vis=beskeder") if t.kind == "moderation" else ("admin", "support")
         tasks.add_task(_notify, await _admins(db, user.id, t.kind), f"Nyt svar fra {who}: {t.subject}", body.body,
-                       f"/#/admin?tab={tab}&t={t.id}", f"support:{t.id}:{m.id}")
+                       f"/#/{page}?tab={tab}&t={t.id}", f"support:{t.id}:{m.id}")
     return await _thread_json(db, t, user)
 
 

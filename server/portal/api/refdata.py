@@ -1,4 +1,4 @@
-"""Admin → Arter: bemærk-tærskler pr. lokalafdeling og fænologivinduer.
+"""Moderation → Arter: bemærk-tærskler pr. lokalafdeling og fænologivinduer.
 
 DOFbasens referencedata hentes jævnligt og overskriver tabellerne; ændringer herfra gemmes derfor også i
 reference_edits og lægges oven på igen efter hver hentning (dof/reference.py). Alt skrives i observationsgruppen, hvor

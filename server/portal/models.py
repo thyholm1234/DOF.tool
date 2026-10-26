@@ -156,7 +156,7 @@ class PhenologyWindow(Base):
 
 
 class ReferenceEdit(Base):
-    """Ændringer fra Admin → Arter i bemærk-tærskler (pr. lokalafdeling) og fænologivinduer. De lægges oven på DOFbasens
+    """Ændringer fra Moderation → Arter i bemærk-tærskler (pr. lokalafdeling) og fænologivinduer. De lægges oven på DOFbasens
     værdier hver gang referencedata hentes, så de overlever opdateringen. dof_* er DOFbasens værdi (til fortryd)."""
 
     __tablename__ = "reference_edits"

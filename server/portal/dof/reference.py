@@ -269,7 +269,7 @@ async def apply_bemaerk(session: AsyncSession, afdeling_id: int, thresholds: dic
     await _insert_chunks(session, BemaerkThreshold, [
         {"afdeling_id": afdeling_id, "artnavn": k, "antal": v} for k, v in thresholds.items()
     ])
-    # Admin → Arter: egne tærskler lægges oven på; DOFbasens nye værdi huskes til fortryd
+    # Moderation → Arter: egne tærskler lægges oven på; DOFbasens nye værdi huskes til fortryd
     for e in (await session.execute(select(ReferenceEdit).where(ReferenceEdit.kind == "bemaerk",
                                                                 ReferenceEdit.afdeling_id == afdeling_id))).scalars():
         e.dof_antal = thresholds.get(e.artnavn)
@@ -286,7 +286,7 @@ async def apply_windows(session: AsyncSession, season: str, rows: list[tuple[str
     names = sorted({r[0] for r in rows})
     await session.execute(delete(PhenologyWindow).where(PhenologyWindow.artnavn.in_(names)))
     await _insert_chunks(session, PhenologyWindow, [{"artnavn": n, "fra": a, "til": b} for n, a, b in rows])
-    # Admin → Arter: egne vinduer erstatter DOFbasens for arten; DOFbasens nye vinduer huskes til fortryd
+    # Moderation → Arter: egne vinduer erstatter DOFbasens for arten; DOFbasens nye vinduer huskes til fortryd
     for e in (await session.execute(select(ReferenceEdit).where(ReferenceEdit.kind == "pheno"))).scalars():
         if e.artnavn in names:
             e.dof_windows = [[a, b] for n, a, b in rows if n == e.artnavn]
