@@ -22,6 +22,7 @@ DOF_SERVER_URL=https://portal.example.dk ./build.sh      # → dist/DOF-tool.apk
   `http://`-adresser tillades (klartekst) – brug `https://` til produktion.
 * APK'en signeres med `signing/dof-tool.jks` (oprettes første gang, ligger ikke i git). **Tag backup af `signing/`** –
   uden nøglen kan en ny version ikke installeres oven på en gammel.
+* Release på GitHub: `gh auth login` (én gang), derefter `./build.sh && ./release.sh` – opretter releasen `app-v<dato>` med APK'en og iOS-kildepakken.
 * Installér: `adb install -r dist/DOF-tool.apk`, eller send filen til telefonen og tillad installation fra ukendte kilder.
 
 ## Tale-indtastning (talemodel på telefonen)
