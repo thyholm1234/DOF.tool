@@ -17,8 +17,9 @@ x-app: &app
   logging: *logging
   env_file: .env
   environment:
+    POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
     REDIS_DSN: redis://valkey:6379/0
-    # Databasernes adresser kommer fra registret i dbadmin (bruger- og observationsnoder).
+    # Registret (dbadmin) afgør, om POSTGRES_DSN bruges til alt (standard) eller om data er delt i bruger- og observationsdatabaser.
     DBADMIN_URL: ${DBADMIN_URL:-http://dbadmin:8100}
     DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:?sæt DBADMIN_SERVICE_TOKEN i .env (tilfældig streng)}
     ARCHIVE_DIR: /archive
@@ -43,10 +44,32 @@ x-app: &app
       condition: service_started
     rustfs:
       condition: service_healthy
+    postgres:
+      condition: service_healthy
     valkey:
       condition: service_healthy
 
 services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-portal}
+      POSTGRES_USER: ${POSTGRES_USER:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
+      TZ: Europe/Copenhagen
+    command: >
+      postgres -c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB
+               -c effective_cache_size=4GB -c max_wal_size=4GB -c random_page_cost=1.1
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portal} -d ${POSTGRES_DB:-portal}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   valkey:
     image: valkey/valkey:8.1
     restart: unless-stopped
@@ -84,6 +107,8 @@ services:
       DBADMIN_PASSWORD: ${DBADMIN_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      # Den nuværende samlede database – kilden når panelet migrerer
+      LEGACY_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       DBNODE_IMAGE: doftool-dbnode:latest
     ports:
       # Kun på DBADMIN_BIND (standard: kun serveren selv). Panelet styrer Docker – udstil det aldrig mod internettet;
@@ -161,6 +186,7 @@ volumes:
   models:
   speech_work:
   rustfs:
+  pgdata:
   valkeydata:
   media:
   weather:

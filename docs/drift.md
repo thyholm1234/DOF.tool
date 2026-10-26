@@ -30,12 +30,12 @@ automatisk og gemmes i databasen. På iPhone skal appen føjes til hjemmeskærme
 
 ```
 docker compose
-├── dbadmin   – superadmin-panel til databaserne (se Databaser): noder, tokens, IP og port
+├── postgres  (PostGIS 17)  – al data: observationer (1960'erne →), lokaliteter, kommunepolygoner, brugere …
 ├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, scoreboards, pub/sub til live-opdateringer
 ├── api       (FastAPI)  – REST + server-sent events + statisk PWA (web/)
 ├── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
 ├── rustfs    – objektlager (S3) til fotos og lyd i observationer; leveres med login via /media/obs/<navn>
-└── db-noder  (PostGIS 17, oprettet af dbadmin) – brugerdata og observationer (1960'erne →), lokaliteter, kommunepolygoner …
+└── dbadmin   – superadmin-panel til databaserne (se Databaser): noder, tokens, IP og port
 ```
 
 **Objektlager.** Filer uploadet til feltmeldinger og ture gemmes i RustFS (`rustfs/rustfs`, Apache-2.0; bucket
@@ -46,7 +46,8 @@ starter. Lagerforbruget for databaser, objektlager, filer og Valkey kan følges 
 
 ### Databaser: opdeling, replikaer og backup
 
-Data deles i to **grupper** af Postgres-noder på vilkårlige servere:
+Som standard bruger alt den ene `postgres`-container (`DBADMIN_SERVICE_TOKEN` skal være sat i `.env`). Efter
+migreringen i panelet deler portalen i stedet data i to **grupper** af Postgres-noder på vilkårlige servere:
 
 * **Brugerdata** (`users`): brugere, lister, push, kommentarer, kalendere, DOFbasen-/Netfugl-indhold …
 * **Observationer** (`observations`): observationer, ture, aggregater, vejr og DKU-status.
@@ -77,7 +78,8 @@ database er nede, så adressen kan rettes):
 **Første opsætning og migrering sker i panelet** (kortet *Opsætning og migrering*): panelet opretter selv en brugerdata- og en
 observations-database som containere (kræver `/var/run/docker.sock`, som compose monterer), stopper api og worker, kopierer
 alle data fra den nuværende samlede database, kontrollerer rækkeantal pr. tabel, slår opdelingen til og starter api/worker igen.
-Uden Docker-adgang oprettes noderne manuelt (*Tilføj node*), og panelet flytter dataene. Kommandolinje:
+Fejler noget, bruger portalen stadig den gamle database. Den gamle database røres ikke og kan bruges til *Tilbage til samlet
+database*. Uden Docker-adgang oprettes noderne manuelt (*Tilføj node*), og panelet flytter dataene. Kommandolinje:
 `docker compose run --rm api python -m portal.dbmigrate --from <dsn>` (kun når opdelingen allerede er slået til).
 
 `docker compose -f dbnode/compose.dev.yml up -d --build` giver en lokal prøve-klynge (bruger-DB, obs-DB + replika).
