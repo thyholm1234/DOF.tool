@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from portal.api import (admin, alerts, auth, calendar, categories, dku, dofbasen, dofbasen_v1, feed, geo, learn, lists, media,
-                        mobgang, netfugl, netfugl_v1, position, privacy, refdata, reports, science, search, share, social, trips)
+                        mobgang, netfugl, netfugl_v1, position, privacy, refdata, reports, science, search, share, social, stats, trips)
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
@@ -147,7 +147,7 @@ async def health():
 
 
 for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, refdata, share,
-               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, media):  # media før /media-mounten
+               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, stats, media):  # media før /media-mounten
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer
