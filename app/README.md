@@ -26,7 +26,10 @@ DOF_SERVER_URL=https://portal.example.dk ./build.sh      # → dist/DOF-tool.apk
 
 ## Tale-indtastning (talemodel på telefonen)
 
-Tale-indtastningen på ture (Admin → Funktioner → «Tale-indtastning») genkender talen på telefonen med CoRal-projektets
+Tale-indtastningen på ture (Admin → Funktioner → «Tale-indtastning») har en fane **Tale** på turen: hold knappen nede, og
+hver indtalt post står for sig i fanen (kan slettes eller lægges antal til), mens listen under Observationer viser summen
+pr. art og adfærd. Der er ingen reserve med telefonens (Googles) genkender – uden talemodellen på telefonen er der ingen
+tale-indtastning. Den genkender talen på telefonen med CoRal-projektets
 danske model `roest-v3-wav2vec2-315m`, kørt med ONNX Runtime (MIT) i pluginnet `DofAsr`. Lyden forlader ikke telefonen,
 og der bruges ingen Google-tjenester. Modellens output afkodes i `web/js/voice-ctc.js` mod artslisten, tallene og
 adfærdslisten, så kun ord derfra kan komme ud.

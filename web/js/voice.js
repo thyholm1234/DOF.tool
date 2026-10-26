@@ -1,7 +1,7 @@
 // Tale-indtastning på en tur (eksperiment, kun i appen): hold knappen inde, sig fx «2 bomlærker syd», slip.
 // Talen genkendes på telefonen af en dansk talemodel (CoRal, se app/…/DofAsr.java) og afkodes mod artslisten, tallene og
-// adfærdslisten (voice-ctc.js); ældre APK'er bruger telefonens genkender, og dens tekst tolkes her til antal, art og
-// adfærd. Flere fugle i én sætning: «2 bomlærker syd og 5 stære vest».
+// adfærdslisten (voice-ctc.js), så kun ord derfra kan komme ud. Flere fugle i én sætning: «2 bomlærker syd og 5 stære vest».
+// Ingen reserve: uden talemodellen på telefonen er der ingen tale-indtastning (der bruges ingen Google-genkender).
 import { isApp } from "./native.js";
 import { Lexicon, decode, spell } from "./voice-ctc.js";
 
@@ -26,62 +26,6 @@ const BEHAVIOUR = { rastende: "R", rast: "R", raster: "R", fouragerende: "FU", f
   syngende: "SY", synger: "SY", kaldende: "KA", kalder: "KA", trækkende: "T", træk: "T", trækker: "T",
   udtrækkende: "TU", trækforsøgende: "TF", død: "DØD", døde: "DØD" };
 const FILLER = new Set(["mod", "i", "retning", "derefter", "der", "som", "stk", "styk", "individer", "individ", "fugle", "fugl"]);
-
-const norm = (s) => s.toLowerCase().replace(/\(.*?\)/g, "").replace(/[\[\]().,'’-]/g, " ").replace(/\s+/g, "");
-
-/** Opslag over artsnavne (normaliseret, uden mellemrum). Underarter kan også siges med deres eget navn («gråkrage»). */
-export function speciesIndex(species) {
-  const keys = new Map();
-  const add = (key, s) => {
-    if (!key) return;
-    const prev = keys.get(key);
-    // samme nøgle to gange: foretræk arten frem for underart/sp./hybrid
-    if (!prev || (prev.art_type !== "art" && s.art_type === "art")) keys.set(key, s);
-  };
-  for (const s of species) {
-    if (s.art_type === "hybrid") continue;
-    const name = s.navn.replace(/^\[|\]$/g, "");
-    add(norm(name), s);
-    if (s.art_type === "underart" && name.includes(",")) add(norm(name.split(",").slice(1).join(",")), s);
-  }
-  return keys;
-}
-
-// Flertal og bøjning: «bomlærker» → bomlærke, «stære» → stær, «grågæs» → grågås, «gråænder» → gråand
-const IRREGULAR = [["gæs", "gås"], ["ænder", "and"], ["ænderne", "and"], ["sler", "ssel"], ["slerne", "ssel"], ["mænd", "mand"]];
-function variants(key) {
-  const out = [key];
-  for (const end of ["erne", "ene", "ne", "er", "r", "e", "s"]) if (key.length > end.length + 2 && key.endsWith(end)) out.push(key.slice(0, -end.length));
-  for (const [from, to] of IRREGULAR) if (key.endsWith(from)) out.push(key.slice(0, -from.length) + to);
-  return out;
-}
-
-function distance(a, b) {
-  if (Math.abs(a.length - b.length) > 3) return 99;
-  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const cur = [i];
-    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-    prev = cur;
-  }
-  return prev[b.length];
-}
-
-/** Arten i en talt frase (eller null). Først præcist (også bøjet), så den nærmeste stavemåde. */
-export function findSpecies(index, phrase) {
-  const key = norm(phrase);
-  if (key.length < 2) return null;
-  for (const v of variants(key)) if (index.has(v)) return index.get(v);
-  let best = null, bestD = 99;
-  const limit = key.length <= 4 ? 1 : key.length <= 8 ? 2 : 3;
-  for (const v of variants(key)) {
-    for (const [k, s] of index) {
-      const d = distance(v, k);
-      if (d < bestD || (d === bestD && best && best.art_type !== "art" && s.art_type === "art")) { best = s; bestD = d; }
-    }
-  }
-  return bestD <= limit ? best : null;
-}
 
 /** Én fugl: «2 bomlærker syd» → { antal, phrase, adfkode, heard }. adfkode = "" hvis intet blev sagt om adfærd. */
 function parseOne(text, codes) {
@@ -117,25 +61,6 @@ function parseOne(text, codes) {
   else if (beh) adfkode = beh;
   if (adfkode && !has(adfkode)) adfkode = "";
   return { antal: antal ?? 1, phrase: words.filter(w => !FILLER.has(w)).join(" "), adfkode, heard: text.trim() };
-}
-
-/** Tolk en hel sætning. codes = Set af gyldige adfærdskoder. Returnerer [{ antal, art (artsobjekt|null), adfkode, heard }]. */
-export function parseSpeech(text, index, codes) {
-  return text.split(/\s+og\s+|\s*[;,]\s*(?=\d|en\b|et\b|to\b|tre\b)/i).map(s => s.trim()).filter(Boolean).map(part => {
-    const p = parseOne(part, codes);
-    return { ...p, art: p.phrase ? findSpecies(index, p.phrase) : null };
-  });
-}
-
-/** Bedste tolkning blandt genkendelsens alternativer: den hvor flest fugle fik en art (ved lighed den første). */
-export function bestParse(matches, index, codes) {
-  let best = null, score = -Infinity;
-  for (const m of matches || []) {
-    const items = parseSpeech(m, index, codes);
-    const s = items.filter(i => i.art).length * 2 + items.filter(i => i.adfkode).length - items.filter(i => !i.art).length * 3;
-    if (s > score) { best = items; score = s; }
-  }
-  return best || [];
 }
 
 // ---------------------------------------------------------------- lukket ordforråd (talemodellen på telefonen)
@@ -242,47 +167,24 @@ export function itemsFromWords(words, ctx) {
   });
 }
 
-/**
- * Samme art med samme adfærd i én sætning er én observation, hvor antallene lægges sammen («2 bomlærker syd og 5 bomlærker
- * syd» → 7 bomlærker syd). Forskellig adfærd (eller ingen) forbliver hver sin observation. Rækkefølgen er den talte.
- * Ord, der ikke blev til en art, rører vi ikke.
- */
-export function mergeItems(items) {
-  const out = [], seen = new Map();
-  for (const it of items) {
-    const key = it.art ? `${it.art.artnr}|${it.adfkode || ""}` : null;
-    const prev = key && seen.get(key);
-    if (prev) { prev.antal += it.antal; prev.heard = `${prev.heard} + ${it.heard}`; continue; }
-    const copy = { ...it };
-    if (key) seen.set(key, copy);
-    out.push(copy);
-  }
-  return out;
-}
-
 /** Talemodellens log-sandsynligheder → observationer. Returnerer { items, heard } (heard = modellens egen tekst). */
 export function parseLogprobs(logprobs, ctx) {
   const r = decode(logprobs, ctx.lex);
-  return { items: mergeItems(itemsFromWords(r.words, ctx)), heard: r.greedy, words: r.words.map(w => w.text) };
+  return { items: itemsFromWords(r.words, ctx), heard: r.greedy, words: r.words.map(w => w.text) };
 }
 
 // ---------------------------------------------------------------- Android: talemodellen på telefonen
 
-// Nye APK'er har appens eget plugin DofAsr: CoRal-modellen køres med ONNX Runtime på telefonen (ingen lyd forlader den,
-// ingen Google-tjenester). Ældre APK'er har kun SpeechRecognition (@capacitor-community/speech-recognition), der bruger
-// telefonens indbyggede genkender – den understøttes, til appen er opdateret.
-const ASR = "DofAsr", SR = "SpeechRecognition";
+// Appens eget plugin DofAsr: CoRal-modellen køres med ONNX Runtime på telefonen (ingen lyd forlader den, ingen
+// Google-tjenester).
+const ASR = "DofAsr";
 const cap = () => window.Capacitor;
 const has = (p) => !!cap()?.isPluginAvailable?.(p);
 const call = (plugin, method, options) => cap().nativePromise(plugin, method, options);
 const MIC = "Appen må ikke bruge mikrofonen – slå det til i Android-indstillinger";
 
-/** "local" (talemodellen på telefonen), "system" (ældre app) eller null. */
-export async function voiceEngine() {
-  if (!isApp() || typeof cap()?.nativePromise !== "function") return null;
-  if (has(ASR)) return "local";
-  try { return (await call(SR, "available")).available ? "system" : null; } catch { return null; }
-}
+/** Har appen talemodel-pluginet? (Ældre APK'er har det ikke og skal opdateres.) */
+export const voiceSupported = () => isApp() && typeof cap()?.nativePromise === "function" && has(ASR);
 
 /** Talemodellen på telefonen: { installed, version, bytes, current (= serverens version), manifest }. */
 export async function modelStatus() {
@@ -301,28 +203,22 @@ export async function installModel(manifest, onProgress) {
 /** Indlæs modellen i forvejen (når turen åbnes), så første optagelse ikke venter på det. */
 export const prepareModel = () => call(ASR, "prepare").catch(() => {});
 
-async function ensurePermission(engine) {
-  if (engine === "local") {
-    if (!(await call(ASR, "requestMicrophone")).granted) throw new Error(MIC);
-    return;
-  }
-  let { speechRecognition } = await call(SR, "checkPermissions");
-  if (speechRecognition !== "granted") ({ speechRecognition } = await call(SR, "requestPermissions"));
-  if (speechRecognition !== "granted") throw new Error(MIC);
+async function ensurePermission() {
+  if (!(await call(ASR, "requestMicrophone")).granted) throw new Error(MIC);
 }
 
 /** Tolkningens opslag – bygges én gang pr. tur: ctx = voiceContext(ref.species, ref.codes.adf). */
 export function voiceContext(species, adf) {
-  return { index: speciesIndex(species), codes: new Set(adf.map(a => a.code)), lexicon: null, species, adf };
+  return { lexicon: null, species, adf };
 }
 
 /**
- * Start optagelse. on.partial(tekst) (kun ældre app) og on.level(0–1) kaldes undervejs. Returnerer stop(), der giver
- * { items: [{ antal, art, adfkode, heard }], heard } – heard er det, modellen/genkenderen selv hørte.
+ * Start optagelse. on.level(0–1) kaldes undervejs. Returnerer stop(), der giver { items: [{ antal, art, adfkode, heard }],
+ * heard } – heard er modellens egen tekst, uden ordforrådet.
  */
-export async function listen(engine, ctx, on = {}) {
-  await ensurePermission(engine);
-  return engine === "local" ? listenLocal(ctx, on) : listenSystem(ctx, on);
+export async function listen(ctx, on = {}) {
+  await ensurePermission();
+  return listenLocal(ctx, on);
 }
 
 function fromBase64(b64) {
@@ -342,23 +238,5 @@ async function listenLocal(ctx, on) {
       const out = parseLogprobs(fromBase64(r.logprobs), ctx.lexicon);
       return { items: out.items, heard: out.heard, words: out.words, ms: r.ms };
     } finally { handle?.remove?.(); }
-  };
-}
-
-async function listenSystem(ctx, on) {
-  let matches = [], events = 0;
-  const handle = cap().addListener(SR, "partialResults", (r) => {
-    if (r?.matches?.length) { matches = r.matches; events++; on.partial?.(matches[0]); }
-  });
-  try {
-    await call(SR, "start", { language: "da-DK", maxResults: 5, partialResults: true, popup: false });
-  } catch (err) { handle?.remove?.(); throw err; }
-  return async () => {
-    const before = events;
-    try { await call(SR, "stop"); } catch { /* allerede stoppet (pause i talen) */ }
-    // Slutresultatet kommer som et sidste event lidt efter stop – vent kort på det (også hvis det kom under stop-kaldet)
-    for (let t = 0; events === before && t < 1200; t += 50) await new Promise((r) => setTimeout(r, 50));
-    handle?.remove?.();
-    return { items: matches.length ? mergeItems(bestParse(matches, ctx.index, ctx.codes)) : [], heard: matches[0] || "" };
   };
 }

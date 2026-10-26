@@ -65,7 +65,7 @@ export function blankTrip() {
   return { client_id: newId(), server_id: null, dato: todayISO(), loknr: null, lok: null, turtidfra: nowHM(), turtidtil: "", metode_id: 1, komplet: null,
     spontan: false, medobser: "", turnoter: "", on_behalf_of: "", lat: null, lon: null, temperatur: null, skydaekke: null, vindretning: null,
     vindstyrke: null, nedboer: null, nedboertype: null, sigtbarhed: null, gps_aktiv: false, gps_track: [], observations: [], breeding_pairs: [],
-    disturbances: [] };
+    disturbances: [], speech: [] };  // speech: indtalte poster (kun på enheden; summen står i observations)
 }
 
 export function fromServer(t, ref) {
