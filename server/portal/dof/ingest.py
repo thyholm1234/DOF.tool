@@ -151,7 +151,8 @@ async def ingest(
     if sorting:
         await apg.execute(
             "UPDATE species s SET sortering = v.sortering FROM unnest($1::int[], $2::int[]) AS v(artnr, sortering) "
-            "WHERE s.artnr = v.artnr AND s.sortering IS DISTINCT FROM v.sortering",
+            "WHERE s.artnr = v.artnr AND s.sortering IS DISTINCT FROM v.sortering "
+            "AND NOT EXISTS (SELECT 1 FROM species_edits e WHERE e.artnr = s.artnr AND 'sortering' = ANY(e.fields))",  # rettet i portalen
             list(sorting), list(sorting.values()),
         )
     if species:

@@ -775,23 +775,77 @@ async function phenoPanel(body) {
   await load();
 }
 
+const SPECIES_TYPES = [["art", "Art"], ["underart", "Underart"], ["hybrid", "Hybrid"], ["ub", "Ubestemt"], ["andre", "Andre"]];
+const SPECIES_LABELS = { navn: "Navn", latin: "Latin", sortering: "Sortering", klass: "Status", art_type: "Type", list_artnr: "Tæller som", excluded: "Udeluk" };
+
 async function speciesList(body) {
-  const q = h("input", { type: "search", placeholder: "Søg art…", style: { maxWidth: "280px" } });
+  const q = h("input", { type: "search", placeholder: "Søg navn, latin eller nr.…", style: { maxWidth: "280px" } });
+  const type = h("select", { style: { width: "auto" } }, h("option", { value: "" }, "Alle typer"), ...SPECIES_TYPES.map(([v, t]) => h("option", { value: v }, t)));
+  const edited = h("input", { type: "checkbox" });
+  const count = h("small", { class: "muted" });
   const out = h("div", { class: "card table-wrap mt" });
-  body.append(h("p", { class: "muted" }, "Klassifikation og listeregler. 'Tæller som' bestemmer hvilken art en underart tæller som på årslister; tom = tæller ikke. 'Udeluk' fjerner arten fra lister og notifikationer."),
-    h("div", { class: "row" }, q, can("kategorier") ? h("button", { class: "btn", html: `${icon("plus")} Opret art`, title: "Opret en art, der ikke findes i listen",
-      onclick: () => newSpeciesForm(q.value, () => load()) }) : null), out);
-  const load = async () => {
-    const rows = await api(`/api/admin/species?q=${encodeURIComponent(q.value)}`);
-    out.replaceChildren(h("table", { class: "data stack-sm", style: { "--cols": 3 } }, h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Nr."), h("th", {}, "Type"), h("th", {}, "Status"), h("th", {}, "Tæller som"), h("th", {}, "Udeluk"))),
-      h("tbody", {}, ...rows.map(s => h("tr", {}, h("td", {}, s.navn), h("td", { class: "num muted", "data-label": "Nr." }, s.artnr), h("td", { class: "muted", "data-label": "Type" }, s.art_type),
-        h("td", { "data-label": "Status" }, h("select", { style: { width: "auto", height: "30px" }, onchange: async (e) => { await api(`/api/admin/species/${s.artnr}`, { method: "PATCH", body: { klass: e.target.value } }); toast("Gemt"); } },
-          ...["Alm", "SUB", "SU"].map(k => h("option", { selected: k === s.klass }, k)))),
-        h("td", { class: "muted span2", "data-label": "Tæller som" }, s.list_navn || "–"),
-        h("td", { "data-label": "Udeluk" }, h("input", { type: "checkbox", checked: s.excluded, onchange: async (e) => { await api(`/api/admin/species/${s.artnr}`, { method: "PATCH", body: { excluded: e.target.checked } }); toast("Gemt"); } })))))));
+  let all = [];
+  body.append(h("p", { class: "muted" }, "Alle arter og taxa fra DOFbasen. Ret navn, latin, sortering, status, type, hvilken art en underart tæller som på årslister (tom = tæller ikke) og om arten er udelukket fra lister og notifikationer. Rettelser lægges oven på DOFbasens artsdata, hver gang de hentes, og kan fortrydes."),
+    h("div", { class: "row" }, q, type, h("label", { class: "check" }, edited, " Kun rettede"), count, h("span", { class: "spacer" }),
+      can("kategorier") ? h("button", { class: "btn", html: `${icon("plus")} Opret art`, title: "Opret en art, der ikke findes i listen",
+        onclick: () => newSpeciesForm(q.value, () => load()) }) : null), out);
+  const draw = () => {
+    const term = q.value.trim().toLowerCase();
+    const rows = all.filter(s => (!term || s.navn.toLowerCase().includes(term) || (s.latin || "").toLowerCase().includes(term) || String(s.artnr) === term)
+      && (!type.value || s.art_type === type.value) && (!edited.checked || s.edited.length));
+    count.textContent = `${fmtN(rows.length)} af ${fmtN(all.length)}`;
+    out.replaceChildren(h("table", { class: "data stack-sm", style: { "--cols": 3 } },
+      h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Nr."), h("th", {}, "Type"), h("th", {}, "Status"), h("th", {}, "Tæller som"), h("th", {}, "Udeluk"), h("th", {}))),
+      h("tbody", {}, ...rows.map(s => h("tr", {},
+        h("td", {}, h("b", {}, s.navn), s.latin ? h("small", { class: "muted" }, ` ${s.latin}`) : null,
+          s.edited.length ? h("span", { class: "tag bemaerk", style: { marginLeft: "6px" }, title: `Rettet: ${s.edited.map(f => SPECIES_LABELS[f]).join(", ")}` }, "rettet") : null),
+        h("td", { class: "num muted", "data-label": "Nr." }, s.artnr), h("td", { class: "muted", "data-label": "Type" }, s.art_type),
+        h("td", { "data-label": "Status" }, s.klass), h("td", { class: "muted", "data-label": "Tæller som" }, s.list_artnr === s.artnr ? "sig selv" : s.list_navn || "–"),
+        h("td", { "data-label": "Udeluk" }, s.excluded ? "ja" : ""),
+        h("td", { class: "right" }, h("button", { class: "btn sm", type: "button", html: `${icon("edit")} Ret`, onclick: () => editSpecies(s, all, load) })))))));
   };
-  let t; q.oninput = () => { clearTimeout(t); t = setTimeout(load, 250); };
+  const load = async () => {
+    try { all = await api("/api/admin/species"); draw(); } catch (err) { out.replaceChildren(errorBox(err)); }
+  };
+  let t; q.oninput = () => { clearTimeout(t); t = setTimeout(draw, 150); };
+  type.onchange = draw; edited.onchange = draw;
   await load();
+}
+
+function editSpecies(s, all, done) {
+  const navn = h("input", { value: s.navn, required: true, maxlength: 200 });
+  const latin = h("input", { value: s.latin || "", maxlength: 200 });
+  const sortering = h("input", { type: "number", value: s.sortering ?? "", min: 0, style: { width: "120px" } });
+  const klass = h("select", {}, ...["Alm", "SUB", "SU"].map(k => h("option", { value: k, selected: k === s.klass }, k)));
+  const artType = h("select", {}, ...SPECIES_TYPES.map(([v, t]) => h("option", { value: v, selected: v === s.art_type }, t)));
+  const targets = all.filter(x => x.art_type === "art" && x.list_artnr === x.artnr && x.artnr !== s.artnr);
+  const list = h("select", {}, h("option", { value: "" }, "Tæller ikke"), h("option", { value: s.artnr }, "Sig selv"),
+    ...targets.map(x => h("option", { value: x.artnr }, `${x.navn} (${x.artnr})`)));
+  list.value = s.list_artnr == null ? "" : String(s.list_artnr);
+  const excluded = h("input", { type: "checkbox", checked: s.excluded });
+  const dof = s.dof || {};
+  const was = (f, label) => s.edited.includes(f) ? h("small", { class: "muted" }, `DOFbasen: ${label ?? (dof[f] ?? "–")}`) : null;
+  const field = (t, el, f, label) => h("label", { class: "field" }, h("span", {}, t), el, was(f, label));
+  const listName = (n) => n == null ? "tæller ikke" : n === s.artnr ? "sig selv" : all.find(x => x.artnr === n)?.navn || n;
+  const { close } = modal(`Ret ${s.navn}`, h("form", { class: "stack", onsubmit: async (e) => {
+    e.preventDefault();
+    const v = { navn: navn.value.trim(), latin: latin.value.trim() || null, sortering: sortering.value === "" ? null : +sortering.value, klass: klass.value,
+      art_type: artType.value, list_artnr: list.value === "" ? null : +list.value, excluded: excluded.checked };
+    const changed = Object.fromEntries(Object.entries(v).filter(([k, x]) => x !== (s[k] ?? null)));
+    if (!Object.keys(changed).length) { close(); return; }
+    try { await api(`/api/admin/species/${s.artnr}`, { method: "PATCH", body: changed }); close(); toast("Gemt"); done(); }
+    catch (err) { toast(err.message, "err"); }
+  } },
+    h("p", { class: "muted", style: { margin: 0 } }, `Nr. ${s.artnr}. Rettelser lægges oven på DOFbasens artsdata, hver gang de hentes.`),
+    field("Navn", navn, "navn"), field("Latin", latin, "latin"),
+    h("div", { class: "row", style: { gap: "12px", alignItems: "flex-end" } }, field("Sortering", sortering, "sortering"), field("Status", klass, "klass"), field("Type", artType, "art_type")),
+    field("Tæller som (årslister)", list, "list_artnr", listName(dof.list_artnr)),
+    h("label", { class: "check" }, excluded, " Udeluk fra lister og notifikationer", s.edited.includes("excluded") ? h("small", { class: "muted" }, ` (DOFbasen: ${dof.excluded ? "ja" : "nej"})`) : null),
+    h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"),
+      s.edited.length ? h("button", { class: "btn", type: "button", onclick: async () => {
+        if (!confirm(`Fortryd alle portalens rettelser af ${s.navn}?`)) return;
+        try { await api(`/api/admin/species/${s.artnr}/edits`, { method: "DELETE" }); close(); toast("Fortrudt"); done(); } catch (err) { toast(err.message, "err"); }
+      } }, "Fortryd rettelser") : null)));
 }
 
 async function content(body) {

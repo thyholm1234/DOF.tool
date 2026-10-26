@@ -129,6 +129,17 @@ async def _seed_species(session: AsyncSession) -> None:
     await resolve_list_species(session)
 
 
+SPECIES_FIELDS = ("navn", "latin", "sortering", "klass", "art_type", "list_artnr", "excluded")
+
+
+async def apply_species_edits(session: AsyncSession, artnr: int | None = None) -> None:
+    """Læg Moderation → Arter's ændringer (species_edits) oven på artsdata – efter hver hentning fra DOFbasen, der kan
+    have overskrevet dem, og når en art rettes (artnr)."""
+    sets = ", ".join(f"{f} = CASE WHEN '{f}' = ANY(e.fields) THEN e.{f} ELSE s.{f} END" for f in SPECIES_FIELDS)
+    await session.execute(text(f"""UPDATE species s SET {sets} FROM species_edits e
+        WHERE s.artnr = e.artnr AND (CAST(:a AS int) IS NULL OR e.artnr = :a)"""), {"a": artnr})
+
+
 async def resolve_list_species(session: AsyncSession) -> None:
     """Sæt list_artnr: arter tæller som sig selv, underarter som arten (eller sig selv, hvis arten ikke findes i
     DOFbasen, fx Klippedue (tamdue)), resten tæller ikke. [Klammer] om navnet gør stadig fundet ikke-krydsbart."""
@@ -245,6 +256,7 @@ async def apply_artdata(session: AsyncSession, rows: list[dict]) -> int:
             update["klass"] = stmt.excluded.klass
         await session.execute(stmt.on_conflict_do_update(index_elements=["artnr"], set_=update))
     await resolve_list_species(session)
+    await apply_species_edits(session)
     await session.commit()
     await bump("reference")
     return len(rows)
@@ -257,6 +269,7 @@ async def apply_status(session: AsyncSession, klass: str, ids: set[int]) -> int:
         await session.execute(text("UPDATE species SET klass = 'SU' WHERE artnr = ANY(:ids)"), {"ids": list(ids)})
     else:
         await session.execute(text("UPDATE species SET klass = 'SUB' WHERE artnr = ANY(:ids) AND klass <> 'SU'"), {"ids": list(ids)})
+    await apply_species_edits(session)
     await session.commit()
     await bump("reference")
     return len(ids)
@@ -322,6 +335,7 @@ async def fix_list_species(session: AsyncSession) -> None:
     if await session.get(Setting, LIST_FIX_KEY) is not None or not (await session.execute(select(func.count()).select_from(Species))).scalar():
         return
     await resolve_list_species(session)
+    await apply_species_edits(session)
     session.add(Setting(key=LIST_FIX_KEY, value={"at": datetime.now(timezone.utc).isoformat()}))
     await session.commit()
     for v in ("reference", "lists", "regions", "locyear", "feed"):

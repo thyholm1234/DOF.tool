@@ -26,7 +26,7 @@ from portal.config import get_settings
 from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import FILE_RE, PROGRESS, archive_files, is_month_file, pending_files
-from portal.models import CommentBan, NewsPost, Role, Setting, Species, SupportMessage, SupportThread, User
+from portal.models import CommentBan, NewsPost, Role, Setting, SupportMessage, SupportThread, User
 from portal.services import account, activity, backup, datasync, diskusage, fcm, features, locfinds, moderation, schedule, speechmodel, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
@@ -649,33 +649,6 @@ async def delete_user(user_id: int, user: User = Depends(perm_brugere), db: Asyn
     if target.approved and not target.is_test and user.role != "superadmin":
         raise HTTPException(403, "Kun superadmin kan slette godkendte brugere")
     await account.delete(db, target)
-    await bump("lists")
-    return {"ok": True}
-
-
-@router.get("/admin/species")
-async def species(q: str = "", user: User = Depends(perm_arter), db: AsyncSession = Depends(get_session)):
-    rows = (await db.execute(text("""
-        SELECT s.artnr, s.navn, s.klass, s.art_type, s.list_artnr, s.excluded, ls.navn AS list_navn FROM species s
-        LEFT JOIN species ls ON ls.artnr = s.list_artnr
-        WHERE :q = '' OR s.navn ILIKE :like ORDER BY s.artnr LIMIT 400
-    """), {"q": q, "like": f"%{q}%"})).mappings().all()
-    return [dict(r) for r in rows]
-
-
-@router.patch("/admin/species/{artnr}")
-async def update_species(artnr: int, body: dict[str, Any], user: User = Depends(perm_arter), db: AsyncSession = Depends(get_session)):
-    sp = await db.get(Species, artnr)
-    if sp is None:
-        raise HTTPException(404)
-    if "excluded" in body:
-        sp.excluded = bool(body["excluded"])
-    if "klass" in body and body["klass"] in ("SU", "SUB", "Alm"):
-        sp.klass = body["klass"]
-        await bump("reference")
-    if "list_artnr" in body:
-        sp.list_artnr = int(body["list_artnr"]) if body["list_artnr"] else None
-    await db.commit()
     await bump("lists")
     return {"ok": True}
 

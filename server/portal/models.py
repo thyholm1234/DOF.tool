@@ -175,6 +175,27 @@ class ReferenceEdit(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class SpeciesEdit(Base):
+    """Ændringer af en art fra Moderation → Arter (navn, latin, sortering, status, type, «tæller som», udeluk). fields er de
+    felter, portalen har ændret; de lægges oven på DOFbasens værdier hver gang referencedata hentes (dof/reference.py →
+    apply_species_edits). dof er artens værdier før første ændring (til fortryd)."""
+
+    __tablename__ = "species_edits"
+
+    artnr: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    fields: Mapped[list[str]] = mapped_column(ARRAY(String(16)), default=list)
+    navn: Mapped[str | None] = mapped_column(String(200))
+    latin: Mapped[str | None] = mapped_column(String(200))
+    sortering: Mapped[int | None] = mapped_column(Integer)
+    klass: Mapped[str | None] = mapped_column(String(8))
+    art_type: Mapped[str | None] = mapped_column(String(16))
+    list_artnr: Mapped[int | None] = mapped_column(Integer)
+    excluded: Mapped[bool | None] = mapped_column(Boolean)
+    dof: Mapped[dict] = mapped_column(JSONB, default=dict)
+    user_id: Mapped[int | None] = mapped_column(Integer)  # brugeren ligger i den anden databasegruppe – ingen fremmednøgle
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CodeText(Base):
     """Opslag for adfærds-/dragt-/alderskoder → beskrivelse."""
 

@@ -12,6 +12,7 @@ OBS_TABLES = frozenset({
     "dofb_obs_status",  # DKU-status på observationer (joines ind i observationsopslag)
     "species_categories", "category_overrides", "manual_finds",  # artskategorier og fund der påvirker observationer/lister
     "reference_edits",  # Moderation → Arter: egne bemærk-tærskler og fænologivinduer (lægges oven på DOFbasens referencedata)
+    "species_edits",  # Moderation → Arter: rettede arter (lægges oven på DOFbasens artsdata)
 })
 REFERENCE_TABLES = frozenset({
     "species", "afdelinger", "kommuner", "locations", "bemaerk_thresholds", "phenology_windows", "code_texts",
