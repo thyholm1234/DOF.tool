@@ -33,11 +33,18 @@ _LEVELS = {
 
 
 async def refresh(session: AsyncSession, first_year: int | None = None, last_year: int | None = None) -> int:
-    """Genberegn fra first_year (None = alle år) til last_year (None = i år). Returnerer antal år."""
+    """Genberegn alle år med observationer fra first_year (None = det første år med observationer) til last_year (None = i
+    år). År uden observationer springes over, og deres gamle tal fjernes. Returnerer antal beregnede år."""
     last = min(last_year or dk_today().year, dk_today().year)
     if first_year is None:
         first_year = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar() or last
-    years = list(range(first_year, last + 1))
+    years = []
+    for y in range(first_year, last + 1):  # ét indeksopslag pr. år (fx 1900–1960 har huller)
+        if (await session.execute(text("SELECT EXISTS (SELECT 1 FROM observations WHERE dato >= :a AND dato < :b)"),
+                                  {"a": date(y, 1, 1), "b": date(y + 1, 1, 1)})).scalar():
+            years.append(y)
+    await session.execute(text("DELETE FROM region_year_species WHERE year BETWEEN :f AND :l AND NOT (year = ANY(:y))"),
+                          {"f": first_year, "l": last, "y": years})
     for i, y in enumerate(years):
         await jobstatus.step(f"Arter pr. år: {y}", i, len(years))
         p = {"a": date(y, 1, 1), "b": date(y + 1, 1, 1), "y": y}

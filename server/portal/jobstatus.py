@@ -27,7 +27,7 @@ LABELS = {
     "area_counts": "Områdetal",
     "loc_finds": "Lokale hits: fund pr. lokalitet",
     "seasons": "Normale forekomstperioder (fænologi-filter)",
-    "regions": "Arter pr. år (regioner)",
+    "regions": "Arter pr. år (regioner, alle år med observationer)",
     "gaps": "Huller (observatører og ture pr. art)",
     "location_years": "Lokalitetsoversigt",
     "plan": "Opdateringsplan",
