@@ -17,12 +17,13 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import require_perm
+from portal.api.deps import require_perm, require_user
 from portal.cache import bump
 from portal.db import ObsSession
 from portal.dbops import sync_reference
 from portal.dof.reference import SPECIES_FIELDS, put_threshold, put_windows
 from portal.models import ReferenceEdit, Species, SpeciesEdit, User
+from portal.services.auth import can
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 perm_arter = require_perm("arter")
@@ -212,9 +213,16 @@ async def revert(edit_id: int, user: User = Depends(perm_arter)):
 TYPES = ("art", "underart", "hybrid", "ub", "andre")
 
 
+async def perm_species_read(user: User = Depends(require_user)) -> User:
+    """Artslisten læses også af dem med listekategorierne (fx manuelle fund vælger art herfra)."""
+    if not (can(user, "arter") or can(user, "kategorier")):
+        raise HTTPException(403, "Kræver adgang til Arter eller Kategorier")
+    return user
+
+
 @router.get("/species")
-async def species_list(q: str = "", user: User = Depends(perm_arter)):
-    """Alle arter (taxa) i systematisk rækkefølge, med de felter portalen har rettet."""
+async def species_list(q: str = "", user: User = Depends(perm_species_read)):
+    """Hovedlisten: alle arter (taxa) fra observationsgruppen i systematisk rækkefølge, med de felter portalen har rettet."""
     like = f"%{q.strip()}%"
     async with ObsSession() as s:
         rows = (await s.execute(text("""

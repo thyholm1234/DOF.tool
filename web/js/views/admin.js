@@ -1139,8 +1139,8 @@ async function manualFinds(box) {
     let artnr = null, loknr = null;
     const art = h("input", { type: "search", placeholder: "Søg art på artslisten…", autocomplete: "off", required: true });
     const artHits = h("div", { class: "suggest" });
-    // Kun arter fra artslisten (tæller som sig selv) – fundet tæller i Arter pr. år
-    const ready = api("/api/reports/species").then(l => { all = l.filter(s => s.list_artnr === s.artnr); });
+    // Arterne fra hovedlisten (Moderation → Arter)
+    const ready = api("/api/admin/species").then(l => { all = l; });
     art.addEventListener("input", () => ready.then(() => {
       artnr = null;
       artHits.replaceChildren(...searchSpecies(all, art.value).map(sp => h("button", { type: "button", onclick: () => { artnr = sp.artnr; art.value = sp.navn; artHits.replaceChildren(); } },

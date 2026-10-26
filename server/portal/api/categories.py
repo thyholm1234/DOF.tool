@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_perm
 from portal.cache import bump, kv
-from portal.db import get_session
+from portal.db import ObsSession, get_session
+from portal.dbops import sync_reference
 from portal.models import CategoryOverride, ManualFind, Species, SpeciesCategory, User
 from portal.services import activity, categories, danish_list, manual_finds
 from portal.services.auth import role_at_least
@@ -134,20 +135,23 @@ class NewSpeciesIn(BaseModel):
 @router.post("/species")
 async def create_species(body: NewSpeciesIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
     """Opret en art med kategori. Med DOFbasens artsnummer kobles den på observationerne, når de hentes (importen
-    beholder arten, referencedata retter navnet); uden får den et portalnummer og har ingen observationer."""
+    beholder arten, referencedata retter navnet); uden får den et portalnummer og har ingen observationer.
+    Arten skrives i observationsgruppen (hovedlisten, hvor referencedata hører hjemme) og kopieres til brugergruppen."""
     navn = body.navn.strip()
-    clash = (await db.execute(text("""
-        SELECT artnr, navn FROM species WHERE artnr = CAST(:a AS int) OR lower(trim(both '[]' from navn)) = lower(:n) LIMIT 1
-    """), {"a": body.artnr, "n": navn.strip("[]")})).first()
-    if clash:
-        raise HTTPException(409, f"Arten findes allerede: {clash[1]} (nr. {clash[0]})")
-    artnr = body.artnr or max(PORTAL_ARTNR, ((await db.execute(text("SELECT max(artnr) FROM species"))).scalar() or 0) + 1)
-    db.add(Species(artnr=artnr, navn=navn, latin=(body.latin or "").strip() or None, klass="Alm", art_type="art",
-                   list_artnr=artnr, excluded=False))
-    await db.flush()
-    db.add(SpeciesCategory(artnr=artnr, kategori=body.kategori, valid_from=body.valid_from, created_by=user.id,
-                           note=(body.note or "").strip() or ("Oprettet i portalen" if body.artnr else "Oprettet i portalen uden DOFbasen-artsnummer")))
-    await db.commit()
+    async with ObsSession() as s:
+        clash = (await s.execute(text("""
+            SELECT artnr, navn FROM species WHERE artnr = CAST(:a AS int) OR lower(trim(both '[]' from navn)) = lower(:n) LIMIT 1
+        """), {"a": body.artnr, "n": navn.strip("[]")})).first()
+        if clash:
+            raise HTTPException(409, f"Arten findes allerede: {clash[1]} (nr. {clash[0]})")
+        artnr = body.artnr or max(PORTAL_ARTNR, ((await s.execute(text("SELECT max(artnr) FROM species"))).scalar() or 0) + 1)
+        s.add(Species(artnr=artnr, navn=navn, latin=(body.latin or "").strip() or None, klass="Alm", art_type="art",
+                      list_artnr=artnr, excluded=False))
+        await s.flush()
+        s.add(SpeciesCategory(artnr=artnr, kategori=body.kategori, valid_from=body.valid_from, created_by=user.id,
+                              note=(body.note or "").strip() or ("Oprettet i portalen" if body.artnr else "Oprettet i portalen uden DOFbasen-artsnummer")))
+        await s.commit()
+    await sync_reference(("species",))
     await bump("reference")
     await _changed(user, {"created_species": artnr, "navn": navn, "kategori": body.kategori})
     return {"artnr": artnr}
@@ -275,11 +279,9 @@ async def list_finds(user: User = Depends(moderator), db: AsyncSession = Depends
 @router.post("/finds")
 async def add_find(body: FindIn, user: User = Depends(moderator), db: AsyncSession = Depends(get_session)):
     _admin(user)
-    sp = await db.get(Species, body.artnr)
-    if sp is None:
-        raise HTTPException(400, "Arten findes ikke")
-    if sp.list_artnr != sp.artnr or sp.excluded:  # fundet tæller i Arter pr. år – kun arter fra artslisten
-        raise HTTPException(400, f"{sp.navn} er ikke en art på artslisten – vælg arten (fx nominatarten i stedet for underarten)")
+    async with ObsSession() as s:  # hovedlisten (Moderation → Arter) ligger i observationsgruppen
+        if await s.get(Species, body.artnr) is None:
+            raise HTTPException(400, "Arten findes ikke på artslisten")
     if body.loknr is not None and not (await db.execute(text("SELECT 1 FROM locations WHERE loknr = :l"), {"l": body.loknr})).first():
         raise HTTPException(400, "Lokaliteten findes ikke")
     f = ManualFind(**body.model_dump(exclude={"sted", "note"}), sted=(body.sted or "").strip() or None,
