@@ -540,8 +540,9 @@ def sync_containers() -> list[str]:
     done: list[str] = []
     cli = dockerops.client()
     _, network = dockerops.context(cli)
-    for c in dockerops.dbnode_containers(cli):
-        name = c.labels.get("dof.dbnode", "")
+    # Primaries først, så replikaer kan knyttes til deres primary
+    for c in sorted(dockerops.dbnode_containers(cli), key=lambda x: dockerops.env_of(x).get("DB_ROLE") == "replica"):
+        name = dockerops.node_name(c)
         try:
             if dockerops.connect(cli, c, network):
                 done.append(f"{c.name} tilsluttet netværket {network}")
@@ -550,7 +551,7 @@ def sync_containers() -> list[str]:
         env = dockerops.env_of(c)
         group = "users" if name.startswith(("users", "bruger")) else "observations" if name.startswith("obs") else None
         with closing(db()) as con:
-            if con.execute("SELECT 1 FROM nodes WHERE name = ?", (name,)).fetchone():
+            if con.execute("SELECT 1 FROM nodes WHERE name = ? OR host = ?", (name, c.name)).fetchone():
                 continue
             if group is None or "POSTGRES_PASSWORD" not in env:
                 log.warning("Database-container %s er ikke i registret og kan ikke gættes (navnet skal starte med users eller obs)", c.name)
@@ -560,6 +561,9 @@ def sync_containers() -> list[str]:
             if role == "replica":
                 row = con.execute("SELECT id FROM nodes WHERE host = ? OR name = ?", (env.get("PRIMARY_HOST", ""), env.get("PRIMARY_HOST", ""))).fetchone()
                 primary_id = row["id"] if row else None
+                if primary_id is None:
+                    log.warning("Replika-containeren %s: primary %s findes ikke i registret endnu", c.name, env.get("PRIMARY_HOST"))
+                    continue
             con.execute("INSERT INTO nodes (name, grp, role, host, port, dbname, user, token, primary_id, note) VALUES (?, ?, ?, ?, 5432, ?, ?, ?, ?, ?)",
                         (name, group, role, c.name, env.get("POSTGRES_DB", "portal"), env.get("POSTGRES_USER", "portal"),
                          env["POSTGRES_PASSWORD"], primary_id, "fundet automatisk i Docker"))

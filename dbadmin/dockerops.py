@@ -55,9 +55,24 @@ def create_primary(cli, project: str, network: str, name: str, token: str, dbnam
     return cname
 
 
+def node_name(container) -> str:
+    """Nodens navn: labelen dof.dbnode, ellers delen af containernavnet efter «-db-» (ældre containere har ikke labelen)."""
+    label = container.labels.get("dof.dbnode")
+    if label:
+        return label
+    return container.name.split("-db-", 1)[1] if "-db-" in container.name else ""
+
+
 def dbnode_containers(cli) -> list:
-    """Alle database-containere, der er oprettet af panelet eller af scriptet fra 'Tilføj node' (label dof.dbnode)."""
-    return cli.containers.list(all=True, filters={"label": "dof.dbnode"})
+    """Database-containere oprettet af panelet eller af scriptet fra 'Tilføj node': enten med labelen dof.dbnode eller – for
+    ældre containere – navngivet <projekt>-db-<node> og med DB_ROLE/POSTGRES_PASSWORD i miljøet."""
+    found = {c.id: c for c in cli.containers.list(all=True, filters={"label": "dof.dbnode"})}
+    for c in cli.containers.list(all=True, filters={"name": "-db-"}):
+        if c.id not in found and "-db-" in c.name:
+            env = env_of(c)
+            if "DB_ROLE" in env and "POSTGRES_PASSWORD" in env:
+                found[c.id] = c
+    return list(found.values())
 
 
 def connect(cli, container, network: str) -> bool:
