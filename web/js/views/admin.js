@@ -1140,9 +1140,14 @@ async function manualFinds(box) {
     const art = h("input", { type: "search", placeholder: "Søg art på artslisten…", autocomplete: "off", required: true });
     const artHits = h("div", { class: "suggest" });
     // Arterne fra hovedlisten (Moderation → Arter)
-    const ready = api("/api/admin/species").then(l => { all = l; });
+    let failed = false;
+    const ready = api("/api/admin/species").then(l => { all = l; }, (err) => {
+      failed = true;  // fejlen bliver stående i stedet for tomme forslag
+      artHits.replaceChildren(h("div", { class: "notice err" }, `Artslisten kunne ikke hentes: ${err.message}`));
+    });
     art.addEventListener("input", () => ready.then(() => {
       artnr = null;
+      if (failed) return;
       artHits.replaceChildren(...searchSpecies(all, art.value).map(sp => h("button", { type: "button", onclick: () => { artnr = sp.artnr; art.value = sp.navn; artHits.replaceChildren(); } },
         h("span", {}, sp.navn), sp.latin ? h("i", { class: "muted" }, sp.latin) : null)));
     }));
