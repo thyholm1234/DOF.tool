@@ -15,6 +15,7 @@ from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, set_json, version
+from portal.domain import kategori
 from portal.services import feed, reports
 from portal.services.areas import Scope
 from portal.timeutil import dk_today
@@ -48,8 +49,7 @@ async def _produce(session: AsyncSession, day: date, local_max: int) -> dict:
                 p["local"] = True
             if level == "pheno" and t.get("pheno"):
                 p["pheno"] = t["pheno"]
-            if feed.LEVELS.get(t["kategori"], 0) > feed.LEVELS.get(p["kategori"], 0):
-                p["kategori"] = t["kategori"]
+            p["kategori"] = kategori.higher(p["kategori"], t["kategori"])
             p["antal"] = max(p["antal"], t["max_antal"])
     out = sorted(points.values(), key=lambda p: p["last_seen"], reverse=True)
     counts = {k: sum(p["kategori"] == k for p in out) for k in ("SU", "SUB", "bemaerk")}

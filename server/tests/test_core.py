@@ -3,7 +3,8 @@ from datetime import date, datetime
 import numpy as np
 
 from portal.dof.classify import Classifier
-from portal.dof.parse import decode, is_migrating, parse_text
+from portal.domain.adfaerd import first_is_migration as is_migrating
+from portal.dof.parse import decode, parse_text
 from portal.dof.reference import base_name, is_listable_name, parse_bemaerk, parse_wsdata
 from portal.services import phenology
 from portal.services.dmi import migration_score

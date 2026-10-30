@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import optional_user, require_user
 from portal.cache import cached, version, worker_command
 from portal.db import get_session
+from portal.domain import geo, kategori
 from portal.models import Area, Species, User
 from portal.services import dofext, finds, locspecies, migration
 from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geometry
@@ -102,7 +103,7 @@ async def locations_index(q: str = Query("", max_length=60), kommune: str = Quer
     allrows = await cached(f"lokindex:{y}:{await version('locyear')}", 6 * 3600, produce)
     if sort == "aktivitet" and not live:
         sort = "aar"  # 'seneste 30 dage' findes kun for indeværende år
-    kat_rank = {"SU": 3, "SUB": 2, "bemaerk": 1}.get(kat, 0)
+    kat_rank = kategori.rank(kat)
     ql = q.strip().lower()
     rows = [r for r in allrows
             if (not ql or ql in r["navn"].lower())
@@ -113,7 +114,7 @@ async def locations_index(q: str = Query("", max_length=60), kommune: str = Quer
     if sort == "afstand":
         if lat is None or lon is None:
             raise HTTPException(400, "Afstand kræver en position")
-        rows = [{**r, "km": round(finds._km((lat, lon), (r["lat"], r["lon"])), 1)} for r in rows if r["lat"] is not None]
+        rows = [{**r, "km": round(geo.km((lat, lon), (r["lat"], r["lon"])), 1)} for r in rows if r["lat"] is not None]
         rows.sort(key=lambda r: r["km"])
     elif sort == "navn":
         rows.sort(key=lambda r: r["navn"].lower())

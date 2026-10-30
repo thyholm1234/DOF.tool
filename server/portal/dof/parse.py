@@ -25,7 +25,6 @@ _SMART = str.maketrans({
     "\x99": "™", "\x9b": "›", "\x9c": "œ", "\x9f": "Ÿ",
 })
 
-MIGRATION_CODES = {"T", "TF", "N", "NØ", "Ø", "SØ", "S", "SV", "V", "NV"}
 
 
 def decode(raw: bytes) -> str:
@@ -80,12 +79,6 @@ def _clean(value: str | None, limit: int | None = None) -> str | None:
     if not value or value == "-":
         return None
     return value[:limit] if limit else value
-
-
-def is_migrating(adfkode: str | None) -> bool:
-    if not adfkode:
-        return False
-    return adfkode.split()[0] in MIGRATION_CODES
 
 
 @dataclass(slots=True)

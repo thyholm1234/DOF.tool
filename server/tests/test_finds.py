@@ -1,6 +1,7 @@
 from datetime import date
 
-from portal.services.finds import cluster, migration
+from portal.domain.adfaerd import migration
+from portal.services.finds import cluster
 
 D1, D2, D3 = date(2026, 5, 1), date(2026, 5, 2), date(2026, 5, 3)
 SKAGEN = (57.74, 10.63)

@@ -20,17 +20,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal import jobstatus
 from portal.cache import bump, get_json, kv, set_json
+from portal.domain import kategori
 from portal.services import migration
 from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.locyear")
 
-RANK = "CASE o.kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 WHEN 'bemaerk' THEN 1 ELSE 0 END"
+RANK = kategori.rank_sql("o.kategori")
 BUILT = "locyear:built"
 EVERY = 6 * 3600  # sekunder mellem to bygninger
 TOP_N = 100       # artslister bygget på forhånd for de mest aktive lokaliteter
-KAT = {3: "SU", 2: "SUB", 1: "bemaerk", 0: "alm"}
+KAT = kategori.BY_RANK
 # Antal arter tæller som årslisterne: krydsbare observationer (kategori A–C) af ikke-udelukkede arter, med underarter
 # under arten. Kræver aliasserne o (observations), s (species) og ls (listearten, LEFT JOIN).
 SPECIES_JOIN = "JOIN species s ON s.artnr = o.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr"

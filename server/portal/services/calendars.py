@@ -17,6 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached
+from portal.domain import adfaerd
 from portal.models import User
 from portal.services import dmi
 from portal.timeutil import TZ, dk_today
@@ -82,7 +83,7 @@ async def typical_species(session: AsyncSession, loknr: int, around: date) -> di
     doy = around.timetuple().tm_yday
 
     async def produce():
-        rows = (await session.execute(text("""
+        rows = (await session.execute(text(f"""
             WITH o AS (
                 SELECT o.dato, o.antal, coalesce(s.list_artnr, s.artnr) AS artnr, o.adfkode
                 FROM observations o JOIN species s ON s.artnr = o.artnr
@@ -90,7 +91,7 @@ async def typical_species(session: AsyncSession, loknr: int, around: date) -> di
                   AND abs(extract(doy FROM o.dato)::int - :doy) <= 10
             )
             SELECT s.navn, s.klass, count(DISTINCT o.dato) AS dage, sum(o.antal) AS ind, max(o.antal) AS maks,
-                   bool_or(split_part(coalesce(o.adfkode, ''), ' ', 1) IN ('T','TF','N','NØ','Ø','SØ','S','SV','V','NV')) AS traek
+                   bool_or({adfaerd.first_migration_sql("o.adfkode")}) AS traek
             FROM o JOIN species s ON s.artnr = o.artnr GROUP BY s.navn, s.klass ORDER BY dage DESC, ind DESC LIMIT 25
         """), {"l": loknr, "doy": doy})).mappings().all()
         days = (await session.execute(text("""

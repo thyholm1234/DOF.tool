@@ -8,11 +8,12 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
+from portal.domain import adfaerd, kategori
 from portal.services import seasons
 from portal.services.areas import Scope
 
-KAT_RANK = "CASE o.kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 WHEN 'bemaerk' THEN 1 ELSE 0 END"
-LEVELS = {"SU": 3, "SUB": 2, "bemaerk": 1, "all": 0, "local": 0, "pheno": 0}
+KAT_RANK = kategori.rank_sql("o.kategori")
+LEVELS = kategori.LEVELS
 
 # Fænologi: arten ses uden for sin normale periode (species_season). :doy er dagens dag i året (1–365).
 PHENO_COND = ("(CASE WHEN ss.start_doy <= ss.end_doy THEN (:doy < ss.start_doy OR :doy > ss.end_doy) "
@@ -91,7 +92,7 @@ async def _threads(session: AsyncSession, day: date, scope: Scope, level: str, l
     rows = (await session.execute(text(sql), {"day": day, "minrank": min_rank, "limit": limit, **params})).mappings().all()
     out = []
     for r in rows:
-        kat = {3: "SU", 2: "SUB", 1: "bemaerk"}.get(r["rank"], "alm")
+        kat = kategori.from_rank(r["rank"])
         out.append({
             "id": f"{day.isoformat()}/{r['artnr']}/{r['loknr']}",
             "dato": day.isoformat(), "artnr": r["artnr"], "loknr": r["loknr"], "art": r["art"], "lok": r["lok"],
@@ -152,12 +153,11 @@ async def day_summary(session: AsyncSession, day: date) -> dict:
 async def migration_today(session: AsyncSession, day: date, limit: int = 12) -> list[dict]:
     """Dagens største træklokaliteter (sum af trækkende individer)."""
     async def produce():
-        rows = (await session.execute(text("""
+        rows = (await session.execute(text(f"""
             SELECT o.loknr, l.navn AS lok, sum(o.antal) AS n, count(DISTINCT o.artnr) AS n_species,
                    (array_agg(s.navn ORDER BY o.antal DESC))[1:3] AS top
             FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
-            WHERE o.dato = :d AND o.hemmelig = 0 AND split_part(coalesce(o.adfkode,''), ' ', 1)
-                  IN ('T','TF','N','NØ','Ø','SØ','S','SV','V','NV')
+            WHERE o.dato = :d AND o.hemmelig = 0 AND {adfaerd.first_migration_sql("o.adfkode")}
             GROUP BY o.loknr, l.navn ORDER BY n DESC LIMIT :n
         """), {"d": day, "n": limit})).mappings().all()
         return [dict(r) for r in rows]

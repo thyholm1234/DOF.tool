@@ -31,6 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, kv, version
+from portal.domain import adfaerd, geo
 
 LINK_KM = 15.0
 LINK_DAYS = 1
@@ -41,30 +42,6 @@ MIG_SPAN_KM = 100.0
 SAME_PLACE_KM = 2.0
 DIR_TOL = 45.0
 CLASSES = ("SU", "SUB")
-DIRS = {"N": 0.0, "NNØ": 22.5, "NØ": 45.0, "ØNØ": 67.5, "Ø": 90.0, "ØSØ": 112.5, "SØ": 135.0, "SSØ": 157.5,
-        "S": 180.0, "SSV": 202.5, "SV": 225.0, "VSV": 247.5, "V": 270.0, "VNV": 292.5, "NV": 315.0, "NNV": 337.5}
-# Adfærd hvor fuglen er trukket videre: sidste led er en trækretning eller T/TU/OF (fx "N", "R SV", "FU T").
-# Ender koden på rast/fouragering ("N R", "T FU"), er fuglen blevet på stedet. TF (trækforsøg) er ikke træk.
-MIGRATING = (*DIRS, "T", "TU", "OF")
-
-
-def _km(a: tuple[float, float], b: tuple[float, float]) -> float:
-    la1, lo1, la2, lo2 = map(math.radians, (*a, *b))
-    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
-    return 12742 * math.asin(math.sqrt(h))
-
-
-def _bearing(a: tuple[float, float], b: tuple[float, float]) -> float:
-    la1, lo1, la2, lo2 = map(math.radians, (*a, *b))
-    y = math.sin(lo2 - lo1) * math.cos(la2)
-    x = math.cos(la1) * math.sin(la2) - math.sin(la1) * math.cos(la2) * math.cos(lo2 - lo1)
-    return math.degrees(math.atan2(y, x)) % 360
-
-
-def _diff(a: float, b: float) -> float:
-    return abs((a - b + 180) % 360 - 180)
-
-
 def _arc(angles: list[float]) -> float:
     """Mindste cirkelbue, der rummer alle retningerne."""
     if len(angles) < 2:
@@ -72,17 +49,6 @@ def _arc(angles: list[float]) -> float:
     a = sorted(angles)
     gaps = [b - x for x, b in pairwise(a)] + [a[0] + 360 - a[-1]]
     return 360 - max(gaps)
-
-
-def migration(adfkode: str | None) -> tuple[bool, float | None]:
-    """(trækkende, retning i grader eller None) ud fra adfærdens sidste led uden "HØ" (kun hørt)."""
-    parts = [p for p in (adfkode or "").split() if p != "HØ"]
-    last = parts[-1] if parts else None
-    return last in MIGRATING, DIRS.get(last)
-
-
-def is_migrating(adfkode: str | None) -> bool:
-    return migration(adfkode)[0]
 
 
 def cluster(points: list[tuple]) -> list[int]:
@@ -104,7 +70,7 @@ def cluster(points: list[tuple]) -> list[int]:
             return
         ba, bb = box[a], box[b]
         nb = [min(ba[0], bb[0]), max(ba[1], bb[1]), min(ba[2], bb[2]), max(ba[3], bb[3])]
-        if _km((nb[0], nb[2]), (nb[1], nb[3])) > (MIG_SPAN_KM if migrating else MAX_SPAN_KM):
+        if geo.km((nb[0], nb[2]), (nb[1], nb[3])) > (MIG_SPAN_KM if migrating else MAX_SPAN_KM):
             return
         nd = dirs[a] + dirs[b]
         if migrating and _arc(nd) > DIR_TOL:
@@ -133,7 +99,7 @@ def cluster(points: list[tuple]) -> list[int]:
         if not migrating:
             for k in range(LINK_DAYS + 1):
                 for j in stay_by_day.get(d - timedelta(days=k), ()):
-                    if _km((lat, lon), points[j][1:3]) < LINK_KM:
+                    if geo.km((lat, lon), points[j][1:3]) < LINK_KM:
                         union(i, j, False)
             if loknr is not None:
                 j = last_at_site.get(loknr)
@@ -144,7 +110,7 @@ def cluster(points: list[tuple]) -> list[int]:
             continue
         for k in (0, 1):
             for j in mig_by_day.get(d - timedelta(days=k), ()):
-                km = _km(points[j][1:3], (lat, lon))
+                km = geo.km(points[j][1:3], (lat, lon))
                 if km < SAME_PLACE_KM:
                     if k == 0:  # samme sted samme dag; samme sted næste dag er nye fugle
                         union(i, j, True)
@@ -155,9 +121,9 @@ def cluster(points: list[tuple]) -> list[int]:
                 h = heading(i) if h is None else h
                 if h is None:
                     continue
-                b = _bearing(points[j][1:3], (lat, lon))
+                b = geo.bearing(points[j][1:3], (lat, lon))
                 # Samme dag kendes rækkefølgen ikke: linjen gennem stedet i retningen; næste dag: videre i retningen
-                if (min(_diff(b, h), _diff(b, h + 180)) if k == 0 else _diff(b, h)) <= DIR_TOL:
+                if (min(geo.angle_diff(b, h), geo.angle_diff(b, h + 180)) if k == 0 else geo.angle_diff(b, h)) <= DIR_TOL:
                     union(i, j, True)
         mig_by_day[d].append(i)
     return [find(i) for i in range(len(points))]
@@ -187,7 +153,7 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
         # Punkter: dag, lokalitet og adfærd (stationær / trækkende pr. retning, "T" = uden retning)
         acc: dict[tuple, dict] = {}
         for o in obs:
-            mig, direction = migration(o.adf)
+            mig, direction = adfaerd.migration(o.adf)
             k = (o.dato, o.loknr, (direction if direction is not None else "T") if mig else None)
             p = acc.setdefault(k, {"lat": 0.0, "lon": 0.0, "n": 0, "max": 0, "trips": defaultdict(int), "secret": False})
             p["lat"] += o.lat

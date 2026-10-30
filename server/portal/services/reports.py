@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
 from portal.dof.classify import get_classifier
+from portal.domain.kategori import LEVELS as KAT_LEVELS, RANK as KAT_RANK, at_least, rank_sql
 from portal.models import FieldReport, FieldReportUpdate, ThreadStatus, User
 from portal.services import alerts, seasons
 from portal.services.areas import Scope
@@ -38,8 +39,8 @@ MAERKER = {"kalder": "Kalder", "hoert": "Kun hørt", "traek_ind": "Trækker ind"
 KOEN = {"M": "Han", "F": "Hun"}
 ALDER = {"AD": "Adult", "IMM": "Immatur", "SUB": "Subadult", "JUV": "Juvenil", "PUL": "Pullus (dununge)"}
 LIVE_HOURS = 3  # 'til stede' regnes som aktuel så længe efter seneste bekræftelse
-RANK = {"SU": 3, "SUB": 2, "bemaerk": 1, "alm": 0}
-LEVELS = {"SU": 3, "SUB": 2, "bemaerk": 1, "all": 0, "local": 0}
+RANK = KAT_RANK
+LEVELS = KAT_LEVELS
 
 
 def alder_label(code: str) -> str:
@@ -263,7 +264,7 @@ async def merge_feed(session: AsyncSession, threads: list[dict], day: date, scop
     conds = ["r.dato = :day", "(NOT r.hemmelig OR r.user_id = :viewer)", pred]
     if level not in ("local", "pheno", "all"):
         conds.append("r.kategori = ANY(:kats)")
-        params["kats"] = [k for k, v in RANK.items() if v >= LEVELS.get(level, 1)]
+        params["kats"] = at_least(level)
     # Feltmeldinger ligger i brugergruppen; lokale artstal og fænologi i observationsgruppen. De slås derfor op for sig
     # bagefter og filtreres her – en sætning må ikke blande de to grupper.
     rows = [dict(r) for r in (await session.execute(text(f"""
@@ -385,7 +386,7 @@ async def rare_kategori(session: AsyncSession, day: date, artnr: int, loknr: int
     """'SU'/'SUB' hvis tråden har en synlig SU- eller SUB-observation (DOFbasen eller portalen), ellers None."""
     args = {"d": day, "a": artnr, "l": loknr}
     rank = max([(await session.execute(text(f"""
-        SELECT max(CASE kategori WHEN 'SU' THEN 3 WHEN 'SUB' THEN 2 ELSE 0 END) FROM {table}
+        SELECT max({rank_sql("kategori")}) FROM {table}
         WHERE dato = :d AND artnr = :a AND loknr = :l AND {hidden}"""), args)).scalar() or 0
         for table, hidden in (("observations", "hemmelig = 0"), ("field_reports", "NOT hemmelig"))])
     return {3: "SU", 2: "SUB"}.get(rank)

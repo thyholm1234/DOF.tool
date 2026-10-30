@@ -14,6 +14,7 @@ import httpx
 
 from portal.cache import get_json, set_json
 from portal.config import get_settings
+from portal.domain import geo
 
 log = logging.getLogger("portal.dmi")
 
@@ -308,12 +309,6 @@ COMPASS = ["N", "NNØ", "NØ", "ØNØ", "Ø", "ØSØ", "SØ", "SSØ", "S", "SSV"
 TRIP_RADIUS_KM = 60
 
 
-def _km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    p = math.pi / 180
-    a = math.sin((lat2 - lat1) * p / 2) ** 2 + math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin((lon2 - lon1) * p / 2) ** 2
-    return 12742 * math.asin(math.sqrt(a))
-
-
 def _precip_type(codes: list[float]) -> str | None:
     """Nedbørstype ud fra 'nuværende vejr' (WMO-tabel 4680 for automatstationer, DMI lægger 100 til; 4677 for manuelle)."""
     kinds = []
@@ -367,7 +362,7 @@ async def trip_weather(lat: float, lon: float, start: datetime, end: datetime) -
                 if p.get("value") is None:
                     continue
                 slon, slat = f["geometry"]["coordinates"][:2]
-                st = by_station.setdefault(p["stationId"], (_km(lat, lon, slat, slon), []))
+                st = by_station.setdefault(p["stationId"], (geo.km((lat, lon), (slat, slon)), []))
                 st[1].append(float(p["value"]))
             near = [(sid, km, vals) for sid, (km, vals) in by_station.items() if km <= TRIP_RADIUS_KM]
             if near:

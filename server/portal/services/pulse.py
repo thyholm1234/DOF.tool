@@ -16,6 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
+from portal.domain import kategori
 from portal.timeutil import TZ
 
 BATCHES = "pulse:batches"  # JSON pr. sync, nyeste først
@@ -23,7 +24,7 @@ GONE = "pulse:gone"  # slettede/nedjusterede punkter: {key, delta, total} (delta
 BIRDERS = "pulse:birders"  # anonymt id -> {lat, lon, loknr, lok, turid, kategori, at}
 KEEP = 40
 ACTIVE = timedelta(minutes=15)
-RANK = {"SU": 3, "SUB": 2, "bemaerk": 1, "alm": 0}
+RANK = kategori.RANK
 
 
 async def _anon(obserkode: str) -> str:

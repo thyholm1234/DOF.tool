@@ -23,7 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal import jobstatus
 from portal.cache import COMMANDS, kv
 from portal.models import Setting
-from portal.services.finds import MIGRATING, SITE_GAP_DAYS
+from portal.domain.adfaerd import MIGRATING, last_migration_sql
+from portal.services.finds import SITE_GAP_DAYS
 from portal.timeutil import dk_now, dk_today
 
 PLAN = "locfinds:plan"
@@ -36,8 +37,7 @@ RECENT_DAYS = 3  # sene indtastninger: par med observationer så mange dage før
 # Par med mindst så mange fund kan ikke blive lokale hits (feedets grænse går til 100) – de springes over om natten,
 # så almindelige arter på travle lokaliteter ikke skal regnes igen; den månedlige kørsel tager dem med.
 RECENT_SKIP = 100
-# Observationens sidste adfærdsled uden "HØ" (kun hørt) – trækkende hvis det er en retning eller T/TU/OF (som finds.is_migrating)
-_MIG = (r"coalesce(substring(regexp_replace(coalesce(o.adfkode, ''), '(\s+HØ)+\s*$', '') from '(\S+)\s*$') = ANY(CAST(:mig AS text[])), false)")
+_MIG = last_migration_sql("o.adfkode")  # sidste adfærdsled er træk (som adfaerd.is_migrating)
 
 
 def _loc_filter(afd: int) -> str:

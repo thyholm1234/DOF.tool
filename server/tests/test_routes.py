@@ -6,17 +6,13 @@ Tilføjes eller ændres en rute med vilje, opdateres snapshottet med:
 
 import json
 import os
-import tempfile
 from pathlib import Path
 
 FIXTURE = Path(__file__).parent / "fixtures" / "api_routes.json"
 
 
 def _routes() -> dict:
-    tmp = tempfile.mkdtemp()
-    os.environ.setdefault("MEDIA_DIR", f"{tmp}/media")
-    os.environ.setdefault("MODELS_DIR", f"{tmp}/models")
-    from portal.main import app
+    from portal.main import app  # conftest.py peger medie- og modelmapperne på en midlertidig mappe
 
     spec = app.openapi()
     return {p: {m: {"op": v.get("operationId"),
