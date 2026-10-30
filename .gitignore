@@ -22,3 +22,8 @@ data/
 
 # Personlige Claude Code-indstillinger
 .claude/settings.local.json
+
+# Netfugl-arkiv (hentet indhold og hentescript)
+/Artikler/
+/Artikler.zip
+/tools/netfugl_arkiv/
