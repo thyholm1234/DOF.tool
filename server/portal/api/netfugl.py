@@ -9,23 +9,35 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import optional_user, require_user
-from portal.cache import bump, cached, worker_command
+from portal.cache import bump, worker_command
 from portal.db import get_session
-from portal.models import (NfApiGrant, NfApiToken, NfArticle, NfComment, NfFeed, NfKryds, NfLike, NfLink, NfPage, NfPhoto, NfRole,
-                           NfSpecies, User)
+from portal.models import (
+    NfApiGrant,
+    NfApiToken,
+    NfArticle,
+    NfComment,
+    NfFeed,
+    NfKryds,
+    NfLike,
+    NfPage,
+    NfPhoto,
+    NfRole,
+    NfSpecies,
+    User,
+)
 from portal.services import dofbasen as dofb
 from portal.services import features, imagemeta
 from portal.services import netfugl as svc
-from portal.timeutil import dk_today
+from portal.services import netfugl_content as content
 from portal.services.setting_store import put_setting
+from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api/netfugl", tags=["netfugl"])
 IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
@@ -44,18 +56,6 @@ def need(feature: str = "netfugl", perm: str | None = None):
     return dep
 
 
-async def _rows(db: AsyncSession, sql: str, **args) -> list[dict]:
-    return [dict(r) for r in (await db.execute(text(sql), args)).mappings().all()]
-
-
-def _iso(rows: list[dict]) -> list[dict]:
-    for r in rows:
-        for k, v in r.items():
-            if isinstance(v, (date, datetime)):
-                r[k] = v.isoformat()
-    return rows
-
-
 # ---------------------------------------------------------------- fælles
 
 
@@ -65,20 +65,9 @@ async def ctx_info(user: User | None = Depends(optional_user), db: AsyncSession 
     out = {"enabled": ctx.on("netfugl"), **ctx.out(), "superadmin": ctx.superadmin}
     if out["enabled"]:
         out["me"] = {"id": user.id, "obserkode": user.obserkode, "navn": user.navn} if user else None
-        out["afdelinger"] = await _rows(db, "SELECT id, navn FROM afdelinger ORDER BY id")
+        out["afdelinger"] = await content.afdelinger_by_id(db)
         out["api_access"] = bool(user and await db.get(NfApiGrant, user.id))
     return out
-
-
-PHOTO_COLS = """p.id, p.url, p.width, p.height, p.artnr, p.art_navn, p.latin, p.dato, p.lokalitet, p.loknr, p.land, p.alder,
-    p.obsid, p.status, p.views, p.published_at, p.created_at, p.user_id, coalesce(u.navn, u.obserkode) AS fotograf, u.obserkode,
-    (SELECT count(*) FROM nf_likes l WHERE l.target_kind = 'foto' AND l.target_id = p.id) AS likes,
-    (SELECT count(*) FROM nf_comments c WHERE c.target_kind = 'foto' AND c.target_id = p.id AND NOT c.hidden) AS kommentarer"""
-
-
-async def photo_list(db: AsyncSession, where: str = "TRUE", order: str = "p.published_at DESC", limit: int = 12, offset: int = 0, **args) -> list[dict]:
-    return _iso(await _rows(db, f"""SELECT {PHOTO_COLS} FROM nf_photos p JOIN users u ON u.id = p.user_id
-        WHERE p.status = 'publiceret' AND {where} ORDER BY {order} LIMIT {int(limit)} OFFSET {int(offset)}""", **args))
 
 
 # ---------------------------------------------------------------- forside
@@ -88,46 +77,21 @@ async def photo_list(db: AsyncSession, where: str = "TRUE", order: str = "p.publ
 async def forside(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
     out: dict = {}
     if ctx.on("netfugl_artikler"):
-        out["artikler"] = _iso(await _rows(db, """SELECT id, title, dato, writers, image_url, created_at FROM nf_articles
-            WHERE published AND kind = 'artikel' ORDER BY dato DESC, id DESC LIMIT 3"""))
-        out["kort"] = _iso(await _rows(db, """SELECT a.id, a.title, a.dato, a.source_url,
-            (SELECT count(*) FROM nf_comments c WHERE c.target_kind = 'artikel' AND c.target_id = a.id AND NOT c.hidden) AS kommentarer
-            FROM nf_articles a WHERE published AND kind = 'kort' ORDER BY dato DESC, id DESC LIMIT 5"""))
-        out["kommentarer"] = _iso(await _rows(db, """
-            SELECT DISTINCT ON (a.id) a.id, a.title, c.created_at, coalesce(u.navn, u.obserkode) AS navn,
-                   (SELECT count(*) FROM nf_comments x WHERE x.target_kind = 'artikel' AND x.target_id = a.id AND NOT x.hidden) AS antal
-            FROM nf_comments c JOIN nf_articles a ON a.id = c.target_id JOIN users u ON u.id = c.user_id
-            WHERE c.target_kind = 'artikel' AND NOT c.hidden AND a.published ORDER BY a.id, c.created_at DESC"""))
-        out["kommentarer"] = sorted(out["kommentarer"], key=lambda r: r["created_at"], reverse=True)[:6]
+        out |= await content.front_articles(db)
     if ctx.on("netfugl_fotos"):
-        out["fotos"] = await photo_list(db)
-        out["fotos_likes"] = await photo_list(db, "p.published_at > now() - interval '30 days'", "likes DESC, p.published_at DESC")
-        out["fotos_kommenteret"] = await photo_list(db, """EXISTS (SELECT 1 FROM nf_comments c WHERE c.target_kind = 'foto' AND c.target_id = p.id)""",
-                                                    "(SELECT max(created_at) FROM nf_comments c WHERE c.target_kind = 'foto' AND c.target_id = p.id) DESC")
-        out["fotos_su"] = await photo_list(db, "p.artnr IN (SELECT artnr FROM species WHERE klass = 'SU')")
+        out |= await content.front_photos(db)
     if ctx.on("netfugl_rss"):
-        for key, cond in (("rss_dk", "f.land = 'Danmark'"), ("rss_ud", "f.land <> 'Danmark'")):
-            out[key] = _iso(await _rows(db, f"""SELECT i.title, i.url, i.published_at, f.navn AS kilde FROM nf_feed_items i
-                JOIN nf_feeds f ON f.id = i.feed_id WHERE {cond} ORDER BY i.published_at DESC LIMIT 15"""))
+        out |= await content.front_rss(db)
     if ctx.on("netfugl_kryds"):
         out["kryds"] = await kryds_oversigt_data(db, 10)
-    out["links"] = [{"gruppe": l.gruppe, "titel": l.titel, "url": l.url} for l in (await db.execute(select(NfLink).order_by(NfLink.sort))).scalars()]
+    out["links"] = [{"gruppe": l.gruppe, "titel": l.titel, "url": l.url} for l in await content.links(db)]
     return out
 
 
 @router.get("/sjaeldne")
 async def sjaeldne(kind: str = Query("rare", pattern="^(rare|uncommon)$"), ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
     """Seneste sjældne (SU) og fåtallige (SUB) fugle i DOFbasen – 50 seneste (dato, art, lokalitet)."""
-    kat = "SU" if kind == "rare" else "SUB"
-
-    async def produce():
-        return _iso(await _rows(db, """
-            SELECT DISTINCT ON (o.dato, o.artnr, o.loknr) o.dato, o.artnr, s.navn AS art, o.loknr, l.navn AS lokalitet, o.obsid
-            FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
-            WHERE o.dato > :d AND o.kategori = :k AND o.hemmelig = 0 ORDER BY o.dato DESC, o.artnr, o.loknr, o.obsid LIMIT 50
-        """, d=dk_today() - timedelta(days=60), k=kat))
-    rows = await cached(f"nf:sjf:{kind}:{dk_today()}:{datetime.now().hour}:{datetime.now().minute // 5}", 300, produce)
-    return {"rows": rows, "dofbasen": ctx.out()["features"]["netfugl_dofbasen"]}
+    return {"rows": await content.rare_recent(db, kind), "dofbasen": ctx.out()["features"]["netfugl_dofbasen"]}
 
 
 # ---------------------------------------------------------------- tekstsider og links
@@ -148,7 +112,7 @@ async def side(slug: str, ctx: svc.Ctx = Depends(need()), db: AsyncSession = Dep
 
 @router.get("/sider")
 async def sider(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
-    return [{"slug": p.slug, "title": p.title, "updated_at": p.updated_at} for p in (await db.execute(select(NfPage).order_by(NfPage.title))).scalars()]
+    return [{"slug": p.slug, "title": p.title, "updated_at": p.updated_at} for p in await content.pages(db)]
 
 
 @router.put("/sider/{slug}")
@@ -167,7 +131,7 @@ async def gem_side(slug: str, body: PageIn, ctx: svc.Ctx = Depends(need(perm="si
 
 @router.delete("/sider/{slug}")
 async def slet_side(slug: str, ctx: svc.Ctx = Depends(need(perm="sider")), db: AsyncSession = Depends(get_session)):
-    await db.execute(delete(NfPage).where(NfPage.slug == slug))
+    await content.delete_page(db, slug)
     await svc.audit(db, ctx.user, "slet side", slug)
     await db.commit()
     return {"ok": True}
@@ -181,15 +145,13 @@ class LinkIn(BaseModel):
 
 @router.get("/links")
 async def links(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
-    return [{"id": l.id, "gruppe": l.gruppe, "titel": l.titel, "url": l.url} for l in (await db.execute(select(NfLink).order_by(NfLink.sort))).scalars()]
+    return [{"id": l.id, "gruppe": l.gruppe, "titel": l.titel, "url": l.url} for l in await content.links(db)]
 
 
 @router.put("/links")
 async def gem_links(body: list[LinkIn], ctx: svc.Ctx = Depends(need(perm="sider")), db: AsyncSession = Depends(get_session)):
     """Erstat alle links (rækkefølgen bevares)."""
-    await db.execute(delete(NfLink))
-    for i, l in enumerate(body[:500]):
-        db.add(NfLink(gruppe=l.gruppe, titel=l.titel, url=l.url, sort=i))
+    await content.replace_links(db, [l.model_dump() for l in body[:500]])
     await svc.audit(db, ctx.user, "links", f"{len(body)} links")
     await db.commit()
     return {"ok": True}
@@ -208,47 +170,17 @@ def _article_out(a: NfArticle) -> dict:
 async def artikler(q: str = Query("", max_length=80), tag: str = Query("", max_length=60), aar: int | None = None,
                    kind: str = Query("", pattern="^(|artikel|kort)$"), page: int = Query(1, ge=1), alle: bool = False,
                    ctx: svc.Ctx = Depends(need("netfugl_artikler")), db: AsyncSession = Depends(get_session)):
-    where, args = ["TRUE" if alle and ctx.can("artikler") else "published"], {}
-    if q.strip():
-        where.append("(title ILIKE :q OR body ILIKE :q OR writers ILIKE :q)")
-        args["q"] = f"%{q.strip()}%"
-    if tag:
-        where.append(":tag = ANY(tags)")
-        args["tag"] = tag
-    if aar:
-        where.append("extract(year FROM dato) = :aar")
-        args["aar"] = aar
-    if kind:
-        where.append("kind = :kind")
-        args["kind"] = kind
-    w = " AND ".join(where)
-    total = (await db.execute(text(f"SELECT count(*) FROM nf_articles WHERE {w}"), args)).scalar()
-    rows = _iso(await _rows(db, f"""SELECT a.id, a.kind, a.title, a.dato, a.writers, a.tags, a.image_url, a.published, a.views,
-        left(regexp_replace(a.body, '\\[([^\\]]*)\\]\\([^)]*\\)', '\\1', 'g'), 240) AS teaser,
-        (SELECT count(*) FROM nf_comments c WHERE c.target_kind = 'artikel' AND c.target_id = a.id AND NOT c.hidden) AS kommentarer
-        FROM nf_articles a WHERE {w} ORDER BY dato DESC, id DESC LIMIT 20 OFFSET :off""", **args, off=(page - 1) * 20))
+    total, rows = await content.articles(db, q=q, tag=tag, aar=aar, kind=kind, page=page, include_unpublished=alle and ctx.can("artikler"))
     return {"total": total, "rows": rows, "can_edit": ctx.can_edit("artikler")}
 
 
 @router.get("/artikler/emneord")
 async def emneord(ctx: svc.Ctx = Depends(need("netfugl_artikler")), db: AsyncSession = Depends(get_session)):
-    tags = await _rows(db, "SELECT t AS tag, count(*) AS n FROM nf_articles, unnest(tags) t WHERE published GROUP BY t ORDER BY t")
-    years = [r[0] for r in (await db.execute(text("SELECT DISTINCT extract(year FROM dato)::int FROM nf_articles WHERE published ORDER BY 1 DESC"))).all()]
-    return {"tags": tags, "years": years}
+    return await content.tags_and_years(db)
 
 
 async def comments(db: AsyncSession, kind: str, target: int, ctx: svc.Ctx) -> list[dict]:
-    rows = _iso(await _rows(db, """
-        SELECT c.id, c.body, c.created_at, c.hidden, c.user_id, coalesce(u.navn, u.obserkode) AS navn, u.obserkode,
-               (SELECT count(*) FROM nf_likes l WHERE l.target_kind = 'komm' AND l.target_id = c.id) AS likes
-        FROM nf_comments c JOIN users u ON u.id = c.user_id WHERE c.target_kind = :k AND c.target_id = :t ORDER BY c.created_at
-    """, k=kind, t=target))
-    mod = ctx.can("kommentarer")
-    for r in rows:
-        r["mine"] = r["user_id"] == ctx.user.id
-        if r["hidden"] and not mod and not r["mine"]:
-            r["body"] = "(Kommentaren er skjult af en moderator)"
-    return rows
+    return await content.comments(db, kind, target, ctx.user.id, ctx.can("kommentarer"))
 
 
 @router.get("/artikler/{aid}")
@@ -302,7 +234,7 @@ async def ret_artikel(aid: int, body: ArticleIn, ctx: svc.Ctx = Depends(need("ne
 async def slet_artikel(aid: int, ctx: svc.Ctx = Depends(need("netfugl_artikler", "artikler")), db: AsyncSession = Depends(get_session)):
     a = await db.get(NfArticle, aid)
     if a:
-        await db.execute(delete(NfComment).where(NfComment.target_kind == "artikel", NfComment.target_id == aid))
+        await content.delete_article_comments(db, aid)
         await svc.audit(db, ctx.user, "slet artikel", a.title)
         await db.delete(a)
         await db.commit()
@@ -364,8 +296,7 @@ async def like(kind: str, target: int, ctx: svc.Ctx = Depends(need()), db: Async
     else:
         db.add(NfLike(user_id=ctx.user.id, target_kind=kind, target_id=target))
     await db.commit()
-    n = (await db.execute(text("SELECT count(*) FROM nf_likes WHERE target_kind = :k AND target_id = :t"), {"k": kind, "t": target})).scalar()
-    return {"liked": row is None, "likes": n}
+    return {"liked": row is None, "likes": await content.like_count(db, kind, target)}
 
 
 # ---------------------------------------------------------------- fotogalleri
@@ -375,23 +306,7 @@ async def like(kind: str, target: int, ctx: svc.Ctx = Depends(need()), db: Async
 async def fotos(q: str = Query("", max_length=80), art: int | None = None, fotograf: int | None = None, su: bool = False,
                 sort: str = Query("nyeste", pattern="^(nyeste|likes|kommenteret|visninger)$"), page: int = Query(1, ge=1),
                 per: int = Query(24, ge=6, le=96), ctx: svc.Ctx = Depends(need("netfugl_fotos")), db: AsyncSession = Depends(get_session)):
-    where, args = ["TRUE"], {}
-    if q.strip():
-        where.append("(p.art_navn ILIKE :q OR p.latin ILIKE :q OR p.lokalitet ILIKE :q OR u.navn ILIKE :q)")
-        args["q"] = f"%{q.strip()}%"
-    if art:
-        where.append("(p.artnr = :art OR p.artnr IN (SELECT artnr FROM species WHERE list_artnr = :art))")
-        args["art"] = art
-    if fotograf:
-        where.append("p.user_id = :fg")
-        args["fg"] = fotograf
-    if su:
-        where.append("p.artnr IN (SELECT artnr FROM species WHERE klass = 'SU')")
-    order = {"nyeste": "p.published_at DESC", "likes": "likes DESC, p.published_at DESC", "visninger": "p.views DESC",
-             "kommenteret": "(SELECT max(created_at) FROM nf_comments c WHERE c.target_kind = 'foto' AND c.target_id = p.id) DESC NULLS LAST"}[sort]
-    w = " AND ".join(where)
-    total = (await db.execute(text(f"SELECT count(*) FROM nf_photos p JOIN users u ON u.id = p.user_id WHERE p.status = 'publiceret' AND {w}"), args)).scalar()
-    return {"total": total, "rows": await photo_list(db, w, order, per, (page - 1) * per, **args)}
+    return await content.photos(db, q=q, art=art, fotograf=fotograf, su=su, sort=sort, page=page, per=per)
 
 
 @router.get("/fotos/{pid}")
@@ -402,11 +317,10 @@ async def foto(pid: int, ctx: svc.Ctx = Depends(need("netfugl_fotos")), db: Asyn
     if p.status == "publiceret":
         p.views += 1
         await db.commit()
-    row = (await _rows(db, f"SELECT {PHOTO_COLS} FROM nf_photos p JOIN users u ON u.id = p.user_id WHERE p.id = :i", i=pid))[0]
-    row = _iso([row])[0]
+    row = await content.photo_row(db, pid)
     row["beskrivelse"] = p.beskrivelse
     row["liked"] = bool(await db.get(NfLike, (ctx.user.id, "foto", pid)))
-    row["sjaeldenhed"] = (await db.execute(text("SELECT klass FROM species WHERE artnr = :a"), {"a": p.artnr})).scalar() if p.artnr else None
+    row["sjaeldenhed"] = await content.species_klass(db, p.artnr) if p.artnr else None
     row["mine"] = p.user_id == ctx.user.id
     row["can_moderate"] = ctx.can("fotos")
     row["dofbasen"] = ctx.out()["features"]["netfugl_dofbasen"]
@@ -417,14 +331,7 @@ async def foto(pid: int, ctx: svc.Ctx = Depends(need("netfugl_fotos")), db: Asyn
 @router.get("/mine-observationer")
 async def mine_obs(artnr: int, dato: date | None = None, ctx: svc.Ctx = Depends(need("netfugl_fotos")), db: AsyncSession = Depends(get_session)):
     """Brugerens egne observationer af arten (på datoen eller de seneste) – til at knytte et foto til DOFbasen."""
-    where = "o.obserkode = :k AND (o.artnr = :a OR s.list_artnr = :a)"
-    args = {"k": ctx.user.obserkode, "a": artnr}
-    if dato:
-        where += " AND o.dato BETWEEN :d1 AND :d2"
-        args.update(d1=dato - timedelta(days=1), d2=dato + timedelta(days=1))
-    return _iso(await _rows(db, f"""SELECT o.obsid, o.dato, o.antal, o.loknr, l.navn AS lokalitet, s.navn AS art
-        FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
-        WHERE {where} ORDER BY o.dato DESC LIMIT 20""", **args))
+    return await content.my_observations(db, ctx.user.obserkode, artnr, dato)
 
 
 @router.post("/fotos")
@@ -444,14 +351,13 @@ async def upload(file: UploadFile = File(...), art_navn: str = Form(..., max_len
     except ValueError as exc:
         raise HTTPException(400, "Billedet kunne ikke læses") from exc
     if obsid:
-        own = (await db.execute(text("SELECT 1 FROM observations WHERE obsid = :o AND obserkode = :k"), {"o": obsid, "k": ctx.user.obserkode})).scalar()
-        if not own:
+        if not await content.owns_observation(db, obsid, ctx.user.obserkode):
             raise HTTPException(400, "Observationen er ikke din")
     try:
         foto_dato = date.fromisoformat(dato) if dato else None
     except ValueError as exc:
         raise HTTPException(400, "Ugyldig dato") from exc
-    latin = (await db.execute(text("SELECT latin FROM species WHERE artnr = :a"), {"a": artnr})).scalar() if artnr else None
+    latin = await content.species_latin(db, artnr) if artnr else None
     name = f"{uuid.uuid4().hex}{ext}"
     (svc.media_root() / name).write_bytes(data)
     moderated = (await svc.settings(db))["photo_moderation"] and not ctx.can("fotos")
@@ -481,9 +387,8 @@ async def ret_foto(pid: int, body: PhotoIn, ctx: svc.Ctx = Depends(need("netfugl
     if p is None or (p.user_id != ctx.user.id and not ctx.can("fotos")):
         raise HTTPException(404)
     if body.obsid and body.obsid != p.obsid:
-        owner = (await db.execute(select(User.obserkode).where(User.id == p.user_id))).scalar()
-        own = (await db.execute(text("SELECT 1 FROM observations WHERE obsid = :o AND obserkode = :k"), {"o": body.obsid, "k": owner})).scalar()
-        if not own:
+        owner = await content.user_obserkode(db, p.user_id)
+        if not await content.owns_observation(db, body.obsid, owner):
             raise HTTPException(400, "Observationen tilhører ikke fotografen")
     for k, v in body.model_dump().items():
         setattr(p, k, v if v != "" else None)
@@ -498,8 +403,7 @@ async def slet_foto(pid: int, ctx: svc.Ctx = Depends(need("netfugl_fotos")), db:
     if p is None or (p.user_id != ctx.user.id and not ctx.can("fotos")):
         raise HTTPException(404)
     path = svc.media_root() / p.url.rsplit("/", 1)[-1]
-    await db.execute(delete(NfComment).where(NfComment.target_kind == "foto", NfComment.target_id == pid))
-    await db.execute(delete(NfLike).where(NfLike.target_kind == "foto", NfLike.target_id == pid))
+    await content.delete_photo_relations(db, pid)
     if p.user_id != ctx.user.id:
         await svc.audit(db, ctx.user, "slet foto", f"{pid} {p.art_navn}")
     await db.delete(p)
@@ -531,22 +435,7 @@ async def foto_status(pid: int, body: StatusIn, ctx: svc.Ctx = Depends(need("net
 @router.get("/rss")
 async def rss(q: str = Query("", max_length=80), kilde: int | None = None, land: str = Query("", max_length=60), page: int = Query(1, ge=1),
               ctx: svc.Ctx = Depends(need("netfugl_rss")), db: AsyncSession = Depends(get_session)):
-    where, args = ["TRUE"], {}
-    if q.strip():
-        where.append("(i.title ILIKE :q OR i.summary ILIKE :q)")
-        args["q"] = f"%{q.strip()}%"
-    if kilde:
-        where.append("f.id = :f")
-        args["f"] = kilde
-    if land:
-        where.append("f.land = :land")
-        args["land"] = land
-    w = " AND ".join(where)
-    total = (await db.execute(text(f"SELECT count(*) FROM nf_feed_items i JOIN nf_feeds f ON f.id = i.feed_id WHERE {w}"), args)).scalar()
-    rows = _iso(await _rows(db, f"""SELECT i.id, i.title, i.url, i.summary, i.published_at, f.navn AS kilde, f.land FROM nf_feed_items i
-        JOIN nf_feeds f ON f.id = i.feed_id WHERE {w} ORDER BY i.published_at DESC LIMIT 30 OFFSET :off""", **args, off=(page - 1) * 30))
-    feeds = await _rows(db, "SELECT id, navn, land FROM nf_feeds ORDER BY navn")
-    return {"total": total, "rows": rows, "kilder": feeds, "lande": sorted({f["land"] for f in feeds})}
+    return await content.rss_items(db, q=q, kilde=kilde, land=land, page=page)
 
 
 # ---------------------------------------------------------------- krydslister
@@ -558,14 +447,13 @@ async def kryds_lister(ctx: svc.Ctx = Depends(need("netfugl_kryds")), db: AsyncS
     y = dk_today().year
     st = await svc.settings(db)
     years = list(range(y, y - int(st["year_lists"]), -1))
-    aedel_years = [r[0] for r in (await db.execute(text(
-        "SELECT DISTINCT extract(year FROM dato)::int FROM nf_kryds WHERE liste = 'aedel' AND dato IS NOT NULL ORDER BY 1 DESC"))).all()]
+    aedel_years = await content.aedel_years(db)
     return {
         "lister": [{"key": k, "name": v["name"], "auto": v["auto"], "manual": bool(v.get("manual")), "param": v.get("param"), "ref": v["ref"]}
                    for k, v in svc.LISTS.items()],
         "years": years, "aedel_years": aedel_years or [y], "months": svc.MONTHS,
-        "afdelinger": await _rows(db, "SELECT id, navn FROM afdelinger ORDER BY navn"),
-        "kommuner": await _rows(db, "SELECT kode, navn FROM kommuner ORDER BY navn"),
+        "afdelinger": await content.afdelinger_by_name(db),
+        "kommuner": await content.kommuner(db),
         "auto_at": await _auto_at(), "participants": st["participants"],
     }
 
@@ -635,8 +523,7 @@ async def mine_kryds(liste: str, ctx: svc.Ctx = Depends(need("netfugl_kryds")), 
     data = await svc.load_kryds(db, liste)
     rows = [r for r in data["rows"] if r["kode"] == ctx.user.obserkode]
     rows.sort(key=lambda r: r["dato"] or "")
-    hidden = _iso(await _rows(db, "SELECT id, artnr, navn, latin FROM nf_kryds WHERE obserkode = :k AND liste = :l AND hidden",
-                              k=ctx.user.obserkode, l=liste))
+    hidden = await content.hidden_kryds(db, ctx.user.obserkode, liste)
     participant = ctx.user.obserkode in data["people"]
     return {"rows": rows, "hidden": hidden, "participant": participant, "name": data["name"]}
 
@@ -662,8 +549,7 @@ async def nyt_kryds(body: KrydsIn, ctx: svc.Ctx = Depends(need("netfugl_kryds"))
         raise HTTPException(400, "VP-blockers (*) kræver land, lokalitet og dato")
     if ref == "dk" and sp.su and not (body.dato and body.lokalitet):
         raise HTTPException(400, "SU-arter kræver dato og lokalitet")
-    await db.execute(delete(NfKryds).where(NfKryds.obserkode == ctx.user.obserkode, NfKryds.liste == body.liste,
-                                           NfKryds.latin == sp.latin))
+    await content.delete_kryds_for_species(db, ctx.user.obserkode, body.liste, sp.latin)
     db.add(NfKryds(obserkode=ctx.user.obserkode, liste=body.liste, artnr=sp.artnr, latin=sp.latin, navn=sp.navn, dato=body.dato,
                    lokalitet=body.lokalitet or None, land=body.land or ("Danmark" if ref == "dk" else None), note=body.note or None))
     await db.commit()
@@ -679,11 +565,10 @@ class HideIn(BaseModel):
 @router.post("/mine-kryds/skjul")
 async def skjul_kryds(body: HideIn, ctx: svc.Ctx = Depends(need("netfugl_kryds")), db: AsyncSession = Depends(get_session)):
     """Skjul et automatisk DK-kryds (fx en fejlbestemmelse i DOFbasen) – eller vis det igen."""
-    sp = (await db.execute(text("SELECT navn, latin FROM species WHERE artnr = :a"), {"a": body.artnr})).first()
+    sp = await content.species_name_latin(db, body.artnr)
     if sp is None:
         raise HTTPException(404)
-    await db.execute(delete(NfKryds).where(NfKryds.obserkode == ctx.user.obserkode, NfKryds.liste == "dk", NfKryds.artnr == body.artnr,
-                                           NfKryds.hidden))
+    await content.delete_hidden_dk(db, ctx.user.obserkode, body.artnr)
     if body.hidden:
         db.add(NfKryds(obserkode=ctx.user.obserkode, liste="dk", artnr=body.artnr, latin=sp[1] or sp[0], navn=sp[0], hidden=True))
     await db.commit()
@@ -709,19 +594,14 @@ async def slet_kryds(kid: int, ctx: svc.Ctx = Depends(need("netfugl_kryds")), db
 
 @router.get("/arter/familier")
 async def familier(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
-    return await _rows(db, "SELECT id, orden, familie, engelsk, antal FROM nf_families ORDER BY id")
+    return await content.families(db)
 
 
 @router.get("/arter/{liste}")
 async def artsliste(liste: str, q: str = Query("", max_length=60), ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
     if liste not in ("dk", "vp"):
         raise HTTPException(404)
-    where, args = "liste = :l", {"l": liste}
-    if q.strip():
-        where += " AND (navn ILIKE :q OR latin ILIKE :q OR engelsk ILIKE :q)"
-        args["q"] = f"%{q.strip()}%"
-    rows = await _rows(db, f"SELECT id, sort, su, navn, latin, engelsk, kategori, artnr FROM nf_species WHERE {where} ORDER BY sort", **args)
-    return {"rows": rows, "can_edit": ctx.can_edit("kryds")}
+    return {"rows": await content.species_list(db, liste, q), "can_edit": ctx.can_edit("kryds")}
 
 
 @router.get("/art/{sid}")
@@ -733,25 +613,9 @@ async def art(sid: int, ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depen
     out = {"id": sp.id, "liste": sp.liste, "su": sp.su, "navn": sp.navn, "latin": sp.latin, "engelsk": sp.engelsk, "kategori": sp.kategori,
            "artnr": sp.artnr, "dofbasen": ctx.out()["features"]["netfugl_dofbasen"]}
     if sp.artnr:
-        async def produce():
-            ids = [r[0] for r in (await db.execute(text("SELECT artnr FROM species WHERE artnr = :a OR list_artnr = :a"), {"a": sp.artnr})).all()]
-            stat = (await db.execute(text("""SELECT count(*), count(DISTINCT (dato, loknr)), min(dato), max(dato)
-                FROM observations WHERE artnr = ANY(:ids) AND hemmelig = 0"""), {"ids": ids})).first()
-            months = await _rows(db, """SELECT extract(month FROM dato)::int AS m, count(DISTINCT (dato, loknr)) AS n FROM observations
-                WHERE artnr = ANY(:ids) AND hemmelig = 0 GROUP BY 1 ORDER BY 1""", ids=ids)
-            afd = await _rows(db, """SELECT a.navn, count(DISTINCT (o.dato, o.loknr)) AS n FROM observations o JOIN locations l ON l.loknr = o.loknr
-                JOIN afdelinger a ON a.id = l.afdeling_id WHERE o.artnr = ANY(:ids) AND o.hemmelig = 0 GROUP BY a.navn ORDER BY n DESC""", ids=ids)
-            fund = []
-            if stat[1] and stat[1] <= 400:
-                fund = _iso(await _rows(db, """SELECT DISTINCT ON (o.dato, o.loknr) o.dato, o.loknr, l.navn AS lokalitet, o.antal, o.obsid,
-                    trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS observator
-                    FROM observations o LEFT JOIN locations l ON l.loknr = o.loknr LEFT JOIN observers ob ON ob.obserkode = o.obserkode
-                    WHERE o.artnr = ANY(:ids) AND o.hemmelig = 0 ORDER BY o.dato DESC, o.loknr, o.antal DESC""", ids=ids))
-            return {"obs": stat[0], "fund": stat[1], "first": stat[2].isoformat() if stat[2] else None,
-                    "last": stat[3].isoformat() if stat[3] else None, "months": months, "afdelinger": afd, "fundliste": fund}
-        out["dofb"] = await cached(f"nf:art:{sp.artnr}:{dk_today()}", 6 * 3600, produce)
+        out["dofb"] = await content.dofbasen_stats(db, sp.artnr)
         if ctx.on("netfugl_fotos"):
-            out["fotos"] = await photo_list(db, "(p.artnr = :a OR p.artnr IN (SELECT artnr FROM species WHERE list_artnr = :a))", a=sp.artnr)
+            out["fotos"] = await content.species_photos(db, sp.artnr)
     if ctx.on("netfugl_kryds"):
         key = "dk" if sp.liste == "dk" else "vp"
         data = await svc.load_kryds(db, key)
@@ -778,8 +642,7 @@ async def ret_art(sid: int, body: SpeciesIn, ctx: svc.Ctx = Depends(need(perm="k
         sp = NfSpecies(liste=body.liste)
         db.add(sp)
     sp.navn, sp.latin, sp.engelsk, sp.kategori, sp.su, sp.sort = body.navn, body.latin, body.engelsk or None, body.kategori or None, body.su, body.sort
-    sp.artnr = (await db.execute(text("SELECT artnr FROM species WHERE lower(latin) = lower(:l) ORDER BY art_type = 'art' DESC LIMIT 1"),
-                                 {"l": body.latin})).scalar()
+    sp.artnr = await content.artnr_for_latin(db, body.latin)
     await svc.audit(db, ctx.user, "art", f"{body.liste}: {body.navn}")
     await db.commit()
     await bump(svc.KRYDS_VERSION)
@@ -807,8 +670,7 @@ async def brugere(q: str = Query("", max_length=60), ctx: svc.Ctx = Depends(need
         for key in ("dk", "vp"):
             for r in svc.ranking(await svc.load_kryds(db, key)):
                 counts.setdefault(r["kode"], {})[key] = r["antal"]
-    photos = {r["obserkode"]: r["n"] for r in await _rows(db, """SELECT u.obserkode, count(*) AS n FROM nf_photos p JOIN users u ON u.id = p.user_id
-        WHERE p.status = 'publiceret' GROUP BY u.obserkode""")}
+    photos = await content.published_photo_counts(db)
     rows = [{"kode": k, "navn": n, "dk": counts.get(k, {}).get("dk", 0), "vp": counts.get(k, {}).get("vp", 0), "fotos": photos.get(k, 0)}
             for k, n in people.items() if not q.strip() or q.lower() in f"{n} {k}".lower()]
     rows.sort(key=lambda r: r["navn"].lower())
@@ -819,7 +681,7 @@ async def brugere(q: str = Query("", max_length=60), ctx: svc.Ctx = Depends(need
 async def bruger(kode: str, ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
     kode = kode.upper()[:16]
     people = await svc.participants(db)
-    u = (await db.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
+    u = await content.user_by_obserkode(db, kode)
     if kode not in people and u is None:
         raise HTTPException(404, "Brugeren findes ikke")
     out = {"kode": kode, "navn": people.get(kode) or (u.navn if u else kode), "deltager": kode in people,
@@ -836,10 +698,8 @@ async def bruger(kode: str, ctx: svc.Ctx = Depends(need()), db: AsyncSession = D
                                   "blockers": sorted([{"navn": r["navn"], "antal": bkeys[r["key"]]} for r in mine if r["key"] in bkeys],
                                                      key=lambda b: b["antal"])})
     if u:
-        st = (await db.execute(text("""SELECT count(*), max(published_at), coalesce(sum(views), 0), coalesce(max(views), 0)
-            FROM nf_photos WHERE user_id = :u AND status = 'publiceret'"""), {"u": u.id})).first()
-        out["fotos"] = {"antal": st[0], "seneste": st[1].isoformat() if st[1] else None, "visninger": st[2], "hoejeste": st[3], "user_id": u.id}
-        out["seneste_fotos"] = await photo_list(db, "p.user_id = :u", u=u.id, limit=8) if ctx.on("netfugl_fotos") else []
+        out["fotos"] = await content.user_photo_stats(db, u.id)
+        out["seneste_fotos"] = await content.user_photos(db, u.id, 8) if ctx.on("netfugl_fotos") else []
     return out
 
 
@@ -848,17 +708,7 @@ async def bruger(kode: str, ctx: svc.Ctx = Depends(need()), db: AsyncSession = D
 
 @router.get("/soeg")
 async def soeg(q: str = Query(min_length=2, max_length=80), ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
-    like = f"%{q.strip()}%"
-    out = {"arter": await _rows(db, """SELECT id, liste, navn, latin, su FROM nf_species WHERE navn ILIKE :q OR latin ILIKE :q OR engelsk ILIKE :q
-        ORDER BY liste, sort LIMIT 30""", q=like)}
-    if ctx.on("netfugl_artikler"):
-        out["artikler"] = _iso(await _rows(db, """SELECT id, title, dato, kind FROM nf_articles WHERE published AND (title ILIKE :q OR body ILIKE :q)
-            ORDER BY dato DESC LIMIT 20""", q=like))
-    if ctx.on("netfugl_fotos"):
-        out["fotos"] = await photo_list(db, "(p.art_navn ILIKE :q OR p.lokalitet ILIKE :q OR u.navn ILIKE :q)", limit=12, q=like)
-    if ctx.on("netfugl_rss"):
-        out["rss"] = _iso(await _rows(db, """SELECT i.title, i.url, i.published_at, f.navn AS kilde FROM nf_feed_items i JOIN nf_feeds f ON f.id = i.feed_id
-            WHERE i.title ILIKE :q OR i.summary ILIKE :q ORDER BY i.published_at DESC LIMIT 15""", q=like))
+    out = await content.search(db, q, articles_on=ctx.on("netfugl_artikler"), photos_on=ctx.on("netfugl_fotos"), rss_on=ctx.on("netfugl_rss"))
     out["brugere"] = [{"kode": k, "navn": n} for k, n in (await svc.participants(db)).items() if q.lower() in f"{n} {k}".lower()][:20]
     return out
 
@@ -870,16 +720,8 @@ async def soeg(q: str = Query(min_length=2, max_length=80), ctx: svc.Ctx = Depen
 async def admin_oversigt(ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
     if not ctx.perms:
         raise HTTPException(403, "Kræver en Netfugl-rolle")
-    counts = (await _rows(db, """SELECT (SELECT count(*) FROM nf_articles) AS artikler, (SELECT count(*) FROM nf_comments) AS kommentarer,
-        (SELECT count(*) FROM nf_photos WHERE status = 'publiceret') AS fotos, (SELECT count(*) FROM nf_photos WHERE status = 'afventer') AS afventer,
-        (SELECT count(*) FROM nf_feeds WHERE active) AS kilder, (SELECT count(*) FROM nf_feed_items) AS rss,
-        (SELECT count(DISTINCT obserkode) FROM nf_auto_lists) AS deltagere,
-        (SELECT coalesce(sum(cardinality(artnr)), 0) FROM nf_auto_lists) AS auto_kryds,
-        (SELECT count(*) FROM nf_kryds) AS manuelle_kryds, (SELECT count(*) FROM nf_species WHERE liste = 'dk') AS dk_arter,
-        (SELECT count(*) FROM nf_species WHERE liste = 'vp') AS vp_arter, (SELECT count(*) FROM nf_user_roles) AS roller,
-        (SELECT count(*) FROM nf_api_grants) AS api_brugere, (SELECT coalesce(sum(uses), 0) FROM nf_api_tokens) AS api_kald"""))[0]
-    log = _iso(await _rows(db, """SELECT a.at, a.action, a.target, u.navn, u.obserkode FROM nf_audit a LEFT JOIN users u ON u.id = a.user_id
-        ORDER BY a.at DESC LIMIT 40"""))
+    counts = await content.admin_counts(db)
+    log = await content.audit_log(db)
     flags = await features.load(db)
     return {"counts": counts, "log": log, "auto_at": await _auto_at(), "settings": await svc.settings(db),
             "features": [{"key": k, "name": v[0], "description": v[1], "state": flags[k]} for k, v in features.FEATURES.items() if k.startswith("netfugl")]}
@@ -910,16 +752,12 @@ async def beregn(ctx: svc.Ctx = Depends(need(perm="kryds"))):
 @router.get("/admin/fotos")
 async def admin_fotos(status: str = Query("afventer", pattern="^(afventer|afvist|publiceret)$"), ctx: svc.Ctx = Depends(need("netfugl_fotos", "fotos")),
                       db: AsyncSession = Depends(get_session)):
-    return _iso(await _rows(db, f"""SELECT {PHOTO_COLS} FROM nf_photos p JOIN users u ON u.id = p.user_id WHERE p.status = :s
-        ORDER BY p.created_at DESC LIMIT 200""", s=status))
+    return await content.photos_by_status(db, status)
 
 
 @router.get("/admin/kommentarer")
 async def admin_kommentarer(ctx: svc.Ctx = Depends(need(perm="kommentarer")), db: AsyncSession = Depends(get_session)):
-    return _iso(await _rows(db, """SELECT c.id, c.target_kind, c.target_id, c.body, c.hidden, c.created_at, coalesce(u.navn, u.obserkode) AS navn,
-        CASE WHEN c.target_kind = 'artikel' THEN (SELECT title FROM nf_articles WHERE id = c.target_id)
-             ELSE (SELECT art_navn FROM nf_photos WHERE id = c.target_id) END AS emne
-        FROM nf_comments c JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC LIMIT 200"""))
+    return await content.all_comments(db)
 
 
 class FeedIn(BaseModel):
@@ -932,7 +770,7 @@ class FeedIn(BaseModel):
 
 @router.get("/admin/rss")
 async def admin_rss(ctx: svc.Ctx = Depends(need("netfugl_rss", "rss")), db: AsyncSession = Depends(get_session)):
-    return _iso(await _rows(db, "SELECT id, navn, site_url, feed_url, land, active, last_fetch, last_error, items FROM nf_feeds ORDER BY navn"))
+    return await content.feeds(db)
 
 
 @router.put("/admin/rss/{fid}")
@@ -973,9 +811,8 @@ class RoleIn(BaseModel):
 
 @router.get("/admin/roller")
 async def admin_roller(ctx: svc.Ctx = Depends(need(perm="roller")), db: AsyncSession = Depends(get_session)):
-    roles = [{"key": r.key, "name": r.name, "perms": r.perms} for r in (await db.execute(select(NfRole).order_by(NfRole.sort, NfRole.name))).scalars()]
-    people = _iso(await _rows(db, """SELECT u.id, u.navn, u.obserkode, array_agg(ur.role_key ORDER BY ur.role_key) AS roles, max(ur.granted_at) AS granted_at
-        FROM nf_user_roles ur JOIN users u ON u.id = ur.user_id GROUP BY u.id ORDER BY u.navn"""))
+    roles = [{"key": r.key, "name": r.name, "perms": r.perms} for r in await content.roles(db)]
+    people = await content.role_holders(db)
     return {"roles": roles, "people": people, "perms": svc.PERMS}
 
 
@@ -1006,7 +843,7 @@ async def ret_rolle(key: str, body: RoleIn, ctx: svc.Ctx = Depends(need(perm="ro
 async def slet_rolle(key: str, ctx: svc.Ctx = Depends(need(perm="roller")), db: AsyncSession = Depends(get_session)):
     if key == "admin":
         raise HTTPException(400, "Administratorrollen kan ikke slettes")
-    await db.execute(delete(NfRole).where(NfRole.key == key))
+    await content.delete_role(db, key)
     await svc.audit(db, ctx.user, "slet rolle", key)
     await db.commit()
     return {"ok": True}
@@ -1016,10 +853,7 @@ async def slet_rolle(key: str, ctx: svc.Ctx = Depends(need(perm="roller")), db: 
 async def admin_brugere(q: str = Query(min_length=2, max_length=60), ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
     if not (ctx.can("roller") or ctx.can("api")):
         raise HTTPException(403)
-    return await _rows(db, """SELECT u.id, u.navn, u.obserkode,
-        coalesce((SELECT array_agg(role_key) FROM nf_user_roles WHERE user_id = u.id), '{}') AS roles,
-        EXISTS (SELECT 1 FROM nf_api_grants g WHERE g.user_id = u.id) AS api
-        FROM users u WHERE (u.navn ILIKE :q OR u.obserkode ILIKE :q) AND u.approved AND NOT u.blocked ORDER BY u.navn LIMIT 20""", q=f"%{q}%")
+    return await content.find_users(db, q)
 
 
 class UserRolesIn(BaseModel):
@@ -1045,14 +879,7 @@ class GrantIn(BaseModel):
 
 @router.get("/admin/api")
 async def admin_api(ctx: svc.Ctx = Depends(need("netfugl_api", "api")), db: AsyncSession = Depends(get_session)):
-    grants = _iso(await _rows(db, """SELECT g.user_id, u.navn, u.obserkode, g.rate_per_min, g.max_tokens, g.note, g.granted_at, gb.navn AS granted_by,
-        (SELECT count(*) FROM nf_api_tokens t WHERE t.user_id = g.user_id AND t.revoked_at IS NULL) AS tokens,
-        (SELECT coalesce(sum(uses), 0) FROM nf_api_tokens t WHERE t.user_id = g.user_id) AS uses,
-        (SELECT max(last_used_at) FROM nf_api_tokens t WHERE t.user_id = g.user_id) AS last_used
-        FROM nf_api_grants g JOIN users u ON u.id = g.user_id LEFT JOIN users gb ON gb.id = g.granted_by ORDER BY u.navn"""))
-    tokens = _iso(await _rows(db, """SELECT t.id, t.user_id, u.obserkode, t.name, t.prefix, t.created_at, t.last_used_at, t.uses, t.revoked_at
-        FROM nf_api_tokens t JOIN users u ON u.id = t.user_id ORDER BY t.created_at DESC LIMIT 300"""))
-    return {"grants": grants, "tokens": tokens}
+    return {"grants": await content.api_grants(db), "tokens": await content.api_tokens(db)}
 
 
 @router.put("/admin/api/{user_id}")
@@ -1072,8 +899,7 @@ async def giv_api(user_id: int, body: GrantIn, ctx: svc.Ctx = Depends(need("netf
 
 @router.delete("/admin/api/{user_id}")
 async def fjern_api(user_id: int, ctx: svc.Ctx = Depends(need("netfugl_api", "api")), db: AsyncSession = Depends(get_session)):
-    await db.execute(delete(NfApiGrant).where(NfApiGrant.user_id == user_id))
-    await db.execute(update(NfApiToken).where(NfApiToken.user_id == user_id, NfApiToken.revoked_at.is_(None)).values(revoked_at=func.now()))
+    await content.revoke_access(db, user_id)
     await svc.audit(db, ctx.user, "fjern API-adgang", str(user_id))
     await db.commit()
     return {"ok": True}
@@ -1081,7 +907,7 @@ async def fjern_api(user_id: int, ctx: svc.Ctx = Depends(need("netfugl_api", "ap
 
 @router.delete("/admin/api/tokens/{token_id}")
 async def spaer_token(token_id: int, ctx: svc.Ctx = Depends(need("netfugl_api", "api")), db: AsyncSession = Depends(get_session)):
-    await db.execute(update(NfApiToken).where(NfApiToken.id == token_id, NfApiToken.revoked_at.is_(None)).values(revoked_at=func.now()))
+    await content.revoke_token(db, token_id)
     await svc.audit(db, ctx.user, "spær token", str(token_id))
     await db.commit()
     return {"ok": True}
@@ -1099,7 +925,7 @@ async def mine_tokens(ctx: svc.Ctx = Depends(need("netfugl_api")), db: AsyncSess
     g = await db.get(NfApiGrant, ctx.user.id)
     tokens = [{"id": t.id, "name": t.name, "prefix": t.prefix, "created_at": t.created_at, "last_used_at": t.last_used_at, "uses": t.uses,
                "revoked_at": t.revoked_at}
-              for t in (await db.execute(select(NfApiToken).where(NfApiToken.user_id == ctx.user.id).order_by(NfApiToken.created_at.desc()))).scalars()]
+              for t in await content.my_tokens(db, ctx.user.id)]
     return {"access": g is not None, "rate_per_min": g.rate_per_min if g else None, "max_tokens": g.max_tokens if g else None, "tokens": tokens}
 
 
@@ -1108,8 +934,7 @@ async def nyt_token(body: TokenIn, ctx: svc.Ctx = Depends(need("netfugl_api")), 
     g = await db.get(NfApiGrant, ctx.user.id)
     if g is None:
         raise HTTPException(403, "Du har ikke adgang til API'et. En administrator skal give dig adgang.")
-    active = (await db.execute(select(func.count()).select_from(NfApiToken)
-                               .where(NfApiToken.user_id == ctx.user.id, NfApiToken.revoked_at.is_(None)))).scalar()
+    active = await content.active_token_count(db, ctx.user.id)
     if active >= g.max_tokens:
         raise HTTPException(400, f"Du kan højst have {g.max_tokens} aktive nøgler. Slet en gammel først.")
     token, prefix, digest = dofb.new_token("nf_")
@@ -1122,7 +947,6 @@ async def nyt_token(body: TokenIn, ctx: svc.Ctx = Depends(need("netfugl_api")), 
 
 @router.delete("/me/api/tokens/{token_id}")
 async def slet_mit_token(token_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    await db.execute(update(NfApiToken).where(NfApiToken.id == token_id, NfApiToken.user_id == user.id, NfApiToken.revoked_at.is_(None))
-                     .values(revoked_at=func.now()))
+    await content.revoke_token(db, token_id, user.id)
     await db.commit()
     return {"ok": True}

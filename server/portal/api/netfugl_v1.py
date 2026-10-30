@@ -12,12 +12,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.netfugl import _iso, _rows, photo_list
 from portal.cache import kv
 from portal.db import get_session
 from portal.models import NfApiGrant, NfApiToken, NfArticle, User
 from portal.services import dofbasen as dofb
 from portal.services import netfugl as svc
+from portal.services.netfugl_content import iso as _iso
+from portal.services.netfugl_content import photo_list
+from portal.services.netfugl_content import rows as _rows
 
 router = APIRouter(prefix="/api/netfugl/v1", tags=["Netfugl API v1"])
 
