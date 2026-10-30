@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 
 from portal.api import (admin, alerts, auth, calendar, categories, dku, dofbasen, dofbasen_v1, feed, geo, learn, lists, media,
@@ -130,6 +131,28 @@ def csp() -> str:
 
 
 _csp = {"at": None, "value": ""}
+
+
+class SelectiveGZip:
+    """GZip for API-svar, HTML, JS og CSS (JSON fylder typisk 8–10 gange mindre). Ikke for SSE-strømmen, medier, lyd,
+    talemodellen, downloads eller Range-forespørgsler – de er enten allerede komprimerede eller skal kunne genoptages."""
+
+    SKIP = ("/api/stream", "/media/", "/models/", "/api/mobgang/xc/", "/api/admin/backup/download/", "/api/me/export")
+
+    def __init__(self, app_):
+        self.app = app_
+        self.gzip = GZipMiddleware(app_, minimum_size=1024)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            ranged = any(k == b"range" for k, _ in scope.get("headers", ()))
+            if not ranged and "/audio/" not in path and not path.startswith(self.SKIP):
+                return await self.gzip(scope, receive, send)
+        return await self.app(scope, receive, send)
+
+
+app.add_middleware(SelectiveGZip)
 
 
 @app.exception_handler(AuthError)
