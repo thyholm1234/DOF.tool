@@ -13,14 +13,15 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import cached, get_json, set_json
+from portal.cache import cached, get_json, set_json, version
 from portal.config import get_settings
+from portal.domain import kategori
 from portal.services.dmi import UA, _get
 from portal.timeutil import TZ, dk_now, dk_today
 
@@ -157,3 +158,46 @@ async def wind_noon(day: date) -> dict:
     # Tom liste (DMI nede) caches kort; afsluttede dage ændrer sig ikke
     await set_json(key, data, 7 * 86400 if data["stations"] and day < dk_today() else 600)
     return data
+
+
+# ---------------------------------------------------------------- trækkortet (Træk → Kort, api/geo.py /map/days)
+
+
+async def map_days(session: AsyncSession, days: int, back: int) -> dict:
+    """Tråde (art + lokalitet + dag) med trækretning for `days` døgn, der slutter `back` døgn før i dag.
+    Bemærk/SUB/SU altid; almindelige arter kun når de er trækkende med retning (ellers bliver kortet uoverskueligt)."""
+    rank = kategori.rank_sql("o.kategori")
+    today = dk_today()
+    groups = await species_groups(session)
+    out = []
+    for day in [today - timedelta(days=i) for i in range(back, back + days)]:
+        async def produce(day=day):
+            rows = (await session.execute(text(f"""
+                SELECT o.artnr, s.list_artnr, s.navn AS art, o.loknr, l.navn AS lok, l.lat, l.lon, split_part(coalesce(o.adfkode, ''), ' ', 1) AS d,
+                       max({rank}) AS rank, sum(o.antal) AS n, max(o.antal) AS mx
+                FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
+                WHERE o.dato = :d AND o.hemmelig = 0 AND l.lat IS NOT NULL AND o.antal > 0
+                  AND ({rank} >= 1 OR split_part(coalesce(o.adfkode, ''), ' ', 1) = ANY(:dirs))
+                GROUP BY o.artnr, s.list_artnr, s.navn, o.loknr, l.navn, l.lat, l.lon, d
+            """), {"d": day, "dirs": list(DIRS)})).mappings().all()
+            threads: dict[tuple, dict] = {}
+            for r in rows:
+                t = threads.setdefault((r["artnr"], r["loknr"]), {
+                    "id": f"{day.isoformat()}/{r['artnr']}/{r['loknr']}", "dato": day.isoformat(), "art": r["art"], "lok": r["lok"],
+                    "loknr": r["loknr"], "group": groups.get(r["list_artnr"]) or groups.get(r["artnr"]),
+                    "lat": r["lat"], "lon": r["lon"], "rank": 0, "max_antal": 0, "dirs": {}})
+                t["rank"] = max(t["rank"], r["rank"])
+                t["max_antal"] = max(t["max_antal"], int(r["mx"] or 0))
+                if r["d"] in DIRS:
+                    t["dirs"][r["d"]] = t["dirs"].get(r["d"], 0) + int(r["n"] or 0)
+            items = []
+            for t in threads.values():
+                direction, consistency = _vec(t["dirs"]) if t["dirs"] else (None, 0)
+                if t["rank"] == 0 and direction is None:
+                    continue
+                items.append({**{k: t[k] for k in ("id", "dato", "art", "lok", "loknr", "lat", "lon", "max_antal", "group", "dirs")},
+                              "kategori": kategori.from_rank(t["rank"]),
+                              "dir": direction, "r": consistency, "n_dir": sum(t["dirs"].values())})
+            return items
+        out += await cached(f"mapdays2:{day}:{await version('feed')}", 120 if day == today else 3600, produce)
+    return {"items": out, "groups": GROUPS, "dirs": DIRS}

@@ -16,7 +16,8 @@ def _routes() -> dict:
 
     spec = app.openapi()
     return {p: {m: {"op": v.get("operationId"),
-                    "params": sorted([x["name"], x["in"], x.get("required", False)] for x in v.get("parameters", [])),
+                    "params": sorted([x["name"], x["in"], x.get("required", False), json.dumps(x.get("schema"), sort_keys=True)]
+                                     for x in v.get("parameters", [])),
                     "body": bool(v.get("requestBody"))} for m, v in ms.items()}
             for p, ms in spec["paths"].items()}
 

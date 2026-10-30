@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field, replace
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.models import Area
@@ -205,3 +205,25 @@ async def refresh_all_area_counts(session: AsyncSession) -> None:
         seen.add(scope.key)
         await refresh_area_counts(session, scope)
         await session.commit()
+
+
+# ---------------------------------------------------------------- brugerens områder (api/geo.py)
+
+MAX_PER_USER = 30
+
+
+async def user_areas(session: AsyncSession, user_id: int) -> list[Area]:
+    return list((await session.execute(select(Area).where(Area.user_id == user_id).order_by(Area.name))).scalars().all())
+
+
+async def count_for_user(session: AsyncSession, user_id: int) -> int:
+    return (await session.execute(text("SELECT count(*) FROM areas WHERE user_id = :u"), {"u": user_id})).scalar() or 0
+
+
+async def area_species(session: AsyncSession, key: str) -> list[dict]:
+    """Artsliste med historiske antal for området (viser hvad der er et 'lokalt hit')."""
+    rows = (await session.execute(text("""
+        SELECT s.artnr, s.navn, c.n_obs, c.n_days, c.last_date FROM area_species_counts c JOIN species s ON s.artnr = c.artnr
+        WHERE c.area_key = :k AND s.art_type IN ('art','underart') ORDER BY c.n_obs
+    """), {"k": key})).mappings().all()
+    return [dict(r) for r in rows]
