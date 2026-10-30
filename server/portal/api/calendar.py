@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_perm, require_user
@@ -20,16 +19,8 @@ from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["calendar"])
 perm_ture = require_perm("ture")
-DOF_URL = "https://www.dof.dk/oplev-fuglene/ture-og-aktiviter?event_id={}"
-
-
-def _event_url(row) -> str | None:
-    return DOF_URL.format(row["id"]) if row["source"] == "dof" else None
 TIME = r"^([01]\d|2[0-3])[:.][0-5]\d$"
 
-
-def _hhmm(v: str | None) -> str | None:
-    return v.replace(".", ":") if v else None
 
 
 def _base_url(request: Request) -> str:
@@ -41,31 +32,15 @@ def _base_url(request: Request) -> str:
 
 @router.get("/events")
 async def events(past: bool = False, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    rows = (await db.execute(text("""
-        SELECT e.id, e.title, e.dato, e.tid_fra, e.tid_til, e.types, e.arrangoer, e.afdeling_id, a.navn AS afdeling,
-               e.kommune_kode, coalesce(k.navn, regexp_replace(coalesce(e.commune, ''), ' Kommune$', '')) AS kommune,
-               e.lat, e.lon, e.loknr, l.navn AS lok, e.lok_dist_m, e.tilmelding, e.moedested, c.id AS calendar_id,
-               e.source, coalesce(u.navn, u.obserkode) AS created_by_navn
-        FROM dof_events e LEFT JOIN afdelinger a ON a.id = e.afdeling_id LEFT JOIN kommuner k ON k.kode = e.kommune_kode
-        LEFT JOIN locations l ON l.loknr = e.loknr LEFT JOIN site_calendars c ON c.loknr = e.loknr
-        LEFT JOIN users u ON u.id = e.created_by
-        WHERE (:past OR (e.listed AND e.dato >= :today)) ORDER BY e.dato, e.tid_fra NULLS LAST, e.title
-    """), {"past": past, "today": dk_today()})).mappings().all()
-    return [{**dict(r), "dato": r["dato"].isoformat(), "url": _event_url(r)} for r in rows]
+    return await dof_events.list_events(db, past)
 
 
 @router.get("/events/{event_id}")
 async def event(event_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    row = (await db.execute(text("""
-        SELECT e.*, a.navn AS afdeling, k.navn AS kommune, l.navn AS lok, c.id AS calendar_id,
-               coalesce(u.navn, u.obserkode) AS created_by_navn FROM dof_events e
-        LEFT JOIN afdelinger a ON a.id = e.afdeling_id LEFT JOIN kommuner k ON k.kode = e.kommune_kode
-        LEFT JOIN locations l ON l.loknr = e.loknr LEFT JOIN site_calendars c ON c.loknr = e.loknr
-        LEFT JOIN users u ON u.id = e.created_by WHERE e.id = :id
-    """), {"id": event_id})).mappings().first()
-    if not row:
+    e = await dof_events.get_event(db, event_id)
+    if e is None:
         raise HTTPException(404, "Turen findes ikke")
-    return {**dict(row), "url": _event_url(row)}
+    return e
 
 
 @router.get("/events/{event_id}/ics")
@@ -96,21 +71,10 @@ class EventIn(BaseModel):
 
 
 async def _save_event(db: AsyncSession, e: DofEvent, body: EventIn) -> None:
-    loc = (await db.execute(text("SELECT lat, lon, afdeling_id FROM locations WHERE loknr = :l"), {"l": body.loknr})).first()
-    if not loc or loc[0] is None:
-        raise HTTPException(400, "Vælg en lokalitet med koordinater")
-    clean = lambda v: (v or "").strip() or None  # noqa: E731
-    e.title, e.dato = body.title.strip(), body.dato
-    e.tid_fra, e.tid_til = _hhmm(body.tid_fra), _hhmm(body.tid_til)
-    e.types = [t.strip() for t in body.types if t.strip()][:6]
-    e.afdeling_id = body.afdeling_id or loc[2]
-    e.arrangoer = clean(body.arrangoer) or (await db.execute(text("SELECT navn FROM afdelinger WHERE id = :a"), {"a": e.afdeling_id})).scalar()
-    e.loknr, e.lok_dist_m, e.lat, e.lon = body.loknr, 0, loc[0], loc[1]
-    e.moedested, e.beskrivelse = clean(body.moedested), clean(body.beskrivelse)
-    e.tilmelding, e.turleder = clean(body.tilmelding), clean(body.turleder)
-    e.listed, e.detail_at = True, datetime.now(timezone.utc)
-    await db.flush()
-    await dof_events._code_location(db, e.id, keep_loknr=True)  # kommune ud fra punktet
+    try:
+        await dof_events.save_portal_event(db, e, body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 async def _portal_event(db: AsyncSession, event_id: int) -> DofEvent:
@@ -130,7 +94,7 @@ async def event_types(user: User = Depends(require_user)):
 @router.post("/events")
 async def create_event(body: EventIn, user: User = Depends(perm_ture), db: AsyncSession = Depends(get_session)):
     """Moderatorer kan oprette ture og begivenheder, der vises sammen med DOF's officielle ture."""
-    new_id = (await db.execute(text("SELECT nextval('portal_event_seq')"))).scalar()
+    new_id = await dof_events.next_portal_id(db)
     e = DofEvent(id=new_id, source="portal", created_by=user.id, title=body.title, dato=body.dato, types=[])
     db.add(e)
     await _save_event(db, e, body)
@@ -186,20 +150,18 @@ class VisitIn(BaseModel):
 @router.get("/calendars")
 async def list_calendars(lat: float | None = None, lon: float | None = None, user: User = Depends(require_user),
                          db: AsyncSession = Depends(get_session)):
-    mine = (await db.execute(select(func.count()).select_from(SiteCalendar).where(SiteCalendar.created_by == user.id))).scalar()
+    mine = await calendars.count_by_creator(db, user.id)
     return {"calendars": await calendars.list_calendars(db, user, lat, lon), "created_by_me": mine,
             "max_per_user": calendars.MAX_PER_USER, "kinds": calendars.KINDS}
 
 
 @router.post("/calendars")
 async def create_calendar(body: CalendarIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    existing = (await db.execute(select(SiteCalendar).where(SiteCalendar.loknr == body.loknr))).scalar_one_or_none()
-    if existing:
+    if await calendars.by_location(db, body.loknr):
         raise HTTPException(409, "Lokaliteten har allerede en kalender")
-    n = (await db.execute(select(func.count()).select_from(SiteCalendar).where(SiteCalendar.created_by == user.id))).scalar()
-    if n >= calendars.MAX_PER_USER and user.role not in ("admin", "superadmin"):
+    if await calendars.count_by_creator(db, user.id) >= calendars.MAX_PER_USER and user.role not in ("admin", "superadmin"):
         raise HTTPException(400, f"Du kan højst oprette {calendars.MAX_PER_USER} kalendere")
-    lok = (await db.execute(text("SELECT navn FROM locations WHERE loknr = :l"), {"l": body.loknr})).scalar()
+    lok = await calendars.location_name(db, body.loknr)
     if not lok:
         raise HTTPException(400, "Ukendt lokalitet")
     c = SiteCalendar(loknr=body.loknr, created_by=user.id, title=(body.title or lok).strip(), kind=body.kind,
@@ -246,23 +208,16 @@ async def delete_calendar(cid: int, user: User = Depends(require_user), db: Asyn
 async def get_calendar(cid: int, start: date | None = Query(None, alias="from"), end: date | None = Query(None, alias="to"),
                        user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     c = await _calendar(db, cid)
-    meta = (await db.execute(text("""
-        SELECT l.navn AS lok, l.lat, l.lon, k.navn AS kommune, a.navn AS afdeling, coalesce(u.navn, u.obserkode) AS creator
-        FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode LEFT JOIN afdelinger a ON a.id = l.afdeling_id
-        LEFT JOIN users u ON u.id = :creator WHERE l.loknr = :l
-    """), {"l": c.loknr, "creator": c.created_by})).mappings().first()
+    meta = await calendars.calendar_meta(db, c)
     start = start or dk_today().replace(day=1)
     end = end or (start + timedelta(days=41))
     if (end - start).days > 120:
         raise HTTPException(400, "For stort interval")
-    events = (await db.execute(text("""
-        SELECT id, title, dato, tid_fra, tid_til FROM dof_events WHERE loknr = :l AND dato BETWEEN :a AND :b ORDER BY dato
-    """), {"l": c.loknr, "a": start, "b": end})).mappings().all()
     center = max(dk_today(), start) if start <= dk_today() <= end else start + timedelta(days=(end - start).days // 2)
     return {"id": c.id, "loknr": c.loknr, "title": c.title, "kind": c.kind, "description": c.description,
-            "can_edit": _can_edit(c, user), **dict(meta), "from": start.isoformat(), "to": end.isoformat(),
+            "can_edit": _can_edit(c, user), **meta, "from": start.isoformat(), "to": end.isoformat(),
             "visits": await calendars.visits(db, user, c.id, start, end),
-            "events": [{**dict(e), "dato": e["dato"].isoformat()} for e in events],
+            "events": await calendars.events_at(db, c.loknr, start, end),
             "typical": await calendars.typical_species(db, c.loknr, center),
             "kinds": calendars.KINDS}
 
@@ -271,9 +226,9 @@ async def get_calendar(cid: int, start: date | None = Query(None, alias="from"),
 async def calendar_forecast(cid: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     """Trækvejr for de nærmeste dage (hentes separat, så kalenderen ikke venter på DMI)."""
     c = await _calendar(db, cid)
-    pos = (await db.execute(text("SELECT lat, lon FROM locations WHERE loknr = :l"), {"l": c.loknr})).first()
+    lat, lon = await calendars.location_position(db, c.loknr)
     try:
-        return await calendars.forecast_days(c.loknr, pos[0] if pos else None, pos[1] if pos else None)
+        return await calendars.forecast_days(c.loknr, lat, lon)
     except Exception:  # noqa: BLE001 – DMI nede må ikke vælte kalenderen
         return []
 
@@ -286,22 +241,18 @@ async def save_visit(cid: int, body: VisitIn, tasks: BackgroundTasks, user: User
         raise HTTPException(400, "Datoen er passeret")
     if body.show_phone and not (user.prefs or {}).get("phone"):
         raise HTTPException(400, "Tilføj først dit telefonnummer under Profil")
-    v = (await db.execute(select(CalendarVisit).where(CalendarVisit.calendar_id == c.id, CalendarVisit.user_id == user.id,
-                                                      CalendarVisit.dato == body.dato))).scalar_one_or_none()
+    v = await calendars.own_visit(db, c.id, user.id, body.dato)
     new = v is None
     if new:
         v = CalendarVisit(calendar_id=c.id, user_id=user.id, dato=body.dato)
         db.add(v)
-    v.tid_fra, v.tid_til = _hhmm(body.tid_fra), _hhmm(body.tid_til)
+    v.tid_fra, v.tid_til = dof_events.hhmm(body.tid_fra), dof_events.hhmm(body.tid_til)
     v.visibility, v.show_phone = body.visibility, body.show_phone
     v.companions = (body.companions or "").strip() or None
     v.note = (body.note or "").strip() or None
     v.lat, v.lon = (None, None)
     if body.lat is not None and body.lon is not None:
-        far = (await db.execute(text("""
-            SELECT ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 25000) FROM locations WHERE loknr = :l
-        """), {"lat": body.lat, "lon": body.lon, "l": c.loknr})).scalar()
-        if far is False:
+        if await calendars.near_location(db, c.loknr, body.lat, body.lon) is False:
             raise HTTPException(400, "Positionen ligger mere end 25 km fra lokaliteten")
         v.lat, v.lon = round(body.lat, 6), round(body.lon, 6)
     v.updated_at = datetime.now(timezone.utc)
@@ -320,9 +271,7 @@ async def _notify_same_day(visit_id: int) -> None:
             return
         c = await s.get(SiteCalendar, v.calendar_id)
         who = await s.get(User, v.user_id)
-        others = (await s.execute(text("""
-            SELECT DISTINCT user_id FROM calendar_visits WHERE calendar_id = :c AND dato = :d AND user_id <> :u AND visibility = 'public'
-        """), {"c": v.calendar_id, "d": v.dato, "u": v.user_id})).scalars().all()
+        others = await calendars.same_day_planners(s, v)
         if not others or c is None or who is None:
             return
         tid = f"{v.tid_fra}–{v.tid_til}" if v.tid_til else f"fra {v.tid_fra}"
@@ -347,15 +296,7 @@ async def my_visits(start: date = Query(alias="from"), end: date = Query(alias="
                     db: AsyncSession = Depends(get_session)):
     if (end - start).days > 120:
         raise HTTPException(400, "For stort interval")
-    rows = (await db.execute(text("""
-        SELECT v.id, v.calendar_id, v.dato, v.tid_fra, v.tid_til, v.visibility, v.companions, v.note, v.lat, v.lon, c.title, c.kind, c.loknr,
-               l.navn AS lok, k.navn AS kommune,
-               (SELECT count(*) FROM calendar_visits o WHERE o.calendar_id = v.calendar_id AND o.dato = v.dato AND o.user_id <> v.user_id) AS others
-        FROM calendar_visits v JOIN site_calendars c ON c.id = v.calendar_id JOIN locations l ON l.loknr = c.loknr
-        LEFT JOIN kommuner k ON k.kode = l.kommune_kode
-        WHERE v.user_id = :u AND v.dato BETWEEN :a AND :b ORDER BY v.dato, v.tid_fra
-    """), {"u": user.id, "a": start, "b": end})).mappings().all()
-    return [{**dict(r), "dato": r["dato"].isoformat()} for r in rows]
+    return await calendars.my_visits(db, user.id, start, end)
 
 
 # ---------------------------------------------------------------- ICS-abonnementer
@@ -388,12 +329,7 @@ async def _ics_user(db: AsyncSession, token: str) -> User:
 async def ics_mine(token: str, db: AsyncSession = Depends(get_session)):
     """Egne planlagte besøg – til abonnement i Google/Outlook/Apple (kræver ikke login, kun token)."""
     u = await _ics_user(db, token)
-    rows = (await db.execute(text("""
-        SELECT v.id, v.dato, v.tid_fra, v.tid_til, v.companions, v.note, c.id AS cid, c.title, l.navn AS lok,
-               coalesce(v.lat, l.lat) AS lat, coalesce(v.lon, l.lon) AS lon
-        FROM calendar_visits v JOIN site_calendars c ON c.id = v.calendar_id JOIN locations l ON l.loknr = c.loknr
-        WHERE v.user_id = :u AND v.dato >= current_date - 60 ORDER BY v.dato
-    """), {"u": u.id})).mappings().all()
+    rows = await calendars.ics_my_visits(db, u.id)
     body = calendars.ics("Mine fugleplaner (DOF.tool)", [{
         "uid": f"visit-{r['id']}@dof.tool", "start": r["dato"], "tid_fra": r["tid_fra"], "tid_til": r["tid_til"],
         "summary": f"🔭 {r['title']}", "location": r["lok"], "lat": r["lat"], "lon": r["lon"],
@@ -406,17 +342,11 @@ async def ics_calendar(token: str, cid: int, db: AsyncSession = Depends(get_sess
     """En lokalitets kalender: offentlige besøg (+ egne private) og DOF-ture på stedet."""
     u = await _ics_user(db, token)
     c = await _calendar(db, cid)
-    rows = (await db.execute(text("""
-        SELECT v.id, v.dato, v.tid_fra, v.tid_til, v.companions, v.visibility, v.user_id, coalesce(us.navn, us.obserkode) AS navn,
-               l.navn AS lok, coalesce(v.lat, l.lat) AS lat, coalesce(v.lon, l.lon) AS lon
-        FROM calendar_visits v JOIN users us ON us.id = v.user_id JOIN locations l ON l.loknr = :l
-        WHERE v.calendar_id = :c AND v.dato >= current_date - 60 AND (v.visibility = 'public' OR v.user_id = :u) ORDER BY v.dato
-    """), {"c": c.id, "u": u.id, "l": c.loknr})).mappings().all()
+    rows = await calendars.ics_calendar_visits(db, c, u.id)
     events = [{"uid": f"visit-{r['id']}@dof.tool", "start": r["dato"], "tid_fra": r["tid_fra"], "tid_til": r["tid_til"],
                "summary": f"{r['navn']} @ {c.title}", "location": r["lok"], "lat": r["lat"], "lon": r["lon"],
                "description": r["companions"] and f"Med: {r['companions']}"} for r in rows]
-    for e in (await db.execute(text("SELECT id, title, dato, tid_fra, tid_til FROM dof_events WHERE loknr = :l AND dato >= current_date - 60"),
-                               {"l": c.loknr})).mappings().all():
+    for e in await calendars.ics_events_at(db, c.loknr):
         events.append({"uid": f"dofevent-{e['id']}@dof.tool", "start": e["dato"], "tid_fra": e["tid_fra"], "tid_til": e["tid_til"],
-                       "summary": f"DOF-tur: {e['title']}", "url": f"https://www.dof.dk/oplev-fuglene/ture-og-aktiviter?event_id={e['id']}"})
+                       "summary": f"DOF-tur: {e['title']}", "url": dof_events.EVENT_URL.format(e["id"])})
     return Response(calendars.ics(f"{c.title} (DOF.tool)", events), media_type="text/calendar; charset=utf-8")

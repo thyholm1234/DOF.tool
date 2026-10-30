@@ -216,3 +216,70 @@ async def sync() -> dict:
             n_detail += 1
     log.info("DOF-ture: %s på listen, %s detaljer hentet", len(listed), n_detail)
     return {"listed": len(listed), "details": n_detail}
+
+
+# ---------------------------------------------------------------- turoversigten i portalen (api/calendar.py)
+
+EVENT_URL = BASE + "?event_id={}"
+
+
+def event_url(row) -> str | None:
+    """Link til turen på dof.dk – kun for DOF's egne ture (portalens ture har ingen side dér)."""
+    return EVENT_URL.format(row["id"]) if row["source"] == "dof" else None
+
+
+async def list_events(session, past: bool) -> list[dict]:
+    """Kommende ture (eller alle med past=True) med afdeling, kommune, lokalitet og evt. lokalitetskalender."""
+    rows = (await session.execute(text("""
+        SELECT e.id, e.title, e.dato, e.tid_fra, e.tid_til, e.types, e.arrangoer, e.afdeling_id, a.navn AS afdeling,
+               e.kommune_kode, coalesce(k.navn, regexp_replace(coalesce(e.commune, ''), ' Kommune$', '')) AS kommune,
+               e.lat, e.lon, e.loknr, l.navn AS lok, e.lok_dist_m, e.tilmelding, e.moedested, c.id AS calendar_id,
+               e.source, coalesce(u.navn, u.obserkode) AS created_by_navn
+        FROM dof_events e LEFT JOIN afdelinger a ON a.id = e.afdeling_id LEFT JOIN kommuner k ON k.kode = e.kommune_kode
+        LEFT JOIN locations l ON l.loknr = e.loknr LEFT JOIN site_calendars c ON c.loknr = e.loknr
+        LEFT JOIN users u ON u.id = e.created_by
+        WHERE (:past OR (e.listed AND e.dato >= :today)) ORDER BY e.dato, e.tid_fra NULLS LAST, e.title
+    """), {"past": past, "today": dk_today()})).mappings().all()
+    return [{**dict(r), "dato": r["dato"].isoformat(), "url": event_url(r)} for r in rows]
+
+
+async def get_event(session, event_id: int) -> dict | None:
+    row = (await session.execute(text("""
+        SELECT e.*, a.navn AS afdeling, k.navn AS kommune, l.navn AS lok, c.id AS calendar_id,
+               coalesce(u.navn, u.obserkode) AS created_by_navn FROM dof_events e
+        LEFT JOIN afdelinger a ON a.id = e.afdeling_id LEFT JOIN kommuner k ON k.kode = e.kommune_kode
+        LEFT JOIN locations l ON l.loknr = e.loknr LEFT JOIN site_calendars c ON c.loknr = e.loknr
+        LEFT JOIN users u ON u.id = e.created_by WHERE e.id = :id
+    """), {"id": event_id})).mappings().first()
+    return {**dict(row), "url": event_url(row)} if row else None
+
+
+async def next_portal_id(session) -> int:
+    """Id til en tur oprettet i portalen (egen sekvens, så den ikke rammer dof.dk's id'er)."""
+    return (await session.execute(text("SELECT nextval('portal_event_seq')"))).scalar()
+
+
+def hhmm(v: str | None) -> str | None:
+    """Klokkeslæt med kolon (formularen tillader også 07.30)."""
+    return v.replace(".", ":") if v else None
+
+
+async def save_portal_event(session, e, fields: dict) -> None:
+    """Udfyld en portaltur (DofEvent) fra formularens felter. Lokaliteten giver position, afdeling og kommune.
+    ValueError, hvis lokaliteten ikke har koordinater."""
+    loc = (await session.execute(text("SELECT lat, lon, afdeling_id FROM locations WHERE loknr = :l"), {"l": fields["loknr"]})).first()
+    if not loc or loc[0] is None:
+        raise ValueError("Vælg en lokalitet med koordinater")
+    clean = lambda v: (v or "").strip() or None  # noqa: E731
+    e.title, e.dato = fields["title"].strip(), fields["dato"]
+    e.tid_fra, e.tid_til = hhmm(fields.get("tid_fra")), hhmm(fields.get("tid_til"))
+    e.types = [t.strip() for t in fields.get("types") or [] if t.strip()][:6]
+    e.afdeling_id = fields.get("afdeling_id") or loc[2]
+    e.arrangoer = clean(fields.get("arrangoer")) or (await session.execute(
+        text("SELECT navn FROM afdelinger WHERE id = :a"), {"a": e.afdeling_id})).scalar()
+    e.loknr, e.lok_dist_m, e.lat, e.lon = fields["loknr"], 0, loc[0], loc[1]
+    e.moedested, e.beskrivelse = clean(fields.get("moedested")), clean(fields.get("beskrivelse"))
+    e.tilmelding, e.turleder = clean(fields.get("tilmelding")), clean(fields.get("turleder"))
+    e.listed, e.detail_at = True, datetime.now(timezone.utc)
+    await session.flush()
+    await _code_location(session, e.id, keep_loknr=True)  # kommune ud fra punktet

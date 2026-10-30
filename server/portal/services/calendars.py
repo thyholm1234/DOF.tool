@@ -13,12 +13,12 @@ from __future__ import annotations
 import secrets
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached
 from portal.domain import adfaerd
-from portal.models import User
+from portal.models import CalendarVisit, SiteCalendar, User
 from portal.services import dmi
 from portal.timeutil import TZ, dk_today
 
@@ -179,3 +179,100 @@ def ics(name: str, events: list[dict]) -> str:
         lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
     return "\r\n".join(_fold(x) for x in lines) + "\r\n"
+
+
+# ---------------------------------------------------------------- opslag til api/calendar.py
+
+
+async def count_by_creator(session: AsyncSession, user_id: int) -> int:
+    return (await session.execute(select(func.count()).select_from(SiteCalendar).where(SiteCalendar.created_by == user_id))).scalar() or 0
+
+
+async def by_location(session: AsyncSession, loknr: int) -> SiteCalendar | None:
+    return (await session.execute(select(SiteCalendar).where(SiteCalendar.loknr == loknr))).scalar_one_or_none()
+
+
+async def location_name(session: AsyncSession, loknr: int) -> str | None:
+    return (await session.execute(text("SELECT navn FROM locations WHERE loknr = :l"), {"l": loknr})).scalar()
+
+
+async def location_position(session: AsyncSession, loknr: int) -> tuple[float | None, float | None]:
+    pos = (await session.execute(text("SELECT lat, lon FROM locations WHERE loknr = :l"), {"l": loknr})).first()
+    return (pos[0], pos[1]) if pos else (None, None)
+
+
+async def calendar_meta(session: AsyncSession, c: SiteCalendar) -> dict:
+    """Lokalitet, kommune, afdeling og opretter til kalendersiden."""
+    meta = (await session.execute(text("""
+        SELECT l.navn AS lok, l.lat, l.lon, k.navn AS kommune, a.navn AS afdeling, coalesce(u.navn, u.obserkode) AS creator
+        FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode LEFT JOIN afdelinger a ON a.id = l.afdeling_id
+        LEFT JOIN users u ON u.id = :creator WHERE l.loknr = :l
+    """), {"l": c.loknr, "creator": c.created_by})).mappings().first()
+    return dict(meta) if meta else {}
+
+
+async def events_at(session: AsyncSession, loknr: int, start: date, end: date) -> list[dict]:
+    """DOF-ture på lokaliteten i perioden."""
+    rows = (await session.execute(text("""
+        SELECT id, title, dato, tid_fra, tid_til FROM dof_events WHERE loknr = :l AND dato BETWEEN :a AND :b ORDER BY dato
+    """), {"l": loknr, "a": start, "b": end})).mappings().all()
+    return [{**dict(e), "dato": e["dato"].isoformat()} for e in rows]
+
+
+async def own_visit(session: AsyncSession, calendar_id: int, user_id: int, dato: date) -> CalendarVisit | None:
+    return (await session.execute(select(CalendarVisit).where(CalendarVisit.calendar_id == calendar_id, CalendarVisit.user_id == user_id,
+                                                              CalendarVisit.dato == dato))).scalar_one_or_none()
+
+
+async def near_location(session: AsyncSession, loknr: int, lat: float, lon: float) -> bool | None:
+    """Ligger punktet inden for 25 km fra lokaliteten? None, hvis lokaliteten ikke har en geometri."""
+    return (await session.execute(text("""
+        SELECT ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 25000) FROM locations WHERE loknr = :l
+    """), {"lat": lat, "lon": lon, "l": loknr})).scalar()
+
+
+async def same_day_planners(session: AsyncSession, v: CalendarVisit) -> list[int]:
+    """Andre brugere med offentlige planer samme dag og sted."""
+    return list((await session.execute(text("""
+        SELECT DISTINCT user_id FROM calendar_visits WHERE calendar_id = :c AND dato = :d AND user_id <> :u AND visibility = 'public'
+    """), {"c": v.calendar_id, "d": v.dato, "u": v.user_id})).scalars().all())
+
+
+async def my_visits(session: AsyncSession, user_id: int, start: date, end: date) -> list[dict]:
+    rows = (await session.execute(text("""
+        SELECT v.id, v.calendar_id, v.dato, v.tid_fra, v.tid_til, v.visibility, v.companions, v.note, v.lat, v.lon, c.title, c.kind, c.loknr,
+               l.navn AS lok, k.navn AS kommune,
+               (SELECT count(*) FROM calendar_visits o WHERE o.calendar_id = v.calendar_id AND o.dato = v.dato AND o.user_id <> v.user_id) AS others
+        FROM calendar_visits v JOIN site_calendars c ON c.id = v.calendar_id JOIN locations l ON l.loknr = c.loknr
+        LEFT JOIN kommuner k ON k.kode = l.kommune_kode
+        WHERE v.user_id = :u AND v.dato BETWEEN :a AND :b ORDER BY v.dato, v.tid_fra
+    """), {"u": user_id, "a": start, "b": end})).mappings().all()
+    return [{**dict(r), "dato": r["dato"].isoformat()} for r in rows]
+
+
+async def ics_my_visits(session: AsyncSession, user_id: int) -> list[dict]:
+    """Egne planlagte besøg fra 60 dage tilbage – til ICS-abonnementet."""
+    rows = (await session.execute(text("""
+        SELECT v.id, v.dato, v.tid_fra, v.tid_til, v.companions, v.note, c.id AS cid, c.title, l.navn AS lok,
+               coalesce(v.lat, l.lat) AS lat, coalesce(v.lon, l.lon) AS lon
+        FROM calendar_visits v JOIN site_calendars c ON c.id = v.calendar_id JOIN locations l ON l.loknr = c.loknr
+        WHERE v.user_id = :u AND v.dato >= current_date - 60 ORDER BY v.dato
+    """), {"u": user_id})).mappings().all()
+    return [dict(r) for r in rows]
+
+
+async def ics_calendar_visits(session: AsyncSession, c: SiteCalendar, user_id: int) -> list[dict]:
+    """Kalenderens offentlige besøg (+ brugerens egne private) fra 60 dage tilbage."""
+    rows = (await session.execute(text("""
+        SELECT v.id, v.dato, v.tid_fra, v.tid_til, v.companions, v.visibility, v.user_id, coalesce(us.navn, us.obserkode) AS navn,
+               l.navn AS lok, coalesce(v.lat, l.lat) AS lat, coalesce(v.lon, l.lon) AS lon
+        FROM calendar_visits v JOIN users us ON us.id = v.user_id JOIN locations l ON l.loknr = :l
+        WHERE v.calendar_id = :c AND v.dato >= current_date - 60 AND (v.visibility = 'public' OR v.user_id = :u) ORDER BY v.dato
+    """), {"c": c.id, "u": user_id, "l": c.loknr})).mappings().all()
+    return [dict(r) for r in rows]
+
+
+async def ics_events_at(session: AsyncSession, loknr: int) -> list[dict]:
+    rows = (await session.execute(text("SELECT id, title, dato, tid_fra, tid_til FROM dof_events WHERE loknr = :l AND dato >= current_date - 60"),
+                                  {"l": loknr})).mappings().all()
+    return [dict(r) for r in rows]
