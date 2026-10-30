@@ -1,0 +1,5252 @@
+{
+"/api/activity": {
+"post": {
+"body": true,
+"op": "page_view_api_activity_post",
+"params": []
+}
+},
+"/api/admin/activity": {
+"get": {
+"body": false,
+"op": "admin_activity_api_admin_activity_get",
+"params": [
+[
+"days",
+"query",
+false
+]
+]
+}
+},
+"/api/admin/activity/user/{user_id}": {
+"get": {
+"body": false,
+"op": "user_activity_api_admin_activity_user__user_id__get",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/archive/files": {
+"get": {
+"body": false,
+"op": "archive_list_api_admin_archive_files_get",
+"params": []
+}
+},
+"/api/admin/archive/upload": {
+"post": {
+"body": true,
+"op": "archive_upload_api_admin_archive_upload_post",
+"params": []
+}
+},
+"/api/admin/archive/upload/{name}": {
+"delete": {
+"body": false,
+"op": "archive_upload_delete_api_admin_archive_upload__name__delete",
+"params": [
+[
+"name",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/backup": {
+"get": {
+"body": false,
+"op": "get_backup_api_admin_backup_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "put_backup_api_admin_backup_put",
+"params": []
+}
+},
+"/api/admin/backup/download/{name}": {
+"get": {
+"body": false,
+"op": "download_backup_api_admin_backup_download__name__get",
+"params": [
+[
+"name",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/backup/host-key": {
+"get": {
+"body": false,
+"op": "backup_host_key_api_admin_backup_host_key_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "trust_host_key_api_admin_backup_host_key_post",
+"params": []
+}
+},
+"/api/admin/backup/run": {
+"post": {
+"body": false,
+"op": "run_backup_api_admin_backup_run_post",
+"params": []
+}
+},
+"/api/admin/backup/test": {
+"post": {
+"body": false,
+"op": "test_backup_api_admin_backup_test_post",
+"params": []
+}
+},
+"/api/admin/bans": {
+"get": {
+"body": false,
+"op": "bans_api_admin_bans_get",
+"params": []
+}
+},
+"/api/admin/bans/{user_id}": {
+"delete": {
+"body": false,
+"op": "unban_api_admin_bans__user_id__delete",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "ban_api_admin_bans__user_id__put",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/bemaerk": {
+"get": {
+"body": false,
+"op": "thresholds_api_admin_bemaerk_get",
+"params": [
+[
+"afdeling",
+"query",
+false
+]
+]
+}
+},
+"/api/admin/bemaerk/{afdeling_id}": {
+"delete": {
+"body": false,
+"op": "remove_threshold_api_admin_bemaerk__afdeling_id__delete",
+"params": [
+[
+"afdeling_id",
+"path",
+true
+],
+[
+"artnavn",
+"query",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "set_threshold_api_admin_bemaerk__afdeling_id__put",
+"params": [
+[
+"afdeling_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/comments": {
+"get": {
+"body": false,
+"op": "comments_api_admin_comments_get",
+"params": [
+[
+"q",
+"query",
+false
+],
+[
+"status",
+"query",
+false
+]
+]
+}
+},
+"/api/admin/comments/{cid}": {
+"patch": {
+"body": true,
+"op": "moderate_api_admin_comments__cid__patch",
+"params": [
+[
+"cid",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/data/dof/month": {
+"post": {
+"body": true,
+"op": "dof_month_api_admin_data_dof_month_post",
+"params": []
+}
+},
+"/api/admin/data/weather/months": {
+"post": {
+"body": true,
+"op": "weather_months_api_admin_data_weather_months_post",
+"params": []
+}
+},
+"/api/admin/data/weather/queue": {
+"delete": {
+"body": false,
+"op": "weather_clear_api_admin_data_weather_queue_delete",
+"params": []
+}
+},
+"/api/admin/data/{source}": {
+"get": {
+"body": false,
+"op": "data_panel_api_admin_data__source__get",
+"params": [
+[
+"source",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/data/{source}/month/{year}/{month}": {
+"delete": {
+"body": false,
+"op": "delete_month_api_admin_data__source__month__year___month__delete",
+"params": [
+[
+"month",
+"path",
+true
+],
+[
+"source",
+"path",
+true
+],
+[
+"year",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/data/{source}/plan": {
+"put": {
+"body": true,
+"op": "save_plan_api_admin_data__source__plan_put",
+"params": [
+[
+"source",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/data/{source}/run/{tier}": {
+"post": {
+"body": false,
+"op": "run_tier_api_admin_data__source__run__tier__post",
+"params": [
+[
+"source",
+"path",
+true
+],
+[
+"tier",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/fcm": {
+"delete": {
+"body": false,
+"op": "delete_fcm_api_admin_fcm_delete",
+"params": []
+},
+"get": {
+"body": false,
+"op": "get_fcm_api_admin_fcm_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "put_fcm_api_admin_fcm_put",
+"params": []
+}
+},
+"/api/admin/features": {
+"get": {
+"body": false,
+"op": "get_features_api_admin_features_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "put_features_api_admin_features_put",
+"params": []
+}
+},
+"/api/admin/gateway/enqueue": {
+"post": {
+"body": true,
+"op": "enqueue_api_admin_gateway_enqueue_post",
+"params": []
+}
+},
+"/api/admin/gateway/jobs/{job_id}": {
+"delete": {
+"body": false,
+"op": "cancel_job_api_admin_gateway_jobs__job_id__delete",
+"params": [
+[
+"job_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/gateway/queue": {
+"delete": {
+"body": false,
+"op": "clear_queue_api_admin_gateway_queue_delete",
+"params": []
+}
+},
+"/api/admin/jobs": {
+"get": {
+"body": false,
+"op": "jobs_api_admin_jobs_get",
+"params": []
+}
+},
+"/api/admin/locfinds": {
+"get": {
+"body": false,
+"op": "get_locfinds_api_admin_locfinds_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "put_locfinds_api_admin_locfinds_put",
+"params": []
+}
+},
+"/api/admin/modules": {
+"get": {
+"body": false,
+"op": "module_list_api_admin_modules_get",
+"params": []
+}
+},
+"/api/admin/news": {
+"post": {
+"body": true,
+"op": "create_news_api_admin_news_post",
+"params": []
+}
+},
+"/api/admin/news/{nid}": {
+"delete": {
+"body": false,
+"op": "delete_news_api_admin_news__nid__delete",
+"params": [
+[
+"nid",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/overview": {
+"get": {
+"body": false,
+"op": "overview_api_admin_overview_get",
+"params": []
+}
+},
+"/api/admin/phenology": {
+"delete": {
+"body": false,
+"op": "remove_windows_api_admin_phenology_delete",
+"params": [
+[
+"artnavn",
+"query",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "phenology_api_admin_phenology_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "set_windows_api_admin_phenology_put",
+"params": []
+}
+},
+"/api/admin/reference-edits/{edit_id}": {
+"delete": {
+"body": false,
+"op": "revert_api_admin_reference_edits__edit_id__delete",
+"params": [
+[
+"edit_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/roles": {
+"get": {
+"body": false,
+"op": "roles_api_admin_roles_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "create_role_api_admin_roles_post",
+"params": []
+}
+},
+"/api/admin/roles/{key}": {
+"delete": {
+"body": false,
+"op": "delete_role_api_admin_roles__key__delete",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "update_role_api_admin_roles__key__patch",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/schedule": {
+"get": {
+"body": false,
+"op": "get_schedule_api_admin_schedule_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "put_schedule_api_admin_schedule_put",
+"params": []
+}
+},
+"/api/admin/settings": {
+"put": {
+"body": true,
+"op": "put_settings_api_admin_settings_put",
+"params": []
+}
+},
+"/api/admin/species": {
+"get": {
+"body": false,
+"op": "species_list_api_admin_species_get",
+"params": [
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/admin/species/{artnr}": {
+"patch": {
+"body": true,
+"op": "update_species_api_admin_species__artnr__patch",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/species/{artnr}/edits": {
+"delete": {
+"body": false,
+"op": "revert_species_api_admin_species__artnr__edits_delete",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/speech-model": {
+"get": {
+"body": false,
+"op": "speech_model_api_admin_speech_model_get",
+"params": []
+}
+},
+"/api/admin/speech-model/upload/{upload_id}": {
+"post": {
+"body": false,
+"op": "speech_model_chunk_api_admin_speech_model_upload__upload_id__post",
+"params": [
+[
+"offset",
+"query",
+true
+],
+[
+"upload_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/speech-model/upload/{upload_id}/finish": {
+"post": {
+"body": false,
+"op": "speech_model_finish_api_admin_speech_model_upload__upload_id__finish_post",
+"params": [
+[
+"upload_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/storage": {
+"get": {
+"body": false,
+"op": "storage_usage_api_admin_storage_get",
+"params": [
+[
+"refresh",
+"query",
+false
+]
+]
+}
+},
+"/api/admin/support": {
+"get": {
+"body": false,
+"op": "admin_threads_api_admin_support_get",
+"params": [
+[
+"kind",
+"query",
+false
+],
+[
+"status",
+"query",
+false
+]
+]
+}
+},
+"/api/admin/test-users": {
+"post": {
+"body": true,
+"op": "create_test_user_api_admin_test_users_post",
+"params": []
+}
+},
+"/api/admin/test-users/{user_id}/password": {
+"post": {
+"body": true,
+"op": "reset_test_password_api_admin_test_users__user_id__password_post",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/users": {
+"get": {
+"body": false,
+"op": "users_api_admin_users_get",
+"params": [
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/admin/users/{user_id}": {
+"delete": {
+"body": false,
+"op": "delete_user_api_admin_users__user_id__delete",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "update_user_api_admin_users__user_id__patch",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/users/{user_id}/message": {
+"post": {
+"body": true,
+"op": "message_user_api_admin_users__user_id__message_post",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/admin/worker/{cmd}": {
+"post": {
+"body": true,
+"op": "worker_api_admin_worker__cmd__post",
+"params": [
+[
+"cmd",
+"path",
+true
+]
+]
+}
+},
+"/api/afdelinger": {
+"get": {
+"body": false,
+"op": "afdelinger_api_afdelinger_get",
+"params": []
+}
+},
+"/api/alerts/rules": {
+"get": {
+"body": false,
+"op": "list_rules_api_alerts_rules_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "create_rule_api_alerts_rules_post",
+"params": []
+}
+},
+"/api/alerts/rules/{rule_id}": {
+"delete": {
+"body": false,
+"op": "delete_rule_api_alerts_rules__rule_id__delete",
+"params": [
+[
+"rule_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_rule_api_alerts_rules__rule_id__put",
+"params": [
+[
+"rule_id",
+"path",
+true
+]
+]
+}
+},
+"/api/areas": {
+"get": {
+"body": false,
+"op": "list_areas_api_areas_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "create_area_api_areas_post",
+"params": []
+}
+},
+"/api/areas/near-me": {
+"put": {
+"body": true,
+"op": "near_me_api_areas_near_me_put",
+"params": []
+}
+},
+"/api/areas/{area_id}": {
+"delete": {
+"body": false,
+"op": "delete_area_api_areas__area_id__delete",
+"params": [
+[
+"area_id",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "update_area_api_areas__area_id__patch",
+"params": [
+[
+"area_id",
+"path",
+true
+]
+]
+}
+},
+"/api/areas/{area_id}/species": {
+"get": {
+"body": false,
+"op": "area_species_api_areas__area_id__species_get",
+"params": [
+[
+"area_id",
+"path",
+true
+]
+]
+}
+},
+"/api/atlas/squares": {
+"get": {
+"body": false,
+"op": "atlas_squares_api_atlas_squares_get",
+"params": []
+}
+},
+"/api/auth/login": {
+"post": {
+"body": true,
+"op": "login_api_auth_login_post",
+"params": []
+}
+},
+"/api/auth/logout": {
+"post": {
+"body": false,
+"op": "logout_api_auth_logout_post",
+"params": []
+}
+},
+"/api/calendars": {
+"get": {
+"body": false,
+"op": "list_calendars_api_calendars_get",
+"params": [
+[
+"lat",
+"query",
+false
+],
+[
+"lon",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "create_calendar_api_calendars_post",
+"params": []
+}
+},
+"/api/calendars/{cid}": {
+"delete": {
+"body": false,
+"op": "delete_calendar_api_calendars__cid__delete",
+"params": [
+[
+"cid",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "get_calendar_api_calendars__cid__get",
+"params": [
+[
+"cid",
+"path",
+true
+],
+[
+"from",
+"query",
+false
+],
+[
+"to",
+"query",
+false
+]
+]
+},
+"patch": {
+"body": true,
+"op": "patch_calendar_api_calendars__cid__patch",
+"params": [
+[
+"cid",
+"path",
+true
+]
+]
+}
+},
+"/api/calendars/{cid}/forecast": {
+"get": {
+"body": false,
+"op": "calendar_forecast_api_calendars__cid__forecast_get",
+"params": [
+[
+"cid",
+"path",
+true
+]
+]
+}
+},
+"/api/calendars/{cid}/visits": {
+"post": {
+"body": true,
+"op": "save_visit_api_calendars__cid__visits_post",
+"params": [
+[
+"cid",
+"path",
+true
+]
+]
+}
+},
+"/api/categories/danish-list": {
+"get": {
+"body": false,
+"op": "danish_list_preview_api_categories_danish_list_get",
+"params": []
+},
+"post": {
+"body": false,
+"op": "danish_list_import_api_categories_danish_list_post",
+"params": []
+}
+},
+"/api/categories/danish-list/refresh": {
+"post": {
+"body": false,
+"op": "danish_list_refresh_api_categories_danish_list_refresh_post",
+"params": []
+}
+},
+"/api/categories/finds": {
+"get": {
+"body": false,
+"op": "list_finds_api_categories_finds_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "add_find_api_categories_finds_post",
+"params": []
+}
+},
+"/api/categories/finds/{item_id}": {
+"delete": {
+"body": false,
+"op": "remove_find_api_categories_finds__item_id__delete",
+"params": [
+[
+"item_id",
+"path",
+true
+]
+]
+}
+},
+"/api/categories/overrides": {
+"post": {
+"body": true,
+"op": "add_override_api_categories_overrides_post",
+"params": []
+}
+},
+"/api/categories/overrides/{item_id}": {
+"delete": {
+"body": false,
+"op": "remove_override_api_categories_overrides__item_id__delete",
+"params": [
+[
+"item_id",
+"path",
+true
+]
+]
+}
+},
+"/api/categories/periods/{item_id}": {
+"delete": {
+"body": false,
+"op": "remove_period_api_categories_periods__item_id__delete",
+"params": [
+[
+"item_id",
+"path",
+true
+]
+]
+}
+},
+"/api/categories/species": {
+"get": {
+"body": false,
+"op": "species_api_categories_species_get",
+"params": [
+[
+"q",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "create_species_api_categories_species_post",
+"params": []
+}
+},
+"/api/categories/species/{artnr}": {
+"get": {
+"body": false,
+"op": "species_detail_api_categories_species__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/categories/species/{artnr}/periods": {
+"post": {
+"body": true,
+"op": "add_period_api_categories_species__artnr__periods_post",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/comments/{comment_id}": {
+"delete": {
+"body": false,
+"op": "delete_comment_api_comments__comment_id__delete",
+"params": [
+[
+"comment_id",
+"path",
+true
+]
+]
+}
+},
+"/api/daymap": {
+"get": {
+"body": false,
+"op": "day_map_api_daymap_get",
+"params": [
+[
+"date",
+"query",
+false
+],
+[
+"local_max",
+"query",
+false
+]
+]
+}
+},
+"/api/dku/candidates": {
+"get": {
+"body": false,
+"op": "candidates_api_dku_candidates_get",
+"params": [
+[
+"afdeling",
+"query",
+false
+],
+[
+"antal_min",
+"query",
+false
+],
+[
+"days",
+"query",
+false
+],
+[
+"faktor",
+"query",
+false
+],
+[
+"hist_years",
+"query",
+false
+],
+[
+"kriterier",
+"query",
+false
+],
+[
+"kun_bemaerk",
+"query",
+false
+],
+[
+"min",
+"query",
+false
+],
+[
+"niveau",
+"query",
+false
+],
+[
+"ny_max",
+"query",
+false
+],
+[
+"saeson_dage",
+"query",
+false
+],
+[
+"vis_behandlede",
+"query",
+false
+]
+]
+}
+},
+"/api/dku/candidates/analyses": {
+"get": {
+"body": false,
+"op": "list_analyses_api_dku_candidates_analyses_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "start_analysis_api_dku_candidates_analyses_post",
+"params": []
+}
+},
+"/api/dku/candidates/analyses/{aid}": {
+"get": {
+"body": false,
+"op": "get_analysis_api_dku_candidates_analyses__aid__get",
+"params": [
+[
+"aid",
+"path",
+true
+],
+[
+"vis_behandlede",
+"query",
+false
+]
+]
+}
+},
+"/api/dku/candidates/standing": {
+"get": {
+"body": false,
+"op": "standing_api_dku_candidates_standing_get",
+"params": [
+[
+"afdeling",
+"query",
+false
+],
+[
+"vis_behandlede",
+"query",
+false
+]
+]
+},
+"put": {
+"body": true,
+"op": "save_standing_api_dku_candidates_standing_put",
+"params": []
+}
+},
+"/api/dku/cases": {
+"get": {
+"body": false,
+"op": "cases_api_dku_cases_get",
+"params": [
+[
+"state",
+"query",
+false
+],
+[
+"view",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "open_case_api_dku_cases_post",
+"params": []
+}
+},
+"/api/dku/cases/{case_id}": {
+"get": {
+"body": false,
+"op": "get_case_api_dku_cases__case_id__get",
+"params": [
+[
+"case_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dku/cases/{case_id}/actions": {
+"post": {
+"body": true,
+"op": "action_api_dku_cases__case_id__actions_post",
+"params": [
+[
+"case_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dku/cases/{case_id}/messages": {
+"post": {
+"body": true,
+"op": "post_message_api_dku_cases__case_id__messages_post",
+"params": [
+[
+"case_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dku/members": {
+"get": {
+"body": false,
+"op": "members_api_dku_members_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "add_member_api_dku_members_post",
+"params": []
+}
+},
+"/api/dku/members/{afdeling_id}/{user_id}": {
+"delete": {
+"body": false,
+"op": "remove_member_api_dku_members__afdeling_id___user_id__delete",
+"params": [
+[
+"afdeling_id",
+"path",
+true
+],
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dku/review": {
+"post": {
+"body": true,
+"op": "approve_api_dku_review_post",
+"params": []
+}
+},
+"/api/dku/review/{obsid}": {
+"delete": {
+"body": false,
+"op": "unapprove_api_dku_review__obsid__delete",
+"params": [
+[
+"obsid",
+"path",
+true
+]
+]
+}
+},
+"/api/dku/status": {
+"get": {
+"body": false,
+"op": "status_api_dku_status_get",
+"params": []
+}
+},
+"/api/dofbasen/admin/api": {
+"get": {
+"body": false,
+"op": "admin_api_api_dofbasen_admin_api_get",
+"params": []
+}
+},
+"/api/dofbasen/admin/api/tokens/{token_id}": {
+"delete": {
+"body": false,
+"op": "spaer_token_api_dofbasen_admin_api_tokens__token_id__delete",
+"params": [
+[
+"token_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/admin/api/{user_id}": {
+"delete": {
+"body": false,
+"op": "fjern_api_api_dofbasen_admin_api__user_id__delete",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "giv_api_api_dofbasen_admin_api__user_id__put",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/admin/brugere": {
+"get": {
+"body": false,
+"op": "admin_brugere_api_dofbasen_admin_brugere_get",
+"params": [
+[
+"q",
+"query",
+true
+]
+]
+}
+},
+"/api/dofbasen/admin/brugere/{user_id}/roller": {
+"put": {
+"body": true,
+"op": "saet_roller_api_dofbasen_admin_brugere__user_id__roller_put",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/admin/oversigt": {
+"get": {
+"body": false,
+"op": "admin_oversigt_api_dofbasen_admin_oversigt_get",
+"params": []
+}
+},
+"/api/dofbasen/admin/roller": {
+"get": {
+"body": false,
+"op": "admin_roller_api_dofbasen_admin_roller_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "ny_rolle_api_dofbasen_admin_roller_post",
+"params": []
+}
+},
+"/api/dofbasen/admin/roller/{key}": {
+"delete": {
+"body": false,
+"op": "slet_rolle_api_dofbasen_admin_roller__key__delete",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "ret_rolle_api_dofbasen_admin_roller__key__patch",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/arter/soeg": {
+"get": {
+"body": false,
+"op": "arter_soeg_api_dofbasen_arter_soeg_get",
+"params": [
+[
+"q",
+"query",
+true
+]
+]
+}
+},
+"/api/dofbasen/counts": {
+"get": {
+"body": false,
+"op": "counts_api_dofbasen_counts_get",
+"params": []
+}
+},
+"/api/dofbasen/ctx": {
+"get": {
+"body": false,
+"op": "ctx_info_api_dofbasen_ctx_get",
+"params": []
+}
+},
+"/api/dofbasen/faeno/art/{artnr}": {
+"get": {
+"body": false,
+"op": "faeno_art_api_dofbasen_faeno_art__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/faeno/artkort": {
+"get": {
+"body": false,
+"op": "artkort_api_dofbasen_faeno_artkort_get",
+"params": [
+[
+"aar",
+"query",
+false
+],
+[
+"art",
+"query",
+true
+]
+]
+}
+},
+"/api/dofbasen/faeno/firstobs": {
+"get": {
+"body": false,
+"op": "firstobs_api_dofbasen_faeno_firstobs_get",
+"params": [
+[
+"aar",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/faeno/samedate": {
+"get": {
+"body": false,
+"op": "samedate_api_dofbasen_faeno_samedate_get",
+"params": [
+[
+"dato",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/fokus": {
+"get": {
+"body": false,
+"op": "fokus_api_dofbasen_fokus_get",
+"params": [
+[
+"alle",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "nyt_fokus_api_dofbasen_fokus_post",
+"params": []
+}
+},
+"/api/dofbasen/fokus/{fid}": {
+"delete": {
+"body": false,
+"op": "slet_fokus_api_dofbasen_fokus__fid__delete",
+"params": [
+[
+"fid",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_fokus_api_dofbasen_fokus__fid__put",
+"params": [
+[
+"fid",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/forside/afdelinger": {
+"get": {
+"body": false,
+"op": "forside_afdelinger_api_dofbasen_forside_afdelinger_get",
+"params": []
+}
+},
+"/api/dofbasen/forside/antal": {
+"get": {
+"body": false,
+"op": "forside_antal_api_dofbasen_forside_antal_get",
+"params": [
+[
+"dage",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/forside/art": {
+"get": {
+"body": false,
+"op": "forside_art_api_dofbasen_forside_art_get",
+"params": []
+}
+},
+"/api/dofbasen/forside/fotos": {
+"get": {
+"body": false,
+"op": "forside_fotos_api_dofbasen_forside_fotos_get",
+"params": []
+}
+},
+"/api/dofbasen/forside/kort": {
+"get": {
+"body": false,
+"op": "forside_kort_api_dofbasen_forside_kort_get",
+"params": [
+[
+"dag",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/forside/sjaeldne": {
+"get": {
+"body": false,
+"op": "forside_sjaeldne_api_dofbasen_forside_sjaeldne_get",
+"params": [
+[
+"sjf",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/forside/statistik": {
+"get": {
+"body": false,
+"op": "forside_statistik_api_dofbasen_forside_statistik_get",
+"params": [
+[
+"stat",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/lister": {
+"get": {
+"body": false,
+"op": "lister_api_dofbasen_lister_get",
+"params": []
+}
+},
+"/api/dofbasen/lister/{key}": {
+"get": {
+"body": false,
+"op": "liste_api_dofbasen_lister__key__get",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_liste_api_dofbasen_lister__key__put",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/lok/{loknr}": {
+"get": {
+"body": false,
+"op": "lokalitet_api_dofbasen_lok__loknr__get",
+"params": [
+[
+"loknr",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/lokaliteter/soeg": {
+"get": {
+"body": false,
+"op": "lok_soeg_api_dofbasen_lokaliteter_soeg_get",
+"params": [
+[
+"q",
+"query",
+true
+]
+]
+}
+},
+"/api/dofbasen/me/api": {
+"get": {
+"body": false,
+"op": "mine_tokens_api_dofbasen_me_api_get",
+"params": []
+}
+},
+"/api/dofbasen/me/api/tokens": {
+"post": {
+"body": true,
+"op": "nyt_token_api_dofbasen_me_api_tokens_post",
+"params": []
+}
+},
+"/api/dofbasen/me/api/tokens/{token_id}": {
+"delete": {
+"body": false,
+"op": "slet_mit_token_api_dofbasen_me_api_tokens__token_id__delete",
+"params": [
+[
+"token_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/nyheder": {
+"get": {
+"body": false,
+"op": "nyheder_api_dofbasen_nyheder_get",
+"params": [
+[
+"alle",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "ny_nyhed_api_dofbasen_nyheder_post",
+"params": []
+}
+},
+"/api/dofbasen/nyheder/{nid}": {
+"delete": {
+"body": false,
+"op": "slet_nyhed_api_dofbasen_nyheder__nid__delete",
+"params": [
+[
+"nid",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "nyhed_api_dofbasen_nyheder__nid__get",
+"params": [
+[
+"nid",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_nyhed_api_dofbasen_nyheder__nid__put",
+"params": [
+[
+"nid",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/obs/{obsid}": {
+"get": {
+"body": false,
+"op": "observation_api_dofbasen_obs__obsid__get",
+"params": [
+[
+"obsid",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/obs/{obsid}/dku": {
+"put": {
+"body": true,
+"op": "set_dku_api_dofbasen_obs__obsid__dku_put",
+"params": [
+[
+"obsid",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/obser/{kode}": {
+"get": {
+"body": false,
+"op": "observator_api_dofbasen_obser__kode__get",
+"params": [
+[
+"kode",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/observationer": {
+"get": {
+"body": false,
+"op": "observationer_api_dofbasen_observationer_get",
+"params": [
+[
+"dato",
+"query",
+false
+],
+[
+"lok",
+"query",
+false
+],
+[
+"lokalitet",
+"query",
+false
+],
+[
+"summering",
+"query",
+false
+],
+[
+"visning",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/omraader": {
+"get": {
+"body": false,
+"op": "omraader_api_dofbasen_omraader_get",
+"params": [
+[
+"kind",
+"query",
+true
+]
+]
+},
+"post": {
+"body": true,
+"op": "nyt_omraade_api_dofbasen_omraader_post",
+"params": []
+}
+},
+"/api/dofbasen/omraader/{area_id}": {
+"delete": {
+"body": false,
+"op": "slet_omraade_api_dofbasen_omraader__area_id__delete",
+"params": [
+[
+"area_id",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "omraade_api_dofbasen_omraader__area_id__get",
+"params": [
+[
+"area_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_omraade_api_dofbasen_omraader__area_id__put",
+"params": [
+[
+"area_id",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/opslag/arter": {
+"get": {
+"body": false,
+"op": "opslag_arter_api_dofbasen_opslag_arter_get",
+"params": []
+}
+},
+"/api/dofbasen/opslag/bemaerk": {
+"get": {
+"body": false,
+"op": "opslag_bemaerk_api_dofbasen_opslag_bemaerk_get",
+"params": [
+[
+"afdeling",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/opslag/kort": {
+"get": {
+"body": false,
+"op": "opslag_kort_api_dofbasen_opslag_kort_get",
+"params": [
+[
+"e",
+"query",
+true
+],
+[
+"n",
+"query",
+true
+],
+[
+"s",
+"query",
+true
+],
+[
+"w",
+"query",
+true
+]
+]
+}
+},
+"/api/dofbasen/opslag/lokaliteter": {
+"get": {
+"body": false,
+"op": "opslag_lokaliteter_api_dofbasen_opslag_lokaliteter_get",
+"params": [
+[
+"afdeling",
+"query",
+true
+]
+]
+}
+},
+"/api/dofbasen/opslag/observatorer": {
+"get": {
+"body": false,
+"op": "opslag_observatorer_api_dofbasen_opslag_observatorer_get",
+"params": [
+[
+"page",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/sider": {
+"get": {
+"body": false,
+"op": "sider_api_dofbasen_sider_get",
+"params": []
+}
+},
+"/api/dofbasen/sider/{slug}": {
+"delete": {
+"body": false,
+"op": "slet_side_api_dofbasen_sider__slug__delete",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "side_api_dofbasen_sider__slug__get",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_side_api_dofbasen_sider__slug__put",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/soeg": {
+"post": {
+"body": true,
+"op": "soeg_api_dofbasen_soeg_post",
+"params": []
+}
+},
+"/api/dofbasen/soeg/csv": {
+"post": {
+"body": true,
+"op": "soeg_csv_api_dofbasen_soeg_csv_post",
+"params": []
+}
+},
+"/api/dofbasen/soeg/valg": {
+"get": {
+"body": false,
+"op": "soeg_valg_api_dofbasen_soeg_valg_get",
+"params": []
+}
+},
+"/api/dofbasen/v1/areas": {
+"get": {
+"body": false,
+"op": "areas_api_dofbasen_v1_areas_get",
+"params": []
+}
+},
+"/api/dofbasen/v1/days/{dato}": {
+"get": {
+"body": false,
+"op": "day_api_dofbasen_v1_days__dato__get",
+"params": [
+[
+"afdeling",
+"query",
+false
+],
+[
+"dato",
+"path",
+true
+],
+[
+"visning",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/v1/lists": {
+"get": {
+"body": false,
+"op": "lists_api_dofbasen_v1_lists_get",
+"params": []
+}
+},
+"/api/dofbasen/v1/lists/{key}": {
+"get": {
+"body": false,
+"op": "list_one_api_dofbasen_v1_lists__key__get",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/v1/locations": {
+"get": {
+"body": false,
+"op": "locations_api_dofbasen_v1_locations_get",
+"params": [
+[
+"afdeling",
+"query",
+false
+],
+[
+"kommune",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/v1/locations/{loknr}": {
+"get": {
+"body": false,
+"op": "location_api_dofbasen_v1_locations__loknr__get",
+"params": [
+[
+"loknr",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/v1/me": {
+"get": {
+"body": false,
+"op": "me_api_dofbasen_v1_me_get",
+"params": []
+}
+},
+"/api/dofbasen/v1/news": {
+"get": {
+"body": false,
+"op": "news_api_dofbasen_v1_news_get",
+"params": []
+}
+},
+"/api/dofbasen/v1/observations": {
+"get": {
+"body": false,
+"op": "observations_api_dofbasen_v1_observations_get",
+"params": [
+[
+"aar",
+"query",
+false
+],
+[
+"adf",
+"query",
+false
+],
+[
+"alder",
+"query",
+false
+],
+[
+"antal",
+"query",
+false
+],
+[
+"antalregl",
+"query",
+false
+],
+[
+"art",
+"query",
+false
+],
+[
+"artdata",
+"query",
+false
+],
+[
+"biggestobs",
+"query",
+false
+],
+[
+"dag",
+"query",
+false
+],
+[
+"dage",
+"query",
+false
+],
+[
+"dato",
+"query",
+false
+],
+[
+"dato_first",
+"query",
+false
+],
+[
+"dato_second",
+"query",
+false
+],
+[
+"desc",
+"query",
+false
+],
+[
+"dragt",
+"query",
+false
+],
+[
+"fra_art",
+"query",
+false
+],
+[
+"iba",
+"query",
+false
+],
+[
+"kommentar",
+"query",
+false
+],
+[
+"kommune",
+"query",
+false
+],
+[
+"koordinat",
+"query",
+false
+],
+[
+"limit",
+"query",
+false
+],
+[
+"lok",
+"query",
+false
+],
+[
+"lokal",
+"query",
+false
+],
+[
+"maaned",
+"query",
+false
+],
+[
+"medobser",
+"query",
+false
+],
+[
+"metode",
+"query",
+false
+],
+[
+"obserdata",
+"query",
+false
+],
+[
+"omraade",
+"query",
+false
+],
+[
+"page",
+"query",
+false
+],
+[
+"periode",
+"query",
+false
+],
+[
+"sex",
+"query",
+false
+],
+[
+"sort",
+"query",
+false
+],
+[
+"sortering",
+"query",
+false
+],
+[
+"species",
+"query",
+false
+],
+[
+"stor",
+"query",
+false
+],
+[
+"summering",
+"query",
+false
+],
+[
+"textsearch",
+"query",
+false
+],
+[
+"til_art",
+"query",
+false
+],
+[
+"udelad_burfugle",
+"query",
+false
+],
+[
+"udelad_hybrider_ubestemte",
+"query",
+false
+],
+[
+"vis_underarter_som_arter",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/v1/observations/{obsid}": {
+"get": {
+"body": false,
+"op": "observation_api_dofbasen_v1_observations__obsid__get",
+"params": [
+[
+"obsid",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/v1/rare": {
+"get": {
+"body": false,
+"op": "rare_api_dofbasen_v1_rare_get",
+"params": [
+[
+"days",
+"query",
+false
+]
+]
+}
+},
+"/api/dofbasen/v1/species": {
+"get": {
+"body": false,
+"op": "species_api_dofbasen_v1_species_get",
+"params": []
+}
+},
+"/api/dofbasen/v1/species/{artnr}": {
+"get": {
+"body": false,
+"op": "species_one_api_dofbasen_v1_species__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/dofbasen/v1/stats/daily": {
+"get": {
+"body": false,
+"op": "daily_api_dofbasen_v1_stats_daily_get",
+"params": [
+[
+"days",
+"query",
+false
+]
+]
+}
+},
+"/api/event-types": {
+"get": {
+"body": false,
+"op": "event_types_api_event_types_get",
+"params": []
+}
+},
+"/api/events": {
+"get": {
+"body": false,
+"op": "events_api_events_get",
+"params": [
+[
+"past",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "create_event_api_events_post",
+"params": []
+}
+},
+"/api/events/{event_id}": {
+"delete": {
+"body": false,
+"op": "delete_event_api_events__event_id__delete",
+"params": [
+[
+"event_id",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "event_api_events__event_id__get",
+"params": [
+[
+"event_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_event_api_events__event_id__put",
+"params": [
+[
+"event_id",
+"path",
+true
+]
+]
+}
+},
+"/api/events/{event_id}/ics": {
+"get": {
+"body": false,
+"op": "event_ics_api_events__event_id__ics_get",
+"params": [
+[
+"event_id",
+"path",
+true
+]
+]
+}
+},
+"/api/feed": {
+"get": {
+"body": false,
+"op": "get_feed_api_feed_get",
+"params": [
+[
+"date",
+"query",
+false
+],
+[
+"level",
+"query",
+false
+],
+[
+"local_max",
+"query",
+false
+],
+[
+"scope",
+"query",
+false
+]
+]
+}
+},
+"/api/feed/summary": {
+"get": {
+"body": false,
+"op": "summary_api_feed_summary_get",
+"params": [
+[
+"date",
+"query",
+false
+]
+]
+}
+},
+"/api/health": {
+"get": {
+"body": false,
+"op": "health_api_health_get",
+"params": []
+}
+},
+"/api/ics/{token}/kalender/{cid}.ics": {
+"get": {
+"body": false,
+"op": "ics_calendar_api_ics__token__kalender__cid__ics_get",
+"params": [
+[
+"cid",
+"path",
+true
+],
+[
+"token",
+"path",
+true
+]
+]
+}
+},
+"/api/ics/{token}/mine.ics": {
+"get": {
+"body": false,
+"op": "ics_mine_api_ics__token__mine_ics_get",
+"params": [
+[
+"token",
+"path",
+true
+]
+]
+}
+},
+"/api/kommuner": {
+"get": {
+"body": false,
+"op": "kommuner_api_kommuner_get",
+"params": []
+}
+},
+"/api/kommuner/{kode}/geojson": {
+"get": {
+"body": false,
+"op": "kommune_geojson_api_kommuner__kode__geojson_get",
+"params": [
+[
+"kode",
+"path",
+true
+]
+]
+}
+},
+"/api/learn/answer": {
+"post": {
+"body": true,
+"op": "answer_api_learn_answer_post",
+"params": []
+}
+},
+"/api/learn/auto/answer": {
+"post": {
+"body": true,
+"op": "auto_answer_api_learn_auto_answer_post",
+"params": []
+}
+},
+"/api/learn/auto/{kind}": {
+"get": {
+"body": false,
+"op": "auto_api_learn_auto__kind__get",
+"params": [
+[
+"afdeling",
+"query",
+false
+],
+[
+"kind",
+"path",
+true
+],
+[
+"n",
+"query",
+false
+]
+]
+}
+},
+"/api/learn/courses": {
+"get": {
+"body": false,
+"op": "courses_api_learn_courses_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "create_course_api_learn_courses_post",
+"params": []
+}
+},
+"/api/learn/courses/{slug}": {
+"delete": {
+"body": false,
+"op": "delete_course_api_learn_courses__slug__delete",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "course_api_learn_courses__slug__get",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_course_api_learn_courses__slug__put",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+}
+},
+"/api/learn/courses/{slug}/questions": {
+"post": {
+"body": true,
+"op": "add_question_api_learn_courses__slug__questions_post",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+}
+},
+"/api/learn/courses/{slug}/session": {
+"get": {
+"body": false,
+"op": "session_api_learn_courses__slug__session_get",
+"params": [
+[
+"mode",
+"query",
+false
+],
+[
+"n",
+"query",
+false
+],
+[
+"slug",
+"path",
+true
+]
+]
+}
+},
+"/api/learn/me": {
+"get": {
+"body": false,
+"op": "my_learning_api_learn_me_get",
+"params": []
+}
+},
+"/api/learn/media": {
+"post": {
+"body": true,
+"op": "upload_api_learn_media_post",
+"params": []
+}
+},
+"/api/learn/questions/{qid}": {
+"delete": {
+"body": false,
+"op": "delete_question_api_learn_questions__qid__delete",
+"params": [
+[
+"qid",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_question_api_learn_questions__qid__put",
+"params": [
+[
+"qid",
+"path",
+true
+]
+]
+}
+},
+"/api/learn/result": {
+"post": {
+"body": true,
+"op": "result_api_learn_result_post",
+"params": []
+}
+},
+"/api/likes": {
+"get": {
+"body": false,
+"op": "who_liked_api_likes_get",
+"params": [
+[
+"key",
+"query",
+true
+],
+[
+"kind",
+"query",
+true
+]
+]
+},
+"post": {
+"body": true,
+"op": "toggle_like_api_likes_post",
+"params": []
+}
+},
+"/api/lists/compare": {
+"get": {
+"body": false,
+"op": "compare_api_lists_compare_get",
+"params": [
+[
+"a",
+"query",
+true
+],
+[
+"b",
+"query",
+true
+],
+[
+"scope",
+"query",
+false
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/lists/gaps": {
+"get": {
+"body": false,
+"op": "gaps_api_lists_gaps_get",
+"params": [
+[
+"scope",
+"query",
+false
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/lists/groups": {
+"get": {
+"body": false,
+"op": "my_groups_api_lists_groups_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "create_group_api_lists_groups_post",
+"params": []
+}
+},
+"/api/lists/groups/join": {
+"post": {
+"body": true,
+"op": "join_group_api_lists_groups_join_post",
+"params": []
+}
+},
+"/api/lists/groups/{group_id}": {
+"delete": {
+"body": false,
+"op": "delete_group_api_lists_groups__group_id__delete",
+"params": [
+[
+"group_id",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "group_detail_api_lists_groups__group_id__get",
+"params": [
+[
+"group_id",
+"path",
+true
+]
+]
+}
+},
+"/api/lists/groups/{group_id}/members": {
+"post": {
+"body": true,
+"op": "add_member_api_lists_groups__group_id__members_post",
+"params": [
+[
+"group_id",
+"path",
+true
+]
+]
+}
+},
+"/api/lists/groups/{group_id}/members/{obserkode}": {
+"delete": {
+"body": false,
+"op": "remove_member_api_lists_groups__group_id__members__obserkode__delete",
+"params": [
+[
+"group_id",
+"path",
+true
+],
+[
+"obserkode",
+"path",
+true
+]
+]
+}
+},
+"/api/lists/matrikel/scoreboard": {
+"get": {
+"body": false,
+"op": "matrikel_scoreboard_api_lists_matrikel_scoreboard_get",
+"params": [
+[
+"group",
+"query",
+false
+],
+[
+"scope",
+"query",
+false
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/lists/matrikel/summary": {
+"get": {
+"body": false,
+"op": "matrikel_summary_api_lists_matrikel_summary_get",
+"params": [
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/lists/matrikler": {
+"get": {
+"body": false,
+"op": "matrikler_api_lists_matrikler_get",
+"params": []
+}
+},
+"/api/lists/matrikler/{nummer}": {
+"delete": {
+"body": false,
+"op": "delete_matrikel_api_lists_matrikler__nummer__delete",
+"params": [
+[
+"nummer",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "save_matrikel_api_lists_matrikler__nummer__put",
+"params": [
+[
+"nummer",
+"path",
+true
+]
+]
+}
+},
+"/api/lists/matrikler/{nummer}/flyt": {
+"post": {
+"body": true,
+"op": "move_api_lists_matrikler__nummer__flyt_post",
+"params": [
+[
+"nummer",
+"path",
+true
+]
+]
+}
+},
+"/api/lists/matrikler/{nummer}/perioder": {
+"post": {
+"body": true,
+"op": "add_period_api_lists_matrikler__nummer__perioder_post",
+"params": [
+[
+"nummer",
+"path",
+true
+]
+]
+}
+},
+"/api/lists/meta": {
+"get": {
+"body": false,
+"op": "meta_api_lists_meta_get",
+"params": []
+}
+},
+"/api/lists/perioder/{periode_id}": {
+"delete": {
+"body": false,
+"op": "delete_period_api_lists_perioder__periode_id__delete",
+"params": [
+[
+"periode_id",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "patch_period_api_lists_perioder__periode_id__patch",
+"params": [
+[
+"periode_id",
+"path",
+true
+]
+]
+}
+},
+"/api/lists/regions": {
+"get": {
+"body": false,
+"op": "region_overview_api_lists_regions_get",
+"params": [
+[
+"level",
+"query",
+false
+]
+]
+}
+},
+"/api/lists/regions/{region}": {
+"get": {
+"body": false,
+"op": "region_detail_api_lists_regions__region__get",
+"params": [
+[
+"region",
+"path",
+true
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/lists/scoreboard": {
+"get": {
+"body": false,
+"op": "scoreboard_api_lists_scoreboard_get",
+"params": [
+[
+"group",
+"query",
+false
+],
+[
+"matrikel",
+"query",
+false
+],
+[
+"scope",
+"query",
+false
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/lists/user/{obserkode}": {
+"get": {
+"body": false,
+"op": "user_list_api_lists_user__obserkode__get",
+"params": [
+[
+"matrikel",
+"query",
+false
+],
+[
+"obserkode",
+"path",
+true
+],
+[
+"periode",
+"query",
+false
+],
+[
+"scope",
+"query",
+false
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/location/native": {
+"post": {
+"body": true,
+"op": "native_location_api_location_native_post",
+"params": [
+[
+"authorization",
+"header",
+false
+]
+]
+}
+},
+"/api/locations": {
+"get": {
+"body": false,
+"op": "search_locations_api_locations_get",
+"params": [
+[
+"q",
+"query",
+true
+]
+]
+}
+},
+"/api/locations/index": {
+"get": {
+"body": false,
+"op": "locations_index_api_locations_index_get",
+"params": [
+[
+"active",
+"query",
+false
+],
+[
+"afdeling",
+"query",
+false
+],
+[
+"kat",
+"query",
+false
+],
+[
+"kommune",
+"query",
+false
+],
+[
+"lat",
+"query",
+false
+],
+[
+"limit",
+"query",
+false
+],
+[
+"lon",
+"query",
+false
+],
+[
+"offset",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+],
+[
+"sort",
+"query",
+false
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/locations/{loknr}": {
+"get": {
+"body": false,
+"op": "location_api_locations__loknr__get",
+"params": [
+[
+"loknr",
+"path",
+true
+]
+]
+}
+},
+"/api/locations/{loknr}/records/{artnr}": {
+"get": {
+"body": false,
+"op": "location_records_api_locations__loknr__records__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/locations/{loknr}/species": {
+"get": {
+"body": false,
+"op": "location_species_api_locations__loknr__species_get",
+"params": [
+[
+"loknr",
+"path",
+true
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/locations/{loknr}/species/{artnr}": {
+"get": {
+"body": false,
+"op": "location_species_detail_api_locations__loknr__species__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+],
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/map/days": {
+"get": {
+"body": false,
+"op": "map_days_api_map_days_get",
+"params": [
+[
+"back",
+"query",
+false
+],
+[
+"days",
+"query",
+false
+]
+]
+}
+},
+"/api/map/today": {
+"get": {
+"body": false,
+"op": "map_today_api_map_today_get",
+"params": [
+[
+"level",
+"query",
+false
+]
+]
+}
+},
+"/api/me": {
+"delete": {
+"body": false,
+"op": "delete_me_api_me_delete",
+"params": []
+},
+"get": {
+"body": false,
+"op": "me_api_me_get",
+"params": []
+},
+"patch": {
+"body": true,
+"op": "update_me_api_me_patch",
+"params": []
+}
+},
+"/api/me/export": {
+"get": {
+"body": false,
+"op": "export_me_api_me_export_get",
+"params": []
+}
+},
+"/api/me/ics": {
+"get": {
+"body": false,
+"op": "my_ics_api_me_ics_get",
+"params": []
+}
+},
+"/api/me/ics/reset": {
+"post": {
+"body": false,
+"op": "reset_ics_api_me_ics_reset_post",
+"params": []
+}
+},
+"/api/me/location": {
+"delete": {
+"body": false,
+"op": "delete_location_api_me_location_delete",
+"params": []
+},
+"get": {
+"body": false,
+"op": "get_location_api_me_location_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "put_location_api_me_location_post",
+"params": []
+}
+},
+"/api/me/location/device": {
+"post": {
+"body": true,
+"op": "take_over_api_me_location_device_post",
+"params": []
+}
+},
+"/api/me/location/token": {
+"post": {
+"body": true,
+"op": "location_token_api_me_location_token_post",
+"params": []
+}
+},
+"/api/me/stats": {
+"get": {
+"body": false,
+"op": "my_stats_api_me_stats_get",
+"params": []
+}
+},
+"/api/me/sync": {
+"post": {
+"body": false,
+"op": "resync_api_me_sync_post",
+"params": []
+}
+},
+"/api/me/visits": {
+"get": {
+"body": false,
+"op": "my_visits_api_me_visits_get",
+"params": [
+[
+"from",
+"query",
+true
+],
+[
+"to",
+"query",
+true
+]
+]
+}
+},
+"/api/mobgang/ethics": {
+"post": {
+"body": true,
+"op": "ethics_api_mobgang_ethics_post",
+"params": []
+}
+},
+"/api/mobgang/presets": {
+"get": {
+"body": false,
+"op": "presets_api_mobgang_presets_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "create_preset_api_mobgang_presets_post",
+"params": []
+}
+},
+"/api/mobgang/presets/{preset_id}": {
+"delete": {
+"body": false,
+"op": "delete_preset_api_mobgang_presets__preset_id__delete",
+"params": [
+[
+"preset_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_preset_api_mobgang_presets__preset_id__put",
+"params": [
+[
+"preset_id",
+"path",
+true
+]
+]
+}
+},
+"/api/mobgang/season": {
+"put": {
+"body": true,
+"op": "put_season_api_mobgang_season_put",
+"params": []
+}
+},
+"/api/mobgang/status": {
+"get": {
+"body": false,
+"op": "status_api_mobgang_status_get",
+"params": []
+}
+},
+"/api/mobgang/xc": {
+"post": {
+"body": true,
+"op": "add_xc_api_mobgang_xc_post",
+"params": []
+}
+},
+"/api/mobgang/xc/{nr}/audio": {
+"get": {
+"body": false,
+"op": "xc_audio_api_mobgang_xc__nr__audio_get",
+"params": [
+[
+"nr",
+"path",
+true
+]
+]
+}
+},
+"/api/nearby": {
+"get": {
+"body": false,
+"op": "nearby_api_nearby_get",
+"params": [
+[
+"days",
+"query",
+false
+],
+[
+"lat",
+"query",
+true
+],
+[
+"level",
+"query",
+false
+],
+[
+"lon",
+"query",
+true
+],
+[
+"radius_km",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/admin/api": {
+"get": {
+"body": false,
+"op": "admin_api_api_netfugl_admin_api_get",
+"params": []
+}
+},
+"/api/netfugl/admin/api/tokens/{token_id}": {
+"delete": {
+"body": false,
+"op": "spaer_token_api_netfugl_admin_api_tokens__token_id__delete",
+"params": [
+[
+"token_id",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/admin/api/{user_id}": {
+"delete": {
+"body": false,
+"op": "fjern_api_api_netfugl_admin_api__user_id__delete",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "giv_api_api_netfugl_admin_api__user_id__put",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/admin/beregn": {
+"post": {
+"body": false,
+"op": "beregn_api_netfugl_admin_beregn_post",
+"params": []
+}
+},
+"/api/netfugl/admin/brugere": {
+"get": {
+"body": false,
+"op": "admin_brugere_api_netfugl_admin_brugere_get",
+"params": [
+[
+"q",
+"query",
+true
+]
+]
+}
+},
+"/api/netfugl/admin/brugere/{user_id}/roller": {
+"put": {
+"body": true,
+"op": "saet_roller_api_netfugl_admin_brugere__user_id__roller_put",
+"params": [
+[
+"user_id",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/admin/fotos": {
+"get": {
+"body": false,
+"op": "admin_fotos_api_netfugl_admin_fotos_get",
+"params": [
+[
+"status",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/admin/indstillinger": {
+"put": {
+"body": true,
+"op": "gem_indstillinger_api_netfugl_admin_indstillinger_put",
+"params": []
+}
+},
+"/api/netfugl/admin/kommentarer": {
+"get": {
+"body": false,
+"op": "admin_kommentarer_api_netfugl_admin_kommentarer_get",
+"params": []
+}
+},
+"/api/netfugl/admin/oversigt": {
+"get": {
+"body": false,
+"op": "admin_oversigt_api_netfugl_admin_oversigt_get",
+"params": []
+}
+},
+"/api/netfugl/admin/roller": {
+"get": {
+"body": false,
+"op": "admin_roller_api_netfugl_admin_roller_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "ny_rolle_api_netfugl_admin_roller_post",
+"params": []
+}
+},
+"/api/netfugl/admin/roller/{key}": {
+"delete": {
+"body": false,
+"op": "slet_rolle_api_netfugl_admin_roller__key__delete",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "ret_rolle_api_netfugl_admin_roller__key__patch",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/admin/rss": {
+"get": {
+"body": false,
+"op": "admin_rss_api_netfugl_admin_rss_get",
+"params": []
+}
+},
+"/api/netfugl/admin/rss/hent": {
+"post": {
+"body": false,
+"op": "hent_rss_api_netfugl_admin_rss_hent_post",
+"params": [
+[
+"fid",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/admin/rss/{fid}": {
+"delete": {
+"body": false,
+"op": "slet_feed_api_netfugl_admin_rss__fid__delete",
+"params": [
+[
+"fid",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_feed_api_netfugl_admin_rss__fid__put",
+"params": [
+[
+"fid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/art/{sid}": {
+"delete": {
+"body": false,
+"op": "slet_art_api_netfugl_art__sid__delete",
+"params": [
+[
+"sid",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "art_api_netfugl_art__sid__get",
+"params": [
+[
+"sid",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_art_api_netfugl_art__sid__put",
+"params": [
+[
+"sid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/arter/familier": {
+"get": {
+"body": false,
+"op": "familier_api_netfugl_arter_familier_get",
+"params": []
+}
+},
+"/api/netfugl/arter/{liste}": {
+"get": {
+"body": false,
+"op": "artsliste_api_netfugl_arter__liste__get",
+"params": [
+[
+"liste",
+"path",
+true
+],
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/artikler": {
+"get": {
+"body": false,
+"op": "artikler_api_netfugl_artikler_get",
+"params": [
+[
+"aar",
+"query",
+false
+],
+[
+"alle",
+"query",
+false
+],
+[
+"kind",
+"query",
+false
+],
+[
+"page",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+],
+[
+"tag",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "ny_artikel_api_netfugl_artikler_post",
+"params": []
+}
+},
+"/api/netfugl/artikler/emneord": {
+"get": {
+"body": false,
+"op": "emneord_api_netfugl_artikler_emneord_get",
+"params": []
+}
+},
+"/api/netfugl/artikler/{aid}": {
+"delete": {
+"body": false,
+"op": "slet_artikel_api_netfugl_artikler__aid__delete",
+"params": [
+[
+"aid",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "artikel_api_netfugl_artikler__aid__get",
+"params": [
+[
+"aid",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_artikel_api_netfugl_artikler__aid__put",
+"params": [
+[
+"aid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/brugere": {
+"get": {
+"body": false,
+"op": "brugere_api_netfugl_brugere_get",
+"params": [
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/brugere/{kode}": {
+"get": {
+"body": false,
+"op": "bruger_api_netfugl_brugere__kode__get",
+"params": [
+[
+"kode",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/ctx": {
+"get": {
+"body": false,
+"op": "ctx_info_api_netfugl_ctx_get",
+"params": []
+}
+},
+"/api/netfugl/forside": {
+"get": {
+"body": false,
+"op": "forside_api_netfugl_forside_get",
+"params": []
+}
+},
+"/api/netfugl/fotos": {
+"get": {
+"body": false,
+"op": "fotos_api_netfugl_fotos_get",
+"params": [
+[
+"art",
+"query",
+false
+],
+[
+"fotograf",
+"query",
+false
+],
+[
+"page",
+"query",
+false
+],
+[
+"per",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+],
+[
+"sort",
+"query",
+false
+],
+[
+"su",
+"query",
+false
+]
+]
+},
+"post": {
+"body": true,
+"op": "upload_api_netfugl_fotos_post",
+"params": []
+}
+},
+"/api/netfugl/fotos/{pid}": {
+"delete": {
+"body": false,
+"op": "slet_foto_api_netfugl_fotos__pid__delete",
+"params": [
+[
+"pid",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "foto_api_netfugl_fotos__pid__get",
+"params": [
+[
+"pid",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_foto_api_netfugl_fotos__pid__put",
+"params": [
+[
+"pid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/fotos/{pid}/status": {
+"put": {
+"body": true,
+"op": "foto_status_api_netfugl_fotos__pid__status_put",
+"params": [
+[
+"pid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/kommentarer/{cid}": {
+"delete": {
+"body": false,
+"op": "slet_kommentar_api_netfugl_kommentarer__cid__delete",
+"params": [
+[
+"cid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/kryds/lister": {
+"get": {
+"body": false,
+"op": "kryds_lister_api_netfugl_kryds_lister_get",
+"params": []
+}
+},
+"/api/netfugl/kryds/oversigt": {
+"get": {
+"body": false,
+"op": "kryds_oversigt_api_netfugl_kryds_oversigt_get",
+"params": []
+}
+},
+"/api/netfugl/kryds/{key}/art/{skey}": {
+"get": {
+"body": false,
+"op": "kryds_art_api_netfugl_kryds__key__art__skey__get",
+"params": [
+[
+"key",
+"path",
+true
+],
+[
+"skey",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/kryds/{key}/{view}": {
+"get": {
+"body": false,
+"op": "kryds_view_api_netfugl_kryds__key___view__get",
+"params": [
+[
+"aar",
+"query",
+false
+],
+[
+"key",
+"path",
+true
+],
+[
+"view",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/likes/{kind}/{target}": {
+"post": {
+"body": false,
+"op": "like_api_netfugl_likes__kind___target__post",
+"params": [
+[
+"kind",
+"path",
+true
+],
+[
+"target",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/links": {
+"get": {
+"body": false,
+"op": "links_api_netfugl_links_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "gem_links_api_netfugl_links_put",
+"params": []
+}
+},
+"/api/netfugl/me/api": {
+"get": {
+"body": false,
+"op": "mine_tokens_api_netfugl_me_api_get",
+"params": []
+}
+},
+"/api/netfugl/me/api/tokens": {
+"post": {
+"body": true,
+"op": "nyt_token_api_netfugl_me_api_tokens_post",
+"params": []
+}
+},
+"/api/netfugl/me/api/tokens/{token_id}": {
+"delete": {
+"body": false,
+"op": "slet_mit_token_api_netfugl_me_api_tokens__token_id__delete",
+"params": [
+[
+"token_id",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/mine-kryds": {
+"post": {
+"body": true,
+"op": "nyt_kryds_api_netfugl_mine_kryds_post",
+"params": []
+}
+},
+"/api/netfugl/mine-kryds/skjul": {
+"post": {
+"body": true,
+"op": "skjul_kryds_api_netfugl_mine_kryds_skjul_post",
+"params": []
+}
+},
+"/api/netfugl/mine-kryds/{kid}": {
+"delete": {
+"body": false,
+"op": "slet_kryds_api_netfugl_mine_kryds__kid__delete",
+"params": [
+[
+"kid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/mine-kryds/{liste}": {
+"get": {
+"body": false,
+"op": "mine_kryds_api_netfugl_mine_kryds__liste__get",
+"params": [
+[
+"liste",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/mine-observationer": {
+"get": {
+"body": false,
+"op": "mine_obs_api_netfugl_mine_observationer_get",
+"params": [
+[
+"artnr",
+"query",
+true
+],
+[
+"dato",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/rss": {
+"get": {
+"body": false,
+"op": "rss_api_netfugl_rss_get",
+"params": [
+[
+"kilde",
+"query",
+false
+],
+[
+"land",
+"query",
+false
+],
+[
+"page",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/sider": {
+"get": {
+"body": false,
+"op": "sider_api_netfugl_sider_get",
+"params": []
+}
+},
+"/api/netfugl/sider/{slug}": {
+"delete": {
+"body": false,
+"op": "slet_side_api_netfugl_sider__slug__delete",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "side_api_netfugl_sider__slug__get",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_side_api_netfugl_sider__slug__put",
+"params": [
+[
+"slug",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/sjaeldne": {
+"get": {
+"body": false,
+"op": "sjaeldne_api_netfugl_sjaeldne_get",
+"params": [
+[
+"kind",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/soeg": {
+"get": {
+"body": false,
+"op": "soeg_api_netfugl_soeg_get",
+"params": [
+[
+"q",
+"query",
+true
+]
+]
+}
+},
+"/api/netfugl/v1/articles": {
+"get": {
+"body": false,
+"op": "articles_api_netfugl_v1_articles_get",
+"params": [
+[
+"kind",
+"query",
+false
+],
+[
+"page",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/v1/articles/{aid}": {
+"get": {
+"body": false,
+"op": "article_api_netfugl_v1_articles__aid__get",
+"params": [
+[
+"aid",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/v1/lists": {
+"get": {
+"body": false,
+"op": "lists_api_netfugl_v1_lists_get",
+"params": []
+}
+},
+"/api/netfugl/v1/lists/{key}/blockers": {
+"get": {
+"body": false,
+"op": "blockers_api_netfugl_v1_lists__key__blockers_get",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/v1/lists/{key}/latest": {
+"get": {
+"body": false,
+"op": "latest_api_netfugl_v1_lists__key__latest_get",
+"params": [
+[
+"key",
+"path",
+true
+],
+[
+"n",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/v1/lists/{key}/ranking": {
+"get": {
+"body": false,
+"op": "ranking_api_netfugl_v1_lists__key__ranking_get",
+"params": [
+[
+"key",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/v1/me": {
+"get": {
+"body": false,
+"op": "me_api_netfugl_v1_me_get",
+"params": []
+}
+},
+"/api/netfugl/v1/photos": {
+"get": {
+"body": false,
+"op": "photos_api_netfugl_v1_photos_get",
+"params": [
+[
+"art",
+"query",
+false
+],
+[
+"page",
+"query",
+false
+],
+[
+"sort",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/v1/rss": {
+"get": {
+"body": false,
+"op": "rss_api_netfugl_v1_rss_get",
+"params": [
+[
+"land",
+"query",
+false
+]
+]
+}
+},
+"/api/netfugl/v1/species/{liste}": {
+"get": {
+"body": false,
+"op": "species_api_netfugl_v1_species__liste__get",
+"params": [
+[
+"liste",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/v1/users/{kode}": {
+"get": {
+"body": false,
+"op": "user_api_netfugl_v1_users__kode__get",
+"params": [
+[
+"kode",
+"path",
+true
+]
+]
+}
+},
+"/api/netfugl/{kind}/{target}/kommentarer": {
+"post": {
+"body": true,
+"op": "ny_kommentar_api_netfugl__kind___target__kommentarer_post",
+"params": [
+[
+"kind",
+"path",
+true
+],
+[
+"target",
+"path",
+true
+]
+]
+}
+},
+"/api/news": {
+"get": {
+"body": false,
+"op": "news_api_news_get",
+"params": [
+[
+"limit",
+"query",
+false
+]
+]
+}
+},
+"/api/notifications": {
+"get": {
+"body": false,
+"op": "notifications_api_notifications_get",
+"params": [
+[
+"limit",
+"query",
+false
+]
+]
+}
+},
+"/api/notifications/read": {
+"post": {
+"body": true,
+"op": "mark_read_api_notifications_read_post",
+"params": []
+}
+},
+"/api/obs/{obsid}/media": {
+"get": {
+"body": false,
+"op": "media_api_obs__obsid__media_get",
+"params": [
+[
+"obsid",
+"path",
+true
+]
+]
+}
+},
+"/api/pheno/arrivals": {
+"get": {
+"body": false,
+"op": "arrivals_api_pheno_arrivals_get",
+"params": [
+[
+"year",
+"query",
+false
+]
+]
+}
+},
+"/api/pheno/climate": {
+"get": {
+"body": false,
+"op": "climate_api_pheno_climate_get",
+"params": []
+}
+},
+"/api/pheno/effort": {
+"get": {
+"body": false,
+"op": "effort_api_pheno_effort_get",
+"params": [
+[
+"days",
+"query",
+false
+]
+]
+}
+},
+"/api/pheno/migration": {
+"get": {
+"body": false,
+"op": "migration_map_api_pheno_migration_get",
+"params": [
+[
+"days_back",
+"query",
+false
+]
+]
+}
+},
+"/api/pheno/overview": {
+"get": {
+"body": false,
+"op": "overview_api_pheno_overview_get",
+"params": []
+}
+},
+"/api/pheno/species/{artnr}": {
+"get": {
+"body": false,
+"op": "species_api_pheno_species__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/pulse": {
+"get": {
+"body": false,
+"op": "pulse_map_api_pulse_get",
+"params": [
+[
+"since",
+"query",
+false
+]
+]
+}
+},
+"/api/push/devices": {
+"get": {
+"body": false,
+"op": "devices_api_push_devices_get",
+"params": [
+[
+"diag",
+"query",
+false
+]
+]
+}
+},
+"/api/push/devices/{sub_id}": {
+"delete": {
+"body": false,
+"op": "delete_device_api_push_devices__sub_id__delete",
+"params": [
+[
+"sub_id",
+"path",
+true
+]
+]
+}
+},
+"/api/push/diag": {
+"post": {
+"body": true,
+"op": "push_diag_api_push_diag_post",
+"params": []
+}
+},
+"/api/push/fcm": {
+"post": {
+"body": true,
+"op": "register_fcm_api_push_fcm_post",
+"params": []
+}
+},
+"/api/push/fcm/unregister": {
+"post": {
+"body": true,
+"op": "unregister_fcm_api_push_fcm_unregister_post",
+"params": []
+}
+},
+"/api/push/key": {
+"get": {
+"body": false,
+"op": "push_key_api_push_key_get",
+"params": []
+}
+},
+"/api/push/subscribe": {
+"post": {
+"body": true,
+"op": "subscribe_api_push_subscribe_post",
+"params": []
+}
+},
+"/api/push/test": {
+"post": {
+"body": false,
+"op": "push_test_api_push_test_post",
+"params": []
+}
+},
+"/api/push/unsubscribe": {
+"post": {
+"body": true,
+"op": "unsubscribe_api_push_unsubscribe_post",
+"params": []
+}
+},
+"/api/reports": {
+"post": {
+"body": true,
+"op": "create_report_api_reports_post",
+"params": []
+}
+},
+"/api/reports/codes": {
+"get": {
+"body": false,
+"op": "codes_api_reports_codes_get",
+"params": []
+}
+},
+"/api/reports/mine": {
+"get": {
+"body": false,
+"op": "mine_api_reports_mine_get",
+"params": []
+}
+},
+"/api/reports/near": {
+"get": {
+"body": false,
+"op": "near_api_reports_near_get",
+"params": [
+[
+"lat",
+"query",
+true
+],
+[
+"lon",
+"query",
+true
+]
+]
+}
+},
+"/api/reports/recent": {
+"get": {
+"body": false,
+"op": "recent_api_reports_recent_get",
+"params": []
+}
+},
+"/api/reports/species": {
+"get": {
+"body": false,
+"op": "species_api_reports_species_get",
+"params": []
+}
+},
+"/api/reports/{report_id}": {
+"delete": {
+"body": false,
+"op": "delete_report_api_reports__report_id__delete",
+"params": [
+[
+"report_id",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "get_report_api_reports__report_id__get",
+"params": [
+[
+"report_id",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "patch_report_api_reports__report_id__patch",
+"params": [
+[
+"report_id",
+"path",
+true
+]
+]
+}
+},
+"/api/reports/{report_id}/media": {
+"delete": {
+"body": false,
+"op": "delete_media_api_reports__report_id__media_delete",
+"params": [
+[
+"report_id",
+"path",
+true
+],
+[
+"url",
+"query",
+true
+]
+]
+},
+"post": {
+"body": true,
+"op": "upload_media_api_reports__report_id__media_post",
+"params": [
+[
+"report_id",
+"path",
+true
+]
+]
+}
+},
+"/api/search": {
+"post": {
+"body": true,
+"op": "search_api_search_post",
+"params": []
+}
+},
+"/api/search/export/{fmt}": {
+"post": {
+"body": true,
+"op": "export_api_search_export__fmt__post",
+"params": [
+[
+"fmt",
+"path",
+true
+]
+]
+}
+},
+"/api/search/points": {
+"post": {
+"body": true,
+"op": "points_api_search_points_post",
+"params": []
+}
+},
+"/api/search/valg": {
+"get": {
+"body": false,
+"op": "valg_api_search_valg_get",
+"params": []
+}
+},
+"/api/settings/public": {
+"get": {
+"body": false,
+"op": "public_settings_api_settings_public_get",
+"params": []
+}
+},
+"/api/species": {
+"get": {
+"body": false,
+"op": "species_search_api_species_get",
+"params": [
+[
+"limit",
+"query",
+false
+],
+[
+"q",
+"query",
+false
+]
+]
+}
+},
+"/api/species/index": {
+"get": {
+"body": false,
+"op": "species_index_api_species_index_get",
+"params": []
+}
+},
+"/api/species/{artnr}": {
+"get": {
+"body": false,
+"op": "species_detail_api_species__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/species/{artnr}/atlas": {
+"get": {
+"body": false,
+"op": "species_atlas_api_species__artnr__atlas_get",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/species/{artnr}/punkttaelling": {
+"get": {
+"body": false,
+"op": "species_point_counts_api_species__artnr__punkttaelling_get",
+"params": [
+[
+"artnr",
+"path",
+true
+]
+]
+}
+},
+"/api/stats/nfl": {
+"get": {
+"body": false,
+"op": "nfl_api_stats_nfl_get",
+"params": []
+}
+},
+"/api/stream": {
+"get": {
+"body": false,
+"op": "stream_api_stream_get",
+"params": []
+}
+},
+"/api/support": {
+"get": {
+"body": false,
+"op": "my_threads_api_support_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "new_thread_api_support_post",
+"params": []
+}
+},
+"/api/support/unread": {
+"get": {
+"body": false,
+"op": "unread_api_support_unread_get",
+"params": []
+}
+},
+"/api/support/{thread_id}": {
+"get": {
+"body": false,
+"op": "get_thread_api_support__thread_id__get",
+"params": [
+[
+"thread_id",
+"path",
+true
+]
+]
+},
+"patch": {
+"body": true,
+"op": "set_status_api_support__thread_id__patch",
+"params": [
+[
+"thread_id",
+"path",
+true
+]
+]
+}
+},
+"/api/support/{thread_id}/messages": {
+"post": {
+"body": true,
+"op": "reply_api_support__thread_id__messages_post",
+"params": [
+[
+"thread_id",
+"path",
+true
+]
+]
+}
+},
+"/api/thread/{day}/{artnr}/{loknr}": {
+"get": {
+"body": false,
+"op": "thread_api_thread__day___artnr___loknr__get",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"day",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+]
+]
+}
+},
+"/api/thread/{day}/{artnr}/{loknr}/comments": {
+"get": {
+"body": false,
+"op": "thread_comments_api_thread__day___artnr___loknr__comments_get",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"day",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+]
+]
+},
+"post": {
+"body": true,
+"op": "comment_api_thread__day___artnr___loknr__comments_post",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"day",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+]
+]
+}
+},
+"/api/thread/{day}/{artnr}/{loknr}/follow": {
+"post": {
+"body": false,
+"op": "follow_api_thread__day___artnr___loknr__follow_post",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"day",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+],
+[
+"on",
+"query",
+false
+]
+]
+}
+},
+"/api/thread/{day}/{artnr}/{loknr}/status": {
+"post": {
+"body": true,
+"op": "add_thread_status_api_thread__day___artnr___loknr__status_post",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"day",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+]
+]
+}
+},
+"/api/thread/{day}/{artnr}/{loknr}/status/{status_id}": {
+"delete": {
+"body": false,
+"op": "withdraw_thread_status_api_thread__day___artnr___loknr__status__status_id__delete",
+"params": [
+[
+"artnr",
+"path",
+true
+],
+[
+"day",
+"path",
+true
+],
+[
+"loknr",
+"path",
+true
+],
+[
+"status_id",
+"path",
+true
+]
+]
+}
+},
+"/api/trips": {
+"post": {
+"body": true,
+"op": "create_trip_api_trips_post",
+"params": []
+}
+},
+"/api/trips/common": {
+"get": {
+"body": false,
+"op": "common_api_trips_common_get",
+"params": [
+[
+"loknr",
+"query",
+true
+],
+[
+"n",
+"query",
+false
+]
+]
+}
+},
+"/api/trips/lookups": {
+"get": {
+"body": false,
+"op": "lookups_api_trips_lookups_get",
+"params": []
+}
+},
+"/api/trips/mine": {
+"get": {
+"body": false,
+"op": "mine_api_trips_mine_get",
+"params": []
+}
+},
+"/api/trips/offline/locations": {
+"get": {
+"body": false,
+"op": "offline_locations_api_trips_offline_locations_get",
+"params": []
+}
+},
+"/api/trips/recent": {
+"get": {
+"body": false,
+"op": "recent_trips_api_trips_recent_get",
+"params": [
+[
+"days",
+"query",
+false
+]
+]
+}
+},
+"/api/trips/weather": {
+"get": {
+"body": false,
+"op": "weather_api_trips_weather_get",
+"params": [
+[
+"dato",
+"query",
+true
+],
+[
+"fra",
+"query",
+false
+],
+[
+"lat",
+"query",
+true
+],
+[
+"lon",
+"query",
+true
+],
+[
+"til",
+"query",
+false
+]
+]
+}
+},
+"/api/trips/{trip_id}": {
+"delete": {
+"body": false,
+"op": "delete_trip_api_trips__trip_id__delete",
+"params": [
+[
+"trip_id",
+"path",
+true
+]
+]
+},
+"get": {
+"body": false,
+"op": "get_trip_api_trips__trip_id__get",
+"params": [
+[
+"trip_id",
+"path",
+true
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_trip_api_trips__trip_id__put",
+"params": [
+[
+"trip_id",
+"path",
+true
+]
+]
+}
+},
+"/api/visits/{visit_id}": {
+"delete": {
+"body": false,
+"op": "delete_visit_api_visits__visit_id__delete",
+"params": [
+[
+"visit_id",
+"path",
+true
+]
+]
+}
+},
+"/api/weather/current": {
+"get": {
+"body": false,
+"op": "weather_current_api_weather_current_get",
+"params": []
+}
+},
+"/api/weather/day": {
+"get": {
+"body": false,
+"op": "weather_day_api_weather_day_get",
+"params": [
+[
+"date",
+"query",
+true
+],
+[
+"loknr",
+"query",
+true
+]
+]
+}
+},
+"/api/weather/forecast": {
+"get": {
+"body": false,
+"op": "weather_forecast_api_weather_forecast_get",
+"params": []
+}
+},
+"/api/weather/grid": {
+"get": {
+"body": false,
+"op": "weather_grid_api_weather_grid_get",
+"params": [
+[
+"back",
+"query",
+false
+],
+[
+"days",
+"query",
+false
+]
+]
+}
+}
+}
