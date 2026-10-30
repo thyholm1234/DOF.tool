@@ -37,6 +37,9 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "statistik": ("Statistik-modulet", "Menupunktet Statistik → Statistik med fanerne Arter pr. år (flyttes hertil fra Lister) "
                   "og NFL: nye fuglearter for landet pr. år siden 1990 med graf og artsliste. Når modulet ikke er synligt, "
                   "ligger Arter pr. år fortsat under Lister.", None, "preview"),
+    "daymap": ("Kort: dagskort", "Fanen Dag under Kort (tidligere Puls): et kort over en valgfri dags observationer i hele "
+               "landet med filtre for SU, SUB, Bemærk, lokale hits og fænologi. Den seneste uge caches og varmes op hver nat. "
+               "Fanen Live (det tidligere Puls) er altid synlig.", None, "preview"),
     "dofbasen": ("DOFbasen (showcase)", "Hele modulet: en ny udgave af dofbasen.dk med forside, observationer, lister, fænologi, "
                  "tekstsider og eget admin-panel. Menupunktet DOFbasen vises kun, når modulet er synligt for brugeren.", None, "preview"),
     "dofbasen_search": ("DOFbasen: søgning", "Søgesiden med alle filtre, kort og CSV-udtræk.", "dofbasen", "on"),

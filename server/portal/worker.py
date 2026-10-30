@@ -20,7 +20,7 @@ from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import (areas, backup, datasync, dku_candidates, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl,
+from portal.services import (areas, backup, datasync, daymap, dku_candidates, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl,
                              phenology, regions, schedule, seasons, speechmodel, storage, weather_archive)
 from portal.timeutil import dk_now, dk_today
 
@@ -51,6 +51,8 @@ async def nightly_compute() -> None:
     await kv().set(AGG_MARK, mark)
     await jobstatus.step("Lokale tal (DK, afdelinger, kommuner)", 1, 5)
     async with SessionLocal() as s:
+        if await locfinds.has_data(s):  # ellers venter de lokale hits på den første fulde beregning
+            await locfinds.refresh_recent(s)
         await areas.refresh_all_area_counts(s)
     await jobstatus.step("Fænologi", 2, 5)
     async with SessionLocal() as s:
@@ -181,6 +183,9 @@ async def run_scheduled(name: str, flags: dict) -> None:
             log.exception("Kopiering af referencedata fejlede")
     elif name == "climate":
         await run_safely("climate", refresh_climate())
+    elif name == "daymap":
+        if flags.get("daymap") != "off":
+            await run_safely("daymap", warm_daymap())
     elif name == "events":
         await run_safely("events", dof_events.sync())
     elif name == "gap_fill":
@@ -196,6 +201,11 @@ async def run_scheduled(name: str, flags: dict) -> None:
             cfg = await backup.load(s)
         if backup.configured(cfg):  # ellers springes den planlagte kørsel stille over
             await run_safely("backup", backup.to_sftp(cfg))
+
+
+async def warm_daymap() -> None:
+    async with SessionLocal() as s:
+        await daymap.warm(s)
 
 
 async def run_backup() -> None:

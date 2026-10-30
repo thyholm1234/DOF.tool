@@ -17,7 +17,7 @@ from portal.db import SessionLocal, get_session
 from portal.dof import gateway
 from portal.dof.jobs import ensure_media_obs, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, ThreadStatus, User
-from portal.services import activity, feed, finds, moderation, pulse, reports
+from portal.services import activity, daymap, features, feed, finds, moderation, pulse, reports
 from portal.services.alerts import Crossed
 from portal.services.areas import Scope, parse_scope, scope_for_area
 from portal.services.auth import can, modules
@@ -383,6 +383,18 @@ async def nearby(lat: float, lon: float, radius_km: float = Query(10, gt=0, le=1
 async def pulse_map(since: str | None = Query(None, max_length=40), db: AsyncSession = Depends(get_session)):
     """Kommandokortet: ændringer pr. live-sync og aktive (anonyme) birdere."""
     return await pulse.snapshot(db, since)
+
+
+@router.get("/daymap")
+async def day_map(day: date | None = Query(None, alias="date"), local_max: int = Query(daymap.LOCAL_MAX, ge=1, le=100),
+                  user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Kort → Dag: en dags tråde i hele landet med flag for SU, SUB, Bemærk, lokale hits og fænologi."""
+    if not features.visible(await features.load(db), "daymap", superadmin=user.role == "superadmin", insider=False):
+        raise HTTPException(404, "Funktionen er ikke slået til")
+    day = day or dk_today()
+    if day > dk_today():
+        raise HTTPException(400, "Dagen ligger i fremtiden")
+    return await daymap.day_map(db, day, local_max)
 
 
 @router.get("/stream")

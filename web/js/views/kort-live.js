@@ -1,4 +1,4 @@
-// Puls: kommandokort over Danmark. Ved hver live-sync popper ændringerne op på kortet én ad gangen (50 → 56 bogfinker
+// Kort → Live (tidligere Puls): kommandokort over Danmark. Ved hver live-sync popper ændringerne op på kortet én ad gangen (50 → 56 bogfinker
 // vises som 6 Bogfink), og anonyme birdere står som små figurer på lokaliteten i op til 15 minutter efter seneste ændring.
 // Er der ikke tid til alt før næste sync, vises SU, SUB og Bemærk først og de største antal blandt resten.
 import { api, h, fmtN, fmtTime, esc, KAT, tag, seg, store, todayISO, errorBox } from "../core.js";
@@ -18,7 +18,7 @@ const label = (it) => it.delta > 0 ? `${fmtN(it.delta)} ${it.art}` : it.art;
 const totalTxt = (it) => it.total > it.delta ? `i alt ${fmtN(it.total)} · ` : "";
 const threadHash = (it, day) => `#/traad/${day}/${it.artnr}/${it.loknr}`;
 
-export async function render(view) {
+export async function renderLive(view) {
   const saved = store("puls") || {};
   const st = { sort: saved.sort || "nyeste", since: null, interval: 120, lastAt: null, skipped: 0 };
   const mapEl = h("div", { class: "map full pulse-map" });
@@ -26,8 +26,7 @@ export async function render(view) {
   const stats = { birders: h("b", { class: "num" }, "0"), last: h("b", { class: "num" }, "–"), shown: h("small", { class: "muted" }) };
   const sortBox = h("div", {});
   view.append(
-    h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Puls"),
-      h("p", { class: "lead" }, "Danmark lige nu – nye fugle popper op, efterhånden som de bliver indtastet. Figurerne er birdere, der har indtastet inden for det sidste kvarter."))),
+    h("p", { class: "lead" }, "Danmark lige nu – nye fugle popper op, efterhånden som de bliver indtastet. Figurerne er birdere, der har indtastet inden for det sidste kvarter."),
     h("div", { class: "pulse-stats" },
       h("span", { class: "pulse-stat" }, h("span", { class: "pulse-person", html: PERSON }), stats.birders, " aktive birdere"),
       h("span", { class: "pulse-stat" }, "Seneste sync ", stats.last), stats.shown),

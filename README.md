@@ -56,7 +56,8 @@ DOFbasen-obserkoden; portalen gemmer aldrig adgangskoder.
   status på SU/SUB-fugle (*stadig til stede*, *fløjet*, *ikke genfundet*).
 - **Alarmer** – for afdeling, kommune, lokalitet, tegnet polygon, radius eller *din position, der følger dig*. Push til
   browser og app, med stille timer.
-- **Puls** – kommandokort over Danmark, hvor hver ny ændring popper op på kortet.
+- **Kort** – *Live*: kommandokort over Danmark, hvor hver ny ændring popper op på kortet. *Dag*: en valgfri dags SU, SUB,
+  Bemærk, lokale hits og fænologi på ét kort (den seneste uge ligger klar).
 
 ### 📝 Indtast i felten
 - **Ture som i app.dofbasen.dk** – lokalitet (søg eller nærmeste), tider, metode, komplet artsliste, vejr (hentes fra DMI),

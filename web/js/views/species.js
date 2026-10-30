@@ -96,7 +96,7 @@ function recentList(rows) {
     h("span", {}, fmtDate(r.dato, false), " · ", h("a", { href: `#/lok/${r.loknr}` }, r.lok)), h("span", {}, r.kategori !== "alm" ? tag(r.kategori, KAT[r.kategori]) : null, " ", h("b", { class: "num" }, fmtN(r.antal))))));
 }
 
-// Estimeret antal fund for SU/SUB-arter (< 15 km og højst 1 dag, eller samme lokalitet med højst 7 dages hul = ét fund)
+// Estimeret antal fund og fugle for SU/SUB-arter (services/finds.py): stationære og trækkende kædes hver for sig
 function findsCard(f, artnr) {
   const year = new Date().getFullYear();
   const byYear = Object.fromEntries(f.per_year.map(p => [p.year, p.n]));
@@ -107,21 +107,24 @@ function findsCard(f, artnr) {
   const rows = f.finds.slice(0, 40);
   return h("div", { class: "card mt" },
     h("h2", {}, "Fund (estimeret)"),
-    h("div", { class: "stats", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
-      stat(fmtN(byYear[year] || 0), `fund i ${year} til dato`), stat(fmtN(f.total), `fund siden ${first}`), stat(best ? fmtN(best.n) : "–", best ? `flest (${best.year})` : "flest")),
+    h("div", { class: "stats", style: { gridTemplateColumns: "repeat(4, 1fr)" } },
+      stat(fmtN(byYear[year] || 0), `fund i ${year} til dato`), stat(fmtN(f.per_year.find(p => p.year === year)?.birds ?? 0), `fugle i ${year} til dato`),
+      stat(fmtN(f.total), `fund siden ${first} (${fmtN(f.birds)} fugle)`), stat(best ? fmtN(best.n) : "–", best ? `flest (${best.year})` : "flest")),
     pts.length > 1 ? h("div", { class: "mt" }, lineChart({ series: [{ name: "Fund", points: pts, color: PALETTE[3] }], height: 200, xFormat: String, yFormat: (v) => fmtN(Math.round(v)) })) : null,
     h("details", { class: "more mt" }, h("summary", {}, `Seneste ${rows.length} fund`),
       h("div", { class: "table-wrap mt" }, h("table", { class: "data" },
-        h("thead", {}, h("tr", {}, h("th", {}, "Fund"), h("th", {}, "Periode"), h("th", {}, "Lokalitet"), h("th", { class: "right" }, "Maks."), h("th", { class: "right" }, "Obs."))),
+        h("thead", {}, h("tr", {}, h("th", {}, "Fund"), h("th", {}, "Periode"), h("th", {}, "Lokalitet"), h("th", { class: "right", title: "Største antal ét sted i fundet" }, "Fugle"), h("th", { class: "right" }, "Obs."))),
         h("tbody", {}, ...rows.map(x => h("tr", {},
           h("td", { class: "nowrap muted" }, `${x.year_no}. i ${x.first.slice(0, 4)}`),
           h("td", { class: "nowrap" }, x.loknr ? h("a", { href: `#/traad/${x.first}/${artnr}/${x.loknr}` }, span(x)) : span(x)),
-          h("td", {}, x.loknr ? h("a", { href: `#/lok/${x.loknr}` }, x.lok) : h("span", { class: "muted" }, "Skjult lokalitet"), x.n_sites > 1 ? h("span", { class: "muted" }, ` +${x.n_sites - 1}`) : null),
+          h("td", {}, x.loknr ? h("a", { href: `#/lok/${x.loknr}` }, x.lok) : h("span", { class: "muted" }, "Skjult lokalitet"), x.n_sites > 1 ? h("span", { class: "muted" }, ` +${x.n_sites - 1}`) : null,
+            x.migrating ? h("span", { class: "muted" }, " · trækkende") : null),
           h("td", { class: "right num" }, fmtN(x.max_antal)), h("td", { class: "right num" }, fmtN(x.n_obs)))))))),
     h("p", { class: "muted", style: { fontSize: ".82rem", marginBottom: 0 } },
-      `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden regnes som samme fund (kædet). `,
-      `På samme lokalitet er det også samme fugl, selvom den ikke ses i op til ${f.site_gap_days ?? 7} dage – et længere hul deler serien i to fund. `,
-      `Det gælder ikke trækkende fugle (adfærd der ender på en trækretning, T, TU, TF eller OF).`));
+      `Estimat: stationære og trækkende fugle tælles hver for sig. Stationære observationer under ${f.link_km} km og højst ${f.link_days} dag fra hinanden er samme fund (kædet), `,
+      `og på samme lokalitet også med op til ${f.site_gap_days ?? 7} dages hul. Trækkende (retning, T, TU eller OF – ikke trækforsøg) er samme fund samme sted samme dag `,
+      `eller videre ud ad ca. samme trækretning (højst ${f.mig_link_km ?? 40} km og næste dag); samme sted en anden dag er nye fugle. `,
+      `Et fund strækker sig højst over ${f.span_km ?? 30} km (trækkende længere). Fugle = det største antal ét sted i fundet.`));
 }
 
 // ---------------------------------------------------------------- punkttællinger (DOF's bestandsindeks)

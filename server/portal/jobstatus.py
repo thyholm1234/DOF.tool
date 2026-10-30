@@ -30,6 +30,7 @@ LABELS = {
     "regions": "Arter pr. år (regioner, alle år med observationer)",
     "gaps": "Huller (observatører og ture pr. art)",
     "location_years": "Lokalitetsoversigt",
+    "daymap": "Dagskort: ugens dage",
     "plan": "Opdateringsplan",
     "netfugl_kryds": "Netfugl: krydslister fra DOFbasen",
     "netfugl_rss": "Netfugl: RSS-kilder",

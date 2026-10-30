@@ -13,7 +13,7 @@ const SECTIONS = [
   ["Ud i felten", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
   ["Statistik", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
-  ["Værktøjer", [["#/laer", "learn", "Læring"], ["#/puls", "map", "Puls"], ["#/mobgang", "sound", "Mobgang"]]],
+  ["Værktøjer", [["#/laer", "learn", "Læring"], ["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
 const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
@@ -49,7 +49,7 @@ const ROUTES = [
   [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
   [/^\/matrikel$/, () => import("./views/matrikel.js")],
   [/^\/traek$/, () => import("./views/pheno.js")],
-  [/^\/puls$/, () => import("./views/pulse.js")],
+  [/^\/(?:kort|puls)$/, () => import("./views/kort.js")],  // #/puls er den gamle adresse
   [/^\/arter$/, () => import("./views/arter.js")],
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
   [/^\/lokaliteter$/, () => import("./views/lokaliteter.js")],
@@ -229,8 +229,6 @@ async function route() {
     location.replace("#/login" + (path && path !== "/" ? `?next=${encodeURIComponent("#" + location.hash.slice(1))}` : ""));
     return;
   }
-  // Gamle bogmærker til kortet
-  if (path === "/kort") { location.replace("#/traek?tab=kort"); return; }
   renderNav();
   if (state.user) trackView(path);
   if (state.user && state.unread) markSeen("/#" + path);

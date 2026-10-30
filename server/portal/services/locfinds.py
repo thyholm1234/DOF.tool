@@ -1,18 +1,21 @@
 """Estimerede fund pr. art og lokalitet gennem alle år – grundlag for 'lokale hits'.
 
-Et fund er som i finds.py, men inden for én lokalitet: dage med arten hører til samme fund, når der højst er
-SITE_GAP_DAYS dage imellem (en fugl der bliver på stedet), eller højst LINK_DAYS dag, hvis fuglen var trækkende den ene
-af dagene (en trækkende fugl er videre og kommer ikke igen). Ti dages rast giver altså ét fund, ikke ti.
+Et fund er som i finds.py, men inden for én lokalitet. Stationære fugle (alt andet end træk – også trækforsøg TF) og
+trækkende tælles hver for sig: stationære dage hører til samme fund, når der højst er SITE_GAP_DAYS dage imellem (en fugl
+der bliver på stedet), mens hver dag med trækkende fugle er et fund for sig (en trækkende fugl er videre og kommer ikke
+igen). Ti dages rast giver altså ét fund, ikke ti; ti dage med træk forbi giver ti.
 
-Beregningen er tung (alle observationer), så den køres én lokalafdeling ad gangen, spredt over måneden efter en plan
-der styres under Admin → Drift (Fordeling). Lokaliteter uden lokalafdeling er sin egen portion (afdeling 0).
+Hele beregningen er tung (alle observationer), så den køres én lokalafdeling ad gangen, spredt over måneden efter en plan
+der styres under Admin → Drift (Fordeling). Lokaliteter uden lokalafdeling er sin egen portion (afdeling 0). Derudover
+genberegnes hver nat de (lokalitet, art)-par, der har fået observationer fra de seneste dage (refresh_recent), så en art
+under en invasion ikke bliver ved med at være et lokalt hit, til lokalafdelingens dag kommer.
 """
 
 from __future__ import annotations
 
 import json
 import time
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,15 +23,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal import jobstatus
 from portal.cache import COMMANDS, kv
 from portal.models import Setting
-from portal.services.finds import LINK_DAYS, MIGRATING, SITE_GAP_DAYS
-from portal.timeutil import dk_now
+from portal.services.finds import MIGRATING, SITE_GAP_DAYS
+from portal.timeutil import dk_now, dk_today
 
 PLAN = "locfinds:plan"
 STATUS = "locfinds:status"
 NONE = 0  # lokaliteter uden lokalafdeling
 LAST_DAY = 28  # findes i alle måneder
 
-# Dagens sidste adfærdsled uden "HØ" (kun hørt) – trækkende hvis det er en retning eller T/TU/TF/OF (som finds.is_migrating)
+RECENT = "locfinds:recent"  # dato for seneste natlige opdatering
+RECENT_DAYS = 3  # sene indtastninger: par med observationer så mange dage før seneste opdatering tages med
+# Par med mindst så mange fund kan ikke blive lokale hits (feedets grænse går til 100) – de springes over om natten,
+# så almindelige arter på travle lokaliteter ikke skal regnes igen; den månedlige kørsel tager dem med.
+RECENT_SKIP = 100
+# Observationens sidste adfærdsled uden "HØ" (kun hørt) – trækkende hvis det er en retning eller T/TU/OF (som finds.is_migrating)
 _MIG = (r"coalesce(substring(regexp_replace(coalesce(o.adfkode, ''), '(\s+HØ)+\s*$', '') from '(\S+)\s*$') = ANY(CAST(:mig AS text[])), false)")
 
 
@@ -36,27 +44,55 @@ def _loc_filter(afd: int) -> str:
     return "afdeling_id IS NULL" if afd == NONE else "afdeling_id = :afd"
 
 
-async def compute(session: AsyncSession, afd: int) -> int:
-    """Genberegn alle lokaliteter i én lokalafdeling. Returnerer antal (lokalitet, art)-rækker."""
-    params = {"afd": afd, "mig": list(MIGRATING), "gap": SITE_GAP_DAYS, "link": LINK_DAYS}
-    await session.execute(text(f"DELETE FROM loc_species_finds WHERE loknr IN (SELECT loknr FROM locations WHERE {_loc_filter(afd)})"),
-                          params)
-    res = await session.execute(text(f"""
+def _finds_sql(where: str) -> str:
+    """Fund pr. (lokalitet, art) for observationerne der opfylder where: stationære serier + dage med træk."""
+    return f"""
         WITH d AS (
-            SELECT o.loknr, o.artnr, o.dato, bool_and({_MIG}) AS mig
+            SELECT o.loknr, o.artnr, o.dato, {_MIG} AS mig
             FROM observations o
-            WHERE o.loknr IN (SELECT loknr FROM locations WHERE {_loc_filter(afd)}) AND o.antal > 0 AND o.dato < current_date
-            GROUP BY o.loknr, o.artnr, o.dato
-        ), g AS (
-            SELECT loknr, artnr, dato, dato - lag(dato) OVER w AS gap, mig OR lag(mig) OVER w AS mig
-            FROM d WINDOW w AS (PARTITION BY loknr, artnr ORDER BY dato)
+            WHERE {where} AND o.antal > 0 AND o.dato < current_date
+            GROUP BY 1, 2, 3, 4
+        ), s AS (
+            SELECT loknr, artnr, dato - lag(dato) OVER (PARTITION BY loknr, artnr ORDER BY dato) AS gap FROM d WHERE NOT mig
+        ), f AS (
+            SELECT loknr, artnr, count(*) FILTER (WHERE gap IS NULL OR gap > CAST(:gap AS integer)) AS n FROM s GROUP BY 1, 2
+            UNION ALL
+            SELECT loknr, artnr, count(*) FROM d WHERE mig GROUP BY 1, 2
+        ), fs AS (
+            SELECT loknr, artnr, sum(n) AS n FROM f GROUP BY 1, 2
+        ), days AS (
+            SELECT loknr, artnr, count(DISTINCT dato) AS n_days, max(dato) AS last_date FROM d GROUP BY 1, 2
         )
         INSERT INTO loc_species_finds (loknr, artnr, n_finds, n_days, last_date)
-        SELECT loknr, artnr, count(*) FILTER (WHERE gap IS NULL OR gap > (CASE WHEN mig THEN CAST(:link AS integer) ELSE CAST(:gap AS integer) END)),
-               count(*), max(dato)
-        FROM g GROUP BY loknr, artnr
-    """), params)
+        SELECT x.loknr, x.artnr, coalesce(fs.n, 0), x.n_days, x.last_date
+        FROM days x LEFT JOIN fs USING (loknr, artnr)
+    """
+
+
+async def compute(session: AsyncSession, afd: int) -> int:
+    """Genberegn alle lokaliteter i én lokalafdeling. Returnerer antal (lokalitet, art)-rækker."""
+    params = {"afd": afd, "mig": list(MIGRATING), "gap": SITE_GAP_DAYS}
+    where = f"o.loknr IN (SELECT loknr FROM locations WHERE {_loc_filter(afd)})"
+    await session.execute(text(f"DELETE FROM loc_species_finds WHERE loknr IN (SELECT loknr FROM locations WHERE {_loc_filter(afd)})"),
+                          params)
+    res = await session.execute(text(_finds_sql(where)), params)
     await session.commit()
+    return res.rowcount or 0
+
+
+async def refresh_recent(session: AsyncSession) -> int:
+    """Natlig opdatering: genberegn alle år for de (lokalitet, art)-par, der har observationer siden sidste kørsel
+    (minus RECENT_DAYS for sene indtastninger) og har færre end RECENT_SKIP fund. Returnerer antal opdaterede par."""
+    last = await kv().get(RECENT)
+    since = (date.fromisoformat(last) if last else dk_today() - timedelta(days=1)) - timedelta(days=RECENT_DAYS)
+    pairs = """SELECT DISTINCT n.loknr, n.artnr FROM observations n
+               WHERE n.dato >= :since AND n.dato < current_date AND n.antal > 0
+                 AND NOT EXISTS (SELECT 1 FROM loc_species_finds x WHERE x.loknr = n.loknr AND x.artnr = n.artnr AND x.n_finds >= :skip)"""
+    params = {"since": since, "mig": list(MIGRATING), "gap": SITE_GAP_DAYS, "skip": RECENT_SKIP}
+    await session.execute(text(f"DELETE FROM loc_species_finds WHERE (loknr, artnr) IN ({pairs})"), params)
+    res = await session.execute(text(_finds_sql(f"(o.loknr, o.artnr) IN ({pairs})")), params)
+    await session.commit()
+    await kv().set(RECENT, dk_today().isoformat())
     return res.rowcount or 0
 
 

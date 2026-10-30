@@ -1448,7 +1448,7 @@ async function locfindsModal(onSaved) {
   };
   const m = modal("Lokale hits: fordeling over måneden", h("div", { class: "stack" },
     h("p", { class: "muted", style: { margin: 0 } },
-      "Estimerede fund pr. art og lokalitet gennem alle år genberegnes én gang om måneden, én lokalafdeling ad gangen, så belastningen spredes. Hver afdeling kører på sin dag i måneden fra det valgte klokkeslæt (dag 1–28, så alle måneder har dagen). Er workeren nede på dagen, køres afdelingen, så snart den er oppe igen."),
+      "Estimerede fund pr. art og lokalitet gennem alle år genberegnes én gang om måneden, én lokalafdeling ad gangen, så belastningen spredes. Hver afdeling kører på sin dag i måneden fra det valgte klokkeslæt (dag 1–28, så alle måneder har dagen). Er workeren nede på dagen, køres afdelingen, så snart den er oppe igen. Desuden opdateres hver nat (under Genberegning) de lokaliteter og arter, der har fået nye observationer."),
     h("div", { class: "row", style: { gap: "1rem", flexWrap: "wrap" } },
       h("label", { class: "check" }, on, "Slået til"),
       h("label", { class: "row", style: { gap: "6px" } }, "Fra kl.", at)),

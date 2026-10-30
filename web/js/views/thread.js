@@ -227,12 +227,12 @@ function weatherCard(w) {
     h("small", { class: "muted", style: { display: "block", marginTop: "8px" } }, "DMI's 10 km-grid for kvadratet omkring lokaliteten (vejrarkivet)."));
 }
 
-// Estimeret fund (SU/SUB): < 15 km og højst 1 dag fra hinanden, eller samme lokalitet med højst 7 dages hul (ikke trækkende)
+// Estimeret fund (SU/SUB): stationære og trækkende kædes hver for sig (services/finds.py)
 function findNotice(f, artnr) {
   if (!f) return null;
   const span = f.first === f.last ? fmtDate(f.first, false) : `${fmtDate(f.first, false)} – ${fmtDate(f.last, false)}`;
-  return h("div", { class: "notice mb", title: `Estimat: observationer af arten under ${f.link_km} km og højst ${f.link_days} dag fra hinanden er samme fund – og på samme lokalitet også med op til ${f.site_gap_days ?? 7} dages hul, medmindre fuglen var trækkende` },
-    h("b", {}, `${f.year_no}. fund i ${f.year}`), ` (estimeret) · ${fmtN(f.year_total)} fund i ${f.year}${f.year === new Date().getFullYear() ? " til dato" : ""}, ${fmtN(f.total)} siden ${f.since}`,
-    h("div", { class: "muted", style: { fontSize: ".85rem" } }, `Fundet: ${span} · ${f.n_days} ${f.n_days === 1 ? "dag" : "dage"} · ${fmtN(f.n_obs)} obs.${f.n_sites > 1 ? ` på ${f.n_sites} lokaliteter` : ""} · `,
+  return h("div", { class: "notice mb", title: `Estimat: stationære observationer under ${f.link_km} km og højst ${f.link_days} dag fra hinanden er samme fund – på samme lokalitet også med op til ${f.site_gap_days ?? 7} dages hul. Trækkende tælles for sig: samme sted samme dag eller videre i ca. samme retning. Et fund strækker sig højst over ${f.span_km ?? 30} km.` },
+    h("b", {}, `${f.year_no}. fund i ${f.year}`), ` (estimeret${f.migrating ? ", trækkende" : ""}) · ${fmtN(f.year_total)} fund${f.year_birds != null ? ` (${fmtN(f.year_birds)} fugle)` : ""} i ${f.year}${f.year === new Date().getFullYear() ? " til dato" : ""}, ${fmtN(f.total)} siden ${f.since}`,
+    h("div", { class: "muted", style: { fontSize: ".85rem" } }, `Fundet: ${span} · ${f.n_days} ${f.n_days === 1 ? "dag" : "dage"} · ${fmtN(f.n_birds ?? f.max_antal)} ${(f.n_birds ?? f.max_antal) === 1 ? "fugl" : "fugle"} · ${fmtN(f.n_obs)} obs.${f.n_sites > 1 ? ` på ${f.n_sites} lokaliteter` : ""} · `,
       h("a", { href: `#/art/${artnr}` }, "alle fund af arten")));
 }

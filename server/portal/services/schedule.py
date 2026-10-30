@@ -31,6 +31,8 @@ TASKS: dict[str, tuple[str, str, dict]] = {
                 {"on": True, "every": 1, "unit": "day", "at": "02:30"}),
     "location_years": ("Lokalitetsoversigt", "Tal pr. lokalitet og år til Lokaliteter-siden",
                        {"on": True, "every": 6, "unit": "hour", "at": "00:40"}),
+    "daymap": ("Dagskort", "Kort → Dag: de seneste 7 dage beregnes igen og caches, så sene indtastninger kommer med "
+               "(kun når dagskortet er slået til)", {"on": True, "every": 3, "unit": "hour", "at": "00:20"}),
     "reference": ("Referencedata fra DOFbasen", "Arter, lokaliteter og koder hentes igen gennem gatewayen",
                   {"on": True, "every": 1, "unit": "day", "at": "03:00"}),
     "reference_sync": ("Kopiér referencedata", "Fra observationsgruppen til brugergruppen",
