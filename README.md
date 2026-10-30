@@ -85,7 +85,8 @@ DOFbasen-obserkoden; portalen gemmer aldrig adgangskoder.
 - **DOFbasen** og **Netfugl** genopbygget på portalens backend, med eget admin-panel, roller og REST-API.
   Kan slås til, vises som forhåndsvisning eller slås fra under *Admin → Funktioner*.
 
-Hele beskrivelsen modul for modul står i **[docs/funktioner.md](docs/funktioner.md)**.
+Hele beskrivelsen modul for modul står i **[docs/funktioner.md](docs/funktioner.md)**. Hvordan koden er delt i moduler, og
+hvor ny kode skal ligge, står i **[docs/arkitektur.md](docs/arkitektur.md)**.
 
 ## Tech-stack
 

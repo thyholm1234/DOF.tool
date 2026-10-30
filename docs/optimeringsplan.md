@@ -49,7 +49,7 @@ mislykkede API-kald; alle API-kald under 250 ms.
 
 ## Struktur og organisering
 
-- [ ] Trin 1: Fælles domænemodul `portal/domain/`
+- [x] Trin 1: Fælles domænemodul `portal/domain/`
   - **Opgave**: Saml kategoriernes rangorden (`kategori.py`), adfærdskoder og træk (`adfaerd.py`) og afstand/retning
     (`geo.py`) ét sted og brug dem overalt. Ingen ændring af semantik: de to trækdefinitioner bevares under hvert sit navn.
   - **Filer**: `domain/__init__.py`, `domain/kategori.py`, `domain/adfaerd.py`, `domain/geo.py`; brugere: `services/feed.py`,
@@ -57,46 +57,46 @@ mislykkede API-kald; alle API-kald under 250 ms.
     `services/calendars.py`, `services/phenology.py`, `services/dmi.py`, `services/daymap.py`, `dof/parse.py`, `api/geo.py`
   - **Afhængigheder**: ingen
   - **Succes**: ingen kopier af listerne tilbage (grep), tests grønne, feed/fænologi giver samme svar.
-- [ ] Trin 2: Fælles lager for `settings`-rækker
+- [x] Trin 2: Fælles lager for `settings`-rækker
   - **Opgave**: `services/setting_store.py` med `get_setting` / `put_setting`; erstat de håndskrevne kopier.
   - **Filer**: ny fil + de services, der har kopien (schedule, backup, datasync, locfinds, features, …)
   - **Afhængigheder**: ingen
   - **Succes**: samme værdier læses/skrives; tests grønne.
-- [ ] Trin 3: `models.py` → pakken `portal/models/` pr. domæne
+- [x] Trin 3: `models.py` → pakken `portal/models/` pr. domæne
   - **Opgave**: Del i `reference`, `observations`, `aggregates`, `users`, `field`, `learning`, `social`, `datastatus`,
     `events`, `dofbasen`, `netfugl`, `dku` og `ddl`; `portal/models/__init__.py` re-eksporterer alt, så
     `from portal.models import X` virker uændret.
   - **Afhængigheder**: ingen
   - **Succes**: samme tabelsæt i `Base.metadata` (test), samme `EXTRA_DDL`.
-- [ ] Trin 4: `api/admin.py` → pakken `portal/api/admin/` pr. panel
+- [x] Trin 4: `api/admin.py` → pakken `portal/api/admin/` pr. panel
   - **Opgave**: `drift`, `backup`, `brugere`, `moderation`, `indhold`, `data`, `indstillinger`; `__init__` samler én router.
   - **Afhængigheder**: ingen
   - **Succes**: identisk rutetabel (snapshot-test af alle ruter, metoder og navne).
-- [ ] Trin 5: Planlagte opgaver som register i workeren
+- [x] Trin 5: Planlagte opgaver som register i workeren
   - **Opgave**: `run_scheduled` slår op i et register (navn → funktion, evt. funktionsflag) i stedet for `if/elif`.
   - **Filer**: `worker.py`
   - **Succes**: alle navne i `schedule.TASKS` har en handler (test).
 
 ## Ydelse
 
-- [ ] Trin 6: Komprimering af API og app-filer
+- [x] Trin 6: Komprimering af API og app-filer
   - **Opgave**: GZip for JSON, HTML, JS og CSS (ikke SSE-strømmen, medier, lyd eller Range-forespørgsler).
   - **Filer**: `main.py`
   - **Succes**: `Content-Encoding: gzip` på `/api/daymap` og `/v/…/app.js`; `/api/stream` og `/media/` uberørt.
-- [ ] Trin 7: Leaflet indlæses først, når et kort skal vises
+- [x] Trin 7: Leaflet indlæses først, når et kort skal vises
   - **Opgave**: `maps.js` henter Leaflet (JS + CSS) med top-level `await`; moduler, der bruger `L`, importerer
     `maps.js`. Fjern Leaflet fra `index.html` (service workeren har den stadig i sin offline-skal).
   - **Filer**: `web/index.html`, `web/js/maps.js`, `web/js/dofbasen/*.js` (dem der bruger `L`), `web/js/wind.js`
   - **Succes**: forsiden indlæser ikke `leaflet.js`; alle kortsider viser stadig kort (røgtest).
-- [ ] Trin 8: Admin/moderation delt i faner, der lazy-loades
+- [x] Trin 8: Admin/moderation delt i faner, der lazy-loades
   - **Opgave**: `views/admin.js` bliver en skal; fanerne i `views/admin/*.js` hentes, når de åbnes.
   - **Succes**: alle admin- og moderationsfaner i røgtesten uden fejl og med samme indhold.
-- [ ] Trin 9: Fælles kategorikonstanter i frontend
+- [x] Trin 9: Fælles kategorikonstanter i frontend
   - **Opgave**: `KAT_RANK` i `core.js`; brug den i `kort-live.js`, `map.js`, `kort-dag.js`.
 
 ## Test
 
-- [ ] Trin 10: Tests af domæneregler, rutetabel, registre og røgtest
+- [x] Trin 10: Tests af domæneregler, rutetabel, registre og røgtest
   - **Opgave**: pytest for `domain/*`, `setting_store`, rutesnapshot og worker-registret; røgtesten i browser
     (`tools/e2e/smoke.py`) lægges i repoet med vejledning.
   - **Succes**: alle tests grønne; røgtesten uden JS-fejl, mislykkede kald eller ændret sidestruktur i forhold til
@@ -104,7 +104,7 @@ mislykkede API-kald; alle API-kald under 250 ms.
 
 ## Dokumentation
 
-- [ ] Trin 11: `docs/arkitektur.md` – moduloversigt og regler for, hvor ny kode skal ligge.
+- [x] Trin 11: `docs/arkitektur.md` – moduloversigt og regler for, hvor ny kode skal ligge.
 
 ## Næste logiske skridt (ikke gennemført her)
 
