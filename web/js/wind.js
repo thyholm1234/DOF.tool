@@ -2,6 +2,7 @@
 // farvelag for vindstyrken. Feltet er enten et modelgitter (DMI HARMONIE: {lat0, lon0, step, nx, ny, u, v})
 // eller DMI-stationer ([{lat, lon, speed, dir}]), som så interpoleres (IDW) til et gitter.
 // Partiklerne har geografiske positioner og flyttes i skærmpixels, så de følger kortet ved panorering.
+import "./maps.js";  // Leaflet (L) skal være hentet
 
 const STATION_GRID = { lat0: 54.3, lon0: 7.3, step: 0.1, ny: 38, nx: 83 };
 

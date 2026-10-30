@@ -1,5 +1,23 @@
 // Leaflet-hjælpere: grundkort, farver og tegneværktøj (polygon og radius).
+// Leaflet (JS + CSS fra /vendor) hentes først, når et modul med kort importerer denne fil – forsiden og de fleste andre
+// sider indlæser det aldrig. Top-level await: når importen er færdig, er det globale L klar til brug.
 import { h } from "./core.js";
+
+let loading = null;
+/** Hent Leaflet én gang (genbruges af alle kort). */
+export function leaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  const add = (tag, attrs) => new Promise((resolve, reject) => {
+    const el = Object.assign(document.createElement(tag), attrs, { onload: resolve, onerror: () => reject(new Error(`Kunne ikke hente ${attrs.src || attrs.href}`)) });
+    document.head.append(el);
+  });
+  loading ??= Promise.all([
+    add("link", { rel: "stylesheet", href: "/vendor/leaflet/leaflet.css" }),
+    add("script", { src: "/vendor/leaflet/leaflet.js" }),
+  ]).then(() => window.L).catch((err) => { loading = null; throw err; });
+  return loading;
+}
+await leaflet();
 
 export const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#888";
 export const katColor = (k) => cssVar({ SU: "--su", SUB: "--sub", bemaerk: "--bem", local: "--local" }[k] || "--text-3");

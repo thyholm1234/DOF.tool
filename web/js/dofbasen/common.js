@@ -1,5 +1,6 @@
 // DOFbasen: fælles bokse (Danmarks fugle, højrekolonne) og popups for observation, lokalitet og observatør.
 import { api, h, fmtN, toast } from "../core.js";
+import "../maps.js";  // henter Leaflet til kortene på siderne her (søg, fænologi, opslag, forside)
 import { BASE, head, link, dmy, notice, loadingBox, shortcuts, dbModal, on, MONTHS } from "./shell.js";
 
 export const CAT_NAMES = ["Tilfældig", "Meget sjælden", "Sjælden", "Fåtallig", "Ret almindelig", "Almindelig", "Meget almindelig"];
