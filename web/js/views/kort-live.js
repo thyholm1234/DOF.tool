@@ -1,11 +1,11 @@
 // Kort → Live (tidligere Puls): kommandokort over Danmark. Ved hver live-sync popper ændringerne op på kortet én ad gangen (50 → 56 bogfinker
 // vises som 6 Bogfink), og anonyme birdere står som små figurer på lokaliteten i op til 15 minutter efter seneste ændring.
 // Er der ikke tid til alt før næste sync, vises SU, SUB og Bemærk først og de største antal blandt resten.
-import { api, h, fmtN, fmtTime, esc, KAT, tag, seg, store, todayISO, errorBox } from "../core.js";
+import { api, h, fmtN, fmtTime, esc, KAT, KAT_RANK, tag, seg, store, todayISO, errorBox } from "../core.js";
 import { baseMap } from "../maps.js";
 import { live } from "../live.js";
 
-const RANK = { SU: 3, SUB: 2, bemaerk: 1, alm: 0 };
+const RANK = KAT_RANK;
 const ACTIVE_MS = 15 * 60 * 1000;
 const MAX_ON_MAP = 5;        // samtidige bobler
 const MIN_GAP = 700;         // ms mellem to bobler

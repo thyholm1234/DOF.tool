@@ -1,4 +1,4 @@
-import { api, h, fmtN, fmtDate, esc, KAT, store, seg, compass, ago } from "../core.js";
+import { api, h, fmtN, fmtDate, esc, KAT, KAT_RANK, store, seg, compass, ago } from "../core.js";
 import { baseMap, katColor, cssVar, arrowSvg, GROUP_COLORS } from "../maps.js";
 import { live } from "../live.js";
 import { windLayer, speedLegend } from "../wind.js";
@@ -114,7 +114,7 @@ export async function render(view, { embedded = false } = {}) {
 
   function draw() {
     dotLayer.clearLayers(); arrowLayer.clearLayers();
-    const order = { alm: 0, bemaerk: 1, SUB: 2, SU: 3 };
+    const order = KAT_RANK;
     const shown = items.filter(t => inClass(t) && inGroup(t));
     // Prikker: fund uden retning (klassefarve)
     if (!st.migOnly) for (const t of shown.filter(t => t.dir == null).sort((a, b) => order[a.kategori] - order[b.kategori])) {

@@ -87,6 +87,8 @@ export function doyToDate(doy, year = 2025) { const d = new Date(year, 0, 1); d.
 export function doyLabel(doy) { if (doy == null) return "–"; const d = doyToDate(doy); return `${d.getDate()}. ${MONTHS[d.getMonth()]}`; }
 
 export const KAT = { SU: "SU", SUB: "SUB", bemaerk: "Bemærk", local: "Lokalt hit", alm: "Alm." };
+/** Kategoriernes rangorden (som portal/domain/kategori.py). */
+export const KAT_RANK = Object.freeze({ SU: 3, SUB: 2, bemaerk: 1, alm: 0 });
 export const tag = (k, text) => h("span", { class: `tag ${k}` }, text ?? KAT[k] ?? k);
 
 export function toast(msg, kind = "") {
