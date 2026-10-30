@@ -20,10 +20,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
-from portal.models import Setting
 from portal.services.areas import Scope, parse_scope
 from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
+from portal.services.setting_store import get_setting
 
 
 @dataclass(frozen=True)
@@ -43,8 +43,7 @@ def parse_list_spec(scope: str | None, year: str | int | None, matrikel: int | N
 
 
 async def matrikel_prefix(session: AsyncSession) -> str:
-    row = await session.get(Setting, "matrikel_tag")
-    value = (row.value if row else None) or "#BB"
+    value = await get_setting(session, "matrikel_tag") or "#BB"
     return re.sub(r"[^#A-Za-z0-9]", "", str(value)).upper() or "#BB"
 
 

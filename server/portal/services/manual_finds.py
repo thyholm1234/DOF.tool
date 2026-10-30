@@ -12,7 +12,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import bump, worker_command
-from portal.models import ManualFind, Setting
+from portal.models import ManualFind
+from portal.services.setting_store import put_setting, setting_exists
 
 
 async def mirror(session: AsyncSession, f: ManualFind) -> None:
@@ -49,7 +50,7 @@ SEED = [
 
 
 async def seed(session: AsyncSession) -> None:
-    if await session.get(Setting, SEED_KEY) is not None:
+    if await setting_exists(session, SEED_KEY):
         return
     if not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM species)"))).scalar():
         return
@@ -65,7 +66,6 @@ async def seed(session: AsyncSession) -> None:
         await session.flush()
         await mirror(session, f)
         added.append(f)
-    session.add(Setting(key=SEED_KEY, value={"added": [f.id for f in added]}))
-    await session.commit()
+    await put_setting(session, SEED_KEY, {"added": [f.id for f in added]})
     for f in added:
         await changed(f)

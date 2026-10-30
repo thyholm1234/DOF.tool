@@ -20,8 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, kv
 from portal.dof.gateway import pending_ids
-from portal.models import Setting
 from portal.timeutil import dk_today
+from portal.services.setting_store import get_setting, put_setting
 
 TIERS = [("today", "Dagen i dag"), ("days3", "De sidste 3 dage"), ("week", "Den sidste uge"),
          ("month", "Den sidste måned"), ("year", "Det sidste år"), ("all", "Alle data")]
@@ -54,8 +54,7 @@ def interval_s(t: dict) -> int:
 
 
 async def get_plan(session: AsyncSession, source: str) -> dict:
-    row = await session.get(Setting, f"sync:{source}")
-    saved = (row.value if row else None) or {}
+    saved = await get_setting(session, f"sync:{source}") or {}
     plan = {k: {**v, **(saved.get("tiers", {}).get(k) or {})} for k, v in DEFAULTS[source].items()}
     out = {"tiers": plan}
     if source == "weather":
@@ -81,12 +80,7 @@ async def save_plan(session: AsyncSession, source: str, data: dict) -> dict:
     if source == "weather":
         value["start_year"] = max(1990, min(dk_today().year, int(data.get("start_year") or current["start_year"])))
         value["workers"] = max(0, min(32, int(data.get("workers", current["workers"]) or 0)))
-    row = await session.get(Setting, f"sync:{source}")
-    if row is None:
-        session.add(Setting(key=f"sync:{source}", value=value))
-    else:
-        row.value = value
-    await session.commit()
+    await put_setting(session, f"sync:{source}", value)
     if source == "dof":
         await apply_live_interval(tiers["today"])
     return await get_plan(session, source)

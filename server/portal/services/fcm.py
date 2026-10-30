@@ -39,10 +39,10 @@ async def ensure(session) -> None:
     """Hent servicekontoen fra databasen (højst hvert minut), hvis .env ikke har en."""
     if _env_account() is not None or time.time() - _db["at"] < 60:
         return
-    from portal.models import Setting  # her for at undgå cirkulær import
+    from portal.services.setting_store import get_setting  # her for at undgå cirkulær import
 
-    row = await session.get(Setting, SETTING)
-    _db.update(value=row.value if row is not None and valid(row.value) else None, at=time.time())
+    value = await get_setting(session, SETTING)
+    _db.update(value=value if value is not None and valid(value) else None, at=time.time())
 
 
 def set_db_account(acc: dict | None) -> None:

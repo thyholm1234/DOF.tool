@@ -19,9 +19,10 @@ from portal.db import ObsSession, SessionLocal
 from portal.dof import gateway, reference
 from portal.dof.ingest import IngestResult, ingest
 from portal.dof.parse import decode, parse_text
-from portal.models import DaySync, Setting
+from portal.models import DaySync
 from portal.services import alerts, pulse
 from portal.timeutil import dk_today
+from portal.services.setting_store import get_setting
 
 log = logging.getLogger("portal.jobs")
 
@@ -37,8 +38,7 @@ async def _get(client: httpx.AsyncClient, url: str, params: dict | None = None) 
 
 async def live_enabled() -> bool:
     async with SessionLocal() as s:
-        row = await s.get(Setting, "live_enabled")
-        return True if row is None else bool(row.value)
+        return bool(await get_setting(s, "live_enabled", True))
 
 
 # ---------------------------------------------------------------- observationer

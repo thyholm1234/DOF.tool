@@ -28,11 +28,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import bump, cached, kv, version
 from portal.config import SEED_DIR, get_settings
 from portal.db import ObsSession
-from portal.models import NfArticle, NfAudit, NfFamily, NfFeed, NfLink, NfPage, NfRole, NfSpecies, NfUserRole, Setting, User
+from portal.models import NfArticle, NfAudit, NfFamily, NfFeed, NfLink, NfPage, NfRole, NfSpecies, NfUserRole, User
 from portal.services import features
 from portal.services.auth import SUPERADMIN, can
 from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
+from portal.services.setting_store import get_setting_dict
 
 log = logging.getLogger("portal.netfugl")
 CONTENT = SEED_DIR / "netfugl" / "content.json"
@@ -59,8 +60,7 @@ DEFAULT_SETTINGS = {"participants": "brugere", "aktive_max": 300, "photo_moderat
 
 
 async def settings(session: AsyncSession) -> dict:
-    row = await session.get(Setting, SETTINGS_KEY)
-    return {**DEFAULT_SETTINGS, **(row.value if row is not None and isinstance(row.value, dict) else {})}
+    return await get_setting_dict(session, SETTINGS_KEY, DEFAULT_SETTINGS)
 
 
 # ---------------------------------------------------------------- seed

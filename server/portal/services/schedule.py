@@ -15,8 +15,8 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
-from portal.models import Setting
 from portal.timeutil import dk_now
+from portal.services.setting_store import get_setting, put_setting
 
 KEY = "worker:schedule"
 LAST = "sched:last"
@@ -71,8 +71,7 @@ def _clean(key: str, v: dict) -> dict:
 
 
 async def load(session: AsyncSession) -> dict[str, dict]:
-    row = await session.get(Setting, KEY)
-    saved = (row.value if row else None) or {}
+    saved = await get_setting(session, KEY) or {}
     return {k: _clean(k, {**d, **(saved.get(k) or {})}) for k, (_, _, d) in TASKS.items()}
 
 
@@ -81,12 +80,7 @@ async def save(session: AsyncSession, data: dict) -> dict[str, dict]:
     for k, v in data.items():
         if k in TASKS and isinstance(v, dict):
             current[k] = _clean(k, {**current[k], **v})
-    row = await session.get(Setting, KEY)
-    if row is None:
-        session.add(Setting(key=KEY, value=current))
-    else:
-        row.value = current
-    await session.commit()
+    await put_setting(session, KEY, current)
     return current
 
 

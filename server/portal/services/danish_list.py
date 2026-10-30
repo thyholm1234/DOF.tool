@@ -28,8 +28,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import bump
-from portal.models import Setting
 from portal.services import netfugl_list
+from portal.services.setting_store import get_setting_dict, put_setting, setting_exists
 
 log = logging.getLogger("portal.danish_list")
 
@@ -48,8 +48,8 @@ def _norm(name: str | None) -> str:
 
 async def netfugl_copy(session: AsyncSession) -> dict:
     """Netfugl-listen: den senest hentede (admin → 'Hent nyeste fra Netfugl'), ellers den medfølgende kopi."""
-    row = await session.get(Setting, NETFUGL_KEY)
-    return row.value if row is not None and isinstance(row.value, dict) and row.value.get("species") else netfugl_list.load_seed()
+    value = await get_setting_dict(session, NETFUGL_KEY)
+    return value if value.get("species") else netfugl_list.load_seed()
 
 
 def merge(pdf: dict, netfugl: dict) -> dict:
@@ -82,12 +82,7 @@ async def load(session: AsyncSession) -> dict:
 async def refresh_netfugl(session: AsyncSession) -> dict:
     """Hent Netfugls liste (ét kald) og gem den; bruges af de følgende planer og importer."""
     data = await netfugl_list.fetch()
-    row = await session.get(Setting, NETFUGL_KEY)
-    if row is None:
-        session.add(Setting(key=NETFUGL_KEY, value=data))
-    else:
-        row.value = data
-    await session.commit()
+    await put_setting(session, NETFUGL_KEY, data)
     return data
 
 
@@ -209,11 +204,10 @@ async def apply(session: AsyncSession, user_id: int | None = None) -> dict:
 
 async def seed(session: AsyncSession) -> None:
     """Ved opstart: indlæs listen én gang, når portalens arter findes (og kategoriernes startliste er lagt ind)."""
-    if await session.get(Setting, SEED_KEY) is not None:
+    if await setting_exists(session, SEED_KEY):
         return
     if not (await session.execute(text("SELECT EXISTS (SELECT 1 FROM species)"))).scalar():
         return
     report = await apply(session)
-    session.add(Setting(key=SEED_KEY, value={"written": report["written"], "summary": report["summary"],
-                                             "conflicts": len(report["conflicts"]), "unmatched": len(report["unmatched"])}))
-    await session.commit()
+    await put_setting(session, SEED_KEY, {"written": report["written"], "summary": report["summary"],
+                                          "conflicts": len(report["conflicts"]), "unmatched": len(report["unmatched"])})

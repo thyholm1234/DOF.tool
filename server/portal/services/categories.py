@@ -18,7 +18,7 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.models import Setting
+from portal.services.setting_store import put_setting, setting_exists
 
 log = logging.getLogger("portal.categories")
 
@@ -59,7 +59,7 @@ SEED_KEY = "categories_seed_v1"
 
 async def seed_categories(session: AsyncSession) -> None:
     """Indlæs startlisten én gang (når arterne findes). Rækker der allerede har en kategori røres ikke."""
-    if await session.get(Setting, SEED_KEY) is not None:
+    if await setting_exists(session, SEED_KEY):
         return
     rows = (await session.execute(text("""
         SELECT artnr, lower(trim(both '[]' from navn)) FROM species WHERE art_type = 'art'
@@ -80,8 +80,7 @@ async def seed_categories(session: AsyncSession) -> None:
         """), {"a": artnr})
     if missing:
         log.warning("Kategori-startliste: fandt ikke %s", ", ".join(missing))
-    session.add(Setting(key=SEED_KEY, value={"missing": missing}))
-    await session.commit()
+    await put_setting(session, SEED_KEY, {"missing": missing})
 
 
 async def species_category(session: AsyncSession, artnr: int, day=None) -> dict:

@@ -22,10 +22,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal import jobstatus
 from portal.cache import COMMANDS, kv
-from portal.models import Setting
 from portal.domain.adfaerd import MIGRATING, last_migration_sql
 from portal.services.finds import SITE_GAP_DAYS
 from portal.timeutil import dk_now, dk_today
+from portal.services.setting_store import get_setting, put_setting
 
 PLAN = "locfinds:plan"
 STATUS = "locfinds:status"
@@ -117,17 +117,11 @@ def spread(ids: list[int], first: int = 1, last: int = LAST_DAY) -> dict[str, in
 
 
 async def _setting(session: AsyncSession, key: str) -> dict:
-    row = await session.get(Setting, key)
-    return dict((row.value if row else None) or {})
+    return dict(await get_setting(session, key) or {})
 
 
 async def _put(session: AsyncSession, key: str, value: dict) -> None:
-    row = await session.get(Setting, key)
-    if row is None:
-        session.add(Setting(key=key, value=value))
-    else:
-        row.value = value
-    await session.commit()
+    await put_setting(session, key, value)
 
 
 async def get_plan(session: AsyncSession, ids: list[int] | None = None) -> dict:

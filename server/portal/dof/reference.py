@@ -19,8 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import bump, worker_command
 from portal.config import SEED_DIR
-from portal.models import Afdeling, BemaerkThreshold, Kommune, PhenologyWindow, ReferenceEdit, Setting, Species
+from portal.models import Afdeling, BemaerkThreshold, Kommune, PhenologyWindow, ReferenceEdit, Species
 from portal.timeutil import dk_today
+from portal.services.setting_store import put_setting, setting_exists
 
 AFDELINGER = [
     (574, "DOF København", "koebenhavn", "kbh"),
@@ -332,12 +333,11 @@ LIST_FIX_KEY = "list_species_v2"
 async def fix_list_species(session: AsyncSession) -> None:
     """Én gang: underarter fik ved en fejl 'tæller ikke' ('sp.' ramte '(ssp. …)'). Sæt list_artnr igen og byg de
     forudberegnede tal (Arter pr. år og lokalitetsoversigten) for alle år."""
-    if await session.get(Setting, LIST_FIX_KEY) is not None or not (await session.execute(select(func.count()).select_from(Species))).scalar():
+    if await setting_exists(session, LIST_FIX_KEY) or not (await session.execute(select(func.count()).select_from(Species))).scalar():
         return
     await resolve_list_species(session)
     await apply_species_edits(session)
-    session.add(Setting(key=LIST_FIX_KEY, value={"at": datetime.now(timezone.utc).isoformat()}))
-    await session.commit()
+    await put_setting(session, LIST_FIX_KEY, {"at": datetime.now(timezone.utc).isoformat()})
     for v in ("reference", "lists", "regions", "locyear", "feed"):
         await bump(v)
     first = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar()

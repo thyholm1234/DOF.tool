@@ -19,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import kv
 from portal.config import get_settings
 from portal.dof import gateway
-from portal.models import Role, Setting, User
+from portal.models import Role, User
+from portal.services.setting_store import get_setting
 
 LOGIN_PER_MIN = 5
 OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
@@ -163,8 +164,7 @@ PENDING_MSG = ("Din konto er oprettet, men afventer godkendelse af en administra
 
 async def approval_required(session: AsyncSession) -> bool:
     """Skal nye brugere godkendes, før de kan bruge portalen? Standard: ja (kan slås fra under Admin → Brugere)."""
-    row = await session.get(Setting, "require_approval")
-    return True if row is None else bool(row.value)
+    return bool(await get_setting(session, "require_approval", True))
 
 
 async def staff_ids(session: AsyncSession, module: str) -> list[int]:

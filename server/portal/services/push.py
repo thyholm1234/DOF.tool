@@ -15,8 +15,9 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.config import get_settings
-from portal.models import PushSubscription, Setting
+from portal.models import PushSubscription
 from portal.services import fcm
+from portal.services.setting_store import get_setting, put_setting
 
 log = logging.getLogger("portal.push")
 _vapid: Vapid01 | None = None
@@ -28,15 +29,14 @@ async def ensure_vapid(session: AsyncSession) -> str:
     global _vapid, _public_key
     if _vapid and _public_key:
         return _public_key
-    row = await session.get(Setting, "vapid")
-    if row is None:
+    stored = await get_setting(session, "vapid")
+    if stored is None:
         v = Vapid01()
         v.generate_keys()
         pem = v.private_pem().decode()
-        session.add(Setting(key="vapid", value={"private_pem": pem}))
-        await session.commit()
+        await put_setting(session, "vapid", {"private_pem": pem})
     else:
-        pem = row.value["private_pem"]
+        pem = stored["private_pem"]
     _vapid = Vapid01.from_pem(pem.encode())
     raw = _vapid.public_key.public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
     _public_key = base64.urlsafe_b64encode(raw).decode().rstrip("=")

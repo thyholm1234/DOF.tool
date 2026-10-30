@@ -20,11 +20,12 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import bump, cached, worker_command
 from portal.db import get_session
 from portal.models import (NfApiGrant, NfApiToken, NfArticle, NfComment, NfFeed, NfKryds, NfLike, NfLink, NfPage, NfPhoto, NfRole,
-                           NfSpecies, Setting, User)
+                           NfSpecies, User)
 from portal.services import dofbasen as dofb
 from portal.services import features, imagemeta
 from portal.services import netfugl as svc
 from portal.timeutil import dk_today
+from portal.services.setting_store import put_setting
 
 router = APIRouter(prefix="/api/netfugl", tags=["netfugl"])
 IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
@@ -893,11 +894,7 @@ class SettingsIn(BaseModel):
 
 @router.put("/admin/indstillinger")
 async def gem_indstillinger(body: SettingsIn, ctx: svc.Ctx = Depends(need(perm="kryds")), db: AsyncSession = Depends(get_session)):
-    row = await db.get(Setting, svc.SETTINGS_KEY)
-    if row is None:
-        db.add(Setting(key=svc.SETTINGS_KEY, value=body.model_dump()))
-    else:
-        row.value = body.model_dump()
+    await put_setting(db, svc.SETTINGS_KEY, body.model_dump(), commit=False)
     await svc.audit(db, ctx.user, "indstillinger", str(body.model_dump()))
     await db.commit()
     await worker_command("netfugl_kryds")

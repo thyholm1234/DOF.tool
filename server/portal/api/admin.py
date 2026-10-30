@@ -30,6 +30,7 @@ from portal.models import CommentBan, NewsPost, Role, Setting, SupportMessage, S
 from portal.services import account, activity, backup, datasync, diskusage, fcm, features, locfinds, moderation, schedule, speechmodel, weather_archive
 from portal.services import auth as auth_service
 from portal.services.auth import FIXED_ROLES, MODULES, ROLE_MODULES, ROLE_NAMES, SUPERADMIN, can, modules
+from portal.services.setting_store import put_setting
 
 router = APIRouter(prefix="/api", tags=["admin"])
 superadmin = require_role("superadmin")
@@ -100,11 +101,7 @@ async def put_settings(body: dict[str, Any], user: User = Depends(require_user),
         module = SETTING_MODULE.get(k, "drift")
         if not can(user, module):
             raise HTTPException(403, f"Kræver adgang til {MODULES[module].split(':')[0]}")
-        row = await db.get(Setting, k)
-        if row is None:
-            db.add(Setting(key=k, value=v))
-        else:
-            row.value = v
+        await put_setting(db, k, v, commit=False)
     await db.commit()
     if "matrikel_tag" in body:
         await bump("lists")
@@ -154,12 +151,7 @@ async def put_fcm(body: dict[str, Any], user: User = Depends(superadmin), db: As
         fcm._assertion(acc)  # kan nøglen signere?
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(400, f"Den private nøgle kan ikke bruges: {exc}") from exc
-    row = await db.get(Setting, fcm.SETTING)
-    if row is None:
-        db.add(Setting(key=fcm.SETTING, value=acc))
-    else:
-        row.value = acc
-    await db.commit()
+    await put_setting(db, fcm.SETTING, acc)
     fcm.set_db_account(acc)
     await activity.track(user.id, "fcm", None, {"project_id": acc["project_id"]})
     return await get_fcm(user, db)

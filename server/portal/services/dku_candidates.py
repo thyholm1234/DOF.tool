@@ -24,9 +24,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal import jobstatus
 from portal.cache import get_json, kv, set_json, worker_command
 from portal.db import SessionLocal
-from portal.models import Setting
 from portal.services import dku, features
 from portal.timeutil import dk_now, dk_today
+from portal.services.setting_store import get_setting_dict, put_setting
 
 log = logging.getLogger("portal.dku")
 
@@ -73,17 +73,12 @@ async def recheck_dok(rows: list[dict], min_match: int) -> list[dict]:
 # ---------------------------------------------------------------- det løbende filter
 
 async def load_filter(db: AsyncSession) -> dict:
-    row = await db.get(Setting, FILTER_KEY)
-    return {**DEFAULT_FILTER, **(row.value if row is not None and isinstance(row.value, dict) else {})}
+    return await get_setting_dict(db, FILTER_KEY, DEFAULT_FILTER)
 
 
 async def save_filter(db: AsyncSession, f: dict) -> dict:
     f = {**DEFAULT_FILTER, **f}
-    row = await db.get(Setting, FILTER_KEY)
-    if row is None:
-        db.add(Setting(key=FILTER_KEY, value=f))
-    else:
-        row.value = f
+    await put_setting(db, FILTER_KEY, f, commit=False)
     if not f["on"]:
         await db.execute(text("DELETE FROM dku_candidates"))
     await db.commit()

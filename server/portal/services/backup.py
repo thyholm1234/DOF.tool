@@ -26,8 +26,8 @@ from portal import jobstatus
 from portal.cache import kv
 from portal.dbgroups import GROUPS
 from portal.dbrouter import Node, router
-from portal.models import Setting
 from portal.timeutil import dk_now
+from portal.services.setting_store import get_setting_dict, put_setting
 
 SETTING = "backup:sftp"
 LAST = "backup:last"
@@ -37,17 +37,11 @@ DEFAULTS = {"host": "", "port": 22, "user": "", "password": "", "private_key": "
 
 
 async def load(session: AsyncSession) -> dict:
-    row = await session.get(Setting, SETTING)
-    return {**DEFAULTS, **(row.value if row is not None and isinstance(row.value, dict) else {})}
+    return await get_setting_dict(session, SETTING, DEFAULTS)
 
 
 async def save(session: AsyncSession, cfg: dict) -> None:
-    row = await session.get(Setting, SETTING)
-    if row is None:
-        session.add(Setting(key=SETTING, value=cfg))
-    else:
-        row.value = cfg
-    await session.commit()
+    await put_setting(session, SETTING, cfg)
 
 
 def configured(cfg: dict) -> bool:

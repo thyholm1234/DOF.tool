@@ -26,9 +26,10 @@ from portal.api.deps import optional_user, require_perm, require_user
 from portal.cache import get_json, kv, set_json
 from portal.config import get_settings
 from portal.db import SessionLocal, get_session
-from portal.models import MobPreset, Setting, User
+from portal.models import MobPreset, User
 from portal.services.auth import can
 from portal.timeutil import dk_today
+from portal.services.setting_store import get_setting_dict, put_setting, setting_exists
 
 log = logging.getLogger("portal.mobgang")
 router = APIRouter(prefix="/api/mobgang", tags=["mobgang"])
@@ -190,8 +191,7 @@ def season_state(cfg: dict, today: date) -> dict:
 
 async def season(db: AsyncSession) -> dict:
     """Hele modulets lukning + hver arts lukning i dag."""
-    row = await db.get(Setting, SEASON_KEY)
-    stored = row.value if row and isinstance(row.value, dict) else {}
+    stored = await get_setting_dict(db, SEASON_KEY)
     today = dk_today()
     per = stored.get("species") or {}
     return {**season_state({**SEASON_DEFAULT, **{k: stored[k] for k in SEASON_DEFAULT if k in stored}}, today),
@@ -227,15 +227,10 @@ async def put_season(body: SeasonIn, user: User = Depends(require_perm("mobgang_
     unknown = set(body.species) - set(SPECIES_IDS)
     if unknown:
         raise HTTPException(400, f"Ukendte arter: {', '.join(sorted(unknown))}")
-    row = await db.get(Setting, SEASON_KEY)
-    stored = row.value if row and isinstance(row.value, dict) else {}
+    stored = await get_setting_dict(db, SEASON_KEY)
     value = {**body.value(), "species": {**(stored.get("species") or {}), **{k: v.value() for k, v in body.species.items()}},
              "custom": body.custom.value() if body.custom else stored.get("custom") or PERIOD_DEFAULT}
-    if row is None:
-        db.add(Setting(key=SEASON_KEY, value=value))
-    else:
-        row.value = value
-    await db.commit()
+    await put_setting(db, SEASON_KEY, value)
     return await season(db)
 
 
@@ -682,7 +677,7 @@ async def seed_presets(session: AsyncSession) -> None:
     tidligere officielle presets – men kun dem, der stadig lyder som da de blev oprettet."""
     original = {name: cfg for presets_ in SEED.values() for name, cfg in presets_}
     for key, presets_ in SEED.items():
-        if await session.get(Setting, key) is not None:
+        if await setting_exists(session, key):
             continue
         updated = []
         for name, cfg in SEED_UPDATES.get(key, {}).items():
@@ -692,6 +687,5 @@ async def seed_presets(session: AsyncSession) -> None:
                 updated.append(name)
         for name, cfg in presets_:
             session.add(MobPreset(user_id=None, name=name, config=cfg, official=True))
-        session.add(Setting(key=key, value={"n": len(presets_), "updated": updated}))
-        await session.commit()
+        await put_setting(session, key, {"n": len(presets_), "updated": updated})
         log.info("Oprettede %s og opdaterede %s officielle mobgang-presets (%s)", len(presets_), len(updated), key)
