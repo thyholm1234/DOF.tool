@@ -51,3 +51,27 @@ def test_spread_over_month():
 
 def test_month_target_clamped():
     assert locfinds.target(31, "03:30", datetime(2026, 2, 10)) == datetime(2026, 2, 28, 3, 30)
+
+
+def test_every_scheduled_task_has_a_worker_job():
+    from portal import worker
+
+    monthly = {k for k, (_, _, d) in schedule.TASKS.items() if d["unit"] == "month"}  # loc_finds: egen månedsplan
+    assert set(schedule.TASKS) - monthly == set(worker.SCHEDULED)
+    assert set(worker.FEATURE_OF) <= set(worker.SCHEDULED)
+
+
+async def test_run_scheduled_respects_feature_flags(monkeypatch):
+    from portal import worker
+
+    ran = []
+
+    async def job():
+        ran.append(1)
+
+    monkeypatch.setitem(worker.SCHEDULED, "netfugl_rss", job)
+    await worker.run_scheduled("netfugl_rss", {"netfugl": "off"})
+    await worker.run_scheduled("netfugl_rss", {"netfugl": "on", "netfugl_rss": "off"})
+    assert ran == []
+    await worker.run_scheduled("netfugl_rss", {"netfugl": "preview"})
+    assert ran == [1]

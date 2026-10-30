@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -20,8 +21,27 @@ from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
-from portal.services import (areas, backup, datasync, daymap, dku_candidates, dmi, dof_events, features, imagemeta, locfinds, locyear, netfugl,
-                             phenology, regions, schedule, seasons, speechmodel, storage, weather_archive)
+from portal.services import (
+    areas,
+    backup,
+    datasync,
+    daymap,
+    dku_candidates,
+    dmi,
+    dof_events,
+    features,
+    imagemeta,
+    locfinds,
+    locyear,
+    netfugl,
+    phenology,
+    regions,
+    schedule,
+    seasons,
+    speechmodel,
+    storage,
+    weather_archive,
+)
 from portal.timeutil import dk_now, dk_today
 
 log = logging.getLogger("portal.worker")
@@ -163,44 +183,60 @@ async def scheduler() -> None:
         await asyncio.sleep(30)
 
 
+async def _reference_sync() -> None:
+    try:  # kører hver time og skal ikke fylde i jobhistorikken, men må heller ikke stoppe resten af runden
+        await sync_reference()
+    except Exception:  # noqa: BLE001
+        log.exception("Kopiering af referencedata fejlede")
+
+
+async def _compute() -> None:
+    await run_safely("compute", nightly_compute())
+    await run_safely("gaps", gaps(None))
+
+
+async def _backup() -> None:
+    async with SessionLocal() as s:
+        cfg = await backup.load(s)
+    if backup.configured(cfg):  # ellers springes den planlagte kørsel stille over
+        await run_safely("backup", backup.to_sftp(cfg))
+
+
+def _tracked(name: str, fn: Callable[[], Awaitable]) -> Callable[[], Awaitable]:
+    """Opgave med status i admin-panelet (jobstatus) under sit eget navn."""
+    return lambda: run_safely(name, fn())
+
+
+# Planlagte opgaver (services/schedule.TASKS) → hvad workeren kører. loc_finds har sin egen månedsplan (locfinds_schedule).
+SCHEDULED: dict[str, Callable[[], Awaitable]] = {
+    "forecast": _tracked("forecast", dmi.forecast),
+    "compute": _compute,
+    "location_years": _tracked("location_years", lambda: location_years(None)),
+    "daymap": _tracked("daymap", lambda: warm_daymap()),
+    "reference": lambda: jobs.enqueue_reference_refresh(),
+    "reference_sync": _reference_sync,
+    "climate": _tracked("climate", lambda: refresh_climate()),
+    "events": _tracked("events", dof_events.sync),
+    "gap_fill": lambda: jobs.enqueue_gap_fill(),
+    "netfugl_kryds": _tracked("netfugl_kryds", lambda: netfugl_kryds()),
+    "netfugl_rss": _tracked("netfugl_rss", lambda: netfugl_rss(None)),
+    "speech_model": speechmodel.request,
+    "backup": _backup,
+}
+# Opgaver der springes over, når et funktionsflag er slået fra (Admin → Funktioner)
+FEATURE_OF: dict[str, tuple[str, ...]] = {"daymap": ("daymap",), "netfugl_kryds": ("netfugl", "netfugl_kryds"),
+                                          "netfugl_rss": ("netfugl", "netfugl_rss")}
+
+
 async def run_scheduled(name: str, flags: dict) -> None:
     """Én planlagt opgave (intervaller under Admin → Drift, services/schedule.py)."""
-    if name.startswith("netfugl_") and (flags.get("netfugl") == "off" or flags.get(name) == "off"):
+    if any(flags.get(f) == "off" for f in FEATURE_OF.get(name, ())):
         return
-    if name == "forecast":
-        await run_safely("forecast", dmi.forecast())
-    elif name == "compute":
-        await run_safely("compute", nightly_compute())
-        await run_safely("gaps", gaps(None))
-    elif name == "location_years":
-        await run_safely("location_years", location_years(None))
-    elif name == "reference":
-        await jobs.enqueue_reference_refresh()
-    elif name == "reference_sync":
-        try:  # kører hver time og skal ikke fylde i jobhistorikken, men må heller ikke stoppe resten af runden
-            await sync_reference()
-        except Exception:  # noqa: BLE001
-            log.exception("Kopiering af referencedata fejlede")
-    elif name == "climate":
-        await run_safely("climate", refresh_climate())
-    elif name == "daymap":
-        if flags.get("daymap") != "off":
-            await run_safely("daymap", warm_daymap())
-    elif name == "events":
-        await run_safely("events", dof_events.sync())
-    elif name == "gap_fill":
-        await jobs.enqueue_gap_fill()
-    elif name == "netfugl_kryds":
-        await run_safely("netfugl_kryds", netfugl_kryds())
-    elif name == "netfugl_rss":
-        await run_safely("netfugl_rss", netfugl_rss(None))
-    elif name == "speech_model":
-        await speechmodel.request()
-    elif name == "backup":
-        async with SessionLocal() as s:
-            cfg = await backup.load(s)
-        if backup.configured(cfg):  # ellers springes den planlagte kørsel stille over
-            await run_safely("backup", backup.to_sftp(cfg))
+    job = SCHEDULED.get(name)
+    if job is None:
+        log.warning("Ukendt planlagt opgave: %s", name)
+        return
+    await job()
 
 
 async def warm_daymap() -> None:
