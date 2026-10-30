@@ -108,7 +108,10 @@ mislykkede API-kald; alle API-kald under 250 ms.
 
 ## Næste logiske skridt (ikke gennemført her)
 
-- Flyt den resterende SQL fra `api/dku.py`, `api/geo.py`, `api/netfugl.py` og `api/calendar.py` ned i services, så
-  api-laget kun validerer og kalder services (største gevinst for testbarhed).
+- [x] Flyt den resterende SQL fra `api/dku.py`, `api/geo.py`, `api/netfugl.py` og `api/calendar.py` ned i services, så
+  api-laget kun validerer og kalder services (gennemført; låst af `tests/test_architecture.py`).
+- Fjern de syv ældre krydsimporter mellem API-moduler (listen `KNOWN_CROSS_IMPORTS` i `tests/test_architecture.py`) –
+  især `services/auth.py` → `api/social.py`, hvor servicelaget afhænger af API-laget. Flyt også SQL'en i de øvrige
+  API-moduler (fx `api/social.py`, `api/categories.py`, `api/refdata.py`, `api/netfugl_v1.py`).
 - Del `app.css` (932 linjer) pr. modul og indlæs DOFbasen/Netfugl-CSS kun i deres moduler (sker allerede for de to).
 - Genbyg containerbillederne, så de følger `pyproject.toml` (se driftsnoten i opsummeringen).

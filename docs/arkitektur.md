@@ -28,7 +28,14 @@ for sig.
   svarer 404, når flaget ikke er synligt for brugeren, og `/api/me` fortæller frontenden, om menupunktet skal vises.
 - **Planlagte opgaver:** tilføj opgaven i `services/schedule.TASKS` *og* i `worker.SCHEDULED` (evt. med flag i
   `worker.FEATURE_OF`). `tests/test_schedule.py` fejler, hvis de to ikke passer sammen.
-- **API'ets ruter** er låst af `tests/test_routes.py` (snapshot i `tests/fixtures/api_routes.json`). Ændres en rute med
+- **SQL ligger i services.** API-modulerne validerer, tjekker adgang og kalder services. `tests/test_architecture.py`
+  holder øje: `domain/` er ren, `api/geo.py`, `api/calendar.py`, `api/dku.py` og `api/netfugl.py` må ikke bruge
+  `text()`/`select()`/`update()`/`delete()`, og der må ikke komme nye importer fra et API-modul til et andet (fælles kode
+  hører hjemme i en service). De ældre krydsimporter står i testens `KNOWN_CROSS_IMPORTS` og fjernes, efterhånden som de
+  flyttes.
+  - Steder og lokaliteter: `services/places.py` · arter: `services/species_info.py` · ture: `services/dof_events.py` ·
+    kalendere og besøg: `services/calendars.py` · DKU-sager: `services/dku_cases.py` · Netfugl-indhold: `services/netfugl_content.py`.
+- **API'ets ruter** er låst af `tests/test_routes.py` (snapshot i `tests/fixtures/api_routes.json` med stier, metoder, parametre og deres skemaer). Ændres en rute med
   vilje: `UPDATE_ROUTES=1 python -m pytest tests/test_routes.py`.
 - Svar komprimeres med GZip (`SelectiveGZip` i `main.py`), undtagen SSE, medier, lyd, downloads og Range-forespørgsler.
 
