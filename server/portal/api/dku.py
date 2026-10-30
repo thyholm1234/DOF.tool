@@ -6,14 +6,13 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.cache import kv
-from portal.db import SessionLocal, get_session
+from portal.db import get_session
 from portal.models import DkuCase, DkuMessage, DkuParticipant, User
-from portal.services import dku, dku_candidates
+from portal.services import dku, dku_candidates, dku_cases
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api/dku", tags=["dku"])
@@ -37,23 +36,6 @@ async def _case(db: AsyncSession, case_id: int, user: User) -> tuple[DkuCase, st
 async def _say(db: AsyncSession, case: DkuCase, user_id: int | None, role: str, body: str, visibility: str = "alle") -> None:
     db.add(DkuMessage(case_id=case.id, user_id=user_id, role=role, visibility=visibility, body=body))
     case.updated_at = datetime.now(timezone.utc)
-
-
-async def _dofbasen_status(obsid: int, status: str | None, user_id: int, case_id: int) -> None:
-    """DKU-status på en DOFbasen-observation (DOFbasen-modulets blå pil). Egen session: tabellen ligger i observationsgruppen.
-    status None fjerner kun «til behandling» – en status sat af DKU eller SU i forvejen røres ikke."""
-    async with SessionLocal() as s:
-        if status is None:
-            await s.execute(text("DELETE FROM dofb_obs_status WHERE obsid = :o AND status = 'behandling'"), {"o": obsid})
-        elif status == "behandling":
-            await s.execute(text("""INSERT INTO dofb_obs_status (obsid, status, note, set_by) VALUES (:o, 'behandling', :n, :u)
-                ON CONFLICT (obsid) DO NOTHING"""), {"o": obsid, "n": f"DKU-sag #{case_id}", "u": user_id})
-        else:
-            await s.execute(text("""INSERT INTO dofb_obs_status (obsid, status, note, set_by) VALUES (:o, :s, :n, :u)
-                ON CONFLICT (obsid) DO UPDATE SET status = EXCLUDED.status, note = EXCLUDED.note, set_by = EXCLUDED.set_by,
-                set_at = now() WHERE dofb_obs_status.status IN ('behandling', 'dku')"""),
-                {"o": obsid, "s": status, "n": f"DKU-sag #{case_id}", "u": user_id})
-        await s.commit()
 
 
 # ---------------------------------------------------------------- status og liste
@@ -91,8 +73,7 @@ async def open_case(body: TipIn, tasks: BackgroundTasks, c: dict = Depends(ctx),
         raise HTTPException(400, "Det er din egen observation – ret den selv i stedet")
     afd = obs["afdelinger"]
     if not afd and obs["loknr"]:
-        afd = [a for a in [(await db.execute(text("SELECT afdeling_id FROM locations WHERE loknr = :l"),
-                                              {"l": obs["loknr"]})).scalar()] if a]
+        afd = [a for a in [await dku_cases.location_afdeling(db, obs["loknr"])] if a]
     as_dku = await dku.is_dku_for(db, user, afd)
     note = body.observer_note.strip()
     if note and not as_dku:
@@ -103,14 +84,11 @@ async def open_case(body: TipIn, tasks: BackgroundTasks, c: dict = Depends(ctx),
         await kv().expire(key, 86400)
         if n > dku.TIPS_PER_DAY:
             raise HTTPException(429, f"Du kan højst sende {dku.TIPS_PER_DAY} tip om dagen")
-    ident = "obsid" if body.source == "dofbasen" else "report_id"
-    existing = (await db.execute(text(f"""SELECT id FROM dku_cases WHERE source = :s AND {ident} = :i AND status <> 'afgjort'
-        ORDER BY id LIMIT 1"""), {"s": body.source, "i": body.id})).scalar()
+    existing = await dku_cases.open_case_id(db, body.source, body.id)
     if existing:
         case, joined = await db.get(DkuCase, existing), True
     else:
-        observer_id = obs["owner_user_id"] or (await db.execute(text(
-            "SELECT id FROM users WHERE obserkode = :k AND NOT blocked"), {"k": obs["obserkode"]})).scalar()
+        observer_id = obs["owner_user_id"] or await dku_cases.observer_user_id(db, obs["obserkode"])
         case = DkuCase(source=body.source, obsid=obs["obsid"], report_id=obs["report_id"], obserkode=obs["obserkode"],
                        observer_id=observer_id, artnr=obs["artnr"], dato=datetime.fromisoformat(obs["dato"]).date(),
                        loknr=obs["loknr"], afdelinger=afd, snapshot=obs, reason=body.reason, created_by=user.id,
@@ -129,12 +107,11 @@ async def open_case(body: TipIn, tasks: BackgroundTasks, c: dict = Depends(ctx),
                 raise HTTPException(400, "Observatøren bruger ikke DOF.tool – kontakt vedkommende via DOFbasen")
             await _involve(db, case, user, note)
     else:
-        await db.execute(text("""INSERT INTO dku_participants (case_id, user_id, role, last_read_at) VALUES (:c, :u, 'tipper', now())
-            ON CONFLICT (case_id, user_id) DO NOTHING"""), {"c": case.id, "u": user.id})
+        await dku_cases.add_tipper(db, case.id, user.id)
         await _say(db, case, user.id, "tipper", (f"Endnu et tip ({reason.lower()}):\n" if joined else "") + body.body.strip(), "tipper")
     await db.commit()
     if as_dku and case.source == "dofbasen" and case.obsid:
-        await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
+        await dku_cases.dofbasen_status(case.obsid, "behandling", user.id, case.id)
     if note:
         tasks.add_task(dku.notify, case.id, to="observer", title="spørgsmål til din observation", body=note[:200])
     if not as_dku:
@@ -148,37 +125,9 @@ async def open_case(body: TipIn, tasks: BackgroundTasks, c: dict = Depends(ctx),
 async def cases(view: str = Query("observer", pattern="^(observer|dku)$"), state: str = Query("open", pattern="^(open|closed|all)$"),
                 c: dict = Depends(ctx), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     afd = set(c["member_of"])
-    if view == "dku":
-        if not (afd or c["admin"]):
-            raise HTTPException(403, "Kun for DKU-ansvarlige")
-        where, role = dku._dku_scope_sql(afd, c["admin"]), "dku"
-    else:
-        where, role = ("c.observer_involved AND EXISTS (SELECT 1 FROM dku_participants x WHERE x.case_id = c.id AND x.user_id = :u "
-                       "AND x.role = 'observer')"), "observer"
-    st = {"open": "c.status <> 'afgjort'", "closed": "c.status = 'afgjort'", "all": "TRUE"}[state]
-    rows = (await db.execute(text(f"""
-        SELECT c.id, c.source, c.origin, c.status, c.outcome, c.reason, c.dato, c.observer_involved, c.updated_at,
-               c.snapshot->'fields' AS f, c.snapshot->>'observer' AS observer, c.afdelinger, a.navn AS assignee,
-               (SELECT count(*) FROM dku_participants x WHERE x.case_id = c.id AND x.role = 'tipper') AS n_tippers,
-               EXISTS (SELECT 1 FROM dku_messages m LEFT JOIN dku_participants p ON p.case_id = c.id AND p.user_id = :u
-                       WHERE m.case_id = c.id AND m.user_id IS DISTINCT FROM :u AND {dku.visible_sql(role)}
-                         AND m.created_at > coalesce(p.last_read_at, 'epoch')) AS unread
-        FROM dku_cases c LEFT JOIN users a ON a.id = c.assignee_id
-        WHERE {where} AND {st} ORDER BY c.updated_at DESC LIMIT 300"""), {"u": user.id, "afd": list(afd)})).mappings().all()
-    names = dict((await db.execute(text("SELECT id, navn FROM afdelinger"))).all())
-    out = []
-    for r in rows:
-        item = {"id": r["id"], "source": r["source"], "status": r["status"], "status_label": dku.STATUSES[r["status"]],
-                "outcome": r["outcome"], "outcome_label": dku.OUTCOMES.get(r["outcome"] or ""),
-                "art": r["f"].get("art"), "antal": r["f"].get("antal"), "lok": r["f"].get("lok"), "dato": r["dato"].isoformat(),
-                "unread": r["unread"], "updated_at": r["updated_at"].isoformat()}
-        if role != "observer":  # observatøren ser hverken grunden eller hvordan sagen startede
-            item |= {"reason": dku.REASONS[r["reason"]], "observer": r["observer"]}
-        if role == "dku":
-            item |= {"origin": r["origin"], "afdelinger": [names.get(a, str(a)) for a in r["afdelinger"] or []],
-                     "assignee": r["assignee"], "n_tippers": r["n_tippers"], "observer_involved": r["observer_involved"]}
-        out.append(item)
-    return out
+    if view == "dku" and not (afd or c["admin"]):
+        raise HTTPException(403, "Kun for DKU-ansvarlige")
+    return await dku_cases.case_list(db, user.id, view, state, afd, c["admin"])
 
 
 @router.get("/candidates")
@@ -213,7 +162,7 @@ def _candidate_scope(c: dict, afdeling: int | None) -> set[int] | None:
 
 
 async def _candidate_rows(db: AsyncSession, rows: list[dict]) -> dict:
-    names = dict((await db.execute(text("SELECT id, navn FROM afdelinger"))).all())
+    names = await dku_cases.afdeling_names(db)
     for r in rows:
         r["afdelinger_navne"] = [names.get(a, str(a)) for a in r["afdelinger"]]
     return {"criteria": dku.CRITERIA, "rows": rows}
@@ -270,7 +219,7 @@ async def start_analysis(body: AnalysisIn, c: dict = Depends(ctx), user: User = 
     """Send en kandidatsøgning til workeren – resultatet hentes bagefter under analyserne."""
     scope = _candidate_scope(c, body.afdeling)
     f = {k: v for k, v in body.clean().items() if k != "afdeling"}
-    afd = (await db.execute(text("SELECT navn FROM afdelinger WHERE id = :a"), {"a": body.afdeling})).scalar() if body.afdeling else None
+    afd = await dku_cases.afdeling_name(db, body.afdeling) if body.afdeling else None
     label = f"{afd or 'Alle mine afdelinger'}, {f['days']} dage, {', '.join(dku.CRITERIA[k].lower() for k in f['kriterier'])}"
     return {"id": await dku_candidates.start_analysis(user.id, f, scope, label)}
 
@@ -307,10 +256,7 @@ async def approve(body: ReviewIn, c: dict = Depends(ctx), user: User = Depends(r
         obs = await dku.observation(db, "dofbasen", obsid)
         if obs is None or obs["hemmelig"] or not await dku.is_dku_for(db, user, obs["afdelinger"]):
             continue
-        res = await db.execute(text("""INSERT INTO dku_reviews (obsid, decision, note, afdelinger, reviewed_by)
-            VALUES (:o, 'godkendt', :n, CAST(:a AS smallint[]), :u) ON CONFLICT (obsid) DO NOTHING"""),
-                               {"o": obsid, "n": body.note.strip(), "a": obs["afdelinger"], "u": user.id})
-        done += res.rowcount
+        done += await dku_cases.approve(db, obsid, body.note.strip(), obs["afdelinger"], user.id)
     await db.commit()
     return {"approved": done}
 
@@ -321,7 +267,7 @@ async def unapprove(obsid: int, c: dict = Depends(ctx), user: User = Depends(req
     obs = await dku.observation(db, "dofbasen", obsid)
     if obs is None or not await dku.is_dku_for(db, user, obs["afdelinger"]):
         raise HTTPException(404, "Observationen findes ikke")
-    await db.execute(text("DELETE FROM dku_reviews WHERE obsid = :o"), {"o": obsid})
+    await dku_cases.unapprove(db, obsid)
     await db.commit()
     return {"ok": True}
 
@@ -344,19 +290,15 @@ async def get_case(case_id: int, c: dict = Depends(ctx), user: User = Depends(re
     snap = case.snapshot
     ident = case.obsid if case.source == "dofbasen" else case.report_id
     current = await dku.observation(db, case.source, ident) if ident else None
-    msgs = (await db.execute(text(f"""SELECT m.id, m.user_id, m.role, m.visibility, m.body, m.created_at FROM dku_messages m
-        WHERE m.case_id = :c AND {dku.visible_sql(role)} ORDER BY m.created_at, m.id"""), {"c": case.id, "u": user.id})).mappings().all()
+    msgs = await dku_cases.messages(db, case.id, role, user.id)
     ids = {m["user_id"] for m in msgs if m["user_id"]} | {case.assignee_id, case.observer_id} - {None}
-    names = dict((await db.execute(text("SELECT id, coalesce(navn, obserkode) FROM users WHERE id = ANY(:i)"),
-                                   {"i": list(ids)})).all()) if ids else {}
-    tippers = [n for _, n in (await db.execute(text("""SELECT u.id, coalesce(u.navn, u.obserkode) FROM dku_participants p
-        JOIN users u ON u.id = p.user_id WHERE p.case_id = :c AND p.role = 'tipper'"""), {"c": case.id})).all()]
-    await db.execute(text("""INSERT INTO dku_participants (case_id, user_id, role, last_read_at) VALUES (:c, :u, :r, now())
-        ON CONFLICT (case_id, user_id) DO UPDATE SET last_read_at = now()"""), {"c": case.id, "u": user.id, "r": role})
+    names = await dku_cases.user_names(db, ids)
+    tippers = await dku_cases.tipper_names(db, case.id)
+    await dku_cases.mark_read(db, case.id, user.id, role)
     await db.commit()
     is_owner = user.id == case.observer_id or (snap.get("obserkode") and snap.get("obserkode") == user.obserkode)
     closed = case.status == "afgjort"
-    afd = dict((await db.execute(text("SELECT id, navn FROM afdelinger"))).all())
+    afd = await dku_cases.afdeling_names(db)
     out = {
         "id": case.id, "source": case.source, "role": role, "status": case.status, "status_label": dku.STATUSES[case.status],
         "outcome": case.outcome, "outcome_label": dku.OUTCOMES.get(case.outcome or ""), "outcome_note": case.outcome_note,
@@ -405,8 +347,7 @@ async def post_message(case_id: int, body: MessageIn, tasks: BackgroundTasks, c:
     if not await kv().set(f"dku:msg:{user.id}", "1", nx=True, ex=5):
         raise HTTPException(429, "Vent et øjeblik før næste besked")
     await _say(db, case, user.id, role, body.body.strip(), channel)
-    await db.execute(text("UPDATE dku_participants SET last_read_at = now() WHERE case_id = :c AND user_id = :u"),
-                     {"c": case.id, "u": user.id})
+    await dku_cases.touch_read(db, case.id, user.id)
     await db.commit()
     preview = body.body.strip()[:200]
     if role != "dku":
@@ -444,7 +385,7 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
             await _say(db, case, user.id, "dku", note, "dku")
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
-            await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
+            await dku_cases.dofbasen_status(case.obsid, "behandling", user.id, case.id)
         if has_tippers:
             tasks.add_task(dku.notify, case.id, to="tipper", title="DKU behandler dit tip", body="DKU har taget sagen.", key="take")
     elif body.action == "involve":
@@ -455,7 +396,7 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
         await _involve(db, case, user, note)
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
-            await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
+            await dku_cases.dofbasen_status(case.obsid, "behandling", user.id, case.id)
         tasks.add_task(dku.notify, case.id, to="observer", title="spørgsmål til din observation", body=note[:200])
     elif body.action == "close":
         if not body.outcome:
@@ -465,7 +406,7 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
         await _say(db, case, None, "system", f"Afgjort af {who}: {dku.OUTCOMES[body.outcome]}.", "dku")
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
-            await _dofbasen_status(case.obsid, "dku" if body.outcome in ("godkendt", "rettet") else None, user.id, case.id)
+            await dku_cases.dofbasen_status(case.obsid, "dku" if body.outcome in ("godkendt", "rettet") else None, user.id, case.id)
         tasks.add_task(dku.notify, case.id, to="parter", title="sagen er afgjort", body=dku.OUTCOMES[body.outcome], key="close")
     else:  # reopen
         if case.status != "afgjort":
@@ -474,7 +415,7 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
         await _say(db, case, None, "system", f"{who} har genåbnet sagen." + (f"\n{note}" if note else ""), "dku")
         await db.commit()
         if case.source == "dofbasen" and case.obsid:
-            await _dofbasen_status(case.obsid, "behandling", user.id, case.id)
+            await dku_cases.dofbasen_status(case.obsid, "behandling", user.id, case.id)
     return {"ok": True, "status": case.status}
 
 
@@ -484,14 +425,7 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
 async def members(c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
     if not (c["admin"] or c["member_of"]):
         raise HTTPException(403, "Kun for DKU-ansvarlige og administratorer")
-    afd = [{"id": 0, "navn": "Landsdækkende (alle afdelinger)"}] + [
-        {"id": i, "navn": n} for i, n in (await db.execute(text("SELECT id, navn FROM afdelinger ORDER BY navn"))).all()]
-    rows = (await db.execute(text("""SELECT m.afdeling_id, u.id, coalesce(u.navn, u.obserkode) AS navn, u.obserkode
-        FROM dku_members m JOIN users u ON u.id = m.user_id ORDER BY navn"""))).mappings().all()
-    by = {}
-    for r in rows:
-        by.setdefault(r["afdeling_id"], []).append({"user_id": r["id"], "navn": r["navn"], "obserkode": r["obserkode"]})
-    return {"can_edit": c["admin"], "afdelinger": [{**a, "members": by.get(a["id"], [])} for a in afd]}
+    return {"can_edit": c["admin"], "afdelinger": await dku_cases.members_overview(db)}
 
 
 class MemberIn(BaseModel):
@@ -503,14 +437,12 @@ class MemberIn(BaseModel):
 async def add_member(body: MemberIn, c: dict = Depends(ctx), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     if not c["admin"]:
         raise HTTPException(403, "Kræver admin-modulet DKU")
-    if body.afdeling_id and not (await db.execute(text("SELECT 1 FROM afdelinger WHERE id = :a"), {"a": body.afdeling_id})).scalar():
+    if body.afdeling_id and not await dku_cases.afdeling_exists(db, body.afdeling_id):
         raise HTTPException(404, "Ukendt lokalafdeling")
-    target = (await db.execute(text("SELECT id FROM users WHERE obserkode = :k AND approved AND NOT blocked"),
-                               {"k": body.obserkode.strip().upper()})).scalar()
+    target = await dku_cases.approved_user_id(db, body.obserkode)
     if not target:
         raise HTTPException(404, "Ingen godkendt bruger med den obserkode i DOF.tool")
-    await db.execute(text("""INSERT INTO dku_members (afdeling_id, user_id, added_by) VALUES (:a, :u, :by)
-        ON CONFLICT DO NOTHING"""), {"a": body.afdeling_id, "u": target, "by": user.id})
+    await dku_cases.add_member(db, body.afdeling_id, target, user.id)
     await db.commit()
     return {"ok": True}
 
@@ -519,6 +451,6 @@ async def add_member(body: MemberIn, c: dict = Depends(ctx), user: User = Depend
 async def remove_member(afdeling_id: int, user_id: int, c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
     if not c["admin"]:
         raise HTTPException(403, "Kræver admin-modulet DKU")
-    await db.execute(text("DELETE FROM dku_members WHERE afdeling_id = :a AND user_id = :u"), {"a": afdeling_id, "u": user_id})
+    await dku_cases.remove_member(db, afdeling_id, user_id)
     await db.commit()
     return {"ok": True}
