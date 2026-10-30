@@ -18,6 +18,7 @@ from portal.config import get_settings
 
 log = logging.getLogger("portal.storage")
 PREFIX = "obs/"  # nøgle i bucket'en = PREFIX + filnavn; adressen = /media/obs/<filnavn>
+ART_PREFIX = "art/"  # artikelmodulets medier: nøgle = art/<xx>/<sha256>.<ext>; adressen = /media/art/<xx>/<sha256>.<ext>
 
 
 @dataclass
@@ -141,19 +142,23 @@ def _usage() -> tuple[int, int]:
     return len(files), sum(files)
 
 
-async def put(name: str, data: bytes, content_type: str) -> str:
+async def put(name: str, data: bytes, content_type: str, prefix: str = PREFIX) -> str:
     """Gem en fil og returnér dens adresse."""
-    await asyncio.to_thread(_put, PREFIX + name, data, content_type)
-    return f"/media/{PREFIX}{name}"
+    await asyncio.to_thread(_put, prefix + name, data, content_type)
+    return f"/media/{prefix}{name}"
 
 
-async def get(name: str, start: int | None = None, end: int | None = None) -> Obj | None:
-    return await asyncio.to_thread(_get, PREFIX + name, start, end)
+async def get(name: str, start: int | None = None, end: int | None = None, prefix: str = PREFIX) -> Obj | None:
+    return await asyncio.to_thread(_get, prefix + name, start, end)
 
 
-async def stat(name: str) -> int | None:
+async def stat(name: str, prefix: str = PREFIX) -> int | None:
     """Filens størrelse i bytes, eller None hvis den ikke findes."""
-    return await asyncio.to_thread(_stat, PREFIX + name)
+    return await asyncio.to_thread(_stat, prefix + name)
+
+
+async def delete(name: str, prefix: str = PREFIX) -> None:
+    await asyncio.to_thread(_delete, prefix + name)
 
 
 def name_of(url: str | None) -> str | None:

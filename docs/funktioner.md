@@ -165,3 +165,18 @@ Alt kan slås fra, vises som forhåndsvisning (kun superadmin og DOFbasen-roller
 artssider viser alle danske fund. Desuden nyheder og artikler med kommentarer, fotogalleri med likes og moderation,
 RSS fra danske og udenlandske kilder, trækvejr fra DMI, brugerprofiler, søgning, eget admin-panel, egne roller og
 API (`/api/netfugl/v1`). Alt kan slås fra/til under **Admin → Funktioner**. Se `docs/netfugl-showcase.md`.
+
+
+## Artikler (`#/artikler`)
+
+Selvstændigt modul bag funktionsflaget `artikler` (standard: forhåndsvisning). Beskrivelse og beslutninger: `docs/artikler-modul-spec.md`.
+
+* **Import af netfugl.dk-arkivet** fra en zip under Artikler → Admin → Import (upload i dele, kan genoptages; kan køres igen uden dubletter;
+  artikler rettet i portalen overskrives ikke). Kommentarer fra netfugl.dk vises som arkiv, kun til læsning.
+* **Avisforside** med hovedhistorie, billeder (PDF-artikler viser side 1), seneste, mest læst/kommenteret, «på denne dag» og arter i fokus.
+* **Søgning** på ord (dansk stemming) eller præcis tekst (også delord og OCR-tekst fra PDF'er), emneord, arter, år, type og forfatter.
+* **Arter** findes automatisk i alle artikler (emneord, tekst og PDF-tekst); redaktører kan rette dem. Boks «Artikler om arten» på artssiden.
+* **Kommentarer** med anmeld-knap, automatisk skjulning ved flere anmeldelser, moderatorkø (Admin → Moderation → Artikelkommentarer) og udelukkelser.
+* **Notifikationer** om nye artikler og om kommentarer på artikler, man selv har kommenteret (og svar på ens kommentarer).
+* **Markdown-editor** med overskrifter, tabeller, billeder, gallerier, faktabokse, PDF-vedhæftning, indlejring fra godkendte værter, arter,
+  planlagt publicering og revisioner. Samme editor bruges til **portalens nyheder** (Admin → Indhold).

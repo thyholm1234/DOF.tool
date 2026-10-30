@@ -28,6 +28,8 @@ USER_TABLES = frozenset({
     "dofb_user_roles", "dofb_api_grants", "dofb_api_tokens", "dofb_audit", "nf_pages", "nf_articles",
     "nf_comments", "nf_photos", "nf_likes", "nf_species", "nf_families", "nf_links", "nf_feeds", "nf_feed_items", "nf_kryds",
     "nf_auto_lists", "nf_roles", "nf_user_roles", "nf_api_grants", "nf_api_tokens", "nf_audit",
+    "art_imports", "content_media", "art_articles", "art_tags", "art_article_tags", "art_species", "art_comments",
+    "art_comment_reports", "art_subscriptions", "art_revisions",
     "dku_members", "dku_reviews", "dku_candidates", "dku_cases", "dku_participants", "dku_messages",
 })
 ALL_TABLES = OBS_TABLES | REFERENCE_TABLES | USER_TABLES

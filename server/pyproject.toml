@@ -24,6 +24,10 @@ dependencies = [
   "minio>=7.2.20",
   "asyncssh>=2.17",  # SFTP-backup (EPL-2.0)
   "openpyxl>=3.1",  # XLSX-download (MIT)
+  "markdown-it-py>=3.0",  # artikler/nyheder: markdown → HTML (MIT)
+  "mdit-py-plugins>=0.4",  # tabeller, containere, fodnoter (MIT)
+  "nh3>=0.2.18",  # sanitering af HTML (MIT)
+  "pillow>=10.4",  # billedvarianter til artikler (MIT-CMU/HPND)
 ]
 
 [project.optional-dependencies]

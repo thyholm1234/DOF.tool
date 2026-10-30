@@ -1,0 +1,24 @@
+/* Markdown-editoren (.mde): værktøjslinje, skriveflade, forhåndsvisning og statuslinje. Bruger portalens tokens. */
+.mde { border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); display: flex; flex-direction: column; min-height: 420px; }
+.mde.drop { outline: 3px dashed var(--brand); outline-offset: -3px; }
+.mde.full { position: fixed; inset: 0; z-index: 150; border-radius: 0; min-height: 0; }
+body.mde-lock { overflow: hidden; }
+.mde-head { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 6px; border-bottom: 1px solid var(--line); background: var(--surface-2); border-radius: 10px 10px 0 0; position: sticky; top: 0; z-index: 3; }
+.mde-bar { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.mde-modes { display: flex; gap: 6px; align-items: center; }
+.mde-btn { min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; cursor: pointer; font: inherit; font-size: .82rem; color: var(--text); white-space: nowrap; }
+.mde-btn:hover { background: var(--brand-soft); border-color: var(--brand); }
+.mde-btn.b { font-weight: 800; } .mde-btn.i { font-style: italic; } .mde-btn.s { text-decoration: line-through; }
+.mde-sep { width: 1px; height: 22px; background: var(--line-strong); margin: 0 3px; }
+.mde-panes { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 340px; }
+.mde.full .mde-panes { min-height: 0; overflow: hidden; }
+.mde-ta { width: 100%; min-height: 340px; resize: vertical; border: 0; outline: 0; padding: 14px 16px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .93rem; line-height: 1.6; background: transparent; color: var(--text); tab-size: 2; }
+.mde.full .mde-ta { resize: none; height: 100%; }
+.mde-pv { display: none; padding: 14px 18px; overflow: auto; border-left: 1px solid var(--line); max-height: 70vh; }
+.mde.full .mde-pv { max-height: none; }
+.mde[data-mode="skriv"] .mde-pv { display: none; }
+.mde[data-mode="vis"] .mde-ta { display: none; } .mde[data-mode="vis"] .mde-pv { display: block; border-left: 0; }
+.mde[data-mode="side"] .mde-panes { grid-template-columns: 1fr 1fr; } .mde[data-mode="side"] .mde-pv { display: block; }
+.mde-status { padding: 6px 12px; border-top: 1px solid var(--line); font-size: .78rem; color: var(--text-3); background: var(--surface-2); border-radius: 0 0 10px 10px; }
+.mde-warn { color: var(--warn); margin-top: 2px; }
+@media (max-width: 999px) { .mde-btn { min-width: 36px; height: 36px; } }

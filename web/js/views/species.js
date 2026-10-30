@@ -1,4 +1,4 @@
-import { api, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, seg, KAT, esc } from "../core.js";
+import { api, state, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, seg, KAT, esc } from "../core.js";
 import { lineChart, seriesLegend, yearDots, PALETTE } from "../charts.js";
 import { baseMap, katColor } from "../maps.js";
 
@@ -12,6 +12,7 @@ export async function render(view, [artnr]) {
   catch (err) { view.replaceChildren(errorBox(err)); return; }
   const mapEl = h("div", { class: "map small" });
   const pttEl = h("div", {});
+  const artEl = h("div", {});
   const atlasEl = h("div", {});
   const cleanups = [];
   view.replaceChildren(
@@ -27,11 +28,20 @@ export async function render(view, [artnr]) {
       h("div", { class: "card" }, h("h3", {}, "Fund de seneste 30 dage"), mapEl, recentList(sp.recent)),
       h("div", { class: "card" }, h("h3", {}, "Mediandato pr. år"), yearChart(ph), h("h3", { class: "mt2" }, "Observationer pr. lokalafdeling"),
         sp.by_afdeling.length ? h("ul", { class: "mini-list" }, ...sp.by_afdeling.map(a => h("li", {}, a.navn, h("b", { class: "num" }, fmtN(a.n_obs))))) : h("p", { class: "muted" }, "–"))),
-    pttEl, atlasEl);
+    artEl, pttEl, atlasEl);
   const map = baseMap(mapEl, { zoom: 6, center: [56.1, 11] });
   for (const r of sp.recent) L.circleMarker([r.lat, r.lon], { radius: 5, color: "#fff", weight: 1, fillColor: katColor(r.kategori), fillOpacity: .9 }).addTo(map)
     .bindPopup(`${fmtN(r.antal)} · ${esc(r.lok)}<br>${fmtDate(r.dato)}<br><a href="#/traad/${r.dato}/${artnr}/${r.loknr}">Åbn</a>`);
   // DOF's punkttællinger og Atlas hentes efter siden er vist (eksterne tjenester, caches på serveren)
+  if (state.user?.artikler?.features?.artikler) {  // artikler om arten (Artikler-modulet)
+    api(`/api/artikler/arter/${artnr}?limit=5`).then(async d => {
+      if (!d.total) return;
+      const { loadCss, listCard } = await import("../artikler/common.js");
+      loadCss("artikler");
+      artEl.replaceChildren(h("div", { class: "card mt art" }, h("h3", {}, `Artikler om ${sp.navn}`), ...d.rows.map(listCard),
+        d.total > d.rows.length ? h("p", {}, h("a", { href: `#/artikler/arter/${artnr}` }, `Se alle ${d.total} artikler →`)) : null));
+    }).catch(() => {});
+  }
   api(`/api/species/${artnr}/punkttaelling`).then(d => pttEl.replaceChildren(pointCountCard(d, sp.navn) || "")).catch(() => {});
   api(`/api/species/${artnr}/atlas`).then(async d => {
     if (!d.available) return;

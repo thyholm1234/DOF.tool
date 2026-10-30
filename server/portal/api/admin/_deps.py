@@ -6,6 +6,7 @@ from portal.api.deps import require_perm, require_role
 
 superadmin = require_role("superadmin")
 perm_arter = require_perm("arter")
+perm_artikler = require_perm("artikler")
 perm_brugere = require_perm("brugere")
 perm_data = require_perm("data")
 perm_drift = require_perm("drift")

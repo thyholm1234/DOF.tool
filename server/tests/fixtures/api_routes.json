@@ -62,6 +62,294 @@ true,
 ]
 }
 },
+"/api/admin/artikler": {
+"post": {
+"body": true,
+"op": "opret_api_admin_artikler_post",
+"params": []
+}
+},
+"/api/admin/artikler/emneord": {
+"get": {
+"body": false,
+"op": "emneord_api_admin_artikler_emneord_get",
+"params": []
+}
+},
+"/api/admin/artikler/emneord/{tid}": {
+"put": {
+"body": true,
+"op": "ret_emneord_api_admin_artikler_emneord__tid__put",
+"params": [
+[
+"tid",
+"path",
+true,
+"{\"title\": \"Tid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/emneord/{tid}/flet": {
+"post": {
+"body": true,
+"op": "flet_api_admin_artikler_emneord__tid__flet_post",
+"params": [
+[
+"tid",
+"path",
+true,
+"{\"title\": \"Tid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/genberegn-arter": {
+"post": {
+"body": false,
+"op": "genberegn_api_admin_artikler_genberegn_arter_post",
+"params": []
+}
+},
+"/api/admin/artikler/import": {
+"get": {
+"body": false,
+"op": "import_liste_api_admin_artikler_import_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "import_opret_api_admin_artikler_import_post",
+"params": []
+}
+},
+"/api/admin/artikler/import/{iid}": {
+"delete": {
+"body": false,
+"op": "import_slet_api_admin_artikler_import__iid__delete",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "import_status_api_admin_artikler_import__iid__get",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/import/{iid}/del/{n}": {
+"put": {
+"body": false,
+"op": "import_del_api_admin_artikler_import__iid__del__n__put",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+],
+[
+"n",
+"path",
+true,
+"{\"title\": \"N\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/import/{iid}/dele": {
+"get": {
+"body": false,
+"op": "import_dele_api_admin_artikler_import__iid__dele_get",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/import/{iid}/start": {
+"post": {
+"body": true,
+"op": "import_start_api_admin_artikler_import__iid__start_post",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/indstillinger": {
+"get": {
+"body": false,
+"op": "indstillinger_api_admin_artikler_indstillinger_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "gem_indstillinger_api_admin_artikler_indstillinger_put",
+"params": []
+}
+},
+"/api/admin/artikler/kommentarer": {
+"get": {
+"body": false,
+"op": "kommentar_kø_api_admin_artikler_kommentarer_get",
+"params": [
+[
+"side",
+"query",
+false,
+"{\"default\": 1, \"minimum\": 1, \"title\": \"Side\", \"type\": \"integer\"}"
+],
+[
+"tab",
+"query",
+false,
+"{\"default\": \"anmeldte\", \"enum\": [\"anmeldte\", \"skjulte\", \"seneste\"], \"title\": \"Tab\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/admin/artikler/kommentarer/{cid}/{action}": {
+"post": {
+"body": true,
+"op": "moderer_api_admin_artikler_kommentarer__cid___action__post",
+"params": [
+[
+"action",
+"path",
+true,
+"{\"enum\": [\"skjul\", \"gendan\", \"slet\", \"afvis\"], \"title\": \"Action\", \"type\": \"string\"}"
+],
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/render-alle": {
+"post": {
+"body": false,
+"op": "render_alle_api_admin_artikler_render_alle_post",
+"params": []
+}
+},
+"/api/admin/artikler/{aid}": {
+"delete": {
+"body": false,
+"op": "slet_api_admin_artikler__aid__delete",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_api_admin_artikler__aid__put",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/{aid}/arter": {
+"put": {
+"body": true,
+"op": "arter_api_admin_artikler__aid__arter_put",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/{aid}/revisioner": {
+"get": {
+"body": false,
+"op": "revisioner_api_admin_artikler__aid__revisioner_get",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/{aid}/revisioner/{rid}": {
+"get": {
+"body": false,
+"op": "revision_api_admin_artikler__aid__revisioner__rid__get",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+],
+[
+"rid",
+"path",
+true,
+"{\"title\": \"Rid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/{aid}/revisioner/{rid}/gendan": {
+"post": {
+"body": false,
+"op": "gendan_api_admin_artikler__aid__revisioner__rid__gendan_post",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+],
+[
+"rid",
+"path",
+true,
+"{\"title\": \"Rid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/backup": {
 "get": {
 "body": false,
@@ -406,6 +694,11 @@ true,
 }
 },
 "/api/admin/news": {
+"get": {
+"body": false,
+"op": "admin_news_api_admin_news_get",
+"params": []
+},
 "post": {
 "body": true,
 "op": "create_news_api_admin_news_post",
@@ -416,6 +709,30 @@ true,
 "delete": {
 "body": false,
 "op": "delete_news_api_admin_news__nid__delete",
+"params": [
+[
+"nid",
+"path",
+true,
+"{\"title\": \"Nid\", \"type\": \"integer\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "admin_news_item_api_admin_news__nid__get",
+"params": [
+[
+"nid",
+"path",
+true,
+"{\"title\": \"Nid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_news_api_admin_news__nid__put",
 "params": [
 [
 "nid",
@@ -838,6 +1155,272 @@ true,
 ]
 }
 },
+"/api/artikler": {
+"get": {
+"body": false,
+"op": "soeg_api_artikler_get",
+"params": [
+[
+"art",
+"query",
+false,
+"{\"default\": [], \"items\": {\"type\": \"integer\"}, \"maxItems\": 20, \"title\": \"Art\", \"type\": \"array\"}"
+],
+[
+"forfatter",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 160, \"title\": \"Forfatter\", \"type\": \"string\"}"
+],
+[
+"fra",
+"query",
+false,
+"{\"anyOf\": [{\"maximum\": 2100, \"minimum\": 1900, \"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Fra\"}"
+],
+[
+"har_billeder",
+"query",
+false,
+"{\"default\": false, \"title\": \"Har Billeder\", \"type\": \"boolean\"}"
+],
+[
+"har_pdf",
+"query",
+false,
+"{\"default\": false, \"title\": \"Har Pdf\", \"type\": \"boolean\"}"
+],
+[
+"kind",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 12, \"title\": \"Kind\", \"type\": \"string\"}"
+],
+[
+"mode",
+"query",
+false,
+"{\"default\": \"ord\", \"pattern\": \"^(ord|praecis)$\", \"title\": \"Mode\", \"type\": \"string\"}"
+],
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 200, \"title\": \"Q\", \"type\": \"string\"}"
+],
+[
+"side",
+"query",
+false,
+"{\"default\": 1, \"maximum\": 10000, \"minimum\": 1, \"title\": \"Side\", \"type\": \"integer\"}"
+],
+[
+"sort",
+"query",
+false,
+"{\"default\": \"relevans\", \"title\": \"Sort\", \"type\": \"string\"}"
+],
+[
+"tag",
+"query",
+false,
+"{\"default\": [], \"items\": {\"type\": \"integer\"}, \"maxItems\": 8, \"title\": \"Tag\", \"type\": \"array\"}"
+],
+[
+"til",
+"query",
+false,
+"{\"anyOf\": [{\"maximum\": 2100, \"minimum\": 1900, \"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Til\"}"
+],
+[
+"type",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 60, \"title\": \"Type\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/artikler/arter": {
+"get": {
+"body": false,
+"op": "arter_api_artikler_arter_get",
+"params": []
+}
+},
+"/api/artikler/arter/{artnr}": {
+"get": {
+"body": false,
+"op": "art_artikler_api_artikler_arter__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
+],
+[
+"limit",
+"query",
+false,
+"{\"default\": 5, \"maximum\": 50, \"minimum\": 1, \"title\": \"Limit\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/artikler/emneord": {
+"get": {
+"body": false,
+"op": "emneord_api_artikler_emneord_get",
+"params": []
+}
+},
+"/api/artikler/forfattere": {
+"get": {
+"body": false,
+"op": "forfattere_api_artikler_forfattere_get",
+"params": []
+}
+},
+"/api/artikler/forside": {
+"get": {
+"body": false,
+"op": "forside_api_artikler_forside_get",
+"params": []
+}
+},
+"/api/artikler/kommentarer/{cid}": {
+"delete": {
+"body": false,
+"op": "slet_kommentar_api_artikler_kommentarer__cid__delete",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+},
+"patch": {
+"body": true,
+"op": "ret_kommentar_api_artikler_kommentarer__cid__patch",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/artikler/kommentarer/{cid}/anmeld": {
+"post": {
+"body": true,
+"op": "anmeld_api_artikler_kommentarer__cid__anmeld_post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/artikler/n/{netfugl_id}": {
+"get": {
+"body": false,
+"op": "fra_netfugl_api_artikler_n__netfugl_id__get",
+"params": [
+[
+"netfugl_id",
+"path",
+true,
+"{\"title\": \"Netfugl Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/artikler/notifikationer": {
+"get": {
+"body": false,
+"op": "prefs_api_artikler_notifikationer_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "set_prefs_api_artikler_notifikationer_put",
+"params": []
+}
+},
+"/api/artikler/{aid}": {
+"get": {
+"body": false,
+"op": "artikel_api_artikler__aid__get",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/artikler/{aid}/foelg": {
+"delete": {
+"body": false,
+"op": "foelg_ikke_api_artikler__aid__foelg_delete",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": false,
+"op": "foelg_api_artikler__aid__foelg_put",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/artikler/{aid}/kommentarer": {
+"get": {
+"body": false,
+"op": "kommentarer_api_artikler__aid__kommentarer_get",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+},
+"post": {
+"body": true,
+"op": "skriv_kommentar_api_artikler__aid__kommentarer_post",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/atlas/squares": {
 "get": {
 "body": false,
@@ -1107,6 +1690,64 @@ true,
 "{\"title\": \"Comment Id\", \"type\": \"integer\"}"
 ]
 ]
+}
+},
+"/api/content/media": {
+"get": {
+"body": false,
+"op": "list_media_api_content_media_get",
+"params": [
+[
+"owner_id",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Owner Id\"}"
+],
+[
+"owner_kind",
+"query",
+true,
+"{\"enum\": [\"artikel\", \"nyhed\"], \"title\": \"Owner Kind\", \"type\": \"string\"}"
+]
+]
+},
+"post": {
+"body": true,
+"op": "upload_api_content_media_post",
+"params": []
+}
+},
+"/api/content/media/{mid}": {
+"delete": {
+"body": false,
+"op": "delete_media_api_content_media__mid__delete",
+"params": [
+[
+"mid",
+"path",
+true,
+"{\"title\": \"Mid\", \"type\": \"integer\"}"
+]
+]
+},
+"patch": {
+"body": true,
+"op": "patch_media_api_content_media__mid__patch",
+"params": [
+[
+"mid",
+"path",
+true,
+"{\"title\": \"Mid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/content/render": {
+"post": {
+"body": true,
+"op": "render_api_content_render_post",
+"params": []
 }
 },
 "/api/daymap": {
@@ -4797,6 +5438,20 @@ true,
 "query",
 false,
 "{\"default\": 10, \"maximum\": 50, \"title\": \"Limit\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/news/{nid}": {
+"get": {
+"body": false,
+"op": "get_news_item_api_news__nid__get",
+"params": [
+[
+"nid",
+"path",
+true,
+"{\"title\": \"Nid\", \"type\": \"integer\"}"
 ]
 ]
 }

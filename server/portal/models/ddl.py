@@ -2,6 +2,21 @@
 
 # Ekstra DDL der ikke kan udtrykkes pænt i modellerne
 EXTRA_DDL = [
+    # Artikelmodulet: råtekst-søgning (ILIKE) bruger trigram-indekser; fuldtekst-indekset ligger på modellen
+    "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+    "CREATE INDEX IF NOT EXISTS ix_art_articles_body_trgm ON art_articles USING gin (body_text gin_trgm_ops)",
+    "CREATE INDEX IF NOT EXISTS ix_art_articles_ocr_trgm ON art_articles USING gin (ocr_text gin_trgm_ops)",
+    "CREATE INDEX IF NOT EXISTS ix_art_articles_title_trgm ON art_articles USING gin (title gin_trgm_ops)",
+    # Portalens nyheder bruger den fælles markdown-editor
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS lead text",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS body_html text NOT NULL DEFAULT ''",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS render_version integer NOT NULL DEFAULT 0",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS cover_media_id integer",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS status varchar(12) NOT NULL DEFAULT 'publiceret'",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_at timestamptz",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS updated_at timestamptz",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS updated_by integer",
+    "ALTER TABLE news ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1",
     # Netfugls automatiske kryds ligger nu i nf_auto_lists (én række pr. deltager og liste); den gamle tabel var afledt data
     "DROP TABLE IF EXISTS nf_auto",
     # Portalen gemmer ikke længere noget om adgangskoder – login tjekkes altid hos DOFbasen

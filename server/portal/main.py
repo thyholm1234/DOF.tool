@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 
-from portal.api import (admin, alerts, auth, calendar, categories, dku, dofbasen, dofbasen_v1, feed, geo, learn, lists, media,
+from portal.api import (admin, alerts, artikler, auth, calendar, categories, content, dku, dofbasen, dofbasen_v1, feed, geo, learn, lists, media,
                         mobgang, netfugl, netfugl_v1, position, privacy, refdata, reports, science, search, share, social, stats, trips)
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
@@ -24,7 +24,7 @@ from portal.cache import kv
 from portal.config import get_settings
 from portal.db import router
 from portal.dbgroups import GROUPS
-from portal.services import storage
+from portal.services import article_settings, storage
 from portal.services.auth import AuthError
 
 # Containerens mimetypes kender ikke woff2 – skrifterne i web/vendor skal have deres rigtige type
@@ -110,11 +110,11 @@ async def guard(request: Request, call_next):
         # Uploadede filer åbnet direkte må aldrig kunne køre noget
         response.headers.setdefault("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; sandbox")
     elif not path.startswith("/api/"):
-        response.headers.setdefault("Content-Security-Policy", csp())
+        response.headers.setdefault("Content-Security-Policy", csp(await article_settings.frame_hosts()))
     return response
 
 
-def csp() -> str:
+def csp(frame_hosts: list[str] | None = None) -> str:
     """Kun egne scripts (plus det inline splash-script i index.html via hash); kort-fliser og DOFbasen-medier via https."""
     index = WEB_DIR / "index.html"
     stamp = index.stat().st_mtime_ns if index.is_file() else 0
@@ -127,7 +127,9 @@ def csp() -> str:
             "img-src 'self' data: blob: https:", "media-src 'self' blob: https:",
             "connect-src 'self' https://tile.openstreetmap.org", "font-src 'self' data:", "object-src 'none'",
             "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'", "worker-src 'self'", "manifest-src 'self'"]))
-    return _csp["value"]
+    # Indlejringer i artikler (xeno-canto, Vimeo …) og PDF-visning på egen side: frame-src følger tilladelseslisten under Artikler → Admin
+    frames = " ".join(["'self'", *(f"https://{h}" for h in sorted({h for h in (frame_hosts or []) if re.fullmatch(r"[a-z0-9.-]+", h)}))])
+    return f"{_csp['value']}; frame-src {frames}"
 
 
 _csp = {"at": None, "value": ""}
@@ -170,7 +172,7 @@ async def health():
 
 
 for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, refdata, share,
-               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, stats, media):  # media før /media-mounten
+               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, stats, artikler, content, media):  # media før /media-mounten
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer
@@ -195,7 +197,7 @@ def build_id() -> str:
 @app.api_route("/index.html", methods=["GET", "HEAD"], include_in_schema=False)
 async def index():
     html = (WEB_DIR / "index.html").read_text(encoding="utf-8").replace("__BUILD__", build_id())
-    return HTMLResponse(html, headers={"Cache-Control": "no-cache", "Content-Security-Policy": csp()})
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache", "Content-Security-Policy": csp(await article_settings.frame_hosts())})
 
 
 @app.api_route("/v/{build}/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)

@@ -41,6 +41,8 @@ TASKS: dict[str, tuple[str, str, dict]] = {
     "events": ("DOF-ture", "Ture og arrangementer fra dof.dk", {"on": True, "every": 6, "unit": "hour", "at": "01:20"}),
     "gap_fill": ("Udfyld huller", "Dage og måneder der mangler fra DOFbasen lægges i kø",
                  {"on": True, "every": 6, "unit": "hour", "at": "00:00"}),
+    "articles_publish": ("Artikler og nyheder: planlagt publicering", "Publicerer planlagte artikler og nyheder, sender notifikationer om nye artikler "
+                         "og skriver læsetal til databasen", {"on": True, "every": 5, "unit": "min", "at": "00:00"}),
     "netfugl_kryds": ("Netfugl: krydslister", "Automatiske kryds fra DOFbasen (kun når Netfugl er slået til)",
                       {"on": True, "every": 6, "unit": "hour", "at": "00:10"}),
     "netfugl_rss": ("Netfugl: RSS-kilder", "Henter nyheder fra RSS-kilderne (kun når Netfugl er slået til)",

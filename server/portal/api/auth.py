@@ -17,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
-from portal.services import account, activity, auth, dku, dofbasen, features, netfugl
+from portal.services import account, activity, article_access, auth, dku, dofbasen, features, netfugl
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -75,7 +75,7 @@ async def me(user: User | None = Depends(optional_user), db: AsyncSession = Depe
     # DOFbasen-modulet: hvilke funktioner brugeren ser, og hvad brugeren må (styrer menuen)
     flags = await features.load(db)
     return {"user": {**user_out(user), "is_test": user.is_test, "dofbasen": (await dofbasen.context(db, user)).out(),
-                     "netfugl": (await netfugl.context(db, user)).out(), "dku": await dku.context(db, user),
+                     "netfugl": (await netfugl.context(db, user)).out(), "artikler": (await article_access.context(db, user)).out(), "dku": await dku.context(db, user),
                      "position": features.visible(flags, "position", superadmin=user.role == "superadmin", insider=False),
                      "voice": features.visible(flags, "voice", superadmin=user.role == "superadmin", insider=False),
                      "trip_weather": features.visible(flags, "trip_weather", superadmin=user.role == "superadmin", insider=False),

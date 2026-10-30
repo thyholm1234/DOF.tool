@@ -64,6 +64,14 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
                          "til Netfugl. Kræver at begge moduler er synlige.", "netfugl", "on"),
     "netfugl_api": ("Netfugl: API og tokens", "REST-API (/api/netfugl/v1) med personlige tokens: artikler, krydslister, fotos, "
                     "RSS og artslister.", "netfugl", "preview"),
+    "artikler": ("Artikler (netfugl-arkivet og nye artikler)", "Selvstændigt modul med avisforside, søgning på ord, råtekst, emneord og "
+                 "arter, kommentarer og en markdown-editor. Artiklerne indlæses fra en zip under Artikler → Admin → Import.",
+                 None, "preview"),
+    "artikler_kommentarer": ("Artikler: kommentarer og anmeldelser", "Kommentarer under artikler, anmeld-knap og moderation.",
+                             "artikler", "on"),
+    "artikler_notifikationer": ("Artikler: notifikationer", "Notifikationer om nye artikler og nye kommentarer på artikler, man "
+                                "selv har kommenteret.", "artikler", "on"),
+    "artikler_editor": ("Artikler: oprettelse og redigering", "Markdown-editoren og metadata-panelet til artikler.", "artikler", "on"),
 }
 KEY = "features"
 VERSION = "features:version"

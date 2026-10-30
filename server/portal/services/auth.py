@@ -42,6 +42,7 @@ MODULES = {
     "mobgang_season": "Mobgang: lukning i ynglesæsonen",
     "dofbasen": "DOFbasen: alle rettigheder i DOFbasen-modulet (sider, lister, nyheder, roller, API)",
     "netfugl": "Netfugl: alle rettigheder i Netfugl-modulet (artikler, fotos, krydslister, RSS, roller, API)",
+    "artikler": "Artikler: import, redigering, emneord og indstillinger",
     "dku": "DKU: udpege DKU-ansvarlige pr. lokalafdeling og se alle DKU-sager",
 }
 _MOD = {"moderation", "ture", "kategorier"}
@@ -51,7 +52,7 @@ _MOD = {"moderation", "ture", "kategorier"}
 # Superadmin er ikke en rolle i tabellen: den har altid alle moduler og er brugeren fra .env.
 SUPERADMIN = "superadmin"
 DEFAULT_ROLES = [("user", "Bruger", set()), ("moderator", "Moderator", _MOD),
-                 ("editor", "Redaktør", _MOD | {"laering", "mobgang_presets"}), ("admin", "Administrator", set(MODULES))]
+                 ("editor", "Redaktør", _MOD | {"laering", "mobgang_presets", "artikler"}), ("admin", "Administrator", set(MODULES))]
 FIXED_ROLES = {"user", "admin"}
 # Rollernes moduler og navne i denne proces – genindlæses, når en anden proces har ændret dem (se ensure_roles)
 ROLE_MODULES: dict[str, set[str]] = {k: set(m) for k, _, m in DEFAULT_ROLES}

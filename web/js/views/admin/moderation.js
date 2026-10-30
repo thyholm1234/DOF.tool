@@ -7,10 +7,17 @@ import { refreshUnread } from "../../app.js";
 export async function moderation(body) {
   let vis = params().vis || "kommentarer";
   const inner = h("div", {});
-  const draw = () => { inner.replaceChildren(); setParams({ vis: vis === "kommentarer" ? "" : vis }); ({ kommentarer: modComments, beskeder: modMessages, udelukkede: modBans }[vis] || modComments)(inner); };
-  body.append(h("div", { class: "row mb" }, seg([["kommentarer", "Kommentarer"], ["beskeder", `Beskeder${state.adminSupportUnread ? ` (${state.adminSupportUnread})` : ""}`], ["udelukkede", "Udelukkede"]],
+  const draw = () => { inner.replaceChildren(); setParams({ vis: vis === "kommentarer" ? "" : vis }); ({ kommentarer: modComments, artikler: modArticles, beskeder: modMessages, udelukkede: modBans }[vis] || modComments)(inner); };
+  body.append(h("div", { class: "row mb" }, seg([["kommentarer", "Kommentarer"], ...(state.user?.artikler?.can_moderate ? [["artikler", "Artikelkommentarer"]] : []), ["beskeder", `Beskeder${state.adminSupportUnread ? ` (${state.adminSupportUnread})` : ""}`], ["udelukkede", "Udelukkede"]],
     vis, (v) => { vis = v; setParams({ t: "" }); draw(); })), inner);
   draw();
+}
+
+/** Anmeldte og skjulte kommentarer under artikler (samme kø som under Artikler → Admin). */
+async function modArticles(body) {
+  const { loadCss } = await import("../../artikler/common.js");
+  loadCss("artikler");
+  body.append(await (await import("../../artikler/admin.js")).commentQueue());
 }
 
 async function modComments(body) {

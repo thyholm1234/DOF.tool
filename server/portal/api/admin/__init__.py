@@ -7,6 +7,7 @@ backup · brugere · roller · moderation (kommentarer, udelukkelser, beskeder) 
 from fastapi import APIRouter
 
 from portal.api.admin import (
+    artikler,
     backup,
     brugere,
     data,
@@ -18,5 +19,5 @@ from portal.api.admin import (
 )
 
 router = APIRouter()
-for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller):
+for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler):
     router.include_router(module.router)

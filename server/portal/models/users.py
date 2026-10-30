@@ -225,6 +225,16 @@ class NewsPost(Base):
     author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     published: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Den fælles markdown-editor (services/content_render.py); body er markdown, body_html er den rensede udgave
+    lead: Mapped[str | None] = mapped_column(Text)
+    body_html: Mapped[str] = mapped_column(Text, default="", server_default="")
+    render_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    cover_media_id: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(12), default="publiceret", server_default="publiceret")  # kladde / planlagt / publiceret
+    publish_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[int | None] = mapped_column(Integer)
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
 
 
 class MobPreset(Base):

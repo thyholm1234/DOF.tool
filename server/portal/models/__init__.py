@@ -53,6 +53,18 @@ from portal.models.users import (
     NewsPost,
     MobPreset,
 )
+from portal.models.articles import (
+    ArtImport,
+    ContentMedia,
+    ArtArticle,
+    ArtTag,
+    ArtArticleTag,
+    ArtSpecies,
+    ArtComment,
+    ArtCommentReport,
+    ArtSubscription,
+    ArtRevision,
+)
 from portal.models.learning import Course, Question, QuestionProgress, QuizResult
 from portal.models.field import FieldTrip, FieldBreedingPair, FieldDisturbance, FieldReport, FieldReportUpdate
 from portal.models.matrikel import Matrikel, MatrikelPeriode
@@ -93,4 +105,4 @@ from portal.models.netfugl import (
 )
 from portal.models.dku import DkuMember, DkuReview, DkuCandidate, DkuCase, DkuParticipant, DkuMessage
 
-__all__ = ["EXTRA_DDL", "Species", "SpeciesCategory", "CategoryOverride", "ManualFind", "Afdeling", "Kommune", "Location", "BemaerkThreshold", "PhenologyWindow", "ReferenceEdit", "SpeciesEdit", "CodeText", "Observer", "Trip", "Observation", "DaySync", "ArchiveFile", "SpeciesDay", "EffortDay", "PhenoMetric", "SpeciesSeason", "ClimateMonth", "AreaSpeciesCount", "LocSpeciesFinds", "RegionYearSpecies", "RegionReach", "RegionTotals", "LocationYear", "Role", "User", "UserLocation", "PushSubscription", "Area", "AlertRule", "ThreadFollow", "ThreadComment", "ThreadStatus", "Notification", "ListGroup", "ListGroupMember", "Setting", "NewsPost", "MobPreset", "Course", "Question", "QuestionProgress", "QuizResult", "FieldTrip", "FieldBreedingPair", "FieldDisturbance", "FieldReport", "FieldReportUpdate", "Matrikel", "MatrikelPeriode", "Like", "Activity", "SupportThread", "SupportMessage", "CommentBan", "MonthSync", "WeatherMonth", "WeatherCellDay", "DofEvent", "SiteCalendar", "CalendarVisit", "DofbPage", "DofbNews", "DofbFocus", "DofbList", "DofbArea", "DofbRole", "DofbUserRole", "DofbApiGrant", "DofbApiToken", "DofbObsStatus", "DofbAudit", "NfPage", "NfArticle", "NfComment", "NfPhoto", "NfLike", "NfSpecies", "NfFamily", "NfLink", "NfFeed", "NfFeedItem", "NfKryds", "NfAutoList", "NfRole", "NfUserRole", "NfApiGrant", "NfApiToken", "NfAudit", "DkuMember", "DkuReview", "DkuCandidate", "DkuCase", "DkuParticipant", "DkuMessage"]
+__all__ = ["EXTRA_DDL", "Species", "SpeciesCategory", "CategoryOverride", "ManualFind", "Afdeling", "Kommune", "Location", "BemaerkThreshold", "PhenologyWindow", "ReferenceEdit", "SpeciesEdit", "CodeText", "Observer", "Trip", "Observation", "DaySync", "ArchiveFile", "SpeciesDay", "EffortDay", "PhenoMetric", "SpeciesSeason", "ClimateMonth", "AreaSpeciesCount", "LocSpeciesFinds", "RegionYearSpecies", "RegionReach", "RegionTotals", "LocationYear", "Role", "User", "UserLocation", "PushSubscription", "Area", "AlertRule", "ThreadFollow", "ThreadComment", "ThreadStatus", "Notification", "ListGroup", "ListGroupMember", "Setting", "NewsPost", "MobPreset", "Course", "Question", "QuestionProgress", "QuizResult", "FieldTrip", "FieldBreedingPair", "FieldDisturbance", "FieldReport", "FieldReportUpdate", "Matrikel", "MatrikelPeriode", "Like", "Activity", "SupportThread", "SupportMessage", "CommentBan", "MonthSync", "WeatherMonth", "WeatherCellDay", "DofEvent", "SiteCalendar", "CalendarVisit", "DofbPage", "DofbNews", "DofbFocus", "DofbList", "DofbArea", "DofbRole", "DofbUserRole", "DofbApiGrant", "DofbApiToken", "DofbObsStatus", "DofbAudit", "NfPage", "NfArticle", "NfComment", "NfPhoto", "NfLike", "NfSpecies", "NfFamily", "NfLink", "NfFeed", "NfFeedItem", "NfKryds", "NfAutoList", "NfRole", "NfUserRole", "NfApiGrant", "NfApiToken", "NfAudit", "DkuMember", "DkuReview", "DkuCandidate", "DkuCase", "DkuParticipant", "DkuMessage", "ArtImport", "ContentMedia", "ArtArticle", "ArtTag", "ArtArticleTag", "ArtSpecies", "ArtComment", "ArtCommentReport", "ArtSubscription", "ArtRevision"]

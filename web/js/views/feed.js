@@ -180,7 +180,9 @@ export async function render(view) {
   api("/api/news?limit=3").then(n => {
     if (!n.length) return;
     newsCard.replaceChildren(h("div", { class: "card" }, h("h3", {}, "Nyt fra portalen"),
-      ...n.map(x => h("div", { class: "mt" }, h("b", {}, x.title), h("p", { class: "muted", style: { margin: 0 } }, fmtDate(x.created_at)), h("p", {}, x.body)))));
+      ...n.map(x => h("a", { class: "mt", href: `#/nyheder/${x.id}`, style: { display: "grid", gridTemplateColumns: x.cover ? "84px 1fr" : "1fr", gap: "10px", textDecoration: "none", color: "inherit" } },
+        x.cover ? h("img", { src: x.cover.thumb, alt: "", loading: "lazy", style: { width: "84px", height: "64px", objectFit: "cover", borderRadius: "6px" } }) : null,
+        h("div", {}, h("b", {}, x.title), h("p", { class: "muted", style: { margin: 0 } }, fmtDate(x.created_at)), h("p", { style: { margin: "2px 0 0" } }, x.teaser), h("small", { style: { color: "var(--brand)" } }, "Læs mere →"))))));
   }).catch(() => {});
 
   await load();

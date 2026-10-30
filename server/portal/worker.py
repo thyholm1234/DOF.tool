@@ -22,6 +22,11 @@ from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
 from portal.services import (
+    article_edit,
+    article_import,
+    article_notify,
+    articles,
+    content_rerender,
     areas,
     backup,
     datasync,
@@ -218,6 +223,7 @@ SCHEDULED: dict[str, Callable[[], Awaitable]] = {
     "climate": _tracked("climate", lambda: refresh_climate()),
     "events": _tracked("events", dof_events.sync),
     "gap_fill": lambda: jobs.enqueue_gap_fill(),
+    "articles_publish": _tracked("articles_publish", lambda: articles_publish()),
     "netfugl_kryds": _tracked("netfugl_kryds", lambda: netfugl_kryds()),
     "netfugl_rss": _tracked("netfugl_rss", lambda: netfugl_rss(None)),
     "speech_model": speechmodel.request,
@@ -261,6 +267,29 @@ async def locfinds_schedule() -> None:
         due = await locfinds.due(s, cfg["at"])
         if due:
             await locfinds.enqueue(s, due)
+
+
+async def articles_publish() -> None:
+    """Hvert 5. minut: planlagte artikler og nyheder publiceres, og læsetal fra Valkey skrives til databasen."""
+    async with SessionLocal() as s:
+        due = await article_edit.publish_due(s)
+        n = await articles.flush_views(s)
+    for aid in due:
+        await article_notify.on_publish(aid)
+    if due or n:
+        await jobstatus.step(f"{len(due)} publiceret, {n} læsetal")
+
+
+async def articles_species() -> None:
+    async with SessionLocal() as s:
+        n = await content_rerender.reindex_species(s)
+    await jobstatus.step(f"Arter genberegnet for {n} artikler")
+
+
+async def content_rerender_all() -> None:
+    async with SessionLocal() as s:
+        r = await content_rerender.rerender_all(s)
+    await jobstatus.step(f"{r['artikler']} artikler, {r['nyheder']} nyheder, {r['kommentarer']} kommentarer")
 
 
 async def netfugl_kryds() -> None:
@@ -407,6 +436,12 @@ async def command_listener() -> None:
                 await run_safely("plan", run_plans({cmd["source"]: [cmd["tier"]]}))
             elif name == "weather_months":
                 await weather_archive.enqueue([tuple(x) for x in cmd["months"]], only_missing=bool(cmd.get("only_missing")))
+            elif name == "articles_import":
+                await run_safely("articles_import", article_import.run_import(cmd["import_id"]))
+            elif name == "articles_species":
+                await run_safely("articles_species", articles_species())
+            elif name == "content_rerender":
+                await run_safely("content_rerender", content_rerender_all())
             elif name == "netfugl_kryds":
                 await run_safely("netfugl_kryds", netfugl_kryds())
             elif name == "netfugl_rss":

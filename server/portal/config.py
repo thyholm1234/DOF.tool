@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     archive_upload_dir: str = "/data/archive-upload"
 
     media_dir: str = "/data/media"
+    # Artikelmodulet: uploadede zip-filer med netfugl-arkivet (store; slettes efter vellykket import)
+    article_import_dir: str = "/data/article-imports"
     # Objektlager (S3, RustFS i compose) til filer i observationer. Tom S3_ENDPOINT = filerne ligger under media_dir/obs.
     s3_endpoint: str = ""  # fx rustfs:9000
     s3_access_key: str = ""

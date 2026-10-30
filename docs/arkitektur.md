@@ -29,12 +29,14 @@ for sig.
 - **Planlagte opgaver:** tilføj opgaven i `services/schedule.TASKS` *og* i `worker.SCHEDULED` (evt. med flag i
   `worker.FEATURE_OF`). `tests/test_schedule.py` fejler, hvis de to ikke passer sammen.
 - **SQL ligger i services.** API-modulerne validerer, tjekker adgang og kalder services. `tests/test_architecture.py`
-  holder øje: `domain/` er ren, `api/geo.py`, `api/calendar.py`, `api/dku.py` og `api/netfugl.py` må ikke bruge
+  holder øje: `domain/` er ren, `api/geo.py`, `api/calendar.py`, `api/dku.py`, `api/netfugl.py`, `api/artikler.py`, `api/content.py`, `api/admin/artikler.py` og `api/admin/indhold.py` må ikke bruge
   `text()`/`select()`/`update()`/`delete()`, og der må ikke komme nye importer fra et API-modul til et andet (fælles kode
   hører hjemme i en service). De ældre krydsimporter står i testens `KNOWN_CROSS_IMPORTS` og fjernes, efterhånden som de
   flyttes.
   - Steder og lokaliteter: `services/places.py` · arter: `services/species_info.py` · ture: `services/dof_events.py` ·
-    kalendere og besøg: `services/calendars.py` · DKU-sager: `services/dku_cases.py` · Netfugl-indhold: `services/netfugl_content.py`.
+    kalendere og besøg: `services/calendars.py` · DKU-sager: `services/dku_cases.py` · Netfugl-indhold: `services/netfugl_content.py` ·
+    Artikler: `services/articles.py` (læsning), `article_edit.py`, `article_import.py`, `article_species.py`, `article_comments.py`, `article_notify.py`,
+    `content_render.py` (fælles markdown-renderer + sanitering) og `content_media.py`; nyheder: `services/news.py`.
 - **API'ets ruter** er låst af `tests/test_routes.py` (snapshot i `tests/fixtures/api_routes.json` med stier, metoder, parametre og deres skemaer). Ændres en rute med
   vilje: `UPDATE_ROUTES=1 python -m pytest tests/test_routes.py`.
 - Svar komprimeres med GZip (`SelectiveGZip` i `main.py`), undtagen SSE, medier, lyd, downloads og Range-forespørgsler.
@@ -50,6 +52,8 @@ for sig.
 | Kort | `maps.js` | Grundkort og hjælpere. Henter Leaflet første gang, et modul importerer filen (top-level `await`) – importér altid `maps.js`, før `L` bruges |
 | Live | `live.js` | SSE-strømmen (`live.on("feed", …)`) |
 | Showcases | `dofbasen/`, `netfugl/` | Selvstændige moduler med egen skal, CSS og admin |
+| Artikler | `views/artikler.js`, `artikler/*.js` | Modul med faner (forside, søg, emneord, arter, forfattere, admin); CSS hentes ved første besøg |
+| Editor | `editor/md-editor.js`, `editor/media-picker.js` | Fælles markdown-editor til artikler og nyheder; forhåndsvisningen renderes af serveren |
 | Felt | `tur-*.js`, `offline.js`, `voice*.js` | Indtastning, offline-kø og tale |
 
 **Regler**
