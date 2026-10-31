@@ -229,7 +229,39 @@ async function openNotifications() {
     [h("p", { class: "muted" }, "Ingen notifikationer endnu. Opret en alarm for at få besked om sjældne fugle.")]));
 }
 
+// Rullepositionen gemmes i det enkelte historikpunkt (history.state), så tilbage (Androids knap, browseren) fører til
+// samme sted på forrige side. En ny side åbnes øverst.
+history.scrollRestoration = "manual";
+let routing = false, saveTimer = null;
+addEventListener("scroll", () => {
+  if (routing || saveTimer) return;
+  const href = location.href;  // en gemning, der først når frem efter et sideskift, må ikke lande på den nye side
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (!routing && location.href === href) history.replaceState({ ...history.state, y: Math.round(scrollY) }, "");
+  }, 150);
+}, { passive: true });
+
+/** Rul til y. Siderne henter ofte indhold efter visning, så der prøves igen, mens siden vokser – højst 3 s, og ikke
+ *  længere end til brugeren selv rører skærmen. */
+function restoreScroll(y) {
+  window.scrollTo(0, y || 0);
+  if (!y || Math.abs(scrollY - y) < 2) return;
+  const ro = new ResizeObserver(() => { window.scrollTo(0, y); if (Math.abs(scrollY - y) < 2) stop(); });
+  const stop = () => { ro.disconnect(); clearTimeout(timer); removeEventListener("touchstart", stop); removeEventListener("wheel", stop); };
+  const timer = setTimeout(stop, 3000);
+  ro.observe($("#view"));
+  addEventListener("touchstart", stop, { passive: true });
+  addEventListener("wheel", stop, { passive: true });
+}
+
 async function route() {
+  routing = true;
+  const y = history.state?.y;
+  try { await show(y); } finally { routing = false; }
+}
+
+async function show(y) {
   const [path] = (location.hash.slice(1) || "/").split("?");
   document.querySelector(".more-sheet")?.remove();
   // Hele portalen kræver login – uden login vises kun forsiden med login
@@ -255,7 +287,7 @@ async function route() {
       console.error(err);
       view.replaceChildren(h("div", { class: "notice err" }, "Siden kunne ikke vises: " + err.message));
     }
-    window.scrollTo(0, 0);
+    restoreScroll(y);
     return;
   }
   location.hash = "#/";
