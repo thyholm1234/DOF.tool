@@ -484,18 +484,27 @@ async def test_tags_bulk_save_export_and_import(db, tmp_path):
         r = await article_tags.parse_import(s, json.dumps([{"id": ids["Pandion"], "skjult": "ja"}]).encode())
         assert r["changes"] == [{"id": ids["Pandion"], "hidden": True}]
 
-        # Alt eller intet: et navnesammenfald stopper hele omgangen
+        # Alt eller intet: to emneord, der omdøbes til samme navn, stopper hele omgangen
         with pytest.raises(article_edit.Invalid):
-            await article_tags.save_many(s, [{"id": ids["Pandion"], "hidden": True}, {"id": ids["Skagen"], "navn": "Nyhed"}])
+            await article_tags.save_many(s, [{"id": ids["Pandion"], "hidden": True}, {"id": ids["Skagen"], "navn": "Ny"}, {"id": ids["2001"], "navn": "ny"}])
         assert not {t["navn"]: t for t in await article_edit.tags_admin(s)}["Pandion"]["hidden"]
         # To emneord kan bytte navn, og et emneord koblet til en art giver artiklerne arten
         n = await article_tags.save_many(s, [{"id": ids["Skagen"], "navn": "Pandion", "kind": "art", "artnr": 2},
                                              {"id": ids["Pandion"], "navn": "Skagen", "hidden": True}])
-        assert n == 2
+        assert n == {"gemt": 2, "flettet": []}
         after = {t["id"]: t for t in await article_edit.tags_admin(s)}
         assert after[ids["Skagen"]]["navn"] == "Pandion" and after[ids["Skagen"]]["kind"] == "art" and after[ids["Pandion"]]["navn"] == "Skagen"
         art300 = (await s.execute(text("SELECT id FROM art_articles WHERE netfugl_id = 300"))).scalar()
         assert (await s.execute(text("SELECT source FROM art_species WHERE article_id = :a AND artnr = 2"), {"a": art300})).scalar() == "emneord"
+        # Omdøbning til et eksisterende navn fletter: artiklerne flyttes, og rækkens slags og skjult overskriver det andet emneords
+        r = await article_tags.parse_import(s, f"id;navn;slags;skjult\n{ids['2001']};skagen;sted;ja\n".encode())
+        assert r["changes"] == [{"id": ids["2001"], "navn": "skagen", "kind": "sted", "hidden": True}] and "flettes" in r["warnings"][0]
+        n2001 = after[ids["2001"]]["n"]
+        r = await article_tags.save_many(s, r["changes"])
+        assert r["flettet"] == [{"id": ids["2001"], "into": ids["Pandion"], "flyttet": n2001}]
+        after = {t["id"]: t for t in await article_edit.tags_admin(s)}
+        assert ids["2001"] not in after and after[ids["Pandion"]]["navn"] == "Skagen"
+        assert after[ids["Pandion"]]["kind"] == "sted" and after[ids["Pandion"]]["hidden"] is True
 
 
 async def test_news_markdown_migration_and_conflicts(db):

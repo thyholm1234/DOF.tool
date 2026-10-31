@@ -182,9 +182,18 @@ async function tagAdmin() {
     saveBtn.disabled = true;
     try {
       const r = await api("/api/admin/artikler/emneord", { method: "PUT", body: { changes } });
-      for (const [id, p] of pending) Object.assign(byId.get(id), p);
+      const gone = new Set(r.flettet.map(m => m.id));
+      for (const [id, p] of pending) if (!gone.has(id)) Object.assign(byId.get(id), p);
+      for (const m of r.flettet) {  // omdøbt til et eksisterende navn: flettet ind i det, som overtager slags, artnr og skjult
+        const src = byId.get(m.id), dst = byId.get(m.into);
+        const { navn, ...over } = { kind: src.kind, artnr: src.artnr, hidden: src.hidden, ...pending.get(m.id) };
+        if (over.kind !== "art") delete over.artnr;
+        Object.assign(dst, over);
+        dst.n += m.flyttet;
+        tags.splice(tags.indexOf(src), 1); byId.delete(m.id);
+      }
       pending.clear(); updateBar(); draw();
-      toast(`${nowrap(r.gemt)} emneord gemt`);
+      toast(r.flettet.length ? `${nowrap(r.gemt)} emneord gemt, heraf ${nowrap(r.flettet.length)} flettet` : `${nowrap(r.gemt)} emneord gemt`);
     } catch (e) { toast(e.message, "err"); updateBar(); }
   }
 

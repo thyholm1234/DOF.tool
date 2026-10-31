@@ -189,9 +189,9 @@ class TagsIn(BaseModel):
 
 @router.put("/emneord")
 async def gem_emneord(body: TagsIn, acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
-    """Gem alle ugemte rettelser fra admin-tabellen på én gang (alt eller intet)."""
+    """Gem alle ugemte rettelser fra admin-tabellen på én gang (alt eller intet). Omdøbning til et eksisterende navn fletter de to."""
     try:
-        return {"gemt": await article_tags.save_many(db, [c.model_dump(exclude_unset=True) for c in body.changes])}
+        return await article_tags.save_many(db, [c.model_dump(exclude_unset=True) for c in body.changes])
     except article_edit.Invalid as exc:
         raise HTTPException(400, str(exc)) from exc
 

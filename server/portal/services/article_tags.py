@@ -4,6 +4,7 @@ Eksporten har én række pr. emneord med id, navn, slags, artnr, artsnavn, skjul
 Importen læser en CSV (komma, semikolon eller tabulator) eller JSON med de samme kolonner og returnerer kun de rækker, der
 afviger fra det, der står nu – de gemmes ikke, men lægges ind i admin-tabellen som ugemte ændringer, så de kan gennemses først.
 Rækker kendes på id (ellers på det nøjagtige navn). En art kan angives med artnr eller artsnavn.
+Omdøbes et emneord til et navn, der findes i forvejen, flettes de to ved Gem (se save_many).
 """
 
 from __future__ import annotations
@@ -29,30 +30,59 @@ COL_ALIASES = {"id": "id", "navn": "navn", "name": "navn", "emneord": "navn", "s
 TRUE, FALSE = {"ja", "j", "x", "1", "true", "sand", "yes", "y"}, {"nej", "n", "0", "false", "falsk", "no", ""}
 
 
-async def save_many(session: AsyncSession, changes: list[dict]) -> int:
-    """Gem en liste af rettelser ({id, navn?, kind?, artnr?, hidden?}) i én transaktion. Alt eller intet. Returnerer antal emneord."""
+async def save_many(session: AsyncSession, changes: list[dict]) -> dict:
+    """Gem en liste af rettelser ({id, navn?, kind?, artnr?, hidden?}) i én transaktion. Alt eller intet.
+
+    Omdøbes et emneord til et navn, som et andet emneord har (og beholder), flettes det ind i det andet: artiklerne flyttes,
+    og rækkens slags, artnr og skjult overskriver det andet emneords. Returnerer {"gemt": n, "flettet": [{id, into, flyttet}]}."""
     if len(changes) > MAX_CHANGES:
         raise Invalid(f"Højst {MAX_CHANGES} ændringer ad gangen")
-    ids = {int(c["id"]) for c in changes}
-    tags = {t.id: t for t in (await session.execute(select(ArtTag).where(ArtTag.id.in_(ids or {0})))).scalars()}
-    if missing := ids - tags.keys():
+    n = len(changes)
+    by_id = {int(c["id"]): {**c, "id": int(c["id"])} for c in changes}
+    tags = {t.id: t for t in (await session.execute(select(ArtTag).where(ArtTag.id.in_(by_id.keys() or {0})))).scalars()}
+    if missing := by_id.keys() - tags.keys():
         raise Invalid(f"{len(missing)} emneord findes ikke længere (fx id {min(missing)}) – genindlæs siden")
+    renamed = {i: c["navn"].strip().lower() for i, c in by_id.items() if c.get("navn") and c["navn"].strip().lower() != tags[i].navn_lc}
+    merges: dict[int, ArtTag] = {}  # emneord der flettes → emneordet, det flettes ind i
+    for i, navn in renamed.items():
+        hit = (await session.execute(select(ArtTag).where(ArtTag.navn_lc == navn, ArtTag.id != i))).scalar_one_or_none()
+        if hit is not None and hit.id not in renamed:  # hedder det andet emneord noget nyt bagefter, er det et navnebytte
+            merges[i] = hit
+    for i, dst in merges.items():
+        c, src = by_id.pop(i), tags[i]
+        kind = c.get("kind", src.kind)
+        over = {"id": dst.id, "kind": kind, "hidden": c.get("hidden", src.hidden)}
+        if kind == "art":
+            over["artnr"] = c.get("artnr", src.artnr)
+        by_id[dst.id] = {**by_id.get(dst.id, {}), **over}
+        tags[dst.id] = dst
+    ids = set(by_id)
     names: dict[str, int] = {}
-    for c in changes:  # navnesammenfald inden for samme omgang
-        navn = (c.get("navn") or tags[int(c["id"])].navn).strip().lower()
-        if navn in names and names[navn] != int(c["id"]):
+    for c in by_id.values():  # navnesammenfald inden for samme omgang
+        navn = (c.get("navn") or tags[c["id"]].navn).strip().lower()
+        if navn in names and names[navn] != c["id"]:
             raise Invalid(f"To emneord kan ikke begge hedde «{c.get('navn') or navn}» – brug «Flet»")
-        names[navn] = int(c["id"])
+        names[navn] = c["id"]
+    changes = list(by_id.values())
     reindex: set[int] = set()
+    flettet = []
     try:
+        for i, dst in merges.items():
+            moved = (await session.execute(text("""
+                INSERT INTO art_article_tags (article_id, tag_id) SELECT article_id, :d FROM art_article_tags WHERE tag_id = :s
+                ON CONFLICT DO NOTHING RETURNING article_id"""), {"s": i, "d": dst.id})).all()
+            await session.delete(tags.pop(i))
+            flettet.append({"id": i, "into": dst.id, "flyttet": len(moved)})
+            reindex.add(dst.id)
+        await session.flush()
         # To trin, så to emneord kan bytte navn uden at ramme det unikke indeks undervejs
         for c in changes:
-            t = tags[int(c["id"])]
+            t = tags[c["id"]]
             if c.get("navn") and c["navn"].strip().lower() != t.navn_lc:
                 t.navn_lc = f"#omdøbes:{t.id}#"
         await session.flush()
         for c in changes:
-            t = tags[int(c["id"])]
+            t = tags[c["id"]]
             if await apply_tag(session, t, navn=c.get("navn"), kind=c.get("kind"), artnr=c.get("artnr"), hidden=c.get("hidden"), batch_ids=ids):
                 reindex.add(t.id)
         await session.commit()
@@ -61,7 +91,7 @@ async def save_many(session: AsyncSession, changes: list[dict]) -> int:
         raise
     await bump("articles")
     await reindex_tag_articles(session, reindex)
-    return len(changes)
+    return {"gemt": n, "flettet": flettet}
 
 
 async def export_rows(session: AsyncSession) -> list[dict]:
@@ -139,6 +169,8 @@ async def parse_import(session: AsyncSession, data: bytes) -> dict:
         c: dict = {}
         if r.get("navn") and r["navn"] != t.navn and r.get("id", "").isdigit():  # navnet kan kun rettes, når rækken kendes på id
             c["navn"] = r["navn"][:120]
+            if (other := by_name.get(c["navn"].lower())) is not None and other.id != t.id:
+                warnings.append(f"Linje {i} ({t.navn}): «{other.navn}» findes i forvejen – de flettes ved Gem, og denne rækkes slags og skjult gælder")
         if r.get("slags"):
             kind = KIND_ALIASES.get(r["slags"].lower())
             if kind is None or kind not in TAG_KINDS:
