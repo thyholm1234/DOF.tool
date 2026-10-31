@@ -346,6 +346,11 @@ async def _tag_id(session: AsyncSession, run: Run, matcher, t: dict) -> int:
     return row.id
 
 
+# Fejl i selve filen (ødelagt billede, afkortet zip-medlem, for stor). Lager- og databasefejl er ikke med: så fejler artiklen
+# og prøves igen ved næste import, i stedet for at blive gemt uden filerne.
+BAD_FILE = (ValueError, IndexError, OSError, EOFError, SyntaxError, zipfile.BadZipFile, ImportAbort)
+
+
 async def _store_media(session: AsyncSession, run: Run, arc: Archive, art: ArtArticle, meta: dict, members: dict[str, zipfile.ZipInfo],
                        user_id: int | None) -> tuple[dict[str, int], str | None, str, list[str]]:
     """Gem billeder og vedhæftninger. Returnerer (sti → medie-id, forsidebillede-sti, OCR-tekst, fejl)."""
@@ -366,6 +371,9 @@ async def _store_media(session: AsyncSession, run: Run, arc: Archive, art: ArtAr
                 cover_rel = rel
         except content_media.MediaError as exc:
             errors.append(f"{rel}: {exc}")
+        except BAD_FILE as exc:  # én ødelagt fil må ikke stoppe artiklen; den springes over med en advarsel
+            log.warning("Artikel %s: %s sprunget over: %s", art.netfugl_id, rel, exc)
+            errors.append(f"{rel}: sprunget over ({exc.__class__.__name__}: {exc})")
     files = {f.get("fil"): f for f in meta.get("vedhaeftede_filer") or [] if f.get("fil")}
     for n, rel in enumerate(sorted(r for r in members if r.startswith("filer/") and not r.endswith(".ocr.md"))):
         f = files.get(rel, {})
@@ -386,6 +394,9 @@ async def _store_media(session: AsyncSession, run: Run, arc: Archive, art: ArtAr
                 ocr_parts.append(ocr_plain(ocr))
         except content_media.MediaError as exc:
             errors.append(f"{rel}: {exc}")
+        except BAD_FILE as exc:  # én ødelagt fil må ikke stoppe artiklen; den springes over med en advarsel
+            log.warning("Artikel %s: %s sprunget over: %s", art.netfugl_id, rel, exc)
+            errors.append(f"{rel}: sprunget over ({exc.__class__.__name__}: {exc})")
     return relmap, cover_rel, "\n\n".join(ocr_parts), errors
 
 

@@ -78,6 +78,13 @@ def jpeg(color=(200, 30, 30), size=(900, 600)) -> bytes:
     return buf.getvalue()
 
 
+def odd_jpeg(color=(10, 120, 10)) -> bytes:
+    """Gyldig JPEG med skrald efter første segment (APP0): metadatafjerneren giver op, Pillow kan læse den."""
+    j = jpeg(color)
+    end = 4 + int.from_bytes(j[4:6], "big")
+    return j[:end] + b"\x00\x00" + j[end:]
+
+
 def pdf() -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (300, 400), (240, 240, 240)).save(buf, "PDF")
@@ -206,6 +213,17 @@ async def test_zip_slip_and_unknown_files_are_ignored(db, tmp_path):
     imp = await do_import(db, tmp_path, zp)
     assert imp.status == "faerdig" and imp.stats["afvist"] == 2 and imp.stats["billeder"] == 1, imp.stats
     assert not (tmp_path.parent / "evil.txt").exists() and not (tmp_path / "escape.txt").exists()
+
+
+async def test_broken_image_is_skipped_and_article_imported(db, tmp_path):
+    zp = tmp_path / "a.zip"
+    make_zip(zp, {2916: {"titel": "T", "md": "# T\n\n![](billeder/a.jpg)\n\n![](billeder/b.jpg)\n\n![](billeder/c.jpg)\n", "files": {
+        "billeder/a.jpg": b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 7 + b"skrald",  # hverken metadatafjerneren eller Pillow kan læse den
+        "billeder/b.jpg": odd_jpeg(),  # skrald mellem segmenter: gemmes igen med Pillow
+        "billeder/c.jpg": jpeg((1, 2, 3))}}})
+    imp = await do_import(db, tmp_path, zp)
+    assert imp.status == "faerdig" and imp.stats["oprettet"] == 1 and imp.stats["fejl"] == 0 and imp.stats["billeder"] == 2, imp.stats
+    assert any("billeder/a.jpg" in x["besked"] for x in imp.log)
 
 
 async def test_local_edit_is_protected_from_reimport(db, tmp_path):
@@ -479,6 +497,11 @@ async def test_media_dedup_and_validation(db, tmp_path):
         assert m1.id == m2.id and m1.thumb_key and m1.medium_key is None and m1.width == 900  # små billeder får ingen mellemvariant
         with pytest.raises(content_media.MediaError):
             await content_media.store_image(s, b"<svg onload=alert(1)>", filename="x.svg", owner_kind="artikel", owner_id=None)
+        # Skrald mellem JPEG-segmenter: metadatafjerneren giver op, men Pillow kan læse billedet, så det gemmes igen uden EXIF
+        odd = await content_media.store_image(s, odd_jpeg(), filename="odd.jpg", owner_kind="artikel", owner_id=None, user_id=3)
+        assert odd.kind == "billede" and odd.width == 900
+        with pytest.raises(content_media.MediaError):
+            await content_media.store_image(s, b"\xff\xd8\xff\x00ikke et billede", filename="d.jpg", owner_kind="artikel", owner_id=None)
         with pytest.raises(content_media.MediaError):
             await content_media.store_file(s, b"MZ", filename="x.exe", owner_kind="artikel", owner_id=None)
         with pytest.raises(content_media.MediaError):
@@ -491,7 +514,7 @@ async def test_media_dedup_and_validation(db, tmp_path):
         assert a.kind == "lyd" and a.mime == "audio/mpeg" and a.storage_key.endswith(".mp3") and a.thumb_key is None
         assert (tmp_path / "media" / "art" / a.storage_key).is_file()
         await s.commit()
-        assert len(await content_media.owned(s, "artikel", None, 3)) == 3 and await content_media.owned(s, "artikel", None, 1) == []
+        assert len(await content_media.owned(s, "artikel", None, 3)) == 4 and await content_media.owned(s, "artikel", None, 1) == []
         await content_media.delete_media(s, m1)
         await s.commit()
         assert len(list((tmp_path / "media" / "art").rglob("*"))) > 0

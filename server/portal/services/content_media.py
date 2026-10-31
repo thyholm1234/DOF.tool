@@ -95,6 +95,21 @@ def _variants(data: bytes) -> tuple[int, int, dict[str, bytes]]:
         return width, height, out
 
 
+def _reencode(data: bytes, mime: str) -> bytes:
+    """Gem et billede, metadatafjerneren ikke kan læse (fx skrald mellem JPEG-segmenter), igen med Pillow – uden EXIF/GPS."""
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            im = ImageOps.exif_transpose(im)
+            fmt = {"image/jpeg": "JPEG", "image/png": "PNG", "image/webp": "WEBP"}[mime]
+            if fmt == "JPEG" and im.mode not in ("RGB", "L"):
+                im = im.convert("RGB")
+            buf = io.BytesIO()
+            im.save(buf, fmt, **({"quality": 92} if fmt != "PNG" else {}))
+            return buf.getvalue()
+    except Exception as exc:  # noqa: BLE001 – Pillow kaster mange slags fejl for ødelagte filer
+        raise MediaError(f"Billedet er ødelagt og kan ikke læses ({exc.__class__.__name__})") from exc
+
+
 async def _existing(session: AsyncSession, owner_kind: str, owner_id: int | None, sha: str) -> ContentMedia | None:
     q = select(ContentMedia).where(ContentMedia.sha256 == sha, ContentMedia.owner_kind == owner_kind)
     q = q.where(ContentMedia.owner_id == owner_id) if owner_id is not None else q.where(ContentMedia.owner_id.is_(None))
@@ -114,7 +129,10 @@ async def store_image(session: AsyncSession, data: bytes, *, filename: str, owne
         raise MediaError("Filen er ikke et billede (JPEG, PNG, GIF eller WebP)")
     mime, ext = kind
     if mime in ("image/jpeg", "image/png", "image/webp"):
-        data = await asyncio.to_thread(imagemeta.strip, data)
+        try:
+            data = await asyncio.to_thread(imagemeta.strip, data)
+        except (ValueError, IndexError):  # struct.error er en ValueError; afkortede segmenter giver IndexError
+            data = await asyncio.to_thread(_reencode, data, mime)
     sha = hashlib.sha256(data).hexdigest()
     if (found := await _existing(session, owner_kind, owner_id, sha)) is not None:
         return found
