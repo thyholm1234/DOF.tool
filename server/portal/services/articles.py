@@ -221,25 +221,15 @@ async def front(session: AsyncSession, can_edit: bool, settings: dict) -> dict:
         with_img = [c for c in rest if c["cover"]]
         secondary = (with_img + [c for c in rest if not c["cover"]])[:secondary_n]
         shown = {c["id"] for c in secondary} | ({hero["id"]} if hero else set())
-        latest = [c for c in pool if c["id"] not in shown][:12]
+        latest = [c for c in pool if c["id"] not in shown][:8]
         out = {"hero": hero, "secondary": secondary, "latest": latest,
                "total": (await session.execute(text(f"SELECT count(*) FROM art_articles a WHERE {vis(can_edit)}"))).scalar() or 0}
-        out["most_read"] = [{"id": c["id"], "title": c["title"], "views": c["views"], "dato": c["dato"]} for c in await _cards(
-            session, vis(can_edit), {}, "a.views_imported + a.views DESC, a.id DESC", 6)]
-        out["most_commented"] = [{"id": c["id"], "title": c["title"], "kommentarer": c["kommentarer"], "dato": c["dato"]} for c in await _cards(
-            session, vis(can_edit) + " AND EXISTS (SELECT 1 FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig')", {},
-            "(SELECT count(*) FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig') DESC, a.id DESC", 5)]
         out["on_this_day"] = []
         if cfg.get("on_this_day", True):
             t = dk_today()
             out["on_this_day"] = await _cards(
                 session, vis(can_edit) + " AND extract(month FROM a.dato AT TIME ZONE 'Europe/Copenhagen') = :m AND extract(day FROM a.dato AT TIME ZONE 'Europe/Copenhagen') = :d "
                 "AND extract(year FROM a.dato AT TIME ZONE 'Europe/Copenhagen') < :y", {"m": t.month, "d": t.day, "y": t.year}, "a.dato DESC", 4)
-        out["species_focus"] = [dict(r) for r in (await session.execute(text(f"""
-            SELECT sp.artnr, sp.navn, count(DISTINCT a.id) AS n FROM art_species s JOIN art_articles a ON a.id = s.article_id
-            JOIN species sp ON sp.artnr = s.artnr WHERE {vis(can_edit)} AND s.source IN ('emneord', 'tekst', 'redaktoer')
-            GROUP BY sp.artnr, sp.navn ORDER BY n DESC, sp.navn LIMIT 12"""))).mappings()]
-        out["archive_pdfs"] = await _cards(session, vis(can_edit) + " AND a.kind = 'pdf' AND c.cover_kind = 'pdf'", {}, "a.dato DESC", 6)
         return out
 
     return await cached(f"articles:front:{await version('articles')}:{int(can_edit)}", 300, produce)

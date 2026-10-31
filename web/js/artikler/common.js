@@ -22,7 +22,6 @@ export function loadCss(...names) {
 
 const MS = ["jan.", "feb.", "mar.", "apr.", "maj", "jun.", "jul.", "aug.", "sep.", "okt.", "nov.", "dec."];
 const ML = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"];
-const WD = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
 /** «9. maj 2001» (med klokkeslæt: «9. maj 2001 kl. 20:27») */
 export function dkDate(iso, { time = false, long = false } = {}) {
   if (!iso) return "";
@@ -30,7 +29,6 @@ export function dkDate(iso, { time = false, long = false } = {}) {
   const s = `${d.getDate()}. ${(long ? ML : MS)[d.getMonth()]} ${d.getFullYear()}`;
   return time ? `${s} kl. ${d.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })}` : s;
 }
-export const todayLong = () => { const d = new Date(); return `${WD[d.getDay()]} ${d.getDate()}. ${ML[d.getMonth()]} ${d.getFullYear()}`; };
 export const nowrap = (n) => new Intl.NumberFormat("da-DK").format(n);
 
 /** Billede til et kort: valgt forsidebillede → første billede → PDF-forside → typografisk pladsholder (aldrig et tomt hul). */

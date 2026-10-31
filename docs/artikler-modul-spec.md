@@ -402,20 +402,16 @@ Skal virke på telefon (én kolonne) og i Capacitor-appen. Lazy-load billeder (`
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ ARTIKLER                                 fredag 30. okt. 2026 │  ← “masthead”: titel, dato, søgefelt
-├──────────────────────────────────┬───────────────────────────┤
-│  [STORT BILLEDE]                 │  Seneste                  │
-│  Hovedhistorie (titel, manchet,  │  • titel   dato           │
-│  byline, 💬 n)                   │  • titel   dato           │
-├───────────┬───────────┬──────────┤  …                        │
-│ [billede] │ [billede] │ [billede]│───────────────────────────│
-│ titel     │ titel     │ titel    │  Mest læst / kommenteret  │
-├───────────┴───────────┴──────────┴───────────────────────────┤
+│ Artikler                               [søg …]   + Ny artikel │  ← sidehoved som resten af appen
+│ (Forside) (Søg) (Emneord) (Arter) (Forfattere)                │  ← faner som segmenteret knap
+├────────────────────────────────────┬─────────────────────────┤
+│  [STORT BILLEDE]                   │ [billede] titel         │
+│  Hovedhistorie (titel, manchet,    │ [billede] titel         │  ← 3 sekundære
+│  byline, 💬 n)                     │ [billede] titel         │
+├────────┬────────┬────────┬─────────┴─────────────────────────┤
+│ SENESTE – op til 8 kort med billede, i et gitter              │
+├──────────────────────────────────────────────────────────────┤
 │ PÅ DENNE DAG  – artikler fra samme dag/måned tidligere år     │
-├──────────────────────────────────────────────────────────────┤
-│ ARTER I FOKUS – mest omtalte arter (seneste 12 mdr / hele arkivet) │
-├──────────────────────────────────────────────────────────────┤
-│ FRA ARKIVET – PDF'er fra Pandion / DOF NYT med forsideminiature │
 └──────────────────────────────────────────────────────────────┘
 ```
 

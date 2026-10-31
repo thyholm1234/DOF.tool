@@ -1,7 +1,7 @@
 // Artikelmodulet (#/artikler/…): netfugl.dk-arkivet og nye artikler med avisforside, søgning på ord og råtekst, emneord, arter,
 // kommentarer og en markdown-editor. Skal og faner her; hver side er en fil under artikler/.
 import { h, params, errorBox, requireLogin, state, modal, api, toast } from "../core.js";
-import { BASE, ctx, on, loadCss, todayLong, loadingBox, notice, cleanups } from "../artikler/common.js";
+import { BASE, ctx, on, loadCss, loadingBox, notice, cleanups } from "../artikler/common.js";
 
 const MODULES = {
   forside: () => import("../artikler/forside.js"), soeg: () => import("../artikler/soeg.js"), emneord: () => import("../artikler/emneord.js"),
@@ -51,17 +51,15 @@ export async function render(view, [sub]) {
   const q = h("input", { type: "search", placeholder: "Søg i alle artikler …", "aria-label": "Søg i artikler", value: params().q || "" });
   const c = ctx();
   view.replaceChildren(h("div", { class: "art" },
-    h("header", { class: "art-mast" },
-      h("div", { class: "art-date" }, h("span", {}, todayLong()), h("span", {}, "Arkiv og nyt fra feltet")),
-      h("h1", {}, h("a", { href: BASE }, "Artikler")),
-      h("form", { class: "art-search", onsubmit: (e) => { e.preventDefault(); location.hash = `${BASE}/soeg?q=${encodeURIComponent(q.value.trim())}`; } },
-        q, h("button", { class: "btn primary", type: "submit" }, "Søg"))),
-    h("nav", { class: "art-tabs", "aria-label": "Artikler" },
-      ...TABS.map(([k, t]) => h("a", { href: k ? `${BASE}/${k}` : BASE, class: active === k ? "on" : "" }, t)),
+    h("header", { class: "page-head art-head" },
+      h("div", {}, h("h1", {}, h("a", { href: BASE }, "Artikler")), h("p", { class: "lead" }, "Arkiv og nyt fra feltet")),
       h("span", { class: "spacer" }),
-      c.can_edit && on("artikler_editor") ? h("a", { href: `${BASE}/ny`, class: "on-cta" }, "+ Ny artikel") : null,
-      on("artikler_notifikationer") ? h("a", { href: "javascript:void 0", onclick: (e) => { e.preventDefault(); notifications(); } }, "🔔 Notifikationer") : null,
-      c.admin ? h("a", { href: `${BASE}/admin`, class: active === "admin" ? "on" : "" }, "Admin") : null),
+      h("form", { class: "art-search", role: "search", onsubmit: (e) => { e.preventDefault(); location.hash = `${BASE}/soeg?q=${encodeURIComponent(q.value.trim())}`; } }, q),
+      c.can_edit && on("artikler_editor") ? h("a", { class: "btn primary", href: `${BASE}/ny` }, "+ Ny artikel") : null),
+    h("nav", { class: "art-tabs", "aria-label": "Artikler" },
+      h("div", { class: "seg" }, ...TABS.map(([k, t]) => h("a", { href: k ? `${BASE}/${k}` : BASE, class: active === k ? "on" : "" }, t)),
+        c.admin ? h("a", { href: `${BASE}/admin`, class: active === "admin" ? "on" : "" }, "Admin") : null),
+      on("artikler_notifikationer") ? h("button", { class: "icon-btn", type: "button", title: "Notifikationer", "aria-label": "Notifikationer", onclick: notifications }, "🔔") : null),
     content));
   try {
     if (!spec) { content.replaceChildren(notice("Siden findes ikke.", "err")); return; }

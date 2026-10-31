@@ -284,7 +284,7 @@ async def test_search_front_and_lists(db, tmp_path):
         front = await articles.front(s, False, await article_settings.get(s))
         assert front["total"] == 3 and front["hero"]["cover"] and front["hero"]["cover"]["kind"] == "billede"
         assert any(c["cover"] and c["cover"]["kind"] == "pdf" for c in front["secondary"] + front["latest"])  # PDF-artiklen får side 1 som billede
-        assert front["archive_pdfs"] and {x["navn"] for x in front["species_focus"]} >= {"Dværgterne"}
+        assert not {"most_read", "most_commented", "species_focus", "archive_pdfs"} & front.keys()
         pdf_id = (await articles.search(s, type_="Artikel"))["rows"][0]["id"]
         assert "tags_all" not in await articles.detail(s, pdf_id, can_edit=False, user_id=1)
         full = await articles.detail(s, pdf_id, can_edit=True, user_id=1)
