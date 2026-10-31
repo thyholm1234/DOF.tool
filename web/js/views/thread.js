@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can, observerLink } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
 import { reportCard, statusBadge, threadStatusCard } from "../reportui.js";
@@ -202,7 +202,8 @@ function obsRow(o, ms, mediaRows) {
       h("div", {}, h("b", { class: "num" }, `${fmtN(o.antal)} `), [o.adf, o.dragt && o.dragt !== "Uspecificeret dragt" ? o.dragt : null, o.koen && o.koen !== "-" ? o.koen : null].filter(Boolean).join(", ")),
       h("span", { class: "row", style: { gap: "5px" } }, dkuEl, tag(o.kategori, KAT[o.kategori]))),
     h("div", { class: "muted", style: { fontSize: ".86rem" } },
-      o.obserkode ? h("a", { href: `https://dofbasen.dk/popobser.php?obserkode=${encodeURIComponent(o.obserkode)}`, target: "_blank", rel: "noopener", title: "Observatøren i DOFbasen" }, o.observer || o.obserkode) : o.observer,
+      o.obserkode && state.user?.profiler ? observerLink(o.obserkode, o.observer)
+        : o.obserkode ? h("a", { href: `https://dofbasen.dk/popobser.php?obserkode=${encodeURIComponent(o.obserkode)}`, target: "_blank", rel: "noopener", title: "Observatøren i DOFbasen" }, o.observer || o.obserkode) : o.observer,
       o.medobser ? ` m.fl. (${o.medobser})` : "", tid ? ` · ${tid}` : "",
       " · ", h("span", { class: "nowrap" }, `set i portalen ${fmtTime(o.first_seen)}`)),
     o.fuglnoter ? h("p", { style: { margin: "4px 0 0" } }, o.fuglnoter) : null,

@@ -65,7 +65,8 @@ async def privacy() -> HTMLResponse:
             <li><b>DOF / DOFbasen:</b> dit login kontrolleres hos DOFbasen. Adgangskoden sendes videre og gemmes ikke i
             DOF.tool.</li>
             <li><b>Andre brugere</b> ser det, du selv offentliggør (kommentarer, fotos, feltmeldinger og – medmindre du fravælger
-            det – dine lister og placeringer).</li>
+            det – dine lister og placeringer samt din observatørside med tal og fund fra dine DOFbasen-observationer, uden
+            hemmelige observationer).</li>
             <li><b>OpenStreetMap Foundation</b> (Storbritannien, som har en tilstrækkelighedsafgørelse fra EU): kortet hentes
             derfra, så din IP-adresse sendes med.</li>
             <li><b>Google Firebase Cloud Messaging</b> (USA, under EU-US Data Privacy Framework): push i Android-appen.

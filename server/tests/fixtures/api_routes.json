@@ -5732,6 +5732,34 @@ true,
 ]
 }
 },
+"/api/observers": {
+"get": {
+"body": false,
+"op": "search_api_observers_get",
+"params": [
+[
+"q",
+"query",
+true,
+"{\"maxLength\": 60, \"minLength\": 2, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/observers/{kode}": {
+"get": {
+"body": false,
+"op": "profile_api_observers__kode__get",
+"params": [
+[
+"kode",
+"path",
+true,
+"{\"title\": \"Kode\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/pheno/arrivals": {
 "get": {
 "body": false,

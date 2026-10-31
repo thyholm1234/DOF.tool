@@ -91,6 +91,9 @@ export const KAT = { SU: "SU", SUB: "SUB", bemaerk: "Bemærk", local: "Lokalt hi
 /** Kategoriernes rangorden (som portal/domain/kategori.py). */
 export const KAT_RANK = Object.freeze({ SU: 3, SUB: 2, bemaerk: 1, alm: 0 });
 export const tag = (k, text) => h("span", { class: `tag ${k}` }, text ?? KAT[k] ?? k);
+/** Observatørens navn – som link til observatørsiden, når funktionen er slået til (ellers som tekst). */
+export const observerLink = (kode, navn) => kode && state.user?.profiler
+  ? h("a", { href: `#/observator/${encodeURIComponent(kode)}` }, navn || kode) : (navn || kode || "");
 
 export function toast(msg, kind = "") {
   const t = h("div", { class: `toast ${kind}`, onclick: () => t.remove() }, msg);

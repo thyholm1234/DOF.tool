@@ -28,6 +28,7 @@ export async function render(view) {
   const qs = h("input", { type: "time", value: p.quiet_hours?.start || "" });
   const qe = h("input", { type: "time", value: p.quiet_hours?.end || "" });
   const pub = h("input", { type: "checkbox", checked: p.lists_public });
+  const profilePub = h("input", { type: "checkbox", checked: p.profile_public !== false });
   const push = h("input", { type: "checkbox", checked: p.push_enabled });
   // GPS-rute på nye ture: spørg ved oprettelse (standard), start altid, eller aldrig
   const tripGps = seg([["ask", "Spørg"], ["on", "Altid"], ["off", "Aldrig"]], p.trip_gps || "ask", (v) => { p.trip_gps = v; });
@@ -59,7 +60,7 @@ export async function render(view) {
   const phone = h("input", { type: "tel", inputmode: "tel", value: p.phone || "", placeholder: "Fx 20 30 40 50", maxlength: 20, autocomplete: "tel" });
   const save = async () => {
     try {
-      await api("/api/me", { method: "PATCH", body: { afdelinger: p.afdelinger, kommuner: p.kommuner, lists_public: pub.checked, push_enabled: push.checked,
+      await api("/api/me", { method: "PATCH", body: { afdelinger: p.afdelinger, kommuner: p.kommuner, lists_public: pub.checked, ...(state.user.profiler ? { profile_public: profilePub.checked } : {}), push_enabled: push.checked,
         quiet_hours: qs.value && qe.value ? { start: qs.value, end: qe.value } : null, theme: p.theme || "auto", phone: phone.value.trim(), trip_gps: p.trip_gps || "ask" } });
       await refreshUser();
       toast("Indstillinger gemt");
@@ -85,6 +86,7 @@ export async function render(view) {
         ...positionCard,
         h("h3", { class: "mt" }, "Lister og privatliv"),
         h("label", { class: "check" }, pub, "Vis mig på scoreboards og lad andre se mine lister"),
+        state.user.profiler ? h("label", { class: "check" }, profilePub, "Vis min observatørside for andre brugere (tal og fund fra DOFbasen, uden hemmelige observationer)") : null,
         h("h3", { class: "mt" }, "Ture"),
         h("div", {}, h("p", { class: "muted", style: { marginBottom: "6px" } }, "Optag GPS-rute, når du opretter en tur med dags dato. Ruten kan altid startes og stoppes på turen."), tripGps),
         h("h3", { class: "mt" }, "Udseende"), theme)),

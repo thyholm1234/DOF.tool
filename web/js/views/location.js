@@ -1,4 +1,4 @@
-import { api, state, h, fmtN, fmtDate, tag, errorBox, KAT, seg, params, setParams, busyBlock } from "../core.js";
+import { api, state, h, fmtN, fmtDate, tag, errorBox, KAT, seg, params, setParams, busyBlock, observerLink } from "../core.js";
 
 // Filtre over artslisten: højeste kategori arten har haft på lokaliteten, og trækkortets artsgrupper
 const KAT_FILTER = [["", "Alle"], ["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"]];
@@ -6,6 +6,27 @@ const GROUP_FILTER = [["", "Alle grupper"], ["rov", "Rovfugle"], ["vade", "Vadef
 const SORTS = [["dage", "Flest dage"], ["rekord", "Største antal"], ["senest", "Senest"], ["syst", "Systematisk"]];
 const inGroup = (s, g) => !g || (g === "rov" ? ["rov_svaev", "rov_aktiv"].includes(s.group) : s.group === g);
 import { baseMap } from "../maps.js";
+
+/** Om lokaliteten: type(r), IBA, beskrivelse, areal, hvad den ligger i, og hvilke delområder den har (fra DOFbasen eller
+ *  rettet i portalen under Admin → Lokaliteter). */
+function aboutCard(d) {
+  const det = d.detaljer || {};
+  const g = d.graense;
+  const parts = [
+    det.typer_tekst ? h("div", {}, h("b", {}, "Type: "), det.typer_tekst) : null,
+    det.iba_navn ? h("div", {}, h("b", {}, "IBA: "), det.iba_navn, h("small", { class: "muted" }, " – internationalt vigtigt fugleområde")) : null,
+    g ? h("div", {}, h("b", {}, "Areal: "), `${fmtN(g.ha)} ha`) : null,
+    d.foraelder ? h("div", {}, h("b", {}, "Ligger i: "), h("a", { href: `#/lok/${d.foraelder.loknr}` }, d.foraelder.navn || d.foraelder.loknr)) : null,
+    d.delomraader?.length ? h("div", {}, h("b", {}, "Delområder: "), ...d.delomraader.map((c, i) => [i ? ", " : "", h("a", { href: `#/lok/${c.loknr}` }, c.navn)])) : null,
+    d.lagt_sammen_med ? h("div", { class: "notice" }, "Lokaliteten er lagt sammen med ", h("a", { href: `#/lok/${d.lagt_sammen_med}` }, d.lagt_sammen_med)) : null,
+  ].filter(Boolean);
+  if (!parts.length && !det.beskrivelse) return null;
+  const long = (det.beskrivelse || "").length > 420;
+  const text = det.beskrivelse ? h("p", { style: { whiteSpace: "pre-wrap", margin: "8px 0 0" } }, long ? det.beskrivelse.slice(0, 400).trimEnd() + " …" : det.beskrivelse) : null;
+  const more = long ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { text.textContent = det.beskrivelse; more.remove(); } }, "Læs hele beskrivelsen") : null;
+  return h("div", { class: "card mb" }, h("h3", { style: { marginTop: 0 } }, "Om lokaliteten"),
+    h("div", { class: "stack", style: { gap: "4px" } }, ...parts), text, more);
+}
 
 export async function render(view, [loknr]) {
   let d;
@@ -32,7 +53,7 @@ export async function render(view, [loknr]) {
         h("a", { class: "btn sm primary", href: artHref(s) }, "Grafer, tidspunkt og adfærd →")),
       rows.length ? h("ol", { class: "mini-list", style: { marginTop: "6px" } }, ...rows.map((r, i) => h("li", {},
         h("span", {}, h("b", { class: "num muted", style: { display: "inline-block", minWidth: "2.2ch" } }, `${i + 1}.`), " ",
-          h("a", { href: `#/traad/${r.dato}/${s.artnr}/${loknr}` }, fmtDate(r.dato)), h("small", { class: "muted" }, ` · ${r.observer}${r.adfkode ? ` · ${r.adfkode}` : ""}`)),
+          h("a", { href: `#/traad/${r.dato}/${s.artnr}/${loknr}` }, fmtDate(r.dato)), h("small", { class: "muted" }, " · ", observerLink(r.obserkode, r.observer), r.adfkode ? ` · ${r.adfkode}` : "")),
         h("b", { class: "num" }, fmtN(r.antal))))) : h("p", { class: "muted" }, "Ingen tal."));
     if (records[s.artnr]) draw(records[s.artnr]);
     else {
@@ -75,6 +96,7 @@ export async function render(view, [loknr]) {
   view.append(
     h("p", {}, h("a", { href: "#/", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn), h("p", { class: "lead" }, [d.kommune && `${d.kommune} Kommune`, d.afdeling].filter(Boolean).join(" · ")))),
+    aboutCard(d),
     h("div", { class: "stats", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
       h("div", { class: "stat", title: "Én pr. art pr. dag – flere turlister samme dag tæller ikke dobbelt" }, h("b", {}, fmtN(d.stats.n_obs)), h("span", {}, "observationer")),
       h("div", { class: "stat", title: "Krydsbare arter (kategori A–C) som på årslisterne – underarter tæller som arten. Listen nedenfor viser alle taxa." }, h("b", {}, fmtN(d.stats.n_taxa)), h("span", {}, "arter")),
@@ -90,6 +112,10 @@ export async function render(view, [loknr]) {
         h("input", { type: "search", placeholder: "Søg…", style: { width: "160px" }, oninput: (e) => { q = e.target.value.toLowerCase(); drawSpecies(); } })),
         speciesBody)));
   const map = baseMap(mapEl, { center: d.lat ? [d.lat, d.lon] : [56, 10.5], zoom: d.lat ? 12 : 6 });
+  if (d.graense) {  // lokalitetens form (hjørnepunkterne fra DOFbasen eller portalen)
+    const shape = L.geoJSON(d.graense.geojson, { style: { color: "#1f5a44", weight: 2, fillOpacity: 0.12 } }).addTo(map);
+    setTimeout(() => map.fitBounds(shape.getBounds(), { padding: [12, 12], maxZoom: 16 }), 60);
+  }
   if (d.lat) L.marker([d.lat, d.lon]).addTo(map);
 
   // Artslisten hentes for sig (og igen ved årsskifte i vælgeren); resten af siden er allerede vist

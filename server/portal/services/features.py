@@ -40,6 +40,9 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "daymap": ("Kort: dagskort", "Fanen Dag under Kort (tidligere Puls): et kort over en valgfri dags observationer i hele "
                "landet med filtre for SU, SUB, Bemærk, lokale hits og fænologi. Den seneste uge caches og varmes op hver nat. "
                "Fanen Live (det tidligere Puls) er altid synlig.", None, "preview"),
+    "profiler": ("Observatørsider", "Hver observatør får en side (#/observator/KODE) med tal, år for år, foretrukne lokaliteter, "
+                 "seneste bemærkelsesværdige fund og ture – ud fra DOFbasen-observationerne, uden hemmelige observationer. "
+                 "Portalbrugere kan skjule deres side under Profil. Navne i tråde og på lokalitetssider linker dertil.", None, "preview"),
     "lokalitetsadmin": ("Lokaliteter: grænser og import", "Fanen Admin → Lokaliteter: importér DOFbasens lokaliteter (grænser, "
                         "typer, beskrivelser, kommuner, IBA) fra zip-filen fra tools/dofbasen_lokaliteter, se ændringsrapporten "
                         "og anvend den. Kræver admin-modulet Lokaliteter.", None, "preview"),

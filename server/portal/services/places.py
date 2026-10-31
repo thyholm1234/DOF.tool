@@ -178,3 +178,26 @@ async def records(session: AsyncSession, loknr: int, artnr: int, year: int | Non
         """), {"l": loknr, "a": artnr, "y": year})).mappings().all()
         return [dict(r) for r in rows]
     return await cached(f"lok:rec:{loknr}:{artnr}:{year or 'alle'}", LOC_TTL, produce)
+
+
+async def location_extra(session: AsyncSession, loknr: int) -> dict:
+    """Beskrivelse, typer, IBA og grænse fra DOFbasen (eller rettet i portalen) samt forælder og delområder – til
+    lokalitetssiden. Cachet med versionen 'locations', som import og redigering tæller op."""
+    async def produce():
+        d = (await session.execute(text("""SELECT typer_tekst, beskrivelse, region, kommuner, iba_id, iba_navn, source
+            FROM location_details WHERE loknr = :l"""), {"l": loknr})).mappings().first()
+        g = (await session.execute(text("""SELECT ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.00001), 6) AS g, punkter, source,
+            round((ST_Area(geom::geography) / 10000)::numeric, 1) AS ha
+            FROM location_shapes WHERE loknr = :l AND valid_to IS NULL AND status = 'aktiv'"""), {"l": loknr})).mappings().first()
+        rel = (await session.execute(text("""SELECT l.parent_loknr, p.navn AS parent_navn, l.merged_into
+            FROM locations l LEFT JOIN locations p ON p.loknr = l.parent_loknr WHERE l.loknr = :l"""), {"l": loknr})).mappings().first()
+        kids = (await session.execute(text("SELECT loknr, navn FROM locations WHERE parent_loknr = :l AND merged_into IS NULL ORDER BY navn"),
+                                      {"l": loknr})).mappings().all()
+        return {
+            "detaljer": dict(d) if d else None,
+            "graense": {"geojson": json.loads(g["g"]), "punkter": g["punkter"], "ha": float(g["ha"]), "source": g["source"]} if g else None,
+            "foraelder": {"loknr": rel["parent_loknr"], "navn": rel["parent_navn"]} if rel and rel["parent_loknr"] else None,
+            "lagt_sammen_med": rel["merged_into"] if rel else None,
+            "delomraader": [dict(k) for k in kids],
+        }
+    return await cached(f"lokx:{loknr}:{await version('locations')}", LOC_TTL, produce)

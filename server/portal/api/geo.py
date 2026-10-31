@@ -62,7 +62,7 @@ async def location(loknr: int, db: AsyncSession = Depends(get_session)):
     data = await places.location(db, loknr)
     if data is None:
         raise HTTPException(404)
-    return {**data, "groups": migration.GROUPS}
+    return {**data, **await places.location_extra(db, loknr), "groups": migration.GROUPS}
 
 
 @router.get("/locations/{loknr}/species")

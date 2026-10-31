@@ -21,6 +21,7 @@ const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
 const ARTIKLER = ["#/artikler", "news", "Artikler"];
 const SEARCH = ["#/soeg", "search", "Søg"];
 const STATS = ["#/statistik", "chart", "Statistik"];
+const OBSERVERS = ["#/observator", "user", "Observatører"];
 /** Menuens grupper for den indloggede: DOFbasen og Netfugl vises kun, når superadmin har slået modulerne til (eller forhåndsvisning). */
 function sections() {
   const extra = [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null,
@@ -28,12 +29,12 @@ function sections() {
   // DKU under "Mit" (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
   // Statistik-modulet og Søg under Statistik, når funktionerne er synlige for brugeren
-  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null].filter(Boolean);
+  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler ? OBSERVERS : null].filter(Boolean);
   if (!extra.length && !dku && !stat.length) return SECTIONS;
   return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku]
     : t === "Statistik" ? [...items, ...stat] : items]);
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, STATS, SEARCH, ["#/dku", "check", "DKU"]];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, STATS, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"]];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -57,6 +58,7 @@ const ROUTES = [
   [/^\/lokaliteter$/, () => import("./views/lokaliteter.js")],
   [/^\/soeg$/, () => import("./views/soeg.js")],
   [/^\/statistik$/, () => import("./views/stats.js")],
+  [/^\/observator(?:\/([^/]+))?$/, () => import("./views/observer.js")],
   [/^\/lok\/(\d+)$/, () => import("./views/location.js")],
   [/^\/lok\/(\d+)\/art\/(\d+)$/, () => import("./views/locspecies.js")],
   [/^\/laer(?:\/(.+))?$/, () => import("./views/learn.js")],

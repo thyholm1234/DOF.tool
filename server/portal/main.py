@@ -13,11 +13,40 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
+from starlette.middleware.gzip import GZipMiddleware
 
-from portal.api import (admin, alerts, artikler, auth, calendar, categories, content, dku, dofbasen, dofbasen_v1, feed, geo, learn, lists, media,
-                        mobgang, netfugl, netfugl_v1, position, privacy, refdata, reports, science, search, share, social, stats, trips)
+from portal.api import (
+    admin,
+    alerts,
+    artikler,
+    auth,
+    calendar,
+    categories,
+    content,
+    dku,
+    dofbasen,
+    dofbasen_v1,
+    feed,
+    geo,
+    learn,
+    lists,
+    media,
+    mobgang,
+    netfugl,
+    netfugl_v1,
+    observers,
+    position,
+    privacy,
+    refdata,
+    reports,
+    science,
+    search,
+    share,
+    social,
+    stats,
+    trips,
+)
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
@@ -172,7 +201,7 @@ async def health():
 
 
 for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, refdata, share,
-               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, stats, artikler, content, media):  # media før /media-mounten
+               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, stats, observers, artikler, content, media):  # media før /media-mounten
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer

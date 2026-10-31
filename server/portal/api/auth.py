@@ -82,10 +82,11 @@ async def me(user: User | None = Depends(optional_user), db: AsyncSession = Depe
                      "search": features.visible(flags, "search", superadmin=user.role == "superadmin", insider=False),
                      "statistik": features.visible(flags, "statistik", superadmin=user.role == "superadmin", insider=False),
                      "daymap": features.visible(flags, "daymap", superadmin=user.role == "superadmin", insider=False),
+                     "profiler": features.visible(flags, "profiler", superadmin=user.role == "superadmin", insider=False),
                      "lokalitetsadmin": features.visible(flags, "lokalitetsadmin", superadmin=user.role == "superadmin", insider=False)}}
 
 
-ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "push_enabled", "quiet_hours", "theme", "home",
+ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "profile_public", "push_enabled", "quiet_hours", "theme", "home",
                  "feed_level", "feed_scope", "local_max", "phone", "share_location", "trip_gps"}
 
 
