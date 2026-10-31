@@ -14,10 +14,11 @@ from portal.api.admin import (
     drift,
     indhold,
     indstillinger,
+    lokaliteter,
     moderation,
     roller,
 )
 
 router = APIRouter()
-for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler):
+for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler, lokaliteter):
     router.include_router(module.router)

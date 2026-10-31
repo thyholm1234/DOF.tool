@@ -10,7 +10,7 @@ PORTAL = Path(__file__).resolve().parents[1] / "portal"
 
 # API-moduler uden SQL: de validerer, tjekker adgang og kalder services
 SQL_FREE_API = ["api/geo.py", "api/calendar.py", "api/dku.py", "api/netfugl.py", "api/artikler.py", "api/content.py", "api/admin/artikler.py",
-                "api/admin/indhold.py"]
+                "api/admin/indhold.py", "api/admin/lokaliteter.py"]
 # Kendte afhængigheder på tværs af API-moduler/fra services til API (fra før reglen) – fjern dem herfra, når de flyttes.
 # Nye må ikke komme til.
 KNOWN_CROSS_IMPORTS = {

@@ -22,13 +22,13 @@ from portal.db import SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
 from portal.services import (
+    areas,
     article_edit,
     article_import,
     article_notify,
     articles,
-    content_rerender,
-    areas,
     backup,
+    content_rerender,
     datasync,
     daymap,
     dku_candidates,
@@ -36,6 +36,7 @@ from portal.services import (
     dof_events,
     features,
     imagemeta,
+    location_import,
     locfinds,
     locyear,
     netfugl,
@@ -245,6 +246,16 @@ async def run_scheduled(name: str, flags: dict) -> None:
     await job()
 
 
+async def location_import_stage(import_id: int) -> None:
+    async with SessionLocal() as s:
+        await location_import.stage(s, import_id)
+
+
+async def location_import_apply(import_id: int, groups: list[str], conflicts: str) -> None:
+    async with SessionLocal() as s:
+        await location_import.apply(s, import_id, groups, conflicts)
+
+
 async def warm_daymap() -> None:
     async with SessionLocal() as s:
         await daymap.warm(s)
@@ -452,6 +463,11 @@ async def command_listener() -> None:
                 await run_safely("aggregates", aggregates(int(cmd.get("days", 30))))
             elif name == "dku_candidates":
                 await run_safely("dku_candidates", dku_candidates.scan(full=True, wait=True))
+            elif name == "location_import":
+                await run_safely("location_import", location_import_stage(int(cmd["import_id"])))
+            elif name == "location_apply":
+                await run_safely("location_apply", location_import_apply(int(cmd["import_id"]), cmd.get("groups") or [],
+                                                                         cmd.get("conflicts") or "behold"))
             elif name == "dku_analysis":
                 await run_safely("dku_analysis", dku_candidates.run_analysis(cmd["id"]))
         except Exception:  # noqa: BLE001

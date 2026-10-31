@@ -31,6 +31,8 @@ LABELS = {
     "gaps": "Huller (observatører og ture pr. art)",
     "location_years": "Lokalitetsoversigt",
     "daymap": "Dagskort: ugens dage",
+    "location_import": "Lokaliteter: validér og sammenlign import",
+    "location_apply": "Lokaliteter: anvend import",
     "plan": "Opdateringsplan",
     "netfugl_kryds": "Netfugl: krydslister fra DOFbasen",
     "articles_import": "Artikler: import af zip",

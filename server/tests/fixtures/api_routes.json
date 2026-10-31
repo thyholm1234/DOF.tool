@@ -674,6 +674,92 @@ true,
 "params": []
 }
 },
+"/api/admin/locations/imports": {
+"get": {
+"body": false,
+"op": "imports_api_admin_locations_imports_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "create_import_api_admin_locations_imports_post",
+"params": []
+}
+},
+"/api/admin/locations/imports/{iid}": {
+"delete": {
+"body": false,
+"op": "delete_import_api_admin_locations_imports__iid__delete",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "get_import_api_admin_locations_imports__iid__get",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/locations/imports/{iid}/apply": {
+"post": {
+"body": true,
+"op": "apply_api_admin_locations_imports__iid__apply_post",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/locations/imports/{iid}/finish": {
+"post": {
+"body": false,
+"op": "finish_api_admin_locations_imports__iid__finish_post",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/locations/imports/{iid}/upload": {
+"post": {
+"body": false,
+"op": "upload_chunk_api_admin_locations_imports__iid__upload_post",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+],
+[
+"offset",
+"query",
+true,
+"{\"minimum\": 0, \"title\": \"Offset\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/locfinds": {
 "get": {
 "body": false,

@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     archive_dir: str = "/archive"
     # Månedsfiler uploadet via Admin → Drift (skrivbar; vinder over en fil med samme navn i archive_dir)
     archive_upload_dir: str = "/data/archive-upload"
+    # Lokalitets-zip fra tools/dofbasen_lokaliteter (uploades via api, importeres af workeren – samme delte volume)
+    location_import_dir: str = "/data/archive-upload/lokaliteter"
 
     media_dir: str = "/data/media"
     # Artikelmodulet: uploadede zip-filer med netfugl-arkivet (store; slettes efter vellykket import)

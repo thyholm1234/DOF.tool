@@ -44,6 +44,7 @@ MODULES = {
     "netfugl": "Netfugl: alle rettigheder i Netfugl-modulet (artikler, fotos, krydslister, RSS, roller, API)",
     "artikler": "Artikler: import, redigering, emneord og indstillinger",
     "dku": "DKU: udpege DKU-ansvarlige pr. lokalafdeling og se alle DKU-sager",
+    "lokaliteter": "Lokaliteter: importér grænser og detaljer fra DOFbasen",
 }
 _MOD = {"moderation", "ture", "kategorier"}
 

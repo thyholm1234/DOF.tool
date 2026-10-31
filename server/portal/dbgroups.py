@@ -13,6 +13,8 @@ OBS_TABLES = frozenset({
     "species_categories", "category_overrides", "manual_finds",  # artskategorier og fund der påvirker observationer/lister
     "reference_edits",  # Moderation → Arter: egne bemærk-tærskler og fænologivinduer (lægges oven på DOFbasens referencedata)
     "species_edits",  # Moderation → Arter: rettede arter (lægges oven på DOFbasens artsdata)
+    # Lokaliteternes grænser og detaljer (models/locations.py) – ved siden af observationerne, de beskriver
+    "location_details", "location_shapes", "location_imports", "location_import_rows",
 })
 REFERENCE_TABLES = frozenset({
     "species", "afdelinger", "kommuner", "locations", "bemaerk_thresholds", "phenology_windows", "code_texts",

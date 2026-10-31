@@ -19,6 +19,7 @@ const TABS = {
   arter: () => import("./admin/arter.js").then(m => (body) => m.species(body)),
   indhold: () => import("./admin/indhold.js").then(m => (body) => m.content(body)),
   funktioner: () => import("./admin/funktioner.js").then(m => (body) => m.featuresPanel(body)),
+  lokaliteter: () => import("./admin/lokaliteter.js").then(m => (body, every) => m.renderLocations(body, every)),
 };
 
 export const render = (view) => shell(view, ADMIN_TABS, "Administration");

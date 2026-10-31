@@ -81,7 +81,8 @@ async def me(user: User | None = Depends(optional_user), db: AsyncSession = Depe
                      "trip_weather": features.visible(flags, "trip_weather", superadmin=user.role == "superadmin", insider=False),
                      "search": features.visible(flags, "search", superadmin=user.role == "superadmin", insider=False),
                      "statistik": features.visible(flags, "statistik", superadmin=user.role == "superadmin", insider=False),
-                     "daymap": features.visible(flags, "daymap", superadmin=user.role == "superadmin", insider=False)}}
+                     "daymap": features.visible(flags, "daymap", superadmin=user.role == "superadmin", insider=False),
+                     "lokalitetsadmin": features.visible(flags, "lokalitetsadmin", superadmin=user.role == "superadmin", insider=False)}}
 
 
 ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "push_enabled", "quiet_hours", "theme", "home",
