@@ -38,6 +38,7 @@ x-app: &app
     - models:/data/models
     - ${DOF_ARCHIVE_DIR:-./data/archive}:/archive:ro
     - archive_upload:/data/archive-upload
+    - article_imports:/data/article-imports  # artikel-zip'en uploades via api og importeres af workeren: skal deles
     - ./web:/app/web:ro
   depends_on:
     dbadmin:
@@ -184,3 +185,4 @@ volumes:
   media:
   weather:
   archive_upload:
+  article_imports:

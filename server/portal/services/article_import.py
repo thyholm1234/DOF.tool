@@ -578,7 +578,7 @@ async def run_import(import_id: int) -> None:
 
 async def _run(s: AsyncSession, imp: ArtImport, run: Run, path: Path) -> None:
     if not path.is_file():
-        raise ImportAbort("Zip-filen findes ikke på serveren")
+        raise ImportAbort(f"Zip-filen findes ikke på serveren ({path}) – mappen skal være et volume, som api og worker deler")
     arc = open_archive(path)
     run.stats["afvist"] = len(arc.rejected)
     for r in arc.rejected[:20]:
