@@ -294,18 +294,27 @@ async def _samples(session: AsyncSession, sql: str, args: dict) -> list[dict]:
     return [dict(r) for r in (await session.execute(text(sql + f" LIMIT {SAMPLE}"), args)).mappings()]
 
 
+async def classify(session: AsyncSession, import_id: int) -> None:
+    """Sæt hver grænses kategori mod portalens gældende grænse én gang (rapport og Anvend læser den)."""
+    await session.execute(text(f"""
+        WITH {_CUR},
+        k AS (SELECT r.loknr, {_SHAPE_KIND} AS kind FROM location_import_rows r LEFT JOIN cur c USING (loknr)
+              LEFT JOIN lastdof d USING (loknr) WHERE r.import_id = :i AND r.geom IS NOT NULL)
+        UPDATE location_import_rows t SET kind = k.kind FROM k WHERE t.import_id = :i AND t.loknr = k.loknr"""), {"i": import_id})
+
+
 async def build_report(session: AsyncSession, import_id: int) -> dict:
     a = {"i": import_id}
-    base = f"WITH {_CUR}, rr AS (SELECT r.*, {_SHAPE_KIND} AS kind FROM location_import_rows r LEFT JOIN cur c USING (loknr) " \
-           f"LEFT JOIN lastdof d USING (loknr) WHERE r.import_id = :i AND r.geom IS NOT NULL)"
+    base = "WITH rr AS (SELECT r.* FROM location_import_rows r WHERE r.import_id = :i AND r.geom IS NOT NULL)"
     shapes = dict((await session.execute(text(f"{base} SELECT kind, count(*) FROM rr GROUP BY kind"), a)).all())
     counts = (await session.execute(text(f"""
         SELECT count(*) AS lokaliteter, count(*) FILTER (WHERE r.geom IS NOT NULL) AS med_graense,
                count(*) FILTER (WHERE (r.data->>'har_side')::boolean) AS med_side,
                count(*) FILTER (WHERE l.loknr IS NULL) AS nye_lokaliteter,
                count(*) FILTER (WHERE l.loknr IS NOT NULL AND l.navn IS DISTINCT FROM r.data->>'navn') AS andet_navn,
-               count(*) FILTER (WHERE x.loknr IS NULL) AS nye_detaljer,
-               count(*) FILTER (WHERE x.loknr IS NOT NULL AND {_detail_json('x')} IS DISTINCT FROM {_detail_json('r')}) AS aendrede_detaljer
+               count(*) FILTER (WHERE x.loknr IS NULL AND (r.data->>'har_side')::boolean) AS nye_detaljer,
+               count(*) FILTER (WHERE x.loknr IS NOT NULL AND (r.data->>'har_side')::boolean
+                                AND {_detail_json('x')} IS DISTINCT FROM {_detail_json('r')}) AS aendrede_detaljer
         FROM location_import_rows r LEFT JOIN locations l USING (loknr) LEFT JOIN location_details x USING (loknr)
         WHERE r.import_id = :i"""), a)).mappings().first()
     removed = (await session.execute(text(f"""
@@ -350,6 +359,10 @@ async def stage(session: AsyncSession, import_id: int) -> dict:
             UPDATE location_import_rows SET geom = ST_Multi(ST_CollectionExtract(ST_MakeValid(geom), 3))
             WHERE import_id = :i AND geom IS NOT NULL AND NOT ST_IsValid(geom)"""), {"i": import_id})).rowcount
         await jobstatus.step("Sammenligner med portalens lokaliteter", 2, 3)
+        # Statistik for den netop fyldte tabel – ellers tror planlæggeren, den har 1 række, og sammenligningen bliver
+        # en nested loop over 20.000 × 20.000 grænser (minutter i stedet for sekunder)
+        await session.execute(text("ANALYZE location_import_rows"))
+        await classify(session, import_id)
         report = await build_report(session, import_id)
         imp.manifest = {k: v for k, v in manifest.items() if k != "filer"}
         imp.report = {**report, "afviste": len(rejected), "afviste_eksempler": rejected[:SAMPLE], "repareret": repaired}
@@ -413,8 +426,7 @@ async def apply(session: AsyncSession, import_id: int, groups: list[str], confli
         await jobstatus.step("Grænser", 2, 4)
         kinds = {"nye_graenser": ["ny"], "aendrede_graenser": ["aendret"]}
         take = [k for g, ks in kinds.items() if g in groups for k in ks] + (["konflikt"] if conflicts == "dofbasen" else [])
-        sel = f"""WITH {_CUR}, rr AS (SELECT r.loknr, {_SHAPE_KIND} AS kind FROM location_import_rows r LEFT JOIN cur c USING (loknr)
-                  LEFT JOIN lastdof d USING (loknr) WHERE r.import_id = :i AND r.geom IS NOT NULL)"""
+        sel = "WITH rr AS (SELECT r.loknr, r.kind FROM location_import_rows r WHERE r.import_id = :i AND r.geom IS NOT NULL)"
         current = list((await session.execute(text(f"{sel} SELECT loknr FROM rr WHERE kind = ANY(:k)"), {**a, "k": take})).scalars()) if take else []
         history = list((await session.execute(text(f"{sel} SELECT loknr FROM rr WHERE kind = 'konflikt'"), a)).scalars()) \
             if conflicts == "behold" else []
@@ -446,6 +458,8 @@ async def apply(session: AsyncSession, import_id: int, groups: list[str], confli
         await session.commit()
         raise
     zip_path(import_id).unlink(missing_ok=True)
+    await session.execute(text("ANALYZE location_shapes"))  # ny statistik efter mange nye grænseversioner
+    await session.commit()
     await bump("locations")
     return done
 

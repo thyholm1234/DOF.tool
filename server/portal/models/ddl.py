@@ -3,6 +3,8 @@
 # Ekstra DDL der ikke kan udtrykkes pænt i modellerne
 EXTRA_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_location_shapes_geom ON location_shapes USING gist (geom)",
+    "ALTER TABLE location_import_rows ADD COLUMN IF NOT EXISTS kind varchar(10)",
+    "CREATE INDEX IF NOT EXISTS ix_location_shapes_dof ON location_shapes (loknr, id DESC) WHERE source = 'dofbasen'",
     # Artikelmodulet: råtekst-søgning (ILIKE) bruger trigram-indekser; fuldtekst-indekset ligger på modellen
     "CREATE EXTENSION IF NOT EXISTS pg_trgm",
     "CREATE INDEX IF NOT EXISTS ix_art_articles_body_trgm ON art_articles USING gin (body_text gin_trgm_ops)",

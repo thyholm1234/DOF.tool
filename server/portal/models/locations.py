@@ -95,3 +95,4 @@ class LocationImportRow(Base):
     geom = deferred(mapped_column(Geometry("MultiPolygon")))
     punkter: Mapped[int] = mapped_column(Integer, default=0)
     dof_meta: Mapped[dict | None] = mapped_column(JSONB)
+    kind: Mapped[str | None] = mapped_column(String(10))  # grænsens kategori mod portalen (ny/aendret/uaendret/portal/konflikt)

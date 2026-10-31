@@ -94,6 +94,12 @@ data/dofbasen-lokaliteter/
 
 ## Trin 2 – upload og import på serveren
 
+> **Status:** bygget (`services/location_import.py`, `api/admin/lokaliteter.py`, Admin → Lokaliteter bag funktionsflaget
+> `lokalitetsadmin` og admin-modulet `lokaliteter`). Afprøvet mod udviklingsdatabasen med en zip fra prøvehøsten:
+> 23.496 lokaliteter valideret og sammenlignet på ~7 s, 61 ugyldige polygoner repareret automatisk, 927 nye lokaliteter,
+> 20.822 grænser anvendt; samme zip igen giver 0 ændringer; en portalrettelse bevares, og en konflikt opdages og kan
+> beholdes (DOFbasens version gemmes som historik). Tabellerne ligger i observationsgruppen.
+
 ### Upload (Admin → Data → Lokaliteter)
 - Upload i bidder (samme mekanisme som arkivupload og talemodel – store filer og afbrudte forbindelser).
 - Serveren tjekker før import: kun forventede filnavne (ingen `..`, ingen symlinks), størrelsesgrænser pr. fil og i alt
