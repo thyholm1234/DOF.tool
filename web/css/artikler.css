@@ -60,7 +60,6 @@ a.art-chip:hover { background: var(--brand-soft); border-color: var(--brand); co
 .art-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
 .art-cards a { text-decoration: none; } .art-cards a:hover h3 { text-decoration: underline; }
 .art-cards h3 { font-size: 1rem; margin: 6px 0 0; }
-.art-tagstrip { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; padding: 8px 0; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
 .art-focus { display: flex; flex-wrap: wrap; gap: 8px 14px; }
 .art-focus a { text-decoration: none; font-family: var(--serif); font-size: 1.05rem; } .art-focus a small { color: var(--text-3); font-family: inherit; }
 .art-focus a:hover { text-decoration: underline; }

@@ -397,7 +397,6 @@ Skal virke på telefon (én kolonne) og i Capacitor-appen. Lazy-load billeder (`
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ ARTIKLER                                 fredag 30. okt. 2026 │  ← “masthead”: titel, dato, søgefelt
-│ Nyhed · Feltbestemmelse · Fænologi · Pandion · …              │  ← emneordsstrimmel (mest brugte)
 ├──────────────────────────────────┬───────────────────────────┤
 │  [STORT BILLEDE]                 │  Seneste                  │
 │  Hovedhistorie (titel, manchet,  │  • titel   dato           │

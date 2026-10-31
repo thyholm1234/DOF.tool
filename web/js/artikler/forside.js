@@ -20,7 +20,6 @@ export async function page() {
     f.most_read.length ? h("section", {}, h("h4", {}, "Mest læst"), h("ol", {}, ...f.most_read.map(a => li(a, ` · ${nowrap(a.views)} læsninger`)))) : null,
     f.most_commented.length ? h("section", {}, h("h4", {}, "Mest kommenteret"), h("ol", {}, ...f.most_commented.map(a => li(a, ` · 💬 ${a.kommentarer}`)))) : null);
   return h("div", {},
-    f.topics.length ? h("div", { class: "art-tagstrip" }, ...f.topics.map(t => h("a", { class: "art-chip", href: `${BASE}/emneord/${t.id}` }, `${t.navn} (${nowrap(t.n)})`))) : null,
     h("div", { class: "art-front" }, main, side),
     f.on_this_day.length ? h("section", { class: "art-sec" }, h("h3", {}, "På denne dag"),
       h("div", { class: "art-cards" }, ...f.on_this_day.map(a => h("a", { href: `${BASE}/${a.id}` }, cover(a, { ratio: "3 / 2" }), h("h3", {}, a.title), h("div", { class: "art-meta" }, dkDate(a.dato, { long: true })))))) : null,

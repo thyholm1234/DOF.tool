@@ -240,9 +240,6 @@ async def front(session: AsyncSession, can_edit: bool, settings: dict) -> dict:
             JOIN species sp ON sp.artnr = s.artnr WHERE {vis(can_edit)} AND s.source IN ('emneord', 'tekst', 'redaktoer')
             GROUP BY sp.artnr, sp.navn ORDER BY n DESC, sp.navn LIMIT 12"""))).mappings()]
         out["archive_pdfs"] = await _cards(session, vis(can_edit) + " AND a.kind = 'pdf' AND c.cover_kind = 'pdf'", {}, "a.dato DESC", 6)
-        out["topics"] = [dict(r) for r in (await session.execute(text(f"""
-            SELECT t.id, t.navn, count(*) AS n FROM art_tags t JOIN art_article_tags x ON x.tag_id = t.id JOIN art_articles a ON a.id = x.article_id
-            WHERE {vis(can_edit)} AND NOT t.hidden AND t.kind IN ('emne', 'publikation', 'sted') GROUP BY t.id, t.navn ORDER BY n DESC LIMIT 10"""))).mappings()]
         return out
 
     return await cached(f"articles:front:{await version('articles')}:{int(can_edit)}", 300, produce)

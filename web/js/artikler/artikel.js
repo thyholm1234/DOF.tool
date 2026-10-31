@@ -1,7 +1,8 @@
-// Artikelsiden: titel, manchet, byline, forsidebillede, brødtekst (renset HTML fra serveren), PDF-visning, galleri med lysboks, arter,
-// emneord, relaterede artikler og kommentarer. Redaktører får redigér/slet og kan rette arterne.
+// Artikelsiden: titel, manchet, byline, forsidebillede, brødtekst (renset HTML fra serveren), PDF-visning, galleri med lysboks,
+// kommentarer lige under artiklen, derefter emneord og relaterede artikler. Redaktører får redigér/slet og kan rette arterne
+// (arterne vises ikke på siden).
 import { api, h, toast, modal, state } from "../core.js";
-import { BASE, cover, dkDate, nowrap, tagChips, speciesChips, listCard, ctx, on, cleanups } from "./common.js";
+import { BASE, cover, dkDate, nowrap, tagChips, listCard, ctx, on, cleanups } from "./common.js";
 import { commentsBox } from "./kommentarer.js";
 
 const sizeLabel = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(n / 1e3))} kB`;
@@ -101,12 +102,11 @@ export async function side(parts) {
       h("img", { src: i.thumb, alt: i.alt || "", loading: "lazy", style: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: "4px" } })))) : null,
     (a.kind !== "pdf" ? a.pdfs : []).length || a.files.length ? h("div", { class: "art-block" }, h("h4", {}, "Vedhæftninger"),
       h("ul", {}, ...[...(a.kind !== "pdf" ? a.pdfs : []), ...a.files].map(f => h("li", {}, h("a", { href: f.url, target: "_blank", rel: "noopener" }, f.caption || f.filename), ` (${sizeLabel(f.size)}${f.pages ? `, ${f.pages} sider` : ""})`)))) : null,
-    a.species.length ? h("div", { class: "art-block" }, h("h4", {}, "Arter i artiklen"), speciesChips(a.species)) : null,
+    a.comments_on ? commentsBox(id, { open: a.comments_open && a.status === "publiceret", canModerate: ctx().can_moderate }) : null,
     a.tags.length ? h("div", { class: "art-block" }, h("h4", {}, "Emneord"), tagChips(a.tags)) : null,
     a.source_url ? h("p", { class: "muted small" }, "Oprindeligt bragt på netfugl.dk: ", h("a", { href: a.source_url, target: "_blank", rel: "noopener noreferrer" }, a.source_url.replace(/^https?:\/\/(www\.)?/, ""))) : null,
     ctx().can_edit && a.import_errors?.length ? h("details", { class: "muted small" }, h("summary", {}, `Importnoter (${a.import_errors.length})`), h("ul", {}, ...a.import_errors.map(e => h("li", {}, typeof e === "string" ? e : JSON.stringify(e))))) : null,
-    a.related.length ? h("div", { class: "art-block" }, h("h4", {}, "Relaterede artikler"), ...a.related.map(listCard)) : null,
-    a.comments_on ? commentsBox(id, { open: a.comments_open && a.status === "publiceret", canModerate: ctx().can_moderate }) : null);
+    a.related.length ? h("div", { class: "art-block" }, h("h4", {}, "Relaterede artikler"), ...a.related.map(listCard)) : null);
   void state;
   return root;
 }
