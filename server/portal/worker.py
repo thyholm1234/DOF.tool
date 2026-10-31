@@ -18,7 +18,7 @@ from portal import jobstatus
 from portal.bootstrap import build_background_indexes, init_db
 from portal.cache import COMMANDS, bump, kv
 from portal.config import get_settings
-from portal.db import SessionLocal
+from portal.db import ObsSession, SessionLocal
 from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
 from portal.services import (
@@ -247,12 +247,12 @@ async def run_scheduled(name: str, flags: dict) -> None:
 
 
 async def location_import_stage(import_id: int) -> None:
-    async with SessionLocal() as s:
+    async with ObsSession() as s:  # lokaliteter er referencedata: skrives i observationsgruppen og kopieres til brugergruppen
         await location_import.stage(s, import_id)
 
 
 async def location_import_apply(import_id: int, groups: list[str], conflicts: str) -> None:
-    async with SessionLocal() as s:
+    async with ObsSession() as s:
         await location_import.apply(s, import_id, groups, conflicts)
 
 

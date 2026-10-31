@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal import jobstatus
 from portal.cache import bump
 from portal.config import get_settings
+from portal.dbgroups import OBSERVATIONS
 from portal.models import LocationImport
 
 SCHEMA = 1
@@ -383,6 +384,7 @@ async def stage(session: AsyncSession, import_id: int) -> dict:
 async def apply(session: AsyncSession, import_id: int, groups: list[str], conflicts: str) -> dict:
     """Anvend de valgte grupper i én transaktion. conflicts: 'behold' (portalens grænse beholdes; DOFbasens gemmes som
     historik) eller 'dofbasen' (DOFbasens grænse bliver gældende)."""
+    session.info["home"] = OBSERVATIONS  # locations/kommuner er referencedata: skrives i observationsgruppen (se dbrouter)
     imp = await session.get(LocationImport, import_id)
     if imp is None or imp.status != "anvender":
         return {}

@@ -130,6 +130,13 @@ Den samme zip kan importeres igen senere (fx en ny høst om et år) – importen
 
 ## Trin 3 – administration af lokaliteter
 
+> **Status:** bygget (`services/location_edit.py`, ruterne under `/api/admin/locations/…`, Admin → Lokaliteter → Kort i
+> `web/js/views/admin/lokaliteter-kort.js`, Leaflet-Geoman 2.20.4 i `web/vendor/geoman/`). Alle handlinger er afprøvet mod
+> udviklingsdatabasen (ret, forældet version afvist med 409, opret inden i med klipning, del op, læg sammen, ret
+> oplysninger, cyklus afvist, fjern overlap fra nabo, gendan, slet-regler) og kortets flow i en browser mod et simuleret API.
+> Portalens lokaliteter får numre fra 90.000.000. Ikke gjort endnu: flytning af observationer med GPS-punkt til det barn,
+> punktet ligger i, ved opdeling, og fire-øjne-godkendelse (kladder).
+
 Nyt modul **Admin → Lokaliteter** (funktionsflag `lokalitetsadmin`, først forhåndsvisning; admin-modulet `lokaliteter`
 kan tildeles roller).
 

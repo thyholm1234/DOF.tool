@@ -19,6 +19,22 @@ export function leaflet() {
 }
 await leaflet();
 
+let geomanLoading = null;
+/** Leaflet-Geoman (tegn og ret polygoner, MIT) – kun til Admin → Lokaliteter. Kort, der skal kunne redigeres, skal
+ *  oprettes efter dette kald (Geoman kobler sig på nye kort). */
+export function geoman() {
+  if (window.L?.PM) return Promise.resolve();
+  const add = (tag, attrs) => new Promise((resolve, reject) => {
+    const el = Object.assign(document.createElement(tag), attrs, { onload: resolve, onerror: () => reject(new Error("Kunne ikke hente redigeringsværktøjet")) });
+    document.head.append(el);
+  });
+  geomanLoading ??= Promise.all([
+    add("link", { rel: "stylesheet", href: "/vendor/geoman/leaflet-geoman.css" }),
+    add("script", { src: "/vendor/geoman/leaflet-geoman.js" }),
+  ]).catch((err) => { geomanLoading = null; throw err; });
+  return geomanLoading;
+}
+
 export const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#888";
 export const katColor = (k) => cssVar({ SU: "--su", SUB: "--sub", bemaerk: "--bem", local: "--local" }[k] || "--text-3");
 

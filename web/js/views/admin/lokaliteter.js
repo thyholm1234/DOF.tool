@@ -1,7 +1,7 @@
 // Admin → Lokaliteter: importér zip'en fra tools/dofbasen_lokaliteter (grænser, typer, beskrivelser, kommuner, IBA),
 // se ændringsrapporten og vælg, hvad der skal anvendes (services/location_import.py). Portalens egne grænser
 // overskrives aldrig uden at admin vælger det.
-import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, empty } from "../../core.js";
+import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, empty, seg, params, setParams } from "../../core.js";
 
 const BASE = "/api/admin/locations/imports";
 const STATUS = { uploader: ["plain", "uploader"], validerer: ["bemaerk", "validerer"], klar: ["SUB", "klar til at anvende"],
@@ -132,10 +132,25 @@ function importCard(imp, reload) {
     imp.status === "klar" && imp.report ? reportView(imp, reload) : null);
 }
 
+/** Fanen Lokaliteter: Kort (se og ret grænser) og Import (zip fra DOFbasen). */
 export async function renderLocations(body, every) {
+  const inner = h("div", {});
+  const show = async (v) => {
+    inner.replaceChildren();
+    if (v === "import") return renderImport(inner, every);
+    const { renderLocationMap } = await import("./lokaliteter-kort.js");
+    return renderLocationMap(inner);
+  };
+  const first = params().vis === "import" ? "import" : "kort";
+  body.append(h("div", { class: "row mb" }, seg([["kort", "Kort"], ["import", "Import"]], first, (v) => { setParams({ vis: v }); show(v); })), inner);
+  await show(first);
+}
+
+async function renderImport(body, every) {
   const list = h("div", { class: "stack mt" });
   let last = "";
   const load = async () => {
+    if (!list.isConnected) return;  // underfanen Kort er valgt
     let rows;
     try { rows = await api(BASE); } catch (err) { list.replaceChildren(errorBox(err)); return; }
     const sig = JSON.stringify(rows.map(r => [r.id, r.status, r.error]));

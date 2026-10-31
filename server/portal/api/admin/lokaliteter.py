@@ -1,9 +1,11 @@
-"""Admin → Lokaliteter: upload af lokalitets-zip'en fra tools/dofbasen_lokaliteter, ændringsrapport og anvend
-(services/location_import.py). Kræver admin-modulet lokaliteter og funktionen lokalitetsadmin."""
+"""Admin → Lokaliteter: kortet med grænserne og deres redigering (services/location_edit.py) og import af lokalitets-zip'en
+fra tools/dofbasen_lokaliteter (services/location_import.py). Kræver admin-modulet lokaliteter og funktionen lokalitetsadmin."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,8 @@ from portal.api.deps import require_perm
 from portal.cache import worker_command
 from portal.db import get_session
 from portal.models import LocationImport, User
-from portal.services import features, location_import
+from portal.dbops import sync_reference
+from portal.services import features, location_edit, location_import
 
 router = APIRouter(prefix="/api/admin/locations", tags=["admin"])
 _perm = require_perm("lokaliteter")
@@ -112,3 +115,158 @@ async def delete_import(iid: int, user: User = Depends(perm_lokaliteter), db: As
         raise HTTPException(400, "En anvendt import kan ikke slettes (den er en del af grænsernes historik)")
     await location_import.discard(db, imp)
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- kort og redigering (trin 3)
+
+
+def _edit_err(exc: location_edit.EditError) -> HTTPException:
+    return HTTPException(exc.status, str(exc))
+
+
+async def _sync_locations() -> None:
+    """locations er referencedata: kopiér til brugergruppen med det samme (ellers venter det til næste time)."""
+    await sync_reference(("locations",))
+
+
+@router.get("/map")
+async def map_features(bbox: str = Query(pattern=r"^-?[\d.]+,-?[\d.]+,-?[\d.]+,-?[\d.]+$"), zoom: int = Query(ge=0, le=22),
+                       user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    w, s, e, n = (float(x) for x in bbox.split(","))
+    if not (w < e and s < n and e - w <= 20 and n - s <= 20):
+        raise HTTPException(400, "Ugyldigt kortudsnit")
+    return await location_edit.map_features(db, (w, s, e, n), zoom)
+
+
+@router.get("/{loknr:int}")
+async def location(loknr: int, user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    d = await location_edit.detail(db, loknr)
+    if d is None:
+        raise HTTPException(404, "Lokaliteten findes ikke")
+    return {**d, "advarsler": await location_edit.warnings(db, loknr) if d["graense"] else []}
+
+
+@router.get("/{loknr:int}/shapes/{sid:int}")
+async def shape(loknr: int, sid: int, user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    g = await location_edit.shape_geojson(db, loknr, sid)
+    if g is None:
+        raise HTTPException(404, "Versionen findes ikke")
+    return g
+
+
+class ShapeIn(BaseModel):
+    geojson: dict[str, Any]
+    base_id: int | None = None
+    note: str | None = Field(None, max_length=500)
+
+
+@router.put("/{loknr:int}/shape")
+async def save_shape(loknr: int, body: ShapeIn, user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    try:
+        return await location_edit.save_shape(db, loknr, body.geojson, body.base_id, user.id, body.note)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+
+
+class CreateIn(BaseModel):
+    navn: str = Field(min_length=2, max_length=250)
+    geojson: dict[str, Any]
+    parent_loknr: int | None = None
+    typer_tekst: str | None = Field(None, max_length=300)
+    beskrivelse: str | None = Field(None, max_length=20_000)
+
+
+@router.post("")
+async def create(body: CreateIn, tasks: BackgroundTasks, user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    try:
+        out = await location_edit.create(db, body.navn, body.geojson, user.id, body.parent_loknr, body.typer_tekst, body.beskrivelse)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+    tasks.add_task(_sync_locations)
+    return out
+
+
+class SplitIn(BaseModel):
+    line: dict[str, Any]
+    names: list[str] = Field(default_factory=list, max_length=20)
+    base_id: int | None = None
+
+
+@router.post("/{loknr:int}/split")
+async def split(loknr: int, body: SplitIn, tasks: BackgroundTasks, user: User = Depends(perm_lokaliteter),
+                db: AsyncSession = Depends(get_session)):
+    try:
+        out = await location_edit.split(db, loknr, body.line, body.names, body.base_id, user.id)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+    tasks.add_task(_sync_locations)
+    return out
+
+
+class MergeIn(BaseModel):
+    other: int
+    base_id: int | None = None
+
+
+@router.post("/{loknr:int}/merge")
+async def merge(loknr: int, body: MergeIn, tasks: BackgroundTasks, user: User = Depends(perm_lokaliteter),
+                db: AsyncSession = Depends(get_session)):
+    try:
+        out = await location_edit.merge(db, loknr, body.other, body.base_id, user.id)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+    tasks.add_task(_sync_locations)
+    return out
+
+
+class InfoIn(BaseModel):
+    navn: str | None = Field(None, max_length=250)
+    typer_tekst: str | None = Field(None, max_length=300)
+    beskrivelse: str | None = Field(None, max_length=20_000)
+    parent_loknr: int | None = None
+
+
+@router.patch("/{loknr:int}")
+async def update_info(loknr: int, body: InfoIn, tasks: BackgroundTasks, user: User = Depends(perm_lokaliteter),
+                      db: AsyncSession = Depends(get_session)):
+    try:
+        out = await location_edit.update_info(db, loknr, body.model_dump(exclude_unset=True), user.id)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+    tasks.add_task(_sync_locations)
+    return out
+
+
+class RevertIn(BaseModel):
+    shape_id: int
+    base_id: int | None = None
+
+
+@router.post("/{loknr:int}/revert")
+async def revert(loknr: int, body: RevertIn, user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    try:
+        return await location_edit.revert(db, loknr, body.shape_id, body.base_id, user.id)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+
+
+class TrimIn(BaseModel):
+    loknrs: list[int] = Field(min_length=1, max_length=50)
+
+
+@router.post("/{loknr:int}/trim-neighbours")
+async def trim_neighbours(loknr: int, body: TrimIn, user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    try:
+        return await location_edit.trim_neighbours(db, loknr, body.loknrs, user.id)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+
+
+@router.delete("/{loknr:int}")
+async def delete(loknr: int, tasks: BackgroundTasks, user: User = Depends(perm_lokaliteter), db: AsyncSession = Depends(get_session)):
+    try:
+        out = await location_edit.delete(db, loknr, user.id)
+    except location_edit.EditError as exc:
+        raise _edit_err(exc) from exc
+    tasks.add_task(_sync_locations)
+    return out

@@ -4,6 +4,17 @@
 EXTRA_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_location_shapes_geom ON location_shapes USING gist (geom)",
     "ALTER TABLE location_import_rows ADD COLUMN IF NOT EXISTS kind varchar(10)",
+    "ALTER TABLE location_details ALTER COLUMN aktiv SET DEFAULT true",
+    "ALTER TABLE location_details ALTER COLUMN kommuner SET DEFAULT '{}'",
+    "ALTER TABLE location_details ALTER COLUMN afdelinger SET DEFAULT '{}'",
+    "ALTER TABLE location_details ALTER COLUMN source SET DEFAULT 'dofbasen'",
+    # Admin → Lokaliteter: hierarki, oprindelse og sammenlægning (locations er referencedata – kører i begge grupper)
+    "ALTER TABLE locations ADD COLUMN IF NOT EXISTS parent_loknr integer",
+    "ALTER TABLE locations ADD COLUMN IF NOT EXISTS origin varchar(10) NOT NULL DEFAULT 'dofbasen'",
+    "ALTER TABLE locations ADD COLUMN IF NOT EXISTS merged_into integer",
+    "CREATE INDEX IF NOT EXISTS ix_locations_parent ON locations (parent_loknr) WHERE parent_loknr IS NOT NULL",
+    # Portalens egne lokaliteter får numre fra 90.000.000 (DOFbasens er 6-cifrede) – de kan aldrig støde sammen
+    "CREATE SEQUENCE IF NOT EXISTS portal_location_seq START 90000000",
     "CREATE INDEX IF NOT EXISTS ix_location_shapes_dof ON location_shapes (loknr, id DESC) WHERE source = 'dofbasen'",
     # Artikelmodulet: råtekst-søgning (ILIKE) bruger trigram-indekser; fuldtekst-indekset ligger på modellen
     "CREATE EXTENSION IF NOT EXISTS pg_trgm",

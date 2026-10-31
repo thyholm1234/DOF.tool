@@ -23,18 +23,18 @@ class LocationDetails(Base):
     loknr: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     lokid: Mapped[int | None] = mapped_column(Integer, index=True)
     navn: Mapped[str | None] = mapped_column(String(250))  # DOFbasens navn ved importen (locations.navn følger referencedata)
-    aktiv: Mapped[bool] = mapped_column(Boolean, default=True)
+    aktiv: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     vis: Mapped[int | None] = mapped_column(SmallInteger)
     typer_tekst: Mapped[str | None] = mapped_column(String(300))  # som DOFbasen skriver det, fx "Sø/Permanent vandhul/mose"
     beskrivelse: Mapped[str | None] = mapped_column(Text)
     region: Mapped[str | None] = mapped_column(String(80))
-    kommuner: Mapped[list[str]] = mapped_column(ARRAY(String(80)), default=list)
-    afdelinger: Mapped[list[str]] = mapped_column(ARRAY(String(120)), default=list)
+    kommuner: Mapped[list[str]] = mapped_column(ARRAY(String(80)), default=list, server_default=text("'{}'"))
+    afdelinger: Mapped[list[str]] = mapped_column(ARRAY(String(120)), default=list, server_default=text("'{}'"))
     iba_id: Mapped[int | None] = mapped_column(Integer)
     iba_navn: Mapped[str | None] = mapped_column(String(200))
     dofbasen: Mapped[dict | None] = mapped_column(JSONB)  # antal arter, observationsdage og observationer ved høsten
     felter: Mapped[dict | None] = mapped_column(JSONB)  # alle felter på siden, som de stod
-    source: Mapped[str] = mapped_column(String(10), default="dofbasen")
+    source: Mapped[str] = mapped_column(String(10), default="dofbasen", server_default="dofbasen")
     import_id: Mapped[int | None] = mapped_column(Integer)
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -96,3 +96,18 @@ class LocationImportRow(Base):
     punkter: Mapped[int] = mapped_column(Integer, default=0)
     dof_meta: Mapped[dict | None] = mapped_column(JSONB)
     kind: Mapped[str | None] = mapped_column(String(10))  # grænsens kategori mod portalen (ny/aendret/uaendret/portal/konflikt)
+
+
+class LocationEdit(Base):
+    """Revisionslog for Admin → Lokaliteter: hvem gjorde hvad med hvilken lokalitet, med før/efter."""
+
+    __tablename__ = "location_edits"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    loknr: Mapped[int] = mapped_column(Integer, index=True)
+    action: Mapped[str] = mapped_column(String(20))  # grænse / opret / del / læg sammen / oplysninger / gendan / naboer / slet
+    before: Mapped[dict | None] = mapped_column(JSONB)
+    after: Mapped[dict | None] = mapped_column(JSONB)
+    user_id: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

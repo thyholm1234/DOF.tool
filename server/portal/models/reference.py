@@ -125,6 +125,11 @@ class Location(Base):
     lat: Mapped[float | None] = mapped_column(Float)
     lon: Mapped[float | None] = mapped_column(Float)
     geom = deferred(mapped_column(Geometry("Point")))
+    # Admin → Lokaliteter (services/location_edit.py): lokalitet inden i en anden, hvem der har oprettet den (dofbasen/portal)
+    # og – for en sammenlagt lokalitet – den, der lever videre. Observationer bliver altid på deres loknr.
+    parent_loknr: Mapped[int | None] = mapped_column(Integer, index=True)
+    origin: Mapped[str] = mapped_column(String(10), default="dofbasen", server_default="dofbasen")
+    merged_into: Mapped[int | None] = mapped_column(Integer)
 
 
 class BemaerkThreshold(Base):
