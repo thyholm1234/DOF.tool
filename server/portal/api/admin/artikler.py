@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,7 @@ from portal.services import (
     article_import,
     article_notify,
     article_settings,
+    article_tags,
     article_upload,
 )
 from portal.timeutil import TZ
@@ -176,6 +177,41 @@ class MergeIn(BaseModel):
 @router.get("/emneord")
 async def emneord(acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
     return await article_edit.tags_admin(db)
+
+
+class TagChange(TagIn):
+    id: int
+
+
+class TagsIn(BaseModel):
+    changes: list[TagChange] = Field(max_length=article_tags.MAX_CHANGES)
+
+
+@router.put("/emneord")
+async def gem_emneord(body: TagsIn, acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    """Gem alle ugemte rettelser fra admin-tabellen på én gang (alt eller intet)."""
+    try:
+        return {"gemt": await article_tags.save_many(db, [c.model_dump(exclude_unset=True) for c in body.changes])}
+    except article_edit.Invalid as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/emneord/eksport")
+async def eksport_emneord(acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    csv_text = article_tags.to_csv(await article_tags.export_rows(db))
+    return Response(csv_text, media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="emneord.csv"'})
+
+
+@router.post("/emneord/import")
+async def import_emneord(file: UploadFile = File(...), acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    """Læs en rettet eksport. Intet gemmes: ændringerne lægges ind i tabellen, så de kan gennemses og gemmes med «Gem»."""
+    data = await file.read(5 * 1024 * 1024 + 1)
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Filen er for stor (højst 5 MB)")
+    try:
+        return await article_tags.parse_import(db, data)
+    except article_edit.Invalid as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.put("/emneord/{tid}")

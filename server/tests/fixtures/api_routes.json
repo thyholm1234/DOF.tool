@@ -74,6 +74,25 @@ true,
 "body": false,
 "op": "emneord_api_admin_artikler_emneord_get",
 "params": []
+},
+"put": {
+"body": true,
+"op": "gem_emneord_api_admin_artikler_emneord_put",
+"params": []
+}
+},
+"/api/admin/artikler/emneord/eksport": {
+"get": {
+"body": false,
+"op": "eksport_emneord_api_admin_artikler_emneord_eksport_get",
+"params": []
+}
+},
+"/api/admin/artikler/emneord/import": {
+"post": {
+"body": true,
+"op": "import_emneord_api_admin_artikler_emneord_import_post",
+"params": []
 }
 },
 "/api/admin/artikler/emneord/{tid}": {

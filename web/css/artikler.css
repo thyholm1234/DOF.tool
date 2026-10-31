@@ -141,6 +141,9 @@ a.art-chip:hover { background: var(--brand-soft); border-color: var(--brand); co
 /* admin */
 .art-adm table { width: 100%; border-collapse: collapse; font-size: .9rem; } .art-adm th, .art-adm td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .art-adm .num { text-align: right; font-variant-numeric: tabular-nums; }
+.art-adm .art-tagbar { position: sticky; top: calc(var(--top-h) + 8px); z-index: 5; padding: 8px 10px; margin: 0 0 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.art-adm .art-tagbar.dirty { border-color: var(--brand); box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+.art-adm tr.changed td { background: var(--surface-2); } .art-adm .changed:is(input, select) { outline: 2px solid var(--brand); outline-offset: -1px; }
 .art-progress { height: 10px; background: var(--bg-2); border-radius: 6px; overflow: hidden; } .art-progress > div { height: 100%; background: var(--brand); transition: width .2s; }
 .art-log { max-height: 320px; overflow: auto; font-size: .82rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
 .art-log .fejl { color: var(--err); } .art-log .advarsel { color: var(--warn); }

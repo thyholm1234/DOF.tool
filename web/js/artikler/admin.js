@@ -29,36 +29,7 @@ const TAB = {
   },
   async import() { return (await import("./import.js")).page(); },
 
-  async emneord() {
-    const tags = await api("/api/admin/artikler/emneord");
-    let filter = "", kindF = "";
-    const KINDS = [["emne", "Emne"], ["sted", "Sted"], ["publikation", "Publikation"], ["aar", "År"], ["art", "Art"], ["type", "Type"]];
-    const body = h("tbody");
-    const draw = () => {
-      const rows = tags.filter(t => (!filter || t.navn.toLowerCase().includes(filter)) && (!kindF || t.kind === kindF)).slice(0, 300);
-      body.replaceChildren(...rows.map(t => {
-        const name = h("input", { type: "text", value: t.navn, maxlength: 120, style: { width: "100%" } });
-        const kind = h("select", {}, ...KINDS.map(([v, l]) => h("option", { value: v, selected: v === t.kind }, l)));
-        const artnr = h("input", { type: "number", value: t.artnr ?? "", placeholder: "artnr", style: { width: "80px" } });
-        const hidden = h("input", { type: "checkbox", checked: t.hidden, title: "Skjul i oversigter og filtre" });
-        return h("tr", {}, h("td", {}, name), h("td", {}, kind), h("td", {}, artnr), h("td", {}, hidden), h("td", { class: "num" }, nowrap(t.n)),
-          h("td", {}, h("button", { class: "btn sm", type: "button", onclick: async () => {
-            try { await api(`/api/admin/artikler/emneord/${t.id}`, { method: "PUT", body: { navn: name.value, kind: kind.value, artnr: artnr.value ? +artnr.value : null, hidden: hidden.checked } }); toast("Gemt"); Object.assign(t, { navn: name.value, kind: kind.value, hidden: hidden.checked }); } catch (e) { toast(e.message, "err"); } } }, "Gem"), " ",
-            h("button", { class: "btn sm", type: "button", onclick: async () => {
-              const to = prompt(`Flet «${t.navn}» ind i hvilket emneord? Skriv det nøjagtige navn:`);
-              const target = tags.find(x => x.navn.toLowerCase() === (to || "").trim().toLowerCase());
-              if (!target) { if (to) toast("Emneordet findes ikke", "err"); return; }
-              if (!confirm(`Flyt ${t.n} artikler fra «${t.navn}» til «${target.navn}» og slet «${t.navn}»?`)) return;
-              try { const r = await api(`/api/admin/artikler/emneord/${t.id}/flet`, { method: "POST", body: { into: target.id } }); toast(`${r.flyttet} artikler flyttet`); tags.splice(tags.indexOf(t), 1); target.n += r.flyttet; draw(); } catch (e) { toast(e.message, "err"); } } }, "Flet …")));
-      }));
-    };
-    draw();
-    return h("div", {}, h("div", { class: "row", style: { marginBottom: "10px" } },
-      h("input", { type: "search", placeholder: "Filtrér …", oninput: (e) => { filter = e.target.value.toLowerCase(); draw(); } }),
-      seg([["", "Alle"], ...KINDS], kindF, v => { kindF = v; draw(); }), h("span", { class: "muted small" }, `${nowrap(tags.length)} emneord`)),
-      h("p", { class: "muted small" }, "Slags emneord styrer, hvor de vises. «Art» kobler emneordet til en art (artnr), så artiklerne også kommer med under arten. «Type» (Nyhed, Artikel) bruges som filter. Skjulte emneord vises ikke i oversigter."),
-      h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Navn"), h("th", {}, "Slags"), h("th", {}, "Artnr"), h("th", {}, "Skjult"), h("th", { class: "num" }, "Artikler"), h("th", {}))), body));
-  },
+  async emneord() { return tagAdmin(); },
 
   async kommentarer() { return commentQueue(); },
 
@@ -117,4 +88,145 @@ export async function commentQueue() {
   };
   draw();
   return h("div", {}, seg([["anmeldte", "Anmeldte"], ["skjulte", "Skjulte"], ["seneste", "Seneste"]], tabK, v => { tabK = v; draw(); }), h("div", { style: { marginTop: "12px" } }, out));
+}
+
+// ------------------------------------------------------------------ emneord
+
+const TAG_KINDS = [["emne", "Emne"], ["sted", "Sted"], ["publikation", "Publikation"], ["aar", "År"], ["art", "Art"], ["type", "Type"]];
+const AI_PROMPT = `Du får en CSV med emneord fra et arkiv af danske fugleartikler (netfugl.dk). Klassificér hvert emneord ved at rette kolonnerne «slags», «artnr»/«art» og «skjult».
+
+slags (præcis én af):
+- emne: et fagligt emne (fx Træk, Ringmærkning, Ynglefugle, Fotografering)
+- sted: en lokalitet, et område eller et land (fx Skagen, Vejlerne, Bornholm, Spanien)
+- art: en fugleart – skriv det danske artsnavn i «art» (fx Dværgterne); lad «artnr» stå tomt, hvis du ikke kender DOF's artsnummer
+- publikation: et blad eller en serie (fx Pandion, DOF NYT, Fugle og Natur)
+- aar: et årstal
+- type: artikeltypen (Nyhed, Artikel, Kort nyt)
+skjult: «ja» for emneord, der ikke giver mening for læserne (støj, interne mærker, dubletter med stavefejl), ellers «nej».
+
+Kolonnen «eksempler» viser op til tre artikeltitler med emneordet, så du kan se, hvad det bruges til. Behold kolonnerne id, navn, slags, artnr, art og skjult og rækkefølgen; ret ikke id. Du må rette stavefejl i «navn». Svar kun med CSV (semikolon som skilletegn), uden forklaring. Du må udelade rækker, du ikke ændrer.`;
+
+async function tagAdmin() {
+  const tags = await api("/api/admin/artikler/emneord");
+  const byId = new Map(tags.map(t => [t.id, t]));
+  const pending = new Map();  // id → { navn, kind, artnr, hidden } (kun felter, der afviger)
+  let filter = "", kindF = "", onlyChanged = false;
+  const FIELDS = ["navn", "kind", "artnr", "hidden"];
+  const val = (t, f) => pending.get(t.id)?.[f] ?? t[f];
+  const setField = (t, f, v) => {
+    const p = { ...(pending.get(t.id) || {}) };
+    if ((v ?? null) === (t[f] ?? null)) delete p[f]; else p[f] = v;
+    Object.keys(p).length ? pending.set(t.id, p) : pending.delete(t.id);
+    updateBar();
+  };
+
+  const body = h("tbody");
+  const count = h("span", { class: "muted small" });
+  const saveBtn = h("button", { class: "btn primary", type: "button", onclick: () => save() }, "Gem");
+  const undoBtn = h("button", { class: "btn", type: "button", onclick: () => { if (confirm("Fortryd alle ugemte ændringer?")) { pending.clear(); updateBar(); draw(); } } }, "Fortryd");
+  const barText = h("span", {});
+  const bar = h("div", { class: "row art-tagbar" }, barText, saveBtn, undoBtn);
+  const warnBox = h("div", {});
+  function updateBar() {
+    const n = pending.size;
+    barText.textContent = n ? `${nowrap(n)} ugemte ændringer` : "Ingen ugemte ændringer";
+    saveBtn.disabled = undoBtn.disabled = !n;
+    bar.classList.toggle("dirty", n > 0);
+  }
+
+  const draw = () => {
+    const rows = tags.filter(t => (!filter || val(t, "navn").toLowerCase().includes(filter) || t.navn.toLowerCase().includes(filter))
+      && (!kindF || val(t, "kind") === kindF) && (!onlyChanged || pending.has(t.id)));
+    count.textContent = rows.length === tags.length ? `${nowrap(tags.length)} emneord` : `${nowrap(rows.length)} af ${nowrap(tags.length)} emneord`;
+    body.replaceChildren(...rows.map(t => {
+      const tr = h("tr", {});
+      const mark = () => {
+        const p = pending.get(t.id) || {};
+        tr.classList.toggle("changed", pending.has(t.id));
+        for (const [f, el] of Object.entries(els)) el.classList.toggle("changed", f in p);
+      };
+      const name = h("input", { type: "text", value: val(t, "navn"), maxlength: 120, style: { width: "100%" }, oninput: () => { setField(t, "navn", name.value.trim() || t.navn); mark(); } });
+      const kind = h("select", { onchange: () => { setField(t, "kind", kind.value); artnr.disabled = kind.value !== "art"; mark(); } },
+        ...TAG_KINDS.map(([v, l]) => h("option", { value: v, selected: v === val(t, "kind") }, l)));
+      const artnr = h("input", { type: "number", value: val(t, "artnr") ?? "", placeholder: "artnr", style: { width: "80px" }, disabled: val(t, "kind") !== "art",
+        oninput: () => { setField(t, "artnr", artnr.value ? +artnr.value : null); mark(); } });
+      const hidden = h("input", { type: "checkbox", checked: val(t, "hidden"), title: "Skjul i oversigter og filtre", onchange: () => { setField(t, "hidden", hidden.checked); mark(); } });
+      const els = { navn: name, kind, artnr, hidden };
+      mark();
+      tr.append(h("td", {}, name), h("td", {}, kind), h("td", {}, artnr), h("td", {}, hidden), h("td", { class: "num" }, nowrap(t.n)),
+        h("td", {}, h("button", { class: "btn sm", type: "button", onclick: () => merge(t) }, "Flet …")));
+      return tr;
+    }));
+  };
+
+  async function merge(t) {
+    if (pending.size && !confirm("Du har ugemte ændringer. Flet gemmes med det samme – de ugemte ændringer bevares. Fortsæt?")) return;
+    const to = prompt(`Flet «${t.navn}» ind i hvilket emneord? Skriv det nøjagtige navn:`);
+    const target = tags.find(x => x.id !== t.id && x.navn.toLowerCase() === (to || "").trim().toLowerCase());
+    if (!target) { if (to) toast("Emneordet findes ikke", "err"); return; }
+    if (!confirm(`Flyt ${t.n} artikler fra «${t.navn}» til «${target.navn}» og slet «${t.navn}»?`)) return;
+    try {
+      const r = await api(`/api/admin/artikler/emneord/${t.id}/flet`, { method: "POST", body: { into: target.id } });
+      toast(`${r.flyttet} artikler flyttet`);
+      tags.splice(tags.indexOf(t), 1); byId.delete(t.id); pending.delete(t.id); target.n += r.flyttet; updateBar(); draw();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  async function save() {
+    const changes = [...pending].map(([id, p]) => {
+      const t = byId.get(id);
+      const c = { id, ...p };
+      if ("kind" in p && p.kind === "art" && !("artnr" in p)) c.artnr = t.artnr;
+      return c;
+    });
+    saveBtn.disabled = true;
+    try {
+      const r = await api("/api/admin/artikler/emneord", { method: "PUT", body: { changes } });
+      for (const [id, p] of pending) Object.assign(byId.get(id), p);
+      pending.clear(); updateBar(); draw();
+      toast(`${nowrap(r.gemt)} emneord gemt`);
+    } catch (e) { toast(e.message, "err"); updateBar(); }
+  }
+
+  const file = h("input", { type: "file", accept: ".csv,.tsv,.txt,.json,text/csv", hidden: true, onchange: async () => {
+    const f = file.files[0]; file.value = "";
+    if (!f) return;
+    const form = new FormData(); form.append("file", f, f.name);
+    try {
+      const r = await api("/api/admin/artikler/emneord/import", { method: "POST", form });
+      for (const c of r.changes) {
+        const t = byId.get(c.id);
+        if (t) for (const fld of FIELDS) if (fld in c) setField(t, fld, c[fld]);
+      }
+      onlyChanged = r.changes.length > 0; onlyBox.checked = onlyChanged;
+      warnBox.replaceChildren(r.warnings.length ? h("details", { class: "notice warn" }, h("summary", {}, `${r.warnings.length} advarsler fra importen`), h("ul", { class: "small" }, ...r.warnings.map(w => h("li", {}, w)))) : "");
+      toast(`${nowrap(r.changes.length)} ændringer indlæst fra ${nowrap(r.rows)} rækker – gennemse og tryk Gem`);
+      updateBar(); draw();
+    } catch (e) { toast(e.message, "err"); }
+  } });
+  const onlyBox = h("input", { type: "checkbox", onchange: () => { onlyChanged = onlyBox.checked; draw(); } });
+  const promptBox = h("textarea", { rows: 10, readonly: true, style: { width: "100%", fontSize: ".85rem" } }); promptBox.value = AI_PROMPT;
+
+  const leave = (e) => { if (pending.size) { e.preventDefault(); e.returnValue = ""; } };
+  addEventListener("beforeunload", leave);
+  const onHash = () => { if (pending.size && !location.hash.startsWith(`${BASE}/admin/emneord`)) toast(`${pending.size} ændringer til emneord blev ikke gemt`, "err"); };
+  addEventListener("hashchange", onHash);
+  cleanups.push(() => { removeEventListener("beforeunload", leave); removeEventListener("hashchange", onHash); });
+
+  updateBar(); draw();
+  return h("div", {},
+    h("div", { class: "row", style: { marginBottom: "10px" } },
+      h("input", { type: "search", placeholder: "Filtrér …", oninput: (e) => { filter = e.target.value.toLowerCase(); draw(); } }),
+      seg([["", "Alle"], ...TAG_KINDS], kindF, v => { kindF = v; draw(); }),
+      h("label", { class: "small" }, onlyBox, " Kun ændrede"), count),
+    h("div", { class: "row", style: { marginBottom: "10px" } },
+      h("a", { class: "btn sm", href: "/api/admin/artikler/emneord/eksport", download: "emneord.csv" }, "⬇ Eksportér CSV"),
+      h("button", { class: "btn sm", type: "button", onclick: () => file.click() }, "⬆ Importér CSV …"), file,
+      h("details", {}, h("summary", { class: "small" }, "Prompt til AI-klassificering"),
+        h("p", { class: "muted small" }, "Eksportér, giv filen og teksten herunder til en AI, og importér svaret. Ændringerne gemmes ikke, før du har gennemset dem og trykket Gem."),
+        promptBox, h("button", { class: "btn sm", type: "button", onclick: async () => { try { await navigator.clipboard.writeText(AI_PROMPT); toast("Kopieret"); } catch { promptBox.select(); } } }, "Kopiér prompt"))),
+    warnBox,
+    h("p", { class: "muted small" }, "Slags emneord styrer, hvor de vises. «Art» kobler emneordet til en art (artnr), så artiklerne også kommer med under arten. «Type» (Nyhed, Artikel) bruges som filter. Skjulte emneord vises ikke i oversigter. Rettelser markeres og gemmes samlet med «Gem»."),
+    bar,
+    h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Navn"), h("th", {}, "Slags"), h("th", {}, "Artnr"), h("th", {}, "Skjult"), h("th", { class: "num" }, "Artikler"), h("th", {}))), body));
 }

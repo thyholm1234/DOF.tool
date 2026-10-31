@@ -329,6 +329,12 @@ med S3 slået til (engangsopgaven `once:media_s3_v2`), og `art/` tæller med und
 5. Ellers `emne`.
 
 Admin → Emneord kan omdøbe, flette to emneord (flyt artikler, slet det ene), skifte `kind`, koble til art og skjule.
+Alle emneord vises; rettelser markeres i tabellen og gemmes samlet med én «Gem»-knap (`PUT /api/admin/artikler/emneord`,
+alt eller intet, to emneord kan bytte navn). **Eksportér CSV** (`GET …/emneord/eksport`: id, navn, slags, artnr, art, skjult,
+artikler, eksempler – op til tre titler) og **Importér CSV** (`POST …/emneord/import`, CSV med `;`/`,`/tab eller JSON, også
+med en ```-kodeblok om, som når svaret kopieres fra en chat) gør det muligt at lade en AI klassificere; fanen har en færdig
+prompt. Importen gemmer intet: kun rækker, der afviger, lægges ind som ugemte ændringer med advarsler for ukendte id'er,
+slags og arter (artsnavn slås op, hvis artnr mangler). Logikken ligger i `services/article_tags.py`.
 
 ---
 

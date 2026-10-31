@@ -187,30 +187,52 @@ async def tags_admin(session: AsyncSession) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def tag_update(session: AsyncSession, tid: int, *, navn: str | None, kind: str | None, artnr: int | None, hidden: bool | None) -> None:
-    t = await session.get(ArtTag, tid)
-    if t is None:
-        raise Invalid("Emneordet findes ikke")
-    if navn is not None and navn.strip() and navn.strip().lower() != t.navn_lc:
-        clash = (await session.execute(select(ArtTag.id).where(ArtTag.navn_lc == navn.strip().lower(), ArtTag.id != tid))).first()
+TAG_KINDS = ("type", "publikation", "aar", "emne", "sted", "art")
+
+
+async def apply_tag(session: AsyncSession, t: ArtTag, *, navn: str | None, kind: str | None, artnr: int | None, hidden: bool | None,
+                    batch_ids: set[int] = frozenset()) -> bool:
+    """Ret ét emneord uden at committe. Returnerer True, hvis artiklernes arter skal genberegnes. ``batch_ids``: emneord der rettes
+    i samme omgang (navnesammenfald mellem dem tjekkes af den, der kalder)."""
+    navn = navn.strip()[:120] if navn is not None else None
+    if navn and navn.lower() != t.navn_lc:
+        clash = (await session.execute(select(ArtTag.id).where(ArtTag.navn_lc == navn.lower(), ArtTag.id != t.id,
+                                                               ArtTag.id.notin_(batch_ids or {0})))).first()
         if clash:
-            raise Invalid("Et emneord med det navn findes allerede – brug «Flet»")
-    if navn is not None and navn.strip():
-        t.navn, t.navn_lc = navn.strip()[:120], navn.strip().lower()[:120]
+            raise Invalid(f"Et emneord med navnet «{navn}» findes allerede – brug «Flet»")
+        t.navn, t.navn_lc = navn, navn.lower()
+    before = (t.kind, t.artnr)
     if kind is not None:
-        if kind not in ("type", "publikation", "aar", "emne", "sted", "art"):
-            raise Invalid("Ukendt type")
+        if kind not in TAG_KINDS:
+            raise Invalid(f"Ukendt slags «{kind}»")
         t.kind = kind
     if artnr is not None or kind == "art":
         t.artnr = artnr
     if hidden is not None:
         t.hidden = hidden
+    return (t.kind, t.artnr) != before and (t.kind == "art" or before[0] == "art")
+
+
+async def reindex_tag_articles(session: AsyncSession, tag_ids: set[int]) -> None:
+    """Genberegn arterne for artiklerne med disse emneord (efter at et emneord er koblet til eller fra en art)."""
+    if not tag_ids:
+        return
+    aids = (await session.execute(select(ArtArticleTag.article_id).where(ArtArticleTag.tag_id.in_(tag_ids)).distinct())).scalars().all()
+    matcher = await article_species.load_matcher(session)
+    for aid in aids:
+        await article_species.index_article(session, aid, matcher)
+    await session.commit()
+
+
+async def tag_update(session: AsyncSession, tid: int, *, navn: str | None, kind: str | None, artnr: int | None, hidden: bool | None) -> None:
+    t = await session.get(ArtTag, tid)
+    if t is None:
+        raise Invalid("Emneordet findes ikke")
+    reindex = await apply_tag(session, t, navn=navn, kind=kind, artnr=artnr, hidden=hidden)
     await session.commit()
     await bump("articles")
-    if t.kind == "art" and t.artnr:
-        for aid in (await session.execute(select(ArtArticleTag.article_id).where(ArtArticleTag.tag_id == tid))).scalars().all():
-            await article_species.index_article(session, aid)
-        await session.commit()
+    if reindex:
+        await reindex_tag_articles(session, {tid})
 
 
 async def tag_merge(session: AsyncSession, src: int, dst: int) -> int:

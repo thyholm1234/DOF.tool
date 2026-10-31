@@ -460,6 +460,44 @@ async def test_tags_admin_merge_and_species_overrides(db, tmp_path):
         assert any(x["artnr"] == 4 and x["source"] == "redaktoer" for x in (await articles.detail(s, art155, can_edit=False, user_id=1))["species"])
 
 
+async def test_tags_bulk_save_export_and_import(db, tmp_path):
+    from portal.services import article_edit, article_tags
+
+    zp = tmp_path / "a.zip"
+    sample(zp)
+    await do_import(db, tmp_path, zp)
+    async with db() as s:
+        ids = {t["navn"]: t["id"] for t in await article_edit.tags_admin(s)}
+        rows = {r["navn"]: r for r in await article_tags.export_rows(s)}
+        assert rows["Skagen"]["eksempler"] == "Hjejler på marken" and rows["Dværgterne"]["art"] == "Dværgterne"
+        out = article_tags.to_csv(list(rows.values()))
+        assert out.startswith("﻿id;navn;slags;artnr;art;skjult;artikler;eksempler\n") and "Hjejler på marken" in out
+
+        csv_in = (f"id;navn;slags;artnr;art;skjult\n{ids['Skagen']};Skagen;Sted;;;nej\n{ids['Pandion']};Pandion;publikation;;;ja\n"
+                  f"{ids['2001']};2001;aar;;;nej\n999999;X;emne;;;nej\n{ids['Nyhed']};Nyhed;Bogstavsuppe;;;nej\n").encode()
+        r = await article_tags.parse_import(s, csv_in)
+        assert sorted(r["changes"], key=lambda c: c["id"]) == sorted([{"id": ids["Skagen"], "kind": "sted"}, {"id": ids["Pandion"], "hidden": True}], key=lambda c: c["id"])
+        assert len(r["warnings"]) == 2 and r["rows"] == 5
+        # Svar kopieret fra en chat: kodeblok, komma og artsnavn i stedet for artnr
+        r = await article_tags.parse_import(s, f"```csv\nid,slags,art\n{ids['Skagen']},art,sortgrå ryle\n```".encode())
+        assert r["changes"] == [{"id": ids["Skagen"], "kind": "art", "artnr": 2}] and not r["warnings"]
+        r = await article_tags.parse_import(s, json.dumps([{"id": ids["Pandion"], "skjult": "ja"}]).encode())
+        assert r["changes"] == [{"id": ids["Pandion"], "hidden": True}]
+
+        # Alt eller intet: et navnesammenfald stopper hele omgangen
+        with pytest.raises(article_edit.Invalid):
+            await article_tags.save_many(s, [{"id": ids["Pandion"], "hidden": True}, {"id": ids["Skagen"], "navn": "Nyhed"}])
+        assert not {t["navn"]: t for t in await article_edit.tags_admin(s)}["Pandion"]["hidden"]
+        # To emneord kan bytte navn, og et emneord koblet til en art giver artiklerne arten
+        n = await article_tags.save_many(s, [{"id": ids["Skagen"], "navn": "Pandion", "kind": "art", "artnr": 2},
+                                             {"id": ids["Pandion"], "navn": "Skagen", "hidden": True}])
+        assert n == 2
+        after = {t["id"]: t for t in await article_edit.tags_admin(s)}
+        assert after[ids["Skagen"]]["navn"] == "Pandion" and after[ids["Skagen"]]["kind"] == "art" and after[ids["Pandion"]]["navn"] == "Skagen"
+        art300 = (await s.execute(text("SELECT id FROM art_articles WHERE netfugl_id = 300"))).scalar()
+        assert (await s.execute(text("SELECT source FROM art_species WHERE article_id = :a AND artnr = 2"), {"a": art300})).scalar() == "emneord"
+
+
 async def test_news_markdown_migration_and_conflicts(db):
     from portal.models import User
     from portal.services import article_edit, news
