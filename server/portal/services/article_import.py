@@ -583,6 +583,13 @@ async def _run(s: AsyncSession, imp: ArtImport, run: Run, path: Path) -> None:
     run.stats["afvist"] = len(arc.rejected)
     for r in arc.rejected[:20]:
         run.note("advarsel", f"Afvist (usikker sti eller størrelse): {r}")
+    if "manifest.json" in arc.other:
+        try:
+            kilde = str(json.loads(read_member(arc.zf, arc.other["manifest.json"])).get("kilde") or "")
+        except (ValueError, AttributeError, ImportAbort):
+            kilde = ""
+        if "dklist" in kilde:  # turrapport-arkivet har samme mappenavne (NNNN/meta.json) men et andet format
+            raise ImportAbort("Zip'en indeholder turrapporter (dklist.netfugl.dk), ikke artikler – importér netfugl-artikler.zip/Artikler.zip i stedet")
     nos = sorted(arc.articles)
     run.stats["artikler_i_zip"] = len(nos)
     if "_index.json" in arc.other:
@@ -599,11 +606,13 @@ async def _run(s: AsyncSession, imp: ArtImport, run: Run, path: Path) -> None:
 
 
 async def _loop(s: AsyncSession, imp: ArtImport, run: Run, arc: Archive, nos: list[int], matcher, hosts: set[str]) -> None:
+    # Læs værdierne før løkken: efter s.rollback() er imp udløbet, og adgang til felterne giver MissingGreenlet i async
+    user_id, import_id = imp.uploaded_by, imp.id
     for n, no in enumerate(nos, 1):
         if n % 10 == 1 or n == len(nos):
             await jobstatus.step(f"Artikel {no:04d} ({n} af {len(nos)})", n, len(nos))
         try:
-            result = await import_article(s, run, arc, no, arc.articles[no], matcher, hosts, imp.uploaded_by, imp.id)
+            result = await import_article(s, run, arc, no, arc.articles[no], matcher, hosts, user_id, import_id)
             await s.commit()
             run.stats[result] += 1
         except Exception as exc:  # noqa: BLE001 – én dårlig artikel må ikke stoppe resten
@@ -612,6 +621,6 @@ async def _loop(s: AsyncSession, imp: ArtImport, run: Run, arc: Archive, nos: li
             run.note("fejl", f"{exc.__class__.__name__}: {exc}", no)
             log.warning("Artikel %s kunne ikke importeres: %s", no, exc)
         if n % 25 == 0:
-            cur = await s.get(ArtImport, imp.id)
+            cur = await s.get(ArtImport, import_id)
             cur.stats, cur.log = dict(run.stats), list(run.log)
             await s.commit()
