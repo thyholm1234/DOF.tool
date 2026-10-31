@@ -1,6 +1,6 @@
 // Egen dropdown-menu i Android-appen i stedet for WebView'ens grå systemdialog. Browseren/PWA'en bruger fortsat sine egne.
 // Delegeret på dokumentet, så også selects der tegnes senere (sider, ark) får menuen. Værdi og change/input-events er de samme.
-import { h } from "./core.js";
+import { h, backLayer } from "./core.js";
 import { isApp } from "./native.js";
 
 let open = null;   // { sel, menu, close }
@@ -29,6 +29,7 @@ function show(sel) {
   }
   const back = h("div", { class: "sel-back" });
   document.body.append(back, menu);
+  backLayer(menu, close);
   // Menuen holdes mellem topbjælken og bundmenuen, så de altid er synlige
   const edge = (q, side, dflt) => { const b = document.querySelector(q)?.getBoundingClientRect(); return b?.height ? b[side] : dflt; };
   const r = sel.getBoundingClientRect(), vh = window.innerHeight;

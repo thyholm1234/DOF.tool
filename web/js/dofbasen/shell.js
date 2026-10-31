@@ -1,6 +1,6 @@
 // DOFbasen-modulet: fælles skal (header, fanemenu, højrekolonne, sidefod), let markup og hjælpere.
 // Layoutet følger dofbasen.dk; links i det kopierede indhold, der peger på dofbasen.dk, oversættes til modulets egne sider.
-import { api, h, esc, fmtN, toast } from "../core.js";
+import { api, h, esc, fmtN, toast, backLayer } from "../core.js";
 
 export const BASE = "#/dofbasen";
 export const ctx = { data: null };
@@ -143,6 +143,7 @@ export function dbModal(title, body, { wide = false } = {}) {
       h("div", { class: "db-modal-body dofb" }, body)));
   document.body.append(bg);
   document.addEventListener("keydown", key);
+  backLayer(bg, close);
   return { close, el: bg };
 }
 

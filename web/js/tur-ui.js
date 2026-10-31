@@ -1,5 +1,5 @@
 // Fælles byggeklodser til tur-siderne: faner, bund-ark (popup), felter med "Udfyldt"-mærke, artsvælger og kortvalg.
-import { h, icon, tag, toast, searchSpecies, modal, state } from "./core.js";
+import { h, icon, tag, toast, searchSpecies, modal, state, backLayer } from "./core.js";
 import { baseMap } from "./maps.js";
 import { tracker, trackStart, trackPause, trackStop, trackLength } from "./tur-data.js";
 import { isApp } from "./native.js";
@@ -49,6 +49,7 @@ export function sheet({ kicker, title, sub, onDelete, tabList, confirmLabel, onC
     h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: cancel }, "Annullér"), confirm)));
   document.body.append(bg);
   document.body.classList.add("sheet-open");
+  backLayer(bg, cancel);
   return { close, show: t.show, el: bg };
 }
 

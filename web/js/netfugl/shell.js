@@ -1,6 +1,6 @@
 // Netfugl-modulet: fælles skal (navigation med undermenuer, bannere, sidefod), let markup og hjælpere.
 // Links til netfugl.dk i det kopierede indhold vises som modulets egne sider; links til dofbasen.dk som DOFbasen-modulet.
-import { api, h, esc, toast } from "../core.js";
+import { api, h, esc, toast, backLayer } from "../core.js";
 import { mapHref as dofbMap } from "../dofbasen/shell.js";
 
 export const BASE = "#/netfugl";
@@ -109,6 +109,7 @@ export function nfModal(heading, body, { wide = false } = {}) {
   document.body.append(bg);
   document.addEventListener("keydown", key);
   addEventListener("hashchange", close);
+  backLayer(bg, close);
   return { close };
 }
 

@@ -101,6 +101,23 @@ export function toast(msg, kind = "") {
   setTimeout(() => t.remove(), kind === "err" ? 7000 : 4000);
 }
 
+// Androids tilbageknap (appen): åbne lag (modal, ark, menu …) lukkes ét ad gangen, før der gås tilbage i historikken.
+// Et lag, der er fjernet fra siden på anden vis, springes over, så lagene ikke skal afmelde sig selv.
+const layers = [];   // [{ el, close }], det øverste sidst
+export function backLayer(el, close) { layers.push({ el, close }); }
+
+/** Kaldes af appen (MainActivity) ved tilbagetryk. false: intet at gå tilbage til – appen lægges i baggrunden. */
+window.dofBack = (canGoBack) => {
+  while (layers.length) {
+    const { el, close } = layers.pop();
+    if (el.isConnected) { close(); return true; }
+  }
+  if (canGoBack) { history.back(); return true; }
+  // Åbnet direkte på en underside (fx fra en notifikation): tilbage fører til forsiden
+  if (!/^#?\/?$/.test(location.hash)) { location.replace("#/"); return true; }
+  return false;
+};
+
 export function modal(title, content, { wide = false, onClose } = {}) {
   // Sideskift (fx Androids tilbageknap) lukker også modalen, så den ikke bliver hængende over en anden side
   const close = () => { if (!bg.isConnected) return; bg.remove(); document.removeEventListener("keydown", key); window.removeEventListener("hashchange", close); onClose?.(); };
@@ -112,6 +129,7 @@ export function modal(title, content, { wide = false, onClose } = {}) {
   document.body.append(bg);
   document.addEventListener("keydown", key);
   window.addEventListener("hashchange", close);
+  backLayer(bg, close);
   return { close, el: bg };
 }
 

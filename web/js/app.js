@@ -1,4 +1,4 @@
-import { api, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab } from "./core.js";
+import { api, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer } from "./core.js";
 import { live } from "./live.js";
 import { syncSharing, syncPush, stopAppPush } from "./native.js";
 import { initSelectMenu } from "./select-menu.js";
@@ -128,6 +128,7 @@ function openMore() {
         u && adminLink() ? tile(adminLink().href, "shield", adminLink().label, hasTab("support") ? state.adminSupportUnread : 0) : null),
       h("button", { class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
   document.body.append(sheet);
+  backLayer(sheet, close);
 }
 
 function renderUser() {
@@ -193,6 +194,7 @@ function openMenu() {
     h("button", { onclick: () => { close(); logout(); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
   document.body.append(menu);
+  backLayer(menu, close);
   setTimeout(() => document.addEventListener("click", outside, true));
 }
 

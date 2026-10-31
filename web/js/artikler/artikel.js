@@ -1,7 +1,7 @@
 // Artikelsiden: titel, manchet, byline, forsidebillede, brødtekst (renset HTML fra serveren), PDF-visning, galleri med lysboks,
 // kommentarer lige under artiklen, derefter emneord og relaterede artikler. Redaktører får redigér/slet og kan rette arterne
 // (arterne vises ikke på siden).
-import { api, h, toast, modal, state } from "../core.js";
+import { api, h, toast, modal, state, backLayer } from "../core.js";
 import { BASE, cover, dkDate, nowrap, tagChips, listCard, ctx, on, cleanups } from "./common.js";
 import { commentsBox } from "./kommentarer.js";
 
@@ -29,6 +29,7 @@ function lightbox(images, start) {
     img, cap);
   document.body.append(box);
   document.addEventListener("keydown", key);
+  backLayer(box, close);
   cleanups.push(close);
   show();
 }
