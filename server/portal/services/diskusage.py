@@ -92,7 +92,7 @@ async def _databases() -> list[dict]:
 
 async def _objects() -> dict:
     s = get_settings()
-    name = f"Objektlager ({s.s3_endpoint}, bucket {s.s3_bucket})" if storage.enabled() else "Observationer (på disken)"
+    name = f"Objektlager ({s.s3_endpoint}, bucket {s.s3_bucket})" if storage.enabled() else "Observationer og artikler (på disken)"
     try:
         n, b = await storage.usage()
         return {"name": name, "files": n, "bytes": b, "enabled": storage.enabled()}

@@ -1,7 +1,7 @@
-"""Medier til artikler og nyheder: billeder (med varianter), PDF'er (med miniature af side 1) og andre filer.
+"""Medier til artikler og nyheder: billeder (med varianter), PDF'er (med miniature af side 1), lydfiler og andre filer.
 
 Filerne er content-addressed: nøglen er ``<sha256[:2]>/<sha256>.<ext>`` i objektlageret under præfikset ``art/``, så den samme fil kun
-ligger én gang. Billeder får en ``-t`` (400 px) og en ``-m`` (1200 px) variant som WebP; originalen gemmes uden EXIF/GPS.
+ligger én gang. Objektlageret er RustFS (S3) når S3_ENDPOINT er sat, ellers MEDIA_DIR/art på disken (services/storage.py). Billeder får en ``-t`` (400 px) og en ``-m`` (1200 px) variant som WebP; originalen gemmes uden EXIF/GPS.
 Signaturen tjekkes – filendelsen og brugerens Content-Type stoles ikke på.
 """
 
@@ -32,6 +32,8 @@ THUMB, MEDIUM = 400, 1200
 FILE_TYPES = {".pdf": "application/pdf", ".doc": "application/msword", ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
               ".xls": "application/vnd.ms-excel", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
               ".txt": "text/plain", ".md": "text/markdown", ".csv": "text/csv", ".rtf": "application/rtf"}
+AUDIO_TYPES = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".opus": "audio/ogg",
+               ".wav": "audio/wav", ".flac": "audio/flac"}
 # Aldrig inline i browseren (kunne køre script): leveres altid som download
 DOWNLOAD_ONLY = {".doc", ".docx", ".xls", ".xlsx", ".rtf", ".csv", ".txt", ".md"}
 
@@ -51,6 +53,21 @@ def sniff_image(data: bytes) -> tuple[str, str] | None:
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp", "webp"
     return None
+
+
+def sniff_audio(data: bytes, ext: str) -> bool:
+    """Passer filens første bytes til lydformatet i endelsen?"""
+    if ext == ".mp3":
+        return data[:3] == b"ID3" or (len(data) > 1 and data[0] == 0xFF and data[1] & 0xE0 == 0xE0)
+    if ext == ".m4a":
+        return data[4:8] == b"ftyp"
+    if ext in (".ogg", ".oga", ".opus"):
+        return data[:4] == b"OggS"
+    if ext == ".wav":
+        return data[:4] == b"RIFF" and data[8:12] == b"WAVE"
+    if ext == ".flac":
+        return data[:4] == b"fLaC"
+    return False
 
 
 def clean_filename(name: str) -> str:
@@ -165,14 +182,17 @@ async def pdf_thumb(path: Path) -> bytes | None:
 async def store_file(session: AsyncSession, data: bytes, *, filename: str, owner_kind: str, owner_id: int | None, user_id: int | None = None,
                      title: str = "", text_md: str | None = None, text_source: str | None = None, original_url: str | None = None,
                      sort: int = 0) -> ContentMedia:
-    """PDF'er og andre vedhæftninger. En PDF får sideantal og en miniature af side 1."""
+    """PDF'er, lydfiler og andre vedhæftninger. En PDF får sideantal og en miniature af side 1."""
     name = clean_filename(filename)
     ext = Path(name).suffix.lower()
-    if ext not in FILE_TYPES:
+    mime = FILE_TYPES.get(ext) or AUDIO_TYPES.get(ext)
+    if mime is None:
         raise MediaError(f"Filtypen {ext or '(ingen)'} er ikke tilladt")
-    is_pdf = ext == ".pdf"
+    is_pdf, is_audio = ext == ".pdf", ext in AUDIO_TYPES
     if is_pdf and not data.startswith(b"%PDF"):
         raise MediaError("Filen ligner ikke en PDF")
+    if is_audio and not sniff_audio(data, ext):
+        raise MediaError(f"Filen ligner ikke en {ext[1:].upper()}-lydfil")
     if len(data) > (MAX_PDF if is_pdf else MAX_FILE):
         raise MediaError("Filen er for stor")
     sha = hashlib.sha256(data).hexdigest()
@@ -181,7 +201,7 @@ async def store_file(session: AsyncSession, data: bytes, *, filename: str, owner
             found.text_md, found.text_source = text_md, text_source
         return found
     key = f"{sha[:2]}/{sha}{ext}"
-    await _put(key, data, FILE_TYPES[ext])
+    await _put(key, data, mime)
     pages = thumb_key = None
     if is_pdf:
         with tempfile.TemporaryDirectory(prefix="art-pdf-") as tmp:
@@ -192,8 +212,8 @@ async def store_file(session: AsyncSession, data: bytes, *, filename: str, owner
         if blob:
             thumb_key = f"{sha[:2]}/{sha}-t.webp"
             await _put(thumb_key, blob, "image/webp")
-    row = ContentMedia(owner_kind=owner_kind, owner_id=owner_id, kind="pdf" if is_pdf else "fil", storage_key=key, thumb_key=thumb_key,
-                       filename=name, mime=FILE_TYPES[ext], size=len(data), caption=title[:300], original_url=original_url, pages=pages,
+    row = ContentMedia(owner_kind=owner_kind, owner_id=owner_id, kind="pdf" if is_pdf else "lyd" if is_audio else "fil", storage_key=key,
+                       thumb_key=thumb_key, filename=name, mime=mime, size=len(data), caption=title[:300], original_url=original_url, pages=pages,
                        text_md=text_md, text_source=text_source, sha256=sha, sort=sort, created_by=user_id)
     session.add(row)
     await session.flush()

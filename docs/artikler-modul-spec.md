@@ -181,7 +181,7 @@ Indeks: `GIN(search)`, `GIN(body_text gin_trgm_ops)` og `GIN(ocr_text gin_trgm_o
 `fravalgt` = en redaktør har fjernet en falsk positiv; genberegning må **ikke** tilføje arten igen.
 
 **`content_media`** – fælles medietabel for artikler *og* nyheder
-| `id` serial · `owner_kind` varchar(10): `artikel` / `nyhed` · `owner_id` int null (null mens en ny artikel endnu ikke er gemt) · `kind`: `billede` / `pdf` / `fil` · `storage_key` varchar(200) · `thumb_key`, `medium_key` varchar null · `filename` · `mime` · `size` · `width`, `height` null · `alt` varchar(300) · `caption` varchar(300) · `credit` varchar(160) · `original_url` varchar(500) null · `pages` int null · `text_md` text null (OCR) · `text_source` varchar(16) null · `sha256` char(64) (dedup) · `sort` int · `created_by` · `created_at` |
+| `id` serial · `owner_kind` varchar(10): `artikel` / `nyhed` · `owner_id` int null (null mens en ny artikel endnu ikke er gemt) · `kind`: `billede` / `pdf` / `lyd` / `fil` · `storage_key` varchar(200) · `thumb_key`, `medium_key` varchar null · `filename` · `mime` · `size` · `width`, `height` null · `alt` varchar(300) · `caption` varchar(300) · `credit` varchar(160) · `original_url` varchar(500) null · `pages` int null · `text_md` text null (OCR) · `text_source` varchar(16) null · `sha256` char(64) (dedup) · `sort` int · `created_by` · `created_at` |
 
 **`art_comments`**
 | `id` serial · `article_id` FK CASCADE · `parent_id` FK self null (kun ét niveau: svar på hovedkommentar) · `user_id` FK users null (null = arkivkommentar) · `archive_author` varchar(160) null · `archive_netfugl_user` int null · `archive_key` char(40) null unique (sha1 af article+forfatter+dato+tekst, for idempotent import) · `body_md` text · `body_html` text · `status`: `synlig` / `skjult` / `slettet` · `hidden_reason` varchar(500) null · `hidden_by` FK null · `report_count` int default 0 · `edited_at` null · `created_at` |
@@ -298,7 +298,8 @@ Til sidst: tæl `cache`-versionen op for artikler, så forside og søgning genbe
 
 `body_md` indeholder ingen fysiske adresser. Rendereren oversætter:
 - `media:<id>` → `/media/art/<storage_key>` (billeder vises som `medium`, med `srcset` til `thumb`/original, og
-  `width`/`height` for at undgå layoutspring; PDF-links får ikon og størrelse).
+  `width`/`height` for at undgå layoutspring; PDF-links får ikon og størrelse; `![titel](media:<id>)` af en lydfil
+  bliver til en `<audio controls>`-afspiller med titlen som billedtekst).
 - `netfugl:<NNNN>` → `#/artikler/n/NNNN` (virker også, hvis artiklen importeres senere).
 - `artikel:<id>` → `#/artikler/<id>`.
 - `[[art:<artnr>]]` (inline) → artschip med navn, link til `#/arter/<artnr>`.
@@ -312,6 +313,12 @@ Så kan lageret flyttes (disk ↔ S3) uden at røre teksterne.
 `GET|HEAD /media/art/{name}` i `api/media.py` efter samme mønster som `obs_media` (Range, ETag, lang cache, ingen GZip).
 Nøgler: `art/<sha256[:2]>/<sha256>.<ext>` (content-addressed). Adgang: kræver at `artikler` er synligt for brugeren,
 *eller* at mediet ejes af en publiceret nyhed (nyheder ses af alle indloggede).
+
+Alle artikelmedier – billeder og deres varianter, PDF'er og PDF-miniaturer, lydfiler (MP3, M4A, OGG/Opus, WAV, FLAC;
+signaturen tjekkes) og andre vedhæftninger – ligger i samme bucket som observationernes filer (RustFS i compose), når
+`S3_ENDPOINT` er sat; ellers under `MEDIA_DIR/art`. Kun selve import-zip'en ligger midlertidigt på disken
+(`ARTICLE_IMPORT_DIR`). Filer under `MEDIA_DIR/art` flyttes til bucket'en sammen med `obs/` første gang workeren starter
+med S3 slået til (engangsopgaven `once:media_s3_v2`), og `art/` tæller med under Admin → Drift → Lagerplads.
 
 ### 4.6 Klassificering af emneord (ved første import, kan rettes i admin)
 

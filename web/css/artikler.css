@@ -111,6 +111,7 @@ a.art-chip:hover { background: var(--brand-soft); border-color: var(--brand); co
 .art-body::after { content: ""; display: block; clear: both; }
 @media (max-width: 600px) { .art-body .art-boks { float: none; width: auto; margin: 1em 0; } }
 .art-body .art-pdf::before { content: "📄 "; }
+.art-body a.art-lyd::before { content: "🔊 "; } .art-body .art-fig.art-lyd audio { display: block; width: 100%; }
 .art-cover { margin: 0 0 18px; } .art-cover figcaption { font-size: .8rem; color: var(--text-3); margin-top: 4px; }
 .art-pdfview { width: 100%; height: min(80vh, 900px); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg-2); }
 .art-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin: 18px 0; }

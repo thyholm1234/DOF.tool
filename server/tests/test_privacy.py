@@ -91,6 +91,25 @@ def test_local_storage_roundtrip(tmp_path, monkeypatch):
         assert url == "/media/obs/a.mp3" and (tmp_path / "obs" / "a.mp3").read_bytes() == b"0123456789"
         assert (await storage.get("a.mp3", 2, 4)).data == b"234" and await storage.stat("a.mp3") == 10
         assert await storage.usage() == (1, 10)
+        assert await storage.put("ab/" + "a" * 64 + ".pdf", b"%PDF", "application/pdf", prefix=storage.ART_PREFIX) == "/media/art/ab/" + "a" * 64 + ".pdf"
+        assert await storage.usage() == (2, 14)  # artikelmedierne tæller med
         await storage.delete_urls([url, "/media/netfugl/x.jpg"])
         assert await storage.get("a.mp3") is None
     asyncio.run(run())
+
+
+def test_migrate_local_moves_observation_and_article_files(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from portal.services import storage
+    (tmp_path / "obs").mkdir()
+    (tmp_path / "obs" / "a.jpg").write_bytes(b"jpg")
+    (tmp_path / "obs" / "b.jpg.tmp").write_bytes(b"halv")
+    (tmp_path / "art" / "ab").mkdir(parents=True)
+    (tmp_path / "art" / "ab" / "x.mp3").write_bytes(b"ID3")
+    put = {}
+    monkeypatch.setattr(storage, "get_settings", lambda: SimpleNamespace(s3_endpoint="rustfs:9000", media_dir=str(tmp_path)))
+    monkeypatch.setattr(storage, "_ensure_bucket", lambda: None)
+    monkeypatch.setattr(storage, "_put", lambda key, data, ct: put.__setitem__(key, (data, ct)))
+    assert storage._migrate_local() == 2
+    assert put == {"obs/a.jpg": (b"jpg", "image/jpeg"), "art/ab/x.mp3": (b"ID3", "audio/mpeg")}
+    assert not (tmp_path / "art" / "ab" / "x.mp3").exists() and (tmp_path / "obs" / "b.jpg.tmp").exists()

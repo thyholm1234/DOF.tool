@@ -98,6 +98,9 @@ export function mdEditor({ value = "", ownerKind = "artikel", getOwnerId = () =>
     const sel = selected(ta);
     insertText(ta, `::: boks Fakta\n${sel || "Tekst i faktaboksen"}\n:::`);
   }
+  // Lydfiler indsættes som billedsyntaks og bliver til en afspiller; andre filer som et link med type og størrelse
+  const fileLine = (m) => m.kind === "lyd" ? `![${(m.caption || m.filename).replace(/[\[\]]/g, "")}](media:${m.id})`
+    : `[${m.caption || m.filename} (${m.kind === "pdf" ? "PDF, " : ""}${m.size >= 1e6 ? (m.size / 1e6).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(m.size / 1e3)) + " kB"})](media:${m.id})`;
   const mediaLine = (m) => `![${m.alt || ""}](media:${m.id}${m.caption ? ` "${m.caption.replace(/"/g, "'")}"` : ""})`;
 
   async function addFiles(files) {
@@ -106,13 +109,13 @@ export function mdEditor({ value = "", ownerKind = "artikel", getOwnerId = () =>
         toast(`Uploader ${f.name} …`);
         const m = await uploadFile(f, owner());
         if (m.kind === "billede") describeDialog(m, { onDone: (u) => block(mediaLine(u)) });
-        else block(`[${m.caption || m.filename} (${m.kind === "pdf" ? "PDF, " : ""}${m.size >= 1e6 ? (m.size / 1e6).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(m.size / 1e3)) + " kB"})](media:${m.id})`);
+        else block(fileLine(m));
       } catch (e) { toast(`${f.name}: ${e.message}`, "err"); }
     }
   }
   const pickImage = () => mediaPicker({ ...owner(), kinds: ["billede"], title: "Indsæt billede", onPick: ([m]) => m && describeDialog(m, { onDone: (u) => block(mediaLine(u)) }) });
   const pickGallery = () => mediaPicker({ ...owner(), kinds: ["billede"], multi: true, title: "Vælg billeder til galleriet", onPick: (ms) => ms.length && block(`::: galleri\n${ms.map(mediaLine).join("\n\n")}\n:::`) });
-  const pickFile = () => mediaPicker({ ...owner(), kinds: ["pdf", "fil"], title: "Vedhæft PDF eller fil", onPick: ([m]) => m && block(`[${m.caption || m.filename} (${m.kind === "pdf" ? "PDF, " : ""}${m.size >= 1e6 ? (m.size / 1e6).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(m.size / 1e3)) + " kB"})](media:${m.id})`) });
+  const pickFile = () => mediaPicker({ ...owner(), kinds: ["pdf", "lyd", "fil"], title: "Vedhæft PDF, lydfil eller anden fil", onPick: ([m]) => m && block(fileLine(m)) });
 
   // ------------------------------------------------------------ værktøjslinje
   const T = (label, title, fn, cls = "") => h("button", { type: "button", class: `mde-btn ${cls}`, title, "aria-label": title, onmousedown: (e) => e.preventDefault(), onclick: fn }, label);
@@ -123,7 +126,7 @@ export function mdEditor({ value = "", ownerKind = "artikel", getOwnerId = () =>
     T("🔗", "Link (Ctrl+K)", linkDialog), T("❝", "Citat", () => prefix("> ")), T("• Liste", "Punktliste", () => prefix("- ")), T("1. Liste", "Nummereret liste", numbered),
     T("▦ Tabel", "Tabel", tableDialog), T("―", "Vandret streg", () => block("---")), T("</>", "Kode", () => selected(ta).includes("\n") ? wrap("```\n", "\n```") : wrap("`")), sep(),
     T("🖼 Billede", "Indsæt billede", pickImage), T("▤ Galleri", "Galleri af flere billeder", pickGallery), T("▢ Faktaboks", "Faktaboks", boksDialog),
-    T("📎 PDF/fil", "Vedhæft PDF eller fil", pickFile), T("⧉ Indlejr", "Indlejr lyd, video eller HTML", embedDialog),
+    T("📎 Fil/lyd", "Vedhæft PDF, lydfil eller anden fil", pickFile), T("⧉ Indlejr", "Indlejr lyd, video eller HTML", embedDialog),
     features.species === false ? null : T("🐦 Art", "Indsæt art", speciesDialog));
   const modes = seg([["skriv", "Skriv"], ["vis", "Vis"], ["side", "Side om side"]], mode, (v) => setMode(v));
   const full = T("⤢", "Fuld skærm", () => { root.classList.toggle("full"); document.body.classList.toggle("mde-lock", root.classList.contains("full")); }, "full");

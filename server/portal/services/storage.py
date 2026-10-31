@@ -1,7 +1,7 @@
-"""Objektlager til filer uploadet til observationer (fotos og lyd i feltmeldinger og ture).
+"""Objektlager til uploadede filer: fotos og lyd i observationer (obs/) og artikelmodulets medier (art/).
 
 Med S3_ENDPOINT gemmes filerne i en S3-bucket (RustFS i compose, men alt S3-kompatibelt virker); uden ligger de på
-disken under MEDIA_DIR som før. Adresserne er de samme i begge tilfælde (/media/obs/<navn>), og filerne leveres af
+disken under MEDIA_DIR som før. Adresserne er de samme i begge tilfælde (/media/obs/<navn>, /media/art/<nøgle>), og filerne leveres af
 api/media.py, så de aldrig er offentlige i bucket'en. S3-klienten (minio-py) er synkron og køres i en tråd.
 """
 
@@ -19,6 +19,9 @@ from portal.config import get_settings
 log = logging.getLogger("portal.storage")
 PREFIX = "obs/"  # nøgle i bucket'en = PREFIX + filnavn; adressen = /media/obs/<filnavn>
 ART_PREFIX = "art/"  # artikelmodulets medier: nøgle = art/<xx>/<sha256>.<ext>; adressen = /media/art/<xx>/<sha256>.<ext>
+# Typer Python 3.12's mimetypes ikke kender (bruges uden S3 og ved migrering)
+for _ext, _type in ((".webp", "image/webp"), (".m4a", "audio/mp4"), (".opus", "audio/ogg"), (".oga", "audio/ogg"), (".flac", "audio/flac")):
+    mimetypes.add_type(_type, _ext)
 
 
 @dataclass
@@ -131,15 +134,17 @@ def _delete(key: str) -> None:
 
 
 def _usage() -> tuple[int, int]:
-    if enabled():
-        n = size = 0
-        for o in _client().list_objects(get_settings().s3_bucket, prefix=PREFIX, recursive=True):
-            n += 1
-            size += o.size or 0
-        return n, size
-    root = _local(PREFIX)
-    files = [p.stat().st_size for p in root.rglob("*") if p.is_file()] if root.is_dir() else []
-    return len(files), sum(files)
+    n = size = 0
+    for prefix in (PREFIX, ART_PREFIX):
+        if enabled():
+            for o in _client().list_objects(get_settings().s3_bucket, prefix=prefix, recursive=True):
+                n += 1
+                size += o.size or 0
+            continue
+        root = _local(prefix)
+        files = [p.stat().st_size for p in root.rglob("*") if p.is_file()] if root.is_dir() else []
+        n, size = n + len(files), size + sum(files)
+    return n, size
 
 
 async def put(name: str, data: bytes, content_type: str, prefix: str = PREFIX) -> str:
@@ -184,17 +189,21 @@ async def usage() -> tuple[int, int]:
 
 
 def _migrate_local() -> int:
-    """Flyt filer fra disken (MEDIA_DIR/obs) til bucket'en – engangskørsel, når S3 slås til."""
-    root = Path(get_settings().media_dir) / PREFIX
-    if not enabled() or not root.is_dir():
+    """Flyt filer fra disken (MEDIA_DIR/obs og MEDIA_DIR/art) til bucket'en – engangskørsel, når S3 slås til."""
+    if not enabled():
         return 0
-    _ensure_bucket()
+    media = Path(get_settings().media_dir)
     n = 0
-    for p in sorted(root.iterdir()):
-        if p.is_file() and not p.name.endswith(".tmp"):
-            _put(PREFIX + p.name, p.read_bytes(), mimetypes.guess_type(p.name)[0] or "application/octet-stream")
-            p.unlink()
-            n += 1
+    for prefix in (PREFIX, ART_PREFIX):
+        root = media / prefix
+        if not root.is_dir():
+            continue
+        _ensure_bucket()
+        for p in sorted(root.rglob("*")):  # art/ har undermapper (<xx>/<sha256>.<ext>)
+            if p.is_file() and not p.name.endswith(".tmp"):
+                _put(prefix + p.relative_to(root).as_posix(), p.read_bytes(), mimetypes.guess_type(p.name)[0] or "application/octet-stream")
+                p.unlink()
+                n += 1
     return n
 
 

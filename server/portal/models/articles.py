@@ -59,7 +59,7 @@ class ContentMedia(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     owner_kind: Mapped[str] = mapped_column(String(10))  # artikel / nyhed
     owner_id: Mapped[int | None] = mapped_column(Integer)
-    kind: Mapped[str] = mapped_column(String(10))  # billede / pdf / fil
+    kind: Mapped[str] = mapped_column(String(10))  # billede / pdf / lyd / fil
     storage_key: Mapped[str] = mapped_column(String(200))
     thumb_key: Mapped[str | None] = mapped_column(String(200))
     medium_key: Mapped[str | None] = mapped_column(String(200))

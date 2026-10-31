@@ -161,7 +161,7 @@ async def startup_tasks() -> None:
     # Billeder uploadet før metadata blev fjernet ved upload, og filer fra før objektlageret
     await _once("once:media_meta_v1", _strip_old_media)
     if storage.enabled():
-        await _once("once:media_s3_v1", _move_media_to_s3)
+        await _once("once:media_s3_v2", _move_media_to_s3)  # v2: også artikelmedier (art/)
     async with SessionLocal() as s:
         if not await locfinds.has_data(s):
             # Ellers er alle arter lokale hits, indtil lokalafdelingens dag i måneden kommer

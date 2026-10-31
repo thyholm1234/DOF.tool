@@ -5,7 +5,8 @@ import pytest
 from portal.services import content_render as cr
 
 MEDIA = {7: cr.Media(7, "billede", "/media/art/ab/x.jpg", "/media/art/ab/m.jpg", "/media/art/ab/t.jpg", 1000, 800, alt="Gemt alt"),
-         8: cr.Media(8, "pdf", "/media/art/cd/r.pdf", filename="r.pdf", size=3_200_000)}
+         8: cr.Media(8, "pdf", "/media/art/cd/r.pdf", filename="r.pdf", size=3_200_000),
+         9: cr.Media(9, "lyd", "/media/art/ef/s.mp3", filename="sang.mp3", size=900_000)}
 HOSTS = {"xeno-canto.org", "player.vimeo.com"}
 
 
@@ -28,6 +29,13 @@ def test_portable_references_are_resolved():
     assert r.media_ids == [7, 8] and r.species == [5]
 
 
+def test_audio_media_becomes_player():
+    h = render('![Sanglærke ved Vejlerne](media:9)\n\n[lyt her](media:9)').html
+    assert '<audio controls="" preload="metadata" src="/media/art/ef/s.mp3"' in h and 'class="art-cap">Sanglærke ved Vejlerne<' in h
+    assert 'class="art-fig art-lyd"' in h and 'href="/media/art/ef/s.mp3" class="art-lyd"' in h.replace(' rel="noopener noreferrer"', "")
+    assert 'class="art-cap">sang.mp3<' in render("![](media:9)").html  # uden titel vises filnavnet
+
+
 def test_missing_references_warn_instead_of_breaking():
     r = render("![x](media:99) [y](media:98) [[art:42]]")
     assert "media:99" not in r.html and len(r.warnings) == 2 and "[[art:42]]" in r.html
@@ -38,7 +46,7 @@ def test_missing_references_warn_instead_of_breaking():
     "<div style=\"position:fixed\" onclick=\"x()\">x</div>", "<svg onload=alert(1)></svg>", "<object data=x></object>", "<embed src=x>",
     "<form action=x><input></form>", "<style>body{display:none}</style>", "<iframe src=\"javascript:alert(1)\"></iframe>",
     "<iframe src=\"https://evil.example/x\"></iframe>", "<iframe src=\"http://xeno-canto.org/1\"></iframe>", "<iframe src=\"https://xeno-canto.org.evil.example/1\"></iframe>",
-    "<img src=\"https://tracker.example/p.gif\">", "<a href=\"data:text/html,<script>1</script>\">x</a>", "<meta http-equiv=refresh content=0>",
+    "<img src=\"https://tracker.example/p.gif\">", "<audio controls src=\"https://tracker.example/x.mp3\"></audio>", "<a href=\"data:text/html,<script>1</script>\">x</a>", "<meta http-equiv=refresh content=0>",
 ])
 def test_dangerous_html_is_removed(evil):
     h = render(f"før\n\n{evil}\n\nefter").html.lower()

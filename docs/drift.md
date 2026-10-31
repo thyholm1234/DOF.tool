@@ -34,14 +34,14 @@ docker compose
 ├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, scoreboards, pub/sub til live-opdateringer
 ├── api       (FastAPI)  – REST + server-sent events + statisk PWA (web/)
 ├── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
-├── rustfs    – objektlager (S3) til fotos og lyd i observationer; leveres med login via /media/obs/<navn>
+├── rustfs    – objektlager (S3) til fotos og lyd i observationer og artiklernes medier; leveres med login via /media/obs/ og /media/art/
 └── dbadmin   – superadmin-panel til databaserne (se Databaser): noder, tokens, IP og port
 ```
 
-**Objektlager.** Filer uploadet til feltmeldinger og ture gemmes i RustFS (`rustfs/rustfs`, Apache-2.0; bucket
+**Objektlager.** Filer uploadet til feltmeldinger og ture samt artiklernes billeder, PDF'er og lydfiler gemmes i RustFS (`rustfs/rustfs`, Apache-2.0; bucket
 `doftool-media`), ikke på disken. Nøglerne er `RUSTFS_ACCESS_KEY` og `RUSTFS_SECRET_KEY`. Appen taler almindelig S3, så en anden
 tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan tage over via `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` og
-`S3_BUCKET`. Eksisterende filer under `/data/media/obs` flyttes til lageret første gang workeren
+`S3_BUCKET`. Eksisterende filer under `/data/media/obs` og `/data/media/art` flyttes til lageret første gang workeren
 starter. Lagerforbruget for databaser, objektlager, filer og Valkey kan følges under **Admin → Drift → Lagerplads**.
 
 ### Databaser: opdeling, replikaer og backup

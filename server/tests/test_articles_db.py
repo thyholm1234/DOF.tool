@@ -485,8 +485,13 @@ async def test_media_dedup_and_validation(db, tmp_path):
             await content_media.store_file(s, b"ikke pdf", filename="x.pdf", owner_kind="artikel", owner_id=None)
         f = await content_media.store_file(s, pdf(), filename="a.pdf", owner_kind="artikel", owner_id=None, user_id=3)
         assert f.kind == "pdf" and f.pages == 1 and f.thumb_key
+        with pytest.raises(content_media.MediaError):
+            await content_media.store_file(s, b"<html>", filename="x.mp3", owner_kind="artikel", owner_id=None)
+        a = await content_media.store_file(s, b"ID3\x04\x00" + b"\x00" * 64, filename="Sanglærke.mp3", owner_kind="artikel", owner_id=None, user_id=3)
+        assert a.kind == "lyd" and a.mime == "audio/mpeg" and a.storage_key.endswith(".mp3") and a.thumb_key is None
+        assert (tmp_path / "media" / "art" / a.storage_key).is_file()
         await s.commit()
-        assert len(await content_media.owned(s, "artikel", None, 3)) == 2 and await content_media.owned(s, "artikel", None, 1) == []
+        assert len(await content_media.owned(s, "artikel", None, 3)) == 3 and await content_media.owned(s, "artikel", None, 1) == []
         await content_media.delete_media(s, m1)
         await s.commit()
         assert len(list((tmp_path / "media" / "art").rglob("*"))) > 0

@@ -3,7 +3,7 @@
 Markdown renderes med markdown-it-py og renses bagefter med nh3, så al HTML – også rå HTML en redaktør har skrevet ind –
 kun indeholder tilladte tags, attributter og adresser. Teksten gemmer portable referencer, ikke adresser:
 
-* ``media:<id>``      → billede/fil i content_media (/media/art/…)
+* ``media:<id>``      → billede/fil i content_media (/media/art/…); ``![titel](media:<id>)`` af en lydfil giver en afspiller
 * ``netfugl:<NNNN>``  → artikel med dette netfugl.dk-nummer (#/artikler/n/NNNN)
 * ``artikel:<id>``    → artikel (#/artikler/<id>)
 * ``[[art:<artnr>]]`` → artschip
@@ -35,14 +35,15 @@ SANDBOX = "allow-scripts allow-same-origin allow-popups allow-presentation"
 
 RICH_TAGS = {"p", "h2", "h3", "h4", "h5", "strong", "em", "del", "s", "a", "ul", "ol", "li", "blockquote", "code", "pre",
              "table", "thead", "tbody", "tr", "th", "td", "img", "hr", "br", "sup", "sub", "span", "div", "details",
-             "summary", "iframe", "figure", "figcaption", "section"}
+             "summary", "iframe", "figure", "figcaption", "section", "audio"}
 COMMENT_TAGS = {"p", "strong", "em", "del", "a", "ul", "ol", "li", "blockquote", "code", "br"}
-CLASSES = {"art-galleri", "art-boks", "art-boks-titel", "art-chip", "art-pdf", "art-fig", "art-cap", "art-video",
+CLASSES = {"art-galleri", "art-boks", "art-boks-titel", "art-chip", "art-pdf", "art-fig", "art-cap", "art-video", "art-lyd",
            "footnotes", "footnote-ref", "footnote-item", "footnotes-sep"}
 RICH_ATTRS = {
     "a": {"href", "title", "id"},
     "img": {"src", "alt", "title", "width", "height", "srcset", "sizes", "loading"},
     "iframe": {"src", "width", "height", "allow", "allowfullscreen", "title"},
+    "audio": {"src", "controls", "preload", "title"},
     "td": {"colspan", "rowspan", "align"},
     "th": {"colspan", "rowspan", "align"},
     "li": {"id"},
@@ -54,7 +55,7 @@ RICH_ATTRS = {
 @dataclass
 class Media:
     id: int
-    kind: str  # billede / pdf / fil
+    kind: str  # billede / pdf / lyd / fil
     url: str
     medium_url: str | None = None
     thumb_url: str | None = None
@@ -183,7 +184,7 @@ def _install_renderers(md: MarkdownIt, ctx: Ctx, profile: str) -> None:
                 href = "#"
             else:
                 href = m.url
-                cls = "art-pdf" if m.kind == "pdf" else None
+                cls = {"pdf": "art-pdf", "lyd": "art-lyd"}.get(m.kind)
         elif href.startswith("netfugl:") and href[8:].isdigit():
             href = f"#/artikler/n/{int(href[8:])}"
         elif href.startswith("artikel:") and href[8:].isdigit():
@@ -208,6 +209,10 @@ def _install_renderers(md: MarkdownIt, ctx: Ctx, profile: str) -> None:
         caption = t.attrGet("title") or ""
         if src.startswith("media:") and src[6:].isdigit() and int(src[6:]) in ctx.media:
             m = ctx.media[int(src[6:])]
+            if m.kind == "lyd":
+                cap = caption or alt or m.caption or m.filename
+                return (f'<span class="art-fig art-lyd"><audio controls preload="metadata" src="{htmllib.escape(m.url)}" title="{htmllib.escape(cap)}"></audio>'
+                        f'<span class="art-cap">{htmllib.escape(cap)}</span></span>')
             main = m.medium_url or m.url
             attrs = f'src="{htmllib.escape(main)}" alt="{htmllib.escape(alt or m.alt)}" loading="lazy"'
             if m.width and m.height:
@@ -239,6 +244,7 @@ def _install_renderers(md: MarkdownIt, ctx: Ctx, profile: str) -> None:
 
 _IFRAME_NO_SRC = re.compile(r"<iframe(?![^>]*\ssrc=)[^>]*>\s*</iframe>", re.I)
 _IMG_NO_SRC = re.compile(r"<img(?![^>]*\ssrc=)[^>]*>", re.I)
+_AUDIO_NO_SRC = re.compile(r"<audio(?![^>]*\ssrc=)[^>]*>\s*</audio>", re.I)
 
 
 def sanitize(html: str, profile: str, embed_hosts: set[str], warnings: list[str] | None = None) -> str:
@@ -253,7 +259,7 @@ def sanitize(html: str, profile: str, embed_hosts: set[str], warnings: list[str]
                 return value
             warnings.append(f"Indlejring fra {urlsplit(value).hostname or value} er ikke tilladt (Artikler → Admin → Indstillinger)")
             return None
-        if tag == "img" and attr == "src":
+        if tag in ("img", "audio") and attr == "src":
             return value if value.startswith("/media/") else None
         if tag == "img" and attr == "srcset":
             return value if all(p.strip().startswith("/media/") for p in value.split(",")) else None
@@ -269,7 +275,7 @@ def sanitize(html: str, profile: str, embed_hosts: set[str], warnings: list[str]
         link_rel="noopener noreferrer", set_tag_attribute_values={"iframe": {"sandbox": SANDBOX, "loading": "lazy", "referrerpolicy": "no-referrer"}},
     )
     out = _IFRAME_NO_SRC.sub("", out)
-    return _IMG_NO_SRC.sub("", out)
+    return _AUDIO_NO_SRC.sub("", _IMG_NO_SRC.sub("", out))
 
 
 _BLOCK_END = re.compile(r"</(p|h[1-6]|li|tr|blockquote|div|pre|figcaption)>|<br\s*/?>|</t[dh]>", re.I)
