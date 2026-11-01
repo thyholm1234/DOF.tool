@@ -56,8 +56,8 @@ DOFbasen-obserkoden; portalen gemmer aldrig adgangskoder.
   status på SU/SUB-fugle (*stadig til stede*, *fløjet*, *ikke genfundet*).
 - **Alarmer** – for afdeling, kommune, lokalitet, tegnet polygon, radius eller *din position, der følger dig*. Push til
   browser og app, med stille timer.
-- **Kort** – *Live*: kommandokort over Danmark, hvor hver ny ændring popper op på kortet. *Dag*: en valgfri dags SU, SUB,
-  Bemærk, lokale hits og fænologi på ét kort (den seneste uge ligger klar).
+- **Kort** – *Live* (Nu → Kort): kommandokort over Danmark, hvor hver ny ændring popper op på kortet. *Dagskort* (Statistik):
+  en valgfri dags SU, SUB, Bemærk, lokale hits og fænologi på ét kort (den seneste uge ligger klar).
 
 ### 📝 Indtast i felten
 - **Ture som i app.dofbasen.dk** – lokalitet (søg eller nærmeste), tider, metode, komplet artsliste, vejr (hentes fra DMI),
@@ -70,7 +70,8 @@ DOFbasen-obserkoden; portalen gemmer aldrig adgangskoder.
 - **Noget du har glemt?** – når turen afsluttes, foreslås lokalitetens almindeligste arter, som ikke står på turen.
 
 ### 📊 Lister og data
-- **Lister og scoreboards** – Danmark, matrikel, lokalafdeling, kommune og egne områder; år eller livsliste.
+- **Lister** – ét modul for lister, krydslister og matrikel: Danmark, matrikel, lokalafdeling, kommune og egne områder; år eller
+  livsliste; ranglister, kapløb, grupper og huller. Livslisten for Danmark er krydslisten *Danske Arter* (med manuelle kryds).
 - **Træk og fænologi** – indsatskorrigeret rapporteringsrate, 10/50/90 %-datoer, trends og sammenhæng med temperatur.
 - **Lokaliteter og arter** – sider for hver lokalitet og art med år for år, tid på dagen og adfærd.
 - **Vejrarkiv** – DMI's 10 km-grid pr. døgn, så hver tråd kan vise *vejret den dag*.

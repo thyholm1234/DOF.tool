@@ -120,12 +120,21 @@ Nye observationer i en eksisterende tråd går kun til dem der følger den. Egne
 man selv har observeret i, giver aldrig besked. Alt lander i indbakken (klokken), push respekterer
 stille timer.
 
-**Lister.** Første fund pr. art (underarter tæller som nominatarten; sp./hybrider/tamformer tæller ikke).
+**Menuen** er grupperet efter, hvad man vil: *Nu* (feed med Liste/Kort), *Opslag* (Arter, Lokaliteter, Observatører, Søg i observationer),
+*Analyse* (Træk & fænologi, Statistik med NFL, arter pr. år og Dagskort), *Lister*, *Fotos & artikler*, *Felt* (Kalender, DOF-ture), *Lær*
+(Læring, Mobgang) og *Mit* (Indtastninger, Mine fotos, Mine planer, Alarmer & notifikationer, DKU). Showcases (DOFbasen, Netfugl) står nederst.
+Mobilens faste knapper er Nu · Træk · Indtast · Lister · Mere. Én artsside (`#/art/N`) har fanerne Oversigt, Fotos, Artikler og Kryds, når
+modulerne er synlige. Notifikationsvalg fra Fotos og Artikler ligger under Alarmer → Notifikationer.
+
+**Lister** (`#/lister`) er ét modul for lister, krydslister og matrikel: Oversigt, Mine lister, Mine kryds, Ranglister (alle listetyper),
+Kapløb & grupper, Huller, Matrikel, Artslister, World Bird List, Regler og Admin (krydslisternes faner kræver funktionen `krydslister`).
+Hvad der tæller, er defineret ét sted (`lists.counts_sql`), og deltagerne er de samme. Livslisten for Danmark er krydslisten *Danske Arter*:
+manuelle DK-kryds lægges til, og automatiske kryds, man har skjult, trækkes fra. Første fund pr. art (underarter tæller som nominatarten; sp./hybrider/tamformer tæller ikke).
 Scopes: Danmark, matrikel 1/2 (tag i tur- eller fuglenoter med årets to cifre), lokalafdeling,
 kommune, egne områder; år eller livsliste. Scoreboards caches i Valkey og invalideres når nye
 observationer fra deltagere kommer ind.
 
-**Matrikler** (Lister → Matrikler, som i Boligbirding). Matrikel 1 (#BB26 / #BB26-1) tæller på
+**Matrikler** (Lister → Matrikel, som i Boligbirding). Matrikel 1 (#BB26 / #BB26-1) tæller på
 scoreboards; matrikel 2+ (#BB26-2 …) er private. Matrikler kan navngives og have perioder (adresse,
 fra, evt. til). *Flyt matrikel* afslutter perioden dagen før flyttedatoen og starter en ny – listen og
 scoreboardet tæller kun den aktive periode, så fremgangen nulstilles ved flytning; tidligere perioder og
@@ -139,7 +148,7 @@ træksteder med enkle tommelfingerregler. Se fanen *Metode* i appen.
 **Læring.** Redaktører (rolle *editor*) opretter kurser og spørgsmål med billede/lyd-upload.
 Forkerte svar kommer igen (Leitner-kasser). Fire automatiske quizzer genereres af portalens egne data.
 
-**Moderation** (rolle *moderator* og op; eget menupunkt ved siden af Admin med fanerne Kommentarer, Nyheder, Ture og Arter – listekategorierne ligger under Arter → Kategorier). Fanen Kommentarer har tre underfaner: *Kommentarer* (skjul/vis,
+**Redaktion** (tidligere Moderation; rolle *moderator* og op; eget menupunkt ved siden af Admin med fanerne Oversigt, Kommentarer, Nyheder, Ture og Arter – listekategorierne ligger under Arter → Kategorier, med genveje til Listers artslister og World Bird List). *Oversigt* samler alt, der venter, på tværs af modulerne: fotos til godkendelse, anmeldte foto- og artikelkommentarer og kryds til godkendelse – kun de køer, man har adgang til. Fanen Kommentarer har tre underfaner: *Kommentarer* (skjul/vis,
 skriv til brugeren, udeluk), *Beskeder* (samtaler startet af moderatorer – de ligger i brugerens
 Feedback og support, og alle moderatorer kan svare) og *Udelukkede*. En udelukkelse (som DOF.not's
 blacklist) har en påkrævet årsag, varighed (1/7/30 dage eller indtil videre) og kan skjule brugerens
@@ -179,7 +188,9 @@ Selvstændigt modul bag funktionsflaget `artikler` (standard: forhåndsvisning).
 * **Kommentarer** med anmeld-knap, automatisk skjulning ved flere anmeldelser, moderatorkø (Admin → Moderation → Artikelkommentarer) og udelukkelser.
 * **Notifikationer** om nye artikler og om kommentarer på artikler, man selv har kommenteret (og svar på ens kommentarer).
 * **Markdown-editor** med overskrifter, tabeller, billeder, gallerier, faktabokse, PDF-vedhæftning, indlejring fra godkendte værter, arter,
-  planlagt publicering og revisioner. Samme editor bruges til **portalens nyheder** (Admin → Indhold).
+  planlagt publicering og revisioner. Samme editor bruges til **portalens nyheder** (Redaktion → Nyheder).
+* **Nyheder er en artikeltype** (`kind = nyhed`): de vises på forsiden som før og i Artikler med mærket *Nyhed* og filteret *Slags*. Den gamle tabel
+  `news` flyttes over én gang (`services/news.py`); gamle links `#/nyheder/<nr>` virker via `art_articles.news_id`.
 
 ## Fotos (`#/fotos`)
 
