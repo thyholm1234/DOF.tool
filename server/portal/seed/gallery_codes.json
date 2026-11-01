@@ -1,0 +1,17 @@
+{
+  "koen": [["han", "Han"], ["hun", "Hun"]],
+  "alder": [["k1", "1. kalenderår"], ["k1p", "1. kalenderår eller mere"], ["k2", "2. kalenderår"], ["k2p", "2. kalenderår eller mere"],
+            ["k3", "3. kalenderår"], ["k3p", "3. kalenderår eller mere"], ["k4", "4. kalenderår"], ["k4p", "4. kalenderår eller mere"],
+            ["k5", "5. kalenderår"], ["k5p", "5. kalenderår eller mere"], ["ad", "Adult (udfarvet)"], ["imm", "Immatur (umoden)"],
+            ["juv", "Juvenil (ungfugl i første fjerdragt)"], ["pull", "Pullus (dununge)"], ["sub", "Subadult"]],
+  "dragt": [["lys", "Lys form"], ["moerk", "Mørk form"], ["mellem", "Mellemform"], ["overgang", "Overgangsdragt"],
+            ["sommer", "Sommerdragt/yngledragt"], ["vinter", "Vinterdragt"], ["eklipse", "Eklipsedragt (ænder)"],
+            ["hunfarvet", "Hun-farvet"], ["pragt", "Pragtdragt"]],
+  "adfaerd": [["siddende", "Siddende"], ["flyvende", "Flyvende"], ["staaende", "Stående"]],
+  "tags": [["personer", "Personer"], ["historisk", "Historisk"], ["tvivl_art", "Tvivl om art"], ["tvivl_kad", "Tvivl om køn/alder/dragt"]],
+  "rettigheder": {"1": "Reference til fotografen er påkrævet ved brug af foto (kun ikke-kommerciel brug)",
+                  "2": "Personlig aftale med fotografen er påkrævet for brug af foto",
+                  "3": "Henvendelser om brugsret for foto frabedes af fotografen"},
+  "sjaeldenhed": [["almindelig", "Almindelig"], ["relativ_almindelig", "Relativ almindelig"], ["ualmindelig", "Ualmindelig"],
+                  ["sjaelden", "Sjælden"], ["su", "SU"]]
+}

@@ -111,3 +111,15 @@ Hvad sparer kald:
 * Kommunetilhørsforhold beregnes med kommunepolygoner i PostGIS, ikke med opslag hos DOFbasen.
 
 Status, kø og log kan ses under **Admin → Drift**.
+
+## Fotoarkivet (Fotos → Admin → Import)
+
+Arkivet fra `tools/netfugl_fotos` (40–80 GB) lægges på serveren i mappen `DOF_PHOTO_IMPORT_DIR` (standard `./data/photo-imports`, i containeren
+`/data/photo-imports`) – enten som mappen `Fotos/` omdøbt til en undermappe med `netfugl-fotos/<id>/{meta.json,foto.*}`, eller som `Fotos-*.zip`:
+
+```
+rsync -av --info=progress2 Fotos/ server:/sti/til/data/photo-imports/arkiv/netfugl-fotos/
+```
+
+Under Fotos → Admin → Import vælges undermappen (eller zip-filen); importen køres af workeren, kan afbrydes og køres igen uden dubletter, og fotos
+rettet i DOF.tool overskrives ikke. Mindre zip-filer kan i stedet uploades i dele fra browseren (højst 20 GB).

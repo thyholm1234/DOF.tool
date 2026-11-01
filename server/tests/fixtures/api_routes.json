@@ -658,6 +658,113 @@ true,
 "params": []
 }
 },
+"/api/admin/fotos/fotografer/match": {
+"post": {
+"body": false,
+"op": "match_fotografer_api_admin_fotos_fotografer_match_post",
+"params": []
+}
+},
+"/api/admin/fotos/import": {
+"get": {
+"body": false,
+"op": "import_liste_api_admin_fotos_import_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "import_opret_api_admin_fotos_import_post",
+"params": []
+}
+},
+"/api/admin/fotos/import/mappe": {
+"post": {
+"body": true,
+"op": "import_fra_mappe_api_admin_fotos_import_mappe_post",
+"params": []
+}
+},
+"/api/admin/fotos/import/mapper": {
+"get": {
+"body": false,
+"op": "import_mapper_api_admin_fotos_import_mapper_get",
+"params": []
+}
+},
+"/api/admin/fotos/import/{iid}": {
+"delete": {
+"body": false,
+"op": "import_slet_api_admin_fotos_import__iid__delete",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "import_status_api_admin_fotos_import__iid__get",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/fotos/import/{iid}/del/{n}": {
+"put": {
+"body": false,
+"op": "import_del_api_admin_fotos_import__iid__del__n__put",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+],
+[
+"n",
+"path",
+true,
+"{\"title\": \"N\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/fotos/import/{iid}/dele": {
+"get": {
+"body": false,
+"op": "import_dele_api_admin_fotos_import__iid__dele_get",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/fotos/import/{iid}/start": {
+"post": {
+"body": true,
+"op": "import_start_api_admin_fotos_import__iid__start_post",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/gateway/enqueue": {
 "post": {
 "body": true,
@@ -3609,6 +3716,13 @@ false,
 "{\"anyOf\": [{\"format\": \"date\", \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Date\"}"
 ]
 ]
+}
+},
+"/api/fotos/koder": {
+"get": {
+"body": false,
+"op": "koder_api_fotos_koder_get",
+"params": []
 }
 },
 "/api/health": {

@@ -21,6 +21,14 @@ EXTRA_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_art_articles_body_trgm ON art_articles USING gin (body_text gin_trgm_ops)",
     "CREATE INDEX IF NOT EXISTS ix_art_articles_ocr_trgm ON art_articles USING gin (ocr_text gin_trgm_ops)",
     "CREATE INDEX IF NOT EXISTS ix_art_articles_title_trgm ON art_articles USING gin (title gin_trgm_ops)",
+    # Fotos: fuldtekst over titel, lokalitet og beskrivelse (dansk), som Artiklers søgning
+    "CREATE INDEX IF NOT EXISTS ix_gal_photos_search ON gal_photos USING gin (to_tsvector('danish', "
+    "coalesce(titel, '') || ' ' || coalesce(lokalitet, '') || ' ' || coalesce(beskrivelse_md, '')))",
+    "CREATE INDEX IF NOT EXISTS ix_gal_photos_tags ON gal_photos USING gin (tags)",
+    # Nyt admin-modul: administratorrollen får det én gang (markør i settings), så superadmin bagefter kan fjerne det igen
+    "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM settings WHERE key = 'module_added_fotos') THEN"
+    " UPDATE roles SET modules = array_append(modules, 'fotos') WHERE key = 'admin' AND NOT ('fotos' = ANY(modules));"
+    " INSERT INTO settings (key, value) VALUES ('module_added_fotos', 'true'); END IF; END $$",
     # Portalens nyheder bruger den fælles markdown-editor
     "ALTER TABLE news ADD COLUMN IF NOT EXISTS lead text",
     "ALTER TABLE news ADD COLUMN IF NOT EXISTS body_html text NOT NULL DEFAULT ''",

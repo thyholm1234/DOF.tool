@@ -32,6 +32,8 @@ USER_TABLES = frozenset({
     "nf_auto_lists", "nf_roles", "nf_user_roles", "nf_api_grants", "nf_api_tokens", "nf_audit",
     "art_imports", "content_media", "art_articles", "art_tags", "art_article_tags", "art_species", "art_comments",
     "art_comment_reports", "art_subscriptions", "art_revisions",
+    "gal_photos", "gal_birds", "gal_codes", "gal_countries", "gal_photographers", "gal_groups", "gal_comments",
+    "gal_comment_reports", "gal_likes", "gal_privileges", "gal_banners", "gal_imports",
     "dku_members", "dku_reviews", "dku_candidates", "dku_cases", "dku_participants", "dku_messages",
 })
 ALL_TABLES = OBS_TABLES | REFERENCE_TABLES | USER_TABLES

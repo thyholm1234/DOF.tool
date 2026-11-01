@@ -28,6 +28,7 @@ from portal.api import (
     dofbasen,
     dofbasen_v1,
     feed,
+    fotos,
     geo,
     learn,
     lists,
@@ -201,7 +202,7 @@ async def health():
 
 
 for module in (auth, feed, geo, alerts, lists, science, learn, mobgang, reports, trips, social, calendar, categories, admin, refdata, share,
-               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, stats, observers, artikler, content, media):  # media før /media-mounten
+               dofbasen, dofbasen_v1, netfugl, netfugl_v1, position, privacy, dku, search, stats, observers, artikler, content, fotos, media):  # media før /media-mounten
     app.include_router(module.router)
 
 # ---------------------------------------------------------------- versionerede app-filer

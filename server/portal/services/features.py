@@ -78,6 +78,15 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "artikler_notifikationer": ("Artikler: notifikationer", "Notifikationer om nye artikler og nye kommentarer på artikler, man "
                                 "selv har kommenteret.", "artikler", "on"),
     "artikler_editor": ("Artikler: oprettelse og redigering", "Markdown-editoren og metadata-panelet til artikler.", "artikler", "on"),
+    "fotos": ("Fotos (fotogalleri med netfugl-arkivet)", "Selvstændigt fotogalleri med søgning, upload, moderation og import af hele "
+              "netfugl-arkivet. Importeres under Fotos → Admin → Import. Sættes først til «til», når rettighederne til arkivet er afklaret.",
+              None, "preview"),
+    "fotos_upload": ("Fotos: upload af egne fotos", "Brugere kan uploade fotos; nye fotos afventer godkendelse, medmindre brugeren har "
+                     "privilegiet «Månedlig» eller «Ubegrænset».", "fotos", "on"),
+    "fotos_kommentarer": ("Fotos: kommentarer og likes", "Kommentarer (med svar og anmeldelser) og likes på fotos.", "fotos", "on"),
+    "fotos_dofbasen": ("Fotos: kobling til egne DOFbasen-observationer", "Et foto kan knyttes til fotografens egen observation, så "
+                       "felterne udfyldes, og fotoet vises på observationen i DOFbasen-modulet.", "fotos", "on"),
+    "fotos_bannere": ("Fotos: bannerbilleder", "Moderatorer kan gøre et foto til banner på fotogalleriets top og appens forside.", "fotos", "on"),
 }
 KEY = "features"
 VERSION = "features:version"

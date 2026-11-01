@@ -148,3 +148,46 @@ def strip_tree(root: Path) -> int:
             n += strip_file(p)
     return n
 
+
+
+def read_camera(data: bytes) -> dict:
+    """Kamerafelter fra EXIF (Model, LensModel, FNumber, FocalLength, ExposureTime, ISO, Flash) – læses FØR ``strip``.
+    GPS læses ikke og gemmes ikke. Manglende felter er None."""
+    out = {"model": None, "linse": None, "blaende": None, "braendvidde": None, "lukkertid": None, "iso": None, "flash": None}
+    try:
+        import io
+
+        from PIL import Image
+
+        with Image.open(io.BytesIO(data)) as im:
+            ex = im.getexif()
+            sub = ex.get_ifd(0x8769)  # Exif-IFD
+    except Exception:  # noqa: BLE001 – ødelagt/ukendt EXIF er ikke en fejl
+        return out
+
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
+
+    def txt(v):
+        v = (v.decode("utf-8", "ignore") if isinstance(v, bytes) else str(v or "")).strip("\x00 ").strip()
+        return v[:100] or None
+    out["model"] = txt(ex.get(0x0110))
+    out["linse"] = txt(sub.get(0xA434))
+    if (f := num(sub.get(0x829D))) is not None:
+        out["blaende"] = f"{f:g}"
+    if (f := num(sub.get(0x920A))) is not None:
+        out["braendvidde"] = f"{f:g}"
+    if (t := num(sub.get(0x829A))) is not None and t > 0:
+        out["lukkertid"] = f"1/{round(1 / t)}" if t < 1 else f"{t:g}"
+    iso = sub.get(0x8827)
+    if isinstance(iso, (tuple, list)):
+        iso = iso[0] if iso else None
+    if iso is not None:
+        out["iso"] = str(int(iso)) if num(iso) is not None else None
+    fl = sub.get(0x9209)
+    if fl is not None and num(fl) is not None:
+        out["flash"] = "Ja" if int(fl) & 1 else "Nej"
+    return out

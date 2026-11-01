@@ -39,6 +39,7 @@ x-app: &app
     - ${DOF_ARCHIVE_DIR:-./data/archive}:/archive:ro
     - archive_upload:/data/archive-upload
     - article_imports:/data/article-imports  # artikel-zip'en uploades via api og importeres af workeren: skal deles
+    - ${DOF_PHOTO_IMPORT_DIR:-./data/photo-imports}:/data/photo-imports  # fotoarkivet (Fotos/ eller Fotos-*.zip): rsync'es hertil, eller uploades som zip
     - ./web:/app/web:ro
   depends_on:
     dbadmin:

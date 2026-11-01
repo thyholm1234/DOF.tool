@@ -43,6 +43,7 @@ MODULES = {
     "dofbasen": "DOFbasen: alle rettigheder i DOFbasen-modulet (sider, lister, nyheder, roller, API)",
     "netfugl": "Netfugl: alle rettigheder i Netfugl-modulet (artikler, fotos, krydslister, RSS, roller, API)",
     "artikler": "Artikler: import, redigering, emneord og indstillinger",
+    "fotos": "Fotos: moderation, privilegier, import, fotografer og bannere",
     "dku": "DKU: udpege DKU-ansvarlige pr. lokalafdeling og se alle DKU-sager",
     "lokaliteter": "Lokaliteter: importér grænser og detaljer fra DOFbasen",
 }
@@ -220,6 +221,13 @@ async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -
     user.dof_verified_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(user)
+    try:  # fotografer matchet på obserkode kobles til brugeren (fotomodulet); må aldrig vælte et login
+        from portal.services import photo_photographers
+
+        await photo_photographers.claim_by_obserkode(session, user)
+        await session.commit()
+    except Exception:  # noqa: BLE001
+        await session.rollback()
     if not user.approved:
         if new:
             await _notify_pending(session, user)

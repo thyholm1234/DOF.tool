@@ -41,6 +41,7 @@ from portal.services import (
     locyear,
     netfugl,
     phenology,
+    photo_import,
     regions,
     schedule,
     seasons,
@@ -449,6 +450,8 @@ async def command_listener() -> None:
                 await weather_archive.enqueue([tuple(x) for x in cmd["months"]], only_missing=bool(cmd.get("only_missing")))
             elif name == "articles_import":
                 await run_safely("articles_import", article_import.run_import(cmd["import_id"]))
+            elif name == "photos_import":
+                await run_safely("photos_import", photo_import.run_import(cmd["import_id"]))
             elif name == "articles_species":
                 await run_safely("articles_species", articles_species())
             elif name == "content_rerender":
