@@ -296,6 +296,7 @@ export async function compressImage(file, { max = 2048, quality = 0.6, minBytes 
 
 // Sidevisning til aktivitetsloggen (fejl ignoreres – må aldrig forstyrre brugeren)
 export function trackView(path) {
+  if (state.user?.view_as) return;  // «se som bruger» er kun læsning
   fetch("/api/activity", { method: "POST", credentials: "same-origin", keepalive: true,
     headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" }, body: JSON.stringify({ path }) }).catch(() => {});
 }

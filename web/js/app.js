@@ -151,7 +151,7 @@ let viewAsTimer = null;
 function renderViewAs() {
   const va = state.user?.view_as, old = document.getElementById("viewas");
   clearInterval(viewAsTimer);
-  document.body.classList.toggle("viewas", !!va);
+  document.body.classList.toggle("is-viewas", !!va);
   if (!va) { old?.remove(); return; }
   const bar = old || h("div", { id: "viewas", class: "viewas", role: "status" });
   const end = async () => { try { await api("/api/admin/se-som", { method: "DELETE" }); } catch { /* udløbet */ } location.hash = "#/admin?tab=brugere"; location.reload(); };

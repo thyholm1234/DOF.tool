@@ -25,3 +25,6 @@
 .kl-photos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .kl-photos img { height: 96px; border-radius: 6px; display: block; }
 .kl-statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; } .kl-statgrid > div { background: var(--bg-2); border-radius: 8px; padding: 8px 10px; } .kl-statgrid b { display: block; font-size: 1.15rem; } .kl-statgrid span { font-size: .76rem; color: var(--text-3); }
 @media print { .kl-tabs, .kl-tools, .page-head { display: none; } }
+
+.kl-tools select, .kl-tools input { width: auto; max-width: 100%; }
+.kl-tools select { min-width: 220px; }

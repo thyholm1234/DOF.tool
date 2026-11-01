@@ -45,6 +45,11 @@ ROUTES = [
     "/indtast", "/indtast/tur/ny", "/support", "/dku", "/ture", "/kalender", "/kalender/mine",
     "/dofbasen", "/dofbasen/observationer", "/dofbasen/soeg", "/dofbasen/opslag", "/dofbasen/faeno", "/dofbasen/nyheder",
     "/netfugl", "/netfugl/artikler", "/netfugl/kryds", "/netfugl/arter", "/netfugl/fotos",
+    "/fotos", "/fotos/mine", "/fotos/ny", "/fotos/retningslinjer", "/fotos/admin/koe", "/fotos/admin/privilegier", "/fotos/admin/fotografer", "/fotos/admin/import",
+    "/fotos/admin/kommentarer", "/fotos/admin/bannere", "/fotos/admin/koder", "/fotos/admin/indstillinger",
+    "/krydslister", "/krydslister/alle", "/krydslister/kryds/dk/ranking", "/krydslister/kryds/dk/hvem", "/krydslister/mine", "/krydslister/artslister", "/krydslister/wbl",
+    "/krydslister/regler", "/krydslister/admin/listetyper", "/krydslister/admin/artslister", "/krydslister/admin/wbl", "/krydslister/admin/godkendelse",
+    "/krydslister/admin/indstillinger", "/artikler/admin/forfattere",
 ]
 SKIP_URLS = ("tile.openstreetmap.org",)
 
