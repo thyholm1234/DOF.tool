@@ -1726,6 +1726,13 @@ true,
 "params": []
 }
 },
+"/api/admin/redaktion": {
+"get": {
+"body": false,
+"op": "oversigt_api_admin_redaktion_get",
+"params": []
+}
+},
 "/api/admin/reference-edits/{edit_id}": {
 "delete": {
 "body": false,
@@ -4730,6 +4737,20 @@ true,
 "query",
 false,
 "{\"default\": \"\", \"maxLength\": 60, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/dofart/{artnr}": {
+"get": {
+"body": false,
+"op": "dofart_api_krydslister_dofart__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
 ]
 ]
 }

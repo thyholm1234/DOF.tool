@@ -6,18 +6,23 @@ export const can = (module) => !!state.user?.modules?.includes(module);
 // Admin-sidens faner i rækkefølge: [modul, fanetekst]
 export const ADMIN_TABS = [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"],
   ["brugere", "Brugere"], ["roller", "Roller"], ["lokaliteter", "Lokaliteter"], ["funktioner", "Funktioner"]];
-// Moderationssidens faner (eget menupunkt): [modul, fanetekst]. Arter rummer også listekategorierne (modul "kategorier").
-export const MOD_TABS = [["moderation", "Kommentarer"], ["indhold", "Nyheder"], ["ture", "Ture"], ["arter", "Arter"]];
+// Redaktionens faner (eget menupunkt, tidligere Moderation): [modul, fanetekst]. Oversigt samler modulernes køer;
+// Arter rummer også listekategorierne (modul "kategorier").
+export const MOD_TABS = [["oversigt", "Oversigt"], ["moderation", "Kommentarer"], ["indhold", "Nyheder"], ["ture", "Ture"], ["arter", "Arter"]];
 /** Må den indloggede se fanen? Roller og Funktioner er kun for superadmin (ikke moduler, der kan tildeles). */
 export const hasTab = (m) => ["roller", "funktioner"].includes(m) ? state.user?.role === "superadmin"
   : m === "arter" ? can("arter") || can("kategorier")
-  : m === "lokaliteter" ? can("lokaliteter") && !!state.user?.lokalitetsadmin : can(m);
+  : m === "lokaliteter" ? can("lokaliteter") && !!state.user?.lokalitetsadmin
+  : m === "oversigt" ? hasQueues() : can(m);
+/** Har brugeren mindst én moderationskø (kommentarer, fotos, artikelkommentarer eller kryds)? */
+const hasQueues = () => { const u = state.user || {};
+  return can("moderation") || !!(u.fotos?.can_moderate || u.fotos?.can_moderate_comments || u.artikler?.can_moderate || (u.krydslister?.can_admin && u.krydslister?.features?.krydslister)); };
 /** Menupunkterne for admin og moderation: null = ingen faner. */
 export function adminLink() {
   return ADMIN_TABS.some(([m]) => hasTab(m)) ? { href: "#/admin", label: "Admin", long: "Administration" } : null;
 }
 export function moderationLink() {
-  return MOD_TABS.some(([m]) => hasTab(m)) ? { href: "#/moderation", label: "Moderation", long: "Moderation" } : null;
+  return MOD_TABS.some(([m]) => hasTab(m)) ? { href: "#/moderation", label: "Redaktion", long: "Redaktion" } : null;
 }
 
 // append/replaceChildren ignorerer null/undefined/false, så betingede børn kan skrives som `x ? el : null`

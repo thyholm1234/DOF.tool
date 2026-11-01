@@ -127,3 +127,14 @@ async def test_admin_over_http(web, s):  # noqa: F811
     assert "<h2" in (await web["lb"].get("/api/krydslister/sider/regler")).json()["html"]
     assert (await web["lb"].put("/api/admin/krydslister/indstillinger", json={})).status_code == 403
     assert (await web["lb"].get("/api/krydslister/lister")).json()["years"] == [2026, 2025, 2024]
+
+
+async def test_artsside_kryds_og_redaktion(web, s):  # noqa: F811
+    r = await web["mo"].get("/api/krydslister/dofart/101")
+    assert r.status_code == 200 and {"lister", "kryds"} <= r.json().keys() and "dofb" not in r.json() and "fotos" not in r.json()
+    assert (await web["mo"].get("/api/krydslister/dofart/99999")).json() == {"id": None, "lister": [], "kryds": []}
+    assert (await web["lb"].get("/api/krydslister/dofart/101")).status_code == 404  # forhåndsvisning
+    koeer = {k["key"]: k for k in (await web["mo"].get("/api/admin/redaktion")).json()["koeer"]}
+    assert koeer["kryds"]["href"] == "#/krydslister/admin/godkendelse" and koeer["kryds"]["antal"] >= 0
+    assert (await web["lb"].get("/api/admin/redaktion")).json()["koeer"] == []  # ingen moderationsrettigheder
+    assert (await web["anon"].get("/api/admin/redaktion")).status_code == 401

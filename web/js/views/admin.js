@@ -1,4 +1,4 @@
-// Administration og Moderation: skallen med faner. Hver fane ligger i views/admin/<fane>.js og hentes først, når den
+// Administration og Redaktion (tidligere Moderation): skallen med faner. Hver fane ligger i views/admin/<fane>.js og hentes først, når den
 // åbnes – så man ikke henter hele admin-panelet for at se én fane.
 import { h, seg, params, setParams, errorBox, hasTab, ADMIN_TABS, MOD_TABS } from "../core.js";
 
@@ -12,6 +12,7 @@ const TABS = {
   vejr: () => import("./admin/data.js").then(m => (body, every) => m.dataPanel(body, "weather", (f) => every(f, 5000))),
   aktivitet: () => import("./admin/aktivitet.js").then(m => (body) => m.activityPanel(body)),
   support: () => import("./admin/support.js").then(m => (body) => m.supportPanel(body)),
+  oversigt: () => import("./admin/redaktion.js").then(m => (body) => m.overview(body)),
   moderation: () => import("./admin/moderation.js").then(m => (body) => m.moderation(body)),
   ture: () => import("./admin/ture.js").then(m => (body) => m.portalEvents(body)),
   brugere: () => import("./admin/brugere.js").then(m => (body) => m.users(body)),
@@ -23,7 +24,7 @@ const TABS = {
 };
 
 export const render = (view) => shell(view, ADMIN_TABS, "Administration");
-export const renderModeration = (view) => shell(view, MOD_TABS, "Moderation");
+export const renderModeration = (view) => shell(view, MOD_TABS, "Redaktion");
 
 async function shell(view, allTabs, title) {
   const isMod = allTabs === MOD_TABS;

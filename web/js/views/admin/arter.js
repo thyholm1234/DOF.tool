@@ -1,7 +1,7 @@
-// Moderation → Arter: bemærk-grænser, fænologivinduer, artslisten, listekategorier og manuelle fund.
-import { api, h, icon, fmtN, fmtDate, seg, params, setParams, toast, errorBox, empty, modal, can } from "../../core.js";
+// Redaktion → Arter: bemærk-grænser, fænologivinduer, artslisten, listekategorier og manuelle fund.
+import { api, state, h, icon, fmtN, fmtDate, seg, params, setParams, toast, errorBox, empty, modal, can } from "../../core.js";
 
-// Moderation → Arter: arternes klassifikation, bemærk-filtre pr. lokalafdeling og fænologiens perioder
+// Redaktion → Arter: arternes klassifikation, bemærk-filtre pr. lokalafdeling og fænologiens perioder
 export function species(body) {
   // Arter, Bemærk-filtre og Fænologi hører under modulet arter, listekategorierne under kategorier
   const views = [["arter", "Arter", speciesList, "arter"], ["bemaerk", "Bemærk-filtre", bemaerkPanel, "arter"], ["faenologi", "Fænologi", phenoPanel, "arter"],
@@ -9,7 +9,12 @@ export function species(body) {
   let vis = views.some(v => v[0] === params().vis) ? params().vis : views[0][0];
   const inner = h("div", {});
   const draw = () => { inner.replaceChildren(); setParams({ vis: vis === views[0][0] ? "" : vis }); views.find(v => v[0] === vis)[2](inner); };
-  body.append(h("div", { class: "row mb" }, seg(views.map(v => [v[0], v[1]]), vis, (v) => { vis = v; setParams({ afd: "", art: "", y: "", q: "" }); draw(); })), inner);
+  // Krydslisternes artslister (DK, VP …) og World Bird List redigeres i Krydslister-modulet – genvej herfra, så arterne har ét indgangssted
+  const kl = state.user?.krydslister, klOn = kl?.can_admin && kl.features?.krydslister_wbl;
+  body.append(h("div", { class: "row mb" }, seg(views.map(v => [v[0], v[1]]), vis, (v) => { vis = v; setParams({ afd: "", art: "", y: "", q: "" }); draw(); }),
+    klOn ? h("span", { class: "spacer" }) : null,
+    klOn ? h("a", { class: "btn sm ghost", href: "#/krydslister/admin/artslister" }, "Artslister →") : null,
+    klOn ? h("a", { class: "btn sm ghost", href: "#/krydslister/admin/wbl" }, "World Bird List →") : null), inner);
   draw();
 }
 
