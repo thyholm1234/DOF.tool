@@ -23,8 +23,10 @@ export async function render(view) {
     const last = st.last ? `Sidst synkroniseret ${fmtDate(st.last.at)}: ${fmtN(st.last.rows)} observationer${st.last.deleted ? `, ${fmtN(st.last.deleted)} slettet` : ""}.`
       : st.history_synced_at ? `Historik hentet ${fmtDate(st.history_synced_at)}.` : "Historik er i kø.";
     syncStatus.textContent = st.pending ? `I kø – forventet om ca. ${Math.max(1, Math.round(st.eta / 60))} min. ${last}`
-      : `${last}${st.available ? "" : " Du kan synkronisere igen i morgen."}`;
+      : `${last}${st.available ? "" : ` Du kan synkronisere igen om ${Math.max(1, Math.round(st.available_in / 60))} min.`}`;
+    // Mens jobbet venter, og når knappen bliver ledig igen, opdateres status af sig selv
     if (st.pending) syncTimer = setTimeout(drawSync, 15000);
+    else if (!st.available && st.available_in > 0) syncTimer = setTimeout(drawSync, Math.min(st.available_in, 600) * 1000 + 1000);
   };
   drawSync();
   const p = { lists_public: true, push_enabled: true, afdelinger: [], kommuner: [], ...u.prefs };

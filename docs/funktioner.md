@@ -54,7 +54,7 @@ feedet (eller en alarmregel med området) gælder en radius, der følger brugere
 (`search_result1.php?…&periode=maanedaar&aar_first=1900&aar_second=<i år>&obserdata=<obserkode>`) gennem gatewayen (ét kald i minuttet).
 Ændrede observationer rettes, nye får observationsdatoen som første-set (så de ikke dukker op som nye fund), og brugerens egne
 observationer, der ikke længere findes i DOFbasen, slettes – men kun når udtrækket rummer mindst 90 % af de kendte (ellers slettes intet).
-Højst én gang i døgnet; status og forventet ventetid vises på profilen (`GET/POST /api/me/sync`).
+Højst én gang i timen; status og forventet ventetid vises på profilen (`GET/POST /api/me/sync`).
 
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og

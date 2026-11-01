@@ -142,11 +142,15 @@ async def export_me(user: User = Depends(require_user), db: AsyncSession = Depen
                                        "Cache-Control": "no-store"})
 
 
+RESYNC_EVERY = 3600  # sekunder mellem to synkroniseringer for samme bruger
+
+
 @router.post("/me/sync")
 async def resync(user: User = Depends(require_user)):
-    """Synkronisér alle egne observationer fra DOFbasen (1900 til i år; højst én gang pr. døgn). Ét kald i gatewayens kø."""
-    if not await kv().set(f"resync:{user.id}", "1", nx=True, ex=86400):
-        raise HTTPException(429, "Du har allerede bedt om synkronisering i dag")
+    """Synkronisér alle egne observationer fra DOFbasen (1900 til i år; højst én gang i timen). Ét kald i gatewayens kø."""
+    if not await kv().set(f"resync:{user.id}", "1", nx=True, ex=RESYNC_EVERY):
+        wait = max(1, round(await kv().ttl(f"resync:{user.id}") / 60))
+        raise HTTPException(429, f"Du kan synkronisere igen om {wait} min.")
     job = await gateway.enqueue("history", {"obserkode": user.obserkode, "year_from": 1900, "year_to": dk_today().year, "full": True},
                                 priority=gateway.NORMAL, dedupe=f"history-full:{user.obserkode}")
     await kv().set(f"resync:job:{user.id}", job, ex=86400)
@@ -159,7 +163,8 @@ async def resync_status(user: User = Depends(require_user)):
     job = await kv().get(f"resync:job:{user.id}")
     last = await kv().get(f"resync:result:{user.obserkode}")
     return {**(await gateway.eta([job]) if job else {"pending": False, "eta": None}), "last": json.loads(last) if last else None,
-            "available": not await kv().exists(f"resync:{user.id}"), "history_synced_at": user.history_synced_at}
+            "available": not await kv().exists(f"resync:{user.id}"), "available_in": max(0, await kv().ttl(f"resync:{user.id}")),
+            "history_synced_at": user.history_synced_at}
 
 
 @router.get("/me/stats")
