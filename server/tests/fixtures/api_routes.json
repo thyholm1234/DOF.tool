@@ -765,6 +765,46 @@ true,
 ]
 }
 },
+"/api/admin/fotos/kommentarer": {
+"get": {
+"body": false,
+"op": "kommentar_koe_api_admin_fotos_kommentarer_get",
+"params": [
+[
+"side",
+"query",
+false,
+"{\"default\": 1, \"minimum\": 1, \"title\": \"Side\", \"type\": \"integer\"}"
+],
+[
+"tab",
+"query",
+false,
+"{\"default\": \"anmeldte\", \"enum\": [\"anmeldte\", \"skjulte\", \"seneste\"], \"title\": \"Tab\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/admin/fotos/kommentarer/{cid}/{action}": {
+"post": {
+"body": true,
+"op": "moderer_api_admin_fotos_kommentarer__cid___action__post",
+"params": [
+[
+"action",
+"path",
+true,
+"{\"enum\": [\"skjul\", \"gendan\", \"slet\", \"afvis\"], \"title\": \"Action\", \"type\": \"string\"}"
+],
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/gateway/enqueue": {
 "post": {
 "body": true,
@@ -3718,11 +3758,145 @@ false,
 ]
 }
 },
+"/api/fotos": {
+"get": {
+"body": false,
+"op": "galleri_api_fotos_get",
+"params": [
+[
+"per",
+"query",
+false,
+"{\"default\": 24, \"title\": \"Per\", \"type\": \"integer\"}"
+],
+[
+"side",
+"query",
+false,
+"{\"default\": 1, \"maximum\": 100000, \"minimum\": 1, \"title\": \"Side\", \"type\": \"integer\"}"
+],
+[
+"sort",
+"query",
+false,
+"{\"default\": \"dato\", \"title\": \"Sort\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/fotos/koder": {
 "get": {
 "body": false,
 "op": "koder_api_fotos_koder_get",
 "params": []
+}
+},
+"/api/fotos/kommentarer/{cid}": {
+"delete": {
+"body": false,
+"op": "slet_kommentar_api_fotos_kommentarer__cid__delete",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+},
+"patch": {
+"body": true,
+"op": "ret_kommentar_api_fotos_kommentarer__cid__patch",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/fotos/kommentarer/{cid}/anmeld": {
+"post": {
+"body": true,
+"op": "anmeld_api_fotos_kommentarer__cid__anmeld_post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/fotos/n/{netfugl_id}": {
+"get": {
+"body": false,
+"op": "fra_netfugl_api_fotos_n__netfugl_id__get",
+"params": [
+[
+"netfugl_id",
+"path",
+true,
+"{\"title\": \"Netfugl Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/fotos/{pid}": {
+"get": {
+"body": false,
+"op": "foto_api_fotos__pid__get",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/fotos/{pid}/kommentarer": {
+"get": {
+"body": false,
+"op": "kommentarer_api_fotos__pid__kommentarer_get",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+},
+"post": {
+"body": true,
+"op": "ny_kommentar_api_fotos__pid__kommentarer_post",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/fotos/{pid}/like": {
+"post": {
+"body": false,
+"op": "like_api_fotos__pid__like_post",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
 }
 },
 "/api/health": {

@@ -180,3 +180,13 @@ Selvstændigt modul bag funktionsflaget `artikler` (standard: forhåndsvisning).
 * **Notifikationer** om nye artikler og om kommentarer på artikler, man selv har kommenteret (og svar på ens kommentarer).
 * **Markdown-editor** med overskrifter, tabeller, billeder, gallerier, faktabokse, PDF-vedhæftning, indlejring fra godkendte værter, arter,
   planlagt publicering og revisioner. Samme editor bruges til **portalens nyheder** (Admin → Indhold).
+
+## Fotos (`#/fotos`)
+
+Selvstændigt fotogalleri bag funktionsflaget `fotos` (standard: forhåndsvisning). Specifikation og beslutninger: `docs/netfugl-afloesning-spec.md`.
+
+* **Import af netfugl-arkivet** (Fotos → Admin → Import): hele fotoarkivet fra `tools/netfugl_fotos` (mappe på serveren eller zip) med metadata, fugle,
+  kommentarer og grupper; kan køres igen uden dubletter, og fotos rettet her overskrives ikke. Fotografer matches automatisk på navn.
+* **Galleri** med søgning i titel, lokalitet, beskrivelse, fotograf og art, avanceret søgning (art/race, dato, måned, land, lokalitet, køn, alder, dragt,
+  adfærd, emneord) og fem sorteringer; filtrene ligger i adressen. Fotos af samme fund vises som ét kort.
+* **Fotoside** med lysboks, alle fugle, kamera, rettigheder, likes, visninger, kommentarer (arkiv fra netfugl.dk kun til læsning) og interne noter til moderatorer.

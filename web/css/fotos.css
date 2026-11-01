@@ -1,0 +1,75 @@
+/* Fotomodulet (#/fotos). Alt er afgrænset til .fot og bruger portalens designtokens (lys/mørk). */
+.fot { max-width: 1280px; margin: 0 auto; padding: 0 0 48px; }
+.fot a { color: inherit; }
+.fot .muted { color: var(--text-3); }
+.fot-head { align-items: center; margin-bottom: 10px; }
+.fot-head h1 { margin: 0; } .fot-head h1 a { text-decoration: none; }
+.fot-tabs { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+.fot-tabs .seg a { font-size: .84rem; font-weight: 600; color: var(--text-2); padding: 6px 12px; border-radius: 8px; white-space: nowrap; flex: none; text-decoration: none; }
+.fot-tabs .seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.fot-subtabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.fot-subtabs a { padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: .86rem; color: var(--text-2); }
+.fot-subtabs a.on { background: var(--brand-soft); color: var(--brand); font-weight: 650; }
+
+/* galleri */
+.fot-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 10px; }
+.fot-bar .field.inline { display: flex; align-items: center; gap: 6px; margin: 0; }
+.fot-adv { margin: 0 0 14px; } .fot-adv summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+.fot-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin: 10px 0; }
+.fot-filters select, .fot-filters input { width: 100%; }
+.fot-suggest { display: flex; flex-direction: column; } .fot-suggest button { text-align: left; padding: 4px 8px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; }
+.fot-count { font-size: .85rem; color: var(--text-3); margin: 4px 0 10px; }
+.fot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.fot-card { display: block; text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; transition: transform .15s, box-shadow .15s; }
+.fot-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.fot-img { position: relative; aspect-ratio: 3 / 2; background: var(--bg-2); overflow: hidden; }
+.fot-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fot-badge { position: absolute; right: 6px; top: 6px; background: rgb(0 0 0 / 70%); color: #fff; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.fot-badge.warn { left: 6px; right: auto; background: var(--warn); }
+.fot-card-body { padding: 8px 10px 10px; font-size: .9rem; }
+.fot-meta { font-size: .78rem; color: var(--text-3); display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.fot-stats { white-space: nowrap; }
+.fot-banner { display: block; position: relative; margin-bottom: 14px; border-radius: var(--radius); overflow: hidden; }
+.fot-banner img { width: 100%; aspect-ratio: 3 / 1; object-fit: cover; display: block; }
+.fot-banner span { position: absolute; left: 10px; bottom: 8px; color: #fff; text-shadow: 0 1px 3px rgb(0 0 0 / 70%); font-size: .85rem; }
+.fot-pager { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 22px 0 0; }
+.fot-pager a, .fot-pager span { padding: 5px 11px; border-radius: 7px; border: 1px solid var(--line); text-decoration: none; font-size: .88rem; }
+.fot-pager .on { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* fotoside */
+.fot-hero { position: relative; display: flex; justify-content: center; background: var(--bg-2); border-radius: var(--radius); overflow: hidden; }
+.fot-main { max-width: 100%; max-height: 78vh; width: auto; height: auto; object-fit: contain; display: block; cursor: zoom-in; }
+.fot-nav { position: absolute; top: 0; bottom: 0; width: 56px; display: flex; align-items: center; justify-content: center; font-size: 2.4rem; color: #fff; text-decoration: none; text-shadow: 0 1px 4px rgb(0 0 0 / 60%); }
+.fot-nav.l { left: 0; } .fot-nav.r { right: 0; } .fot-nav:hover { background: rgb(0 0 0 / 20%); }
+.fot-group { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 0; }
+.fot-group a { width: 72px; height: 54px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; opacity: .75; }
+.fot-group a.on { border-color: var(--brand); opacity: 1; } .fot-group img { width: 100%; height: 100%; object-fit: cover; }
+.fot-cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; margin-top: 18px; }
+.fot-bird { margin-bottom: 6px; } .fot-desc { color: var(--text-2); }
+.fot-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.fot-row .k { color: var(--text-3); }
+.fot-map { height: 200px; border-radius: var(--radius-sm); margin-top: 10px; overflow: hidden; }
+.btn.like.on { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
+.fot-lightbox { text-align: center; } .fot-zoom { max-width: 100%; max-height: 80vh; cursor: zoom-in; } .fot-zoom.on { max-width: none; max-height: none; cursor: zoom-out; }
+.fot-lightbox { overflow: auto; max-height: 85vh; }
+.fot-admin { margin-top: 22px; padding: 12px 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius); }
+.fot-admin h4 { margin: 0 0 8px; }
+@media (max-width: 760px) { .fot-cols { grid-template-columns: 1fr; } .fot-row { grid-template-columns: 90px 1fr; } }
+
+/* kommentarer */
+.fot-comments { margin-top: 28px; max-width: 760px; }
+.fot-comment { padding: 10px 0; border-bottom: 1px solid var(--line); } .fot-comment.reply { margin-left: 22px; border-left: 3px solid var(--line); padding-left: 12px; border-bottom: 0; }
+.fot-comment .who { font-weight: 650; } .fot-comment .when { color: var(--text-3); font-size: .78rem; margin-left: 8px; }
+.fot-comment .txt { margin: 4px 0; } .fot-comment .acts { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.fot-comment .acts button { background: none; border: 0; padding: 0; color: var(--text-3); font-size: .8rem; cursor: pointer; } .fot-comment .acts button:hover { color: var(--brand); }
+.fot-comment.hidden { opacity: .6; } .fot-comment.hl { background: var(--brand-soft); }
+.fot-compose textarea { width: 100%; }
+.fot-intern { margin-top: 20px; padding: 10px 12px; background: var(--warn-soft); border: 1px solid var(--warn); border-radius: var(--radius-sm); }
+.fot-archive { margin: 8px 0; }
+
+/* admin */
+.fot-statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.fot-statgrid > div { background: var(--bg-2); border-radius: 8px; padding: 8px 10px; } .fot-statgrid b { display: block; font-size: 1.15rem; } .fot-statgrid span { font-size: .76rem; color: var(--text-3); }
+.fot-log { max-height: 280px; overflow: auto; font-size: .8rem; font-family: var(--mono, monospace); background: var(--bg-2); padding: 8px; border-radius: 6px; }
+.fot-log .fejl { color: var(--danger, #c0392b); } .fot-log .advarsel { color: var(--warn); }
+.fot-progress { height: 8px; background: var(--bg-2); border-radius: 4px; overflow: hidden; } .fot-progress div { height: 100%; background: var(--brand); transition: width .2s; }

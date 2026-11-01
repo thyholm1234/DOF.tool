@@ -3,7 +3,9 @@ SQL ligger i services (photo_*)."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,7 @@ from portal.api.deps import require_user
 from portal.cache import worker_command
 from portal.db import get_session
 from portal.models import GalImport, User
-from portal.services import photo_access, photo_import, photo_photographers, photo_upload
+from portal.services import photo_access, photo_comments, photo_import, photo_photographers, photo_upload
 
 router = APIRouter(prefix="/api/admin/fotos", tags=["admin"])
 
@@ -148,3 +150,40 @@ async def match_fotografer(acc: photo_access.Access = Depends(need()), db: Async
     out = await photo_photographers.match_all(db)
     await db.commit()
     return out
+
+
+# ---------------------------------------------------------------- kommentarmoderation
+
+class ModerateIn(BaseModel):
+    reason: str = Field("", max_length=500)
+
+
+def need_comments():
+    async def dep(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> photo_access.Access:
+        acc = await photo_access.context(db, user)
+        if not acc.on("fotos_kommentarer"):
+            raise HTTPException(404, "Funktionen er ikke slået til")
+        if not (acc.can_moderate_comments or acc.can_moderate):
+            raise HTTPException(403, "Du har ikke adgang til dette")
+        return acc
+
+    return dep
+
+
+@router.get("/kommentarer")
+async def kommentar_koe(tab: Literal["anmeldte", "skjulte", "seneste"] = "anmeldte", side: int = Query(1, ge=1), acc: photo_access.Access = Depends(need_comments()),
+                        db: AsyncSession = Depends(get_session)):
+    try:
+        return await photo_comments.queue(db, tab, 50, (side - 1) * 50)
+    except photo_comments.CommentError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+
+
+@router.post("/kommentarer/{cid}/{action}")
+async def moderer(cid: int, action: Literal["skjul", "gendan", "slet", "afvis"], body: ModerateIn, user: User = Depends(require_user),
+                  acc: photo_access.Access = Depends(need_comments()), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_comments.moderate(db, user, cid, action, body.reason)
+    except photo_comments.CommentError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+    return {"ok": True}

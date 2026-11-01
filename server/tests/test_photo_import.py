@@ -138,6 +138,8 @@ async def db(tmp_path, monkeypatch):
         session.add(User(id=1, obserkode="LB", navn="Leif Bolding", role="user"))
         session.add(User(id=2, obserkode="A1", navn="Anna Andersen", role="user"))
         session.add(User(id=3, obserkode="A2", navn="Anna  andersen", role="user"))
+        session.add(User(id=4, obserkode="AD", navn="Admin Adminsen", role="admin"))
+        session.add(User(id=5, obserkode="SU", navn="Super Bruger", role="superadmin"))
         for nr, navn, latin in [(1, "Dværgterne", "Sternula albifrons"), (2, "Ravn", "Corvus corax")]:
             session.add(Species(artnr=nr, navn=navn, latin=latin, sortering=nr, art_type="art"))
         await session.execute(text("INSERT INTO locations (loknr, navn, lat, lon) VALUES (100, 'Tisvildekysten', 56.05, 12.01), (101, 'Tisvildekysten', 57.5, 10.0)"))

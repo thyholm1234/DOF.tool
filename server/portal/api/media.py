@@ -6,9 +6,13 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.services import content_media, storage
+from portal.api.deps import optional_user
+from portal.db import get_session
+from portal.models import User
+from portal.services import content_media, photo_access, photos, storage
 
 router = APIRouter(include_in_schema=False)
 RANGE = re.compile(r"bytes=(\d*)-(\d*)$")
@@ -25,10 +29,18 @@ ART_NAME = re.compile(r"^[0-9a-f]{2}/[0-9a-f]{64}(-[tm])?\.[a-z0-9]{2,5}$")
 
 
 @router.api_route("/media/art/{name:path}", methods=["GET", "HEAD"])
-async def art_media(name: str, request: Request) -> Response:
-    """Artikelmodulets medier. Navnene er indholdets SHA-256 og kan ikke gættes. Cache-Control sættes af vagten i main.py (private, 24 timer)."""
+async def art_media(name: str, request: Request, user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)) -> Response:
+    """Artikelmodulets medier. Navnene er indholdets SHA-256 og kan ikke gættes. Cache-Control sættes af vagten i main.py (private, 24 timer).
+    Fotos (owner_kind «foto») ses kun, når fotomodulet er synligt for brugeren og fotoet er publiceret – eller brugeren ejer det eller er moderator."""
     if not ART_NAME.match(name):
         raise HTTPException(404)
+    info = await photos.media_info(db, name)
+    if info.get("photo"):
+        acc = await photo_access.context(db, user)
+        if user is None or not acc.on("fotos"):
+            raise HTTPException(404)
+        if info["status"] != "publiceret" and not (acc.can_moderate or info["user_id"] == user.id):
+            raise HTTPException(404)
     ext = "." + name.rsplit(".", 1)[1]
     extra = {"X-Content-Type-Options": "nosniff"}
     if ext in content_media.DOWNLOAD_ONLY:  # kunne ellers vises som side i browseren
