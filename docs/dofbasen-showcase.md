@@ -25,7 +25,7 @@ DOFbasen-rolle) og *Til* (alle indloggede). En underfunktion virker kun, når mo
 | API og tokens | `dofbasen_api` | forhåndsvisning |
 
 Tilstanden ligger i `settings` (nøglen `features`) og caches pr. proces med en versionsnøgle i Valkey
-(`services/features.py`). Menupunktet *DOFbasen* (under Værktøjer) vises kun, når modulet er synligt for brugeren.
+(`services/features.py`). Menupunktet *DOFbasen* (under Showcases nederst i menuen) vises kun, når modulet er synligt for brugeren.
 
 ## Sider (original → showcase)
 
