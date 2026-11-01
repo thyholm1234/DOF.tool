@@ -15,11 +15,10 @@ export async function render(view) {
   const tab = params().tab || "regler";
   const body = h("div", {});
   view.append(h("div", { class: "page-head" },
-    h("div", {}, h("h1", {}, "Alarmer & notifikationer"), h("p", { class: "lead" }, "Få besked om sjældne fugle og lokale hits – i hele landet, din afdeling, din kommune eller et område du selv tegner.")),
+    h("div", {}, h("h1", {}, "Alarmer"), h("p", { class: "lead" }, "Få besked om sjældne fugle og lokale hits – i hele landet, din afdeling, din kommune eller et område du selv tegner.")),
     h("span", { class: "spacer" }),
-    seg([["regler", "Regler"], ["omraader", "Områder"], ["notifikationer", "Notifikationer"], ["enheder", "Push & enheder"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })), body);
-  const notifs = async (b) => (await import("../alarmer-notifikationer.js")).notifications(b);
-  const draw = (t) => ({ regler: rules, omraader: areas, notifikationer: notifs, enheder: devices }[t] || rules)(body);
+    seg([["regler", "Regler"], ["omraader", "Områder"], ["enheder", "Push & enheder"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })), body);
+  const draw = (t) => ({ regler: rules, omraader: areas, enheder: devices }[t] || rules)(body);
   await draw(tab);
 }
 

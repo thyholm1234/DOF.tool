@@ -33,8 +33,8 @@ else:
 thread = f"/traad/{t['dato']}/{t['artnr']}/{t['loknr']}"
 ROUTES = [
     "/", "/?level=SU", "/?level=local", "/?level=pheno", thread, f"/traad/{su['dato']}/{su['artnr']}/{su['loknr']}",
-    "/lister", "/lister/mine", "/lister/huller", "/lister/kaploeb", "/lister/matrikel", "/lister/matrikel?tab=liste",
-    "/lister/matrikel?tab=score", "/lister/matrikel?tab=matrikler", "/?vis=kort", "/alarmer?tab=notifikationer", "/moderation?tab=oversigt",
+    "/lister", "/lister?tab=huller", "/lister?tab=score", "/lister?tab=grupper", "/matrikel", "/matrikel?tab=liste",
+    "/matrikel?tab=score", "/matrikel?tab=matrikler",
     "/traek", "/traek?tab=status", "/traek?tab=ankomst", "/traek?tab=vejr", "/traek?tab=klima", "/traek?tab=metode",
     "/kort", "/kort?tab=dag", "/puls", "/arter", f"/art/{su['artnr']}", f"/art/{t['artnr']}", "/lokaliteter",
     f"/lok/{t['loknr']}", f"/lok/{t['loknr']}/art/{t['artnr']}", "/soeg", "/statistik", "/statistik?tab=nfl",
@@ -47,9 +47,9 @@ ROUTES = [
     "/netfugl", "/netfugl/artikler", "/netfugl/kryds", "/netfugl/arter", "/netfugl/fotos",
     "/fotos", "/fotos/mine", "/fotos/ny", "/fotos/retningslinjer", "/fotos/admin/koe", "/fotos/admin/privilegier", "/fotos/admin/fotografer", "/fotos/admin/import",
     "/fotos/admin/kommentarer", "/fotos/admin/bannere", "/fotos/admin/koder", "/fotos/admin/indstillinger",
-    "/lister/alle", "/lister/kryds/dk/ranking", "/lister/kryds/dk/hvem", "/lister/mine/kryds", "/lister/artslister", "/lister/wbl",
-    "/lister/regler", "/lister/admin/listetyper", "/lister/admin/artslister", "/lister/admin/wbl", "/lister/admin/godkendelse",
-    "/lister/admin/indstillinger", "/artikler/admin/forfattere",
+    "/krydslister", "/krydslister/alle", "/krydslister/kryds/dk/ranking", "/krydslister/kryds/dk/hvem", "/krydslister/mine", "/krydslister/artslister", "/krydslister/wbl",
+    "/krydslister/regler", "/krydslister/admin/listetyper", "/krydslister/admin/artslister", "/krydslister/admin/wbl", "/krydslister/admin/godkendelse",
+    "/krydslister/admin/indstillinger", "/artikler/admin/forfattere",
 ]
 SKIP_URLS = ("tile.openstreetmap.org",)
 

@@ -7,41 +7,44 @@ import { initSelectMenu } from "./select-menu.js";
 const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 initSelectMenu();
 
-// Navigation i grupper efter hvad brugeren vil – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil).
-// Hvert punkt: [adresse, ikon, tekst, synlig?]; uden synlig? vises punktet altid.
-const usr = () => state.user || {};
+// Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
-  ["Nu", [["#/", "now", "Nu"]]],
-  ["Opslag", [["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"],
-    ["#/observator", "user", "Observatører", () => usr().profiler], ["#/soeg", "search", "Søg i observationer", () => usr().search]]],
-  ["Analyse", [["#/traek", "trend", "Træk & fænologi"], ["#/statistik", "chart", "Statistik", () => usr().statistik],
-    // Dagskortet ligger i Statistik; uden Statistik-modulet har det sit eget punkt
-    ["#/kort?tab=dag", "map", "Dagskort", () => usr().daymap && !usr().statistik]]],
-  // Lister, krydslister og matrikel er ét modul (views/lister.js)
-  ["Lister", [["#/lister", "list", "Lister"]]],
-  ["Fotos & artikler", [["#/fotos", "camera", "Fotos", () => usr().fotos?.features?.fotos],
-    ["#/artikler", "news", "Artikler", () => usr().artikler?.features?.artikler]]],
-  ["Felt", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
-  ["Lær", [["#/laer", "learn", "Læring"], ["#/mobgang", "sound", "Mobgang"]]],
-  ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/fotos/mine", "camera", "Mine fotos", () => usr().fotos?.features?.fotos],
-    ["#/kalender/mine", "calendar", "Mine planer"], ["#/alarmer", "bell", "Alarmer & notifikationer"],
-    // DKU med antal sager med ulæste beskeder, når modulet er synligt for brugeren
-    ["#/dku", "check", () => `DKU${usr().dku?.unread ? ` <span class="badge-inline">${+usr().dku.unread}</span>` : ""}`, () => usr().dku?.visible]]],
+  ["Nu og her", [["#/", "now", "Nu"]]],
+  ["Ud i felten", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
+  ["Statistik", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
+  ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
+  ["Værktøjer", [["#/laer", "learn", "Læring"], ["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
+  ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
-// Showcases (nye udgaver af dofbasen.dk og netfugl.dk) står nederst, efter Admin
-const SHOWCASES = [["#/dofbasen", "db", "DOFbasen", () => usr().dofbasen?.features?.dofbasen], ["#/netfugl", "bird", "Netfugl", () => usr().netfugl?.features?.netfugl]];
-const visible = (items) => items.filter(n => !n[3] || n[3]()).map(([href, ic, label]) => [href, ic, typeof label === "function" ? label() : label]);
-/** Menuens grupper for den indloggede – punkter bag funktionsflag vises kun, når de er synlige for brugeren. */
-const sections = () => SECTIONS.map(([t, items]) => [t, visible(items)]).filter(([, items]) => items.length);
-const showcases = () => visible(SHOWCASES);
-const NAV = [...SECTIONS, ["", SHOWCASES]].flatMap(([, items]) => items).map(([href, ic, label]) => [href, ic, typeof label === "function" ? "DKU" : label]);
+const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
+const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
+const ARTIKLER = ["#/artikler", "news", "Artikler"];
+const FOTOS = ["#/fotos", "camera", "Fotos"];
+const KRYDS = ["#/krydslister", "list", "Krydslister"];
+const SEARCH = ["#/soeg", "search", "Søg"];
+const STATS = ["#/statistik", "chart", "Statistik"];
+const OBSERVERS = ["#/observator", "user", "Observatører"];
+/** Showcases (DOFbasen og Netfugl) står nederst, efter Admin – kun når superadmin har slået modulerne til (eller forhåndsvisning). */
+const showcases = () => [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null].filter(Boolean);
+/** Menuens grupper for den indloggede: modulerne bag funktionsflag vises kun, når de er slået til (eller forhåndsvisning). */
+function sections() {
+  const extra = [state.user?.artikler?.features?.artikler ? ARTIKLER : null, state.user?.fotos?.features?.fotos ? FOTOS : null, state.user?.krydslister?.features?.krydslister ? KRYDS : null].filter(Boolean);
+  // DKU under "Mit" (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
+  const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
+  // Statistik-modulet og Søg under Statistik, når funktionerne er synlige for brugeren
+  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler ? OBSERVERS : null].filter(Boolean);
+  if (!extra.length && !dku && !stat.length) return SECTIONS;
+  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku]
+    : t === "Statistik" ? [...items, ...stat] : items]);
+}
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, KRYDS, STATS, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"]];
 const navItem = (href) => NAV.find(n => n[0] === href);
-const BOTTOM = ["#/", "#/traek", "#/lister"];  // mobilens faste knapper (plus Indtast og Mere)
+const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
 /** Det mest specifikke menupunkt der matcher stien (så #/kalender/mine ikke også markerer Kalender). */
 function activeHref(path, hrefs) {
   // en arts side hører under Arter, en lokalitets side under Lokaliteter
-  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter" : path === "#/kort" ? "#/kort?tab=dag" : path;
+  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter" : path;
   return hrefs.filter(href => href === "#/" ? p === "#/" : p === href || p.startsWith(href + "/") || p.startsWith(href + "?"))
     .sort((a, b) => b.length - a.length)[0];
 }
@@ -49,8 +52,8 @@ function activeHref(path, hrefs) {
 const ROUTES = [
   [/^\/?$/, () => import("./views/feed.js")],
   [/^\/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)$/, () => import("./views/thread.js")],
-  [/^\/lister(?:\/(.+))?$/, () => import("./views/lister.js")],
-  [/^\/(matrikel|krydslister)(?:\/(.+))?$/, () => import("./views/lister-gammel.js")],  // gamle adresser sendes videre
+  [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
+  [/^\/matrikel$/, () => import("./views/matrikel.js")],
   [/^\/traek$/, () => import("./views/pheno.js")],
   [/^\/(?:kort|puls)$/, () => import("./views/kort.js")],  // #/puls er den gamle adresse
   [/^\/arter$/, () => import("./views/arter.js")],
@@ -78,6 +81,7 @@ const ROUTES = [
   [/^\/netfugl(?:\/(.+))?$/, () => import("./views/netfugl.js")],
   [/^\/artikler(?:\/(.+))?$/, () => import("./views/artikler.js")],
   [/^\/fotos(?:\/(.+))?$/, () => import("./views/fotos.js")],
+  [/^\/krydslister(?:\/(.+))?$/, () => import("./views/krydslister.js")],
   [/^\/nyheder\/(\d+)$/, () => import("./views/nyhed.js")],
 ];
 
@@ -89,11 +93,11 @@ function renderNav() {
   const link = ([href, ic, label], cls = "") =>
     h("a", { href, class: `${cls} ${href === current ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
   document.body.classList.toggle("anon", !state.user);
-  // Mobil: Nu · Træk · [Indtast] · Lister · Mere (resten i arket, i samme grupper som sidepanelet)
+  // Mobil: Nu · Træk · [Indtast] · Kalender · Mere (resten i arket, i samme grupper som sidepanelet)
   const inMore = current && !BOTTOM.includes(current);
   const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
-    ? [link(navItem("#/")), link(["#/traek", "trend", "Træk"]), link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"), link(navItem("#/lister")), more]
+    ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
     : []));
   const side = [];
   for (const [title, items] of sections()) side.push(h("div", { class: "nav-h" }, title), ...items.map(n => link(n)));
@@ -214,7 +218,7 @@ function openMenu() {
     h("a", { href: "#/alarmer", onclick: close, html: `${icon("bell")} Alarmer og områder` }),
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
-    h("a", { href: `#/lister/mine`, onclick: close, html: `${icon("list")} Mine lister` }),
+    h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     mod ? h("a", { href: mod.href, onclick: close, html: `${icon("check")} ${mod.long}` }) : null,
     adm ? h("a", { href: adm.href, onclick: close, html: `${icon("shield")} ${adm.long}` }) : null,
     h("button", { onclick: () => { close(); logout(); }, html: `${icon("logout")} Log ud` }),

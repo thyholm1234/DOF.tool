@@ -187,18 +187,6 @@ async def art(taxon_id: int, acc: kl_access.Access = Depends(need("krydslister_w
         raise _err(exc) from exc
 
 
-@router.get("/dofart/{artnr}")
-async def dofart(artnr: int, acc: kl_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
-    """Fanen Kryds på artssiden (#/art/N): lister og kryds for DOFbasen-arten – uden fund og fotos, som artssiden selv viser."""
-    tid = await kl_species.taxon_for_artnr(db, artnr)
-    if tid is None:
-        return {"id": None, "lister": [], "kryds": []}
-    try:
-        return await kl_species.species_page(db, tid, with_photos=False, with_dofb=False)
-    except krydslister.KlError as exc:
-        raise _err(exc) from exc
-
-
 @router.get("/sider/{slug}")
 async def side(slug: str, acc: kl_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     if slug not in ("om", "regler"):

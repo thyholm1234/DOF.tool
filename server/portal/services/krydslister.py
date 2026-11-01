@@ -18,7 +18,7 @@ from portal.cache import bump, cached, kv, version
 from portal.config import SEED_DIR
 from portal.db import ObsSession
 from portal.models import KlKryds, KlListDef, KlSpeciesList, KlSpeciesListEntry, KlTaxon, User
-from portal.services import lists
+from portal.services import categories
 from portal.services.setting_store import get_setting_dict, put_setting
 from portal.timeutil import dk_today
 
@@ -158,7 +158,9 @@ async def list_name(session: AsyncSession, d: dict, p: str | None) -> str:
 async def participants(session: AsyncSession) -> dict[str, str]:
     """obserkode → navn. «brugere»: portalens brugere, der viser deres lister. «aktive»: de mest aktive DOFbasen-observatører (demo)."""
     st = await settings(session)
-    out = {p["obserkode"]: p["navn"] for p in await lists.participants(session)}  # samme deltagere som Lister
+    rows = (await session.execute(text("""
+        SELECT obserkode, coalesce(navn, obserkode) FROM users WHERE NOT blocked AND approved AND coalesce((prefs->>'lists_public')::boolean, true)"""))).all()
+    out = {r[0]: r[1] for r in rows}
     if st["participants"] == "aktive":
         for kode, navn in json.loads(await kv().get("kl:aktive") or "[]"):
             out.setdefault(kode, navn)
@@ -178,10 +180,10 @@ async def refresh_active(session: AsyncSession) -> None:
     await kv().set("kl:aktive", json.dumps([[r[0], r[1] or r[0]] for r in rows]))
 
 
-def _countable(regler: dict) -> str | None:
+def _countable(regler: dict) -> str:
     cats = [c for c in (regler.get("kategorier") or ["A", "B", "C"]) if c in "ABCDEF"]
     if cats == ["A", "B", "C"]:
-        return None  # standard (lists.counts_sql): kun arter med kategori, overstyring eller [klammer] slås op (hurtigt)
+        return categories.countable_sql()  # standard: kun arter med kategori, overstyring eller [klammer] slås op (hurtigt)
     return "bird_category(s.artnr, s.list_artnr, o.loknr, o.dato) IN (" + ", ".join(f"'{c}'" for c in cats) + ")"
 
 
@@ -193,7 +195,7 @@ def auto_queries(defs_: dict[str, dict]) -> list[tuple[str, dict]]:
             continue
         key, countable = d["key"], _countable(d["regler"])
         base = f"""FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
-            WHERE o.obserkode = ANY(:codes) AND {lists.counts_sql(countable)}"""
+            WHERE o.obserkode = ANY(:codes) AND s.list_artnr IS NOT NULL AND NOT ls.excluded AND o.antal > 0 AND o.dato <= current_date AND {countable}"""
         if d["param"] is None:
             out.append((f"""SELECT DISTINCT ON (o.obserkode, s.list_artnr) o.obserkode, '{key}', s.list_artnr, o.dato, o.obsid, o.loknr {base}
                 ORDER BY o.obserkode, s.list_artnr, o.dato, o.obsid""", d))
@@ -300,31 +302,6 @@ async def load_kryds(session: AsyncSession, key: str) -> dict:
         return {"people": people, "rows": list(best.values()), "name": await list_name(session, d, p)}
 
     return await cached(f"kl:kryds:{key}:{await version(VERSION)}", 6 * 3600, produce)
-
-
-async def merge_life_list(session: AsyncSession, obserkode: str, items: list[dict]) -> list[dict]:
-    """Livslisten for Danmark (Lister → Mine lister) og krydslisten «dk» er samme liste: deltagerens manuelle DK-kryds lægges til,
-    og automatiske kryds, deltageren har skjult (fx fejlbestemmelser), trækkes fra. items er lists.year_list-rækker (artnr = listeart)."""
-    man = (await session.execute(text("""
-        SELECT artnr, dato, lokalitet, hidden FROM kl_kryds WHERE liste = 'dk' AND obserkode = :k AND status = 'ok' AND artnr IS NOT NULL"""),
-        {"k": obserkode})).mappings().all()
-    if not man:
-        return items
-    sp = {r[0]: r for r in (await session.execute(text("""
-        SELECT s.artnr, s.list_artnr, ls.navn, ls.klass, ls.sortering FROM species s JOIN species ls ON ls.artnr = s.list_artnr WHERE s.artnr = ANY(:a)"""),
-        {"a": list({m["artnr"] for m in man})})).all()}
-    hidden = {sp[m["artnr"]][1] for m in man if m["hidden"] and m["artnr"] in sp}
-    out = [i for i in items if i["artnr"] not in hidden]
-    have = {i["artnr"] for i in out}
-    for m in man:
-        if m["hidden"] or m["artnr"] not in sp or sp[m["artnr"]][1] in have:
-            continue
-        _, la, navn, klass, sortering = sp[m["artnr"]]
-        have.add(la)
-        out.append({"artnr": la, "art": navn, "klass": klass, "sortering": sortering, "dato": m["dato"].isoformat() if m["dato"] else None,
-                    "loknr": None, "lok": m["lokalitet"], "obsid": None, "kilde": "manuel"})
-    out.sort(key=lambda r: (r["dato"] or "9999", r["obsid"] or 0))
-    return out
 
 
 def ranking(data: dict) -> list[dict]:

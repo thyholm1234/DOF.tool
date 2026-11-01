@@ -25,7 +25,7 @@ LEFT JOIN LATERAL (
            coalesce(m.medium_key, CASE WHEN m.kind = 'billede' THEN m.storage_key END) AS cover_medium,
            m.width AS cover_w, m.height AS cover_h, m.alt AS cover_alt
     FROM content_media m
-    WHERE m.owner_kind IN ('artikel', 'nyhed') AND m.owner_id = a.id AND (m.id = a.cover_media_id OR m.kind = 'billede' OR (m.kind = 'pdf' AND m.thumb_key IS NOT NULL))
+    WHERE m.owner_kind = 'artikel' AND m.owner_id = a.id AND (m.id = a.cover_media_id OR m.kind = 'billede' OR (m.kind = 'pdf' AND m.thumb_key IS NOT NULL))
     ORDER BY (m.id = a.cover_media_id) DESC, (m.kind = 'billede') DESC, m.sort, m.id LIMIT 1
 ) c ON true"""
 # Forfatterne læses fra registret (art_authors); art_articles.authors er kun en kopi til tilbagerulning
@@ -152,9 +152,9 @@ def _filters(*, q, mode, tags, arter, forfatter, fra, til, type_, kind, har_bill
         where.append("a.kind = :kind")
         p["kind"] = kind
     if har_billeder:
-        where.append("EXISTS (SELECT 1 FROM content_media m WHERE m.owner_kind IN ('artikel', 'nyhed') AND m.owner_id = a.id AND m.kind = 'billede')")
+        where.append("EXISTS (SELECT 1 FROM content_media m WHERE m.owner_kind = 'artikel' AND m.owner_id = a.id AND m.kind = 'billede')")
     if har_pdf:
-        where.append("EXISTS (SELECT 1 FROM content_media m WHERE m.owner_kind IN ('artikel', 'nyhed') AND m.owner_id = a.id AND m.kind = 'pdf')")
+        where.append("EXISTS (SELECT 1 FROM content_media m WHERE m.owner_kind = 'artikel' AND m.owner_id = a.id AND m.kind = 'pdf')")
     return " AND ".join(where), p
 
 
@@ -292,7 +292,7 @@ async def detail(session: AsyncSession, aid: int, *, can_edit: bool, user_id: in
         return None
     media = (await session.execute(text("""
         SELECT id, kind, storage_key, thumb_key, medium_key, width, height, alt, caption, credit, filename, size, pages, text_md, text_source
-        FROM content_media WHERE owner_kind IN ('artikel', 'nyhed') AND owner_id = :i ORDER BY sort, id"""), {"i": aid})).mappings().all()
+        FROM content_media WHERE owner_kind = 'artikel' AND owner_id = :i ORDER BY sort, id"""), {"i": aid})).mappings().all()
     inline = set(content_render.media_ids(r["body_md"]))
     images, pdfs, files = [], [], []
     for m in media:

@@ -43,8 +43,8 @@ async function form(id) {
   const featured = h("input", { type: "datetime-local", value: local(a.featured_until) });
   const comments = h("input", { type: "checkbox", checked: a.comments_open });
   const source = h("input", { type: "url", maxlength: 400, value: a.source_url || "", placeholder: "https://…" });
-  const kind = h("select", {}, h("option", { value: "artikel", selected: !["pdf", "link", "nyhed"].includes(a.kind) }, "Artikel"), h("option", { value: "pdf", selected: a.kind === "pdf" }, "PDF-artikel"),
-    h("option", { value: "link", selected: a.kind === "link" }, "Link til en artikel andetsteds"), h("option", { value: "nyhed", selected: a.kind === "nyhed" }, "Nyhed fra portalen (vises også på forsiden)"));
+  const kind = h("select", {}, h("option", { value: "artikel", selected: !["pdf", "link"].includes(a.kind) }, "Artikel"), h("option", { value: "pdf", selected: a.kind === "pdf" }, "PDF-artikel"),
+    h("option", { value: "link", selected: a.kind === "link" }, "Link til en artikel andetsteds"));
   const sprog = h("select", {}, h("option", { value: "da", selected: a.sprog !== "en" }, "Dansk"), h("option", { value: "en", selected: a.sprog === "en" }, "English"));
   const linkHint = h("small", { class: "muted" }, "En link-artikel kræver en kilde-adresse nedenfor og en manchet; kortet åbner kilden i en ny fane.");
   const syncKind = () => { linkHint.style.display = kind.value === "link" ? "" : "none"; }; kind.addEventListener("change", syncKind); syncKind();

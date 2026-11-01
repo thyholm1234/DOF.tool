@@ -71,7 +71,6 @@ export function listCard(a) {
     h("a", { class: "art-row-img", ...ext, tabindex: "-1", "aria-hidden": "true" }, cover(a, { ratio: "4 / 3" })),
     h("div", { class: "art-row-body" },
       h("h3", {}, h("a", ext, a.title), a.kind === "link" ? h("span", { class: "art-chip", style: { marginLeft: "6px" } }, "↗ " + new URL(a.source_url).hostname.replace(/^www\./, "")) : null,
-        a.kind === "nyhed" ? h("span", { class: "art-chip", style: { marginLeft: "6px" } }, "Nyhed") : null,
         a.sprog === "en" ? h("span", { class: "art-chip", style: { marginLeft: "6px" } }, "EN") : null),
       meta(a),
       a.headline ? h("p", { class: "art-snip", html: (a.headline_fra === "pdf" ? '<span class="art-chip weak">fra PDF</span> ' : "") + a.headline }) : h("p", { class: "art-snip" }, a.teaser),

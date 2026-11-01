@@ -1,16 +1,33 @@
-// Lister: Mine lister, Huller og Kapløb (scoreboards med rangliste, kapløb, matrix og unikke arter) samt grupper.
-// Fanerne vises af skallen i views/lister.js sammen med krydslisterne og matriklen.
 import { api, state, h, icon, fmtN, fmtDate, tag, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store, sortBar } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
+import { regionsTab } from "./stats.js";
 
 const YEAR = new Date().getFullYear();
 const dayOfYear = (iso) => { const d = new Date(iso + "T12:00:00"); return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); };
 const monthTicks = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
 const monthName = (doy) => ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"][monthTicks.findLastIndex(t => t <= doy)] || "";
 
+export async function render(view) {
+  const p = params();
+  const tab = p.tab || "mine";
+  // Matrikler er flyttet til eget modul
+  if (tab === "matrikler") { location.hash = "#/matrikel?tab=matrikler"; return; }
+  // Arter pr. år ligger i Statistik-modulet, når det er synligt for brugeren
+  const stats = !!state.user?.statistik;
+  if (tab === "regioner" && stats) { location.hash = `#/statistik?${new URLSearchParams({ ...p, tab: "arter" })}`; return; }
+  view.append(h("div", { class: "page-head" },
+    h("div", {}, h("h1", {}, "Lister & scoreboards"), h("p", { class: "lead" }, `Årslister, kommuner, egne områder${stats ? "" : " og arter pr. år"} – beregnet direkte fra DOFbasen-data. Matrikelbirding har sit eget modul.`)),
+    h("span", { class: "spacer" }),
+    seg([["mine", "Mine"], ["huller", "Huller"], ["score", "Scoreboard"], ...(stats ? [] : [["regioner", "Arter pr. år"]]), ["grupper", "Grupper"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
+  const body = h("div", {});
+  view.append(body);
+  const draw = (t) => t === "score" ? scoreboard(body) : t === "regioner" ? regionsTab(body, "regioner") : t === "grupper" ? groups(body) : t === "huller" ? gaps(body) : mine(body);
+  await draw(tab);
+}
+
 // ---------------------------------------------------------------- mine lister
 
-export async function mine(body) {
+async function mine(body) {
   if (requireLogin(body)) return;
   const meta = await api("/api/lists/meta");
   const p = params();
@@ -27,7 +44,7 @@ export async function mine(body) {
     h("div", { class: "row" }, scopeSel, yearSel, h("span", { class: "spacer", style: { flex: 1 } }), addArea,
       h("button", { class: "btn sm", onclick: compare, html: `${icon("users")} Sammenlign` })),
     h("p", { class: "muted mt", style: { marginBottom: 0, fontSize: ".85rem" } },
-      "Matrikellister finder du under ", h("a", { href: "#/lister/matrikel" }, "Matrikel"), ". ",
+      "Matrikellister finder du under ", h("a", { href: "#/matrikel" }, "Matrikel"), ". ",
       "Afdelinger og kommuner vælges under ", h("a", { href: "#/profil" }, "profil"), ", egne områder (polygon/radius) under ", h("a", { href: "#/alarmer?tab=omraader" }, "Alarmer → Områder"), ".")),
     out);
 
@@ -64,12 +81,11 @@ export async function mine(body) {
 export function drawList(out, data, year) {
   const items = data.items;
   const isYear = year && year !== "all";
-  // Manuelle kryds (fra Krydslister) kan mangle dato: de tæller med, men står sidst og er ikke med i kurven
-  const pts = items.filter(it => it.dato).map((it, i) => [isYear ? dayOfYear(it.dato) : new Date(it.dato).getFullYear(), i + 1]);
+  const pts = items.map((it, i) => [isYear ? dayOfYear(it.dato) : new Date(it.dato).getFullYear(), i + 1]);
   const sort = store("listsort") || { key: "dato", dir: 1 };
   const tbody = h("tbody");
   const cmp = {
-    dato: (a, b) => (a.dato || "9999").localeCompare(b.dato || "9999") || (a.obsid || 0) - (b.obsid || 0),
+    dato: (a, b) => a.dato.localeCompare(b.dato) || a.obsid - b.obsid,
     navn: (a, b) => a.art.localeCompare(b.art, "da"),
     sys: (a, b) => (a.sortering || 0) - (b.sortering || 0),
     lok: (a, b) => (a.lok || "").localeCompare(b.lok || "", "da"),
@@ -78,10 +94,9 @@ export function drawList(out, data, year) {
     const sorted = [...items].sort((a, b) => sort.dir * (cmp[sort.key] || cmp.dato)(a, b));
     tbody.replaceChildren(...sorted.map((it) => h("tr", {},
       h("td", { class: "num muted" }, items.indexOf(it) + 1),
-      h("td", {}, h("a", { href: `#/art/${it.artnr}` }, it.art), it.klass !== "Alm" ? [" ", tag(it.klass)] : null,
-        it.kilde === "manuel" ? [" ", h("span", { class: "muted small", title: "Manuelt kryds fra Lister → Mine kryds" }, "(manuelt kryds)")] : null),
-      h("td", { class: "nowrap" }, it.dato ? fmtDate(it.dato, !isYear) : "–"),
-      h("td", {}, it.loknr ? h("a", { href: `#/lok/${it.loknr}` }, it.lok) : it.lok || "–"))));
+      h("td", {}, h("a", { href: `#/art/${it.artnr}` }, it.art), it.klass !== "Alm" ? [" ", tag(it.klass)] : null),
+      h("td", { class: "nowrap" }, fmtDate(it.dato, !isYear)),
+      h("td", {}, it.loknr ? h("a", { href: `#/lok/${it.loknr}` }, it.lok) : "–"))));
   };
   drawRows();
   const th = (label, key) => h("th", { style: { cursor: "pointer" }, onclick: () => { sort.dir = sort.key === key ? -sort.dir : 1; sort.key = key; store("listsort", sort); drawRows(); } }, label);
@@ -89,7 +104,7 @@ export function drawList(out, data, year) {
   out.replaceChildren(
     h("div", { class: "card" },
       h("div", { class: "row between" }, h("div", {}, h("div", { class: "muted" }, data.navn), h("div", { style: { fontSize: "2.4rem", fontWeight: 800, letterSpacing: "-0.03em" } }, fmtN(data.count), h("span", { class: "muted", style: { fontSize: "1rem", fontWeight: 600 } }, " arter"))),
-        pts.length ? (() => { const last = items.filter(it => it.dato).at(-1); return h("div", { class: "right muted" }, "Seneste: ", h("b", {}, last.art), h("br"), fmtDate(last.dato)); })() : null),
+        items.length ? h("div", { class: "right muted" }, "Seneste: ", h("b", {}, items[items.length - 1].art), h("br"), fmtDate(items[items.length - 1].dato)) : null),
       items.length > 1 ? lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], step: true, height: 200,
         xFormat: isYear ? monthName : String, xTicks: isYear ? monthTicks : undefined, yFormat: (v) => fmtN(Math.round(v)) }) : null),
     items.length ? h("div", { class: "card table-wrap" }, h("div", { class: "mb" }, bar), h("table", { class: "data list-table" },
@@ -101,7 +116,7 @@ export function drawList(out, data, year) {
 
 const GAP_STEP = 40;
 
-export async function gaps(body) {
+async function gaps(body) {
   if (requireLogin(body)) return;
   const meta = await api("/api/lists/meta");
   const p = params();
@@ -186,7 +201,7 @@ export async function gaps(body) {
 
 // ---------------------------------------------------------------- scoreboard
 
-export async function scoreboard(body) {
+async function scoreboard(body) {
   await loadRef();
   const p = params();
   const st = { scope: p.scope || "dk", year: p.year || String(YEAR), m: 0, group: p.group || "" };
@@ -285,7 +300,7 @@ export function unique(rows, names) {
 
 // ---------------------------------------------------------------- grupper (også under Matrikel → Administrér)
 
-export async function groups(body, board = "#/lister/kaploeb") {
+export async function groups(body, board = "#/lister") {
   if (requireLogin(body)) return;
   const list = h("div", { class: "stack" });
   const name = h("input", { placeholder: "Gruppenavn, fx 'Fugleholdet'" });

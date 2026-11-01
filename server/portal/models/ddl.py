@@ -31,8 +31,6 @@ EXTRA_DDL = [
     " INSERT INTO settings (key, value) VALUES ('module_added_fotos', 'true'); END IF; END $$",
     "CREATE INDEX IF NOT EXISTS ix_kl_taxa_latin ON kl_taxa (lower(latin))",
     "ALTER TABLE art_articles ADD COLUMN IF NOT EXISTS sprog varchar(5) NOT NULL DEFAULT 'da'",
-    # Nyheder er en artikeltype (kind = 'nyhed'); news_id er nyhedens nummer fra den gamle tabel news (gamle links #/nyheder/<id>)
-    "ALTER TABLE art_articles ADD COLUMN IF NOT EXISTS news_id integer UNIQUE",
     "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM settings WHERE key = 'module_added_krydslister') THEN"
     " UPDATE roles SET modules = array_append(modules, 'krydslister') WHERE key = 'admin' AND NOT ('krydslister' = ANY(modules));"
     " INSERT INTO settings (key, value) VALUES ('module_added_krydslister', 'true'); END IF; END $$",

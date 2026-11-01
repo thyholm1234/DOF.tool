@@ -27,7 +27,7 @@ async def s(monkeypatch):
     from portal.services import netfugl
 
     engine = create_async_engine(DSN)
-    wanted = {"species", "locations", "observers", "observations", "trips", "code_texts", "species_categories", "category_overrides", "afdelinger", "kommuner"}
+    wanted = {"species", "locations", "observers", "observations", "code_texts", "species_categories", "category_overrides", "afdelinger", "kommuner"}
     tables = [t for t in Base.metadata.sorted_tables if t.name in USER_TABLES or t.name in wanted]
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))

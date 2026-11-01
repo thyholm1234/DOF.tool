@@ -48,13 +48,13 @@ for sig.
 | Del | Fil(er) | Ansvar |
 |---|---|---|
 | Kerne | `core.js` | `api()`, `h()`, formatering, `KAT`/`KAT_RANK`, `seg`, `modal`, `store`, … |
-| Router og menu | `app.js` | Ruter → visninger (lazy `import()`), sidepanel, bundmenu, brugermenu. Menuen (`SECTIONS`) er grupperet efter formål: Nu · Opslag · Analyse · Lister · Fotos & artikler · Felt · Lær · Mit; punkter bag funktionsflag har en synligheds-funktion, og showcases står nederst |
+| Router og menu | `app.js` | Ruter → visninger (lazy `import()`), sidepanel, bundmenu, brugermenu |
 | Visninger | `views/<side>.js` | Én side pr. fil med `export async function render(view)`; returnerer evt. en oprydningsfunktion |
 | Faner i store sider | `views/admin/<fane>.js`, `views/kort-*.js` | Hentes først, når fanen åbnes |
 | Kort | `maps.js` | Grundkort og hjælpere. Henter Leaflet første gang, et modul importerer filen (top-level `await`) – importér altid `maps.js`, før `L` bruges |
 | Live | `live.js` | SSE-strømmen (`live.on("feed", …)`) |
 | Showcases | `dofbasen/`, `netfugl/` | Selvstændige moduler med egen skal, CSS og admin |
-| Lister | `views/lister.js`, `views/lists.js`, `views/matrikel.js`, `krydslister/*.js` | Ét modul (#/lister/…) med faner fra lists.js (mine lister, huller, kapløb & grupper), matrikel.js og krydslisterne (oversigt, mine kryds, ranglister, artslister, World Bird List, regler, admin); `views/lister-gammel.js` sender #/krydslister og #/matrikel videre |
+| Krydslister | `views/krydslister.js`, `krydslister/*.js` | Modul med faner (oversigt, lister, mine kryds, artslister, World Bird List, admin); CSS hentes ved første besøg |
 | Fotos | `views/fotos.js`, `fotos/*.js` | Modul med faner (galleri, mine fotos, retningslinjer, admin); CSS hentes ved første besøg |
 | Artikler | `views/artikler.js`, `artikler/*.js` | Modul med faner (forside, søg, emneord, arter, forfattere, admin); CSS hentes ved første besøg |
 | Editor | `editor/md-editor.js`, `editor/media-picker.js` | Fælles markdown-editor til artikler og nyheder; forhåndsvisningen renderes af serveren |

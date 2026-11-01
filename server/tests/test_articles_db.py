@@ -512,13 +512,10 @@ async def test_news_markdown_migration_and_conflicts(db):
     from portal.services import article_edit, news
 
     async with db() as s:
-        await s.execute(text("INSERT INTO news (id, title, body, published, author_id) VALUES (77, 'Gammel', 'Linje 1\nLinje 2\n\nNyt afsnit <script>x</script>', true, 3)"))
+        await s.execute(text("INSERT INTO news (title, body, published, author_id) VALUES ('Gammel', 'Linje 1\nLinje 2\n\nNyt afsnit <script>x</script>', true, 3)"))
         await s.commit()
-        pub = await news.public_list(s)  # flytter den gamle tabel til art_articles (kind = 'nyhed') første gang
+        pub = await news.public_list(s)
         assert len(pub) == 1 and "<br" in news.content_render.render(news._legacy_to_markdown("a\nb")).html
-        assert (await s.execute(text("SELECT kind, news_id FROM art_articles WHERE id = :i"), {"i": pub[0]["id"]})).one() == ("nyhed", 77)
-        assert (await news.public_get(s, 77))["title"] == "Gammel"  # gamle links (#/nyheder/77)
-        assert await news.migrate(s) == 0
         item = await news.public_get(s, pub[0]["id"])
         assert "<script>" not in item["html"] and "Linje 2" in item["html"] and "<p>" in item["html"]
         ed = await s.get(User, 3)
@@ -530,7 +527,7 @@ async def test_news_markdown_migration_and_conflicts(db):
             await news.save(s, ed, {"title": "x", "body": "y", "status": "publiceret", "version": 1}, n.id)
         await news.save(s, ed, {"title": "Planlagt", "body": "y", "status": "planlagt", "publish_at": datetime.now(timezone.utc) + timedelta(days=1)})
         assert len(await news.public_list(s)) == 2
-        await s.execute(text("UPDATE art_articles SET publish_at = now() - interval '1 minute' WHERE kind = 'nyhed' AND status = 'planlagt'"))
+        await s.execute(text("UPDATE news SET publish_at = now() - interval '1 minute' WHERE status = 'planlagt'"))
         await s.commit()
         await article_edit.publish_due(s)
         assert len(await news.public_list(s)) == 3

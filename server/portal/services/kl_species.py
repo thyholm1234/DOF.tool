@@ -83,12 +83,7 @@ async def dofbasen_stats(session: AsyncSession, artnr: int) -> dict:
     return await cached(f"kl:art:{artnr}:{dk_today()}", 6 * 3600, produce)
 
 
-async def taxon_for_artnr(session: AsyncSession, artnr: int) -> int | None:
-    """Taxonet koblet til en DOFbasen-art (artssiden #/art/N viser krydsene derfra)."""
-    return (await session.execute(text("SELECT id FROM kl_taxa WHERE artnr = :a ORDER BY id LIMIT 1"), {"a": artnr})).scalar()
-
-
-async def species_page(session: AsyncSession, taxon_id: int, *, with_photos: bool, with_dofb: bool = True) -> dict:
+async def species_page(session: AsyncSession, taxon_id: int, *, with_photos: bool) -> dict:
     t = (await session.execute(text("SELECT id, latin, dansk, engelsk, orden, familie, artnr, rang, netfugl_id FROM kl_taxa WHERE id = :i"), {"i": taxon_id})).mappings().first()
     if t is None:
         raise krydslister.KlError(404, "Arten findes ikke")
@@ -96,7 +91,7 @@ async def species_page(session: AsyncSession, taxon_id: int, *, with_photos: boo
         SELECT l.key, l.navn, e.kategorier, e.sjaeldenhed FROM kl_species_list_entries e JOIN kl_species_lists l ON l.id = e.list_id WHERE e.taxon_id = :t ORDER BY l.sort"""), {"t": taxon_id})).mappings()]
     out = {"id": t["id"], "navn": t["dansk"] or t["engelsk"] or t["latin"], "latin": t["latin"], "engelsk": t["engelsk"], "orden": t["orden"], "familie": t["familie"],
            "artnr": t["artnr"], "lister": entries, "su": any(e["sjaeldenhed"] == "su" for e in entries)}
-    if t["artnr"] and with_dofb:
+    if t["artnr"]:
         out["dofb"] = await dofbasen_stats(session, t["artnr"])
     if with_photos:
         out["fotos"] = await species_photos(session, t["id"], t["artnr"])

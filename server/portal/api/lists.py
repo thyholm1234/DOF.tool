@@ -14,7 +14,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import bump
 from portal.db import get_session
 from portal.models import Area, ListGroup, ListGroupMember, Matrikel, MatrikelPeriode, User
-from portal.services import kl_access, krydslister, lists, regions
+from portal.services import lists, regions
 from portal.services.areas import scope_for_area
 from portal.services.auth import normalize
 
@@ -73,8 +73,6 @@ async def user_list(obserkode: str, scope: str | None = None, year: str | None =
     spec = await _spec(db, scope, year, matrikel, user)
     windows, period_info = await lists.matrikel_windows(db, kode, spec, periode)
     items = await lists.year_list(db, kode, spec, windows)
-    if spec.scope.kind == "dk" and spec.year is None and not spec.matrikel and (await kl_access.context(db, user)).on():
-        items = await krydslister.merge_life_list(db, kode, items)  # livslisten = krydslisten «dk» (med manuelle kryds)
     navn = (await db.execute(text("SELECT navn FROM users WHERE obserkode = :k"), {"k": kode})).scalar()
     if not navn:
         navn = (await db.execute(text("SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers "

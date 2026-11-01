@@ -1,4 +1,4 @@
-import { api, state, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, seg, KAT, esc, params, setParams } from "../core.js";
+import { api, state, h, fmtN, fmtDate, doyLabel, tag, errorBox, empty, seg, KAT, esc } from "../core.js";
 import { lineChart, seriesLegend, yearDots, PALETTE } from "../charts.js";
 import { baseMap, katColor } from "../maps.js";
 
@@ -12,30 +12,14 @@ export async function render(view, [artnr]) {
   catch (err) { view.replaceChildren(errorBox(err)); return; }
   const mapEl = h("div", { class: "map small" });
   const pttEl = h("div", {});
+  const artEl = h("div", {});
   const atlasEl = h("div", {});
   const cleanups = [];
-  // Én artsside for hele portalen: fotos, artikler og kryds er faner her, når modulerne er synlige for brugeren
-  const u = state.user || {};
-  const tabs = [["", "Oversigt"], ...(u.fotos?.features?.fotos ? [["fotos", "Fotos"]] : []), ...(u.artikler?.features?.artikler ? [["artikler", "Artikler"]] : []),
-    ...(u.krydslister?.features?.krydslister ? [["kryds", "Kryds"]] : [])];
-  const overview = h("div", {}), tabBody = h("div", {});
-  let map = null;
-  const showTab = (t) => {
-    overview.classList.toggle("hide", !!t);
-    if (!t) map?.invalidateSize();  // kortet kan være tegnet, mens oversigten var skjult
-    tabBody.replaceChildren();
-    if (t) TAB[t]?.(tabBody, artnr, sp).catch(err => tabBody.replaceChildren(errorBox(err)));
-  };
-  let tab = tabs.some(t => t[0] === params().tab) ? params().tab : "";
-  const tabBar = tabs.length > 1 ? seg(tabs, tab, (v) => { tab = v; setParams({ tab: v }); showTab(v); }) : null;
   view.replaceChildren(
     h("p", {}, h("a", { href: "#/arter", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage")),
     h("div", { class: "page-head" }, h("div", {},
       h("div", { class: "row" }, sp.klass !== "Alm" ? tag(sp.klass) : null, h("span", { class: "muted" }, ({ sommer: "sommergæst", vinter: "vintergæst", passage: "gennemtrækker/standfugl" })[ph.summary?.profile] || ph.type || "")),
-      h("h1", {}, sp.navn), sp.latin ? h("p", { class: "lead" }, h("i", {}, sp.latin)) : null),
-      h("span", { class: "spacer" }), tabBar),
-    overview, tabBody);
-  overview.append(
+      h("h1", {}, sp.navn), sp.latin ? h("p", { class: "lead" }, h("i", {}, sp.latin)) : null)),
     h("div", { class: "stats", style: { gridTemplateColumns: "repeat(3, 1fr)" } },
       stat(fmtN(sp.total?.n_obs), "observationer i alt"), stat(fmtN(sp.total?.n_days), "dage med fund"), stat(sp.total?.last_date ? fmtDate(sp.total.last_date) : "–", "senest før i dag")),
     sp.finds ? findsCard(sp.finds, artnr) : null,
@@ -44,56 +28,28 @@ export async function render(view, [artnr]) {
       h("div", { class: "card" }, h("h3", {}, "Fund de seneste 30 dage"), mapEl, recentList(sp.recent)),
       h("div", { class: "card" }, h("h3", {}, "Mediandato pr. år"), yearChart(ph), h("h3", { class: "mt2" }, "Observationer pr. lokalafdeling"),
         sp.by_afdeling.length ? h("ul", { class: "mini-list" }, ...sp.by_afdeling.map(a => h("li", {}, a.navn, h("b", { class: "num" }, fmtN(a.n_obs))))) : h("p", { class: "muted" }, "–"))),
-    pttEl, atlasEl);
-  map = baseMap(mapEl, { zoom: 6, center: [56.1, 11] });
+    artEl, pttEl, atlasEl);
+  const map = baseMap(mapEl, { zoom: 6, center: [56.1, 11] });
   for (const r of sp.recent) L.circleMarker([r.lat, r.lon], { radius: 5, color: "#fff", weight: 1, fillColor: katColor(r.kategori), fillOpacity: .9 }).addTo(map)
     .bindPopup(`${fmtN(r.antal)} · ${esc(r.lok)}<br>${fmtDate(r.dato)}<br><a href="#/traad/${r.dato}/${artnr}/${r.loknr}">Åbn</a>`);
   // DOF's punkttællinger og Atlas hentes efter siden er vist (eksterne tjenester, caches på serveren)
+  if (state.user?.artikler?.features?.artikler) {  // artikler om arten (Artikler-modulet)
+    api(`/api/artikler/arter/${artnr}?limit=5`).then(async d => {
+      if (!d.total) return;
+      const { loadCss, listCard } = await import("../artikler/common.js");
+      loadCss("artikler");
+      artEl.replaceChildren(h("div", { class: "card mt art" }, h("h3", {}, `Artikler om ${sp.navn}`), ...d.rows.map(listCard),
+        d.total > d.rows.length ? h("p", {}, h("a", { href: `#/artikler/arter/${artnr}` }, `Se alle ${d.total} artikler →`)) : null));
+    }).catch(() => {});
+  }
   api(`/api/species/${artnr}/punkttaelling`).then(d => pttEl.replaceChildren(pointCountCard(d, sp.navn) || "")).catch(() => {});
   api(`/api/species/${artnr}/atlas`).then(async d => {
     if (!d.available) return;
     const squares = await api("/api/atlas/squares");
     atlasEl.replaceChildren(atlasCard(d, squares, cleanups));
   }).catch(() => {});
-  showTab(tab);
   return () => { map.remove(); cleanups.forEach(f => f()); };
 }
-
-// ---------------------------------------------------------------- faner fra modulerne (hentes først, når fanen vælges)
-
-const TAB = {
-  async fotos(body, artnr, sp) {
-    const { loadCss, photoCard, loadingBox } = await import("../fotos/common.js");
-    loadCss("fotos");
-    body.append(loadingBox());
-    const d = await api(`/api/fotos?${new URLSearchParams({ art: artnr, per: 24 })}`);
-    body.replaceChildren(h("div", { class: "card mt fot" },
-      d.total ? [h("div", { class: "fot-grid" }, ...d.rows.map(r => photoCard(r))),
-        d.total > d.rows.length ? h("p", {}, h("a", { href: `#/fotos?art=${artnr}` }, `Se alle ${fmtN(d.total)} fotos af ${sp.navn} i galleriet →`)) : null]
-        : empty(`Ingen fotos af ${sp.navn} i galleriet endnu`)));
-  },
-  async artikler(body, artnr, sp) {
-    const { loadCss, listCard, loadingBox } = await import("../artikler/common.js");
-    loadCss("artikler");
-    body.append(loadingBox());
-    const d = await api(`/api/artikler/arter/${artnr}?limit=20`);
-    body.replaceChildren(h("div", { class: "card mt art" },
-      d.total ? [...d.rows.map(listCard), d.total > d.rows.length ? h("p", {}, h("a", { href: `#/artikler/arter/${artnr}` }, `Se alle ${fmtN(d.total)} artikler →`)) : null]
-        : empty(`Ingen artikler om ${sp.navn} endnu`)));
-  },
-  async kryds(body, artnr, sp) {
-    const { loadCss } = await import("../krydslister/common.js");
-    loadCss("krydslister");
-    const d = await api(`/api/krydslister/dofart/${artnr}`);
-    const hasList = (key) => `#/lister/kryds/${encodeURIComponent(key)}`;
-    body.replaceChildren(h("div", { class: "card mt" },
-      d.lister.length ? h("p", { class: "muted" }, "På listerne: ", d.lister.map(l => `${l.navn}${l.kategorier?.length ? ` (kategori ${l.kategorier.join(", ")})` : ""}`).join(" · ")) : null,
-      d.kryds.length ? h("ul", { class: "mini-list" }, ...d.kryds.map(k => h("li", {},
-        h("a", { href: `${hasList(k.liste)}/art/${encodeURIComponent(k.key)}` }, k.navn), h("span", { class: "num" }, `${fmtN(k.antal)} af ${fmtN(k.deltagere)} deltagere`))))
-        : empty(`Ingen har krydset ${sp.navn} endnu`),
-      d.id ? h("p", { class: "mt" }, h("a", { href: `#/lister/art/${d.id}` }, "World Bird List-side →")) : null));
-  },
-};
 
 const stat = (v, l) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l));
 
@@ -225,7 +181,7 @@ function atlasCard(d, squares, cleanups) {
       h("a", { class: "btn sm ghost", href: `https://dofbasen.dk/atlas/arter/${d.artnr}`, target: "_blank", rel: "noopener" }, "DOF Atlas ↗")),
     seg([["3", "Atlas III"], ["2", "Atlas II"], ["1", "Atlas I"], ["diff", "Ændring II → III"]], "3", (v) => draw(v)),
     info, mapEl, legend, bars);
-  map = baseMap(mapEl, { zoom: 6, center: [56.15, 11.2] });
+  const map = baseMap(mapEl, { zoom: 6, center: [56.15, 11.2] });
   cleanups.push(() => map.remove());
   const layer = L.layerGroup().addTo(map);
   const renderer = L.canvas();

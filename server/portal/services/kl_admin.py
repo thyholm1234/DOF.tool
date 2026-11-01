@@ -351,4 +351,4 @@ async def decide(session: AsyncSession, mod: User, kid: int, approve: bool, reas
     owner = (await session.execute(select(User).where(User.obserkode == k.obserkode))).scalar_one_or_none()
     if owner is not None and owner.id != mod.id:
         await moderation.send_message(session, target_id=owner.id, mod_id=mod.id, subject=f"Dit kryds på {k.liste}: {k.navn} er {'godkendt' if approve else 'afvist'}",
-                                      body=(reason.strip() or ("Krydset er godkendt og tæller nu på listen." if approve else "Krydset blev ikke godkendt.")), link="#/lister/mine/kryds")
+                                      body=(reason.strip() or ("Krydset er godkendt og tæller nu på listen." if approve else "Krydset blev ikke godkendt.")), link="#/krydslister/mine")
