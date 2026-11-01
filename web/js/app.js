@@ -11,10 +11,12 @@ initSelectMenu();
 // Hvert punkt: [adresse, ikon, tekst, synlig?]; uden synlig? vises punktet altid.
 const usr = () => state.user || {};
 const SECTIONS = [
-  ["Nu", [["#/", "now", "Nu"], ["#/kort", "map", "Kort"]]],
+  ["Nu", [["#/", "now", "Nu"]]],
   ["Opslag", [["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"],
     ["#/observator", "user", "Observatører", () => usr().profiler], ["#/soeg", "search", "Søg i observationer", () => usr().search]]],
-  ["Analyse", [["#/traek", "trend", "Træk & fænologi"], ["#/statistik", "chart", "Statistik", () => usr().statistik]]],
+  ["Analyse", [["#/traek", "trend", "Træk & fænologi"], ["#/statistik", "chart", "Statistik", () => usr().statistik],
+    // Dagskortet ligger i Statistik; uden Statistik-modulet har det sit eget punkt
+    ["#/kort?tab=dag", "map", "Dagskort", () => usr().daymap && !usr().statistik]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"],
     ["#/krydslister", "list", "Krydslister", () => usr().krydslister?.features?.krydslister]]],
   ["Fotos & artikler", [["#/fotos", "camera", "Fotos", () => usr().fotos?.features?.fotos],
@@ -22,7 +24,7 @@ const SECTIONS = [
   ["Felt", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
   ["Lær", [["#/laer", "learn", "Læring"], ["#/mobgang", "sound", "Mobgang"]]],
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/fotos/mine", "camera", "Mine fotos", () => usr().fotos?.features?.fotos],
-    ["#/kalender/mine", "calendar", "Mine planer"], ["#/alarmer", "bell", "Alarmer"],
+    ["#/kalender/mine", "calendar", "Mine planer"], ["#/alarmer", "bell", "Alarmer & notifikationer"],
     // DKU med antal sager med ulæste beskeder, når modulet er synligt for brugeren
     ["#/dku", "check", () => `DKU${usr().dku?.unread ? ` <span class="badge-inline">${+usr().dku.unread}</span>` : ""}`, () => usr().dku?.visible]]],
 ];
@@ -39,7 +41,7 @@ const BOTTOM = ["#/", "#/traek", "#/lister"];  // mobilens faste knapper (plus I
 /** Det mest specifikke menupunkt der matcher stien (så #/kalender/mine ikke også markerer Kalender). */
 function activeHref(path, hrefs) {
   // en arts side hører under Arter, en lokalitets side under Lokaliteter
-  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter" : path;
+  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter" : path === "#/kort" ? "#/kort?tab=dag" : path;
   return hrefs.filter(href => href === "#/" ? p === "#/" : p === href || p.startsWith(href + "/") || p.startsWith(href + "?"))
     .sort((a, b) => b.length - a.length)[0];
 }

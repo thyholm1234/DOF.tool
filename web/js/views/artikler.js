@@ -1,6 +1,6 @@
 // Artikelmodulet (#/artikler/…): netfugl.dk-arkivet og nye artikler med avisforside, søgning på ord og råtekst, emneord, arter,
 // kommentarer og en markdown-editor. Skal og faner her; hver side er en fil under artikler/.
-import { h, params, errorBox, requireLogin, state, modal, api, toast } from "../core.js";
+import { h, params, errorBox, requireLogin, state } from "../core.js";
 import { BASE, ctx, on, loadCss, loadingBox, notice, cleanups } from "../artikler/common.js";
 
 const MODULES = {
@@ -20,20 +20,6 @@ function route(parts) {
   return null;
 }
 
-function notifications() {
-  const body = h("div", { class: "stack" }, loadingBox());
-  const m = modal("Notifikationer fra Artikler", body);
-  api("/api/artikler/notifikationer").then(p => {
-    const save = async (patch) => { try { Object.assign(p, await api("/api/artikler/notifikationer", { method: "PUT", body: patch })); toast("Gemt"); draw(); } catch (e) { toast(e.message, "err"); } };
-    const draw = () => body.replaceChildren(
-      h("label", { class: "check" }, h("input", { type: "checkbox", checked: p.alle, onchange: (e) => save({ alle: e.target.checked }) }), h("span", {}, "Giv mig besked, når der kommer en ny artikel")),
-      h("label", { class: "check" }, h("input", { type: "checkbox", checked: p.kommentarer, onchange: (e) => save({ kommentarer: e.target.checked }) }),
-        h("span", {}, "Giv mig besked om nye kommentarer på artikler, jeg har kommenteret (og svar på mine kommentarer)")),
-      h("p", { class: "muted small" }, "Beskeder kommer i din indbakke og som push, hvis du har slået push til (stille timer respekteres). Du kan også følge eller holde op med at følge en enkelt artikel nederst på artiklen."),
-      p.foelger?.length ? h("div", {}, h("b", {}, "Artikler du følger"), h("ul", {}, ...p.foelger.map(f => h("li", {}, h("a", { href: `${BASE}/${f.id}`, onclick: () => m.close() }, f.title))))) : null);
-    draw();
-  }).catch(e => body.replaceChildren(errorBox(e)));
-}
 
 export async function render(view, [sub]) {
   if (requireLogin(view)) return;
@@ -59,7 +45,7 @@ export async function render(view, [sub]) {
     h("nav", { class: "art-tabs", "aria-label": "Artikler" },
       h("div", { class: "seg" }, ...TABS.map(([k, t]) => h("a", { href: k ? `${BASE}/${k}` : BASE, class: active === k ? "on" : "" }, t)),
         c.admin ? h("a", { href: `${BASE}/admin`, class: active === "admin" ? "on" : "" }, "Admin") : null),
-      on("artikler_notifikationer") ? h("button", { class: "icon-btn", type: "button", title: "Notifikationer", "aria-label": "Notifikationer", onclick: notifications }, "🔔") : null),
+      on("artikler_notifikationer") ? h("a", { class: "icon-btn", href: "#/alarmer?tab=notifikationer", title: "Notifikationer", "aria-label": "Notifikationer" }, "🔔") : null),
     content));
   try {
     if (!spec) { content.replaceChildren(notice("Siden findes ikke.", "err")); return; }

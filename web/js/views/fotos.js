@@ -1,6 +1,6 @@
 // Fotomodulet (#/fotos/…): fotogalleri med netfugl-arkivet og nye fotos – søgning, fotoside, kommentarer, upload og moderation.
 // Skal og faner her; hver side er en fil under fotos/.
-import { api, h, params, errorBox, modal, requireLogin, state, toast } from "../core.js";
+import { h, params, errorBox, requireLogin, state } from "../core.js";
 import { BASE, ctx, on, loadCss, loadingBox, notice, cleanups } from "../fotos/common.js";
 
 const MODULES = {
@@ -22,18 +22,6 @@ function route(parts) {
   return null;
 }
 
-function notifications() {
-  const body = h("div", { class: "stack" }, loadingBox());
-  const m = modal("Notifikationer fra Fotos", body);
-  api("/api/fotos/notifikationer").then(p => {
-    const save = async (patch) => { try { Object.assign(p, await api("/api/fotos/notifikationer", { method: "PUT", body: patch })); toast("Gemt"); } catch (e) { toast(e.message, "err"); } };
-    body.replaceChildren(
-      h("label", { class: "check" }, h("input", { type: "checkbox", checked: p.svar, onchange: (e) => save({ svar: e.target.checked }) }), h("span", {}, "Svar på mine kommentarer på fotos")),
-      h("label", { class: "check" }, h("input", { type: "checkbox", checked: p.kommentarer, onchange: (e) => save({ kommentarer: e.target.checked }) }), h("span", {}, "Kommentarer på mine fotos (højst én i timen pr. foto)")),
-      h("label", { class: "check" }, h("input", { type: "checkbox", checked: true, disabled: true }), h("span", {}, "Mine fotos er godkendt eller afvist (kan ikke slås fra)")),
-      h("p", { class: "muted small" }, "Beskeder kommer i din indbakke og som push, hvis du har slået push til (stille timer respekteres)."));
-  }).catch(e => body.replaceChildren(errorBox(e)));
-}
 
 export async function render(view, [sub]) {
   if (requireLogin(view)) return;
@@ -59,7 +47,7 @@ export async function render(view, [sub]) {
       h("div", { class: "seg" }, tab(BASE, "Galleri", first === undefined || first === "fotograf" || /^\d+$/.test(first || "")),
         tab(`${BASE}/mine`, "Mine fotos", first === "mine"), tab(`${BASE}/retningslinjer`, "Retningslinjer", first === "retningslinjer"),
         c.can_admin ? tab(`${BASE}/admin`, "Admin", first === "admin") : null),
-      h("button", { class: "icon-btn", type: "button", title: "Notifikationer", "aria-label": "Notifikationer", onclick: notifications }, "🔔")),
+      h("a", { class: "icon-btn", href: "#/alarmer?tab=notifikationer", title: "Notifikationer", "aria-label": "Notifikationer" }, "🔔")),
     content));
   try {
     if (!spec) { content.replaceChildren(notice("Siden findes ikke.", "err")); return; }

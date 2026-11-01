@@ -1,5 +1,5 @@
 import { statusBadge, certaintyTag } from "../reportui.js";
-import { api, state, h, icon, fmtN, fmtDate, ago, doyLabel, tag, todayISO, params, setParams, loadRef, store, empty, errorBox, modal, toast, KAT } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, ago, doyLabel, tag, todayISO, params, setParams, loadRef, store, empty, errorBox, modal, toast, KAT, seg } from "../core.js";
 import { live } from "../live.js";
 import { isApp, currentPosition } from "../native.js";
 
@@ -26,8 +26,16 @@ export async function scopeOptions() {
   return opts;
 }
 
+/** Skift mellem trådlisten og Live-kortet (tidligere Kort → Live). */
+const visSeg = (v) => seg([["liste", "Liste"], ["kort", "Kort"]], v, (x) => { location.hash = x === "kort" ? "#/?vis=kort" : "#/"; });
+
 export async function render(view) {
   const p = params();
+  if (p.vis === "kort") {
+    const body = h("div", {});
+    view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Hvad sker der nu?")), h("span", { class: "spacer" }), visSeg("kort")), body);
+    return await (await import("./kort-live.js")).renderLive(body);
+  }
   // Gemte valg uden v: 2 er fra før "Mine filtre" blev standard og ignoreres
   const saved = (store("feed") || {}).v === 2 ? store("feed") : {};
   const st = {
@@ -105,7 +113,7 @@ export async function render(view) {
     h("div", { class: "page-head" },
       h("div", {}, h("h1", {}, "Hvad sker der nu?"), h("p", { class: "lead" }, "Live fra DOFbasen – samlet i tråde pr. art og lokalitet.")),
       h("span", { class: "spacer" }),
-      h("div", { class: "row" },
+      h("div", { class: "row" }, visSeg("liste"),
         h("button", { class: "btn sm ghost", onclick: () => shiftDay(-1), "aria-label": "Forrige dag", html: icon("prev") }), dateInput,
         h("button", { class: "btn sm ghost", onclick: () => shiftDay(1), "aria-label": "Næste dag", html: icon("next") }),
         h("button", { class: "btn sm", onclick: nearby, html: `${icon("pin")} Tæt på mig` }))),

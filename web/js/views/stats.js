@@ -10,15 +10,23 @@ export async function render(view) {
   if (requireLogin(view)) return;
   if (!state.user?.statistik) { view.append(empty("Statistik er ikke slået til", "Modulet slås til under Admin → Funktioner.")); return; }
   const p = params();
-  const tab = p.tab === "nfl" ? "nfl" : "arter";
+  // Dag-kortet (tidligere Kort → Dag) er en fane her, når funktionen daymap er synlig for brugeren
+  const tabs = [["arter", "Arter pr. år"], ["nfl", "NFL"], ...(state.user?.daymap ? [["dag", "Dagskort"]] : [])];
+  const tab = tabs.some(t => t[0] === p.tab) ? p.tab : "arter";
+  let off = null;
   const body = h("div", {});
   view.append(h("div", { class: "page-head" },
-    h("div", {}, h("h1", {}, "Statistik"), h("p", { class: "lead" }, "Arter pr. år og nye arter for landet – beregnet fra DOFbasen-data.")),
+    h("div", {}, h("h1", {}, "Statistik"), h("p", { class: "lead" }, "Arter pr. år, nye arter for landet og dagens fund på kort – beregnet fra DOFbasen-data.")),
     h("span", { class: "spacer" }),
     // Ny fane: kun tab bevares i adressen
-    seg([["arter", "Arter pr. år"], ["nfl", "NFL"]], tab, (v) => { history.replaceState(null, "", `#/statistik?tab=${v}`); body.replaceChildren(); draw(v); })), body);
-  const draw = (t) => t === "nfl" ? nflTab(body) : regionsTab(body, "arter");
+    seg(tabs, tab, (v) => { history.replaceState(null, "", `#/statistik?tab=${v}`); body.replaceChildren(); draw(v); })), body);
+  const draw = async (t) => {
+    off?.(); off = null;
+    if (t === "dag") off = await (await import("./kort-dag.js")).renderDay(body);
+    else await (t === "nfl" ? nflTab(body) : regionsTab(body, "arter"));
+  };
   await draw(tab);
+  return () => off?.();
 }
 
 // ---------------------------------------------------------------- NFL: nye fuglearter for landet
