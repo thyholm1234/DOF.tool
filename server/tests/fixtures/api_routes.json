@@ -5734,6 +5734,11 @@ false,
 }
 },
 "/api/me/sync": {
+"get": {
+"body": false,
+"op": "resync_status_api_me_sync_get",
+"params": []
+},
 "post": {
 "body": false,
 "op": "resync_api_me_sync_post",

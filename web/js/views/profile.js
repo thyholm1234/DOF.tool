@@ -8,6 +8,25 @@ export async function render(view) {
   if (requireLogin(view)) return;
   await loadRef();
   const u = state.user;
+  // Synkronisér alle mine observationer: ét kald i gatewayens kø (ét udtræk pr. minut); status opdateres, mens jobbet venter
+  const syncStatus = h("p", { class: "small" });
+  const syncBtn = h("button", { class: "btn", onclick: async () => {
+    try { await api("/api/me/sync", { method: "POST" }); toast("Synkroniseringen er lagt i kø"); drawSync(); } catch (err) { toast(err.message, "err"); }
+  } }, "Synkronisér alle mine observationer");
+  let syncTimer = null;
+  const drawSync = async () => {
+    clearTimeout(syncTimer);
+    let st;
+    try { st = await api("/api/me/sync"); } catch { return; }
+    if (syncTimer !== null && !syncStatus.isConnected) return;  // siden er forladt
+    syncBtn.disabled = st.pending || !st.available;
+    const last = st.last ? `Sidst synkroniseret ${fmtDate(st.last.at)}: ${fmtN(st.last.rows)} observationer${st.last.deleted ? `, ${fmtN(st.last.deleted)} slettet` : ""}.`
+      : st.history_synced_at ? `Historik hentet ${fmtDate(st.history_synced_at)}.` : "Historik er i kø.";
+    syncStatus.textContent = st.pending ? `I kø – forventet om ca. ${Math.max(1, Math.round(st.eta / 60))} min. ${last}`
+      : `${last}${st.available ? "" : " Du kan synkronisere igen i morgen."}`;
+    if (st.pending) syncTimer = setTimeout(drawSync, 15000);
+  };
+  drawSync();
   const p = { lists_public: true, push_enabled: true, afdelinger: [], kommuner: [], ...u.prefs };
   const stats = await api("/api/me/stats").catch(() => null);
 
@@ -95,10 +114,11 @@ export async function render(view) {
         h("p", { class: "muted", style: { margin: 0 } }, "Matrikler, perioder, flytning og placeringer har deres eget modul.")),
       h("a", { class: "btn", href: "#/matrikel" }, "Gå til Matrikel →")),
     h("div", { class: "card mt2" }, h("h3", {}, "Data"),
-      h("p", { class: "muted" }, "Dine observationer kommer fra DOFbasen: historik fra det lokale arkiv, ældre år hentes én gang ved første login, og nye observationer kommer automatisk med live-hentningen.",
-        u.history_synced_at ? ` Historik hentet ${fmtDate(u.history_synced_at)}.` : " Historik er i kø."),
+      h("p", { class: "muted" }, "Dine observationer kommer fra DOFbasen: historik fra det lokale arkiv, ældre år hentes én gang ved første login, og nye observationer kommer automatisk med live-hentningen. ",
+        "«Synkronisér alle mine observationer» henter alle dine observationer fra DOFbasen igen (fra 1900 til i år), retter dem, der er ændret, og fjerner dem, du har slettet i DOFbasen."),
+      syncStatus,
       h("div", { class: "row" },
-        h("button", { class: "btn", onclick: async () => { try { const r = await api("/api/me/sync", { method: "POST" }); toast(`Lagt i kø (${r.queue} job foran – ét kald pr. minut)`); } catch (err) { toast(err.message, "err"); } } }, "Hent min historik igen"),
+        syncBtn,
         h("a", { class: "btn", href: "/api/me/export", download: "" }, "Hent mine data"),
         h("a", { class: "btn ghost", href: "/privatliv" }, "Privatlivspolitik"),
         h("span", { style: { flex: 1 } }),

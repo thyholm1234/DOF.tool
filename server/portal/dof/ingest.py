@@ -50,6 +50,7 @@ async def ingest(
 
     mode='archive' indsætter kun nye observationer (eksisterende bevares) og sætter first_seen til
     observationsdatoen, så arkivdata aldrig opfattes som 'nye' fund.
+    mode='full' (en brugers fulde synkronisering) retter eksisterende som 'live', men nye får first_seen som 'archive'.
     replace_dates=(fra, til) sletter observationer i perioden, som ikke længere findes hos DOFbasen.
     """
     result = IngestResult(rows=len(rows))
@@ -88,7 +89,7 @@ async def ingest(
         if r.artnr not in clf.klass_by_artnr:
             species[r.artnr] = (r.artnr, r.artnavn or f"Art {r.artnr}", r.latin, r.sortering)
         kategori = clf.kategori(r.artnr, r.artnavn, r.dato, r.antal, afd_ids)
-        first_seen = datetime.combine(r.dato, time(12), tzinfo=timezone.utc) if mode == "archive" else now
+        first_seen = datetime.combine(r.dato, time(12), tzinfo=timezone.utc) if mode in ("archive", "full") else now
         obs_records.append((
             r.obsid, r.turid, r.dato, r.artnr, r.antal, r.koen, r.adfkode, r.alderkode, r.dragtkode,
             r.obstidfra, r.obstidtil, r.fuglnoter, r.metode, r.hemmelig, r.kvalitet, r.loknr,

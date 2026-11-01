@@ -50,6 +50,12 @@ feedet (eller en alarmregel med området) gælder en radius, der følger brugere
 
 **Nær mig uden område.** Under *Nær mig* i feedet kan man vælge *Brug min position som filter*: enhedens position er midtpunkt for en radius (2–100 km), og der oprettes ingen lokation eller noget område. Feedet kalder `scope=near:breddegrad,længdegrad,km`, og positionen hentes igen højst hvert 2. minut.
 
+**Synkronisér alle mine observationer** (Profil → Data). Henter brugerens observationer fra DOFbasen fra 1900 til i år i ét udtræk
+(`search_result1.php?…&periode=maanedaar&aar_first=1900&aar_second=<i år>&obserdata=<obserkode>`) gennem gatewayen (ét kald i minuttet).
+Ændrede observationer rettes, nye får observationsdatoen som første-set (så de ikke dukker op som nye fund), og brugerens egne
+observationer, der ikke længere findes i DOFbasen, slettes – men kun når udtrækket rummer mindst 90 % af de kendte (ellers slettes intet).
+Højst én gang i døgnet; status og forventet ventetid vises på profilen (`GET/POST /api/me/sync`).
+
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og
 adgangskoden vises kun ved oprettelse/nulstilling.

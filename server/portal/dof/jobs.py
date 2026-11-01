@@ -135,18 +135,34 @@ async def job_month(client: httpx.AsyncClient, p: dict) -> dict:
 
 
 async def job_history(client: httpx.AsyncClient, p: dict) -> dict:
-    """En observatørs observationer i en årrække (bruges ved ny bruger, hvis arkivet mangler år)."""
-    kode = p["obserkode"]
+    """En observatørs observationer i en årrække. Ved ny bruger: de år arkivet mangler (kun nye rækker). Med full (Profil →
+    Synkronisér alle mine observationer): 1900 til i år, eksisterende rettes, og brugerens observationer, der ikke længere
+    findes i DOFbasen, slettes – men kun hvis udtrækket ikke er mistænkeligt lille (som ved dag- og månedsudtræk)."""
+    kode, full = p["obserkode"], bool(p.get("full"))
     raw = await _get(client, EXCEL, {**BASE_PARAMS, "periode": "maanedaar", "aar_first": p["year_from"],
                                      "aar_second": p["year_to"], "obserdata": kode})
     rows = parse_text(decode(raw))
     async with ObsSession() as s:
-        res = await ingest(s, rows, mode="archive")
+        res = await ingest(s, rows, mode="full" if full else "archive")
+        if full:
+            first, last = date(int(p["year_from"]), 1, 1), date(int(p["year_to"]), 12, 31)
+            existing = (await s.execute(text("SELECT count(*) FROM observations WHERE obserkode = :k AND obsid > 0 AND dato BETWEEN :a AND :b"),
+                                        {"k": kode, "a": first, "b": last})).scalar() or 0
+            own = [r.obsid for r in rows if r.obserkode == kode]
+            if own and len(own) >= existing * 0.9:
+                gone = (await s.execute(text("""DELETE FROM observations WHERE obserkode = :k AND obsid > 0 AND dato BETWEEN :a AND :b
+                    AND NOT (obsid = ANY(:keep)) RETURNING obsid"""), {"k": kode, "a": first, "b": last, "keep": own})).scalars().all()
+                res.deleted_obsids, res.deleted = list(gone), len(gone)
+            elif existing:
+                log.warning("Synkronisering af %s: %d egne rækker mod %d kendte – sletter intet", kode, len(own), existing)
         await s.execute(text("UPDATE users SET history_synced_at = now() WHERE obserkode = :k"), {"k": kode})
         await s.commit()
     res.observers.add(kode)
     await after_ingest(res, notify=False)
-    return {"obserkode": kode, "rows": len(rows)}
+    out = {"obserkode": kode, "rows": len(rows), "deleted": res.deleted}
+    if full:
+        await kv().set(f"resync:result:{kode}", json.dumps({**out, "at": datetime.now(timezone.utc).isoformat()}), ex=90 * 86400)
+    return out
 
 
 # ---------------------------------------------------------------- login og medier
