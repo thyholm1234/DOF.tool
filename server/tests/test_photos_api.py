@@ -125,3 +125,44 @@ async def test_admin_import_api_kraever_rettighed(web, db):  # noqa: F811
     assert r.status_code == 200 and [f["sti"] for f in r.json()] == ["a"] and r.json()[0]["fotos"] == 3
     assert (await web["ad"].post("/api/admin/fotos/import/mappe", json={"sti": "../"})).status_code == 400
     assert (await web["a1"].post("/api/admin/fotos/import/mappe", json={"sti": "a"})).status_code == 403
+
+
+async def test_upload_ret_slet_over_http(web, db):  # noqa: F811
+    import json
+
+    from test_photo_upload import exif_jpeg, fields
+
+    await flags(db, fotos="on")
+    send = lambda c, **kw: c.post("/api/fotos", files={"file": ("a.jpg", exif_jpeg(), "image/jpeg")}, data={"data": json.dumps({**fields(), **kw})})  # noqa: E731
+    r = await send(web["a1"])
+    assert r.status_code == 200 and r.json()["status"] == "afventer"
+    pid = r.json()["id"]
+    assert (await send(web["a1"], fugle=[])).status_code == 422
+    assert (await send(web["a1"], dato="2999-01-01")).status_code == 400
+    me = (await web["a1"].get("/api/fotos/mine")).json()
+    assert pid in [f["id"] for f in me["fotos"]] and len(me["fotos"]) == 3 and me["kan_uploade"] is True  # + de to importerede fotos, fotografen er matchet til brugeren
+    assert (await web["a1"].get(f"/api/fotos/{pid}")).json()["status"] == "afventer"  # ejeren ser det
+    assert (await web["a2"].get(f"/api/fotos/{pid}")).status_code == 404
+    assert (await web["a2"].put(f"/api/fotos/{pid}", json=fields())).status_code == 404
+    f = (await web["a1"].get(f"/api/fotos/{pid}/felter")).json()
+    assert f["lokalitet"] == "Tisvildekysten" and [b["artnr"] for b in f["fugle"]] == [1, 2] and f["rettighed"] == 3
+    assert (await web["a1"].put(f"/api/fotos/{pid}", json={**fields(), "titel": "Rettet"})).status_code == 200
+    assert (await web["a2"].get(f"/api/fotos/{pid}/felter")).status_code == 404
+    # udelukket: afvises før filen læses
+    r = await web["ad"].put("/api/admin/fotos/privilegier/2", json={"niveau": "udelukket", "note": "test"})
+    assert r.status_code == 200
+    assert (await send(web["a2"])).status_code == 403
+    assert (await web["a2"].get("/api/fotos/mine")).json()["kan_uploade"] is False
+    await flags(db, fotos_upload="off")
+    assert (await send(web["a1"])).status_code == 404
+    assert (await web["a1"].delete(f"/api/fotos/{pid}")).status_code == 200
+    assert (await web["a1"].get(f"/api/fotos/{pid}")).status_code == 404
+
+
+async def test_mine_observationer_kraever_flag(web, db):  # noqa: F811
+    await flags(db, fotos="on")
+    r = await web["a1"].get("/api/fotos/mine-observationer?artnr=1&dato=2026-10-27")
+    assert r.status_code == 200 and [o["obsid"] for o in r.json()] == [5001]  # kun egne (a1 er obserkode LB)
+    assert (await web["a1"].get("/api/fotos/til-observationer?obsid=5001,5002")).json() == {}
+    await flags(db, fotos_dofbasen="off")
+    assert (await web["a1"].get("/api/fotos/mine-observationer?artnr=1&dato=2026-10-27")).status_code == 404

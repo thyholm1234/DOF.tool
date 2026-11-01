@@ -13,7 +13,7 @@ from portal.api.deps import require_user
 from portal.cache import worker_command
 from portal.db import get_session
 from portal.models import GalImport, User
-from portal.services import photo_access, photo_comments, photo_import, photo_photographers, photo_upload
+from portal.services import activity, photo_access, photo_comments, photo_import, photo_photographers, photo_privileges, photo_upload
 
 router = APIRouter(prefix="/api/admin/fotos", tags=["admin"])
 
@@ -186,4 +186,32 @@ async def moderer(cid: int, action: Literal["skjul", "gendan", "slet", "afvis"],
         await photo_comments.moderate(db, user, cid, action, body.reason)
     except photo_comments.CommentError as exc:
         raise HTTPException(exc.status, exc.message) from exc
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- privilegier
+
+class PrivIn(BaseModel):
+    niveau: Literal["standard", "maanedlig", "ubegraenset", "udelukket"]
+    note: str | None = Field(None, max_length=300)
+
+
+@router.get("/privilegier")
+async def privilegier(acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    return {"niveauer": [{"niveau": k, "tekst": t} for k, t in photo_privileges.TEXTS.items()], "brugere": await photo_privileges.listing(db)}
+
+
+@router.put("/privilegier/{uid}")
+async def saet_privilegie(uid: int, body: PrivIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_privileges.set_level(db, user, uid, body.niveau, body.note)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    await activity.track(user.id, "foto_privilegie", "/fotos/admin/privilegier", {"bruger": uid, "niveau": body.niveau})
+    return {"ok": True}
+
+
+@router.delete("/privilegier/{uid}")
+async def fjern_privilegie(uid: int, acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    await photo_privileges.clear(db, uid)
     return {"ok": True}

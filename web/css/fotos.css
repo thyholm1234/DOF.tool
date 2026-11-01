@@ -73,3 +73,14 @@
 .fot-log { max-height: 280px; overflow: auto; font-size: .8rem; font-family: var(--mono, monospace); background: var(--bg-2); padding: 8px; border-radius: 6px; }
 .fot-log .fejl { color: var(--danger, #c0392b); } .fot-log .advarsel { color: var(--warn); }
 .fot-progress { height: 8px; background: var(--bg-2); border-radius: 4px; overflow: hidden; } .fot-progress div { height: 100%; background: var(--brand); transition: width .2s; }
+
+/* upload og Mine fotos */
+.fot-upload { max-width: 820px; }
+.fot-drop { border: 2px dashed var(--line-strong); border-radius: var(--radius); padding: 16px; text-align: center; }
+.fot-drop.on { border-color: var(--brand); background: var(--brand-soft); }
+.fot-preview { max-width: 100%; max-height: 320px; border-radius: var(--radius-sm); margin-top: 8px; }
+.fot-birdrow { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(90px, 1fr)) auto; gap: 6px; align-items: start; }
+.fot-birdrow .grow { position: relative; } .fot-birdrow .fot-suggest { position: absolute; z-index: 5; left: 0; right: 0; background: var(--surface); }
+@media (max-width: 760px) { .fot-birdrow { grid-template-columns: 1fr 1fr; } .fot-birdrow .grow { grid-column: 1 / -1; } }
+.fot-mine { display: flex; flex-direction: column; gap: 6px; }
+.fot-upload input[type=text], .fot-upload input[type=search], .fot-upload select, .fot-upload textarea { width: 100%; }

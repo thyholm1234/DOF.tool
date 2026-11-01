@@ -805,6 +805,39 @@ true,
 ]
 }
 },
+"/api/admin/fotos/privilegier": {
+"get": {
+"body": false,
+"op": "privilegier_api_admin_fotos_privilegier_get",
+"params": []
+}
+},
+"/api/admin/fotos/privilegier/{uid}": {
+"delete": {
+"body": false,
+"op": "fjern_privilegie_api_admin_fotos_privilegier__uid__delete",
+"params": [
+[
+"uid",
+"path",
+true,
+"{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "saet_privilegie_api_admin_fotos_privilegier__uid__put",
+"params": [
+[
+"uid",
+"path",
+true,
+"{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/gateway/enqueue": {
 "post": {
 "body": true,
@@ -3782,6 +3815,11 @@ false,
 "{\"default\": \"dato\", \"title\": \"Sort\", \"type\": \"string\"}"
 ]
 ]
+},
+"post": {
+"body": true,
+"op": "upload_api_fotos_post",
+"params": []
 }
 },
 "/api/fotos/koder": {
@@ -3831,6 +3869,40 @@ true,
 ]
 }
 },
+"/api/fotos/mine": {
+"get": {
+"body": false,
+"op": "mine_api_fotos_mine_get",
+"params": []
+}
+},
+"/api/fotos/mine-observationer": {
+"get": {
+"body": false,
+"op": "mine_observationer_api_fotos_mine_observationer_get",
+"params": [
+[
+"artnr",
+"query",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
+],
+[
+"dato",
+"query",
+true,
+"{\"format\": \"date\", \"title\": \"Dato\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/fotos/mine/indstillinger": {
+"put": {
+"body": true,
+"op": "mine_indstillinger_api_fotos_mine_indstillinger_put",
+"params": []
+}
+},
 "/api/fotos/n/{netfugl_id}": {
 "get": {
 "body": false,
@@ -3845,10 +3917,95 @@ true,
 ]
 }
 },
+"/api/fotos/sider/retningslinjer": {
+"get": {
+"body": false,
+"op": "retningslinjer_api_fotos_sider_retningslinjer_get",
+"params": []
+}
+},
+"/api/fotos/til-observationer": {
+"get": {
+"body": false,
+"op": "til_observationer_api_fotos_til_observationer_get",
+"params": [
+[
+"obsid",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 4000, \"title\": \"Obsid\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/fotos/{pid}": {
+"delete": {
+"body": false,
+"op": "slet_api_fotos__pid__delete",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+},
 "get": {
 "body": false,
 "op": "foto_api_fotos__pid__get",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_api_fotos__pid__put",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/fotos/{pid}/felter": {
+"get": {
+"body": false,
+"op": "felter_api_fotos__pid__felter_get",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/fotos/{pid}/gruppe": {
+"delete": {
+"body": false,
+"op": "fjern_fra_gruppe_api_fotos__pid__gruppe_delete",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+},
+"post": {
+"body": true,
+"op": "gruppe_api_fotos__pid__gruppe_post",
 "params": [
 [
 "pid",

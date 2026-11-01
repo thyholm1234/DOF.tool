@@ -190,3 +190,7 @@ Selvstændigt fotogalleri bag funktionsflaget `fotos` (standard: forhåndsvisnin
 * **Galleri** med søgning i titel, lokalitet, beskrivelse, fotograf og art, avanceret søgning (art/race, dato, måned, land, lokalitet, køn, alder, dragt,
   adfærd, emneord) og fem sorteringer; filtrene ligger i adressen. Fotos af samme fund vises som ét kort.
 * **Fotoside** med lysboks, alle fugle, kamera, rettigheder, likes, visninger, kommentarer (arkiv fra netfugl.dk kun til læsning) og interne noter til moderatorer.
+* **Upload** (flag `fotos_upload`): billede (komprimeret og renset for GPS/EXIF på serveren; kameraoplysninger læses først og kan rettes), dato, land, lokalitet
+  med forslag fra DOFbasen, koordinat (valgfri), 1–10 fugle med adfærd/køn/alder/dragt, emneord og rettighed. Nye fotos afventer godkendelse; privilegiet
+  Månedlig/Ubegrænset (Fotos → Admin → Privilegier) lader dem blive publiceret med det samme. Fotos kan knyttes til brugerens egen observation (flag `fotos_dofbasen`).
+* **Mine fotos** med status, afvisningsgrund, ret/slet, standard-rettighed og samtykke til DOF's egne medier.

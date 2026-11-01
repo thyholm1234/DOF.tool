@@ -116,7 +116,7 @@ async def db(tmp_path, monkeypatch):
     from portal.models import EXTRA_DDL, Observer, Species, User
 
     engine = create_async_engine(DSN)
-    tables = [t for t in Base.metadata.sorted_tables if t.name in USER_TABLES or t.name in ("species", "locations", "observers")]
+    tables = [t for t in Base.metadata.sorted_tables if t.name in USER_TABLES or t.name in ("species", "locations", "observers", "observations", "code_texts")]
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
@@ -127,6 +127,9 @@ async def db(tmp_path, monkeypatch):
                 await conn.execute(text(ddl))
     factory = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(photo_import, "SessionLocal", factory)
+    from portal.services import activity
+
+    monkeypatch.setattr(activity, "SessionLocal", factory)
     s = get_settings()
     monkeypatch.setattr(s, "media_dir", str(tmp_path / "media"))
     monkeypatch.setattr(s, "photo_import_dir", str(tmp_path / "imports"))
@@ -143,6 +146,9 @@ async def db(tmp_path, monkeypatch):
         for nr, navn, latin in [(1, "Dværgterne", "Sternula albifrons"), (2, "Ravn", "Corvus corax")]:
             session.add(Species(artnr=nr, navn=navn, latin=latin, sortering=nr, art_type="art"))
         await session.execute(text("INSERT INTO locations (loknr, navn, lat, lon) VALUES (100, 'Tisvildekysten', 56.05, 12.01), (101, 'Tisvildekysten', 57.5, 10.0)"))
+        await session.execute(text("INSERT INTO code_texts (kind, code, text) VALUES ('adf', 'SI', 'Siddende'), ('dragt', 'PR', 'Pragtdragt')"))
+        await session.execute(text("INSERT INTO observations (obsid, dato, artnr, antal, koen, adfkode, alderkode, dragtkode, loknr, obserkode, hemmelig, kategori, afdelinger) VALUES "
+                                   "(5001, '2026-10-27', 1, 2, 'M', 'SI', 'k1', 'PR', 100, 'LB', 0, 'alm', '{}'), (5002, '2026-10-27', 1, 1, 'F', NULL, NULL, NULL, 100, 'A1', 0, 'alm', '{}'), (5003, '2026-10-29', 1, 1, NULL, NULL, NULL, NULL, 100, 'LB', 0, 'alm', '{}')"))
         await session.execute(text("INSERT INTO observers (obserkode, fornavn, efternavn) VALUES ('KE1', 'Knud-Erik', 'Hansen'), ('XX', 'Per', 'Pedersen')"))
         await session.commit()
     yield factory
