@@ -66,6 +66,7 @@ class GalPhotographer(Base):
     match: Mapped[str] = mapped_column(String(10), default="ingen", server_default="ingen")
     standard_rettighed: Mapped[int] = mapped_column(SmallInteger, default=2, server_default="2")
     dof_samtykke: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    merged_into: Mapped[int | None] = mapped_column(Integer)  # flettet ind i en anden fotograf (rækken bevares, så importen finder den igen)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

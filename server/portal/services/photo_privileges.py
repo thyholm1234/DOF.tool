@@ -46,3 +46,14 @@ async def listing(session: AsyncSession) -> list[dict]:
         LEFT JOIN users a ON a.id = p.set_by ORDER BY p.set_at DESC"""))).mappings().all()
     return [{"user_id": r["user_id"], "navn": r["navn"] or r["obserkode"], "obserkode": r["obserkode"], "niveau": r["niveau"], "note": r["note"],
              "set_at": r["set_at"].isoformat(), "af": r["af"]} for r in rows]
+
+
+async def find_users(session: AsyncSession, q: str, limit: int = 20) -> list[dict]:
+    """Brugersøgning (navn eller obserkode) til privilegier og fotografer."""
+    q = q.strip()
+    if len(q) < 2:
+        return []
+    rows = (await session.execute(text("""
+        SELECT u.id, u.navn, u.obserkode, coalesce(p.niveau, 'standard') AS niveau FROM users u LEFT JOIN gal_privileges p ON p.user_id = u.id
+        WHERE u.navn ILIKE :l OR u.obserkode ILIKE :l ORDER BY (u.obserkode ILIKE :s) DESC, u.navn LIMIT :n"""), {"l": f"%{q}%", "s": f"{q}%", "n": limit})).mappings().all()
+    return [dict(r) for r in rows]

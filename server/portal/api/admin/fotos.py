@@ -13,7 +13,7 @@ from portal.api.deps import require_user
 from portal.cache import worker_command
 from portal.db import get_session
 from portal.models import GalImport, User
-from portal.services import activity, photo_access, photo_comments, photo_import, photo_photographers, photo_privileges, photo_upload
+from portal.services import activity, photo_access, photo_codes, photo_comments, photo_edit, photo_import, photo_moderation, photo_photographers, photo_privileges, photo_settings, photo_upload
 
 router = APIRouter(prefix="/api/admin/fotos", tags=["admin"])
 
@@ -215,3 +215,167 @@ async def saet_privilegie(uid: int, body: PrivIn, user: User = Depends(require_u
 async def fjern_privilegie(uid: int, acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     await photo_privileges.clear(db, uid)
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- kø, status og lås
+
+class StatusIn(BaseModel):
+    status: Literal["publiceret", "afvist", "afpubliceret", "afventer"]
+    grund: str | None = Field(None, max_length=1000)
+
+
+class LockIn(BaseModel):
+    locked: bool
+
+
+def _merr(exc: photo_moderation.ModError) -> HTTPException:
+    return HTTPException(exc.status, exc.message)
+
+
+@router.get("/koe")
+async def koe(status: Literal["afventer", "afvist", "afpubliceret"] = "afventer", side: int = Query(1, ge=1), acc: photo_access.Access = Depends(need("moderate")),
+              db: AsyncSession = Depends(get_session)):
+    return await photo_moderation.queue(db, status, 30, (side - 1) * 30)
+
+
+@router.put("/{pid:int}/status")
+async def saet_status(pid: int, body: StatusIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need("moderate")), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_moderation.set_status(db, user, pid, body.status, body.grund)
+    except photo_moderation.ModError as exc:
+        raise _merr(exc) from exc
+    await activity.track(user.id, "foto_status", f"/fotos/{pid}", {"foto": pid, "status": body.status})
+    return {"ok": True}
+
+
+@router.put("/{pid:int}/laas")
+async def laas(pid: int, body: LockIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need("moderate")), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_moderation.set_lock(db, user, pid, body.locked)
+    except photo_moderation.ModError as exc:
+        raise _merr(exc) from exc
+    await activity.track(user.id, "foto_laas", f"/fotos/{pid}", {"foto": pid, "laast": body.locked})
+    return {"ok": True}
+
+
+@router.get("/{pid:int}/gruppeforslag")
+async def gruppeforslag(pid: int, acc: photo_access.Access = Depends(need("moderate")), db: AsyncSession = Depends(get_session)):
+    """Fotos fra samme fotograf af samme fund (samme observation eller art + dato + lokalitet), som endnu ikke er i en gruppe."""
+    try:
+        return {"ids": await photo_edit.group_candidates_for(db, pid)}
+    except photo_edit.PhotoError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+
+
+# ---------------------------------------------------------------- fotografer
+
+class LinkIn(BaseModel):
+    user_id: int | None = None
+    obserkode: str | None = Field(None, max_length=16)
+    unlink: bool = False
+
+
+class MergeIn(BaseModel):
+    from_id: int
+    into_id: int
+
+
+@router.get("/fotografer")
+async def fotografer(match: str = Query("", pattern="^(|auto|manuel|ingen|tvetydig)$"), q: str = Query("", max_length=100), side: int = Query(1, ge=1),
+                     acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    return await photo_photographers.listing(db, match=match, q=q, limit=50, offset=(side - 1) * 50)
+
+
+@router.patch("/fotografer/{pid}")
+async def ret_fotograf(pid: int, body: LinkIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_photographers.link(db, pid, user_id=body.user_id, obserkode=body.obserkode, unlink=body.unlink)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await activity.track(user.id, "foto_fotograf", "/fotos/admin/fotografer", {"fotograf": pid, **body.model_dump(exclude_none=True)})
+    return {"ok": True}
+
+
+@router.post("/fotografer/flet")
+async def flet_fotografer(body: MergeIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_photographers.merge(db, body.from_id, body.into_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await activity.track(user.id, "foto_flet", "/fotos/admin/fotografer", body.model_dump())
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- koder, indstillinger og tekster
+
+class CodeIn(BaseModel):
+    kind: Literal["adfaerd", "koen", "alder", "dragt"]
+    code: str = Field("", max_length=16)
+    text: str = Field(max_length=120)
+    sort: int = 100
+    dofbasen_code: str | None = Field(None, max_length=16)
+
+
+class CodesIn(BaseModel):
+    items: list[CodeIn] = Field(max_length=500)
+
+
+class CodeMergeIn(BaseModel):
+    kind: Literal["adfaerd", "koen", "alder", "dragt"]
+    from_code: str
+    into_code: str
+
+
+@router.get("/koder")
+async def koder(acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    out = await photo_codes.admin_list(db)
+    await db.commit()
+    return out
+
+
+@router.put("/koder")
+async def gem_koder(body: CodesIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_codes.admin_save(db, [i.model_dump() for i in body.items])
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await activity.track(user.id, "foto_koder", "/fotos/admin/koder", {"antal": len(body.items)})
+    return {"ok": True}
+
+
+@router.post("/koder/flet")
+async def flet_koder(body: CodeMergeIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        n = await photo_codes.admin_merge(db, body.kind, body.from_code, body.into_code)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await activity.track(user.id, "foto_koder", "/fotos/admin/koder", body.model_dump())
+    return {"ok": True, "fugle": n}
+
+
+@router.get("/indstillinger")
+async def indstillinger(acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    return {**await photo_settings.get(db), "tekster": await photo_settings.get_texts(db)}
+
+
+@router.put("/indstillinger")
+async def gem_indstillinger(body: dict, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        if "tekster" in body:
+            await photo_settings.save_texts(db, body["tekster"] or {})
+        cfg = await photo_settings.save(db, {k: v for k, v in body.items() if k != "tekster"})
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await activity.track(user.id, "foto_indstillinger", "/fotos/admin/indstillinger")
+    return {**cfg, "tekster": await photo_settings.get_texts(db)}
+
+
+@router.get("/brugere")
+async def find_brugere(q: str = Query("", max_length=60), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    return await photo_privileges.find_users(db, q)

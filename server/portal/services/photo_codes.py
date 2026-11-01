@@ -35,12 +35,13 @@ def slug(s: str) -> str:
 
 
 async def ensure_seed(session: AsyncSession) -> None:
-    """Læg kodelisterne ind, hvis de mangler (rører aldrig eksisterende rækker, så admins rettelser bevares)."""
-    have = {(k, c) for k, c in (await session.execute(select(GalCode.kind, GalCode.code))).all()}
+    """Læg kodelisterne ind, hvis en slags ikke har nogen koder endnu (rører aldrig eksisterende lister, så admins rettelser og sletninger bevares)."""
+    have = {k for (k,) in (await session.execute(select(GalCode.kind).distinct())).all()}
     for kind in KINDS:
+        if kind in have:
+            continue
         for i, (code, txt) in enumerate(seed_data()[kind]):
-            if (kind, code) not in have:
-                session.add(GalCode(kind=kind, code=code, text=txt, sort=(i + 1) * 10))
+            session.add(GalCode(kind=kind, code=code, text=txt, sort=(i + 1) * 10))
     await session.flush()
 
 
@@ -87,3 +88,50 @@ async def all_codes(session: AsyncSession) -> dict:
     out["sjaeldenhed"] = [{"code": c, "text": t} for c, t in seed_data()["sjaeldenhed"]]
     out["lande"] = [dict(r) for r in (await session.execute(text("SELECT id, navn, vp FROM gal_countries ORDER BY (netfugl_id = 1) DESC NULLS LAST, navn"))).mappings()]
     return out
+
+
+# ---------------------------------------------------------------- admin → Koder
+
+COL = {"adfaerd": "adfaerd", "koen": "koen", "alder": "alder", "dragt": "dragt"}
+
+
+async def admin_list(session: AsyncSession) -> list[dict]:
+    await ensure_seed(session)
+    used: dict[tuple[str, str], int] = {}
+    for kind, col in COL.items():
+        for code, n in (await session.execute(text(f"SELECT {col}, count(*) FROM gal_birds WHERE {col} IS NOT NULL GROUP BY 1"))).all():
+            used[(kind, code)] = n
+    rows = (await session.execute(select(GalCode).order_by(GalCode.kind, GalCode.sort, GalCode.text))).scalars().all()
+    return [{"kind": r.kind, "code": r.code, "text": r.text, "sort": r.sort, "dofbasen_code": r.dofbasen_code, "brugt": used.get((r.kind, r.code), 0)} for r in rows]
+
+
+async def admin_save(session: AsyncSession, items: list[dict]) -> None:
+    """Ret tekst, sortering og DOFbasen-kode; nye koder oprettes (kind + code + text)."""
+    for it in items:
+        kind, code = it.get("kind"), str(it.get("code") or "").strip()
+        if kind not in KINDS:
+            raise ValueError("Ukendt slags kode")
+        txt = str(it.get("text") or "").strip()
+        if not txt:
+            raise ValueError("Teksten må ikke være tom")
+        row = await session.get(GalCode, (kind, code)) if code else None
+        if row is None:
+            code = code or slug(txt)
+            if await session.get(GalCode, (kind, code)):
+                raise ValueError(f"Koden {code} findes allerede")
+            row = GalCode(kind=kind, code=code[:16], text=txt[:120])
+            session.add(row)
+        row.text, row.sort = txt[:120], int(it.get("sort", row.sort or 100))
+        row.dofbasen_code = (str(it.get("dofbasen_code") or "").strip()[:16]) or None
+    await session.commit()
+
+
+async def admin_merge(session: AsyncSession, kind: str, from_code: str, into_code: str) -> int:
+    if kind not in KINDS or from_code == into_code:
+        raise ValueError("Ugyldig sammenlægning")
+    if await session.get(GalCode, (kind, from_code)) is None or await session.get(GalCode, (kind, into_code)) is None:
+        raise LookupError("Koden findes ikke")
+    n = (await session.execute(text(f"UPDATE gal_birds SET {COL[kind]} = :i WHERE {COL[kind]} = :f"), {"i": into_code, "f": from_code})).rowcount
+    await session.execute(text("DELETE FROM gal_codes WHERE kind = :k AND code = :f"), {"k": kind, "f": from_code})
+    await session.commit()
+    return n

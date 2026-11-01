@@ -19,8 +19,6 @@ from portal.api.admin._deps import (
 from portal.db import get_session
 from portal.models import (
     CommentBan,
-    SupportMessage,
-    SupportThread,
     User,
 )
 from portal.services import (
@@ -142,7 +140,6 @@ class ModMessageIn(BaseModel):
 @router.post("/admin/users/{user_id}/message")
 async def message_user(user_id: int, body: ModMessageIn, user: User = Depends(perm_moderation), db: AsyncSession = Depends(get_session)):
     """Start en samtale med en bruger. Den ligger i brugerens 'Feedback og support', og svar ses af alle moderatorer."""
-    from portal.api.social import _notify
     target = await db.get(User, user_id)
     if target is None:
         raise HTTPException(404, "Brugeren findes ikke")
@@ -151,11 +148,6 @@ async def message_user(user_id: int, body: ModMessageIn, user: User = Depends(pe
         c = (await db.execute(text("SELECT body, dato, artnr, loknr FROM thread_comments WHERE id = :c"), {"c": body.comment_id})).first()
         if c:
             ctx = {"comment": c[0][:500], "path": f"#/traad/{c[1].isoformat()}/{c[2]}/{c[3]}"}
-    t = SupportThread(user_id=target.id, subject=body.subject.strip(), kind="moderation", unread_user=True, unread_admin=False)
-    db.add(t)
-    await db.flush()
-    db.add(SupportMessage(thread_id=t.id, user_id=user.id, from_admin=True, body=body.body.strip(), context=ctx))
-    await db.commit()
+    t = await moderation.send_message(db, target_id=target.id, mod_id=user.id, subject=body.subject, body=body.body, context=ctx)
     await activity.track(user.id, "mod_message", None, {"user": target.id, "thread": t.id})
-    await _notify([target.id], f"Besked fra moderator: {t.subject}", body.body, f"/#/support?t={t.id}", f"support:{t.id}:0")
     return {"thread": t.id}

@@ -658,11 +658,72 @@ true,
 "params": []
 }
 },
+"/api/admin/fotos/brugere": {
+"get": {
+"body": false,
+"op": "find_brugere_api_admin_fotos_brugere_get",
+"params": [
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 60, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/admin/fotos/fotografer": {
+"get": {
+"body": false,
+"op": "fotografer_api_admin_fotos_fotografer_get",
+"params": [
+[
+"match",
+"query",
+false,
+"{\"default\": \"\", \"pattern\": \"^(|auto|manuel|ingen|tvetydig)$\", \"title\": \"Match\", \"type\": \"string\"}"
+],
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 100, \"title\": \"Q\", \"type\": \"string\"}"
+],
+[
+"side",
+"query",
+false,
+"{\"default\": 1, \"minimum\": 1, \"title\": \"Side\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/fotos/fotografer/flet": {
+"post": {
+"body": true,
+"op": "flet_fotografer_api_admin_fotos_fotografer_flet_post",
+"params": []
+}
+},
 "/api/admin/fotos/fotografer/match": {
 "post": {
 "body": false,
 "op": "match_fotografer_api_admin_fotos_fotografer_match_post",
 "params": []
+}
+},
+"/api/admin/fotos/fotografer/{pid}": {
+"patch": {
+"body": true,
+"op": "ret_fotograf_api_admin_fotos_fotografer__pid__patch",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
 }
 },
 "/api/admin/fotos/import": {
@@ -765,6 +826,57 @@ true,
 ]
 }
 },
+"/api/admin/fotos/indstillinger": {
+"get": {
+"body": false,
+"op": "indstillinger_api_admin_fotos_indstillinger_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "gem_indstillinger_api_admin_fotos_indstillinger_put",
+"params": []
+}
+},
+"/api/admin/fotos/koder": {
+"get": {
+"body": false,
+"op": "koder_api_admin_fotos_koder_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "gem_koder_api_admin_fotos_koder_put",
+"params": []
+}
+},
+"/api/admin/fotos/koder/flet": {
+"post": {
+"body": true,
+"op": "flet_koder_api_admin_fotos_koder_flet_post",
+"params": []
+}
+},
+"/api/admin/fotos/koe": {
+"get": {
+"body": false,
+"op": "koe_api_admin_fotos_koe_get",
+"params": [
+[
+"side",
+"query",
+false,
+"{\"default\": 1, \"minimum\": 1, \"title\": \"Side\", \"type\": \"integer\"}"
+],
+[
+"status",
+"query",
+false,
+"{\"default\": \"afventer\", \"enum\": [\"afventer\", \"afvist\", \"afpubliceret\"], \"title\": \"Status\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/admin/fotos/kommentarer": {
 "get": {
 "body": false,
@@ -834,6 +946,48 @@ true,
 "path",
 true,
 "{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/fotos/{pid}/gruppeforslag": {
+"get": {
+"body": false,
+"op": "gruppeforslag_api_admin_fotos__pid__gruppeforslag_get",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/fotos/{pid}/laas": {
+"put": {
+"body": true,
+"op": "laas_api_admin_fotos__pid__laas_put",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/fotos/{pid}/status": {
+"put": {
+"body": true,
+"op": "saet_status_api_admin_fotos__pid__status_put",
+"params": [
+[
+"pid",
+"path",
+true,
+"{\"title\": \"Pid\", \"type\": \"integer\"}"
 ]
 ]
 }

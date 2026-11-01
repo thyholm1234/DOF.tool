@@ -282,6 +282,13 @@ async def group_candidates(session: AsyncSession, photo: GalPhoto) -> list[int]:
     return [r[0] for r in rows]
 
 
+async def group_candidates_for(session: AsyncSession, pid: int) -> list[int]:
+    photo = await session.get(GalPhoto, pid)
+    if photo is None:
+        raise PhotoError(404, "Fotoet findes ikke")
+    return await group_candidates(session, photo)
+
+
 async def set_group(session: AsyncSession, user: User, moderator: bool, pid: int, ids: list[int]) -> dict:
     """Saml pid og ids i én gruppe. Ejeren kan kun gruppere egne fotos; moderatorer alle."""
     photos = list((await session.execute(select(GalPhoto).where(GalPhoto.id.in_([pid, *ids])))).scalars())

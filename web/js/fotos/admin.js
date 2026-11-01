@@ -2,9 +2,9 @@
 import { h, errorBox } from "../core.js";
 import { BASE, loadingBox, notice } from "./common.js";
 
-const TABS = [["koe", "Kø"], ["privilegier", "Privilegier"], ["fotografer", "Fotografer"], ["import", "Import"], ["bannere", "Bannere"], ["koder", "Koder"], ["indstillinger", "Indstillinger"]];
+const TABS = [["koe", "Kø"], ["privilegier", "Privilegier"], ["fotografer", "Fotografer"], ["import", "Import"], ["kommentarer", "Kommentarer"], ["bannere", "Bannere"], ["koder", "Koder"], ["indstillinger", "Indstillinger"]];
 const FILES = { koe: () => import("./admin-koe.js"), privilegier: () => import("./admin-privilegier.js"), fotografer: () => import("./admin-fotografer.js"),
-  import: () => import("./admin-import.js"), bannere: () => import("./admin-bannere.js"), koder: () => import("./admin-koder.js"), indstillinger: () => import("./admin-indstillinger.js") };
+  import: () => import("./admin-import.js"), kommentarer: () => import("./admin-kommentarer.js"), bannere: () => import("./admin-bannere.js"), koder: () => import("./admin-koder.js"), indstillinger: () => import("./admin-indstillinger.js") };
 
 export async function page(parts) {
   const tab = TABS.some(t => t[0] === parts[1]) ? parts[1] : "koe";

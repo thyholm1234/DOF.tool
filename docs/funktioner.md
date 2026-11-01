@@ -194,3 +194,6 @@ Selvstændigt fotogalleri bag funktionsflaget `fotos` (standard: forhåndsvisnin
   med forslag fra DOFbasen, koordinat (valgfri), 1–10 fugle med adfærd/køn/alder/dragt, emneord og rettighed. Nye fotos afventer godkendelse; privilegiet
   Månedlig/Ubegrænset (Fotos → Admin → Privilegier) lader dem blive publiceret med det samme. Fotos kan knyttes til brugerens egen observation (flag `fotos_dofbasen`).
 * **Mine fotos** med status, afvisningsgrund, ret/slet, standard-rettighed og samtykke til DOF's egne medier.
+* **Moderation** (Fotos → Admin, modulet `fotos`): kø med Afventer/Afvist/Afpubliceret (med antal publicerede fotos af arten og 30-grænsen), godkend/afvis med standardgrunde
+  (fotografen får en besked i Feedback og support; godkendelse giver en notifikation), afpublicér, lås, gruppér, interne noter, privilegier, fotografer
+  (kobl, fjern, flet), kodelister, indstillinger og kommentarmoderation.
