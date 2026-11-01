@@ -280,7 +280,7 @@ async def test_search_front_and_lists(db, tmp_path):
         assert res["total"] == 3 and len(res["rows"]) == 2 and res["facets"]["aar"] == [{"aar": 2001, "n": 3}]
         arter = {a["navn"]: a["n"] for a in await articles.species_overview(s, False)}
         assert arter["Dværgterne"] == 1 and arter["Sortgrå Ryle"] == 1
-        assert (await articles.authors_overview(s, False)) == [{"navn": "Pia Pil", "n": 3}]
+        assert (await articles.authors_overview(s, False)) == [{"id": 1, "navn": "Pia Pil", "n": 3, "har_bio": False}]  # fra forfatterregistret
         front = await articles.front(s, False, await article_settings.get(s))
         assert front["total"] == 3 and front["hero"]["cover"] and front["hero"]["cover"]["kind"] == "billede"
         assert any(c["cover"] and c["cover"]["kind"] == "pdf" for c in front["secondary"] + front["latest"])  # PDF-artiklen får side 1 som billede

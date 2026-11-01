@@ -212,3 +212,16 @@ Selvstændigt modul bag funktionsflaget `krydslister` (standard: forhåndsvisnin
   AviList udgives under CC BY 4.0 (kildeangivelse påkrævet) – bekræft den gældende licens på avilist.org, før en fil lægges ind.
 * **Godkendelse** af manuelle kryds på lister med `regler.godkendelse` (fx Falsk VP); afgørelsen sendes som besked til deltageren.
 * Fotos viser sjældenhed (filter) via DK-listen, og fotos vises på DOFbasen-observationer (observationsvisningen og trådens observationsrækker).
+
+### Artikler: forfatterregister, sprog og link-artikler
+
+* **Forfatterregister** (Artikler → Admin → Forfattere): én række pr. forfatter (`art_authors`) i stedet for navne i et JSON-felt. Rettelser gemmes samlet; omdøbning til et
+  eksisterende navn fletter de to; sammensatte navne («A og B») deles ikke automatisk, men med knappen «Del op». Eksport/import som CSV. Workeren opretter registret ud fra de
+  eksisterende artikler første gang (`POST /api/admin/artikler/forfattere/migrer` gør det på forlangende). `art_articles.authors` vedligeholdes indtil videre kun som kopi.
+* **Sprog** (`da`/`en`) pr. artikel: filter i søgningen og `lang`-attribut på teksten.
+* **Link-artikler** (`kind = link`): kræver kilde-adresse og manchet; kortet åbner kilden i en ny fane, og artikelsiden viser manchetten og «Læs på <domæne>».
+
+## Se som bruger
+
+Superadmin kan under Admin → Brugere se appen som en anden bruger i 15 minutter (kun læsning, med grund, logget). Alle ændrende kald afvises af en middleware (undtagen at afslutte og logge ud),
+SSE-strømmen oprettes ikke, og fotovisninger tælles ikke. Et rødt banner øverst viser tilstanden med nedtælling.

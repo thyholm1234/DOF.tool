@@ -3,7 +3,7 @@ import { api, h, toast, seg } from "../core.js";
 import { BASE, ctx, dkDate, nowrap, loadingBox, cleanups } from "./common.js";
 import { results, readState } from "./soeg.js";
 
-const TABS = [["artikler", "Artikler"], ["import", "Import"], ["emneord", "Emneord"], ["kommentarer", "Kommentarer"], ["indstillinger", "Indstillinger"], ["vedligehold", "Vedligehold"]];
+const TABS = [["artikler", "Artikler"], ["import", "Import"], ["emneord", "Emneord"], ["forfattere", "Forfattere"], ["kommentarer", "Kommentarer"], ["indstillinger", "Indstillinger"], ["vedligehold", "Vedligehold"]];
 
 export async function page(parts) {
   const c = ctx();
@@ -30,6 +30,8 @@ const TAB = {
   async import() { return (await import("./import.js")).page(); },
 
   async emneord() { return tagAdmin(); },
+
+  async forfattere() { return (await import("./forfattere-admin.js")).page(); },
 
   async kommentarer() { return commentQueue(); },
 

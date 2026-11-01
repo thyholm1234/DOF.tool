@@ -19,6 +19,7 @@ from portal.services import (
     activity,
     article_access,
     article_comments,
+    article_authors,
     article_edit,
     article_import,
     article_notify,
@@ -53,6 +54,7 @@ def aware(dt: datetime | None) -> datetime | None:
 
 class AuthorIn(BaseModel):
     navn: str = Field(max_length=160)
+    id: int | None = None
     user_id: int | None = None
 
 
@@ -70,7 +72,8 @@ class ArticleIn(BaseModel):
     featured_until: datetime | None = None
     comments_open: bool = True
     source_url: str | None = Field(None, max_length=400)
-    kind: Literal["artikel", "pdf"] = "artikel"
+    kind: Literal["artikel", "pdf", "link"] = "artikel"
+    sprog: Literal["da", "en"] = "da"
     version: int | None = None
 
     def data(self) -> dict:
@@ -370,3 +373,82 @@ async def moderer(cid: int, action: Literal["skjul", "gendan", "slet", "afvis"],
     await activity.track(user.id, "artikel_kommentar", f"/artikler", {"handling": action, "kommentar": cid})
     return {"ok": True}
 
+
+
+# ---------------------------------------------------------------- forfattere (register)
+
+class AuthorChange(BaseModel):
+    id: int
+    navn: str | None = Field(None, max_length=160)
+    skjult: bool | None = None
+    bio_md: str | None = Field(None, max_length=5000)
+    user_id: int | None = None
+
+
+class AuthorsIn(BaseModel):
+    changes: list[AuthorChange] = Field(max_length=5000)
+
+
+class SplitIn(BaseModel):
+    navne: list[str] = Field(default_factory=list, max_length=10)
+
+
+@router.get("/forfattere/soeg")
+async def soeg_forfattere(q: str = Query("", max_length=100), acc: article_access.Access = Depends(need("edit")), db: AsyncSession = Depends(get_session)):
+    """Forfattersøgning til editoren."""
+    return await article_authors.search(db, q)
+
+
+@router.get("/forfattere")
+async def forfattere(acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    return await article_authors.admin_list(db)
+
+
+@router.put("/forfattere")
+async def gem_forfattere(body: AuthorsIn, acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    """Gem alle rettelser samlet (alt eller intet). Omdøbning til et eksisterende navn fletter de to."""
+    try:
+        return await article_authors.save_many(db, [c.model_dump(exclude_unset=True) for c in body.changes])
+    except article_authors.Invalid as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/forfattere/eksport")
+async def eksport_forfattere(acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    return Response(article_authors.to_csv(await article_authors.admin_list(db)), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="forfattere.csv"'})
+
+
+@router.post("/forfattere/import")
+async def import_forfattere(file: UploadFile = File(...), acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    """Læs en rettet eksport. Intet gemmes: rettelserne lægges i tabellen som ugemte ændringer."""
+    data = await file.read(5 * 1024 * 1024 + 1)
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Filen er for stor (højst 5 MB)")
+    try:
+        return await article_authors.parse_import(db, data)
+    except article_authors.Invalid as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/forfattere/migrer")
+async def migrer_forfattere(acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    """Opret forfatterregistret ud fra artiklernes forfatterfelt (køres også automatisk af workeren én gang)."""
+    return {"artikler": await article_authors.backfill(db)}
+
+
+@router.post("/forfattere/{aid}/flet")
+async def flet_forfatter(aid: int, body: MergeIn, acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    try:
+        return {"flyttet": await article_authors.merge(db, aid, body.into)}
+    except article_authors.Invalid as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/forfattere/{aid}/del")
+async def del_forfatter(aid: int, body: SplitIn, acc: article_access.Access = Depends(need("admin")), db: AsyncSession = Depends(get_session)):
+    """Del en sammensat forfatter («A og B») op i flere. Uden navne foreslås opdelingen automatisk ved «og», komma og &."""
+    try:
+        return {"ids": await article_authors.split(db, aid, body.navne)}
+    except article_authors.Invalid as exc:
+        raise HTTPException(400, str(exc)) from exc

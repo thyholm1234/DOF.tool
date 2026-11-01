@@ -123,6 +123,81 @@ true,
 ]
 }
 },
+"/api/admin/artikler/forfattere": {
+"get": {
+"body": false,
+"op": "forfattere_api_admin_artikler_forfattere_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "gem_forfattere_api_admin_artikler_forfattere_put",
+"params": []
+}
+},
+"/api/admin/artikler/forfattere/eksport": {
+"get": {
+"body": false,
+"op": "eksport_forfattere_api_admin_artikler_forfattere_eksport_get",
+"params": []
+}
+},
+"/api/admin/artikler/forfattere/import": {
+"post": {
+"body": true,
+"op": "import_forfattere_api_admin_artikler_forfattere_import_post",
+"params": []
+}
+},
+"/api/admin/artikler/forfattere/migrer": {
+"post": {
+"body": false,
+"op": "migrer_forfattere_api_admin_artikler_forfattere_migrer_post",
+"params": []
+}
+},
+"/api/admin/artikler/forfattere/soeg": {
+"get": {
+"body": false,
+"op": "soeg_forfattere_api_admin_artikler_forfattere_soeg_get",
+"params": [
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 100, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/admin/artikler/forfattere/{aid}/del": {
+"post": {
+"body": true,
+"op": "del_forfatter_api_admin_artikler_forfattere__aid__del_post",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/artikler/forfattere/{aid}/flet": {
+"post": {
+"body": true,
+"op": "flet_forfatter_api_admin_artikler_forfattere__aid__flet_post",
+"params": [
+[
+"aid",
+"path",
+true,
+"{\"title\": \"Aid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/artikler/genberegn-arter": {
 "post": {
 "body": false,
@@ -2062,6 +2137,12 @@ false,
 "{\"default\": \"\", \"maxLength\": 160, \"title\": \"Forfatter\", \"type\": \"string\"}"
 ],
 [
+"forfatter_id",
+"query",
+false,
+"{\"anyOf\": [{\"minimum\": 1, \"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Forfatter Id\"}"
+],
+[
 "fra",
 "query",
 false,
@@ -2108,6 +2189,12 @@ false,
 "query",
 false,
 "{\"default\": \"relevans\", \"title\": \"Sort\", \"type\": \"string\"}"
+],
+[
+"sprog",
+"query",
+false,
+"{\"default\": \"\", \"pattern\": \"^(|da|en)$\", \"title\": \"Sprog\", \"type\": \"string\"}"
 ],
 [
 "tag",

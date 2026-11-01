@@ -7,7 +7,7 @@ const SORTS = [["relevans", "Relevans"], ["nyeste", "Nyeste"], ["aeldste", "Æld
 const list = (v) => String(v || "").split(",").filter(Boolean).map(Number).filter(Number.isFinite);
 
 export function readState(q) {
-  return { q: q.q || "", mode: q.mode === "praecis" ? "praecis" : "ord", tag: list(q.tag), art: list(q.art), forfatter: q.forfatter || "", fra: q.fra || "", til: q.til || "",
+  return { q: q.q || "", mode: q.mode === "praecis" ? "praecis" : "ord", tag: list(q.tag), art: list(q.art), forfatter: q.forfatter || "", forfatter_id: q.forfatter_id || "", sprog: q.sprog || "", fra: q.fra || "", til: q.til || "",
     type: q.type || "", billeder: q.billeder === "1", pdf: q.pdf === "1", sort: q.sort || "", side: +q.side || 1 };
 }
 export function toQuery(st, fixed = {}) {
@@ -18,6 +18,8 @@ export function toQuery(st, fixed = {}) {
   s.tag.forEach(t => p.append("tag", t));
   s.art.forEach(a => p.append("art", a));
   if (s.forfatter) p.set("forfatter", s.forfatter);
+  if (s.forfatter_id) p.set("forfatter_id", s.forfatter_id);
+  if (s.sprog) p.set("sprog", s.sprog);
   if (s.fra) p.set("fra", s.fra);
   if (s.til) p.set("til", s.til);
   if (s.type) p.set("type", s.type);
@@ -47,13 +49,14 @@ export function results(st, { fixed = {}, onState = () => {}, empty = "Ingen art
 
 export async function page(parts, query) {
   const st = readState(query);
-  const [tags, species] = await Promise.all([api("/api/artikler/emneord"), api("/api/artikler/arter")]);
+  const [tags, species, authorList] = await Promise.all([api("/api/artikler/emneord"), api("/api/artikler/arter"), api("/api/artikler/forfattere").catch(() => [])]);
+  const authorById = new Map(authorList.map(a => [a.id, a.navn]));
   const tagById = new Map(tags.map(t => [t.id, t])), artById = new Map(species.map(s => [s.artnr, s]));
   const types = tags.filter(t => t.kind === "type").map(t => t.navn);
   const out = h("div", {}), chips = h("div", { class: "art-chips", style: { margin: "6px 0" } });
   let res;
   const sync = () => {
-    setParams({ q: st.q, mode: st.mode === "praecis" ? "praecis" : "", tag: st.tag.join(","), art: st.art.join(","), forfatter: st.forfatter, fra: st.fra, til: st.til,
+    setParams({ q: st.q, mode: st.mode === "praecis" ? "praecis" : "", tag: st.tag.join(","), art: st.art.join(","), forfatter: st.forfatter, forfatter_id: st.forfatter_id, sprog: st.sprog, fra: st.fra, til: st.til,
       type: st.type, billeder: st.billeder ? "1" : "", pdf: st.pdf ? "1" : "", sort: st.sort, side: st.side > 1 ? st.side : "" });
     drawChips();
     res = results(st, { onState: d => { years.dataset.n = d.facets.aar.length; } });
@@ -63,7 +66,8 @@ export async function page(parts, query) {
   const drawChips = () => chips.replaceChildren(
     ...st.tag.map(id => h("button", { class: "art-chip", type: "button", title: "Fjern", onclick: () => { st.tag = st.tag.filter(x => x !== id); run(); } }, `${tagById.get(id)?.navn || "emneord " + id} ×`)),
     ...st.art.map(n => h("button", { class: "art-chip art", type: "button", title: "Fjern", onclick: () => { st.art = st.art.filter(x => x !== n); run(); } }, `${artById.get(n)?.navn || "art " + n} ×`)),
-    st.forfatter ? h("button", { class: "art-chip", type: "button", onclick: () => { st.forfatter = ""; run(); } }, `Forfatter: ${st.forfatter} ×`) : null);
+    st.forfatter ? h("button", { class: "art-chip", type: "button", onclick: () => { st.forfatter = ""; run(); } }, `Forfatter: ${st.forfatter} ×`) : null,
+    st.forfatter_id ? h("button", { class: "art-chip", type: "button", onclick: () => { st.forfatter_id = ""; run(); } }, `Forfatter ${authorById.get(+st.forfatter_id) || "#" + st.forfatter_id} ×`) : null);
 
   const q = h("input", { type: "search", value: st.q, placeholder: "Ord eller tekst …", "aria-label": "Søgetekst", style: { flex: 1, minWidth: "200px" } });
   const years = h("span");
@@ -84,6 +88,7 @@ export async function page(parts, query) {
       pick("art", species.map(s => ({ id: s.artnr, label: s.navn })), "Tilføj art …", id => { if (!st.art.includes(id)) st.art.push(id); }),
       h("select", { "aria-label": "Type", onchange: (e) => { st.type = e.target.value; run(); } }, h("option", { value: "" }, "Alle typer"), ...types.map(t => h("option", { value: t, selected: t === st.type }, t))),
       num("fra", "Fra år"), num("til", "Til år"),
+      h("select", { "aria-label": "Sprog", onchange: (e) => { st.sprog = e.target.value; run(); } }, h("option", { value: "" }, "Alle sprog"), h("option", { value: "da", selected: st.sprog === "da" }, "Dansk"), h("option", { value: "en", selected: st.sprog === "en" }, "English")),
       h("select", { "aria-label": "Sortering", onchange: (e) => { st.sort = e.target.value; run(); } }, ...SORTS.map(([v, t]) => h("option", { value: v, selected: v === (st.sort || (st.q && st.mode === "ord" ? "relevans" : "nyeste")) }, t)))),
     h("div", { class: "row" },
       h("label", { class: "check" }, h("input", { type: "checkbox", checked: st.billeder, onchange: (e) => { st.billeder = e.target.checked; run(); } }), h("span", {}, "Kun med billeder")),

@@ -10,7 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, kv, version
-from portal.services import content_media, content_render
+from portal.services import article_authors, content_media, content_render
 from portal.timeutil import dk_today
 
 PER_PAGE = 20
@@ -28,8 +28,11 @@ LEFT JOIN LATERAL (
     WHERE m.owner_kind = 'artikel' AND m.owner_id = a.id AND (m.id = a.cover_media_id OR m.kind = 'billede' OR (m.kind = 'pdf' AND m.thumb_key IS NOT NULL))
     ORDER BY (m.id = a.cover_media_id) DESC, (m.kind = 'billede') DESC, m.sort, m.id LIMIT 1
 ) c ON true"""
+# Forfatterne læses fra registret (art_authors); art_articles.authors er kun en kopi til tilbagerulning
+AUTHORS_SQL = """(SELECT coalesce(jsonb_agg(jsonb_build_object('navn', au.navn, 'id', au.id, 'user_id', au.user_id) ORDER BY x.sort, au.id), '[]'::jsonb)
+    FROM art_article_authors x JOIN art_authors au ON au.id = x.author_id WHERE x.article_id = a.id)"""
 CARD = f"""
-    a.id, a.title, a.kind, a.dato, a.published_at, a.authors, a.lead, a.status, a.featured_until,
+    a.id, a.title, a.kind, a.sprog, a.source_url, a.dato, a.published_at, {AUTHORS_SQL} AS authors, a.lead, a.status, a.featured_until,
     left(a.body_text, 700) AS body_start, CASE WHEN a.body_text = '' THEN left(a.ocr_text, 700) END AS ocr_start,
     a.views_imported + a.views AS views,
     (SELECT count(*) FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig') AS kommentarer,
@@ -62,8 +65,8 @@ def card(r, tags: list[dict] | None = None, arter: list[dict] | None = None) -> 
     if r.get("cover_id"):
         cover = {"id": r["cover_id"], "kind": r["cover_kind"], "thumb": _url(r["cover_thumb"]), "medium": _url(r["cover_medium"]),
                  "w": r["cover_w"], "h": r["cover_h"], "alt": r["cover_alt"] or ""}
-    return {"id": r["id"], "title": r["title"], "kind": r["kind"], "dato": _iso(r["dato"]), "published_at": _iso(r["published_at"]),
-            "authors": [a.get("navn") for a in r["authors"] or [] if a.get("navn")], "teaser": teaser, "status": r["status"],
+    return {"id": r["id"], "title": r["title"], "kind": r["kind"], "sprog": r["sprog"], "source_url": r["source_url"] if r["kind"] == "link" else None, "dato": _iso(r["dato"]), "published_at": _iso(r["published_at"]),
+            "authors": [a.get("navn") for a in r["authors"] or [] if a.get("navn")], "author_ids": [a.get("id") for a in r["authors"] or [] if a.get("navn")], "teaser": teaser, "status": r["status"],
             "featured": bool(r.get("featured_until") and r["featured_until"] > datetime.now(r["featured_until"].tzinfo)),
             "views": r["views"], "kommentarer": r["kommentarer"], "cover": cover, "tags": tags or [], "arter": arter or []}
 
@@ -112,7 +115,7 @@ def _snippet(src: str, q: str, width: int = 120) -> str:
     return ("… " if a else "") + esc + (" …" if b < len(src) else "")
 
 
-def _filters(*, q, mode, tags, arter, forfatter, fra, til, type_, kind, har_billeder, har_pdf, can_edit, with_years=True) -> tuple[str, dict]:
+def _filters(*, q, mode, tags, arter, forfatter, fra, til, type_, kind, har_billeder, har_pdf, can_edit, with_years=True, forfatter_id=None, sprog="") -> tuple[str, dict]:
     where, p = [vis(can_edit)], {}
     if q:
         if mode == "praecis":
@@ -128,8 +131,14 @@ def _filters(*, q, mode, tags, arter, forfatter, fra, til, type_, kind, har_bill
         where.append("EXISTS (SELECT 1 FROM art_species s WHERE s.article_id = a.id AND s.artnr = ANY(:arter) AND s.source <> 'fravalgt')")
         p["arter"] = list(arter)
     if forfatter:
-        where.append("a.authors @> jsonb_build_array(jsonb_build_object('navn', cast(:forf AS text)))")
-        p["forf"] = forfatter
+        where.append("EXISTS (SELECT 1 FROM art_article_authors x JOIN art_authors au ON au.id = x.author_id WHERE x.article_id = a.id AND au.navn_norm = :forf)")
+        p["forf"] = article_authors.norm(forfatter)
+    if forfatter_id:
+        where.append("EXISTS (SELECT 1 FROM art_article_authors x WHERE x.article_id = a.id AND x.author_id = :fid)")
+        p["fid"] = forfatter_id
+    if sprog:
+        where.append("a.sprog = :sprog")
+        p["sprog"] = sprog
     if with_years and fra:
         where.append("a.dato >= make_date(:fra, 1, 1)")
         p["fra"] = fra
@@ -152,12 +161,12 @@ def _filters(*, q, mode, tags, arter, forfatter, fra, til, type_, kind, har_bill
 async def search(session: AsyncSession, *, q: str = "", mode: str = "ord", tags: list[int] | None = None, arter: list[int] | None = None,
                  forfatter: str = "", fra: int | None = None, til: int | None = None, type_: str = "", kind: str = "",
                  har_billeder: bool = False, har_pdf: bool = False, sort: str = "relevans", page: int = 1, can_edit: bool = False,
-                 per: int = PER_PAGE) -> dict:
+                 per: int = PER_PAGE, forfatter_id: int | None = None, sprog: str = "") -> dict:
     q = q.strip()[:200]
     mode = "praecis" if mode == "praecis" else "ord"
     sort = sort if sort in SORTS else "relevans"
     args = dict(q=q, mode=mode, tags=tags or [], arter=arter or [], forfatter=forfatter, fra=fra, til=til, type_=type_, kind=kind,
-                har_billeder=har_billeder, har_pdf=har_pdf, can_edit=can_edit)
+                har_billeder=har_billeder, har_pdf=har_pdf, can_edit=can_edit, forfatter_id=forfatter_id, sprog=sprog if sprog in ("da", "en") else "")
     where, p = _filters(**args)
     if sort == "relevans" and not (q and mode == "ord"):
         sort = "nyeste"
@@ -253,9 +262,10 @@ async def species_overview(session: AsyncSession, can_edit: bool) -> list[dict]:
 
 
 async def authors_overview(session: AsyncSession, can_edit: bool) -> list[dict]:
+    """Forfatterregistret med antal artikler (skjulte forfattere vises ikke her, men bliver stående i bylines)."""
     rows = (await session.execute(text(f"""
-        SELECT x->>'navn' AS navn, count(*) AS n FROM art_articles a, jsonb_array_elements(a.authors) x
-        WHERE {vis(can_edit)} AND x->>'navn' IS NOT NULL GROUP BY 1 ORDER BY lower(x->>'navn')"""))).mappings().all()
+        SELECT au.id, au.navn, count(*) AS n, au.bio_md IS NOT NULL AS har_bio FROM art_authors au JOIN art_article_authors x ON x.author_id = au.id
+        JOIN art_articles a ON a.id = x.article_id WHERE {vis(can_edit)} AND NOT au.skjult GROUP BY au.id, au.navn ORDER BY au.navn_norm"""))).mappings().all()
     return [dict(r) for r in rows]
 
 
@@ -273,7 +283,7 @@ async def by_netfugl(session: AsyncSession, no: int) -> int | None:
 
 async def detail(session: AsyncSession, aid: int, *, can_edit: bool, user_id: int) -> dict | None:
     r = (await session.execute(text(f"""
-        SELECT a.id, a.netfugl_id, a.kind, a.title, a.lead, a.body_html, a.dato, a.published_at, a.authors, a.status, a.publish_at, a.featured_until,
+        SELECT a.id, a.netfugl_id, a.kind, a.sprog, a.title, a.lead, a.body_html, a.dato, a.published_at, {AUTHORS_SQL} AS authors, a.status, a.publish_at, a.featured_until,
                a.comments_open, a.source, a.source_url, a.views_imported + a.views AS views, a.cover_media_id, a.cover_caption, a.version,
                a.locally_edited, a.import_errors, a.body_md, a.uploaded_by, a.updated_at, left(a.body_text, 400) AS body_start,
                (SELECT count(*) FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig') AS kommentarer

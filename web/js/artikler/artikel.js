@@ -61,7 +61,7 @@ export async function side(parts) {
   const images = a.images.map(i => ({ url: i.medium || i.url, full: i.url, thumb: i.thumb, alt: i.alt, caption: i.caption, credit: i.credit }));
   const gallery = a.images.filter(i => !i.inline && !(a.cover && a.cover.id === i.id));
   const pdf = a.pdf;
-  const body = h("div", { class: "art-body", html: a.body_html });
+  const body = h("div", { class: "art-body", lang: a.sprog || "da", html: a.body_html });
   // klik på et billede i teksten åbner lysboksen (alle billeder, i rækkefølge)
   body.addEventListener("click", (e) => {
     const link = e.target.closest?.("a.art-fig a, .art-fig a");
@@ -81,7 +81,7 @@ export async function side(parts) {
     try { await api(`/api/artikler/${id}/foelg`, { method: a.following ? "DELETE" : "PUT" }); a.following = !a.following; fb.textContent = a.following ? "🔔 Følger" : "🔕 Følg"; toast(a.following ? "Du får besked om nye kommentarer" : "Du følger ikke længere"); } catch (e) { toast(e.message, "err"); } } },
     a.following ? "🔔 Følger" : "🔕 Følg") : null;
   const fb = follow;
-  const authorLinks = a.authors.map((x, i) => [i ? ", " : "", h("a", { href: `${BASE}/soeg?forfatter=${encodeURIComponent(x.navn)}` }, x.navn)]);
+  const authorLinks = a.authors.map((x, i) => [i ? ", " : "", h("a", { href: x.id ? `${BASE}/soeg?forfatter_id=${x.id}` : `${BASE}/soeg?forfatter=${encodeURIComponent(x.navn)}` }, x.navn)]);
 
   const root = h("article", { class: "art-page" },
     editBar,
@@ -98,7 +98,9 @@ export async function side(parts) {
         h("a", { class: "btn", href: pdf.url, download: pdf.filename }, `Hent (${pdf.pages ? pdf.pages + " sider, " : ""}${sizeLabel(pdf.size)})`)),
       pdf.text_md ? h("details", {}, h("summary", {}, "Tekst fra PDF'en (maskinlæst – kan indeholde fejl)"),
         h("div", { style: { whiteSpace: "pre-wrap", fontSize: ".9rem", maxHeight: "60vh", overflow: "auto", padding: "8px 0" } }, pdf.text_md)) : null) : null,
-    a.body_html ? body : null,
+    a.kind === "link" && a.source_url ? h("div", { class: "art-block" }, h("a", { class: "btn primary", href: a.source_url, target: "_blank", rel: "noopener noreferrer" },
+      `Læs på ${new URL(a.source_url).hostname.replace(/^www\./, "")} ↗`)) : null,
+    a.body_html && a.kind !== "link" ? body : null,
     gallery.length ? h("div", { class: "art-gallery" }, ...gallery.map(i => h("button", { type: "button", "aria-label": i.alt || "Åbn billede", onclick: () => lightbox(images, a.images.findIndex(x => x.id === i.id)) },
       h("img", { src: i.thumb, alt: i.alt || "", loading: "lazy", style: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: "4px" } })))) : null,
     (a.kind !== "pdf" ? a.pdfs : []).length || a.files.length ? h("div", { class: "art-block" }, h("h4", {}, "Vedhæftninger"),

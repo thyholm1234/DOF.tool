@@ -43,9 +43,10 @@ async def soeg(q: str = Query("", max_length=200), mode: str = Query("ord", patt
                art: list[int] = Query([], max_length=20), forfatter: str = Query("", max_length=160), fra: int | None = Query(None, ge=1900, le=2100),
                til: int | None = Query(None, ge=1900, le=2100), type: str = Query("", max_length=60), kind: str = Query("", max_length=12),
                har_billeder: bool = False, har_pdf: bool = False, sort: str = "relevans", side: int = Query(1, ge=1, le=10000),
+               forfatter_id: int | None = Query(None, ge=1), sprog: str = Query("", pattern="^(|da|en)$"),
                acc: article_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     return await articles.search(db, q=q, mode=mode, tags=tag, arter=art, forfatter=forfatter, fra=fra, til=til, type_=type, kind=kind,
-                                 har_billeder=har_billeder, har_pdf=har_pdf, sort=sort, page=side, can_edit=acc.can_edit)
+                                 har_billeder=har_billeder, har_pdf=har_pdf, sort=sort, page=side, can_edit=acc.can_edit, forfatter_id=forfatter_id, sprog=sprog)
 
 
 @router.get("/emneord")

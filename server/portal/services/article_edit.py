@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, select, text
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import bump
 from portal.models import ArtArticle, ArtArticleTag, ArtRevision, ArtTag, ContentMedia, User
-from portal.services import article_species, content_render
+from portal.services import article_authors, article_species, content_render
 
 STATUSES = ("kladde", "planlagt", "publiceret", "skjult")
 KEEP_REVISIONS = 50
@@ -53,7 +54,7 @@ async def tag_ids(session: AsyncSession, names: list[str], matcher) -> list[int]
 def _meta(art: ArtArticle, tags: list[str]) -> dict:
     return {"lead": art.lead, "authors": art.authors, "dato": art.dato.isoformat(), "tags": tags, "cover_media_id": art.cover_media_id,
             "cover_caption": art.cover_caption, "status": art.status, "publish_at": art.publish_at.isoformat() if art.publish_at else None,
-            "comments_open": art.comments_open, "source_url": art.source_url, "kind": art.kind}
+            "comments_open": art.comments_open, "source_url": art.source_url, "kind": art.kind, "sprog": art.sprog}
 
 
 async def _tag_names(session: AsyncSession, aid: int) -> list[str]:
@@ -66,6 +67,12 @@ def validate(data: dict) -> None:
         raise Invalid("Artiklen skal have en titel")
     if data["status"] not in STATUSES:
         raise Invalid("Ukendt status")
+    if data.get("kind") == "link":
+        url = (data.get("source_url") or "").strip()
+        if not re.match(r"^https?://[^\s]+\.[^\s]+$", url):
+            raise Invalid("En link-artikel skal have en adresse (https://…) til kilden")
+        if not (data.get("lead") or "").strip():
+            raise Invalid("En link-artikel skal have en manchet (kort tekst)")
     if data["status"] == "planlagt":
         pa = data.get("publish_at")
         if pa is None:
@@ -106,7 +113,7 @@ async def save(session: AsyncSession, user: User, data: dict, art: ArtArticle | 
     art.title, art.slug = title, content_render.slugify(title)
     art.lead = (data.get("lead") or "").strip() or None
     art.body_md = data.get("body_md") or ""
-    art.authors = [{"navn": a["navn"].strip(), **({"user_id": a["user_id"]} if a.get("user_id") else {})} for a in data.get("authors") or [] if a.get("navn", "").strip()]
+    art.sprog = data.get("sprog") if data.get("sprog") in ("da", "en") else (art.sprog or "da")
     if data.get("dato"):
         art.dato = data["dato"]
     art.cover_media_id, art.cover_caption = data.get("cover_media_id"), (data.get("cover_caption") or None)
@@ -123,6 +130,7 @@ async def save(session: AsyncSession, user: User, data: dict, art: ArtArticle | 
         art.locally_edited = True
     art.updated_by, art.updated_at = user.id, _now()
     await session.flush()
+    art.authors = await article_authors.set_for_article(session, art.id, data.get("authors") or [])  # registret er kilden; JSON-kolonnen er en kopi
     await _adopt_media(session, art, user.id)
     rendered = await content_render.render_for(session, art.body_md, "artikel")
     art.body_html, art.body_text, art.render_version = rendered.html, rendered.text, content_render.RENDER_VERSION

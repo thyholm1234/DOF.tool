@@ -43,7 +43,11 @@ async function form(id) {
   const featured = h("input", { type: "datetime-local", value: local(a.featured_until) });
   const comments = h("input", { type: "checkbox", checked: a.comments_open });
   const source = h("input", { type: "url", maxlength: 400, value: a.source_url || "", placeholder: "https://…" });
-  const kind = h("select", {}, h("option", { value: "artikel", selected: a.kind !== "pdf" }, "Artikel"), h("option", { value: "pdf", selected: a.kind === "pdf" }, "PDF-artikel"));
+  const kind = h("select", {}, h("option", { value: "artikel", selected: !["pdf", "link"].includes(a.kind) }, "Artikel"), h("option", { value: "pdf", selected: a.kind === "pdf" }, "PDF-artikel"),
+    h("option", { value: "link", selected: a.kind === "link" }, "Link til en artikel andetsteds"));
+  const sprog = h("select", {}, h("option", { value: "da", selected: a.sprog !== "en" }, "Dansk"), h("option", { value: "en", selected: a.sprog === "en" }, "English"));
+  const linkHint = h("small", { class: "muted" }, "En link-artikel kræver en kilde-adresse nedenfor og en manchet; kortet åbner kilden i en ny fane.");
+  const syncKind = () => { linkHint.style.display = kind.value === "link" ? "" : "none"; }; kind.addEventListener("change", syncKind); syncKind();
   const capt = h("input", { type: "text", maxlength: 300, value: a.cover_caption || "", placeholder: "Billedtekst til forsidebilledet" });
   const syncPlan = () => { planRow.style.display = status.value === "planlagt" ? "" : "none"; }; status.onchange = syncPlan; syncPlan();
 
@@ -57,7 +61,16 @@ async function form(id) {
     return h("div", { class: "stack" }, box, inp, options ? h("datalist", { id: listId }, ...options.map(o => h("option", { value: o }))) : null);
   };
   const tagsUi = chipBox("tags", "Tilføj emneord (Enter)", "art-tags-dl", all.filter(t => t.kind !== "aar").map(t => t.navn));
-  const authorsUi = chipBox("authors", "Tilføj forfatter (Enter)", "art-authors-dl", null);
+  const authorsUi = chipBox("authors", "Tilføj forfatter (Enter) – vælg fra registret eller skriv et nyt navn", "art-authors-dl", []);
+  {
+    // forslag fra forfatterregistret (højst 15 pr. søgning)
+    const inp = authorsUi.querySelector("input"), dl = authorsUi.querySelector("datalist");
+    let t;
+    inp.addEventListener("input", () => { clearTimeout(t); t = setTimeout(async () => {
+      const rows = await api("/api/admin/artikler/forfattere/soeg?q=" + encodeURIComponent(inp.value)).catch(() => []);
+      dl.replaceChildren(...rows.map(r => h("option", { value: r.navn }, `${r.n} artikler`)));
+    }, 200); });
+  }
   const coverBox = h("div", { class: "stack" });
   const drawCover = () => coverBox.replaceChildren(S.coverUrl ? h("img", { src: S.coverUrl, alt: "", style: { width: "100%", borderRadius: "6px" } }) : h("p", { class: "muted small" }, "Intet valgt – første billede i artiklen bruges."),
     h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onclick: () => mediaPicker({ ownerKind: "artikel", ownerId: S.id, kinds: ["billede"], title: "Vælg forsidebillede",
@@ -67,12 +80,12 @@ async function form(id) {
 
   const saved = h("span", { class: "muted small" }, id ? "Gemt" : "Ikke gemt endnu");
   function touch() { saved.textContent = "Ændringer ikke gemt"; }
-  [title, lead, dato, status, publishAt, featured, comments, source, kind, capt].forEach(x => x.addEventListener("input", touch));
+  [title, lead, dato, status, publishAt, featured, comments, source, kind, sprog, capt].forEach(x => x.addEventListener("input", touch));
 
   const body = (overrideStatus) => ({
     title: title.value.trim(), lead: lead.value.trim() || null, body_md: ed.value, authors: S.authors.map(navn => ({ navn })), dato: toIso(dato.value), tags: S.tags,
     cover_media_id: S.cover, cover_caption: capt.value.trim() || null, status: overrideStatus || status.value, publish_at: toIso(publishAt.value),
-    featured_until: toIso(featured.value), comments_open: comments.checked, source_url: source.value.trim() || null, kind: kind.value, version: S.version,
+    featured_until: toIso(featured.value), comments_open: comments.checked, source_url: source.value.trim() || null, kind: kind.value, sprog: sprog.value, version: S.version,
   });
   async function save(overrideStatus) {
     if (!title.value.trim()) { toast("Skriv en titel", "err"); title.focus(); return; }
@@ -109,7 +122,7 @@ async function form(id) {
     h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onclick: () => save() }, "Gem"),
       status.value !== "publiceret" ? h("button", { class: "btn", type: "button", onclick: () => save("publiceret") }, "Publicér") : null, saved),
     field("Status", status), planRow, field("Manchet", lead), field("Forfattere", authorsUi), field("Dato", dato), field("Emneord", tagsUi, "Arter findes automatisk i teksten"),
-    field("Forsidebillede", coverBox), field("Billedtekst", capt), field("Type", kind), field("Fremhæv på forsiden til", featured),
+    field("Forsidebillede", coverBox), field("Billedtekst", capt), field("Type", kind, null), linkHint, field("Sprog", sprog), field("Fremhæv på forsiden til", featured),
     h("label", { class: "check" }, comments, h("span", {}, "Kommentarer er åbne")), field("Kilde", source),
     S.id ? h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onclick: revisions }, "Versioner …"), h("a", { class: "btn sm", href: `${BASE}/${S.id}` }, "Vis artikel")) : null,
     a.source === "netfugl" ? h("p", { class: "muted small" }, "Importeret fra netfugl.dk. Når du gemmer, overskrives dine rettelser ikke af senere importer (medmindre importen bedes om det).") : null);

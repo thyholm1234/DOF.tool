@@ -23,6 +23,7 @@ from portal.dbops import sync_reference
 from portal.dof import archive, gateway, jobs
 from portal.services import (
     areas,
+    article_authors,
     article_edit,
     article_import,
     article_notify,
@@ -164,6 +165,7 @@ async def startup_tasks() -> None:
         await rpush_cmd("netfugl_kryds")
     # Billeder uploadet før metadata blev fjernet ved upload, og filer fra før objektlageret
     await _once("once:media_meta_v1", _strip_old_media)
+    await _once("once:art_authors_v1", _backfill_authors)  # forfatterregistret ud fra artiklernes forfatterfelt
     if storage.enabled():
         await _once("once:media_s3_v2", _move_media_to_s3)  # v2: også artikelmedier (art/)
     async with SessionLocal() as s:
@@ -311,6 +313,12 @@ async def netfugl_kryds() -> None:
     async with SessionLocal() as s:
         n = await netfugl.refresh_auto(s)
     await jobstatus.step(f"{n} automatiske kryds")
+
+
+async def _backfill_authors() -> None:
+    async with SessionLocal() as s:
+        n = await article_authors.backfill(s)
+    log.info("Forfatterregister: %s artikler koblet", n)
 
 
 async def kryds_auto() -> None:

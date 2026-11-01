@@ -118,6 +118,7 @@ class ArtArticle(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     import_id: Mapped[int | None] = mapped_column(ForeignKey("art_imports.id", ondelete="SET NULL"))
     import_errors: Mapped[list] = mapped_column(JSONB, default=list)
+    sprog: Mapped[str] = mapped_column(String(5), default="da", server_default="da")  # da / en
     source_hash: Mapped[str | None] = mapped_column(String(40))  # fingeraftryk af arkivets filer (springer uændrede artikler over)
     search = mapped_column(TSVECTOR, Computed(SEARCH_EXPR, persisted=True))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
@@ -224,3 +225,26 @@ class ArtRevision(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+
+
+class ArtAuthor(Base):
+    """Forfatterregister: én række pr. forfatter (med fletning). netfugl_forfatter_id kobler til arkivets forfatter; user_id til en portalbruger."""
+
+    __tablename__ = "art_authors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    navn: Mapped[str] = mapped_column(String(160))
+    navn_norm: Mapped[str] = mapped_column(String(160), index=True)
+    netfugl_forfatter_id: Mapped[int | None] = mapped_column(Integer, unique=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    bio_md: Mapped[str | None] = mapped_column(Text)
+    skjult: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+
+class ArtArticleAuthor(Base):
+    __tablename__ = "art_article_authors"
+    __table_args__ = (Index("ix_art_article_authors_author", "author_id", "article_id"),)
+
+    article_id: Mapped[int] = mapped_column(ForeignKey("art_articles.id", ondelete="CASCADE"), primary_key=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("art_authors.id", ondelete="CASCADE"), primary_key=True)
+    sort: Mapped[int] = mapped_column(Integer, default=0)

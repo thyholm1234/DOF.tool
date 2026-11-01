@@ -30,6 +30,7 @@ EXTRA_DDL = [
     " UPDATE roles SET modules = array_append(modules, 'fotos') WHERE key = 'admin' AND NOT ('fotos' = ANY(modules));"
     " INSERT INTO settings (key, value) VALUES ('module_added_fotos', 'true'); END IF; END $$",
     "CREATE INDEX IF NOT EXISTS ix_kl_taxa_latin ON kl_taxa (lower(latin))",
+    "ALTER TABLE art_articles ADD COLUMN IF NOT EXISTS sprog varchar(5) NOT NULL DEFAULT 'da'",
     "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM settings WHERE key = 'module_added_krydslister') THEN"
     " UPDATE roles SET modules = array_append(modules, 'krydslister') WHERE key = 'admin' AND NOT ('krydslister' = ANY(modules));"
     " INSERT INTO settings (key, value) VALUES ('module_added_krydslister', 'true'); END IF; END $$",

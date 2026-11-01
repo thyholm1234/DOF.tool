@@ -65,10 +65,13 @@ export function pager(page, pages, go) {
 
 /** Resultatkort (søgning, emneord, arter, relaterede): billede til venstre, tekst til højre. */
 export function listCard(a) {
-  return h("article", { class: "art-row" },
-    h("a", { class: "art-row-img", href: `${BASE}/${a.id}`, tabindex: "-1", "aria-hidden": "true" }, cover(a, { ratio: "4 / 3" })),
+  // link-artikler åbner kilden i en ny fane
+  const ext = a.kind === "link" && a.source_url ? { href: a.source_url, target: "_blank", rel: "noopener noreferrer" } : { href: `${BASE}/${a.id}` };
+  return h("article", { class: "art-row", lang: a.sprog || "da" },
+    h("a", { class: "art-row-img", ...ext, tabindex: "-1", "aria-hidden": "true" }, cover(a, { ratio: "4 / 3" })),
     h("div", { class: "art-row-body" },
-      h("h3", {}, h("a", { href: `${BASE}/${a.id}` }, a.title)),
+      h("h3", {}, h("a", ext, a.title), a.kind === "link" ? h("span", { class: "art-chip", style: { marginLeft: "6px" } }, "↗ " + new URL(a.source_url).hostname.replace(/^www\./, "")) : null,
+        a.sprog === "en" ? h("span", { class: "art-chip", style: { marginLeft: "6px" } }, "EN") : null),
       meta(a),
       a.headline ? h("p", { class: "art-snip", html: (a.headline_fra === "pdf" ? '<span class="art-chip weak">fra PDF</span> ' : "") + a.headline }) : h("p", { class: "art-snip" }, a.teaser),
       h("div", { class: "art-chips-row" }, tagChips(a.tags, 3), speciesChips(a.arter, 4))));

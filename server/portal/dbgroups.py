@@ -31,7 +31,7 @@ USER_TABLES = frozenset({
     "nf_comments", "nf_photos", "nf_likes", "nf_species", "nf_families", "nf_links", "nf_feeds", "nf_feed_items", "nf_kryds",
     "nf_auto_lists", "nf_roles", "nf_user_roles", "nf_api_grants", "nf_api_tokens", "nf_audit",
     "art_imports", "content_media", "art_articles", "art_tags", "art_article_tags", "art_species", "art_comments",
-    "art_comment_reports", "art_subscriptions", "art_revisions",
+    "art_comment_reports", "art_subscriptions", "art_revisions", "art_authors", "art_article_authors",
     "gal_photos", "gal_birds", "gal_codes", "gal_countries", "gal_photographers", "gal_groups", "gal_comments",
     "gal_comment_reports", "gal_likes", "gal_privileges", "gal_banners", "gal_imports",
     "kl_taxa", "kl_species_lists", "kl_species_list_entries", "kl_list_defs", "kl_kryds", "kl_auto_lists", "kl_imports",

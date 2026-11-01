@@ -30,7 +30,7 @@ from portal.cache import bump
 from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.models import ArtArticle, ArtArticleTag, ArtComment, ArtImport, ArtTag, ContentMedia
-from portal.services import article_settings, article_species, content_media, content_render
+from portal.services import article_authors, article_settings, article_species, content_media, content_render
 from portal.timeutil import TZ
 
 log = logging.getLogger("portal.articles.import")
@@ -526,6 +526,7 @@ async def import_article(session: AsyncSession, run: Run, arc: Archive, no: int,
         if date_warning:
             warnings.append(date_warning)
         art.authors = [{"navn": a.get("navn"), "netfugl_id": a.get("netfugl_forfatter_id")} for a in meta.get("forfattere") or [] if a.get("navn")]
+        await article_authors.set_for_article(session, art.id, art.authors)  # forfatterregistret (kopien i art.authors bevares)
         art.uploaded_by, art.last_edited_netfugl = meta.get("uploadet_af"), meta.get("sidst_redigeret")
         art.body_md, art.body_html, art.body_text = body_md, rendered.html, rendered.text
         art.render_version = content_render.RENDER_VERSION
