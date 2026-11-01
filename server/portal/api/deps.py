@@ -8,12 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import kv
 from portal.db import get_session
 from portal.models import User
-from portal.services.auth import MODULES, can, role_at_least, user_from_token
+from portal.services import view_as
+from portal.services.auth import MODULES, SUPERADMIN, can, role_at_least, user_from_token
 
 COOKIE = "dt_session"
 
 
-async def optional_user(request: Request, db: AsyncSession = Depends(get_session)) -> User | None:
+async def real_user(request: Request, db: AsyncSession = Depends(get_session)) -> User | None:
+    """Den indloggede bruger selv (også når en superadmin ser appen som en anden)."""
     user = await user_from_token(db, request.cookies.get(COOKIE))
     if user is not None:
         # last_seen opdateres højst hvert 10. minut
@@ -21,6 +23,18 @@ async def optional_user(request: Request, db: AsyncSession = Depends(get_session
             user.last_seen = datetime.now(timezone.utc)
             await db.commit()
     return user
+
+
+async def optional_user(request: Request, real: User | None = Depends(real_user), db: AsyncSession = Depends(get_session)) -> User | None:
+    """Brugeren, appen skal vises for: den indloggede – eller, i «se som bruger»-tilstanden (kun superadmin, kun læsning), målbrugeren."""
+    if real is not None and real.role == SUPERADMIN:
+        state = await view_as.current(request.cookies.get(COOKIE))
+        if state is not None:
+            target = await db.get(User, state["user_id"])
+            if target is not None and not target.blocked:
+                request.state.view_as = {**state, "real_id": real.id, "real_navn": real.navn or real.obserkode}
+                return target
+    return real
 
 
 async def require_user(user: User | None = Depends(optional_user)) -> User:

@@ -130,6 +130,9 @@ async def db(tmp_path, monkeypatch):
     from portal.services import activity
 
     monkeypatch.setattr(activity, "SessionLocal", factory)
+    from portal.services import photo_notify
+
+    monkeypatch.setattr(photo_notify, "SessionLocal", factory)
     s = get_settings()
     monkeypatch.setattr(s, "media_dir", str(tmp_path / "media"))
     monkeypatch.setattr(s, "photo_import_dir", str(tmp_path / "imports"))

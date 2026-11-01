@@ -69,12 +69,14 @@ async def logout(request: Request, response: Response):
 
 
 @router.get("/me")
-async def me(user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)):
+async def me(request: Request, user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)):
     if user is None:
         return {"user": None}
+    va = getattr(request.state, "view_as", None)
     # DOFbasen-modulet: hvilke funktioner brugeren ser, og hvad brugeren må (styrer menuen)
     flags = await features.load(db)
-    return {"user": {**user_out(user), "is_test": user.is_test, "dofbasen": (await dofbasen.context(db, user)).out(),
+    return {"user": {**user_out(user), "is_test": user.is_test,
+                     "view_as": {"until": va["until"], "by": va["real_navn"], "grund": va["grund"]} if va else None, "dofbasen": (await dofbasen.context(db, user)).out(),
                      "netfugl": (await netfugl.context(db, user)).out(), "artikler": (await article_access.context(db, user)).out(),
                      "fotos": (await photo_access.context(db, user)).out(await photo_privileges.level(db, user.id)),
                      "krydslister": (await kl_access.context(db, user)).out(), "dku": await dku.context(db, user),

@@ -2,6 +2,13 @@
 import { api, state, h, ago, toast, errorBox, modal } from "../../core.js";
 import { roleSelect } from "./common.js";
 
+async function viewAs(u) {
+  const grund = prompt(`Se appen som ${u.navn || u.obserkode} (${u.obserkode}) i 15 minutter – kun læsning, og det logges.\n\nGrund (fx supportsag):`, "");
+  if (!grund || grund.trim().length < 3) return;
+  try { await api("/api/admin/se-som", { method: "POST", body: { user_id: u.id, grund: grund.trim() } }); location.hash = "#/"; location.reload(); }
+  catch (e) { toast(e.message, "err"); }
+}
+
 export async function users(body) {
   const q = h("input", { type: "search", placeholder: "Søg obserkode/navn…", style: { maxWidth: "280px" } });
   const out = h("div", { class: "card table-wrap mt" });
@@ -55,6 +62,7 @@ export async function users(body) {
           u.approved ? null : h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
           u.is_test ? h("button", { class: "btn sm", onclick: () => testUserModal(u, load) }, "Ny kode") : null,
           h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { blocked: !u.blocked } }); load(); } }, u.blocked ? "Ophæv spærring" : "Spær"),
+          isSuper && !u.blocked ? h("button", { class: "btn sm ghost", title: "Se appen som brugeren (kun læsning, 15 minutter, logges)", onclick: () => viewAs(u) }, "Se som") : null,
           isSuper || u.is_test ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
   };
   let t; q.oninput = () => { clearTimeout(t); t = setTimeout(load, 250); };

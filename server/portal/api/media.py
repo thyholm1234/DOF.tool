@@ -35,6 +35,10 @@ async def art_media(name: str, request: Request, user: User | None = Depends(opt
     if not ART_NAME.match(name):
         raise HTTPException(404)
     info = await photos.media_info(db, name)
+    if info.get("banner"):  # bannerbilleder: kun for dem, der kan se fotomodulet
+        acc = await photo_access.context(db, user)
+        if user is None or not acc.on("fotos"):
+            raise HTTPException(404)
     if info.get("photo"):
         acc = await photo_access.context(db, user)
         if user is None or not acc.on("fotos"):

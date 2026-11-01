@@ -658,6 +658,44 @@ true,
 "params": []
 }
 },
+"/api/admin/fotos/bannere": {
+"get": {
+"body": false,
+"op": "bannere_api_admin_fotos_bannere_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "nyt_banner_api_admin_fotos_bannere_post",
+"params": []
+}
+},
+"/api/admin/fotos/bannere/{bid}": {
+"delete": {
+"body": false,
+"op": "slet_banner_api_admin_fotos_bannere__bid__delete",
+"params": [
+[
+"bid",
+"path",
+true,
+"{\"title\": \"Bid\", \"type\": \"integer\"}"
+]
+]
+},
+"patch": {
+"body": true,
+"op": "ret_banner_api_admin_fotos_bannere__bid__patch",
+"params": [
+[
+"bid",
+"path",
+true,
+"{\"title\": \"Bid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/fotos/brugere": {
 "get": {
 "body": false,
@@ -1674,6 +1712,18 @@ true,
 "put": {
 "body": true,
 "op": "put_schedule_api_admin_schedule_put",
+"params": []
+}
+},
+"/api/admin/se-som": {
+"delete": {
+"body": false,
+"op": "end_api_admin_se_som_delete",
+"params": []
+},
+"post": {
+"body": true,
+"op": "start_api_admin_se_som_post",
 "params": []
 }
 },
@@ -4221,6 +4271,13 @@ false,
 "params": []
 }
 },
+"/api/fotos/banner": {
+"get": {
+"body": false,
+"op": "banner_api_fotos_banner_get",
+"params": []
+}
+},
 "/api/fotos/koder": {
 "get": {
 "body": false,
@@ -4314,6 +4371,18 @@ true,
 "{\"title\": \"Netfugl Id\", \"type\": \"integer\"}"
 ]
 ]
+}
+},
+"/api/fotos/notifikationer": {
+"get": {
+"body": false,
+"op": "notifikationer_api_fotos_notifikationer_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "saet_notifikationer_api_fotos_notifikationer_put",
+"params": []
 }
 },
 "/api/fotos/sider/retningslinjer": {

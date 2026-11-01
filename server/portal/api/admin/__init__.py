@@ -19,8 +19,9 @@ from portal.api.admin import (
     lokaliteter,
     moderation,
     roller,
+    se_som,
 )
 
 router = APIRouter()
-for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler, lokaliteter, fotos, krydslister):
+for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler, lokaliteter, fotos, krydslister, se_som):
     router.include_router(module.router)

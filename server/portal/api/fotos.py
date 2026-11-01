@@ -7,14 +7,14 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import activity, content_render, photo_access, photo_codes, photo_comments, photo_edit, photo_obs, photo_settings, photos
+from portal.services import activity, content_render, photo_access, photo_banners, photo_codes, photo_comments, photo_edit, photo_notify, photo_obs, photo_settings, photos
 
 router = APIRouter(prefix="/api/fotos", tags=["fotos"])
 FILTERS = {"q", "fra", "til", "md", "art", "fotograf", "land", "lok", "loknr", "sj", "koen", "alder", "dragt", "adf", "tag", "taxon"}
@@ -28,6 +28,12 @@ def need(feature: str = "fotos"):
         return acc
 
     return dep
+
+
+@router.get("/banner")
+async def banner(acc: photo_access.Access = Depends(need("fotos_bannere")), db: AsyncSession = Depends(get_session)):
+    """Aktuelt banner til galleriets top (null, hvis der intet er)."""
+    return await photo_banners.current(db)
 
 
 @router.get("/koder")
@@ -112,6 +118,22 @@ async def mine_indstillinger(body: SettingsIn, user: User = Depends(require_user
         return await photo_edit.save_settings(db, user, body.standard_rettighed, body.dof_samtykke)
     except photo_edit.PhotoError as exc:
         raise _perr(exc) from exc
+
+
+class PrefsIn(BaseModel):
+    svar: bool | None = None
+    kommentarer: bool | None = None
+
+
+@router.get("/notifikationer")
+async def notifikationer(user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Mine notifikationsindstillinger. «Mine fotos er godkendt/afvist» kan ikke slås fra."""
+    return {**await photo_notify.get_prefs(db, user.id), "godkendelse": True}
+
+
+@router.put("/notifikationer")
+async def saet_notifikationer(body: PrefsIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    return {**await photo_notify.set_prefs(db, user.id, svar=body.svar, kommentarer=body.kommentarer), "godkendelse": True}
 
 
 @router.get("/mine-observationer")
@@ -205,11 +227,11 @@ async def fjern_fra_gruppe(pid: int, user: User = Depends(require_user), acc: ph
 
 
 @router.get("/{pid:int}")
-async def foto(pid: int, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+async def foto(pid: int, request: Request, user: User = Depends(require_user), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     p = await photos.get(db, pid, user_id=user.id, moderator=acc.can_moderate, hide_obs=not acc.on("fotos_dofbasen"))
     if p is None:
         raise HTTPException(404, "Fotoet findes ikke")
-    if p["status"] == "publiceret":
+    if p["status"] == "publiceret" and not getattr(request.state, "view_as", None):  # «se som bruger» er kun læsning: ingen visningstælling
         await photos.register_view(db, pid, user.id)
     p["kan"] = {"rette": acc.can_moderate or (p["egen"] and not p["laast"] and acc.on("fotos_upload")), "moderere": acc.can_moderate,
                 "kommentere": acc.on("fotos_kommentarer") and p["status"] == "publiceret", "like": acc.on("fotos_kommentarer") and p["status"] == "publiceret",
@@ -254,12 +276,14 @@ async def kommentarer(pid: int, user: User = Depends(require_user), acc: photo_a
 
 
 @router.post("/{pid:int}/kommentarer")
-async def ny_kommentar(pid: int, body: CommentIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need("fotos_kommentarer")),
+async def ny_kommentar(pid: int, body: CommentIn, tasks: BackgroundTasks, user: User = Depends(require_user), acc: photo_access.Access = Depends(need("fotos_kommentarer")),
                        db: AsyncSession = Depends(get_session)):
     try:
         c = await photo_comments.add(db, user, pid, body.body, body.parent_id, moderator=acc.can_moderate, intern=body.intern)
     except photo_comments.CommentError as exc:
         raise _cerr(exc) from exc
+    if not c.intern:
+        tasks.add_task(photo_notify.on_comment, c.id)
     return {"id": c.id}
 
 

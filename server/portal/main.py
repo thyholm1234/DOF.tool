@@ -55,7 +55,7 @@ from portal.cache import kv
 from portal.config import get_settings
 from portal.db import router
 from portal.dbgroups import GROUPS
-from portal.services import article_settings, storage
+from portal.services import article_settings, storage, view_as
 from portal.services.auth import AuthError
 
 # Containerens mimetypes kender ikke woff2 – skrifterne i web/vendor skal have deres rigtige type
@@ -114,6 +114,9 @@ async def guard(request: Request, call_next):
     private_media = path.startswith("/media/") and not path.startswith("/media/netfugl/")
     if private_media and not await kv().exists(f"sess:{request.cookies.get(COOKIE) or '-'}"):
         return JSONResponse({"detail": "Log ind for at se filen"}, status_code=401)
+    if path.startswith("/api/") and await kv().exists(f"viewas:{request.cookies.get(COOKIE) or '-'}") and view_as.blocked(request.method, path):
+        if await view_as.current(request.cookies.get(COOKIE)):
+            return JSONResponse({"detail": "Du ser appen som en anden bruger – kun læsning"}, status_code=403)
     mob_audio = bool(MOB_AUDIO.match(path))
     if mob_audio:
         # Mobgang-lyde: kun indloggede med bestået etiktest og uden for ynglesæsonen

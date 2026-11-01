@@ -146,14 +146,35 @@ function renderUser() {
   $("#bell").innerHTML = icon("bell") + (state.unread ? `<span class="badge">${state.unread > 99 ? "99+" : state.unread}</span>` : "");
 }
 
+let viewAsTimer = null;
+/** Rødt fast banner, når en superadmin ser appen som en anden bruger (kun læsning, 15 minutter). */
+function renderViewAs() {
+  const va = state.user?.view_as, old = document.getElementById("viewas");
+  clearInterval(viewAsTimer);
+  document.body.classList.toggle("viewas", !!va);
+  if (!va) { old?.remove(); return; }
+  const bar = old || h("div", { id: "viewas", class: "viewas", role: "status" });
+  const end = async () => { try { await api("/api/admin/se-som", { method: "DELETE" }); } catch { /* udløbet */ } location.hash = "#/admin?tab=brugere"; location.reload(); };
+  const draw = () => {
+    const left = Math.round(va.until - Date.now() / 1000);
+    if (left <= 0) { clearInterval(viewAsTimer); end(); return; }
+    bar.replaceChildren(`Du ser appen som ${state.user.navn || state.user.obserkode} (${state.user.obserkode}) – kun læsning, logget · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} tilbage · `,
+      h("button", { type: "button", onclick: end }, "afslut"));
+  };
+  draw();
+  viewAsTimer = setInterval(draw, 1000);
+  if (!old) document.body.prepend(bar);
+}
+
 export async function refreshUser() {
   try { state.user = (await api("/api/me")).user; } catch { state.user = null; }
   applyTheme();
   renderUser();
+  renderViewAs();
   renderNav();
   syncSharing();
   syncPush();
-  if (state.user) { refreshUnread(); startOffline(); }
+  if (state.user && !state.user.view_as) { refreshUnread(); startOffline(); }
 }
 
 let offlineStarted = false;
@@ -302,7 +323,7 @@ async function boot() {
   $("#bell").addEventListener("click", openNotifications);
   window.addEventListener("hashchange", route);
   await refreshUser();
-  if (state.user) live.start();
+  if (state.user && !state.user.view_as) live.start();  // «se som bruger» opretter ikke SSE-strømmen
   live.on("notification", (d) => { state.unread += 1; renderUser(); toast(`🔔 ${d.title}`); });
   live.onStatus((on) => $("#live").classList.toggle("on", on));
   await route();

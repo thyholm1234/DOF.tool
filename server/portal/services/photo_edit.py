@@ -241,6 +241,9 @@ async def delete(session: AsyncSession, user: User, moderator: bool, pid: int) -
     foreign = photo.user_id != user.id
     media = await session.get(ContentMedia, photo.media_id) if photo.media_id else None
     gid = photo.group_id
+    for (bm,) in (await session.execute(text("SELECT media_id FROM gal_banners WHERE photo_id = :p AND media_id IS NOT NULL"), {"p": pid})).all():
+        if (m := await session.get(ContentMedia, bm)) is not None:  # bannerbilleder følger fotoet
+            await content_media.delete_media(session, m)
     await session.delete(photo)
     await session.flush()
     if media is not None:

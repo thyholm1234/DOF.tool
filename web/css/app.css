@@ -930,3 +930,9 @@ html { scroll-padding-top: calc(var(--top-h) + 12px); scroll-padding-bottom: cal
 .quick-count { display: flex; align-items: center; gap: 6px; }
 .quick-count input { width: 70px; }
 .card.dim { opacity: .6; }
+
+/* «Se som bruger» (superadmin): rødt fast banner øverst; resten af siden skubbes ned */
+.viewas { position: fixed; top: 0; left: 0; right: 0; z-index: 10000; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; background: #b00020; color: #fff; font-size: .86rem; font-weight: 600; padding: 0 10px; text-align: center; }
+.viewas button { background: #fff; color: #b00020; border: 0; border-radius: 6px; padding: 2px 10px; font-weight: 700; cursor: pointer; }
+body.viewas { padding-top: 34px; }
+body.viewas .topbar { top: 34px; }

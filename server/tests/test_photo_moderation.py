@@ -172,3 +172,87 @@ async def test_koder_og_indstillinger(web, db):  # noqa: F811
     t = (await web["a1"].get("/api/fotos/sider/retningslinjer")).json()
     assert "<h2" in t["html"] and t["max_pr_art"] == 12
     assert (await web["a1"].put("/api/admin/fotos/indstillinger", json={})).status_code == 403
+
+
+async def test_notifikationer_om_kommentarer(web, db):  # noqa: F811
+    pid = await upload(web["a2"])
+    await web["ad"].put(f"/api/admin/fotos/{pid}/status", json={"status": "publiceret"})
+    async with db() as s:
+        await s.execute(text("DELETE FROM notifications"))
+        await s.commit()
+
+    async def titles(uid):
+        async with db() as s:
+            return [r[0] for r in (await s.execute(text("SELECT title FROM notifications WHERE user_id = :u ORDER BY id"), {"u": uid})).all()]
+    c1 = (await web["a1"].post(f"/api/fotos/{pid}/kommentarer", json={"body": "Flot!"})).json()["id"]
+    assert [t.startswith("💬 Ny kommentar til dit foto") for t in await titles(2)] == [True]
+    # endnu en kommentar i samme time giver ikke endnu en notifikation til ejeren (dedup pr. foto og time)
+    await web["su"].post(f"/api/fotos/{pid}/kommentarer", json={"body": "Enig"})
+    assert len(await titles(2)) == 1
+    # svar på min kommentar → forfatteren af den, jeg svarer på
+    await web["a2"].post(f"/api/fotos/{pid}/kommentarer", json={"body": "Tak", "parent_id": c1})
+    assert any("svarede på din kommentar" in t for t in await titles(1))
+    assert not any("svarede" in t for t in await titles(2))  # man får ikke besked om sine egne svar
+    # interne noter giver aldrig notifikationer
+    n = len(await titles(2))
+    await web["ad"].post(f"/api/fotos/{pid}/kommentarer", json={"body": "intern", "intern": True})
+    assert len(await titles(2)) == n
+    # slå fra
+    assert (await web["a1"].get("/api/fotos/notifikationer")).json() == {"svar": True, "kommentarer": True, "godkendelse": True}
+    assert (await web["a1"].put("/api/fotos/notifikationer", json={"svar": False})).json()["svar"] is False
+    before = len(await titles(1))
+    await web["a2"].post(f"/api/fotos/{pid}/kommentarer", json={"body": "Endnu et svar", "parent_id": c1})
+    assert len(await titles(1)) == before
+
+
+async def test_bannere(web, db):  # noqa: F811
+    from datetime import date, timedelta
+
+    await web["ad"].put("/api/admin/fotos/indstillinger", json={})
+    async with db() as s:
+        pid = (await s.execute(text("SELECT id FROM gal_photos WHERE netfugl_id = 1"))).scalar()
+    assert (await web["a1"].get("/api/fotos/banner")).json() is None
+    assert (await web["a1"].get("/api/admin/fotos/bannere")).status_code == 403
+    good = {"photo_id": pid, "crop": {"x": 0, "y": 0.25, "w": 1, "h": 0.5}, "tekst": "Efterårets fugle"}  # 900×600 → 900×300 = 3:1
+    r = await web["ad"].post("/api/admin/fotos/bannere", json=good)
+    assert r.status_code == 200, r.text
+    assert (await web["ad"].post("/api/admin/fotos/bannere", json={**good, "crop": {"x": 0, "y": 0, "w": 1, "h": 1}})).status_code == 400  # forkert forhold
+    assert (await web["ad"].post("/api/admin/fotos/bannere", json={**good, "crop": {"x": 0.5, "y": 0, "w": 1, "h": 0.5}})).status_code == 400  # uden for billedet
+    assert (await web["ad"].post("/api/admin/fotos/bannere", json={**good, "fra": "2026-05-02", "til": "2026-05-01"})).status_code == 400
+    assert (await web["ad"].post("/api/admin/fotos/bannere", json={**good, "photo_id": 99999})).status_code == 404
+    b = (await web["a1"].get("/api/fotos/banner")).json()
+    assert b["tekst"] == "Efterårets fugle" and b["photo_id"] == pid and b["fotograf"] == "Leif Bolding"
+    img = await web["a1"].get(b["url"])
+    assert img.status_code == 200 and img.headers["content-type"] == "image/webp"
+    from PIL import Image
+    import io
+
+    assert Image.open(io.BytesIO(img.content)).size == (1800, 600)
+    # uden for datointervallet vises det ikke; deaktiveret heller ikke
+    bid = r.json()["id"]
+    await web["ad"].patch(f"/api/admin/fotos/bannere/{bid}", json={"fra": (date.today() + timedelta(days=3)).isoformat()})
+    assert (await web["a1"].get("/api/fotos/banner")).json() is None
+    row = (await web["ad"].get("/api/admin/fotos/bannere")).json()[0]
+    assert row["vises_nu"] is False and row["active"] is True
+    await web["ad"].patch(f"/api/admin/fotos/bannere/{bid}", json={"fra": None, "active": False})
+    assert (await web["a1"].get("/api/fotos/banner")).json() is None
+    await web["ad"].patch(f"/api/admin/fotos/bannere/{bid}", json={"active": True})
+    assert (await web["a1"].get("/api/fotos/banner")).json() is not None
+    # flaget slår det fra
+    from portal.services import features
+
+    async with db() as s:
+        await features.save(s, {"fotos_bannere": "off"})
+    assert (await web["a1"].get("/api/fotos/banner")).status_code == 404
+    async with db() as s:
+        await features.save(s, {"fotos_bannere": "on"})
+    # et banner følger fotoet: slettes fotoet, forsvinder banneret og dets fil
+    assert (await web["ad"].delete(f"/api/fotos/{pid}")).status_code == 200
+    assert (await web["ad"].get("/api/admin/fotos/bannere")).json() == []
+    async with db() as s:
+        assert (await s.execute(text("SELECT count(*) FROM content_media WHERE owner_kind = 'banner'"))).scalar() == 0
+    # afpubliceret foto kan ikke blive banner
+    async with db() as s:
+        p3 = (await s.execute(text("SELECT id FROM gal_photos WHERE netfugl_id = 3"))).scalar()
+    await web["ad"].put(f"/api/admin/fotos/{p3}/status", json={"status": "afpubliceret", "grund": "x"})
+    assert (await web["ad"].post("/api/admin/fotos/bannere", json={**good, "photo_id": p3})).status_code == 400

@@ -90,3 +90,7 @@
 .fot-q.cur { outline: 2px solid var(--brand); } .fot-q-img img { width: 100%; border-radius: var(--radius-sm); display: block; }
 .fot-red { color: var(--danger, #c0392b); font-weight: 650; }
 @media (max-width: 640px) { .fot-q { grid-template-columns: 1fr; } }
+.fot-tabs .icon-btn { margin-left: auto; font-size: 1.1rem; background: none; border: 0; cursor: pointer; }
+
+/* banner-beskærer */
+.fot-crop { width: 100%; max-width: 600px; aspect-ratio: 3 / 1; border: 2px solid var(--brand); border-radius: 6px; cursor: grab; touch-action: none; background: var(--bg-2); }

@@ -1,8 +1,9 @@
-"""Fotos → Admin: import af fotoarkivet, (senere) kø, privilegier, fotografer, bannere, koder og indstillinger.
+"""Fotos → Admin: import af fotoarkivet, kø, privilegier, fotografer, bannere, koder og indstillinger.
 SQL ligger i services (photo_*)."""
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -13,7 +14,7 @@ from portal.api.deps import require_user
 from portal.cache import worker_command
 from portal.db import get_session
 from portal.models import GalImport, User
-from portal.services import activity, photo_access, photo_codes, photo_comments, photo_edit, photo_import, photo_moderation, photo_photographers, photo_privileges, photo_settings, photo_upload
+from portal.services import activity, photo_access, photo_banners, photo_codes, photo_comments, photo_edit, photo_import, photo_moderation, photo_photographers, photo_privileges, photo_settings, photo_upload
 
 router = APIRouter(prefix="/api/admin/fotos", tags=["admin"])
 
@@ -379,3 +380,64 @@ async def gem_indstillinger(body: dict, user: User = Depends(require_user), acc:
 @router.get("/brugere")
 async def find_brugere(q: str = Query("", max_length=60), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     return await photo_privileges.find_users(db, q)
+
+
+# ---------------------------------------------------------------- bannere
+
+class BannerIn(BaseModel):
+    photo_id: int
+    crop: dict
+    tekst: str | None = Field(None, max_length=200)
+    fra: date | None = None
+    til: date | None = None
+
+
+class BannerPatch(BaseModel):
+    tekst: str | None = Field(None, max_length=200)
+    fra: date | None = None
+    til: date | None = None
+    sort: int | None = None
+    active: bool | None = None
+
+
+def need_banners():
+    async def dep(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> photo_access.Access:
+        acc = await photo_access.context(db, user)
+        if not (acc.on("fotos") and acc.on("fotos_bannere")):
+            raise HTTPException(404, "Funktionen er ikke slået til")
+        if not acc.can_moderate:
+            raise HTTPException(403, "Du har ikke adgang til dette")
+        return acc
+
+    return dep
+
+
+@router.get("/bannere")
+async def bannere(acc: photo_access.Access = Depends(need_banners()), db: AsyncSession = Depends(get_session)):
+    return await photo_banners.listing(db)
+
+
+@router.post("/bannere")
+async def nyt_banner(body: BannerIn, user: User = Depends(require_user), acc: photo_access.Access = Depends(need_banners()), db: AsyncSession = Depends(get_session)):
+    try:
+        b = await photo_banners.create(db, user.id, body.photo_id, body.crop, body.tekst, body.fra, body.til)
+    except photo_banners.BannerError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+    await activity.track(user.id, "foto_banner", f"/fotos/{body.photo_id}", {"banner": b.id})
+    return {"id": b.id}
+
+
+@router.patch("/bannere/{bid}")
+async def ret_banner(bid: int, body: BannerPatch, acc: photo_access.Access = Depends(need_banners()), db: AsyncSession = Depends(get_session)):
+    try:
+        await photo_banners.update(db, bid, body.model_dump(exclude_unset=True))
+    except photo_banners.BannerError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
+    return {"ok": True}
+
+
+@router.delete("/bannere/{bid}")
+async def slet_banner(bid: int, user: User = Depends(require_user), acc: photo_access.Access = Depends(need_banners()), db: AsyncSession = Depends(get_session)):
+    await photo_banners.delete(db, bid)
+    await activity.track(user.id, "foto_banner_slet", "/fotos/admin/bannere", {"banner": bid})
+    return {"ok": True}
