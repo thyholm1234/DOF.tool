@@ -93,7 +93,7 @@ export async function render(view) {
     h("div", { class: "row mt" }, h("button", { class: "btn primary", onclick: save }, "Gem indstillinger")),
     h("div", { class: "card mt2 row between" }, h("div", {}, h("h3", { style: { margin: 0 } }, "Boligbirding"),
         h("p", { class: "muted", style: { margin: 0 } }, "Matrikler, perioder, flytning og placeringer har deres eget modul.")),
-      h("a", { class: "btn", href: "#/matrikel" }, "Gå til Matrikel →")),
+      h("a", { class: "btn", href: "#/lister/matrikel" }, "Gå til Matrikel →")),
     h("div", { class: "card mt2" }, h("h3", {}, "Data"),
       h("p", { class: "muted" }, "Dine observationer kommer fra DOFbasen: historik fra det lokale arkiv, ældre år hentes én gang ved første login, og nye observationer kommer automatisk med live-hentningen.",
         u.history_synced_at ? ` Historik hentet ${fmtDate(u.history_synced_at)}.` : " Historik er i kø."),
@@ -115,7 +115,7 @@ export async function render(view) {
     view.append(apiBox);
     apiTokens(apiBox, mod, label);
   }
-  if (location.hash.includes("matrikler")) location.hash = "#/matrikel?tab=matrikler";
+  if (location.hash.includes("matrikler")) location.hash = "#/lister/matrikel?tab=matrikler";
 }
 
 /** API-nøgler til DOFbasen-API'et: en administrator giver adgang, brugeren laver og sletter selv sine nøgler. */

@@ -45,8 +45,8 @@ export async function page(parts, q) {
       table(["#", "Navn", "Krydset af", `Totalt set af (ud af ${d.total})`], d.rows.map((r, i) => ({ text: r.navn, cells: [i + 1, artLink(r), r.aar, r.total] })), { name: `${key}-tophits-${d.aar}` })];
   }
   return h("div", { class: "stack" }, h("h2", {}, d.name), head,
-    d.auto ? h("p", { class: "small muted" }, "Listen beregnes automatisk ud fra observationerne i DOFbasen", d.auto_at ? ` (senest ${dkDate(d.auto_at, true)})` : "", ". Manuelle kryds tæller med. ", link("/mine?liste=" + encodeURIComponent(key.split(":")[0]), "Ret mine kryds"))
-      : h("p", { class: "small muted" }, "Listen består af deltagernes egne kryds. ", link("/mine?liste=" + encodeURIComponent(key.split(":")[0]), "Ret mine kryds")),
+    d.auto ? h("p", { class: "small muted" }, "Listen beregnes automatisk ud fra observationerne i DOFbasen", d.auto_at ? ` (senest ${dkDate(d.auto_at, true)})` : "", ". Manuelle kryds tæller med. ", link("/mine/kryds?liste=" + encodeURIComponent(key.split(":")[0]), "Ret mine kryds"))
+      : h("p", { class: "small muted" }, "Listen består af deltagernes egne kryds. ", link("/mine/kryds?liste=" + encodeURIComponent(key.split(":")[0]), "Ret mine kryds")),
     h("p", { class: "small muted" }, `${d.deltagere} deltagere.`), ...body);
 }
 

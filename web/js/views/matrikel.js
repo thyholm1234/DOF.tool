@@ -1,4 +1,4 @@
-// Matrikelbirding (Boligbirding): eget modul med oversigt over placeringer, liste, ranglister og matrikler.
+// Matrikelbirding (Boligbirding): fanen Matrikel under Lister (#/lister/matrikel) med oversigt over placeringer, liste, ranglister og matrikler.
 import { api, state, h, icon, fmtN, fmtDate, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
 import { drawList, ranking, race, matrix, unique, groups } from "./lists.js";
@@ -12,7 +12,7 @@ const KIND = { dk: "Landsplan", afd: "Lokalafdeling", kom: "Kommune", group: "Gr
 export async function render(view) {
   const tab = params().tab || "oversigt";
   view.append(h("div", { class: "page-head" },
-    h("div", {}, h("h1", {}, "Matrikel"), h("p", { class: "lead" }, "Boligbirding: arter set fra din matrikel – og hvor du ligger i landet, din lokalafdeling, din kommune og dine grupper.")),
+    h("div", {}, h("h2", {}, "Matrikel"), h("p", { class: "lead" }, "Boligbirding: arter set fra din matrikel – og hvor du ligger i landet, din lokalafdeling, din kommune og dine grupper.")),
     h("span", { class: "spacer" }),
     seg([["oversigt", "Oversigt"], ["liste", "Min liste"], ["score", "Rangliste"], ["matrikler", "Administrér"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
   const body = h("div", {});
@@ -50,7 +50,7 @@ async function landing(body) {
         pts.length > 1 ? lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], step: true, height: 190,
           xFormat: isYear ? monthName : String, xTicks: isYear ? monthTicks : undefined, yFormat: (v) => fmtN(Math.round(v)) }) : null),
       h("h2", { class: "mt" }, "Placeringer"),
-      d.standings.length > 1 ? null : h("p", { class: "muted" }, "Vælg lokalafdeling og kommune under ", h("a", { href: "#/profil" }, "profil"), " og deltag i ", h("a", { href: "#/matrikel?tab=matrikler" }, "grupper"), " for at se flere placeringer."),
+      d.standings.length > 1 ? null : h("p", { class: "muted" }, "Vælg lokalafdeling og kommune under ", h("a", { href: "#/profil" }, "profil"), " og deltag i ", h("a", { href: "#/lister/matrikel?tab=matrikler" }, "grupper"), " for at se flere placeringer."),
       h("div", { class: "grid-2" }, ...d.standings.map(s => standingCard(s, st.year))),
       latest.length ? h("div", { class: "card" }, h("h3", { style: { marginTop: 0 } }, "Seneste nye arter"),
         h("table", { class: "data" }, h("tbody", {}, ...latest.map(it => h("tr", {},
@@ -60,7 +60,7 @@ async function landing(body) {
 }
 
 function standingCard(s, year) {
-  const href = s.kind === "group" ? `#/matrikel?tab=score&group=${s.ref}&year=${year}` : `#/matrikel?tab=score&scope=${s.ref}&year=${year}`;
+  const href = s.kind === "group" ? `#/lister/matrikel?tab=score&group=${s.ref}&year=${year}` : `#/lister/matrikel?tab=score&scope=${s.ref}&year=${year}`;
   const me = state.user?.obserkode;
   return h("div", { class: "card" },
     h("div", { class: "row between" }, h("div", {}, h("div", { class: "muted", style: { fontSize: ".78rem", textTransform: "uppercase", letterSpacing: ".04em", fontWeight: 700 } }, KIND[s.kind]),
@@ -90,7 +90,7 @@ async function myList(body) {
   body.append(h("div", { class: "card" }, h("div", { class: "row" }, mSel, ySel, periodSel),
     h("p", { class: "muted mt", style: { marginBottom: 0, fontSize: ".85rem" } },
       `Skriv ${meta.matrikel_prefix}${String(YEAR).slice(2)} i turnoten (matrikel 2: ${meta.matrikel_prefix}${String(YEAR).slice(2)}-2). Matrikel 1 tæller på ranglisterne, 2 og op er private. Navne, flytning og perioder under `,
-      h("a", { href: "#/matrikel?tab=matrikler" }, "Matrikler"), ".")), out);
+      h("a", { href: "#/lister/matrikel?tab=matrikler" }, "Matrikler"), ".")), out);
   const load = async () => {
     setParams({ tab: "liste", m: st.m === 1 ? "" : st.m, year: st.year, periode: st.periode });
     out.replaceChildren(h("div", { class: "skeleton", style: { height: "220px" } }));
@@ -170,7 +170,7 @@ async function manage(body) {
   const mBox = h("div", {}), gBox = h("div", {});
   body.append(h("h2", {}, "Mine matrikler"), mBox, h("h2", { class: "mt2" }, "Grupper"),
     h("p", { class: "muted", style: { marginTop: 0, maxWidth: "62ch" } }, "Grupper får deres egen rangliste for boligbirding og årslister. Opret en gruppe og del koden, eller deltag i en andens med koden."), gBox);
-  await Promise.all([matrikler(mBox), groups(gBox, "#/matrikel")]);
+  await Promise.all([matrikler(mBox), groups(gBox, "#/lister/matrikel")]);
 }
 
 // ---------------------------------------------------------------- matrikler: navne, perioder og flytning

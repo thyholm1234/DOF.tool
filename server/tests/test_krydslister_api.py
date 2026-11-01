@@ -135,6 +135,22 @@ async def test_artsside_kryds_og_redaktion(web, s):  # noqa: F811
     assert (await web["mo"].get("/api/krydslister/dofart/99999")).json() == {"id": None, "lister": [], "kryds": []}
     assert (await web["lb"].get("/api/krydslister/dofart/101")).status_code == 404  # forhåndsvisning
     koeer = {k["key"]: k for k in (await web["mo"].get("/api/admin/redaktion")).json()["koeer"]}
-    assert koeer["kryds"]["href"] == "#/krydslister/admin/godkendelse" and koeer["kryds"]["antal"] >= 0
+    assert koeer["kryds"]["href"] == "#/lister/admin/godkendelse" and koeer["kryds"]["antal"] >= 0
     assert (await web["lb"].get("/api/admin/redaktion")).json()["koeer"] == []  # ingen moderationsrettigheder
     assert (await web["anon"].get("/api/admin/redaktion")).status_code == 401
+
+
+async def test_livslisten_er_krydslisten_dk(web, s):  # noqa: F811
+    """Lister → Mine lister (Danmark, alle år) viser de manuelle DK-kryds og skjuler automatiske kryds, deltageren har skjult."""
+    await flags(s, krydslister="on")
+    before = (await web["lb"].get("/api/lists/user/LB?scope=dk&year=all")).json()
+    assert sorted(i["artnr"] for i in before["items"]) == [101, 102, 103]
+    fasan = (await web["lb"].get("/api/krydslister/arter?q=fasan&liste=dk")).json()[0]
+    assert (await web["lb"].post("/api/krydslister/mine", json={"liste": "dk", "taxon_id": fasan["id"], "lokalitet": "Haven"})).json()["status"] == "ok"
+    assert (await web["lb"].post("/api/krydslister/mine/skjul", json={"liste": "dk", "artnr": 102, "hidden": True})).status_code == 200
+    after = (await web["lb"].get("/api/lists/user/LB?scope=dk&year=all")).json()
+    assert sorted(i["artnr"] for i in after["items"]) == [101, 103, 104] and after["count"] == 3
+    assert next(i for i in after["items"] if i["artnr"] == 104)["kilde"] == "manuel"
+    assert sorted(i["artnr"] for i in (await web["lb"].get(f"/api/lists/user/LB?scope=dk&year={Y}")).json()["items"]) == [101, 102]  # årslister: kun DOFbasen
+    await flags(s, krydslister="off")
+    assert sorted(i["artnr"] for i in (await web["lb"].get("/api/lists/user/LB?scope=dk&year=all")).json()["items"]) == [101, 102, 103]

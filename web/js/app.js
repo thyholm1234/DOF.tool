@@ -17,8 +17,8 @@ const SECTIONS = [
   ["Analyse", [["#/traek", "trend", "Træk & fænologi"], ["#/statistik", "chart", "Statistik", () => usr().statistik],
     // Dagskortet ligger i Statistik; uden Statistik-modulet har det sit eget punkt
     ["#/kort?tab=dag", "map", "Dagskort", () => usr().daymap && !usr().statistik]]],
-  ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"],
-    ["#/krydslister", "list", "Krydslister", () => usr().krydslister?.features?.krydslister]]],
+  // Lister, krydslister og matrikel er ét modul (views/lister.js)
+  ["Lister", [["#/lister", "list", "Lister"]]],
   ["Fotos & artikler", [["#/fotos", "camera", "Fotos", () => usr().fotos?.features?.fotos],
     ["#/artikler", "news", "Artikler", () => usr().artikler?.features?.artikler]]],
   ["Felt", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
@@ -49,8 +49,8 @@ function activeHref(path, hrefs) {
 const ROUTES = [
   [/^\/?$/, () => import("./views/feed.js")],
   [/^\/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)$/, () => import("./views/thread.js")],
-  [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
-  [/^\/matrikel$/, () => import("./views/matrikel.js")],
+  [/^\/lister(?:\/(.+))?$/, () => import("./views/lister.js")],
+  [/^\/(matrikel|krydslister)(?:\/(.+))?$/, () => import("./views/lister-gammel.js")],  // gamle adresser sendes videre
   [/^\/traek$/, () => import("./views/pheno.js")],
   [/^\/(?:kort|puls)$/, () => import("./views/kort.js")],  // #/puls er den gamle adresse
   [/^\/arter$/, () => import("./views/arter.js")],
@@ -78,7 +78,6 @@ const ROUTES = [
   [/^\/netfugl(?:\/(.+))?$/, () => import("./views/netfugl.js")],
   [/^\/artikler(?:\/(.+))?$/, () => import("./views/artikler.js")],
   [/^\/fotos(?:\/(.+))?$/, () => import("./views/fotos.js")],
-  [/^\/krydslister(?:\/(.+))?$/, () => import("./views/krydslister.js")],
   [/^\/nyheder\/(\d+)$/, () => import("./views/nyhed.js")],
 ];
 
@@ -215,7 +214,7 @@ function openMenu() {
     h("a", { href: "#/alarmer", onclick: close, html: `${icon("bell")} Alarmer og områder` }),
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
-    h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
+    h("a", { href: `#/lister/mine`, onclick: close, html: `${icon("list")} Mine lister` }),
     mod ? h("a", { href: mod.href, onclick: close, html: `${icon("check")} ${mod.long}` }) : null,
     adm ? h("a", { href: adm.href, onclick: close, html: `${icon("shield")} ${adm.long}` }) : null,
     h("button", { onclick: () => { close(); logout(); }, html: `${icon("logout")} Log ud` }),

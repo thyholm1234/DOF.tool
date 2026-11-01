@@ -7,7 +7,7 @@ const SORTS = [["relevans", "Relevans"], ["nyeste", "Nyeste"], ["aeldste", "Æld
 const list = (v) => String(v || "").split(",").filter(Boolean).map(Number).filter(Number.isFinite);
 
 export function readState(q) {
-  return { q: q.q || "", mode: q.mode === "praecis" ? "praecis" : "ord", tag: list(q.tag), art: list(q.art), forfatter: q.forfatter || "", forfatter_id: q.forfatter_id || "", sprog: q.sprog || "", fra: q.fra || "", til: q.til || "",
+  return { q: q.q || "", mode: q.mode === "praecis" ? "praecis" : "ord", tag: list(q.tag), art: list(q.art), forfatter: q.forfatter || "", forfatter_id: q.forfatter_id || "", sprog: q.sprog || "", kind: q.kind || "", fra: q.fra || "", til: q.til || "",
     type: q.type || "", billeder: q.billeder === "1", pdf: q.pdf === "1", sort: q.sort || "", side: +q.side || 1 };
 }
 export function toQuery(st, fixed = {}) {
@@ -20,6 +20,7 @@ export function toQuery(st, fixed = {}) {
   if (s.forfatter) p.set("forfatter", s.forfatter);
   if (s.forfatter_id) p.set("forfatter_id", s.forfatter_id);
   if (s.sprog) p.set("sprog", s.sprog);
+  if (s.kind) p.set("kind", s.kind);
   if (s.fra) p.set("fra", s.fra);
   if (s.til) p.set("til", s.til);
   if (s.type) p.set("type", s.type);
@@ -56,7 +57,7 @@ export async function page(parts, query) {
   const out = h("div", {}), chips = h("div", { class: "art-chips", style: { margin: "6px 0" } });
   let res;
   const sync = () => {
-    setParams({ q: st.q, mode: st.mode === "praecis" ? "praecis" : "", tag: st.tag.join(","), art: st.art.join(","), forfatter: st.forfatter, forfatter_id: st.forfatter_id, sprog: st.sprog, fra: st.fra, til: st.til,
+    setParams({ q: st.q, mode: st.mode === "praecis" ? "praecis" : "", tag: st.tag.join(","), art: st.art.join(","), forfatter: st.forfatter, forfatter_id: st.forfatter_id, sprog: st.sprog, kind: st.kind, fra: st.fra, til: st.til,
       type: st.type, billeder: st.billeder ? "1" : "", pdf: st.pdf ? "1" : "", sort: st.sort, side: st.side > 1 ? st.side : "" });
     drawChips();
     res = results(st, { onState: d => { years.dataset.n = d.facets.aar.length; } });
@@ -88,6 +89,9 @@ export async function page(parts, query) {
       pick("art", species.map(s => ({ id: s.artnr, label: s.navn })), "Tilføj art …", id => { if (!st.art.includes(id)) st.art.push(id); }),
       h("select", { "aria-label": "Type", onchange: (e) => { st.type = e.target.value; run(); } }, h("option", { value: "" }, "Alle typer"), ...types.map(t => h("option", { value: t, selected: t === st.type }, t))),
       num("fra", "Fra år"), num("til", "Til år"),
+      // Slags: nyheder fra portalen er en artikeltype (kind = nyhed)
+      h("select", { "aria-label": "Slags", onchange: (e) => { st.kind = e.target.value; run(); } },
+        ...[["", "Alle slags"], ["artikel", "Artikler"], ["nyhed", "Nyheder"], ["pdf", "PDF-artikler"], ["link", "Links"]].map(([v, l]) => h("option", { value: v, selected: st.kind === v }, l))),
       h("select", { "aria-label": "Sprog", onchange: (e) => { st.sprog = e.target.value; run(); } }, h("option", { value: "" }, "Alle sprog"), h("option", { value: "da", selected: st.sprog === "da" }, "Dansk"), h("option", { value: "en", selected: st.sprog === "en" }, "English")),
       h("select", { "aria-label": "Sortering", onchange: (e) => { st.sort = e.target.value; run(); } }, ...SORTS.map(([v, t]) => h("option", { value: v, selected: v === (st.sort || (st.q && st.mode === "ord" ? "relevans" : "nyeste")) }, t)))),
     h("div", { class: "row" },

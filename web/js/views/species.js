@@ -85,13 +85,13 @@ const TAB = {
     const { loadCss } = await import("../krydslister/common.js");
     loadCss("krydslister");
     const d = await api(`/api/krydslister/dofart/${artnr}`);
-    const hasList = (key) => `#/krydslister/kryds/${encodeURIComponent(key)}`;
+    const hasList = (key) => `#/lister/kryds/${encodeURIComponent(key)}`;
     body.replaceChildren(h("div", { class: "card mt" },
       d.lister.length ? h("p", { class: "muted" }, "På listerne: ", d.lister.map(l => `${l.navn}${l.kategorier?.length ? ` (kategori ${l.kategorier.join(", ")})` : ""}`).join(" · ")) : null,
       d.kryds.length ? h("ul", { class: "mini-list" }, ...d.kryds.map(k => h("li", {},
         h("a", { href: `${hasList(k.liste)}/art/${encodeURIComponent(k.key)}` }, k.navn), h("span", { class: "num" }, `${fmtN(k.antal)} af ${fmtN(k.deltagere)} deltagere`))))
         : empty(`Ingen har krydset ${sp.navn} endnu`),
-      d.id ? h("p", { class: "mt" }, h("a", { href: `#/krydslister/art/${d.id}` }, "World Bird List-side →")) : null));
+      d.id ? h("p", { class: "mt" }, h("a", { href: `#/lister/art/${d.id}` }, "World Bird List-side →")) : null));
   },
 };
 

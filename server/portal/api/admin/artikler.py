@@ -72,7 +72,7 @@ class ArticleIn(BaseModel):
     featured_until: datetime | None = None
     comments_open: bool = True
     source_url: str | None = Field(None, max_length=400)
-    kind: Literal["artikel", "pdf", "link"] = "artikel"
+    kind: Literal["artikel", "pdf", "link", "nyhed"] = "artikel"
     sprog: Literal["da", "en"] = "da"
     version: int | None = None
 

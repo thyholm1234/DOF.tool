@@ -13,8 +13,8 @@ export function species(body) {
   const kl = state.user?.krydslister, klOn = kl?.can_admin && kl.features?.krydslister_wbl;
   body.append(h("div", { class: "row mb" }, seg(views.map(v => [v[0], v[1]]), vis, (v) => { vis = v; setParams({ afd: "", art: "", y: "", q: "" }); draw(); }),
     klOn ? h("span", { class: "spacer" }) : null,
-    klOn ? h("a", { class: "btn sm ghost", href: "#/krydslister/admin/artslister" }, "Artslister →") : null,
-    klOn ? h("a", { class: "btn sm ghost", href: "#/krydslister/admin/wbl" }, "World Bird List →") : null), inner);
+    klOn ? h("a", { class: "btn sm ghost", href: "#/lister/admin/artslister" }, "Artslister →") : null,
+    klOn ? h("a", { class: "btn sm ghost", href: "#/lister/admin/wbl" }, "World Bird List →") : null), inner);
   draw();
 }
 

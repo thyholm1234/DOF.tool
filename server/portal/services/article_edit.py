@@ -87,7 +87,7 @@ async def _adopt_media(session: AsyncSession, art: ArtArticle, user_id: int | No
     if art.cover_media_id:
         ids.add(art.cover_media_id)
     if ids:
-        await session.execute(text("UPDATE content_media SET owner_id = :a WHERE id = ANY(:ids) AND owner_kind = 'artikel' AND owner_id IS NULL AND created_by IS NOT DISTINCT FROM :u"),
+        await session.execute(text("UPDATE content_media SET owner_id = :a WHERE id = ANY(:ids) AND owner_kind IN ('artikel', 'nyhed') AND owner_id IS NULL AND created_by IS NOT DISTINCT FROM :u"),
                               {"a": art.id, "ids": list(ids), "u": user_id})
 
 
@@ -149,7 +149,7 @@ async def save(session: AsyncSession, user: User, data: dict, art: ArtArticle | 
 async def delete_article(session: AsyncSession, art: ArtArticle) -> None:
     from portal.services import content_media
 
-    for m in (await session.execute(select(ContentMedia).where(ContentMedia.owner_kind == "artikel", ContentMedia.owner_id == art.id))).scalars().all():
+    for m in (await session.execute(select(ContentMedia).where(ContentMedia.owner_kind.in_(("artikel", "nyhed")), ContentMedia.owner_id == art.id))).scalars().all():
         await content_media.delete_media(session, m)
     await session.delete(art)
     await session.commit()
@@ -259,13 +259,12 @@ async def tag_merge(session: AsyncSession, src: int, dst: int) -> int:
 # ---------------------------------------------------------------- planlagt publicering
 
 async def publish_due(session: AsyncSession) -> list[int]:
-    """Planlagte artikler og nyheder, hvis tid er kommet. Returnerer id'er på artikler, der er publiceret første gang."""
+    """Planlagte artikler og nyheder (kind = 'nyhed'), hvis tid er kommet. Returnerer id'er på artikler, der er publiceret første gang."""
     rows = (await session.execute(text("""
         UPDATE art_articles SET status = 'publiceret', published_at = coalesce(published_at, publish_at, now()), publish_at = NULL
-        WHERE status = 'planlagt' AND publish_at <= now() RETURNING id, source"""))).all()
-    await session.execute(text("UPDATE news SET status = 'publiceret', published = true, publish_at = NULL WHERE status = 'planlagt' AND publish_at <= now()"))
+        WHERE status = 'planlagt' AND publish_at <= now() RETURNING id, source, kind"""))).all()
     await session.commit()
     if rows:
         await bump("articles")
-    return [r[0] for r in rows if r[1] == "lokal"]
+    return [r[0] for r in rows if r[1] == "lokal" and r[2] != "nyhed"]  # nyheder giver ikke artikelnotifikationer
 

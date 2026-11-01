@@ -33,6 +33,6 @@ async def queues(session: AsyncSession, user: User) -> list[dict]:
                     "antal": await _count(session, "SELECT count(*) FROM art_comments WHERE report_count > 0 AND status <> 'slettet'")})
     ka = await kl_access.context(session, user)
     if ka.admin and ka.on("krydslister"):
-        out.append({"key": "kryds", "modul": "Krydslister", "navn": "Manuelle kryds der afventer godkendelse", "href": "#/krydslister/admin/godkendelse",
+        out.append({"key": "kryds", "modul": "Krydslister", "navn": "Manuelle kryds der afventer godkendelse", "href": "#/lister/admin/godkendelse",
                     "antal": await _count(session, "SELECT count(*) FROM kl_kryds WHERE status = 'afventer' AND NOT hidden")})
     return out

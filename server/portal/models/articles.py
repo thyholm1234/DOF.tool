@@ -90,7 +90,7 @@ class ArtArticle(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     netfugl_id: Mapped[int | None] = mapped_column(Integer, unique=True)
-    kind: Mapped[str] = mapped_column(String(12), default="artikel")  # artikel / pdf / (turrapport)
+    kind: Mapped[str] = mapped_column(String(12), default="artikel")  # artikel / pdf / link / nyhed (portalens nyheder) / (turrapport)
     title: Mapped[str] = mapped_column(String(300))
     slug: Mapped[str] = mapped_column(String(120), default="")
     lead: Mapped[str | None] = mapped_column(Text)
@@ -119,6 +119,7 @@ class ArtArticle(Base):
     import_id: Mapped[int | None] = mapped_column(ForeignKey("art_imports.id", ondelete="SET NULL"))
     import_errors: Mapped[list] = mapped_column(JSONB, default=list)
     sprog: Mapped[str] = mapped_column(String(5), default="da", server_default="da")  # da / en
+    news_id: Mapped[int | None] = mapped_column(Integer, unique=True)  # nyheder flyttet fra tabellen news (services/news.py)
     source_hash: Mapped[str | None] = mapped_column(String(40))  # fingeraftryk af arkivets filer (springer uændrede artikler over)
     search = mapped_column(TSVECTOR, Computed(SEARCH_EXPR, persisted=True))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

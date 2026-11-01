@@ -126,14 +126,19 @@ async def load_periods(session: AsyncSession, codes: list[str], nummer: int) -> 
     return out
 
 
+def counts_sql(countable: str | None = None) -> str:
+    """Hvad der tæller som et fund på en liste – fælles for Lister og krydslisternes automatiske kryds (services/krydslister.py).
+    Forudsætter aliasserne o (observations), s (species) og ls (listearten). countable: andet kategorifilter end standarden A, B, C."""
+    return f"s.list_artnr IS NOT NULL AND NOT ls.excluded AND o.antal > 0 AND o.dato <= current_date AND {countable or countable_sql()}"
+
+
 async def _where(session: AsyncSession, spec: ListSpec, prefix: str, windows: list[tuple[date, date]] | None = None
                  ) -> tuple[str, dict]:
     pred, params = (await spec.scope.with_geom(session)).predicate("o")
-    parts = [pred, "s.list_artnr IS NOT NULL", "NOT ls.excluded", "o.antal > 0", countable_sql()]
+    parts = [pred, counts_sql()]
     if spec.year:
         parts.append("o.dato BETWEEN :y0 AND :y1")
         params.update({"y0": date(spec.year, 1, 1), "y1": date(spec.year, 12, 31)})
-    parts.append("o.dato <= current_date")
     if spec.matrikel:
         # #BB26 eller #BB26-1 for matrikel 1, #BB26-2 for matrikel 2 osv. Årstallet skal passe til observationen.
         tag = "(-1)?" if spec.matrikel == 1 else f"-{spec.matrikel}"
@@ -195,9 +200,10 @@ async def participants(session: AsyncSession, group_id: int | None = None) -> li
             {"k": missing})).all()) if missing else {}
         rows = [(r[0], r[1] or names.get(r[0]) or r[0]) for r in rows]
     else:
+        # Samme deltagere som krydslisterne: godkendte, ikke blokerede brugere, der viser deres lister
         rows = (await session.execute(text("""
             SELECT obserkode, coalesce(navn, obserkode) FROM users
-            WHERE NOT blocked AND coalesce((prefs->>'lists_public')::boolean, true)
+            WHERE NOT blocked AND approved AND coalesce((prefs->>'lists_public')::boolean, true)
         """))).all()
     return [{"obserkode": r[0], "navn": r[1] or r[0]} for r in rows]
 
