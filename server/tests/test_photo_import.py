@@ -237,6 +237,25 @@ async def test_ugyldigt_foto_stopper_ikke_resten(db, tmp_path):
 
 
 @pytest.mark.skipif(not DSN, reason="ARTICLES_TEST_DSN er ikke sat")
+async def test_fejl_efter_ny_fotograf_og_nul_tegn(db, tmp_path):
+    """Et foto, der fejler efter at have oprettet en ny fotograf, må ikke efterlade fotografen i importens opslag (rollback),
+    og NUL-tegn fra EXIF (fx «SM-G973F\\u0000…») fjernes, før de gemmes."""
+    from sqlalchemy import text
+
+    ny = {"navn": "Ny Fotograf", "netfugl_bruger_id": 999}
+    photos = sample()
+    photos[1] = (meta(1, fotograf=ny), b"ikke et billede")  # fejler, efter at fotografen er oprettet
+    photos[2] = (meta(2, fotograf=ny, kamera={"model": "SM-G973F\x00\x00\x00", "iso": "50"}, titel="Ti\x00tel"), photos[2][1])
+    write_dir(tmp_path / "imports" / "n", photos)
+    imp = await run(db, "n")
+    assert imp.stats["fejl"] == 1 and imp.stats["oprettet"] == 2, imp.log
+    async with db() as s:
+        kamera, titel, fotograf = (await s.execute(text("""SELECT p.kamera, p.titel, f.navn FROM gal_photos p
+            JOIN gal_photographers f ON f.id = p.photographer_id WHERE p.netfugl_id = 2"""))).one()
+    assert kamera["model"] == "SM-G973F" and titel == "Titel" and fotograf == "Ny Fotograf"
+
+
+@pytest.mark.skipif(not DSN, reason="ARTICLES_TEST_DSN er ikke sat")
 async def test_fotografmatch(db):
     from portal.models import GalPhotographer
 

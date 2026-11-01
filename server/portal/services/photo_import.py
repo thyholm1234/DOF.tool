@@ -171,6 +171,20 @@ class Run:
     loks: dict[str, list[tuple[int, float | None, float | None]]] = field(default_factory=dict)
     groups: list[list[int]] = field(default_factory=list)
 
+    def snapshot(self) -> tuple:
+        """Opslagene, der kan pege på rækker oprettet i det aktuelle fotos transaktion (fotografer, lande, koder, grupper)."""
+        c = self.codes
+        return (dict(self.photographers), dict(self.countries), len(self.groups),
+                (dict(c.by_text), set(c.used), len(c.created)) if c else None)
+
+    def restore(self, snap: tuple) -> None:
+        """Efter rollback: glem det, transaktionen oprettede – ellers peger næste foto på en fotograf, der ikke findes."""
+        self.photographers, self.countries = snap[0], snap[1]
+        del self.groups[snap[2]:]
+        if snap[3] and self.codes:
+            self.codes.by_text, self.codes.used = snap[3][0], snap[3][1]
+            del self.codes.created[snap[3][2]:]
+
     def note(self, level: str, msg: str, no: int | None = None) -> None:
         if len(self.log) < MAX_LOG:
             self.log.append({"netfugl_id": no, "niveau": level, "besked": msg})
@@ -285,11 +299,21 @@ async def _import_comments(session: AsyncSession, photo: GalPhoto, comments: lis
     return (await session.execute(text("SELECT count(*) FROM gal_comments WHERE photo_id = :p AND status = 'synlig' AND NOT intern"), {"p": photo.id})).scalar() or 0
 
 
+def _strip_nul(v):
+    if isinstance(v, str):
+        return v.replace("\x00", "")
+    if isinstance(v, dict):
+        return {k: _strip_nul(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_strip_nul(x) for x in v]
+    return v
+
+
 async def import_photo(session: AsyncSession, run: Run, src: Source, pid: int) -> str:
     """Importér ét foto. Returnerer 'oprettet', 'opdateret', 'uaendret' eller 'sprunget_lokalt'."""
     opts = run.options
     raw = src.read(pid, "meta.json")
-    meta = json.loads(raw)
+    meta = _strip_nul(json.loads(raw))  # fx kameramodeller fra EXIF fyldt op med NUL – Postgres afviser \u0000 i tekst og JSON
     if meta.get("schema_version") != 1:
         raise ValueError(f"schema_version {meta.get('schema_version')} understøttes ikke")
     if int(meta.get("id", -1)) != pid:
@@ -464,12 +488,14 @@ async def _run(s: AsyncSession, imp: GalImport, run: Run, rel: str | None) -> No
     for n, pid in enumerate(ids, 1):
         if n % 25 == 1 or n == len(ids):
             await jobstatus.step(f"Foto {pid} ({n} af {len(ids)})", n, len(ids))
+        snap = run.snapshot()
         try:
             result = await import_photo(s, run, src, pid)
             await s.commit()
             run.stats[result] += 1
         except Exception as exc:  # noqa: BLE001 – ét dårligt foto må ikke stoppe resten
             await s.rollback()
+            run.restore(snap)
             run.stats["fejl"] += 1
             run.note("fejl", f"{exc.__class__.__name__}: {exc}", pid)
             log.warning("Foto %s kunne ikke importeres: %s", pid, exc)

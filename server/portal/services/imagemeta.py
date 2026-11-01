@@ -172,7 +172,7 @@ def read_camera(data: bytes) -> dict:
             return None
 
     def txt(v):
-        v = (v.decode("utf-8", "ignore") if isinstance(v, bytes) else str(v or "")).strip("\x00 ").strip()
+        v = (v.decode("utf-8", "ignore") if isinstance(v, bytes) else str(v or "")).replace("\x00", "").strip()
         return v[:100] or None
     out["model"] = txt(ex.get(0x0110))
     out["linse"] = txt(sub.get(0xA434))
