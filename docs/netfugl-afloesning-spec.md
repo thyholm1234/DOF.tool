@@ -769,3 +769,20 @@ brugerne.
 | Original i fuld størrelse | Vises for alle med adgang til fotoet (som på Netfugl). |
 | Kort over fotos | Ikke i denne omgang (kun lille kort på fotosiden). |
 | Lagerplads | Fotos ligger under `art/` og tælles derfor allerede med i `services/diskusage.measure` (Admin → Drift). Tilføj en opdeling pr. `owner_kind`, hvis det er billigt. |
+
+
+---
+
+## 18. Implementeringsstatus og afvigelser (2. november 2026)
+
+Fase 0–7 er bygget og testet (`pytest server/tests`, røgtest af alle nye sider i en browser). Afvigelser og åbne punkter:
+
+* **Crawlerens parser** er kun testet på sider med én fugl, underart, kommentarer, koordinat/kamera og emneord. Flere fugle, svarkommentarer og grupper er **gættet** (ingen rigtige eksempler fundet) – tjek `meta.json` for et par fotos, når crawlen kører (se `tools/netfugl_fotos/README.md`).
+* **Banner på appens forside** er ikke bygget (kun galleriets top); forsiden har ingen plads til det.
+* **«Kun VP-arter»** i uploadformularen er ikke bygget; artsvælgeren bruger DOFbasens arter (`species`), og `gal_birds.taxon_id` udfyldes via `photos_link_taxa` (Netfugls artsnumre/latinske navne → World Bird List).
+* Fotos' arter slås op på **DOFbasens art** (`artnr`); fotos af arter uden DOFbasen-art har `artnr = null` og vises med Netfugls navn.
+* **Sjældenhedsfilteret** i galleriet bruger DK-listen i krydslistemodulet og virker først, når Krydslister er seedet (sker første gang modulet åbnes).
+* **Se som bruger:** `POST /api/auth/logout` er også tilladt i tilstanden; fotovisninger og aktivitetslog tælles ikke. Øvrige visningstællere (artikler) kan stadig tælle.
+* **Forfatterregistret** gemmer stadig `art_articles.authors` som kopi (til tilbagerulning); kolonnen fjernes i en senere migration.
+* **Krydslister:** `regler.kategorier` ≠ A,B,C slår `bird_category` op for alle observationer (langsommere end standarden). Falsk VP kræver godkendelse (nyt ift. showcasen). AviList-CSV'ens kolonnenavne er gættet (se `kl_admin.ALIASES`).
+* Opdagede, men ikke rettede: `tests/test_data.py::test_tier_jobs_and_months` fejler allerede før dette arbejde (datoafhængig).

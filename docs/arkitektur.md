@@ -29,7 +29,7 @@ for sig.
 - **Planlagte opgaver:** tilføj opgaven i `services/schedule.TASKS` *og* i `worker.SCHEDULED` (evt. med flag i
   `worker.FEATURE_OF`). `tests/test_schedule.py` fejler, hvis de to ikke passer sammen.
 - **SQL ligger i services.** API-modulerne validerer, tjekker adgang og kalder services. `tests/test_architecture.py`
-  holder øje: `domain/` er ren, `api/geo.py`, `api/calendar.py`, `api/dku.py`, `api/netfugl.py`, `api/artikler.py`, `api/fotos.py`, `api/admin/fotos.py`, `api/content.py`, `api/admin/artikler.py` og `api/admin/indhold.py` må ikke bruge
+  holder øje: `domain/` er ren, `api/geo.py`, `api/calendar.py`, `api/dku.py`, `api/netfugl.py`, `api/artikler.py`, `api/fotos.py`, `api/admin/fotos.py`, `api/krydslister.py`, `api/admin/krydslister.py`, `api/admin/se_som.py`, `api/content.py`, `api/admin/artikler.py` og `api/admin/indhold.py` må ikke bruge
   `text()`/`select()`/`update()`/`delete()`, og der må ikke komme nye importer fra et API-modul til et andet (fælles kode
   hører hjemme i en service). De ældre krydsimporter står i testens `KNOWN_CROSS_IMPORTS` og fjernes, efterhånden som de
   flyttes.
@@ -37,6 +37,7 @@ for sig.
     kalendere og besøg: `services/calendars.py` · DKU-sager: `services/dku_cases.py` · Netfugl-indhold: `services/netfugl_content.py` ·
     Artikler: `services/articles.py` (læsning), `article_edit.py`, `article_import.py`, `article_species.py`, `article_comments.py`, `article_notify.py`,
     `content_render.py` (fælles markdown-renderer + sanitering) og `content_media.py`; nyheder: `services/news.py` ·
+    Krydslister: `services/krydslister.py` (listetyper, beregning, visninger), `kl_species.py`, `kl_admin.py`, `kl_access.py` · Se som bruger: `services/view_as.py` ·
     Fotos: `services/photos.py` (læsning), `photo_import.py`, `photo_photographers.py`, `photo_comments.py`, `photo_codes.py`, `photo_privileges.py`, `photo_access.py`.
 - **API'ets ruter** er låst af `tests/test_routes.py` (snapshot i `tests/fixtures/api_routes.json` med stier, metoder, parametre og deres skemaer). Ændres en rute med
   vilje: `UPDATE_ROUTES=1 python -m pytest tests/test_routes.py`.
@@ -53,6 +54,7 @@ for sig.
 | Kort | `maps.js` | Grundkort og hjælpere. Henter Leaflet første gang, et modul importerer filen (top-level `await`) – importér altid `maps.js`, før `L` bruges |
 | Live | `live.js` | SSE-strømmen (`live.on("feed", …)`) |
 | Showcases | `dofbasen/`, `netfugl/` | Selvstændige moduler med egen skal, CSS og admin |
+| Krydslister | `views/krydslister.js`, `krydslister/*.js` | Modul med faner (oversigt, lister, mine kryds, artslister, World Bird List, admin); CSS hentes ved første besøg |
 | Fotos | `views/fotos.js`, `fotos/*.js` | Modul med faner (galleri, mine fotos, retningslinjer, admin); CSS hentes ved første besøg |
 | Artikler | `views/artikler.js`, `artikler/*.js` | Modul med faner (forside, søg, emneord, arter, forfattere, admin); CSS hentes ved første besøg |
 | Editor | `editor/md-editor.js`, `editor/media-picker.js` | Fælles markdown-editor til artikler og nyheder; forhåndsvisningen renderes af serveren |
