@@ -27,3 +27,7 @@ data/
 /Artikler/
 /Artikler.zip
 /tools/netfugl_arkiv/
+
+# Netfugl-fotoarkiv (hentet indhold)
+/Fotos/
+/Fotos-*.zip

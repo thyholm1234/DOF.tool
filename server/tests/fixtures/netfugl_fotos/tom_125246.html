@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html   lang="en"
+>
+
+<head>
+    <title>Netfugl - Foto</title>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+
+    <link rel="apple-touch-icon" sizes="57x57" href="/img/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/img/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/img/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/img/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/img/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/img/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/img/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/img/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192"  href="/img/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/img/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png">
+    <!--<link rel="manifest" href="img/favicon/manifest.json">-->
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="/img/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Ads by Google -->
+    <!--<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4971555212422122"
+            crossorigin="anonymous"></script>-->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+    <script>(adsbygoogle=window.adsbygoogle||[]).pauseAdRequests=1;</script>
+
+    <!--CSS-->
+    <!-- DataTables CSS through CDN -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.min.css"/>
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.3.2/css/buttons.dataTables.min.css">
+<!--    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.13.1/b-2.3.3/datatables.min.css"/>-->
+
+
+    <!-- Latest compiled and minified Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <!-- Font awesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css">
+
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+          integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+          crossorigin=""/>
+
+    <!-- jQuery UI -->
+    <link href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css">
+
+    <!-- Font awesome CSS -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css" integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" crossorigin="anonymous">
+
+    <!-- Animate CSS for hover navbar -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/design.css">
+
+    <!-- Cookie consent -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orestbida/cookieconsent@v2.8.0/dist/cookieconsent.css">
+
+    
+        <!-- include summernote css -->
+        <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+    
+
+    <meta content="a29764b9-3d20-4aaf-99b0-cc6de5f0fb11" name="_csrf"/>
+
+    
+        <!-- include summernote css -->
+        <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+    
+</head>
+<body>
+<script defer src="/js/cookie.js"></script>
+<!-- Fragments and content container -->
+<header>
+    <div>
+    <div class="container">
+        <nav class="navbar navbar-expand-lg fixed-top" id="main_navbar">
+            <div class="container header-container black-link">
+                <a class="navbar-brand " href="/">
+                    <div id="logo" class="inline-block">
+                        <img src="/img/header_logo.png" />
+                    </div>
+                </a>
+                <button class="navbar-toggler navbar-light" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarDD" aria-expanded="false" aria-label="Navigation">
+                    <i class="fas fa-bars" style="color:#000; font-size:28px;"></i>
+                </button>
+
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item dropdown">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown"
+                               aria-haspopup="true" aria-expanded="false" role="button" id="navbarDropdownNyheder">Nyheder &amp; Artikler</a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNyheder">
+                                <li><a class="dropdown-item" href="/artikler">Nyheder &amp; Artikler</a></li>
+                                <li><a class="dropdown-item" href="/rss"a>RSS Nyheder</a></li>
+                                <li><a class="dropdown-item" href="/vejret">Vejret</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a href="#" class="nav-link dropdown-toggle" aria-expanded="false"
+                               id="navbarDropdownKryds" role="button" data-toggle="dropdown" aria-haspopup="true">Krydslister</a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownKryds">
+                                <li><a class="dropdown-item" href="/ranking">Om krydslister</a></li>
+                                <li class="nav-item dropdown">
+                                    <a class="dropdown-item dropdown-toggle" href="/ranking/aarstophits/wpranking" id="navbarDropdownVPKryds" role="button" data-toggle="dropdown"
+                                       aria-haspopup="true" aria-expanded="false">VP krydslister</a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownVPKryds">
+                                        <li><a class="dropdown-item" href="/ranking/wpranking">VP krydslister</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/seneste/wpranking">Seneste kryds</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/hvem_har_set_hvad/wpranking">Hvem har set hvad?</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/blockers/wpranking">Blockers</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/blockers/statistik/wpranking">Blockers statistik</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/aarstophits/wpranking">Årstophits</a></li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="/ranking/falsewpranking">Falske VP krydslister</a>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a class="dropdown-item dropdown-toggle" href="#" id="navbarDropdownDKKryds" role="button" data-toggle="dropdown"
+                                       aria-haspopup="true" aria-expanded="false">DK krydslister</a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownDKKryds">
+                                        <li><a class="dropdown-item" href="/ranking/dkranking">DK krydslister</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/seneste/dkranking">Seneste kryds</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/hvem_har_set_hvad/dkranking">Hvem har set hvad?</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/blockers/dkranking">Blockers</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/blockers/statistik/dkranking">Blockers statistik</a></li>
+                                        <li><a class="dropdown-item" href="/ranking/aarstophits/dkranking">Årstophits</a></li>
+                                    </ul>
+                                </li>
+                                <li><a class="dropdown-item" href="/ranking/dkaarsarter">DK årsarter</a></li>
+                                <li><a class="dropdown-item" href="/ranking/dkmaanedsarter">DK månedsarter</a></li>
+                                <li><a class="dropdown-item" href="/ranking/dkringarter">DK ringmærkningsarter</a></li>
+                                <li><a class="dropdown-item" href="/ranking/dkaedelarter">DK ædelarter</a></li>
+                                <li><a class="dropdown-item" href="/ranking/dkaedelaarsarter">DK ædelårsarter</a></li>
+                                <li><a class="dropdown-item" href="/ranking/dklokalarter">DK lokalarter</a></li>
+                                <li><a class="dropdown-item" href="/ranking/alle">Alle krydslister</a></li>
+                                <li><a class="dropdown-item" href="/ranking/regler">Krydsregler</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Arter</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/arter">World Bird List</a></li>
+                                <li><a class="dropdown-item" href="/artslister/dk">DK listen</a></li>
+                                <li><a class="dropdown-item" href="/artslister/vp">VP listen</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/fotos" class="nav-link">Fotogalleri</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Om Netfugl</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/om">Om Netfugl</a></li>
+                                <li><a class="dropdown-item" href="/faq">FAQ</a></li>
+                                <li><a class="dropdown-item" href="/ordforklaringer">Ordforklaringer</a></li>
+                                <li><a class="dropdown-item" href="/bruger/alle">Alle brugere</a></li>
+                                <li><a class="dropdown-item" href="/stoet">Støt Netfugl</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav right">
+                        
+                            <li class="nav-item">
+                                <a class="nav-link" href="/bruger/opret">Opret profil</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/bruger/login">Log ind</a>
+                            </li>
+                        
+                        
+                        <li class="nav-item">
+                            <a  href="/language?lang=en">
+                                <img id="headerFlagIcon" src="/img/enFlag.png" />
+                            </a>
+                        </li>
+                        <li class="nav-item" id="logoDof" >
+                            <a href="https://www.dof.dk/">
+                                <img id="content-desktop" src="/img/birdlifelogo2.png"/>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </div>
+</div>
+</header>
+
+<!-- Main page topbanner -->
+
+<!-- Main page topbanner END -->
+
+<!-- New Main page design -->
+
+<!-- New Main page design END -->
+
+<!-- Other page topbanner (headline banner) -->
+
+<!-- Other page topbanner end -->
+
+<!-- User locale language -->
+<input type="hidden" id="user-language" value="da">
+
+<div class="content-wrapper container">
+
+    
+    
+    <section>
+
+    
+    
+        <p>Dette foto er endnu ikke godkendt i galleriet. Hvis du ejer fotoet, skal du først logge ind for at se det præsenteret på denne side.</p>
+    
+
+</section>
+</div>
+</div>
+
+<!-- Annoncer -->
+<div id="advertisements" class="container">
+    <h6 class="front-page-title">Annoncer</h6>
+    <div class="front-page-inner-part">
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-10 col-sm-6 col-lg-4 mb-3">
+            <a href="https://www.naturbutikken.dk/naturboghandel/" target="_blank">
+                <img class="row-ad-image" src="/reklamer/3/">
+            </a>
+            
+        </div>
+        <div class="col-10 col-sm-6 col-lg-4 mb-3">
+            <a href="https://skandinotravel.com/ecuador-fugleliv-i-verdensklasse/" target="_blank">
+                <img class="row-ad-image" src="/reklamer/13/">
+            </a>
+            
+        </div>
+        <div class="col-10 col-sm-6 col-lg-4 mb-3">
+            <a href="https://www.nybolig.dk/ejerlejlighed/9990/carljohansensvej/n240005/n2400050000173" target="_blank">
+                <img class="row-ad-image" src="/reklamer/12/">
+            </a>
+            
+        </div>
+    </div>
+    
+    <div align="center mt-3">
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4971555212422122"
+                crossorigin="anonymous"></script>
+        <ins class="adsbygoogle"
+             style="display:block; text-align:center;"
+             data-ad-layout="in-article"
+             data-ad-format="fluid"
+             data-ad-client="ca-pub-4971555212422122"
+             data-ad-slot="5933199367"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+</div>
+<!-- Annoncer end -->
+<div>
+    <div id="footer">
+        <div class='footer-wrapper-inner'>
+            <div class="container">
+                <div class='footerleft'>
+                    <div class='netfugllogo'>
+                        <img src="/img/header_logo.png" />
+                    </div><br>
+                    <div class='footertekst'>
+                        <p>support@netfugl.dk<br /><br />
+                            copyright © 2002-2023<br /></p>
+                    </div>
+                </div>
+                <div class='footerright'>
+                    <div class='doflogo'>
+                        <a target='_blank' href='https://www.dof.dk/'><img src="/img/full-dof-logo.png" /></a>
+                    </div>
+                </div>
+                <div class='clear'></div>
+            </div>
+        </div><!-- END .footer-wrapper-inner -->
+    </div><!-- END #footer -->
+</div>
+
+<!-- Javascript -->
+
+<!-- Bootstrap JS -->
+<script
+        src="https://code.jquery.com/jquery-3.6.3.min.js"
+        integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU="
+        crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+<!-- Export base URL to imgjavascript -->
+<script>
+        var base_url = "\/";
+        var isUserLanguageDanish = "da".localeCompare($('#user-language').val()) ? false : true;
+        </script>
+
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.2/js/buttons.print.min.js"></script>
+<!--<script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/b-2.3.3/datatables.min.js"></script>-->
+
+<script src="/js/datatables.js"></script>
+
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+        integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+        crossorigin=""></script>
+
+<script src="/js/leaflet.js"></script>
+
+<!-- Cookie Consent -->
+<script src="https://cdn.jsdelivr.net/gh/orestbida/cookieconsent@v2.8.0/dist/cookieconsent.js"></script>
+
+<!-- Custom JS -->
+<script src="/js/custom.js"></script>
+<script src="/js/registersw.js"></script>
+<script src="/js/header.js"></script>
+
+<section>
+    <script src="/js/birdphotoviewpage.js"></script>
+    <script src="/js/birdphotocomments.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
+    <script src="/js/summernote.js"></script>
+    <script src="/js/summernote-da-DK.js"></script>
+</section>
+</body>
+</html>
