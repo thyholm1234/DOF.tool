@@ -299,9 +299,13 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
     today = dk_today()
     since = today - timedelta(days=days)
     hist_from = today - timedelta(days=365 * hist_years)
-    # Lokalt = samme lokalitet, eller samme kommune
-    local = "h.loknr = c.loknr" if level == "lok" else \
-        "h.loknr IN (SELECT x.loknr FROM locations x WHERE x.kommune_kode = c.kommune_kode)"
+    # Lokalt = samme lokalitet, eller samme kommune. Historikken beregnes én gang pr. (art, lokalt område) og pr. dag på året –
+    # ikke pr. observation: før kørte den samme scanning af historikken for hver eneste nylige observation (op mod en halv time).
+    if level == "lok":
+        unit, hist_join = "o.loknr", "JOIN observations h ON h.artnr = k.artnr AND h.loknr = k.unit"
+    else:
+        unit, hist_join = "l.kommune_kode", ("JOIN observations h ON h.artnr = k.artnr "
+                                             "JOIN locations hl ON hl.loknr = h.loknr AND hl.kommune_kode = k.unit")
     conds = {"antal": "q.antal >= :antal_min AND q.n >= :min_hist AND q.antal >= :factor * greatest(q.p95, 1)",
              "ny": "q.n <= :ny_max",
              "saeson": "q.n > 0 AND q.n_sd = 0",
@@ -311,22 +315,29 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
     if obsids is not None:
         notable += " AND o.obsid = ANY(:obsids)"
     rows = (await db.execute(text(f"""
+        WITH c AS MATERIALIZED (
+            SELECT o.obsid, o.dato, o.artnr, o.antal, o.loknr, o.kategori, o.fuglnoter, o.afdelinger, o.obserkode,
+                   {unit} AS unit, extract(doy FROM o.dato)::int AS doy
+            FROM observations o LEFT JOIN locations l ON l.loknr = o.loknr
+            WHERE o.dato >= :since AND o.hemmelig = 0 {notable}
+              AND (CAST(:all AS boolean) OR o.afdelinger && CAST(:afd AS smallint[]))),
+        keys AS (SELECT DISTINCT artnr, unit FROM c WHERE unit IS NOT NULL),
+        hist AS MATERIALIZED (
+            SELECT k.artnr, k.unit, h.antal, extract(doy FROM h.dato)::int AS doy
+            FROM keys k {hist_join}
+            WHERE h.dato >= :hist_from AND h.dato < :since),
+        stats AS (SELECT artnr, unit, count(*) AS n, percentile_cont(0.95) WITHIN GROUP (ORDER BY antal) AS p95 FROM hist GROUP BY artnr, unit),
+        days AS (SELECT artnr, unit, doy, count(*) AS cnt FROM hist GROUP BY artnr, unit, doy),
+        sd AS (
+            SELECT c.obsid, sum(d.cnt) AS n_sd FROM c JOIN days d ON d.artnr = c.artnr AND d.unit = c.unit
+            WHERE least(abs(d.doy - c.doy), 365 - abs(d.doy - c.doy)) <= :sd GROUP BY c.obsid),
+        q AS (
+            SELECT c.obsid, c.dato, c.artnr, c.antal, c.loknr, c.kategori, c.fuglnoter, c.afdelinger, c.obserkode,
+                   coalesce(st.n, 0) AS n, st.p95, coalesce(sd.n_sd, 0)::bigint AS n_sd
+            FROM c LEFT JOIN stats st ON st.artnr = c.artnr AND st.unit = c.unit LEFT JOIN sd ON sd.obsid = c.obsid)
         SELECT q.*, s.navn AS art, l.navn AS lok, k.navn AS kommune,
                trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS observer
-        FROM (
-            SELECT c.obsid, c.dato, c.artnr, c.antal, c.loknr, c.kategori, c.fuglnoter, c.afdelinger, c.obserkode,
-                   b.n, b.p95, b.n_sd
-            FROM (SELECT o.*, l.kommune_kode FROM observations o LEFT JOIN locations l ON l.loknr = o.loknr
-                  WHERE o.dato >= :since AND o.hemmelig = 0 {notable}
-                    AND (CAST(:all AS boolean) OR o.afdelinger && CAST(:afd AS smallint[]))) c
-            CROSS JOIN LATERAL (
-                SELECT count(*) AS n, percentile_cont(0.95) WITHIN GROUP (ORDER BY h.antal) AS p95,
-                       count(*) FILTER (WHERE least(abs(extract(doy FROM h.dato) - extract(doy FROM c.dato)),
-                                                    365 - abs(extract(doy FROM h.dato) - extract(doy FROM c.dato))) <= :sd) AS n_sd
-                FROM observations h
-                WHERE h.artnr = c.artnr AND h.dato >= :hist_from AND h.dato < :since AND {local}
-            ) b
-        ) q
+        FROM q
         JOIN species s ON s.artnr = q.artnr
         LEFT JOIN locations l ON l.loknr = q.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         LEFT JOIN observers ob ON ob.obserkode = q.obserkode
