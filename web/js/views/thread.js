@@ -1,3 +1,4 @@
+import { obsPhotoStrip } from "../fotos/obsfotos.js";
 import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can, observerLink } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
@@ -211,7 +212,7 @@ function obsRow(o, ms, mediaRows) {
     h("div", { class: "row mt" }, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
       tipButton("dofbasen", o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
         label: `${fmtN(o.antal)} · ${o.observer || o.obserkode || ""} · ${o.dato || ""}` })),
-    media);
+    media, obsPhotoStrip(o.obsid));
 }
 
 function weatherCard(w) {

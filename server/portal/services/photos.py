@@ -62,6 +62,9 @@ def build_where(f: dict) -> tuple[str, dict]:
     if arts := _ints(f.get("art")):
         w.append("EXISTS (SELECT 1 FROM gal_birds b WHERE b.photo_id = p.id AND (b.artnr = ANY(:art) OR b.artnr IN (SELECT s.artnr FROM species s WHERE s.list_artnr = ANY(:art))))")
         p["art"] = arts
+    if taxa := _ints(f.get("taxon")):
+        w.append("EXISTS (SELECT 1 FROM gal_birds b WHERE b.photo_id = p.id AND b.taxon_id = ANY(:taxon))")
+        p["taxon"] = taxa
     if f.get("fotograf"):
         w.append("p.photographer_id = :fot")
         p["fot"] = int(f["fotograf"])

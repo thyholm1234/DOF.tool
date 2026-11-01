@@ -1,0 +1,27 @@
+/* Krydslistemodulet (#/krydslister). Afgrænset til .kl og portalens designtokens. */
+.kl { max-width: 1180px; margin: 0 auto; padding: 0 0 48px; }
+.kl a { color: var(--brand); } .kl .muted { color: var(--text-3); }
+.kl h1 a { color: inherit; text-decoration: none; }
+.kl-tabs { margin-bottom: 16px; } .kl-tabs .seg a { font-size: .84rem; font-weight: 600; color: var(--text-2); padding: 6px 12px; border-radius: 8px; white-space: nowrap; flex: none; text-decoration: none; }
+.kl-tabs .seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.kl-subtabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.kl-subtabs a { padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: .86rem; color: var(--text-2); } .kl-subtabs a.on { background: var(--brand-soft); color: var(--brand); font-weight: 650; }
+.kl-title { margin: 22px 0 8px; font-size: 1.05rem; }
+.kl-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; } .kl-tools .spacer { flex: 1; }
+.kl-scroll { overflow: auto; max-width: 100%; }
+.kl-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.kl-table th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); padding: 6px 8px; border-bottom: 2px solid var(--line-strong); position: sticky; top: 0; background: var(--bg); }
+.kl-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; } .kl-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.kl-table tr.kl-none td { color: var(--text-3); } .kl-table.small { font-size: .8rem; }
+.kl-su { color: var(--su, #c0392b); }
+.kl-chip { font-size: .7rem; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--text-2); } .kl-chip.ok { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
+.kl-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; align-items: end; } .kl-form input, .kl-form select { width: 100%; }
+.kl-suggest { display: flex; flex-direction: column; } .kl-suggest button { text-align: left; padding: 4px 8px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; }
+.kl-pick { position: relative; min-width: 240px; } .kl-pick .kl-suggest { position: absolute; z-index: 5; left: 0; right: 0; max-height: 260px; overflow: auto; }
+.kl-orden { margin: 6px 0; } .kl-fam h5 { margin: 8px 0 2px; color: var(--text-2); } .kl-arter { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .88rem; }
+.kl-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; } @media (max-width: 760px) { .kl-cols { grid-template-columns: 1fr; } }
+.kl-bars { display: flex; align-items: flex-end; gap: 3px; height: 120px; border-bottom: 1px solid var(--line-strong); margin-top: 8px; } .kl-bars div { flex: 1; background: var(--brand); opacity: .8; }
+.kl-barlabels { display: flex; gap: 3px; } .kl-barlabels span { flex: 1; text-align: center; font-size: .72rem; color: var(--text-3); }
+.kl-photos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .kl-photos img { height: 96px; border-radius: 6px; display: block; }
+.kl-statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; } .kl-statgrid > div { background: var(--bg-2); border-radius: 8px; padding: 8px 10px; } .kl-statgrid b { display: block; font-size: 1.15rem; } .kl-statgrid span { font-size: .76rem; color: var(--text-3); }
+@media print { .kl-tabs, .kl-tools, .page-head { display: none; } }

@@ -17,7 +17,7 @@ from portal.models import User
 from portal.services import activity, content_render, photo_access, photo_codes, photo_comments, photo_edit, photo_obs, photo_settings, photos
 
 router = APIRouter(prefix="/api/fotos", tags=["fotos"])
-FILTERS = {"q", "fra", "til", "md", "art", "fotograf", "land", "lok", "loknr", "sj", "koen", "alder", "dragt", "adf", "tag"}
+FILTERS = {"q", "fra", "til", "md", "art", "fotograf", "land", "lok", "loknr", "sj", "koen", "alder", "dragt", "adf", "tag", "taxon"}
 
 
 def need(feature: str = "fotos"):

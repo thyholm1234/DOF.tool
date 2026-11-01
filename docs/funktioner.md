@@ -197,3 +197,18 @@ Selvstændigt fotogalleri bag funktionsflaget `fotos` (standard: forhåndsvisnin
 * **Moderation** (Fotos → Admin, modulet `fotos`): kø med Afventer/Afvist/Afpubliceret (med antal publicerede fotos af arten og 30-grænsen), godkend/afvis med standardgrunde
   (fotografen får en besked i Feedback og support; godkendelse giver en notifikation), afpublicér, lås, gruppér, interne noter, privilegier, fotografer
   (kobl, fjern, flet), kodelister, indstillinger og kommentarmoderation.
+
+## Krydslister (`#/krydslister`)
+
+Selvstændigt modul bag funktionsflaget `krydslister` (standard: forhåndsvisning) som afløser for krydslisterne i Netfugl-showcasen; showcasen og dens `nf_*`-tabeller røres ikke.
+
+* **Redigerbare listetyper** (Admin → Listetyper): de ti fra Netfugl (Danske Arter, Årsarter, Månedsarter, Lokalarter pr. afdeling/kommune, ringmærkning, ædelarter, VP, Falsk VP)
+  er seedet fra showcasen og kan ændres eller suppleres uden kodeændring (navn med `{p}`, referenceliste, automatisk/manuel, parameter, regler som kategorier A–F, godkendelse).
+* **Automatiske kryds** beregnes af workeren hver 6. time fra deltagernes DOFbasen-observationer (første fund pr. art); manuelle kryds supplerer og kan skjule et automatisk kryds.
+* **Visninger:** krydsliste, seneste kryds, hvem har set hvad, blockers, blockers-statistik, årstophits, alle lister, hvem har krydset arten; CSV og Print.
+* **Artslister** (DK, VP …) med kategorier og sjældenhed, redigerbare med CSV-eksport/-import med diff, og **World Bird List** (orden → familie → art) med artssider (fund fra
+  DOFbasen, kryds og fotos fra galleriet).
+* **AviList** (World Bird List) indlæses under Admin → World Bird List med en diff (nye, omdøbte/split-lump, ændrede, forsvundne), før noget anvendes.
+  AviList udgives under CC BY 4.0 (kildeangivelse påkrævet) – bekræft den gældende licens på avilist.org, før en fil lægges ind.
+* **Godkendelse** af manuelle kryds på lister med `regler.godkendelse` (fx Falsk VP); afgørelsen sendes som besked til deltageren.
+* Fotos viser sjældenhed (filter) via DK-listen, og fotos vises på DOFbasen-observationer (observationsvisningen og trådens observationsrækker).

@@ -2,6 +2,7 @@
 import { api, h, fmtN, toast } from "../core.js";
 import "../maps.js";  // henter Leaflet til kortene på siderne her (søg, fænologi, opslag, forside)
 import { BASE, head, link, dmy, notice, loadingBox, shortcuts, dbModal, on, MONTHS } from "./shell.js";
+import { obsPhotoStrip } from "../fotos/obsfotos.js";
 
 export const CAT_NAMES = ["Tilfældig", "Meget sjælden", "Sjælden", "Fåtallig", "Ret almindelig", "Almindelig", "Meget almindelig"];
 
@@ -103,6 +104,7 @@ export async function obsView(obsid, el) {
         ["Links", h("span", {}, link(`/faeno/art/${o.artnr}`, `Information om ${o.art}`, { onclick: nav }))],
         [null, h("a", { href: `#/traad/${o.dato}/${o.artnr}/${o.loknr}`, onclick: nav }, "Se tråden i DOF.tool (kommentarer, status, kort)")],
       ]),
+      obsPhotoStrip(o.obsid),
       d.netfugl?.length ? [h("br"), head("Fotos på Netfugl", { kind: "blue", center: true }),
         h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" } }, ...d.netfugl.map(p =>
           h("a", { href: `#/netfugl/fotos/${p.id}`, title: `${p.art} – ${p.fotograf}`, style: { display: "block", border: "4px solid #eee" } },

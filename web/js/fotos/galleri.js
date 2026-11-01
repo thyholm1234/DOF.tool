@@ -4,7 +4,7 @@ import { api, h, setParams, searchSpecies, seg } from "../core.js";
 import { BASE, loadingBox, notice, nowrap, pager, photoCard } from "./common.js";
 
 const SORTS = [["dato", "Fotodato"], ["nyeste", "Senest tilføjet"], ["likes", "Flest likes"], ["kommenteret", "Senest kommenteret"], ["set", "Set af flest"]];
-const FILTERS = ["q", "fra", "til", "md", "art", "fotograf", "land", "lok", "loknr", "sj", "koen", "alder", "dragt", "adf", "tag"];
+const FILTERS = ["q", "fra", "til", "md", "art", "taxon", "fotograf", "land", "lok", "loknr", "sj", "koen", "alder", "dragt", "adf", "tag"];
 const MONTHS = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"];
 const SJ = [["almindelig", "Almindelig"], ["relativ_almindelig", "Relativ almindelig"], ["ualmindelig", "Ualmindelig"], ["sjaelden", "Sjælden"], ["su", "SU"]];
 

@@ -134,3 +134,25 @@ async def test_medieadgang(gallery):
         assert info["photo"] and info["id"] == pid and info["status"] == "publiceret"
         other = await photos.media_info(s, "ff/" + "0" * 64 + ".jpg")
         assert other["photo"] is False
+
+
+async def test_sjaeldenhed_og_taxon_via_krydslistemodulet(gallery):
+    """Filteret sjældenhed følger DK-listen i krydslistemodulet; taxon-filteret bruger World Bird List-koblingen (photos_link_taxa)."""
+    from portal.services import kl_admin, krydslister
+
+    async with gallery() as s:
+        assert (await photos.search(s, {"sj": "su"}, cache=False))["total"] == 0  # tabellerne findes, men er tomme
+        await krydslister.seed(s)
+        await s.execute(text("UPDATE kl_species_list_entries SET sjaeldenhed = 'su' WHERE list_id = (SELECT id FROM kl_species_lists WHERE key = 'dk') "
+                             "AND taxon_id = (SELECT id FROM kl_taxa WHERE latin = 'Corvus corax')"))
+        await s.commit()
+        n = await kl_admin.link_netfugl_ids(s)
+        assert n >= 1  # netfugl_id på kl_taxa fra fotoarkivets artsnumre (Ravn: 200 findes ikke i testdata, Dværgterne: 100)
+        tid = (await s.execute(text("SELECT taxon_id FROM gal_birds WHERE latin = 'Corvus corax'"))).scalar()
+        assert tid is not None
+        assert (await photos.search(s, {"sj": "su"}, cache=False))["total"] == 0  # filteret ser kun hovedarten (pos 0): Ravn er hjælpefugl
+        await s.execute(text("UPDATE kl_species_list_entries SET sjaeldenhed = 'sjaelden' WHERE taxon_id = (SELECT id FROM kl_taxa WHERE latin = 'Sternula albifrons')"))
+        await s.commit()
+        assert (await photos.search(s, {"sj": "sjaelden"}, cache=False))["total"] == 2  # to kort: fotos 1+2 (gruppe) og 3
+        assert (await photos.search(s, {"sj": "su,almindelig"}, cache=False))["total"] == 0
+        assert (await photos.search(s, {"taxon": str(tid)}, cache=False))["total"] == 1
