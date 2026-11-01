@@ -87,6 +87,12 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "fotos_dofbasen": ("Fotos: kobling til egne DOFbasen-observationer", "Et foto kan knyttes til fotografens egen observation, så "
                        "felterne udfyldes, og fotoet vises på observationen i DOFbasen-modulet.", "fotos", "on"),
     "fotos_bannere": ("Fotos: bannerbilleder", "Moderatorer kan gøre et foto til banner på fotogalleriets top og appens forside.", "fotos", "on"),
+    "krydslister": ("Krydslister (krydslister, artslister og World Bird List)", "Selvstændigt modul: krydslister beregnet fra deltagernes DOFbasen-observationer og "
+                    "suppleret med manuelle kryds, redigerbare listetyper, artslister (DK, VP …) og World Bird List. Afløser krydslisterne i Netfugl-showcasen.",
+                    None, "preview"),
+    "krydslister_manuel": ("Krydslister: manuelle kryds", "Brugere kan selv krydse arter af (VP, ringmærkning, ædelarter, arter fra før DOFbasen) og skjule automatiske kryds.",
+                           "krydslister", "on"),
+    "krydslister_wbl": ("Krydslister: World Bird List og artssider", "World Bird List (orden, familie, art) og artssider med fund fra DOFbasen og fotos.", "krydslister", "on"),
 }
 KEY = "features"
 VERSION = "features:version"

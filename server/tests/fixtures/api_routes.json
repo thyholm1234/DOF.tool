@@ -1027,6 +1027,251 @@ true,
 "params": []
 }
 },
+"/api/admin/krydslister/artslister": {
+"post": {
+"body": true,
+"op": "opret_artsliste_api_admin_krydslister_artslister_post",
+"params": []
+}
+},
+"/api/admin/krydslister/artslister/{lid}": {
+"put": {
+"body": true,
+"op": "ret_artsliste_api_admin_krydslister_artslister__lid__put",
+"params": [
+[
+"lid",
+"path",
+true,
+"{\"title\": \"Lid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/artslister/{lid}/arter/{tid}": {
+"delete": {
+"body": false,
+"op": "fjern_art_api_admin_krydslister_artslister__lid__arter__tid__delete",
+"params": [
+[
+"lid",
+"path",
+true,
+"{\"title\": \"Lid\", \"type\": \"integer\"}"
+],
+[
+"tid",
+"path",
+true,
+"{\"title\": \"Tid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "gem_art_api_admin_krydslister_artslister__lid__arter__tid__put",
+"params": [
+[
+"lid",
+"path",
+true,
+"{\"title\": \"Lid\", \"type\": \"integer\"}"
+],
+[
+"tid",
+"path",
+true,
+"{\"title\": \"Tid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/artslister/{lid}/csv": {
+"get": {
+"body": false,
+"op": "eksport_api_admin_krydslister_artslister__lid__csv_get",
+"params": [
+[
+"lid",
+"path",
+true,
+"{\"title\": \"Lid\", \"type\": \"integer\"}"
+]
+]
+},
+"post": {
+"body": true,
+"op": "import_csv_api_admin_krydslister_artslister__lid__csv_post",
+"params": [
+[
+"lid",
+"path",
+true,
+"{\"title\": \"Lid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/beregn": {
+"post": {
+"body": false,
+"op": "beregn_api_admin_krydslister_beregn_post",
+"params": []
+}
+},
+"/api/admin/krydslister/godkendelse": {
+"get": {
+"body": false,
+"op": "godkendelse_api_admin_krydslister_godkendelse_get",
+"params": [
+[
+"status",
+"query",
+false,
+"{\"default\": \"afventer\", \"pattern\": \"^(afventer|afvist)$\", \"title\": \"Status\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/godkendelse/{kid}/{action}": {
+"post": {
+"body": true,
+"op": "afgoer_api_admin_krydslister_godkendelse__kid___action__post",
+"params": [
+[
+"action",
+"path",
+true,
+"{\"title\": \"Action\", \"type\": \"string\"}"
+],
+[
+"kid",
+"path",
+true,
+"{\"title\": \"Kid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/indstillinger": {
+"get": {
+"body": false,
+"op": "indstillinger_api_admin_krydslister_indstillinger_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "gem_indstillinger_api_admin_krydslister_indstillinger_put",
+"params": []
+}
+},
+"/api/admin/krydslister/listetyper": {
+"get": {
+"body": false,
+"op": "listetyper_api_admin_krydslister_listetyper_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "opret_listetype_api_admin_krydslister_listetyper_post",
+"params": []
+}
+},
+"/api/admin/krydslister/listetyper/{did}": {
+"delete": {
+"body": false,
+"op": "slet_listetype_api_admin_krydslister_listetyper__did__delete",
+"params": [
+[
+"did",
+"path",
+true,
+"{\"title\": \"Did\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_listetype_api_admin_krydslister_listetyper__did__put",
+"params": [
+[
+"did",
+"path",
+true,
+"{\"title\": \"Did\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/wbl/import": {
+"post": {
+"body": true,
+"op": "wbl_import_api_admin_krydslister_wbl_import_post",
+"params": []
+}
+},
+"/api/admin/krydslister/wbl/import/{iid}": {
+"get": {
+"body": false,
+"op": "wbl_import_diff_api_admin_krydslister_wbl_import__iid__get",
+"params": [
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/wbl/import/{iid}/anvend": {
+"post": {
+"body": false,
+"op": "wbl_anvend_api_admin_krydslister_wbl_import__iid__anvend_post",
+"params": [
+[
+"deaktiver_forsvundne",
+"query",
+false,
+"{\"default\": false, \"title\": \"Deaktiver Forsvundne\", \"type\": \"boolean\"}"
+],
+[
+"iid",
+"path",
+true,
+"{\"title\": \"Iid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/admin/krydslister/wbl/netfugl-ids": {
+"post": {
+"body": false,
+"op": "netfugl_ids_api_admin_krydslister_wbl_netfugl_ids_post",
+"params": []
+}
+},
+"/api/admin/krydslister/wbl/uden-artnr": {
+"get": {
+"body": false,
+"op": "uden_artnr_api_admin_krydslister_wbl_uden_artnr_get",
+"params": []
+}
+},
+"/api/admin/krydslister/wbl/{tid}": {
+"put": {
+"body": true,
+"op": "ret_taxon_api_admin_krydslister_wbl__tid__put",
+"params": [
+[
+"tid",
+"path",
+true,
+"{\"title\": \"Tid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/locations": {
 "post": {
 "body": true,
@@ -4268,6 +4513,197 @@ true,
 "path",
 true,
 "{\"title\": \"Kode\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/art/{taxon_id}": {
+"get": {
+"body": false,
+"op": "art_api_krydslister_art__taxon_id__get",
+"params": [
+[
+"taxon_id",
+"path",
+true,
+"{\"title\": \"Taxon Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/krydslister/arter": {
+"get": {
+"body": false,
+"op": "soeg_arter_api_krydslister_arter_get",
+"params": [
+[
+"liste",
+"query",
+false,
+"{\"anyOf\": [{\"maxLength\": 24, \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Liste\"}"
+],
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 60, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/artslister": {
+"get": {
+"body": false,
+"op": "artslister_api_krydslister_artslister_get",
+"params": []
+}
+},
+"/api/krydslister/artslister/{key}": {
+"get": {
+"body": false,
+"op": "artsliste_api_krydslister_artslister__key__get",
+"params": [
+[
+"key",
+"path",
+true,
+"{\"title\": \"Key\", \"type\": \"string\"}"
+],
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 60, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/kryds/{key}/art/{skey}": {
+"get": {
+"body": false,
+"op": "kryds_art_api_krydslister_kryds__key__art__skey__get",
+"params": [
+[
+"key",
+"path",
+true,
+"{\"title\": \"Key\", \"type\": \"string\"}"
+],
+[
+"skey",
+"path",
+true,
+"{\"title\": \"Skey\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/kryds/{key}/{view}": {
+"get": {
+"body": false,
+"op": "kryds_view_api_krydslister_kryds__key___view__get",
+"params": [
+[
+"aar",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Aar\"}"
+],
+[
+"key",
+"path",
+true,
+"{\"title\": \"Key\", \"type\": \"string\"}"
+],
+[
+"view",
+"path",
+true,
+"{\"title\": \"View\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/lister": {
+"get": {
+"body": false,
+"op": "lister_api_krydslister_lister_get",
+"params": []
+}
+},
+"/api/krydslister/mine": {
+"post": {
+"body": true,
+"op": "nyt_kryds_api_krydslister_mine_post",
+"params": []
+}
+},
+"/api/krydslister/mine/skjul": {
+"post": {
+"body": true,
+"op": "skjul_api_krydslister_mine_skjul_post",
+"params": []
+}
+},
+"/api/krydslister/mine/{kid}": {
+"delete": {
+"body": false,
+"op": "slet_api_krydslister_mine__kid__delete",
+"params": [
+[
+"kid",
+"path",
+true,
+"{\"title\": \"Kid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/krydslister/mine/{liste}": {
+"get": {
+"body": false,
+"op": "mine_api_krydslister_mine__liste__get",
+"params": [
+[
+"liste",
+"path",
+true,
+"{\"title\": \"Liste\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/oversigt": {
+"get": {
+"body": false,
+"op": "oversigt_api_krydslister_oversigt_get",
+"params": []
+}
+},
+"/api/krydslister/sider/{slug}": {
+"get": {
+"body": false,
+"op": "side_api_krydslister_sider__slug__get",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/wbl": {
+"get": {
+"body": false,
+"op": "wbl_api_krydslister_wbl_get",
+"params": [
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 60, \"title\": \"Q\", \"type\": \"string\"}"
 ]
 ]
 }

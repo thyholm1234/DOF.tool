@@ -36,6 +36,8 @@ from portal.services import (
     dof_events,
     features,
     imagemeta,
+    kl_admin,
+    krydslister,
     location_import,
     locfinds,
     locyear,
@@ -227,12 +229,13 @@ SCHEDULED: dict[str, Callable[[], Awaitable]] = {
     "gap_fill": lambda: jobs.enqueue_gap_fill(),
     "articles_publish": _tracked("articles_publish", lambda: articles_publish()),
     "netfugl_kryds": _tracked("netfugl_kryds", lambda: netfugl_kryds()),
+    "kryds_auto": _tracked("kryds_auto", lambda: kryds_auto()),
     "netfugl_rss": _tracked("netfugl_rss", lambda: netfugl_rss(None)),
     "speech_model": speechmodel.request,
     "backup": _backup,
 }
 # Opgaver der springes over, når et funktionsflag er slået fra (Admin → Funktioner)
-FEATURE_OF: dict[str, tuple[str, ...]] = {"daymap": ("daymap",), "netfugl_kryds": ("netfugl", "netfugl_kryds"),
+FEATURE_OF: dict[str, tuple[str, ...]] = {"daymap": ("daymap",), "netfugl_kryds": ("netfugl", "netfugl_kryds"), "kryds_auto": ("krydslister",),
                                           "netfugl_rss": ("netfugl", "netfugl_rss")}
 
 
@@ -308,6 +311,19 @@ async def netfugl_kryds() -> None:
     async with SessionLocal() as s:
         n = await netfugl.refresh_auto(s)
     await jobstatus.step(f"{n} automatiske kryds")
+
+
+async def kryds_auto() -> None:
+    async with SessionLocal() as s:
+        await krydslister.seed(s)
+        n = await krydslister.refresh_auto(s)
+    await jobstatus.step(f"{n} automatiske kryds")
+
+
+async def photos_link_taxa() -> None:
+    async with SessionLocal() as s:
+        n = await kl_admin.link_netfugl_ids(s)
+    await jobstatus.step(f"{n} arter koblet til Netfugl")
 
 
 async def netfugl_rss(feed: int | None) -> None:
@@ -458,6 +474,10 @@ async def command_listener() -> None:
                 await run_safely("content_rerender", content_rerender_all())
             elif name == "netfugl_kryds":
                 await run_safely("netfugl_kryds", netfugl_kryds())
+            elif name in ("kryds_recompute", "kryds_auto"):
+                await run_safely("kryds_auto", kryds_auto())
+            elif name == "photos_link_taxa":
+                await run_safely("photos_link_taxa", photos_link_taxa())
             elif name == "netfugl_rss":
                 await run_safely("netfugl_rss", netfugl_rss(cmd.get("feed")))
             elif name == "backup":

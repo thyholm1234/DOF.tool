@@ -21,7 +21,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal import jobstatus
-from portal.cache import bump
+from portal.cache import bump, worker_command
 from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.models import GalBird, GalComment, GalCountry, GalGroup, GalImport, GalPhoto
@@ -443,6 +443,8 @@ async def run_import(import_id: int) -> None:
             (Path(get_settings().photo_import_dir) / (rel or "")).unlink(missing_ok=True)
         await s.commit()
         await bump("photos")
+        if status == "faerdig" and not run.options.get("dry_run"):
+            await worker_command("photos_link_taxa")  # Netfugls artsnumre → World Bird List (krydslistemodulet)
 
 
 async def _run(s: AsyncSession, imp: GalImport, run: Run, rel: str | None) -> None:

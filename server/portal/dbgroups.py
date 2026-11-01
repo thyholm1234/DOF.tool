@@ -34,6 +34,7 @@ USER_TABLES = frozenset({
     "art_comment_reports", "art_subscriptions", "art_revisions",
     "gal_photos", "gal_birds", "gal_codes", "gal_countries", "gal_photographers", "gal_groups", "gal_comments",
     "gal_comment_reports", "gal_likes", "gal_privileges", "gal_banners", "gal_imports",
+    "kl_taxa", "kl_species_lists", "kl_species_list_entries", "kl_list_defs", "kl_kryds", "kl_auto_lists", "kl_imports",
     "dku_members", "dku_reviews", "dku_candidates", "dku_cases", "dku_participants", "dku_messages",
 })
 ALL_TABLES = OBS_TABLES | REFERENCE_TABLES | USER_TABLES

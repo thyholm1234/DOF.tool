@@ -13,6 +13,7 @@ from portal.api.admin import (
     data,
     drift,
     fotos,
+    krydslister,
     indhold,
     indstillinger,
     lokaliteter,
@@ -21,5 +22,5 @@ from portal.api.admin import (
 )
 
 router = APIRouter()
-for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler, lokaliteter, fotos):
+for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler, lokaliteter, fotos, krydslister):
     router.include_router(module.router)
