@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import tempfile
 import time
 
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from portal import models
 from portal.db import Base
@@ -33,17 +35,51 @@ def ddl_groups(ddl: str) -> tuple[str, ...]:
     return tuple(groups) or GROUPS
 
 
+# DDL ved opstart må aldrig stå i kø bag en lang forespørgsel: en ALTER TABLE, der venter på eneret, får alle andre forespørgsler på
+# tabellen til at vente bag sig (sitet fryser), og api'en lytter først, når skemaet er klar. Hver sætning får derfor kort tid til at få
+# sin lås og prøves igen bagefter, hver sætning committes for sig (låsene holdes ikke, mens den næste venter), og ADD COLUMN IF NOT EXISTS
+# springes over, når kolonnen findes – den tager ellers eneret på tabellen ved hver opstart.
+LOCK_TIMEOUT = "3s"
+_ADD_COLUMN = re.compile(r"^\s*ALTER TABLE (?:IF EXISTS )?(\w+) ADD COLUMN IF NOT EXISTS (\w+)", re.I)
+
+
+async def _with_lock_retry(conn, what: str, fn) -> None:
+    for attempt in range(1, 1000):
+        try:
+            await fn()
+            return
+        except DBAPIError as exc:
+            if getattr(exc.orig, "sqlstate", None) != "55P03" and "lock timeout" not in str(exc):
+                raise
+            log.warning("Skema: venter på en lås (%s), forsøg %d", what[:80], attempt)
+            await asyncio.sleep(min(30, 2 * attempt))
+
+
+async def _column_exists(conn, table: str, column: str) -> bool:
+    return (await conn.execute(text("SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = :t AND column_name = :c"),
+                               {"t": table.lower(), "c": column.lower()})).first() is not None
+
+
 async def create_schema() -> None:
     """Opret/ret tabeller på hver gruppes primary (idempotent; advisory lock mod samtidige processer)."""
     for group in GROUPS:
         tables = [t for t in Base.metadata.sorted_tables if t.name in tables_for(group)]
-        async with router.primary(group).begin() as conn:
-            await conn.execute(text("SELECT pg_advisory_xact_lock(424242)"))
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
-            await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
-            for ddl in models.EXTRA_DDL:
-                if group in ddl_groups(ddl):
-                    await conn.execute(text(ddl))
+        async with router.primary(group).connect() as conn:
+            conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
+            await conn.execute(text("SELECT pg_advisory_lock(424242)"))
+            try:
+                await conn.execute(text(f"SET lock_timeout = '{LOCK_TIMEOUT}'"))
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+                await _with_lock_retry(conn, "create_all", lambda: conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables)))
+                for ddl in models.EXTRA_DDL:
+                    if group not in ddl_groups(ddl):
+                        continue
+                    if (m := _ADD_COLUMN.match(ddl)) and await _column_exists(conn, m[1], m[2]):
+                        continue
+                    await _with_lock_retry(conn, ddl, lambda ddl=ddl: conn.execute(text(ddl)))
+            finally:
+                await conn.execute(text("RESET lock_timeout"))
+                await conn.execute(text("SELECT pg_advisory_unlock(424242)"))
 
 
 # ---------------------------------------------------------------- kopiering
