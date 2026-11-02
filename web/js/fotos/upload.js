@@ -22,7 +22,7 @@ async function form(editId) {
   // ---- billede
   const preview = h("img", { class: "fot-preview", hidden: !existing, src: existing?.thumb || "", alt: "Forhåndsvisning" });
   const fileInfo = h("div", { class: "muted small" });
-  const picker = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif", onchange: () => setFile(picker.files[0]) });
+  const picker = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif,image/avif,image/tiff,image/bmp", onchange: () => setFile(picker.files[0]) });
   function setFile(f) {
     file = f || null;
     if (!file) { preview.hidden = true; fileInfo.textContent = ""; return; }

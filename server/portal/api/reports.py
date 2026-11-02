@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import date, datetime, timezone
@@ -16,7 +17,7 @@ from portal.api.learn import MEDIA_TYPES
 from portal.cache import publish
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, ThreadFollow, User
-from portal.services import activity, dku, imagemeta, pulse, reports, storage
+from portal.services import activity, content_media, dku, pulse, reports, storage
 from portal.timeutil import dk_today
 
 log = logging.getLogger("portal.reports")
@@ -252,19 +253,24 @@ async def upload_media(report_id: int, tasks: BackgroundTasks, file: UploadFile 
     r = await _own_report(db, report_id, user)
     if len(r.media or []) >= 8:
         raise HTTPException(400, "Højst 8 filer pr. observation")
-    ext = MEDIA_TYPES.get(file.content_type or "")
+    ctype = file.content_type or ""
+    ext = MEDIA_TYPES.get(ctype) or (".webp" if ctype.startswith("image/") else None)
     if not ext:
-        raise HTTPException(400, "Kun billeder (jpg/png/webp/gif) og lyd (mp3/ogg/wav/m4a/webm)")
+        raise HTTPException(400, "Kun billeder (jpg/png/webp/gif/avif/tiff/bmp) og lyd (mp3/ogg/wav/m4a/webm)")
     data = await file.read(15 * 1024 * 1024 + 1)
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(400, "Filen er større end 15 MB")
     if not ext.endswith((".mp3", ".ogg", ".wav", ".m4a", ".webm")):
+        # Alle billeder gemmes som WebP; konverteringen fjerner også GPS-position og andre metadata
+        if content_media.sniff_convertible(data) is None:
+            raise HTTPException(400, "Billedet kunne ikke læses")
         try:
-            data = imagemeta.strip(data)  # GPS-position og andre metadata fjernes, før filen gemmes
-        except ValueError as exc:
+            data = await asyncio.to_thread(content_media.to_webp, data)
+        except content_media.MediaError as exc:
             raise HTTPException(400, "Billedet kunne ikke læses") from exc
+        ext, ctype = ".webp", "image/webp"
     try:
-        url = await storage.put(f"{uuid.uuid4().hex}{ext}", data, file.content_type or "application/octet-stream")
+        url = await storage.put(f"{uuid.uuid4().hex}{ext}", data, ctype or "application/octet-stream")
     except Exception as exc:  # noqa: BLE001
         log.warning("Upload til objektlageret fejlede: %s", exc)
         raise HTTPException(503, "Filen kunne ikke gemmes lige nu – prøv igen om lidt") from exc

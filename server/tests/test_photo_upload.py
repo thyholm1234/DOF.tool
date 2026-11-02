@@ -71,6 +71,17 @@ async def test_upload_to_fugle_exif_og_gps(s):
     exif = Image.open(io.BytesIO(stored)).getexif()
     assert 0x8825 not in exif and not exif.get_ifd(0x8825)  # GPS er fjernet fra den gemte fil
     assert b"Canon" not in stored
+    assert m.mime == "image/webp" and m.storage_key.endswith(".webp") and m.filename == "ib.webp" and stored[8:12] == b"WEBP"
+
+
+async def test_upload_andre_formater_bliver_webp(s):
+    from portal.models import ContentMedia, GalPhoto
+
+    buf = io.BytesIO()
+    Image.new("RGB", (640, 480), (5, 90, 5)).save(buf, "TIFF")
+    out = await photo_edit.create(s, await user(s, 1), False, buf.getvalue(), "scan.tif", fields())
+    m = await s.get(ContentMedia, (await s.get(GalPhoto, out["id"])).media_id)
+    assert m.mime == "image/webp" and (m.width, m.height) == (640, 480) and m.filename == "scan.webp"
 
 
 async def test_brugerens_kamerafelter_vinder_og_ryd(s):

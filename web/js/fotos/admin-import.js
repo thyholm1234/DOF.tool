@@ -11,7 +11,7 @@ const OPTIONS = [
   ["keep_files", "Behold zip-filen på serveren efter importen", false],
 ];
 const LABELS = { fotos_i_kilden: "Fotos i kilden", oprettet: "Oprettet", opdateret: "Opdateret", uaendret: "Uændrede", sprunget_lokalt: "Sprunget over (rettet her)", fejl: "Fejl",
-  billeder_genbrugt: "Billeder genbrugt", fugle_uden_artnr: "Fugle uden art i DOFbasen", ukendte_koder: "Nye koder", kommentarer: "Kommentarer", afvist: "Afviste filer (usikre)", fotografer: "Nye fotografer", grupper: "Grupper" };
+  billeder_genbrugt: "Billeder genbrugt", billeder_erstattet: "Billeder erstattet", fugle_uden_artnr: "Fugle uden art i DOFbasen", ukendte_koder: "Nye koder", kommentarer: "Kommentarer", afvist: "Afviste filer (usikre)", fotografer: "Nye fotografer", grupper: "Grupper" };
 
 const statGrid = (stats) => h("div", { class: "fot-statgrid" }, ...Object.entries(stats || {}).filter(([k, v]) => v || ["oprettet", "opdateret", "fejl"].includes(k)).map(([k, v]) => h("div", {}, h("b", {}, nowrap(v)), h("span", {}, LABELS[k] || k))));
 const logBox = (log) => log?.length ? h("div", { class: "fot-log" }, ...log.map(l => h("div", { class: l.niveau }, l.netfugl_id ? `#${l.netfugl_id}: ` : "", l.besked))) : null;

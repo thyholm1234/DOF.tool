@@ -283,3 +283,31 @@ async def test_fotografmatch(db):
         await photo_photographers.claim_by_obserkode(s, user)
         await s.commit()
         assert (await s.get(GalPhotographer, b.id)).user_id == 10
+
+
+@pytest.mark.skipif(not DSN, reason="ARTICLES_TEST_DSN er ikke sat")
+async def test_genimport_erstatter_billedet_uanset_filtype(db, tmp_path):
+    """Billedet gemmes altid som WebP, og en ny fil (her PNG i stedet for JPEG) overskriver den gamle række og dens filer."""
+    from portal.models import ContentMedia, GalPhoto
+
+    photos = {1: sample()[1]}
+    write_dir(tmp_path / "imports" / "a", photos)
+    assert (await run(db, "a")).stats["oprettet"] == 1
+    async with db() as s:
+        old = (await s.execute(select(ContentMedia).join(GalPhoto, GalPhoto.media_id == ContentMedia.id))).scalar_one()
+        assert old.mime == "image/webp" and old.storage_key.endswith(".webp") and old.filename == "netfugl-1.webp"
+    old_files = [tmp_path / "media" / "art" / k for k in (old.storage_key, old.thumb_key) if k]
+    assert all(f.is_file() for f in old_files)
+    d = tmp_path / "imports" / "b" / "netfugl-fotos" / "1"
+    d.mkdir(parents=True)
+    (d / "meta.json").write_text(json.dumps(meta(1, gruppe=[2], fil="foto.png")))
+    buf = io.BytesIO()
+    Image.new("RGB", (800, 500), (1, 2, 250)).save(buf, "PNG")
+    (d / "foto.png").write_bytes(buf.getvalue())
+    imp = await run(db, "b")
+    assert imp.stats["opdateret"] == 1 and imp.stats["billeder_erstattet"] == 1, imp.log
+    async with db() as s:
+        rows = (await s.execute(select(ContentMedia).where(ContentMedia.owner_kind == "foto"))).scalars().all()
+        p = (await s.execute(select(GalPhoto))).scalar_one()
+        assert [m.id for m in rows] == [p.media_id] and rows[0].mime == "image/webp" and (p.width, p.height) == (800, 500)
+    assert not any(f.exists() for f in old_files)  # de gamle filer er væk fra serveren

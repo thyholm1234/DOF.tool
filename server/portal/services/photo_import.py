@@ -31,8 +31,8 @@ from portal.timeutil import TZ
 log = logging.getLogger("portal.photos.import")
 ImportAbort = article_import.ImportAbort
 MAX_LOG = 2000
-IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp", ".gif")
-MEMBER = re.compile(r"^(?:.*/)?(\d+)/(meta\.json|foto\.(?:jpg|jpeg|png|webp|gif))$")
+IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".tif", ".tiff", ".bmp")  # alt gemmes som WebP
+MEMBER = re.compile(r"^(?:.*/)?(\d+)/(meta\.json|foto\.(?:jpg|jpeg|png|webp|gif|avif|tiff?|bmp))$", re.IGNORECASE)
 TAGS = photo_codes.TAGS
 LOK_KM = 5.0
 
@@ -159,7 +159,7 @@ def list_folders(import_dir: Path | None = None) -> list[dict]:
 @dataclass
 class Run:
     stats: dict[str, int] = field(default_factory=lambda: {
-        "fotos_i_kilden": 0, "oprettet": 0, "opdateret": 0, "uaendret": 0, "sprunget_lokalt": 0, "fejl": 0, "billeder_genbrugt": 0,
+        "fotos_i_kilden": 0, "oprettet": 0, "opdateret": 0, "uaendret": 0, "sprunget_lokalt": 0, "fejl": 0, "billeder_genbrugt": 0, "billeder_erstattet": 0,
         "fugle_uden_artnr": 0, "ukendte_koder": 0, "kommentarer": 0, "afvist": 0, "fotografer": 0, "grupper": 0})
     log: list[dict] = field(default_factory=list)
     options: dict = field(default_factory=dict)
@@ -367,7 +367,7 @@ async def import_photo(session: AsyncSession, run: Run, src: Source, pid: int) -
     photo.updated_at = datetime.now(TZ)
     await session.flush()
     # billedet
-    fname = next((n for n in src.names(pid) if n.startswith("foto.")), None)
+    fname = next((n for n in src.names(pid) if n.startswith("foto.") and Path(n).suffix.lower() in IMAGE_EXT), None)
     if fname is None:
         raise ValueError("billedfilen mangler")
     data = src.read(pid, fname)
@@ -377,9 +377,16 @@ async def import_photo(session: AsyncSession, run: Run, src: Source, pid: int) -
     photo.kamera = {k: v for k, v in kam.items() if v}
     before = photo.media_id
     m = await content_media.store_image(session, data, filename=f"netfugl-{pid}{Path(fname).suffix}", owner_kind="foto", owner_id=photo.id,
-                                        credit=(f.get("navn") or "")[:160])
+                                        credit=(f.get("navn") or "")[:160], webp=True)
     if before == m.id:
         run.stats["billeder_genbrugt"] += 1
+    elif before is not None:
+        # Det nye billede (uanset filtype) erstatter det gamle: den gamle række og dens filer (jpg/webp + varianter) slettes
+        photo.media_id = m.id
+        await session.flush()
+        if (old := await session.get(content_media.ContentMedia, before)) is not None:
+            await content_media.delete_media(session, old)
+        run.stats["billeder_erstattet"] += 1
     photo.media_id, photo.width, photo.height = m.id, m.width or meta.get("bredde"), m.height or meta.get("hoejde")
     # fugle
     await session.execute(text("DELETE FROM gal_birds WHERE photo_id = :p"), {"p": photo.id})

@@ -55,6 +55,49 @@ def sniff_image(data: bytes) -> tuple[str, str] | None:
     return None
 
 
+# Formater der kun tages imod, fordi de konverteres til WebP (to_webp): AVIF, TIFF og BMP.
+CONVERTIBLE = ((lambda d: d[4:8] == b"ftyp" and d[8:12] in (b"avif", b"avis"), "image/avif"),
+               (lambda d: d[:4] in (b"II*\x00", b"MM\x00*"), "image/tiff"),
+               (lambda d: d[:2] == b"BM", "image/bmp"))
+WEBP_QUALITY = 85
+
+
+def sniff_convertible(data: bytes) -> str | None:
+    """Mime for et billede, der kan læses og konverteres til WebP (også JPEG/PNG/GIF/WebP); None hvis ikke."""
+    if (kind := sniff_image(data)) is not None:
+        return kind[0]
+    return next((mime for test, mime in CONVERTIBLE if test(data)), None)
+
+
+def _to_webp(data: bytes, quality: int) -> bytes:
+    with Image.open(io.BytesIO(data)) as im:
+        icc = im.info.get("icc_profile")
+        if getattr(im, "is_animated", False):
+            buf = io.BytesIO()
+            im.save(buf, "WEBP", save_all=True, quality=quality, method=4)  # animeret GIF → animeret WebP
+            return buf.getvalue()
+        im = ImageOps.exif_transpose(im)  # orienteringen bages ind, da EXIF ikke følger med
+        alpha = im.mode in ("RGBA", "LA", "PA") or "transparency" in im.info
+        im = im.convert("RGBA" if alpha else "RGB")
+        buf = io.BytesIO()
+        im.save(buf, "WEBP", quality=quality, method=4, **({"icc_profile": icc} if icc else {}))
+        return buf.getvalue()
+
+
+def to_webp(data: bytes, quality: int = WEBP_QUALITY) -> bytes:
+    """Konvertér et billede (JPEG, PNG, GIF, AVIF, TIFF, BMP …) til WebP uden EXIF/GPS. WebP-filer genkodes ikke – kun
+    metadata fjernes. Kaster MediaError, hvis filen ikke kan læses."""
+    if sniff_image(data) == ("image/webp", "webp"):
+        try:
+            return imagemeta.strip(data)
+        except (ValueError, IndexError):
+            pass  # ødelagte chunks: genkod
+    try:
+        return _to_webp(data, quality)
+    except Exception as exc:  # noqa: BLE001 – Pillow kaster mange slags fejl for ødelagte/ukendte filer
+        raise MediaError(f"Billedet kan ikke læses eller konverteres ({exc.__class__.__name__})") from exc
+
+
 def sniff_audio(data: bytes, ext: str) -> bool:
     """Passer filens første bytes til lydformatet i endelsen?"""
     if ext == ".mp3":
@@ -121,14 +164,21 @@ async def _put(key: str, data: bytes, mime: str) -> None:
 
 
 async def store_image(session: AsyncSession, data: bytes, *, filename: str, owner_kind: str, owner_id: int | None, user_id: int | None = None,
-                      alt: str = "", caption: str = "", credit: str = "", original_url: str | None = None, sort: int = 0) -> ContentMedia:
+                      alt: str = "", caption: str = "", credit: str = "", original_url: str | None = None, sort: int = 0,
+                      webp: bool = False) -> ContentMedia:
+    """webp=True: originalen gemmes altid som WebP, uanset hvilket billedformat der blev uploadet (også AVIF/TIFF/BMP)."""
     if len(data) > MAX_IMAGE:
         raise MediaError(f"Billedet er for stort (højst {MAX_IMAGE // 1024 // 1024} MB)")
+    if webp:
+        if sniff_convertible(data) is None:
+            raise MediaError("Filen er ikke et billede (JPEG, PNG, GIF, WebP, AVIF, TIFF eller BMP)")
+        data = await asyncio.to_thread(to_webp, data)
+        filename = f"{Path(clean_filename(filename)).stem}.webp"
     kind = sniff_image(data)
     if kind is None:
         raise MediaError("Filen er ikke et billede (JPEG, PNG, GIF eller WebP)")
     mime, ext = kind
-    if mime in ("image/jpeg", "image/png", "image/webp"):
+    if mime in ("image/jpeg", "image/png") or (mime == "image/webp" and not webp):  # to_webp har allerede fjernet metadata
         try:
             data = await asyncio.to_thread(imagemeta.strip, data)
         except (ValueError, IndexError):  # struct.error er en ValueError; afkortede segmenter giver IndexError

@@ -175,8 +175,8 @@ async def create(session: AsyncSession, user: User, moderator: bool, data: bytes
     cfg = await photo_settings.get(session)
     if len(data) > cfg["upload_max_mb"] * 1024 * 1024:
         raise PhotoError(413, f"Billedet er for stort (højst {cfg['upload_max_mb']} MB)")
-    if content_media.sniff_image(data) is None:
-        raise PhotoError(400, "Filen er ikke et billede (JPEG, PNG, GIF eller WebP)")
+    if content_media.sniff_convertible(data) is None:
+        raise PhotoError(400, "Filen er ikke et billede (JPEG, PNG, GIF, WebP, AVIF, TIFF eller BMP)")
     c = await clean(session, dict(fields))
     if c["obsid"]:
         await _apply_obs(session, user, c)
@@ -193,7 +193,8 @@ async def create(session: AsyncSession, user: User, moderator: bool, data: bytes
     session.add(photo)
     await session.flush()
     try:
-        m = await content_media.store_image(session, data, filename=filename or "foto.jpg", owner_kind="foto", owner_id=photo.id, user_id=user.id, credit=ph.navn[:160])
+        m = await content_media.store_image(session, data, filename=filename or "foto.jpg", owner_kind="foto", owner_id=photo.id, user_id=user.id, credit=ph.navn[:160],
+                                           webp=True)
     except content_media.MediaError as exc:
         raise PhotoError(400, str(exc)) from exc
     photo.media_id, photo.width, photo.height = m.id, m.width, m.height
