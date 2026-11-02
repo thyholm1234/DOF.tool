@@ -30,4 +30,5 @@ data/
 
 # Netfugl-fotoarkiv (hentet indhold)
 /Fotos/
+/Fotos-webp/
 /Fotos-*.zip
