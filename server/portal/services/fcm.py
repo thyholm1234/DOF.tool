@@ -7,6 +7,7 @@ Opsætning: opret et Firebase-projekt, tilføj en Android-app med pakkenavnet co
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -111,34 +112,56 @@ def message(token: str, payload: dict) -> dict:
                         "data": {"url": str(payload.get("url") or "/#/"), "tag": tag}, "android": android, "apns": apns}}
 
 
+CONCURRENCY = 32  # samtidige kald til FCM
+_clients: dict = {}  # én vedvarende forbindelse pr. event loop: ingen ny TLS-forbindelse for hver alarm
+
+
+def _client() -> httpx.AsyncClient:
+    loop = asyncio.get_running_loop()
+    c = _clients.get(loop)
+    if c is None or c.is_closed:
+        _clients.clear()  # forældede loops (tests) slippes
+        c = _clients[loop] = httpx.AsyncClient(timeout=httpx.Timeout(15, connect=5), limits=httpx.Limits(
+            max_connections=CONCURRENCY, max_keepalive_connections=CONCURRENCY, keepalive_expiry=300))
+    return c
+
+
 async def send(tokens: list[str], payload: dict) -> dict[str, int]:
-    """Send til enhedernes tokens. Returnerer HTTP-status pr. token (200 = leveret, 404/410 = token findes ikke mere)."""
-    acc = _account()
-    if acc is None or not tokens:
+    """Send samme besked til enhedernes tokens. Returnerer HTTP-status pr. token (200 = leveret, 404/410 = findes ikke mere)."""
+    if _account() is None or not tokens:
         return {}
-    out: dict[str, int] = {}
-    async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            bearer = {"Authorization": f"Bearer {await _access_token(client, acc)}"}
-        except (httpx.HTTPError, ValueError, KeyError) as exc:
-            log.warning("FCM: kunne ikke hente adgangstoken: %s", exc)
-            LAST.update(error=f"Adgangstoken: {exc}"[:300], error_at=time.time())
-            return {t: 500 for t in tokens}
-        url = f"https://fcm.googleapis.com/v1/projects/{acc['project_id']}/messages:send"
-        for t in tokens:
+    return dict(zip(tokens, await send_many([(t, payload) for t in tokens])))
+
+
+async def send_many(items: list[tuple[str, dict]]) -> list[int]:
+    """Send (token, besked)-par parallelt. Returnerer HTTP-status pr. par i samme rækkefølge
+    (200 = leveret, 410 = token findes ikke mere, andet = midlertidig fejl)."""
+    acc = _account()
+    if acc is None or not items:
+        return [500] * len(items)
+    client = _client()
+    try:
+        bearer = {"Authorization": f"Bearer {await _access_token(client, acc)}"}
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        log.warning("FCM: kunne ikke hente adgangstoken: %s", exc)
+        LAST.update(error=f"Adgangstoken: {exc}"[:300], error_at=time.time())
+        return [500] * len(items)
+    url = f"https://fcm.googleapis.com/v1/projects/{acc['project_id']}/messages:send"
+    sem = asyncio.Semaphore(CONCURRENCY)
+
+    async def one(token: str, payload: dict) -> int:
+        async with sem:
             try:
-                r = await client.post(url, json=message(t, payload), headers=bearer)
+                r = await client.post(url, json=message(token, payload), headers=bearer)
             except httpx.HTTPError as exc:
                 log.info("FCM-fejl: %s", exc)
-                out[t] = 500
-                continue
-            if r.status_code == 200:
-                out[t] = 200
-                LAST["ok_at"] = time.time()
-            else:
-                # UNREGISTERED (404) og ugyldigt token (400 INVALID_ARGUMENT) betyder, at enheden ikke kan nås mere
-                dead = r.status_code == 404 or (r.status_code == 400 and "INVALID_ARGUMENT" in r.text and "token" in r.text.lower())
-                log.info("FCM %s: %s", r.status_code, r.text[:200])
-                LAST.update(error=f"{r.status_code}: {r.text[:260]}", error_at=time.time())
-                out[t] = 410 if dead else r.status_code
-    return out
+                return 500
+        if r.status_code == 200:
+            LAST["ok_at"] = time.time()
+            return 200
+        # UNREGISTERED (404) og ugyldigt token (400 INVALID_ARGUMENT) betyder, at enheden ikke kan nås mere
+        dead = r.status_code == 404 or (r.status_code == 400 and "INVALID_ARGUMENT" in r.text and "token" in r.text.lower())
+        log.info("FCM %s: %s", r.status_code, r.text[:200])
+        LAST.update(error=f"{r.status_code}: {r.text[:260]}", error_at=time.time())
+        return 410 if dead else r.status_code
+    return list(await asyncio.gather(*(one(t, p) for t, p in items)))

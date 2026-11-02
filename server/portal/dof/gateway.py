@@ -3,7 +3,8 @@
 Alle kald til DOFbasen går gennem gatewayen i worker-processen. Der er to baner:
 
   * Udtræk (live-observationer, referencedata, historik, måneder): én kø og én løkke. Mellem afslutningen af
-    ét kald og starten af det næste går der altid mindst `dof_min_interval` sekunder (standard 60). Grænsen
+    ét kald (svaret er hentet helt) og starten af det næste går der altid mindst `dof_min_interval` sekunder (standard
+    60). Efterbehandlingen (indlæsning, alarmer, push) ligger inden for ventetiden og forsinker ikke næste hentning. Grænsen
     håndhæves med et globalt tidsstempel + lås i Valkey, så den også holder hvis der ved en fejl kører flere workers.
     Undtagelse: en administrator kan bede om én live-hentning af dagen med det samme (request_live_now) – den
     springer ventetiden over én gang og kan højst bestilles hvert LIVE_NOW_COOLDOWN sekund.
@@ -326,7 +327,8 @@ class Gateway:
 
     async def _run_extracts(self, headers: dict) -> None:
         r = kv()
-        async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=20), headers=headers, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=20), headers=headers, follow_redirects=True,
+                                     event_hooks={"response": [_answered]}) as client:
             while True:
                 try:
                     if not self.settings.dof_enabled:
@@ -344,18 +346,25 @@ class Gateway:
                             await r.delete(RUNNING)
                         await asyncio.sleep(2)
                         continue
-                    try:
-                        await r.set(LAST_CALL, time.time())
-                        await self._execute(client, kind, job)
-                    finally:
-                        # Intervallet regnes fra kaldet (inkl. efterbehandling) er helt færdigt
-                        await r.set(LAST_CALL, time.time())
-                        await r.delete(LOCK)
+                    await self._call(client, kind, job)
                 except asyncio.CancelledError:
                     raise
                 except Exception:  # noqa: BLE001 – løkken må aldrig dø
                     log.exception("Gateway-fejl")
                     await asyncio.sleep(5)
+
+    async def _call(self, client: httpx.AsyncClient, kind: str, job: dict | None) -> None:
+        """Ét udtræk med efterbehandling. LOCK er taget af kalderen og frigives her."""
+        r = kv()
+        t0 = time.time()
+        try:
+            await r.set(LAST_CALL, t0)
+            await self._execute(client, kind, job)
+        finally:
+            # Svarede DOFbasen, er tidsstemplet sat ved svaret (_answered). Ellers (fejl før svar) regnes fra nu.
+            if float(await r.get(LAST_CALL) or 0) <= t0:
+                await r.set(LAST_CALL, time.time())
+            await r.delete(LOCK)
 
     async def run_lookups(self) -> None:
         """Opslagsbanen: små opslag udføres straks og samtidigt (højst LOOKUP_CONCURRENCY ad gangen) – uden at vente på
@@ -487,6 +496,13 @@ class Gateway:
             pipe.expire(f"dof:wait:{job['id']}", 300)
         await pipe.execute()
         log.info("DOFbasen %s (%ss)%s", label, duration, f" FEJL {error}" if error else "")
+
+
+async def _answered(resp: httpx.Response) -> None:
+    """Response-hook på udtrækkenes klient: kaldet er slut, når svaret er hentet helt. Herfra regnes minimumsintervallet,
+    så efterbehandlingen (indlæsning, alarmer, push) ikke skubber næste live-hentning."""
+    await resp.aread()
+    await kv().set(LAST_CALL, time.time())
 
 
 def _safe_params(job: dict | None) -> dict:

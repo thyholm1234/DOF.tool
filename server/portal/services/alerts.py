@@ -9,6 +9,7 @@ Regler (som i DOF.not, men generaliseret til vilkårlige områder):
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ from portal.cache import get_json, kv, publish, set_json
 from portal.services import seasons
 from portal.services.areas import Scope
 from portal.services.lists import ListSpec, _where, matrikel_prefix
-from portal.services.push import send_to_user
+from portal.services.push import send_many
 from portal.timeutil import dk_today, in_quiet_hours
 
 log = logging.getLogger("portal.alerts")
@@ -80,13 +81,14 @@ async def process(session: AsyncSession, new_obsids: list[int], changed: list[tu
     r = kv()
     hkey = f"alert:threadmax:{today}"
     changed_threads: dict[tuple, int] = {}
-    for t in threads:
-        field = f"{t[1]}:{t[2]}"
-        prev = await r.hget(hkey, field)
+    tlist = list(threads)
+    prevs = await r.hmget(hkey, [f"{t[1]}:{t[2]}" for t in tlist])
+    for t, prev in zip(tlist, prevs):
         cur = thread_max.get(t, 0)
         if prev is None or cur > int(prev):
             changed_threads[t] = cur
-            await r.hset(hkey, field, cur)
+    if changed_threads:
+        await r.hset(hkey, mapping={f"{t[1]}:{t[2]}": cur for t, cur in changed_threads.items()})
     await r.expire(hkey, 3 * 86400)
 
     users = await _users(session)
@@ -150,9 +152,12 @@ async def _mark_pheno(session: AsyncSession, events: list[Event], today) -> None
 
 
 async def deliver(session: AsyncSession, users: dict[int, dict] | None, outbox: dict[tuple[int, str], dict]) -> int:
-    """Gem notifikationer (dedupliceret pr. bruger), send dem live via SSE og som push."""
+    """Gem notifikationer (dedupliceret pr. bruger), send dem live via SSE og som push.
+
+    Hurtigst muligt til telefonen: alle gemmes i én transaktion, og alle push (alle brugere og enheder) sendes samtidig –
+    ikke én bruger ad gangen."""
     users = users if users is not None else await _users(session)
-    sent = 0
+    fresh: list[tuple[int, int, dict]] = []  # (notifikations-id, bruger, besked)
     for (user_id, dedup), msg in outbox.items():
         if user_id not in users:
             continue
@@ -161,20 +166,23 @@ async def deliver(session: AsyncSession, users: dict[int, dict] | None, outbox: 
             VALUES (:u, :d, :r, :t, :b, :url, :k) ON CONFLICT (user_id, dedup_key) DO NOTHING RETURNING id
         """), {"u": user_id, "d": dedup, "r": msg["rule_id"], "t": msg["title"], "b": msg["body"],
                "url": msg["url"], "k": msg["kategori"]})).scalar()
-        if not inserted:
-            continue
-        await session.commit()
-        await publish(f"user:{user_id}", {"type": "notification", "id": inserted, **msg})
-        user = users[user_id]
-        if msg["push"] and user["push_enabled"] and not in_quiet_hours(user["quiet"]):
-            delivered = await send_to_user(session, user_id, {
-                "title": msg["title"], "body": msg["body"], "url": msg["url"], "tag": msg["tag"],
-            })
-            if delivered:
-                await session.execute(text("UPDATE notifications SET pushed = true WHERE id = :id"), {"id": inserted})
-                sent += 1
-        await session.commit()
-    return sent
+        if inserted:
+            fresh.append((inserted, user_id, msg))
+    if not fresh:
+        return 0
+    await session.commit()
+    push = [(nid, uid, msg) for nid, uid, msg in fresh
+            if msg["push"] and users[uid]["push_enabled"] and not in_quiet_hours(users[uid]["quiet"])]
+    sending = asyncio.create_task(send_many(session, [
+        (uid, {"title": msg["title"], "body": msg["body"], "url": msg["url"], "tag": msg["tag"]}) for _, uid, msg in push]))
+    for nid, uid, msg in fresh:  # SSE til åbne faner, mens push er på vej
+        await publish(f"user:{uid}", {"type": "notification", "id": nid, **msg})
+    delivered = await sending
+    pushed = [nid for (nid, _, _), n in zip(push, delivered) if n]
+    if pushed:
+        await session.execute(text("UPDATE notifications SET pushed = true WHERE id = ANY(:ids)"), {"ids": pushed})
+    await session.commit()
+    return len(pushed)
 
 
 async def seed_threads(session: AsyncSession, day) -> None:

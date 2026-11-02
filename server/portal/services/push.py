@@ -6,6 +6,7 @@ import asyncio
 import base64
 import json
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from cryptography.hazmat.primitives import serialization
@@ -66,30 +67,49 @@ def _send_sync(sub: dict, payload: dict) -> int:
 
 async def send_to_user(session: AsyncSession, user_id: int, payload: dict) -> int:
     """Send til alle brugerens enheder. Udløbne abonnementer (404/410) slettes. Returnerer antal leverede."""
+    return (await send_many(session, [(user_id, payload)]))[0]
+
+
+async def _web(sub: PushSubscription, payload: dict) -> int:
+    info = {"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}}
+    async with _sem:
+        return await asyncio.to_thread(_send_sync, info, payload)
+
+
+async def send_many(session: AsyncSession, jobs: list[tuple[int, dict]]) -> list[int]:
+    """Send hver (bruger, besked) til alle brugerens enheder – alle på én gang (Web Push og app parallelt).
+    Udløbne abonnementer (404/410) slettes. Returnerer antal leverede enheder pr. job, i samme rækkefølge."""
+    if not jobs:
+        return []
     await ensure_vapid(session)
-    subs = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == user_id))).scalars().all()
-    delivered = 0
-    app_subs = {s.endpoint[len(fcm.PREFIX):]: s for s in subs if s.endpoint.startswith(fcm.PREFIX)}
-    if app_subs:
+    subs = (await session.execute(select(PushSubscription).where(
+        PushSubscription.user_id.in_({u for u, _ in jobs})))).scalars().all()
+    by_user: dict[int, list[PushSubscription]] = defaultdict(list)
+    for s in subs:
+        by_user[s.user_id].append(s)
+    app, web = [], []  # (jobindeks, abonnement, besked)
+    for i, (uid, payload) in enumerate(jobs):
+        for s in by_user.get(uid, ()):
+            (app if s.endpoint.startswith(fcm.PREFIX) else web).append((i, s, payload))
+    if app:
         await fcm.ensure(session)
-    if app_subs and fcm.enabled():  # Android-appen (Firebase)
-        for token, status in (await fcm.send(list(app_subs), payload)).items():
-            if status in (404, 410):
-                await session.execute(delete(PushSubscription).where(PushSubscription.id == app_subs[token].id))
-            elif status < 300:
-                delivered += 1
-                await session.execute(update(PushSubscription).where(PushSubscription.id == app_subs[token].id)
-                                      .values(last_ok=datetime.now(timezone.utc)))
-    for sub in subs:
-        if sub.endpoint.startswith(fcm.PREFIX):
-            continue
-        info = {"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}}
-        async with _sem:
-            status = await asyncio.to_thread(_send_sync, info, payload)
+        if not fcm.enabled():  # Android-appen (Firebase) er ikke sat op
+            app = []
+    results = await asyncio.gather(
+        fcm.send_many([(s.endpoint[len(fcm.PREFIX):], p) for _, s, p in app]),
+        *(_web(s, p) for _, s, p in web))
+    statuses = list(results[0]) + list(results[1:])
+    delivered = [0] * len(jobs)
+    dead, ok = set(), set()
+    for (i, s, _), status in zip(app + web, statuses):
         if status in (404, 410):
-            await session.execute(delete(PushSubscription).where(PushSubscription.id == sub.id))
+            dead.add(s.id)
         elif status < 300:
-            delivered += 1
-            await session.execute(update(PushSubscription).where(PushSubscription.id == sub.id)
-                                  .values(last_ok=datetime.now(timezone.utc)))
+            ok.add(s.id)
+            delivered[i] += 1
+    if dead:
+        await session.execute(delete(PushSubscription).where(PushSubscription.id.in_(dead)))
+    if ok - dead:
+        await session.execute(update(PushSubscription).where(PushSubscription.id.in_(ok - dead))
+                              .values(last_ok=datetime.now(timezone.utc)))
     return delivered

@@ -28,3 +28,35 @@ def test_message_carries_url_and_tag():
     assert m["token"] == "tok" and m["notification"]["title"] == "SU: Havørn"
     assert m["data"] == {"url": "/#/traad/1", "tag": "t1"}
     assert m["android"]["priority"] == "HIGH" and m["android"]["notification"]["tag"] == "t1"
+
+
+async def test_send_many_is_parallel_and_keeps_order(monkeypatch):
+    """Alarmer til mange enheder sendes samtidig over én forbindelse – ikke én ad gangen."""
+    import asyncio
+    import time
+
+    import httpx
+
+    _, acc = _account()
+    monkeypatch.setattr(fcm, "_account", lambda: acc)
+
+    async def token(client, a):
+        return "tok"
+    monkeypatch.setattr(fcm, "_access_token", token)
+
+    async def handler(req):
+        await asyncio.sleep(0.1)
+        t = json.loads(req.content)["message"]["token"]
+        if t == "dead":
+            return httpx.Response(404, text="UNREGISTERED")
+        return httpx.Response(200, json={})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(fcm, "_client", lambda: client)
+    items = [(f"t{i}", {"title": "x"}) for i in range(20)] + [("dead", {"title": "x"})]
+    t0 = time.time()
+    out = await fcm.send_many(items)
+    assert time.time() - t0 < 0.5  # 21 kald à 0,1 s ville tage over 2 s i serie
+    assert out == [200] * 20 + [410]
+    assert await fcm.send(["a", "dead"], {"title": "x"}) == {"a": 200, "dead": 410}
+    await client.aclose()

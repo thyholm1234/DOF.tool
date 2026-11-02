@@ -73,6 +73,13 @@ async def fetch_day(client: httpx.AsyncClient, day: date, notify: bool) -> dict:
 
 
 async def after_ingest(res: IngestResult, notify: bool) -> None:
+    # Alarmer først: det er dem, en bruger venter på (puls, feed og lister kan vente et øjeblik)
+    if notify and (res.new_obsids or res.changed):
+        try:
+            async with SessionLocal() as s:
+                await alerts.process(s, res.new_obsids, res.changed)
+        except Exception:  # noqa: BLE001 – en notifikationsfejl må ikke vælte dataindlæsningen
+            log.exception("Notifikationer fejlede")
     if res.unknown_species:
         await gateway.enqueue("artdata", {"list": "art"}, priority=gateway.NORMAL, dedupe="artdata:art")
     if notify and (res.new_obsids or res.changed):
@@ -95,12 +102,6 @@ async def after_ingest(res: IngestResult, notify: bool) -> None:
                                    {"k": list(res.observers)})).scalar()
         if hit and (res.new_obsids or res.changed or res.deleted or not notify):
             await bump("lists")
-    if notify and (res.new_obsids or res.changed):
-        try:
-            async with SessionLocal() as s:
-                await alerts.process(s, res.new_obsids, res.changed)
-        except Exception:  # noqa: BLE001 – en notifikationsfejl må ikke vælte dataindlæsningen
-            log.exception("Notifikationer fejlede")
 
 
 async def live(client: httpx.AsyncClient, _: dict) -> dict:

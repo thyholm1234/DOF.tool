@@ -214,3 +214,38 @@ async def test_interactive_beats_old_bulk_jobs(fake):
     gw = gateway.Gateway({}, None, None)
     job = await gw._pop(max_priority=gateway.INTERACTIVE)
     assert job is not None and job["kind"] == "history"
+
+
+async def test_interval_counts_from_response_not_postprocessing(fake):
+    """Minimumsintervallet regnes fra DOFbasens svar – alarmer og push efter svaret forsinker ikke næste live-hentning."""
+    import httpx
+
+    seen = {}
+
+    async def live(client, _):
+        await client.get("https://dofbasen.dk/x")
+        seen["answered"] = time.time()
+        await asyncio.sleep(0.2)  # efterbehandling: indlæsning, alarmer, push
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda req: httpx.Response(200, text="ok")),
+                               event_hooks={"response": [gateway._answered]})
+    gw = gateway.Gateway({}, live, None)
+    await fake.set(gateway.LOCK, "1")
+    async with client:
+        await gw._call(client, "live", None)
+    last = float(await fake.get(gateway.LAST_CALL))
+    assert last <= seen["answered"] and time.time() - last >= 0.2
+    assert await fake.get(gateway.LOCK) is None
+
+
+async def test_interval_counts_from_end_when_no_response(fake):
+    import httpx
+
+    async def broken(client, _):
+        await asyncio.sleep(0.05)
+        raise httpx.ConnectError("nede")  # DOFbasen svarede aldrig
+
+    gw = gateway.Gateway({}, broken, None)
+    t0 = time.time()
+    await gw._call(None, "live", None)
+    assert float(await fake.get(gateway.LAST_CALL)) >= t0 + 0.05
