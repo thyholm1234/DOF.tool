@@ -5,7 +5,7 @@
   kontrol                       tæller mapper, sammenligner med galleriets totaltal, skriver _mangler.json
   indeks                        bygger _index.json, _fotografer.json, _arter.json, _koder.json, manifest.json
   zip      [--del-gb 20]        pakker til Fotos-001.zip, Fotos-002.zip … (højst --del-gb pr. zip)
-  webp     [--kvalitet 80] [--igen]   konverterer de hentede jpg/png til WebP (original pixelstørrelse) i en anden mappe
+  webp     [--kvalitet 80] [--traade N] [--igen]   konverterer de hentede jpg/png til WebP (original pixelstørrelse) i en anden mappe
                                 (--ud-webp, standard <ud>-webp) med samme struktur; kræver Pillow
   indeks/zip --webp             bruger WebP-udgaven (zip hedder da Fotos-webp-001.zip …) i stedet for originalerne
 
@@ -18,6 +18,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import os
 import re
 import sys
 import time
@@ -25,6 +26,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -402,37 +405,59 @@ def cmd_webp(a):
     foer = efter = 0
     mapper = sorted((q for q in kilde.iterdir() if q.is_dir() and q.name.isdigit() and (q / "meta.json").exists()),
                     key=lambda q: int(q.name))
-    for q in mapper:
+
+    def konverter(q):
         dst = mål / q.name
-        if not a.igen and (dst / "meta.json").exists():
+        meta = json.loads((q / "meta.json").read_text(encoding="utf-8"))
+        data = (q / meta["fil"]).read_bytes()
+        ny, ext = _til_webp(data, a.kvalitet)
+        dst.mkdir(parents=True, exist_ok=True)
+        for gammel in dst.glob("foto.*"):  # --igen: kun én billedfil pr. mappe
+            if gammel.name != f"foto.{ext}":
+                gammel.unlink()
+        (dst / f"foto.{ext}").write_bytes(ny)
+        meta["fil"] = f"foto.{ext}"
+        meta["fil_sha256"] = hashlib.sha256(ny).hexdigest()
+        if ny is not data:
+            meta["konverteret"] = {"til": "webp", "kvalitet": a.kvalitet, "original_bytes": len(data),
+                                   "original_sha256": hashlib.sha256(data).hexdigest()}
+        tmp = dst / "meta.json.tmp"
+        tmp.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.rename(dst / "meta.json")
+        return len(data), len(ny)
+
+    arbejde = []
+    for q in mapper:
+        if not a.igen and (mål / q.name / "meta.json").exists():
             sprunget += 1
-            continue
+        else:
+            arbejde.append(q)
+    trade = max(1, a.traade)
+    log(f"{len(arbejde)} at konvertere med {trade} tråde")
+
+    def laes(fut_q):
+        nonlocal ok, fejl, foer, efter
+        fut, q = fut_q
         try:
-            meta = json.loads((q / "meta.json").read_text(encoding="utf-8"))
-            src = q / meta["fil"]
-            data = src.read_bytes()
-            ny, ext = _til_webp(data, a.kvalitet)
-            dst.mkdir(parents=True, exist_ok=True)
-            for gammel in dst.glob("foto.*"):  # --igen: kun én billedfil pr. mappe
-                if gammel.name != f"foto.{ext}":
-                    gammel.unlink()
-            (dst / f"foto.{ext}").write_bytes(ny)
-            meta["fil"] = f"foto.{ext}"
-            meta["fil_sha256"] = hashlib.sha256(ny).hexdigest()
-            if ny is not data:
-                meta["konverteret"] = {"til": "webp", "kvalitet": a.kvalitet, "original_bytes": len(data),
-                                       "original_sha256": hashlib.sha256(data).hexdigest()}
-            tmp = dst / "meta.json.tmp"
-            tmp.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-            tmp.rename(dst / "meta.json")
+            f, e = fut.result()
             ok += 1
-            foer += len(data)
-            efter += len(ny)
+            foer += f
+            efter += e
         except Exception as e:  # noqa: BLE001 – ét ødelagt billede må ikke stoppe en konvertering af titusinder
             fejl += 1
             log(f"{q.name} fejl: {e}")
-        if (ok + fejl) % 500 == 0 and ok + fejl:
+        if (ok + fejl) % 500 == 0:
             log(f"… {ok} konverteret, {sprunget} sprunget, {fejl} fejl")
+
+    # højst 4 opgaver pr. tråd i luften, så hukommelsen holder, selv med titusinder af billeder
+    with ThreadPoolExecutor(max_workers=trade) as ex:
+        i_luften = deque()
+        for q in arbejde:
+            i_luften.append((ex.submit(konverter, q), q))
+            if len(i_luften) >= trade * 4:
+                laes(i_luften.popleft())
+        while i_luften:
+            laes(i_luften.popleft())
     spar = f", {100 * (1 - efter / foer):.0f} % mindre ({foer / 1e9:.2f} → {efter / 1e9:.2f} GB)" if foer else ""
     log(f"Færdig: {ok} konverteret, {sprunget} sprunget (fandtes), {fejl} fejl{spar}. Næste: indeks --webp, zip --webp")
 
@@ -563,6 +588,7 @@ def main():
     i.add_argument("--webp", action="store_true", help="indeksér WebP-udgaven")
     w = sub.add_parser("webp")
     w.add_argument("--kvalitet", type=int, default=80, help="WebP-kvalitet 1-100 (standard 80)")
+    w.add_argument("--traade", type=int, default=os.cpu_count() or 4, help="antal tråde (standard: antal CPU-kerner)")
     w.add_argument("--igen", action="store_true", help="konvertér også fotos, der allerede findes i WebP-mappen")
     z = sub.add_parser("zip")
     z.add_argument("--webp", action="store_true", help="pak WebP-udgaven (Fotos-webp-001.zip …)")

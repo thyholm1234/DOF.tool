@@ -9,7 +9,7 @@ python3 -I netfugl_fotos.py hent [--fra 125245] [--til 1] [--stop-efter 10] [--p
 python3 -I netfugl_fotos.py kontrol     # tæller mapper mod galleriets totaltal, skriver _mangler.json
 python3 -I netfugl_fotos.py indeks      # _index.json, _fotografer.json, _arter.json, _koder.json, manifest.json
 python3 -I netfugl_fotos.py zip [--del-gb 20]   # Fotos-001.zip, Fotos-002.zip … ved siden af mappen
-python3 -I netfugl_fotos.py webp [--kvalitet 80] [--igen] [--ud-webp …]   # WebP-udgave i Fotos-webp/
+python3 -I netfugl_fotos.py webp [--kvalitet 80] [--traade N] [--igen] [--ud-webp …]   # WebP-udgave i Fotos-webp/
 python3 -I netfugl_fotos.py indeks --webp       # indeks i WebP-mappen
 python3 -I netfugl_fotos.py zip --webp          # Fotos-webp-001.zip, Fotos-webp-002.zip …
 ```
@@ -30,7 +30,7 @@ Kræver `beautifulsoup4` (og `pillow` til `webp`). Standardmappe: `--ud /home/ch
 til `--ud-webp` (standard `<ud>-webp` ved siden af). Originalerne røres ikke. jpg/png bliver WebP med kvalitet 80 (`--kvalitet`) i
 **original pixelstørrelse**, EXIF og farveprofil bevares; gif og billeder, der allerede er WebP, kopieres uændret. `meta.json` i
 WebP-mappen får ny `fil` og `fil_sha256` samt `konverteret: {til, kvalitet, original_bytes, original_sha256}`. Kommandoen kan
-afbrydes og genoptages (færdige mapper springes over; `--igen` konverterer alt forfra) og tåler enkelte ødelagte billeder.
+afbrydes og genoptages (færdige mapper springes over; `--igen` konverterer alt forfra) og tåler enkelte ødelagte billeder. Konverteringen kører i flere tråde (`--traade`, standard antal CPU-kerner).
 
 Vælg udgave i de næste trin: `indeks --webp` og `zip --webp` arbejder på WebP-mappen (zip hedder `Fotos-webp-001.zip` …); uden
 `--webp` bruges originalerne som hidtil. Læg ikke begge zip-sæt i samme importmappe – importen vil ellers læse hvert foto to gange.
