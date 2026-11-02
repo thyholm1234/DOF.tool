@@ -100,7 +100,10 @@ export async function page() {
   go.onclick = upload;
   async function refresh() {
     const list = await api("/api/admin/fotos/import").catch(() => []);
-    history.replaceChildren(h("h3", {}, "Tidligere importer"), ...(list.length ? list.map(i => h("details", { class: "card" },
+    history.replaceChildren(h("h3", {}, "Tidligere importer"),
+      h("button", { class: "btn sm danger", type: "button", onclick: async () => {
+        if (!confirm("Slet midlertidige zip-uploads, som ingen import bruger lige nu? Fotos og importlog beholdes.")) return;
+        try { const r = await api("/api/admin/fotos/import/uploads", { method: "DELETE" }); toast(`Slettede ${r.filer} filer (${(r.bytes / 1048576).toFixed(0)} MB)`); } catch (e) { toast(e.message, "err"); } } }, "Slet midlertidige zip-uploads"), ...(list.length ? list.map(i => h("details", { class: "card" },
       h("summary", {}, `#${i.id} · ${i.filename || i.sti} · ${i.status} · ${dkDate(i.created_at, { time: true })}`), statGrid(i.stats), logBox(i.log),
       ["klar", "uploader", "faerdig", "fejl"].includes(i.status) ? h("button", { class: "btn sm danger", type: "button", onclick: async () => {
         if (!confirm("Fjern importen og dens log? Fotos beholdes.")) return;

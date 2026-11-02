@@ -42,7 +42,10 @@ LOK_KM = 5.0
 
 def prepare_photo_image(data: bytes) -> tuple[dict, content_media.Prepared]:
     """Det CPU-tunge ved et foto (EXIF, WebP-konvertering, dekodning til varianter). Synkron, så den kan køre i en tråd."""
-    return imagemeta.read_camera(data), content_media.prepare_webp(data)
+    prepared = content_media.prepare_webp(data)
+    variants = prepared.make_variants()  # også varianterne laves her i puljen – ellers kører de bagefter ét ad gangen i store_image
+    prepared.make_variants = lambda: variants
+    return imagemeta.read_camera(data), prepared
 
 
 # ---------------------------------------------------------------- kilder
@@ -508,7 +511,7 @@ async def _run(s: AsyncSession, imp: GalImport, run: Run, rel: str | None) -> No
     if not run.options.get("dry_run"):
         known = {r[0]: (r[1], r[2]) for r in (await s.execute(select(GalPhoto.netfugl_id, GalPhoto.source_hash, GalPhoto.locally_edited)
                                                               .where(GalPhoto.netfugl_id.isnot(None)))).all()}
-    threads = max(1, int(run.options.get("threads") or min(4, os.cpu_count() or 2)))
+    threads = max(1, int(run.options.get("threads") or min(8, max(2, (os.cpu_count() or 2) - 1))))
     pool = ThreadPoolExecutor(threads, thread_name_prefix="fotoimport")
     ahead = threads * 2  # så mange fotos forberedes forud
     try:

@@ -136,6 +136,12 @@ async def import_status(iid: int, acc: photo_access.Access = Depends(need()), db
     return _imp_out(await _import(db, iid))
 
 
+@router.delete("/import/uploads")
+async def import_ryd_uploads(acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Slet midlertidige zip-uploads (og forladte delfiler), som ingen import bruger lige nu."""
+    return await photo_upload.purge(db)
+
+
 @router.delete("/import/{iid}")
 async def import_slet(iid: int, acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     try:

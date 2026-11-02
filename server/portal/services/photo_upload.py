@@ -6,9 +6,11 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import re
 import zipfile
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import worker_command
@@ -16,7 +18,7 @@ from portal.config import get_settings
 from portal.models import GalImport
 from portal.services.article_upload import CHUNK, MAX_SIZE, UploadError, parts_for
 
-__all__ = ["CHUNK", "UploadError", "parts_for", "create", "write_part", "received", "finish", "discard", "root"]
+__all__ = ["CHUNK", "UploadError", "parts_for", "create", "write_part", "received", "finish", "discard", "purge", "root"]
 UPLOADS = "uploads"
 
 
@@ -125,3 +127,27 @@ async def discard(session: AsyncSession, imp: GalImport) -> None:
         (root() / f"{imp.id}.zip").unlink(missing_ok=True)
     await session.delete(imp)
     await session.commit()
+
+
+def _purge(busy: set[int], resumable: set[int]) -> dict:
+    """Slet zip-uploads, der ikke bruges af en igangværende import, og delvise uploads, der ikke kan genoptages."""
+    files = bytes_ = 0
+    for p in root().iterdir():
+        m = re.match(r"(\d+)\.(zip|part.*)$", p.name)
+        if not m or not p.is_file():
+            continue
+        iid, kind = int(m.group(1)), m.group(2)
+        if iid in busy or (kind != "zip" and iid in resumable):
+            continue
+        bytes_ += p.stat().st_size
+        p.unlink(missing_ok=True)
+        files += 1
+    return {"filer": files, "bytes": bytes_}
+
+
+async def purge(session: AsyncSession) -> dict:
+    """Ryd ``uploads/``: behold zip-filer til importer, der er klar/kører, og delene af uploads, der stadig kan genoptages."""
+    rows = (await session.execute(select(GalImport.id, GalImport.status))).all()
+    busy = {i for i, st in rows if st in ("klar", "koerer")}
+    resumable = {i for i, st in rows if st == "uploader"}
+    return await asyncio.to_thread(_purge, busy, resumable)
