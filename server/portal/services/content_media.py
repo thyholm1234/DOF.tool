@@ -84,14 +84,23 @@ def _to_webp(data: bytes, quality: int) -> bytes:
         return buf.getvalue()
 
 
+def _orientation(data: bytes) -> int | None:
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            return im.getexif().get(0x0112)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def to_webp(data: bytes, quality: int = WEBP_QUALITY) -> bytes:
     """Konvertér et billede (JPEG, PNG, GIF, AVIF, TIFF, BMP …) til WebP uden EXIF/GPS. WebP-filer genkodes ikke – kun
     metadata fjernes. Kaster MediaError, hvis filen ikke kan læses."""
-    if sniff_image(data) == ("image/webp", "webp"):
+    if sniff_image(data) == ("image/webp", "webp") and _orientation(data) in (None, 1):
         try:
             return imagemeta.strip(data)
         except (ValueError, IndexError):
             pass  # ødelagte chunks: genkod
+    # (en WebP med EXIF-orientering ≠ 1 genkodes, så drejningen bages ind, før EXIF fjernes)
     try:
         return _to_webp(data, quality)
     except Exception as exc:  # noqa: BLE001 – Pillow kaster mange slags fejl for ødelagte/ukendte filer
