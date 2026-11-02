@@ -5,11 +5,14 @@
   kontrol                       tæller mapper, sammenligner med galleriets totaltal, skriver _mangler.json
   indeks                        bygger _index.json, _fotografer.json, _arter.json, _koder.json, manifest.json
   zip      [--del-gb 20]        pakker til Fotos-001.zip, Fotos-002.zip … (højst --del-gb pr. zip)
+  webp     [--kvalitet 80] [--igen]   konverterer de hentede jpg/png til WebP (original pixelstørrelse) i en anden mappe
+                                (--ud-webp, standard <ud>-webp) med samme struktur; kræver Pillow
+  indeks/zip --webp             bruger WebP-udgaven (zip hedder da Fotos-webp-001.zip …) i stedet for originalerne
 
 Overslag: ~125 000 sider + ~80 000 billeder x 3 s ≈ 7 døgn; billederne fylder anslået 40-80 GB.
 Scriptet kan afbrydes og genoptages når som helst (en mappe uden meta.json hentes igen).
 
-Kør med `python3 -I netfugl_fotos.py ...` (kræver beautifulsoup4).
+Kør med `python3 -I netfugl_fotos.py ...` (kræver beautifulsoup4; `webp` kræver desuden Pillow).
 """
 import argparse
 import datetime
@@ -365,6 +368,84 @@ def cmd_hent(a):
         time.sleep(a.pause)
 
 
+# ---------- webp ----------
+
+def _til_webp(data, kvalitet):
+    """jpg/png -> (WebP-bytes, 'webp') i original pixelstørrelse; EXIF og farveprofil bevares.
+    Andre formater (gif, allerede webp) returneres uændret som (data, ext)."""
+    ext = sniff_ext(data)
+    if ext not in ("jpg", "png"):
+        return data, ext
+    from PIL import Image
+    import io
+    with Image.open(io.BytesIO(data)) as im:
+        im.load()
+        if im.mode not in ("RGB", "RGBA"):
+            im = im.convert("RGBA" if "transparency" in im.info or im.mode in ("LA", "PA") else "RGB")
+        ud = io.BytesIO()
+        extra = {k: im.info[k] for k in ("exif", "icc_profile") if im.info.get(k)}
+        im.save(ud, "WEBP", quality=kvalitet, method=6, **extra)
+    return ud.getvalue(), "webp"
+
+
+def cmd_webp(a):
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        sys.exit("webp kræver Pillow: pip install pillow")
+    kilde, mål = Path(a.ud), _webp_rod(a)
+    if kilde.resolve() == mål.resolve():
+        sys.exit("--ud-webp må ikke være samme mappe som --ud")
+    mål.mkdir(parents=True, exist_ok=True)
+    log = _logger(mål)
+    ok = sprunget = fejl = 0
+    foer = efter = 0
+    mapper = sorted((q for q in kilde.iterdir() if q.is_dir() and q.name.isdigit() and (q / "meta.json").exists()),
+                    key=lambda q: int(q.name))
+    for q in mapper:
+        dst = mål / q.name
+        if not a.igen and (dst / "meta.json").exists():
+            sprunget += 1
+            continue
+        try:
+            meta = json.loads((q / "meta.json").read_text(encoding="utf-8"))
+            src = q / meta["fil"]
+            data = src.read_bytes()
+            ny, ext = _til_webp(data, a.kvalitet)
+            dst.mkdir(parents=True, exist_ok=True)
+            for gammel in dst.glob("foto.*"):  # --igen: kun én billedfil pr. mappe
+                if gammel.name != f"foto.{ext}":
+                    gammel.unlink()
+            (dst / f"foto.{ext}").write_bytes(ny)
+            meta["fil"] = f"foto.{ext}"
+            meta["fil_sha256"] = hashlib.sha256(ny).hexdigest()
+            if ny is not data:
+                meta["konverteret"] = {"til": "webp", "kvalitet": a.kvalitet, "original_bytes": len(data),
+                                       "original_sha256": hashlib.sha256(data).hexdigest()}
+            tmp = dst / "meta.json.tmp"
+            tmp.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.rename(dst / "meta.json")
+            ok += 1
+            foer += len(data)
+            efter += len(ny)
+        except Exception as e:  # noqa: BLE001 – ét ødelagt billede må ikke stoppe en konvertering af titusinder
+            fejl += 1
+            log(f"{q.name} fejl: {e}")
+        if (ok + fejl) % 500 == 0 and ok + fejl:
+            log(f"… {ok} konverteret, {sprunget} sprunget, {fejl} fejl")
+    spar = f", {100 * (1 - efter / foer):.0f} % mindre ({foer / 1e9:.2f} → {efter / 1e9:.2f} GB)" if foer else ""
+    log(f"Færdig: {ok} konverteret, {sprunget} sprunget (fandtes), {fejl} fejl{spar}. Næste: indeks --webp, zip --webp")
+
+
+def _webp_rod(a):
+    return Path(a.ud_webp) if a.ud_webp else Path(a.ud).parent / (Path(a.ud).name + "-webp")
+
+
+def _rod(a):
+    """Mappen indeks/zip arbejder på: originalerne, eller WebP-udgaven med --webp."""
+    return _webp_rod(a) if getattr(a, "webp", False) else Path(a.ud)
+
+
 # ---------- kontrol / indeks / zip ----------
 
 def _metas(ud):
@@ -392,7 +473,7 @@ def cmd_kontrol(a):
 
 
 def cmd_indeks(a):
-    ud = Path(a.ud)
+    ud = _rod(a)
     index, fot, arter, koder = [], {}, {}, {}
     laveste = hoejeste = None
     hentet = []
@@ -435,7 +516,8 @@ def cmd_indeks(a):
 
 
 def cmd_zip(a):
-    ud = Path(a.ud).resolve()
+    ud = _rod(a).resolve()
+    prefiks = "Fotos-webp" if a.webp else "Fotos"
     faste = ["manifest.json", "_index.json", "_fotografer.json", "_arter.json", "_koder.json"]
     grænse = int(a.del_gb * 1e9)
     dele, aktuel, stoerrelse = [], [], 0
@@ -450,7 +532,7 @@ def cmd_zip(a):
     if aktuel:
         dele.append(aktuel)
     for n, mapper in enumerate(dele, 1):
-        mål = ud.parent / f"Fotos-{n:03d}.zip"
+        mål = ud.parent / f"{prefiks}-{n:03d}.zip"
         with zipfile.ZipFile(mål, "w") as z:
             for navn in faste:
                 if (ud / navn).exists():
@@ -467,6 +549,7 @@ def cmd_zip(a):
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--ud", default="/home/chris/Dokumenter/DOF.tool/Fotos")
+    p.add_argument("--ud-webp", default=None, help="WebP-udgavens mappe (standard: <ud>-webp ved siden af --ud)")
     sub = p.add_subparsers(dest="cmd", required=True)
     h = sub.add_parser("hent")
     h.add_argument("--ids", type=int, nargs="*")
@@ -476,11 +559,16 @@ def main():
     h.add_argument("--pause", type=float, default=3.0)
     h.add_argument("--igen", action="store_true", help="hent også fotos, der allerede har meta.json")
     sub.add_parser("kontrol")
-    sub.add_parser("indeks")
+    i = sub.add_parser("indeks")
+    i.add_argument("--webp", action="store_true", help="indeksér WebP-udgaven")
+    w = sub.add_parser("webp")
+    w.add_argument("--kvalitet", type=int, default=80, help="WebP-kvalitet 1-100 (standard 80)")
+    w.add_argument("--igen", action="store_true", help="konvertér også fotos, der allerede findes i WebP-mappen")
     z = sub.add_parser("zip")
+    z.add_argument("--webp", action="store_true", help="pak WebP-udgaven (Fotos-webp-001.zip …)")
     z.add_argument("--del-gb", type=float, default=20)
     a = p.parse_args()
-    {"hent": cmd_hent, "kontrol": cmd_kontrol, "indeks": cmd_indeks, "zip": cmd_zip}[a.cmd](a)
+    {"hent": cmd_hent, "kontrol": cmd_kontrol, "indeks": cmd_indeks, "webp": cmd_webp, "zip": cmd_zip}[a.cmd](a)
 
 
 if __name__ == "__main__":
