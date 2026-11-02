@@ -351,7 +351,7 @@ async function manualFinds(box) {
   const findForm = (onSaved) => {
     let artnr = null, loknr = null;
     const art = h("input", { type: "search", placeholder: "Søg art på artslisten…", autocomplete: "off", required: true });
-    const artHits = h("div", { class: "suggest" });
+    const artHits = h("div", { class: "suggest dropdown" });
     // Arterne fra hovedlisten (Moderation → Arter)
     let failed = false;
     const ready = api("/api/admin/species").then(l => { all = l; }, (err) => {
@@ -365,7 +365,7 @@ async function manualFinds(box) {
         h("span", {}, sp.navn), sp.latin ? h("i", { class: "muted" }, sp.latin) : null)));
     }));
     const lok = h("input", { type: "search", placeholder: "Søg lokalitet (valgfri)…", autocomplete: "off" });
-    const lokHits = h("div", { class: "suggest" });
+    const lokHits = h("div", { class: "suggest dropdown" });
     let t;
     lok.addEventListener("input", () => {
       loknr = null; clearTimeout(t);
@@ -390,10 +390,10 @@ async function manualFinds(box) {
       } catch (err) { toast(err.message, "err"); }
     } },
       h("div", { class: "form-grid two" },
-        h("label", { class: "field" }, h("span", {}, "Art"), art, artHits),
+        h("label", { class: "field" }, h("span", {}, "Art"), h("div", { class: "dd-wrap" }, art, artHits)),
         h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Dato"), dato), h("label", { class: "field" }, h("span", {}, "Antal"), antal))),
       h("div", { class: "form-grid two" },
-        h("label", { class: "field" }, h("span", {}, "Lokalitet"), lok, lokHits),
+        h("label", { class: "field" }, h("span", {}, "Lokalitet"), h("div", { class: "dd-wrap" }, lok, lokHits)),
         h("label", { class: "field" }, h("span", {}, "Sted (fritekst)"), sted)),
       h("label", { class: "field" }, h("span", {}, "Note"), note),
       h("div", {}, h("button", { class: "btn primary" }, "Indsæt fund")));
