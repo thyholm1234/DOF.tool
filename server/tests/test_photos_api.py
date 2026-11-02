@@ -166,3 +166,22 @@ async def test_mine_observationer_kraever_flag(web, db):  # noqa: F811
     assert (await web["a1"].get("/api/fotos/til-observationer?obsid=5001,5002")).json() == {}
     await flags(db, fotos_dofbasen="off")
     assert (await web["a1"].get("/api/fotos/mine-observationer?artnr=1&dato=2026-10-27")).status_code == 404
+
+
+async def test_artens_mest_likede_fotos(web, db):  # noqa: F811
+    await flags(db, fotos="on")
+    g = (await web["a1"].get("/api/fotos?art=1&sort=dato")).json()  # samme fotos som galleriet (grupper vises som ét kort)
+    ids = [r["id"] for r in g["rows"]]
+    assert len(ids) >= 2
+    async with db() as s:
+        await s.execute(text("UPDATE gal_photos SET likes_imported = 50 WHERE id = :p"), {"p": ids[-1]})
+        await s.commit()
+    from portal.cache import kv
+    await kv().incr("ver:photos")
+    d = (await web["a1"].get("/api/fotos/art/1?n=1")).json()
+    assert d["total"] == g["total"] and [r["id"] for r in d["rows"]] == [ids[-1]] and d["rows"][0]["likes"] >= 50
+    assert d["rows"][0]["medium"].startswith("/media/art/")
+    assert sorted(r["id"] for r in (await web["a1"].get("/api/fotos/art/1")).json()["rows"]) == sorted(ids)  # standard: højst 10
+    assert (await web["a1"].get("/api/fotos/art/1?n=99")).status_code == 422
+    await flags(db, fotos="off")
+    assert (await web["a1"].get("/api/fotos/art/1")).status_code == 404

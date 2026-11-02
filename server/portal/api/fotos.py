@@ -54,6 +54,12 @@ async def galleri(request: Request, side: int = Query(1, ge=1, le=100000), per: 
     return await photos.search(db, {**q, "side": side, "per": per, "sort": sort})
 
 
+@router.get("/art/{artnr}")
+async def art(artnr: int, n: int = Query(10, ge=1, le=24), acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Artssidens galleri: artens mest likede publicerede fotos (højst ``n``) og det samlede antal fotos af arten."""
+    return await photos.top_for_species(db, artnr, n)
+
+
 @router.get("/n/{netfugl_id}")
 async def fra_netfugl(netfugl_id: int, acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     """Gamle netfugl.dk-adresser (/fotos/{id}): slå fotoet op på dets oprindelige nummer."""

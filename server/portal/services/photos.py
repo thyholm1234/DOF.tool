@@ -103,7 +103,8 @@ FROM = """FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photogra
 
 
 def card(r) -> dict:
-    return {"id": r["id"], "titel": r["titel"], "thumb": _url(r["thumb_key"] or r["storage_key"]), "w": r["width"], "h": r["height"],
+    return {"id": r["id"], "titel": r["titel"], "thumb": _url(r["thumb_key"] or r["storage_key"]),
+            "medium": _url(r["medium_key"] or r["storage_key"]), "w": r["width"], "h": r["height"],
             "arter": [{"navn": b["navn"], "artnr": b["artnr"]} for b in (r["birds"] or [])], "dato": _iso(r["dato"]), "lokalitet": r["lokalitet"], "land": r["land"],
             "fotograf": {"id": r["photographer_id"], "navn": r["fotograf"]}, "likes": r["likes"] + r["likes_imported"], "views": r["views"] + r["views_imported"],
             "kommentarer": r["comments"], "gruppe": max(0, (r["group_n"] or 1) - 1), "status": r["status"]}
@@ -141,7 +142,7 @@ async def search(session: AsyncSession, q: dict, *, status: list[str] | None = N
         await kv().set(ckey, str(total), ex=COUNT_TTL)
     rows = (await session.execute(text(f"""
         SELECT p.id, p.titel, p.width, p.height, p.dato, p.lokalitet, p.status, p.photographer_id, ph.navn AS fotograf, p.likes, p.likes_imported, p.views,
-               p.views_imported, p.comments, m.thumb_key, m.storage_key, (SELECT c.navn FROM gal_countries c WHERE c.id = p.land_id) AS land,
+               p.views_imported, p.comments, m.thumb_key, m.medium_key, m.storage_key, (SELECT c.navn FROM gal_countries c WHERE c.id = p.land_id) AS land,
                (SELECT count(*) FROM gal_photos x WHERE x.group_id = p.group_id AND x.status = 'publiceret' AND p.group_id IS NOT NULL) AS group_n,
                (SELECT coalesce(jsonb_agg(jsonb_build_object('navn', b.navn, 'artnr', b.artnr) ORDER BY b.pos), '[]'::jsonb) FROM gal_birds b WHERE b.photo_id = p.id) AS birds
         {FROM} WHERE {where} ORDER BY {SORTS[f['sort']]} LIMIT :lim OFFSET :off"""), {**params, "lim": f["per"], "off": (f["side"] - 1) * f["per"]})).mappings().all()
@@ -149,6 +150,12 @@ async def search(session: AsyncSession, q: dict, *, status: list[str] | None = N
     if cache:
         await kv().set(key, json.dumps(out, ensure_ascii=False, default=str), ex=PAGE_TTL)
     return out
+
+
+async def top_for_species(session: AsyncSession, artnr: int, n: int = 10) -> dict:
+    """Artens mest likede fotos (til artssidens galleri): galleriets søgning på arten sorteret efter likes, de første ``n``."""
+    d = await search(session, {"art": str(artnr), "sort": "likes", "per": PER_PAGES[0]})
+    return {"total": d["total"], "rows": d["rows"][:max(1, min(n, PER_PAGES[0]))]}
 
 
 # ---------------------------------------------------------------- fotosiden
