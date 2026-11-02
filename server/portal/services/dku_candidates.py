@@ -41,7 +41,7 @@ ANALYSIS_LIMIT = 1000
 ANALYSIS_TTL = 7 * 86400
 
 DEFAULT_FILTER = {"on": False, "kriterier": list(dku.CRITERIA), "days": 7, "min": 1, "niveau": "lok", "hist_years": 10,
-                  "antal_min": 5, "faktor": 2.0, "ny_max": 0, "saeson_dage": 14, "kun_bemaerk": False}
+                  "antal_min": 5, "faktor": 2.0, "percentil": 95, "ny_max": 0, "saeson_dage": 14, "kun_bemaerk": False}
 
 
 async def run(db: AsyncSession, f: dict, *, afd: set[int] | None, obsids: list[int] | None = None,
@@ -50,7 +50,7 @@ async def run(db: AsyncSession, f: dict, *, afd: set[int] | None, obsids: list[i
     crit = [k for k in f["kriterier"] if k in dku.CRITERIA]
     return await dku.candidates(db, afd=afd, days=f["days"], criteria=crit, min_match=min(f["min"], len(crit)),
                                 level=f["niveau"], hist_years=f["hist_years"], antal_min=f["antal_min"],
-                                antal_factor=f["faktor"], ny_max=f["ny_max"], season_days=f["saeson_dage"],
+                                antal_factor=f["faktor"], percentile=f.get("percentil", 95), ny_max=f["ny_max"], season_days=f["saeson_dage"],
                                 only_notable=f["kun_bemaerk"], obsids=obsids, limit=limit)
 
 

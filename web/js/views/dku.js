@@ -218,7 +218,7 @@ async function membersPanel(body) {
 
 // ---------------------------------------------------------------- kandidater: lokale afvigelser
 
-const CRITERIA = [["antal", "Antal over lokalt normalt", "Antal ≥ minimum og ≥ faktor × den lokale 95-percentil for arten"],
+const CRITERIA = [["antal", "Antal over lokalt normalt", "Antal ≥ minimum og ≥ faktor × den lokale percentil (standard 95) for arten"],
   ["ny", "Ny/sjælden art lokalt", "Arten er set højst så mange gange lokalt i historikken"],
   ["saeson", "Uden for lokal sæson", "Arten er set lokalt før, men aldrig inden for ± dage af datoen"],
   ["dok", "Mangler dokumentation", "Bemærk-art uden fuglenoter, fotos og lyd"]];
@@ -242,23 +242,23 @@ function filterForm(f = {}) {
     h("input", { type: "checkbox", checked: on[k], onchange: (e) => { on[k] = e.target.checked; } }), ` ${label}`));
   const notable = h("input", { type: "checkbox", checked: !!f.kun_bemaerk });
   const days = num(f.days ?? 7, "64px", 1), min = num(f.min ?? 1, "64px", 1), hist = num(f.hist_years ?? 10, "64px", 1);
-  const antalMin = num(f.antal_min ?? 5), factor = num(f.faktor ?? 2, "70px", 1, 0.5), nyMax = num(f.ny_max ?? 0), sd = num(f.saeson_dage ?? 14, "70px", 1);
+  const antalMin = num(f.antal_min ?? 5), factor = num(f.faktor ?? 2, "70px", 1, 0.5), pct = num(f.percentil ?? 95, "70px", 50, 0.5), nyMax = num(f.ny_max ?? 0), sd = num(f.saeson_dage ?? 14, "70px", 1);
   const level = h("select", {}, h("option", { value: "lok" }, "lokaliteten"), h("option", { value: "kommune" }, "kommunen"));
   level.value = f.niveau || "lok";
   const get = () => {
     const kriterier = CRITERIA.map(c => c[0]).filter(k => on[k]);
     if (!kriterier.length) { toast("Vælg mindst ét kriterium", "err"); return null; }
     return { kriterier, days: +days.value, min: Math.min(+min.value || 1, kriterier.length), niveau: level.value, hist_years: +hist.value,
-      antal_min: +antalMin.value, faktor: +factor.value, ny_max: +nyMax.value, saeson_dage: +sd.value, kun_bemaerk: notable.checked };
+      antal_min: +antalMin.value, faktor: +factor.value, percentil: Math.min(100, Math.max(50, +pct.value || 95)), ny_max: +nyMax.value, saeson_dage: +sd.value, kun_bemaerk: notable.checked };
   };
   return { get, boxes: [...boxes, h("label", { class: "check", title: "Kun observationer med en anden kategori end alm" }, notable, " Kun bemærkelsesværdige")],
     fields: [lab("Seneste dage", days), lab("Mindst antal kriterier", min), lab("Sammenlign med", level), lab("Historik (år)", hist),
-      lab("Antal ≥", antalMin), lab("× lokal 95-percentil", factor), lab("Ny art: set højst (gange)", nyMax), lab("Sæson ± dage", sd)] };
+      lab("Antal ≥", antalMin), lab("× lokal percentil", factor), lab("Percentil (50–100)", pct), lab("Ny art: set højst (gange)", nyMax), lab("Sæson ± dage", sd)] };
 }
 
 const filterText = (f) => [`${f.days} dage`, f.kriterier.map(k => CRITERIA.find(c => c[0] === k)?.[1].toLowerCase()).join(", "),
   f.min > 1 ? `mindst ${f.min} kriterier` : null, `sammenlignet med ${f.niveau === "kommune" ? "kommunen" : "lokaliteten"} (${f.hist_years} år)`,
-  f.kriterier.includes("antal") ? `antal ≥ ${f.antal_min} og ≥ ${f.faktor} × 95-percentil` : null,
+  f.kriterier.includes("antal") ? `antal ≥ ${f.antal_min} og ≥ ${f.faktor} × ${f.percentil ?? 95}-percentil` : null,
   f.kriterier.includes("ny") ? `ny art: set højst ${f.ny_max} gange` : null, f.kriterier.includes("saeson") ? `sæson ± ${f.saeson_dage} dage` : null,
   f.kun_bemaerk ? "kun bemærkelsesværdige" : null].filter(Boolean).join(" · ");
 
@@ -281,7 +281,7 @@ function candidateList(out, r, reload) {
         h("span", { class: "row", style: { gap: "6px" } }, ...x.matched.map(k => h("span", { class: "tag bemaerk" }, r.criteria[k])))),
       h("div", { class: "muted", style: { fontSize: ".86rem" } }, [x.observer ? `observatør: ${x.observer}` : null,
         x.kategori !== "alm" ? `kategori ${x.kategori}` : null,
-        x.historik ? `lokalt set ${x.historik} gange${x.p95 != null ? ` (95-percentil ${x.p95})` : ""}, ${x.i_saesonen} i sæsonen` : "aldrig set lokalt i perioden",
+        x.historik ? `lokalt set ${x.historik} gange${x.p95 != null ? ` (${x.percentil ?? 95}-percentil ${x.p95})` : ""}, ${x.i_saesonen} i sæsonen` : "aldrig set lokalt i perioden",
         x.found_at ? `fundet ${ago(x.found_at)}` : null]
         .filter(Boolean).join(" · ")),
       h("div", { class: "row" },

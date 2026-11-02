@@ -2812,6 +2812,12 @@ false,
 "{\"default\": 0, \"maximum\": 1000, \"minimum\": 0, \"title\": \"Ny Max\", \"type\": \"integer\"}"
 ],
 [
+"percentil",
+"query",
+false,
+"{\"default\": 95, \"maximum\": 100, \"minimum\": 50, \"title\": \"Percentil\", \"type\": \"number\"}"
+],
+[
 "saeson_dage",
 "query",
 false,

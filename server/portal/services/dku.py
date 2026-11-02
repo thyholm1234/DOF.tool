@@ -282,11 +282,11 @@ MIN_HISTORY = 5  # så mange tidligere observationer skal der til, før et antal
 
 async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, criteria: list[str], min_match: int, level: str,
                      hist_years: int, antal_min: int, antal_factor: float, ny_max: int, season_days: int,
-                     only_notable: bool = False, obsids: list[int] | None = None, limit: int = 300) -> list[dict]:
+                     percentile: float = 95, only_notable: bool = False, obsids: list[int] | None = None, limit: int = 300) -> list[dict]:
     """DOFbasen-observationer fra de seneste dage, der afviger fra det lokale (lokaliteten eller kommunen) historisk set.
 
     Kriterier (kryds af efter behov; en observation skal ramme mindst `min_match` af de valgte):
-      antal   – antal ≥ antal_min og ≥ antal_factor × den lokale 95-percentil for arten
+      antal   – antal ≥ antal_min og ≥ antal_factor × den lokale percentil (standard 95) for arten
       ny      – arten er set højst ny_max gange lokalt i de seneste hist_years år
       saeson  – arten er set lokalt før, men aldrig inden for ± season_days dage af datoen
       dok     – bemærk-art uden fuglenoter, fotos og lyd
@@ -326,7 +326,7 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
             SELECT k.artnr, k.unit, h.antal, extract(doy FROM h.dato)::int AS doy
             FROM keys k {hist_join}
             WHERE h.dato >= :hist_from AND h.dato < :since),
-        stats AS (SELECT artnr, unit, count(*) AS n, percentile_cont(0.95) WITHIN GROUP (ORDER BY antal) AS p95 FROM hist GROUP BY artnr, unit),
+        stats AS (SELECT artnr, unit, count(*) AS n, percentile_cont(CAST(:pct AS double precision)) WITHIN GROUP (ORDER BY antal) AS p95 FROM hist GROUP BY artnr, unit),
         days AS (SELECT artnr, unit, doy, count(*) AS cnt FROM hist GROUP BY artnr, unit, doy),
         sd AS (
             SELECT c.obsid, sum(d.cnt) AS n_sd FROM c JOIN days d ON d.artnr = c.artnr AND d.unit = c.unit
@@ -344,7 +344,7 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
         WHERE {pre}
         ORDER BY q.dato DESC, q.obsid DESC LIMIT :cap"""),
         {"since": since, "hist_from": hist_from, "all": afd is None, "afd": sorted(afd or []), "sd": season_days,
-         "antal_min": antal_min, "min_hist": MIN_HISTORY, "factor": antal_factor, "ny_max": ny_max,
+         "antal_min": antal_min, "min_hist": MIN_HISTORY, "factor": antal_factor, "pct": percentile / 100, "ny_max": ny_max,
          "obsids": obsids or [], "cap": limit * 3})).mappings().all()
 
     media = await media_many([r["obsid"] for r in rows if "dok" in criteria and r["kategori"] != "alm" and not r["fuglnoter"]])
@@ -363,7 +363,7 @@ async def candidates(db: AsyncSession, *, afd: set[int] | None, days: int, crite
         out.append({"obsid": r["obsid"], "dato": r["dato"].isoformat(), "artnr": r["artnr"], "art": r["art"], "antal": r["antal"],
                     "loknr": r["loknr"], "lok": r["lok"], "kommune": r["kommune"], "kategori": r["kategori"],
                     "observer": r["observer"] or r["obserkode"], "afdelinger": list(r["afdelinger"] or []),
-                    "historik": r["n"], "p95": round(r["p95"], 1) if r["p95"] is not None else None, "i_saesonen": r["n_sd"],
+                    "historik": r["n"], "p95": round(r["p95"], 1) if r["p95"] is not None else None, "percentil": percentile, "i_saesonen": r["n_sd"],
                     "matched": matched, "url": f"https://dofbasen.dk/popobs.php?obsid={r['obsid']}&summering=tur&obs=obs",
                     "thread": f"/#/traad/{r['dato'].isoformat()}/{r['artnr']}/{r['loknr']}" if r["loknr"] else None})
     out.sort(key=lambda x: (len(x["matched"]), x["dato"], x["obsid"]), reverse=True)  # flest ramte kriterier, så nyeste

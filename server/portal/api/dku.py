@@ -134,7 +134,7 @@ async def cases(view: str = Query("observer", pattern="^(observer|dku)$"), state
 async def candidates(days: int = Query(7, ge=1, le=30), kriterier: str = Query("antal,ny,saeson,dok"),
                      min_kriterier: int = Query(1, ge=1, le=4, alias="min"), niveau: str = Query("lok", pattern="^(lok|kommune)$"),
                      hist_years: int = Query(10, ge=1, le=30), antal_min: int = Query(5, ge=1, le=100000),
-                     faktor: float = Query(2.0, ge=1, le=100), ny_max: int = Query(0, ge=0, le=1000),
+                     faktor: float = Query(2.0, ge=1, le=100), percentil: float = Query(95, ge=50, le=100), ny_max: int = Query(0, ge=0, le=1000),
                      saeson_dage: int = Query(14, ge=1, le=90), afdeling: int | None = Query(None, ge=0),
                      kun_bemaerk: bool = Query(False), vis_behandlede: bool = Query(False), c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
     """Kandidater til DKU-sager: nylige observationer, der afviger fra det lokale. Kun for DKU-ansvarlige og administratorer."""
@@ -143,7 +143,7 @@ async def candidates(days: int = Query(7, ge=1, le=30), kriterier: str = Query("
     if not crit:
         raise HTTPException(400, "Vælg mindst ét kriterium")
     rows = await dku.candidates(db, afd=scope, days=days, criteria=crit, min_match=min(min_kriterier, len(crit)), level=niveau,
-                                hist_years=hist_years, antal_min=antal_min, antal_factor=faktor, ny_max=ny_max,
+                                hist_years=hist_years, antal_min=antal_min, antal_factor=faktor, percentile=percentil, ny_max=ny_max,
                                 season_days=saeson_dage, only_notable=kun_bemaerk)
     return await _candidate_rows(db, await dku.annotate(db, rows, vis_behandlede))
 
@@ -177,6 +177,7 @@ class FilterIn(BaseModel):
     hist_years: int = Field(10, ge=1, le=30)
     antal_min: int = Field(5, ge=1, le=100000)
     faktor: float = Field(2.0, ge=1, le=100)
+    percentil: float = Field(95, ge=50, le=100)
     ny_max: int = Field(0, ge=0, le=1000)
     saeson_dage: int = Field(14, ge=1, le=90)
     kun_bemaerk: bool = False
