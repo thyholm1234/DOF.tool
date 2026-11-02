@@ -1,5 +1,5 @@
 // Moderation → Arter: bemærk-grænser, fænologivinduer, artslisten, listekategorier og manuelle fund.
-import { api, h, icon, fmtN, fmtDate, seg, params, setParams, toast, errorBox, empty, modal, can } from "../../core.js";
+import { api, h, icon, fmtN, fmtDate, seg, params, setParams, toast, errorBox, empty, modal, can, searchSpecies } from "../../core.js";
 
 // Moderation → Arter: arternes klassifikation, bemærk-filtre pr. lokalafdeling og fænologiens perioder
 export function species(body) {
