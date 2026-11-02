@@ -7,12 +7,15 @@ overskrives ikke, medmindre importen beder om det. Importen sender aldrig notifi
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
 import math
+import os
 import re
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -35,6 +38,11 @@ IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".tif", ".tiff",
 MEMBER = re.compile(r"^(?:.*/)?(\d+)/(meta\.json|foto\.(?:jpg|jpeg|png|webp|gif|avif|tiff?|bmp))$", re.IGNORECASE)
 TAGS = photo_codes.TAGS
 LOK_KM = 5.0
+
+
+def prepare_photo_image(data: bytes) -> tuple[dict, content_media.Prepared]:
+    """Det CPU-tunge ved et foto (EXIF, WebP-konvertering, dekodning til varianter). Synkron, så den kan køre i en tråd."""
+    return imagemeta.read_camera(data), content_media.prepare_webp(data)
 
 
 # ---------------------------------------------------------------- kilder
@@ -170,6 +178,7 @@ class Run:
     countries: dict[tuple, int] = field(default_factory=dict)
     loks: dict[str, list[tuple[int, float | None, float | None]]] = field(default_factory=dict)
     groups: list[list[int]] = field(default_factory=list)
+    prep: dict[int, asyncio.Future] = field(default_factory=dict)  # forberedte billeder (prepare_photo_image) for fotos længere fremme
 
     def snapshot(self) -> tuple:
         """Opslagene, der kan pege på rækker oprettet i det aktuelle fotos transaktion (fotografer, lande, koder, grupper)."""
@@ -370,14 +379,17 @@ async def import_photo(session: AsyncSession, run: Run, src: Source, pid: int) -
     fname = next((n for n in src.names(pid) if n.startswith("foto.") and Path(n).suffix.lower() in IMAGE_EXT), None)
     if fname is None:
         raise ValueError("billedfilen mangler")
-    data = src.read(pid, fname)
+    if (task := run.prep.pop(pid, None)) is not None:
+        exif, prepared = await task  # allerede (ved at blive) lavet i puljen, mens de foregående fotos blev skrevet til DB
+    else:
+        data = src.read(pid, fname)
+        exif, prepared = await asyncio.to_thread(prepare_photo_image, data)
     if not kam.get("model"):
-        exif = imagemeta.read_camera(data)
         kam = {**exif, **{k: v for k, v in kam.items() if v}}
     photo.kamera = {k: v for k, v in kam.items() if v}
     before = photo.media_id
-    m = await content_media.store_image(session, data, filename=f"netfugl-{pid}{Path(fname).suffix}", owner_kind="foto", owner_id=photo.id,
-                                        credit=(f.get("navn") or "")[:160], webp=True)
+    m = await content_media.store_image(session, prepared.data, filename=f"netfugl-{pid}{Path(fname).suffix}", owner_kind="foto", owner_id=photo.id,
+                                        credit=(f.get("navn") or "")[:160], webp=True, prepared=prepared)
     if before == m.id:
         run.stats["billeder_genbrugt"] += 1
     elif before is not None:
@@ -492,7 +504,55 @@ async def _run(s: AsyncSession, imp: GalImport, run: Run, rel: str | None) -> No
     limit = run.options.get("limit")
     if limit:
         ids = ids[: int(limit)]
+    known = {}
+    if not run.options.get("dry_run"):
+        known = {r[0]: (r[1], r[2]) for r in (await s.execute(select(GalPhoto.netfugl_id, GalPhoto.source_hash, GalPhoto.locally_edited)
+                                                              .where(GalPhoto.netfugl_id.isnot(None)))).all()}
+    threads = max(1, int(run.options.get("threads") or min(4, os.cpu_count() or 2)))
+    pool = ThreadPoolExecutor(threads, thread_name_prefix="fotoimport")
+    ahead = threads * 2  # så mange fotos forberedes forud
+    try:
+        await _import_all(s, imp, run, src, ids, known, pool, ahead, import_id)
+    finally:
+        for t in run.prep.values():
+            t.cancel()
+        pool.shutdown(wait=False, cancel_futures=True)
+    if not run.options.get("dry_run"):
+        await build_groups(s, run)
+        m = await photo_photographers.match_all(s)
+        run.note("info", f"Fotografmatch: {m['auto']} automatisk, {m['tvetydig']} tvetydige, {m['ingen']} uden match")
+        await s.commit()
+
+
+def _prefetch(run: Run, src: Source, pid: int, known: dict, pool: ThreadPoolExecutor) -> None:
+    """Start billedarbejdet for et foto, hvis det skal importeres (nyt eller ændret). Filerne læses her; selve arbejdet sker i puljen.
+    Fejl her ignoreres: import_photo læser og melder dem selv, når fotoet kommer til."""
+    try:
+        raw = src.read(pid, "meta.json")
+        old = known.get(pid)
+        if old is not None and not run.options.get("force"):
+            if old[0] == hashlib.sha256(raw).hexdigest():
+                return  # uændret
+            if old[1] and not run.options.get("overwrite_local"):
+                return  # rettet lokalt og sprunget over
+        fname = next((n for n in src.names(pid) if n.startswith("foto.") and Path(n).suffix.lower() in IMAGE_EXT), None)
+        if fname is None:
+            return
+        fut = asyncio.get_running_loop().run_in_executor(pool, prepare_photo_image, src.read(pid, fname))
+        fut.add_done_callback(lambda f: f.cancelled() or f.exception())  # en aldrig brugt fejl skal ikke blive til en advarsel
+        run.prep[pid] = fut
+    except Exception:  # noqa: BLE001
+        return
+
+
+async def _import_all(s: AsyncSession, imp: GalImport, run: Run, src: Source, ids: list[int], known: dict, pool: ThreadPoolExecutor,
+                      ahead: int, import_id: int) -> None:
+    nxt = 0
     for n, pid in enumerate(ids, 1):
+        if not run.options.get("dry_run"):
+            while nxt < min(len(ids), n - 1 + ahead):
+                _prefetch(run, src, ids[nxt], known, pool)
+                nxt += 1
         if n % 25 == 1 or n == len(ids):
             await jobstatus.step(f"Foto {pid} ({n} af {len(ids)})", n, len(ids))
         snap = run.snapshot()
@@ -510,8 +570,3 @@ async def _run(s: AsyncSession, imp: GalImport, run: Run, rel: str | None) -> No
             cur = await s.get(GalImport, import_id)
             cur.stats, cur.log = dict(run.stats), list(run.log)
             await s.commit()
-    if not run.options.get("dry_run"):
-        await build_groups(s, run)
-        m = await photo_photographers.match_all(s)
-        run.note("info", f"Fotografmatch: {m['auto']} automatisk, {m['tvetydig']} tvetydige, {m['ingen']} uden match")
-        await s.commit()

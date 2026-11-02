@@ -13,7 +13,9 @@ import io
 import logging
 import re
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from PIL import Image, ImageOps
 from sqlalchemy import select
@@ -136,15 +138,69 @@ def _variants(data: bytes) -> tuple[int, int, dict[str, bytes]]:
         if getattr(im, "is_animated", False):
             return width, height, out  # animeret GIF/WebP: kun originalen
         im = im.convert("RGBA" if im.mode in ("RGBA", "LA", "P") else "RGB")
-        for tag, size in (("t", THUMB), ("m", MEDIUM)):
-            if max(width, height) <= size and tag == "m":
-                continue  # originalen er ikke større end mellemvarianten
-            c = im.copy()
-            c.thumbnail((size, size), Image.Resampling.LANCZOS)
-            buf = io.BytesIO()
-            c.save(buf, "WEBP", quality=80, method=4)
-            out[tag] = buf.getvalue()
-        return width, height, out
+        return width, height, _make_variants(im)
+
+
+def _make_variants(im: Image.Image) -> dict[str, bytes]:
+    """t- og m-varianten af et allerede dekodet, drejet RGB/RGBA-billede."""
+    width, height = im.size
+    out: dict[str, bytes] = {}
+    for tag, size in (("t", THUMB), ("m", MEDIUM)):
+        if max(width, height) <= size and tag == "m":
+            continue  # originalen er ikke større end mellemvarianten
+        c = im.copy()
+        c.thumbnail((size, size), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        c.save(buf, "WEBP", quality=80, method=4)
+        out[tag] = buf.getvalue()
+    return out
+
+
+@dataclass
+class Prepared:
+    """Det CPU-tunge arbejde med et billede, der gemmes som WebP: selve WebP-filen (uden EXIF/GPS) og en funktion, der laver varianterne
+    ud fra det billede, der allerede er dekodet. Kan laves i en tråd forud for ``store_image`` (fx af fotoimporten)."""
+    data: bytes
+    width: int
+    height: int
+    make_variants: Callable[[], dict[str, bytes]]
+
+
+def prepare_webp(data: bytes, quality: int = WEBP_QUALITY) -> Prepared:
+    """Som ``to_webp`` + ``_variants``, men billedet dekodes kun én gang. Synkron; kaster MediaError."""
+    if len(data) > MAX_IMAGE:
+        raise MediaError(f"Billedet er for stort (højst {MAX_IMAGE // 1024 // 1024} MB)")
+    if sniff_convertible(data) is None:
+        raise MediaError("Filen er ikke et billede (JPEG, PNG, GIF, WebP, AVIF, TIFF eller BMP)")
+    try:
+        if sniff_image(data) == ("image/webp", "webp") and _orientation(data) in (None, 1):
+            try:
+                out = imagemeta.strip(data)  # WebP genkodes ikke – kun metadata fjernes
+            except (ValueError, IndexError):
+                out = None  # ødelagte chunks: genkod
+            if out is not None:
+                with Image.open(io.BytesIO(out)) as im:
+                    width, height = im.size  # kun headeren læses
+
+                def lazy() -> dict[str, bytes]:
+                    return _variants(out)[2]
+                return Prepared(out, width, height, lazy)
+        with Image.open(io.BytesIO(data)) as src:
+            icc = src.info.get("icc_profile")
+            if getattr(src, "is_animated", False):
+                buf = io.BytesIO()
+                src.save(buf, "WEBP", save_all=True, quality=quality, method=4)  # animeret GIF → animeret WebP
+                return Prepared(buf.getvalue(), src.size[0], src.size[1], dict)
+            im = ImageOps.exif_transpose(src)  # orienteringen bages ind, da EXIF ikke følger med
+            alpha = im.mode in ("RGBA", "LA", "PA") or "transparency" in im.info
+            im = im.convert("RGBA" if alpha else "RGB")
+        buf = io.BytesIO()
+        im.save(buf, "WEBP", quality=quality, method=4, **({"icc_profile": icc} if icc else {}))
+        return Prepared(buf.getvalue(), im.size[0], im.size[1], lambda: _make_variants(im))
+    except MediaError:
+        raise
+    except Exception as exc:  # noqa: BLE001 – Pillow kaster mange slags fejl for ødelagte/ukendte filer
+        raise MediaError(f"Billedet kan ikke læses eller konverteres ({exc.__class__.__name__})") from exc
 
 
 def _reencode(data: bytes, mime: str) -> bytes:
@@ -174,14 +230,15 @@ async def _put(key: str, data: bytes, mime: str) -> None:
 
 async def store_image(session: AsyncSession, data: bytes, *, filename: str, owner_kind: str, owner_id: int | None, user_id: int | None = None,
                       alt: str = "", caption: str = "", credit: str = "", original_url: str | None = None, sort: int = 0,
-                      webp: bool = False) -> ContentMedia:
-    """webp=True: originalen gemmes altid som WebP, uanset hvilket billedformat der blev uploadet (også AVIF/TIFF/BMP)."""
+                      webp: bool = False, prepared: Prepared | None = None) -> ContentMedia:
+    """webp=True: originalen gemmes altid som WebP, uanset hvilket billedformat der blev uploadet (også AVIF/TIFF/BMP).
+    prepared: resultatet af prepare_webp(data), hvis det allerede er lavet (kun sammen med webp=True)."""
     if len(data) > MAX_IMAGE:
         raise MediaError(f"Billedet er for stort (højst {MAX_IMAGE // 1024 // 1024} MB)")
     if webp:
-        if sniff_convertible(data) is None:
-            raise MediaError("Filen er ikke et billede (JPEG, PNG, GIF, WebP, AVIF, TIFF eller BMP)")
-        data = await asyncio.to_thread(to_webp, data)
+        if prepared is None:
+            prepared = await asyncio.to_thread(prepare_webp, data)
+        data = prepared.data
         filename = f"{Path(clean_filename(filename)).stem}.webp"
     kind = sniff_image(data)
     if kind is None:
@@ -196,7 +253,10 @@ async def store_image(session: AsyncSession, data: bytes, *, filename: str, owne
     if (found := await _existing(session, owner_kind, owner_id, sha)) is not None:
         return found
     try:
-        width, height, variants = await asyncio.to_thread(_variants, data)
+        if prepared is not None:
+            width, height, variants = prepared.width, prepared.height, await asyncio.to_thread(prepared.make_variants)
+        else:
+            width, height, variants = await asyncio.to_thread(_variants, data)
     except Exception as exc:  # noqa: BLE001 – Pillow kaster mange slags fejl for ødelagte filer
         raise MediaError(f"Billedet kan ikke læses ({exc.__class__.__name__})") from exc
     key = f"{sha[:2]}/{sha}.{ext}"
