@@ -132,3 +132,154 @@ async def test_synlighed_og_snapshot(web, db):  # noqa: F811
     async with db() as s:
         c = (await s.execute(text("SELECT id FROM courses WHERE slug='k1'"))).scalar()
         assert await s.get(Course, c)
+
+
+# ---------------------------------------------------------------- fase 2: generatorer
+
+async def seed_obs(db, month):  # noqa: F811
+    """40 ture på lokalitet 100 i en måned (de seneste 4 år): art 1 ses på 30, art 3 kun som hemmelig observation."""
+    from datetime import date
+
+    from portal import cache
+
+    from portal.models import Trip
+
+    this = date.today().year
+    async with db() as s:
+        await (await s.connection()).run_sync(lambda c: Trip.__table__.create(c, checkfirst=True))
+        await s.execute(text("DELETE FROM trips"))
+        await s.execute(text("DELETE FROM observations WHERE obsid >= 9000"))
+        await s.execute(text("INSERT INTO species (artnr, navn, latin, sortering, art_type, list_artnr, klass, excluded) VALUES "
+                             "(3, 'Gråand', 'Anas platyrhynchos', 3, 'art', 3, 'Alm', false), (5, 'Sølvmåge', 'Larus argentatus', 5, 'art', 5, 'Alm', false), "
+                             "(6, 'Rødhals', 'Erithacus rubecula', 6, 'art', 6, 'Alm', false), (7, 'Musvit', 'Parus major', 7, 'art', 7, 'Alm', false) ON CONFLICT DO NOTHING"))
+        await s.execute(text("UPDATE species SET list_artnr = artnr WHERE artnr IN (1, 2)"))
+        i = 0
+        for year in range(this - 4, this):
+            for d in range(10):
+                i += 1
+                await s.execute(text("INSERT INTO trips (turid, dato, loknr, obserkode) VALUES (:t, :d, 100, 'LB')"), {"t": 8000 + i, "d": date(year, month, 10 + d)})
+                if i <= 30:
+                    await s.execute(text("INSERT INTO observations (obsid, turid, dato, artnr, antal, loknr, obserkode, hemmelig, kategori, afdelinger) VALUES (:o, :t, :d, 1, 1, 100, 'LB', 0, 'alm', '{}')"),
+                                    {"o": 9000 + i, "t": 8000 + i, "d": date(year, month, 10 + d)})
+                await s.execute(text("INSERT INTO observations (obsid, turid, dato, artnr, antal, loknr, obserkode, hemmelig, kategori, afdelinger) VALUES (:o, :t, :d, 3, 1, 100, 'LB', 1, 'alm', '{}')"),
+                                {"o": 9500 + i, "t": 8000 + i, "d": date(year, month, 10 + d)})
+        await s.commit()
+    await cache.set_json("pheno:weekly", {str(a): {"navn": n, "rr": [0.25] * 52} for a, n in [(1, "Dværgterne"), (3, "Gråand"), (5, "Sølvmåge"), (6, "Rødhals"), (7, "Musvit")]})
+
+
+async def test_lokalitetsspoergsmaal_ignorerer_hemmelige(db, monkeypatch):  # noqa: F811
+    import random
+    from datetime import date
+
+    from portal.services import learn_gen
+
+    monkeypatch.setattr(learn_gen, "ObsSession", db)
+    await seed_obs(db, date.today().month)
+    q = await learn_gen.loc_question("obs_habitat", {"loknr": 100, "maaned": date.today().month, "n_valg": 3}, random.Random(1))
+    assert q["correct"] == "Dværgterne" and len(q["options"]) == 3
+    # Gråand er kun set som hemmelig observation: den kan aldrig være det rigtige svar, men må gerne være en forkert mulighed
+    for seed in range(8):
+        q = await learn_gen.loc_question("obs_habitat", {"loknr": 100, "maaned": date.today().month, "n_valg": 4}, random.Random(seed))
+        assert q["correct"] == "Dværgterne" and len(set(q["options"])) == 4
+        assert "30 af 40" not in q["explanation"] and "75 %" in q["explanation"] and "40 ture" in q["explanation"]
+    # for få ture → fejl
+    with pytest.raises(learn_gen.GenError):
+        await learn_gen.loc_question("obs_habitat", {"loknr": 100, "maaned": (date.today().month % 12) + 1}, random.Random(1))
+
+
+async def test_generator_i_kursus_uden_facit_til_klienten(web, db, monkeypatch):  # noqa: F811
+    from datetime import date
+
+    from portal.models import Course, Question, Unit
+    from portal.services import learn_gen, learning
+
+    monkeypatch.setattr(learn_gen, "ObsSession", db)
+    await seed_obs(db, date.today().month)
+    async with db() as s:
+        c = Course(slug="data", title="Data", kind="kursus", published=True)
+        s.add(c)
+        await s.flush()
+        u = Unit(course_id=c.id, position=0, title="L1")
+        s.add(u)
+        await s.flush()
+        s.add(Question(course_id=c.id, unit_id=u.id, position=0, type="obs_habitat", prompt="", choices=[], config={"loknr": 100, "maaned": date.today().month, "antal": 2}))
+        s.add(Question(course_id=c.id, unit_id=u.id, position=1, type="foto_art", prompt="", choices=[], config={"gruppe": "drosler"}))
+        await s.commit()
+        uid = u.id
+        await learning.migrate_v2(s)
+    await flags(db, laering_portal="on", artsquiz="off")
+    res = (await web["ad"].get(f"/api/learn/units/{uid}/session")).json()
+    qs = res["questions"]
+    assert len(qs) == 3
+    obs = [q for q in qs if q["id"].startswith("lr:")]
+    assert len(obs) == 2 and all("correct" not in q and "map" in q for q in obs)
+    assert [q for q in qs if q.get("locked")][0]["locked"] == "Fotoquizzen er ikke slået til"
+    q = obs[0]
+    right = next(c["id"] for c in q["choices"] if c["text"] == "Dværgterne")
+    r = (await web["ad"].post("/api/learn/svar", json={"id": q["id"], "chosen": [right], "confidence": 2})).json()
+    assert r["correct"] and "Dværgterne" in r["explanation"]
+    assert (await web["ad"].post("/api/learn/svar", json={"id": q["id"], "chosen": [right]})).json()["correct"]  # token kan genbruges i TTL
+    wrong = next(c["id"] for c in obs[1]["choices"] if c["text"] != "Dværgterne")
+    assert not (await web["ad"].post("/api/learn/svar", json={"id": obs[1]["id"], "chosen": [wrong]})).json()["correct"]
+    assert (await web["ad"].post("/api/learn/svar", json={"id": "lr:findesikke", "chosen": [0]})).status_code == 410
+    # uden data-flag låses datagenerator
+    await flags(db, laering_data="off")
+    qs = (await web["ad"].get(f"/api/learn/units/{uid}/session")).json()["questions"]
+    assert all(q.get("locked") for q in qs)
+
+
+# ---------------------------------------------------------------- fase 3: træning, repetition, forbered en tur
+
+async def test_forbered_en_tur(web, db, monkeypatch):  # noqa: F811
+    from datetime import date
+
+    from portal.services import learn_gen
+
+    monkeypatch.setattr(learn_gen, "ObsSession", db)
+    m = date.today().month
+    await seed_obs(db, m)
+    await flags(db, laering_portal="on", laering_data="on")
+    d = (await web["a1"].get(f"/api/learn/forbered?loknr=100&dato={date.today().year}-{m:02d}-15")).json()
+    assert d["ture"] == 40 and d["sted"]["navn"] == "Tisvildekysten"
+    sikker = [a["navn"] for g in d["grupper"] if g["key"] == "sikker" for a in g["arter"]]
+    assert sikker == ["Dværgterne"]
+    assert "Gråand" not in [a["navn"] for g in d["grupper"] for a in g["arter"]]  # kun set som hemmelig observation
+    # for få ture → hele landet
+    d2 = (await web["a1"].get(f"/api/learn/forbered?loknr=101&dato={date.today().year}-{m:02d}-15")).json()
+    assert "hele landet" in d2["note"] and d2["ture"] == 0
+    await flags(db, laering_data="off")
+    assert (await web["a1"].get("/api/learn/forbered")).status_code == 404
+
+
+async def test_gemte_traeninger_og_deling(web, db):  # noqa: F811
+    await flags(db, laering_portal="on")
+    r = await web["a1"].post("/api/learn/traeninger", json={"title": "Mine drosler", "kilde": "gruppe", "gruppe": "drosler", "m": "lyd", "metode": "tekst", "n": 10})
+    assert r.status_code == 200, r.text
+    tid = r.json()["id"]
+    lst = (await web["a1"].get("/api/learn/traeninger")).json()
+    assert [t["title"] for t in lst] == ["Mine drosler"] and lst[0]["config"]["m"] == "lyd"
+    assert (await web["a2"].get("/api/learn/traeninger")).json() == []
+    assert (await web["a2"].post(f"/api/learn/traeninger/{tid}/del")).status_code == 404  # kun ejeren kan dele
+    tok = (await web["a1"].post(f"/api/learn/traeninger/{tid}/del")).json()["token"]
+    assert (await web["a1"].post(f"/api/learn/traeninger/{tid}/del")).json()["token"] == tok
+    got = (await web["a2"].get(f"/api/learn/traeninger/delt/{tok}")).json()
+    assert got["title"] == "Mine drosler" and got["config"]["gruppe"] == "drosler"
+    assert (await web["a2"].delete(f"/api/learn/traeninger/{tid}")).status_code == 404
+    assert (await web["a1"].delete(f"/api/learn/traeninger/{tid}")).status_code == 200
+    assert (await web["a2"].get(f"/api/learn/traeninger/delt/{tok}")).status_code == 404
+
+
+async def test_traening_kraever_flag_og_repetition(web, db):  # noqa: F811
+    from portal.services import learning
+
+    await flags(db, laering_portal="on")
+    r = await web["a1"].post("/api/learn/traen", json={"kilde": "gruppe", "gruppe": "drosler", "m": "foto"})
+    assert r.status_code == 409 and "ikke slået til" in r.json()["detail"]
+    await seed_course(db)
+    async with db() as s:
+        await learning.migrate_v2(s)
+        await s.execute(text("INSERT INTO question_progress (user_id, question_id, box, correct, wrong, due_at) SELECT 1, id, 0, 0, 1, now() - interval '1 hour' FROM questions WHERE type = 'valg'"))
+        await s.commit()
+    d = (await web["a1"].get("/api/learn/repetition")).json()
+    assert d["antal"]["spoergsmaal"] == 1 and len(d["questions"]) == 1 and "correct" not in str(d)
+    assert (await web["a2"].get("/api/learn/repetition")).json()["questions"] == []

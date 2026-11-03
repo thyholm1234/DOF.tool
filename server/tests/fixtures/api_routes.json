@@ -4965,6 +4965,32 @@ false,
 "params": []
 }
 },
+"/api/learn/auto-session/{kind}": {
+"get": {
+"body": false,
+"op": "auto_session_api_learn_auto_session__kind__get",
+"params": [
+[
+"afdeling",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Afdeling\"}"
+],
+[
+"kind",
+"path",
+true,
+"{\"title\": \"Kind\", \"type\": \"string\"}"
+],
+[
+"n",
+"query",
+false,
+"{\"default\": 10, \"maximum\": 30, \"minimum\": 1, \"title\": \"N\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/learn/auto/answer": {
 "post": {
 "body": true,
@@ -5104,6 +5130,26 @@ false,
 "path",
 true,
 "{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/forbered": {
+"get": {
+"body": false,
+"op": "forbered_api_learn_forbered_get",
+"params": [
+[
+"dato",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Dato\"}"
+],
+[
+"loknr",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Loknr\"}"
 ]
 ]
 }
@@ -5269,6 +5315,13 @@ true,
 ]
 }
 },
+"/api/learn/repetition": {
+"get": {
+"body": false,
+"op": "repetition_api_learn_repetition_get",
+"params": []
+}
+},
 "/api/learn/result": {
 "post": {
 "body": true,
@@ -5281,6 +5334,88 @@ true,
 "body": true,
 "op": "svar_api_learn_svar_post",
 "params": []
+}
+},
+"/api/learn/traen": {
+"post": {
+"body": true,
+"op": "traen_api_learn_traen_post",
+"params": []
+}
+},
+"/api/learn/traen/arter": {
+"get": {
+"body": false,
+"op": "traen_arter_api_learn_traen_arter_get",
+"params": [
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 60, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/traen/muligheder": {
+"get": {
+"body": false,
+"op": "traen_muligheder_api_learn_traen_muligheder_get",
+"params": []
+}
+},
+"/api/learn/traeninger": {
+"get": {
+"body": false,
+"op": "traeninger_api_learn_traeninger_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "traening_gem_api_learn_traeninger_post",
+"params": []
+}
+},
+"/api/learn/traeninger/delt/{token}": {
+"get": {
+"body": false,
+"op": "traening_delt_api_learn_traeninger_delt__token__get",
+"params": [
+[
+"token",
+"path",
+true,
+"{\"title\": \"Token\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/traeninger/{tid}": {
+"delete": {
+"body": false,
+"op": "traening_slet_api_learn_traeninger__tid__delete",
+"params": [
+[
+"tid",
+"path",
+true,
+"{\"title\": \"Tid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/traeninger/{tid}/del": {
+"post": {
+"body": false,
+"op": "traening_del_api_learn_traeninger__tid__del_post",
+"params": [
+[
+"tid",
+"path",
+true,
+"{\"title\": \"Tid\", \"type\": \"integer\"}"
+]
+]
 }
 },
 "/api/learn/units/{unit_id}/faerdig": {

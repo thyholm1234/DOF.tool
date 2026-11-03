@@ -197,3 +197,136 @@ async def sound_file(rid: int, user: User = Depends(require_user), db: AsyncSess
     except sound_quiz.SoundError as exc:
         raise HTTPException(502, str(exc)) from exc
     return FileResponse(path, headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
+
+
+# ---------------------------------------------------------------- egne træninger, repetition og forbered en tur (spec §6–7)
+
+class TrainIn(BaseModel):
+    kilde: str | None = Field(None, max_length=12)
+    gruppe: str | None = Field(None, max_length=40)
+    arter: list[int] = Field(default_factory=list, max_length=600)
+    loknr: int | None = None
+    afdeling_id: int | None = None
+    kursus: str | None = Field(None, max_length=80)
+    m: str = Field("foto", pattern="^(foto|lyd|begge)$")
+    metode: str = Field("valg", pattern="^(valg|tekst)$")
+    rtype: str = Field("begge", pattern="^(sang|kald|begge)$")
+    n: int = Field(20, ge=1, le=40)
+
+
+async def _mods(db: AsyncSession, user: User) -> tuple[bool, bool]:
+    return await learn_access.artsquiz(db, user), await learn_access.lydquiz(db, user)
+
+
+@router.post("/traen")
+async def traen(body: TrainIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.services import learn_train, species_quiz as sq
+
+    if not await learn_access.portal(db, user):
+        raise HTTPException(404)
+    await _rate(user, "traen", 30)
+    foto, lyd = await _mods(db, user)
+    try:
+        return {"questions": await learn_train.build(db, user, body.model_dump(), foto, lyd)}
+    except (learn_train.TrainError, sq.QuizError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.get("/traen/muligheder")
+async def traen_muligheder(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.services import species_quiz as sq
+
+    if not await learn_access.portal(db, user):
+        raise HTTPException(404)
+    foto, lyd = await _mods(db, user)
+    return {"foto": foto, "lyd": lyd, "grupper": [{"key": g["key"], "navn": g["navn"], "beskrivelse": g["beskrivelse"], "n": len(g["arter"])} for g in await sq.preset_groups(db)],
+            "ml": can(user, "laering")}
+
+
+@router.get("/traen/arter")
+async def traen_arter(q: str = Query("", max_length=60), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Artssøgning til artsvælgeren."""
+    rows = (await db.execute(text("""SELECT artnr, navn, latin FROM species WHERE art_type = 'art' AND list_artnr = artnr AND NOT excluded
+        AND (navn ILIKE :q OR latin ILIKE :q) ORDER BY sortering LIMIT 15"""), {"q": f"%{q.strip()}%"})).mappings().all()
+    return [dict(r) for r in rows]
+
+
+class SaveIn(TrainIn):
+    title: str = Field(max_length=160)
+
+
+@router.get("/traeninger")
+async def traeninger(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.models import LrTraining
+
+    rows = (await db.execute(select(LrTraining).where(LrTraining.user_id == user.id).order_by(LrTraining.created_at.desc()))).scalars().all()
+    return [{"id": t.id, "title": t.title, "config": t.config, "share_token": t.share_token} for t in rows]
+
+
+@router.post("/traeninger")
+async def traening_gem(body: SaveIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.services import learn_train
+
+    t = await learn_train.save_training(db, user, body.title, body.model_dump(exclude={"title"}))
+    return {"id": t.id, "title": t.title, "config": t.config}
+
+
+@router.delete("/traeninger/{tid}")
+async def traening_slet(tid: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.models import LrTraining
+
+    t = await db.get(LrTraining, tid)
+    if t is None or t.user_id != user.id:
+        raise HTTPException(404)
+    await db.delete(t)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.post("/traeninger/{tid}/del")
+async def traening_del(tid: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.models import LrTraining
+    from portal.services import learn_train
+
+    t = await db.get(LrTraining, tid)
+    if t is None or t.user_id != user.id:
+        raise HTTPException(404)
+    return {"token": await learn_train.share(db, t)}
+
+
+@router.get("/traeninger/delt/{token}")
+async def traening_delt(token: str, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.models import LrTraining
+
+    t = (await db.execute(select(LrTraining).where(LrTraining.share_token == token))).scalar_one_or_none()
+    if t is None:
+        raise HTTPException(404, "Træningen findes ikke (mere)")
+    return {"title": t.title, "config": t.config}
+
+
+@router.get("/repetition")
+async def repetition(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.services import learn_train
+
+    if not await learn_access.portal(db, user):
+        raise HTTPException(404)
+    foto, lyd = await _mods(db, user)
+    return {"antal": await learn_train.due_counts(db, user), "questions": await learn_train.repetition(db, user, foto, lyd)}
+
+
+@router.get("/forbered")
+async def forbered(loknr: int | None = None, dato: str | None = None, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from datetime import date
+
+    from portal.services import learn_train
+
+    if not (await learn_access.portal(db, user) and await learn_access.data(db, user)):
+        raise HTTPException(404)
+    try:
+        d = date.fromisoformat(dato) if dato else date.today()
+    except ValueError as exc:
+        raise HTTPException(400, "Ugyldig dato") from exc
+    try:
+        return await learn_train.prepare(db, loknr, d)
+    except learn_train.TrainError as exc:
+        raise HTTPException(404, str(exc)) from exc
