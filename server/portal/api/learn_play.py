@@ -130,6 +130,19 @@ async def drill_session(slug: str, n: int = Query(10, ge=1, le=40), mode: str = 
     return {"course": st["course"], "questions": await learn_play.drill_questions(db, user, st, n, mode), "tid_s": 15 if mode == "tid" else None}
 
 
+@router.get("/auto-session/{kind}")
+async def auto_session(kind: str, n: int = Query(10, ge=1, le=30), afdeling: int | None = None, user: User | None = Depends(_portal),
+                       db: AsyncSession = Depends(get_session)):
+    from portal.services import learning
+
+    if kind not in learning.AUTO_KINDS or not await learn_access.data(db, user):
+        raise HTTPException(404)
+    qs = await learn_play.auto_session(db, kind, n, afdeling)
+    if not qs:
+        raise HTTPException(409, "Der er endnu ikke nok data til denne quiz (kræver importerede observationer).")
+    return {"title": learning.AUTO_KINDS[kind], "questions": qs}
+
+
 class SvarIn(BaseModel):
     id: int | str
     chosen: list[int] = Field(default_factory=list, max_length=10)

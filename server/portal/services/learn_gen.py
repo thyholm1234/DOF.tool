@@ -144,7 +144,7 @@ async def loc_question(kind: str, cfg: dict, rng: random.Random) -> dict:
         expl = (f"{rn} blev set på {_fmt_pct(rk, trips)} af de {trips} ture til {sted} i denne periode. "
                 + ", ".join(f"{w['navn']} er almindelig i landet nu, men blev ikke set her" for _, w in wrong[:2]) + ".")
         return {"prompt": prompt, "options": options, "correct": rn, "explanation": expl, "artnr": ra,
-                "map": {"lat": loc["lat"], "lon": loc["lon"], "navn": sted}, "loknr": loc["loknr"]}
+                "map": {"lat": loc["lat"], "lon": loc["lon"], "navn": sted, "loknr": loc["loknr"]}, "loknr": loc["loknr"]}
     raise GenError("Der er ikke data nok til et spørgsmål lige nu")
 
 

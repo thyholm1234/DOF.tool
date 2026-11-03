@@ -3,7 +3,14 @@ import { api, state, h, icon, empty, errorBox, modal, toast, loadRef, compressIm
 const TOPIC = { id: "Artsbestemmelse", kald: "Kald og stemmer", saeson: "Årstid og træk", andet: "Andet" };
 const isEditor = () => can("laering");
 
-export async function render(view, [sub]) {
+/** Skallen: den nye Læring (laer.js, funktionen «laering_portal»), ellers den gamle visning herunder. */
+export async function render(view, args) {
+  const info = await api("/api/learn/portal").catch(() => ({ portal: false }));
+  if (info.portal) return (await import("./laer.js")).render(view, args, info);
+  return legacy(view, args);
+}
+
+export async function legacy(view, [sub]) {
   if (!sub) return overview(view);
   const [kind, arg] = sub.split("/");
   if (kind === "arter" || kind === "lyd") return (await import("./learn-arter.js")).render(view, kind);

@@ -556,3 +556,8 @@ async def finish_unit(db: AsyncSession, user: User, unit_id: int, score: int, to
     row.completed_at = row.completed_at or now
     await db.commit()
     return {"best": [row.best_score, row.total], "attempts": row.attempts}
+
+
+async def auto_session(db: AsyncSession, kind: str, n: int, afdeling_id: int | None) -> list[dict]:
+    qs = await learning.auto_quiz(db, kind, n, afdeling_id)
+    return [{"id": "auto:" + q["id"], "type": "obs", "ask_confidence": True, "skills": ["Forbered", "Vurdér"], "prompt": q["prompt"], "choices": q["choices"], "multi": False} for q in qs]
