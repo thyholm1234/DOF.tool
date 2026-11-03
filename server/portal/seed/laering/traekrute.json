@@ -1,0 +1,3059 @@
+{
+ "version": 1,
+ "courses": [
+  {
+   "slug": "iagttag-foer-du-navngiver",
+   "number": 1,
+   "stage": "Grundlæggende",
+   "title": "Iagttag før du navngiver",
+   "summary": "Lær at samle brugbare spor, før du beslutter, hvilken fugl du ser.",
+   "card": "Hold det, du så, adskilt fra det, du tror, det betyder. Læs form, proportioner og bevægelse, før du griber efter en feltkendetegn.",
+   "intro": "Gode bestemmelser begynder med gode iagttagelser. I dette kursus øver du dig i at beskrive, hvad du faktisk ser og hører – og i at holde det adskilt fra din tolkning.",
+   "topic": "id",
+   "level": "begynder",
+   "published": true,
+   "hours": "4–5 timer",
+   "hue": "himmel",
+   "sil": "rovfugl",
+   "skills": [
+    "Bemærk",
+    "Sammenlign",
+    "Vurdér"
+   ],
+   "audience": "For alle, der vil have en mere pålidelig måde at bestemme fugle på.",
+   "learn": [
+    {
+     "title": "Notér brugbare iagttagelser",
+     "text": "Beskriv synlige og hørbare spor med ord, som en anden fuglekigger kan vurdere."
+    },
+    {
+     "title": "Skil viden fra gæt",
+     "text": "Adskil direkte iagttagelse fra tolkning, og sig hvad du ikke kunne afgøre."
+    },
+    {
+     "title": "Brug form og bevægelse",
+     "text": "Vælg en arbejdsgruppe ud fra helhedsform, proportioner og bevægelse, før du overvejer art."
+    },
+    {
+     "title": "Brug metoden",
+     "text": "Forudsig, opdag, tolk, adskil og beslut – og vælg et bestemmelsesniveau med en ærlig sikkerhed."
+    }
+   ],
+   "units": [
+    {
+     "id": "u1",
+     "title": "Gør en iagttagelse",
+     "lesson": "En iagttagelse er det, du faktisk så eller hørte – ikke navnet på fuglen.\n\nSkriv kort: **størrelse** i forhold til en kendt art, **form**, **adfærd**, **sted** og **lyd**. \"Solsortstor, lang hale, hopper på plænen\" er en god iagttagelse. \"Det var en drossel\" er en tolkning.\n\nNår du holder de to ting adskilt, kan du senere gå tilbage og se, hvor en fejl opstod.",
+     "questions": [
+      {
+       "id": "u1q1",
+       "type": "valg",
+       "prompt": "Hvilken sætning er en ren iagttagelse – uden tolkning?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Fuglen var lidt mindre end en solsort og vippede med halen.",
+         "correct": true
+        },
+        {
+         "text": "Det var nok en gransanger.",
+         "correct": false
+        },
+        {
+         "text": "Fuglen var sjælden for årstiden.",
+         "correct": false
+        },
+        {
+         "text": "Den lignede en, jeg så sidste år.",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Kun den første beskriver noget, du direkte kunne se. De andre er tolkninger eller vurderinger."
+      },
+      {
+       "id": "u1q2",
+       "type": "valg",
+       "prompt": "Du hører en lyd, men ser ikke fuglen. Hvad bør du notere?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Lydens rytme, tonehøjde og hvor den kom fra",
+         "correct": true
+        },
+        {
+         "text": "Artens navn, så hurtigt som muligt",
+         "correct": false
+        },
+        {
+         "text": "Ingenting – uden at se fuglen tæller det ikke",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Lyd er værdifuld evidens. Beskriv rytme, tonehøjde og retning, så du kan vurdere det senere."
+      },
+      {
+       "id": "u1q3",
+       "type": "valg",
+       "prompt": "Hvorfor er det nyttigt at sige, hvad du IKKE kunne se?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Det viser, hvor stærk din bestemmelse egentlig er",
+         "correct": true
+        },
+        {
+         "text": "Det er ikke nyttigt",
+         "correct": false
+        },
+        {
+         "text": "Det gør observationen længere",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "En ærlig beskrivelse af huller i iagttagelsen gør det lettere for dig og andre at vurdere bestemmelsen."
+      }
+     ]
+    },
+    {
+     "id": "u2",
+     "title": "Form før farve",
+     "lesson": "Farver ændrer sig med lys, slid og dragt. **Form ændrer sig langt mindre.**\n\nSe på næbbets længde og facon, halens længde, benenes længde og kroppens holdning. En siddende rovfugl, en due og en drossel kan have samme farvetone i modlys – men formen afslører dem straks.",
+     "questions": [
+      {
+       "id": "u2q1",
+       "type": "valg",
+       "prompt": "Hvilken gruppe passer bedst til denne silhuet?",
+       "media": {
+        "kind": "silhouette",
+        "value": "rovfugl",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Rovfugl",
+         "correct": true
+        },
+        {
+         "text": "Due",
+         "correct": false
+        },
+        {
+         "text": "Spurvefugl",
+         "correct": false
+        },
+        {
+         "text": "Måge",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Opret holdning, kraftig krop, kort krog-næb og bred hale peger mod en siddende rovfugl."
+      },
+      {
+       "id": "u2q2",
+       "type": "valg",
+       "prompt": "Hvilken gruppe passer bedst til denne silhuet?",
+       "media": {
+        "kind": "silhouette",
+        "value": "hejre",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Hejre",
+         "correct": true
+        },
+        {
+         "text": "Vadefugl",
+         "correct": false
+        },
+        {
+         "text": "Svane",
+         "correct": false
+        },
+        {
+         "text": "Skarv",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Meget lange ben, S-formet hals og et dolkformet næb er typisk for hejrer."
+      },
+      {
+       "id": "u2q3",
+       "type": "valg",
+       "prompt": "Hvorfor er form ofte mere pålidelig end farve?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Lys og slid ændrer farver, men ikke proportioner",
+         "correct": true
+        },
+        {
+         "text": "Fordi alle fugle har samme farve",
+         "correct": false
+        },
+        {
+         "text": "Fordi kikkerter forvrænger farver",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Modlys, skygge og slidte fjer kan narre øjet. Proportioner er mere stabile."
+      }
+     ]
+    },
+    {
+     "id": "u3",
+     "title": "Læs bevægelsen",
+     "lesson": "Måden en fugl bevæger sig på er et kendetegn i sig selv.\n\nHopper den eller går den? Vipper den med halen? Flyver den i bølger eller lige ud? Spætter flyver i dybe bølger, svaler kaster sig rundt i luften, og musvågen kredser på brede, stille vinger.",
+     "questions": [
+      {
+       "id": "u3q1",
+       "type": "valg",
+       "prompt": "En lille fugl flyver i dybe bølger mellem træerne og lander lodret på en stamme. Hvad peger det mod?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "En spætte",
+         "correct": true
+        },
+        {
+         "text": "En svale",
+         "correct": false
+        },
+        {
+         "text": "En due",
+         "correct": false
+        },
+        {
+         "text": "En måge",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Bølgeflugt og lodret landing på stammer er typisk for spætter."
+      },
+      {
+       "id": "u3q2",
+       "type": "valg",
+       "prompt": "Hvilken fugl passer bedst til silhuetten i flugt: lange spidse vinger og dybt kløftet hale?",
+       "media": {
+        "kind": "silhouette",
+        "value": "svale",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Landsvale",
+         "correct": true
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Gråand",
+         "correct": false
+        },
+        {
+         "text": "Ringdue",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Den dybt kløftede hale og de spidse vinger er klassiske svalekendetegn."
+      }
+     ]
+    },
+    {
+     "id": "u4",
+     "title": "Din første bestemmelse",
+     "lesson": "Nu samler du det hele. Brug fem trin:\n\n1. **Forudsig** – hvad er sandsynligt her og nu?\n2. **Opdag** – hvad ser og hører du faktisk?\n3. **Tolk** – hvad betyder sporene?\n4. **Adskil** – hvilke arter kan forveksles, og hvad skiller dem?\n5. **Beslut** – på hvilket niveau kan du bestemme fuglen, og hvor sikker er du?",
+     "questions": [
+      {
+       "id": "u4q1",
+       "type": "valg",
+       "prompt": "Du har kun set en stor, brun rovfugl kredse højt oppe i to sekunder. Hvad er den mest ærlige konklusion?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Rovfugl, sandsynligvis musvåge – lav sikkerhed",
+         "correct": true
+        },
+        {
+         "text": "Helt sikkert en musvåge",
+         "correct": false
+        },
+        {
+         "text": "Ørn – den var stor",
+         "correct": false
+        },
+        {
+         "text": "Ingen konklusion er mulig",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Det er fint at give et sandsynligt bud, så længe sikkerheden matcher evidensen."
+      },
+      {
+       "id": "u4q2",
+       "type": "valg",
+       "prompt": "Hvilket trin kommer FØR du ser fuglen?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Forudsig",
+         "correct": true
+        },
+        {
+         "text": "Adskil",
+         "correct": false
+        },
+        {
+         "text": "Beslut",
+         "correct": false
+        },
+        {
+         "text": "Tolk",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Du kan forudsige, hvad der er sandsynligt ud fra sted og årstid, allerede før du løfter kikkerten."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "en-bestemmelse-du-kan-forklare",
+   "number": 2,
+   "stage": "Grundlæggende",
+   "title": "En bestemmelse du kan forklare",
+   "summary": "Lav en bestemmelse, som en anden fuglekigger kan se på, tjekke og stille spørgsmål til.",
+   "card": "Start med stedet. Byg en realistisk startliste ud fra levested og årstid, behold de kandidater der passer, og stop på det niveau, din evidens bærer.",
+   "intro": "En god bestemmelse kan forklares. Du lærer at starte bredt, indsnævre ud fra levested og årstid og stoppe på det niveau, din evidens rækker til.",
+   "topic": "id",
+   "level": "begynder",
+   "published": true,
+   "hours": "8 timer",
+   "hue": "sø",
+   "sil": "and",
+   "skills": [
+    "Genkald",
+    "Sammenlign",
+    "Vurdér"
+   ],
+   "audience": "For fuglekiggere, der vil gøre iagttagelser til bestemmelser, de kan forklare.",
+   "learn": [
+    {
+     "title": "Byg en realistisk startliste",
+     "text": "Brug levested, sted, årstid og indrapporteringer til at forberede muligheder – ikke beviser."
+    },
+    {
+     "title": "Vælg gruppe eller familie",
+     "text": "Brug tegningernes placering sammen med helhedsformen, og skeln mellem arbejdsgruppe og familie."
+    },
+    {
+     "title": "Sammenlign reelle alternativer",
+     "text": "Afprøv visuelle og lydlige kandidater mod de samme iagttagne træk."
+    },
+    {
+     "title": "Beslut eller stop",
+     "text": "Vælg art, artspar, gruppe eller lad fuglen stå ubestemt – og sig hvilken evidens der mangler."
+    }
+   ],
+   "units": [
+    {
+     "id": "u1",
+     "title": "Læs levestedet",
+     "lesson": "Levestedet sorterer hurtigt i mulighederne. En fugl i tagrørsskoven er sjældent en mejse fra bøgeskoven, og en vadefugl på mudderfladen er sjældent en spurvefugl.\n\nSpørg dig selv: **Hvilke arter bruger netop denne type sted på denne tid af året?**",
+     "questions": [
+      {
+       "id": "u1q1",
+       "type": "valg",
+       "prompt": "Du står ved en lavvandet fjord med mudderflader i september. Hvilken gruppe er MEST sandsynlig her?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Vadefugle",
+         "correct": true
+        },
+        {
+         "text": "Spætter",
+         "correct": false
+        },
+        {
+         "text": "Mejser",
+         "correct": false
+        },
+        {
+         "text": "Skovsangere",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Mudderflader i trækperioden er spisekammer for vadefugle."
+      },
+      {
+       "id": "u1q2",
+       "type": "valg",
+       "prompt": "Hvilket levested passer bedst til rørsanger?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Tagrørsskov",
+         "correct": true
+        },
+        {
+         "text": "Gammel bøgeskov",
+         "correct": false
+        },
+        {
+         "text": "Åben strand",
+         "correct": false
+        },
+        {
+         "text": "Bymidte",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Rørsangeren er knyttet til tagrør – navnet er et godt hint."
+      }
+     ]
+    },
+    {
+     "id": "u2",
+     "title": "Brug sted, årstid og lister",
+     "lesson": "Årstiden er lige så vigtig som stedet. Mange arter er kun i Danmark om sommeren, andre kun om vinteren.\n\nEn **startliste** er ikke et bevis – den fortæller, hvad du bør overveje først.",
+     "questions": [
+      {
+       "id": "u2q1",
+       "type": "valg",
+       "prompt": "Det er januar. Hvilken af disse er MEST sandsynlig i en dansk have?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Musvit",
+         "correct": true
+        },
+        {
+         "text": "Landsvale",
+         "correct": false
+        },
+        {
+         "text": "Gøg",
+         "correct": false
+        },
+        {
+         "text": "Mursejler",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Musvitten er standfugl. Landsvale, gøg og mursejler er trækfugle, der overvintrer i Afrika."
+      },
+      {
+       "id": "u2q2",
+       "type": "valg",
+       "prompt": "Hvad er en startliste?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "En liste over sandsynlige arter ud fra sted og årstid",
+         "correct": true
+        },
+        {
+         "text": "En liste over arter, man har set",
+         "correct": false
+        },
+        {
+         "text": "En liste over sjældne fugle",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Startlisten hjælper dig med at forudsige – den beviser ikke, hvad du ser."
+      }
+     ]
+    },
+    {
+     "id": "u3",
+     "title": "Sammenlign de reelle muligheder",
+     "lesson": "Når du har to eller tre kandidater, så sammenlign dem på **de samme træk**: størrelse, næb, ben, hale, stemme og adfærd.\n\nFind det ene træk, der faktisk adskiller dem – og se efter netop det.",
+     "questions": [
+      {
+       "id": "u3q1",
+       "type": "valg",
+       "prompt": "Løvsanger eller gransanger? Hvilket træk adskiller dem bedst i felten?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Sangen",
+         "correct": true
+        },
+        {
+         "text": "Fjerdragtens grønne farve",
+         "correct": false
+        },
+        {
+         "text": "Størrelsen",
+         "correct": false
+        },
+        {
+         "text": "Levestedet",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "De to arter er næsten ens at se på, men sangen er helt forskellig: gransangerens 'zilp-zalp' mod løvsangerens bløde, faldende strofe."
+      },
+      {
+       "id": "u3q2",
+       "type": "valg",
+       "prompt": "Sølvmåge eller stormmåge (voksne)? Hvad er det bedste første træk at tjekke?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Størrelse og næbbets kraft",
+         "correct": true
+        },
+        {
+         "text": "Rygfarven",
+         "correct": false
+        },
+        {
+         "text": "Om den flyver",
+         "correct": false
+        },
+        {
+         "text": "Om den er ved vand",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Stormmågen er tydeligt mindre med et spinkelt, gulligt næb. Rygfarven er ret ens."
+      }
+     ]
+    },
+    {
+     "id": "u4",
+     "title": "Beslut eller stop",
+     "lesson": "Det er ikke et nederlag at stoppe på **'måge sp.'** eller **'løvsanger/gransanger'**. Det er ærlig registrering.\n\nSpørg: Hvilken evidens ville jeg skulle bruge for at gå et niveau dybere?",
+     "questions": [
+      {
+       "id": "u4q1",
+       "type": "valg",
+       "prompt": "Du så en grønlig sanger kort og hørte ingen lyd. Hvilket niveau er rimeligt?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Løvsanger/gransanger",
+         "correct": true
+        },
+        {
+         "text": "Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Spurvefugl – kan ikke siges mere",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Uden lyd og med kort syn er artsparret det ærlige niveau."
+      },
+      {
+       "id": "u4q2",
+       "type": "valg",
+       "prompt": "Hvad bør du skrive, når du stopper før art?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Hvilken evidens der mangler for at gå videre",
+         "correct": true
+        },
+        {
+         "text": "Ingenting",
+         "correct": false
+        },
+        {
+         "text": "Det mest sandsynlige artsnavn",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Ved at notere hvad der mangler, ved du, hvad du skal se efter næste gang."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "kend-dine-lokale-fugle",
+   "number": 3,
+   "stage": "Regional sikkerhed",
+   "title": "Kend dine lokale fugle",
+   "summary": "Lær de fugle at kende, som du faktisk kan finde der, hvor du er.",
+   "card": "Byg et arbejdskendskab til fuglene omkring dig – på syn og lyd – og hold små grupper af lokale forvekslingsarter, som du faktisk kan skille ad.",
+   "intro": "De fleste fugle, du møder, er almindelige arter. Kender du dem godt, springer det usædvanlige i øjnene.",
+   "topic": "id",
+   "level": "øvet",
+   "published": true,
+   "hours": "5–6 timer",
+   "hue": "hav",
+   "sil": "spurvefugl",
+   "skills": [
+    "Genkald",
+    "Lyt",
+    "Sammenlign"
+   ],
+   "audience": "For fuglekiggere, der vil kende deres nærområde ud og ind.",
+   "learn": [
+    {
+     "title": "Byg en lokal kerne",
+     "text": "Organisér almindelige fugle på tværs af nærliggende levesteder – med eller uden indrapporteringer."
+    },
+    {
+     "title": "Læs lydbilledet",
+     "text": "Beskriv strofens form, rytme, tonehøjde og gentagelse, før du sætter navn på en stemme."
+    },
+    {
+     "title": "Hold forvekslingssæt",
+     "text": "Kend de få forskelle, der skiller dine realistiske lokale alternativer."
+    },
+    {
+     "title": "Brug metoden lokalt",
+     "text": "Brug metoden på en tilgængelig lokal tur, og gennemgå bagefter dine notater."
+    }
+   ],
+   "units": [
+    {
+     "id": "u1",
+     "title": "Din lokale kerne",
+     "lesson": "Lav en liste med de 20–30 arter, du oftest møder lokalt. Del dem op efter levested: have, skov, sø, mark, kyst.\n\nNår kernen sidder fast, bruger du mindre energi på det almindelige og får øje for det nye.",
+     "questions": [
+      {
+       "id": "u1q1",
+       "type": "valg",
+       "prompt": "Hvilken af disse er en typisk dansk havefugl hele året?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Solsort",
+         "correct": true
+        },
+        {
+         "text": "Tornsanger",
+         "correct": false
+        },
+        {
+         "text": "Rødstjert",
+         "correct": false
+        },
+        {
+         "text": "Mursejler",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Solsorten er standfugl og findes i næsten alle haver. De andre er sommerfugle."
+      },
+      {
+       "id": "u1q2",
+       "type": "tekst",
+       "prompt": "Skriv navnet på Danmarks mest almindelige mejse, som har sort strube og et sort bånd ned ad det gule bryst.",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [],
+       "accept": [
+        "musvit"
+       ],
+       "explanation": "Musvitten har sort hætte, hvide kinder og et sort 'slips' ned ad brystet."
+      }
+     ]
+    },
+    {
+     "id": "u2",
+     "title": "Lydbilledet",
+     "lesson": "Mange fugle hører du, før du ser dem. Beskriv lyden med enkle ord:\n\n- **Rytme**: jævn, accelererende, stammende?\n- **Tonehøjde**: stigende, faldende, flad?\n- **Gentagelse**: samme motiv igen og igen, eller varieret?",
+     "questions": [
+      {
+       "id": "u2q1",
+       "type": "valg",
+       "prompt": "En fugl synger et monotont, tostavet 'zilp-zalp-zilp-zalp'. Hvilken art?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Gransanger",
+         "correct": true
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Bogfinke",
+         "correct": false
+        },
+        {
+         "text": "Solsort",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Gransangeren har fået navn efter sangen på flere sprog (fx Zilpzalp på tysk)."
+      },
+      {
+       "id": "u2q2",
+       "type": "valg",
+       "prompt": "En kort, accelererende strofe der ender med et lille 'snert' – hørt fra bøgeskoven i maj. Hvilken art?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Bogfinke",
+         "correct": true
+        },
+        {
+         "text": "Ringdue",
+         "correct": false
+        },
+        {
+         "text": "Skovsanger",
+         "correct": false
+        },
+        {
+         "text": "Gærdesmutte",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Bogfinkens strofe ruller nedad, tager fart og slutter med et tydeligt 'snert'."
+      }
+     ]
+    },
+    {
+     "id": "u3",
+     "title": "Lokale forvekslinger",
+     "lesson": "Hold små sæt af arter, der ligner hinanden lokalt – og kend det ene træk, der skiller dem.\n\nEksempler: **gråspurv/skovspurv**, **sølvmåge/stormmåge**, **husskade/allike** i flugt.",
+     "questions": [
+      {
+       "id": "u3q1",
+       "type": "valg",
+       "prompt": "Gråspurv eller skovspurv? Hvad er det sikreste kendetegn?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Skovspurven har en sort kindplet og helt brun isse",
+         "correct": true
+        },
+        {
+         "text": "Skovspurven er større",
+         "correct": false
+        },
+        {
+         "text": "Gråspurven har lange ben",
+         "correct": false
+        },
+        {
+         "text": "Skovspurven lever kun i skov",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Skovspurven har en tydelig sort plet på den hvide kind og ens dragt hos begge køn."
+      },
+      {
+       "id": "u3q2",
+       "type": "valg",
+       "prompt": "Hvilken fugl passer til silhuetten?",
+       "media": {
+        "kind": "silhouette",
+        "value": "due",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Due",
+         "correct": true
+        },
+        {
+         "text": "Rovfugl",
+         "correct": false
+        },
+        {
+         "text": "Hejre",
+         "correct": false
+        },
+        {
+         "text": "Spætte",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Lille hoved, rund krop og kort næb – en typisk due."
+      }
+     ]
+    },
+    {
+     "id": "u4",
+     "title": "Metoden på en lokal tur",
+     "lesson": "Gå en fast rute på 30–60 minutter. Forudsig, hvad du møder. Notér alt med metoden. Sammenlign bagefter dine forudsigelser med det, du faktisk fandt.",
+     "questions": [
+      {
+       "id": "u4q1",
+       "type": "valg",
+       "prompt": "Hvad er det vigtigste ved at gå den samme rute flere gange?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Du kan se ændringer, fordi du kender det normale",
+         "correct": true
+        },
+        {
+         "text": "Du ser flere sjældne fugle",
+         "correct": false
+        },
+        {
+         "text": "Det går hurtigere",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Når du kender det normale, opdager du hurtigt det, der er nyt eller anderledes."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "fuglekig-naar-forholdene-skifter",
+   "number": 4,
+   "stage": "Feltforhold",
+   "title": "Fuglekig når forholdene skifter",
+   "summary": "Skil en ændret iagttagelse fra en ændret fugl.",
+   "card": "Skil et ændret syn fra en ændret fugl. Læs flugt på få sekunder, justér forventningen til årstiden, og find de fugle, der gemmer sig.",
+   "intro": "Lys, vejr, afstand og årstid ændrer, hvordan fuglene ser ud og opfører sig. Her lærer du at tage højde for det.",
+   "topic": "id",
+   "level": "øvet",
+   "published": true,
+   "hours": "6 timer",
+   "hue": "skumring",
+   "sil": "rovfugl_flugt",
+   "skills": [
+    "Bemærk",
+    "Opdatér",
+    "Genkald"
+   ],
+   "audience": "For fuglekiggere, der vil kunne bestemme under dårlige forhold.",
+   "learn": [
+    {
+     "title": "Læs lyset",
+     "text": "Forstå hvordan modlys, skygge og dis ændrer farve og kontrast."
+    },
+    {
+     "title": "Flugt på få sekunder",
+     "text": "Brug vingeform, vingeslag og flugtmønster, når fuglen kun ses kort."
+    },
+    {
+     "title": "Årstidens dragter",
+     "text": "Justér forventningen til fældning, ungfugle og vinterdragter."
+    },
+    {
+     "title": "Find de skjulte",
+     "text": "Brug lyd og bevægelse til at finde fugle, der gemmer sig."
+    }
+   ],
+   "units": [
+    {
+     "id": "u1",
+     "title": "Lys og afstand",
+     "lesson": "I modlys bliver alle fugle mørke. På lang afstand forsvinder små tegninger. **Stol mere på form og bevægelse, når lyset er dårligt.**",
+     "questions": [
+      {
+       "id": "u1q1",
+       "type": "valg",
+       "prompt": "En fugl ser helt sort ud mod en lys himmel. Hvad bør du konkludere om dens farve?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Intet sikkert – modlys gør fugle mørke",
+         "correct": true
+        },
+        {
+         "text": "Den er sort",
+         "correct": false
+        },
+        {
+         "text": "Den er en krage",
+         "correct": false
+        },
+        {
+         "text": "Den er en skarv",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Modlys skjuler farver. Brug form og adfærd i stedet."
+      }
+     ]
+    },
+    {
+     "id": "u2",
+     "title": "Flugt på få sekunder",
+     "lesson": "Når du kun ser en fugl kort i flugt, så fokusér på **vingeform**, **vingeslag** og **flugtmønster**: glider, kredser, bølger eller flagrer den?",
+     "questions": [
+      {
+       "id": "u2q1",
+       "type": "valg",
+       "prompt": "Brede, fingrede vinger og kredsende svæveflugt peger mod...",
+       "media": {
+        "kind": "silhouette",
+        "value": "rovfugl_flugt",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "En våge eller ørn",
+         "correct": true
+        },
+        {
+         "text": "En falk",
+         "correct": false
+        },
+        {
+         "text": "En svale",
+         "correct": false
+        },
+        {
+         "text": "En due",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Brede vinger med 'fingre' er tilpasset svæveflugt på opvind – typisk for våger og ørne."
+      },
+      {
+       "id": "u2q2",
+       "type": "valg",
+       "prompt": "En falk står stille i luften med hurtige vingeslag over en vejrabat. Hvilken art?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Tårnfalk",
+         "correct": true
+        },
+        {
+         "text": "Vandrefalk",
+         "correct": false
+        },
+        {
+         "text": "Spurvehøg",
+         "correct": false
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Tårnfalken 'muser' – den står stille i luften og spejder efter mus."
+      }
+     ]
+    },
+    {
+     "id": "u3",
+     "title": "Årstidens dragter",
+     "lesson": "Mange arter skifter dragt. Hættemågen mister sin brune hætte om vinteren og har kun en mørk plet bag øjet.",
+     "questions": [
+      {
+       "id": "u3q1",
+       "type": "valg",
+       "prompt": "En lille måge i januar med hvidt hoved og en mørk plet bag øjet, røde ben. Hvad er mest sandsynligt?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Hættemåge i vinterdragt",
+         "correct": true
+        },
+        {
+         "text": "Stormmåge",
+         "correct": false
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        },
+        {
+         "text": "Ride",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Hættemågen mister den brune hætte om vinteren, men den mørke øreplet bliver."
+      }
+     ]
+    },
+    {
+     "id": "u4",
+     "title": "Find de skjulte",
+     "lesson": "Mange fugle gemmer sig i krat og rør. Lyt efter kald, og hold øje med bevægelse i vegetationen.",
+     "questions": [
+      {
+       "id": "u4q1",
+       "type": "valg",
+       "prompt": "Hvilken lille fugl synger overraskende højt fra tætte krat og har ofte halen strittende opad?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Gærdesmutte",
+         "correct": true
+        },
+        {
+         "text": "Musvit",
+         "correct": false
+        },
+        {
+         "text": "Bogfinke",
+         "correct": false
+        },
+        {
+         "text": "Rødhals",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Gærdesmutten er en af Danmarks mindste fugle – men en af de mest højrøstede."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "vanskelige-observationer",
+   "number": 5,
+   "stage": "Vurdering",
+   "title": "Arbejd med vanskelige observationer",
+   "summary": "Afvej delvise og modstridende spor i stedet for at tælle kendetegn.",
+   "card": "Afvej delvis og modstridende evidens i stedet for at tælle kendetegn, og notér en usædvanlig observation ærligt uden at tvinge den til sikkerhed.",
+   "intro": "Nogle observationer passer ikke i bogen. Du lærer at veje spor mod hinanden og beskrive det usædvanlige ærligt.",
+   "topic": "id",
+   "level": "øvet",
+   "published": true,
+   "hours": "6 timer",
+   "hue": "eng",
+   "sil": "vadefugl",
+   "skills": [
+    "Opdatér",
+    "Vurdér",
+    "Afprøv"
+   ],
+   "audience": "For fuglekiggere, der vil håndtere det usikre og det usædvanlige.",
+   "learn": [
+    {
+     "title": "Vej evidensen",
+     "text": "Nogle spor tæller mere end andre. Lær at vægte dem."
+    },
+    {
+     "title": "Modstridende spor",
+     "text": "Hvad gør du, når to kendetegn peger i hver sin retning?"
+    },
+    {
+     "title": "Hybrider og afvigere",
+     "text": "Kend til leucisme, hybrider og slidte fjer."
+    },
+    {
+     "title": "Beskriv det usædvanlige",
+     "text": "Skriv en beskrivelse, der kan vurderes af andre."
+    }
+   ],
+   "units": [
+    {
+     "id": "u1",
+     "title": "Vej evidensen",
+     "lesson": "Ikke alle kendetegn er lige stærke. Et **diagnostisk** træk (fx en bestemt stemme) vejer tungere end et **understøttende** træk (fx en farvetone).",
+     "questions": [
+      {
+       "id": "u1q1",
+       "type": "valg",
+       "prompt": "Hvilket spor vejer typisk tungest ved en bestemmelse?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Et diagnostisk træk, som ingen forvekslingsart har",
+         "correct": true
+        },
+        {
+         "text": "Fuglens farvetone",
+         "correct": false
+        },
+        {
+         "text": "Hvor mange kendetegn du har set",
+         "correct": false
+        },
+        {
+         "text": "Hvad andre har set samme dag",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Ét stærkt diagnostisk træk kan veje tungere end mange svage."
+      }
+     ]
+    },
+    {
+     "id": "u2",
+     "title": "Afvigere og hybrider",
+     "lesson": "Delvist hvide fugle (**leucisme**) og hybrider kan forvirre. Brug form, størrelse og adfærd – de ændrer sig sjældent.",
+     "questions": [
+      {
+       "id": "u2q1",
+       "type": "valg",
+       "prompt": "En solsort med hvide pletter i fjerdragten. Hvad er mest sandsynligt?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "En solsort med leucisme",
+         "correct": true
+        },
+        {
+         "text": "En ny art",
+         "correct": false
+        },
+        {
+         "text": "En ringdrossel",
+         "correct": false
+        },
+        {
+         "text": "En stær",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Leucisme giver hvide fjer, men formen og adfærden er stadig solsortens."
+      }
+     ]
+    },
+    {
+     "id": "u3",
+     "title": "Beskriv det usædvanlige",
+     "lesson": "Til sjældne fugle: beskriv **størrelse, form, dragt, stemme, adfærd, lys og afstand** – og hvordan du udelukkede forvekslingsarter.",
+     "questions": [
+      {
+       "id": "u3q1",
+       "type": "valg",
+       "prompt": "Hvad er vigtigst i en beskrivelse af en sjælden fugl?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Hvordan forvekslingsarter blev udelukket",
+         "correct": true
+        },
+        {
+         "text": "At skrive så kort som muligt",
+         "correct": false
+        },
+        {
+         "text": "Artsnavnet med store bogstaver",
+         "correct": false
+        },
+        {
+         "text": "Hvor længe du ledte",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "En god beskrivelse viser, hvorfor det IKKE var de almindelige forvekslingsarter."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "selvstaendigt-feltarbejde",
+   "number": 6,
+   "stage": "Selvstændighed",
+   "title": "Selvstændigt feltarbejde",
+   "summary": "Planlæg, gennemfør og evaluér dine egne ture.",
+   "card": "Planlæg og gennemfør din egen tur, find ud af hvor en fejl faktisk begyndte, og afslut med en afsluttende opgave under forhold, du ikke har øvet.",
+   "intro": "Det sidste kursus samler alt: Du planlægger og gennemfører egne ture og lærer af dine fejl.",
+   "topic": "id",
+   "level": "erfaren",
+   "published": true,
+   "hours": "6–7 timer",
+   "hue": "skov",
+   "sil": "hejre",
+   "skills": [
+    "Forbered",
+    "Opdatér",
+    "Fasthold"
+   ],
+   "audience": "For fuglekiggere, der vil planlægge, tilpasse og evaluere deres egen læring i felten.",
+   "learn": [
+    {
+     "title": "Planlæg en realistisk tur",
+     "text": "Afvej formål, adgang, sikkerhed, fuglenes velfærd, vejr og plan B."
+    },
+    {
+     "title": "Gennemfør og tilpas",
+     "text": "Brug en fast iagttagelsesrutine og ændr den bevidst, når forholdene skifter."
+    },
+    {
+     "title": "Ret den mindste fejl",
+     "text": "Find hvor en fejl begyndte, og vælg en fokuseret gentagelse."
+    },
+    {
+     "title": "Afsluttende opgave",
+     "text": "Brug metoden i en kontrolleret udfordring og en tilgængelig ny situation."
+    }
+   ],
+   "units": [
+    {
+     "id": "u1",
+     "title": "Planlæg en etisk og tilgængelig tur",
+     "lesson": "God planlægning tager hensyn til **fuglene først**: hold afstand til reder og rastende flokke, og følg skiltning og adgangsregler.",
+     "questions": [
+      {
+       "id": "u1q1",
+       "type": "valg",
+       "prompt": "Du finder en rastende flok vadefugle på en strand. Hvad gør du?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "Holder afstand, så de ikke letter",
+         "correct": true
+        },
+        {
+         "text": "Går tættere på for et bedre foto",
+         "correct": false
+        },
+        {
+         "text": "Klapper for at se dem flyve",
+         "correct": false
+        },
+        {
+         "text": "Lader hunden løbe",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Rastende trækfugle har brug for ro til at æde og hvile. Forstyrrelse koster dem energi."
+      }
+     ]
+    },
+    {
+     "id": "u2",
+     "title": "Lær af dine fejl",
+     "lesson": "Når du tager fejl, så find det **første** sted, det gik galt: Var forudsigelsen forkert? Så du forkert? Eller konkluderede du for hurtigt?",
+     "questions": [
+      {
+       "id": "u2q1",
+       "type": "valg",
+       "prompt": "Du bestemte en stormmåge som sølvmåge. Hvor er det mest nyttigt at lede efter fejlen?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "I hvordan du vurderede størrelse og næb",
+         "correct": true
+        },
+        {
+         "text": "I vejret",
+         "correct": false
+        },
+        {
+         "text": "I kikkerten",
+         "correct": false
+        },
+        {
+         "text": "I artens navn",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Find det trin, hvor fejlen opstod – her sandsynligvis størrelses- og næbvurderingen."
+      }
+     ]
+    },
+    {
+     "id": "u3",
+     "title": "Afsluttende opgave",
+     "lesson": "Tag ud et nyt sted. Lav en startliste, gennemfør turen med metoden, og evaluér bagefter: Hvad forudsagde du rigtigt? Hvad overraskede dig?",
+     "questions": [
+      {
+       "id": "u3q1",
+       "type": "valg",
+       "prompt": "Hvad er formålet med at evaluere efter turen?",
+       "media": {
+        "kind": "",
+        "value": "",
+        "credit": ""
+       },
+       "choices": [
+        {
+         "text": "At vælge, hvad du skal øve næste gang",
+         "correct": true
+        },
+        {
+         "text": "At tælle flest mulige arter",
+         "correct": false
+        },
+        {
+         "text": "At skrive en artikel",
+         "correct": false
+        }
+       ],
+       "accept": [],
+       "explanation": "Evaluering gør oplevelser til læring – og peger på næste skridt."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "drills": [
+  {
+   "slug": "habitatdetektiv",
+   "kind": "ovelse",
+   "category": "Kontekst",
+   "title": "Habitatdetektiv",
+   "featured": true,
+   "published": true,
+   "summary": "Læs et levested og afgør, hvilke fugle der hører til der – før nogen kendetegn er synlige.",
+   "short": "Læs et levested og afgør, hvad der hører til.",
+   "skills": [
+    "Forbered",
+    "Genkald"
+   ],
+   "hue": "eng",
+   "sil": "vadefugl",
+   "questions": [
+    {
+     "id": "h1",
+     "type": "valg",
+     "prompt": "Tagrørsskov ved en sø i juni. Hvilken art hører MEST sandsynligt til her?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Rørsanger",
+       "correct": true
+      },
+      {
+       "text": "Spætmejse",
+       "correct": false
+      },
+      {
+       "text": "Sanglærke",
+       "correct": false
+      },
+      {
+       "text": "Strandskade",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Rørsangeren yngler næsten kun i tagrør."
+    },
+    {
+     "id": "h2",
+     "type": "valg",
+     "prompt": "Gammel bøgeskov i april. Hvilken art er mest sandsynlig?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Skovsanger",
+       "correct": true
+      },
+      {
+       "text": "Rørhøg",
+       "correct": false
+      },
+      {
+       "text": "Vibe",
+       "correct": false
+      },
+      {
+       "text": "Ederfugl",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Skovsangeren yngler i lyse, gamle løvskove med åben skovbund."
+    },
+    {
+     "id": "h3",
+     "type": "valg",
+     "prompt": "Åben, dyrket mark i marts. Hvilken art synger højt oppe i luften?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Sanglærke",
+       "correct": true
+      },
+      {
+       "text": "Gærdesmutte",
+       "correct": false
+      },
+      {
+       "text": "Musvit",
+       "correct": false
+      },
+      {
+       "text": "Rørspurv",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Sanglærkens sang fra stor højde over marker er et klassisk forårstegn."
+    },
+    {
+     "id": "h4",
+     "type": "valg",
+     "prompt": "Klippekyst og havn på Bornholm. Hvilken af disse er mest sandsynlig?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Ederfugl",
+       "correct": true
+      },
+      {
+       "text": "Rørdrum",
+       "correct": false
+      },
+      {
+       "text": "Sortspætte",
+       "correct": false
+      },
+      {
+       "text": "Nattergal",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Ederfuglen er knyttet til kyster og lavt saltvand."
+    },
+    {
+     "id": "h5",
+     "type": "valg",
+     "prompt": "Bymidte med høje bygninger i juni. Hvilken art jager insekter højt over tagene?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Mursejler",
+       "correct": true
+      },
+      {
+       "text": "Spurvehøg",
+       "correct": false
+      },
+      {
+       "text": "Skovsneppe",
+       "correct": false
+      },
+      {
+       "text": "Rødstjert",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Mursejleren yngler i bygninger og jager insekter i luften."
+    }
+   ]
+  },
+  {
+   "slug": "observationsodds",
+   "kind": "ovelse",
+   "category": "Sandsynlighed",
+   "title": "Observationsodds",
+   "featured": false,
+   "published": true,
+   "summary": "Sammenlign to fugle og find ud af, hvilken af dem stedet og årstiden gør mest sandsynlig.",
+   "short": "Hvilken af to fugle er mest sandsynlig her og nu?",
+   "skills": [
+    "Forbered",
+    "Vurdér"
+   ],
+   "hue": "sand",
+   "sil": "and",
+   "questions": [
+    {
+     "id": "o1",
+     "type": "valg",
+     "prompt": "Hvilken af disse er du mest tilbøjelig til at se ved en dansk sø i januar?",
+     "media": {
+      "kind": "silhouette",
+      "value": "and",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Troldand",
+       "correct": true
+      },
+      {
+       "text": "Landsvale",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Troldanden overvintrer talrigt i Danmark. Landsvalen er i Afrika om vinteren."
+    },
+    {
+     "id": "o2",
+     "type": "valg",
+     "prompt": "Hvilken er mest sandsynlig i en villahave i maj?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Solsort",
+       "correct": true
+      },
+      {
+       "text": "Sortstrubet bynkefugl",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Solsorten er en af de mest almindelige havefugle. Sortstrubet bynkefugl er en sjælden gæst."
+    },
+    {
+     "id": "o3",
+     "type": "valg",
+     "prompt": "Hvilken er mest sandsynlig over en vestjysk hede i september?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Tårnfalk",
+       "correct": true
+      },
+      {
+       "text": "Kongeørn",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Tårnfalken er almindelig. Kongeørn ses kun fåtalligt i Danmark."
+    },
+    {
+     "id": "o4",
+     "type": "valg",
+     "prompt": "Hvilken er mest sandsynlig på stranden i juli?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Strandskade",
+       "correct": true
+      },
+      {
+       "text": "Snespurv",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Strandskaden yngler langs kysterne. Snespurven er vintergæst."
+    }
+   ]
+  },
+  {
+   "slug": "saesonskift",
+   "kind": "ovelse",
+   "category": "Timing",
+   "title": "Sæsonskift",
+   "featured": false,
+   "published": true,
+   "summary": "Øv ankomster, afgange og forekomst gennem året.",
+   "short": "Øv ankomster og afgange gennem året.",
+   "skills": [
+    "Genkald",
+    "Forbered"
+   ],
+   "hue": "skumring",
+   "sil": "svale",
+   "questions": [
+    {
+     "id": "s1",
+     "type": "valg",
+     "prompt": "Hvornår kommer de første landsvaler typisk til Danmark?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Primo april",
+       "correct": true
+      },
+      {
+       "text": "Februar",
+       "correct": false
+      },
+      {
+       "text": "Juni",
+       "correct": false
+      },
+      {
+       "text": "August",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "De første landsvaler ses typisk i begyndelsen af april."
+    },
+    {
+     "id": "s2",
+     "type": "valg",
+     "prompt": "Hvilken art er en typisk vintergæst i Danmark?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Kvækerfinke",
+       "correct": true
+      },
+      {
+       "text": "Tornsanger",
+       "correct": false
+      },
+      {
+       "text": "Gøg",
+       "correct": false
+      },
+      {
+       "text": "Rødrygget tornskade",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Kvækerfinken kommer fra Skandinavien og ses især i vinterhalvåret."
+    },
+    {
+     "id": "s3",
+     "type": "valg",
+     "prompt": "Hvornår forlader mursejlerne typisk Danmark?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Fra slutningen af juli til midt august",
+       "correct": true
+      },
+      {
+       "text": "I oktober",
+       "correct": false
+      },
+      {
+       "text": "I december",
+       "correct": false
+      },
+      {
+       "text": "De bliver hele året",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Mursejleren er blandt de første trækfugle, der forlader landet."
+    },
+    {
+     "id": "s4",
+     "type": "valg",
+     "prompt": "Hvilken måned topper trækket af rovfugle over Falsterbo og Stevns typisk?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "September",
+       "correct": true
+      },
+      {
+       "text": "Januar",
+       "correct": false
+      },
+      {
+       "text": "Maj",
+       "correct": false
+      },
+      {
+       "text": "Juli",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Efterårstrækket af rovfugle topper i september."
+    }
+   ]
+  },
+  {
+   "slug": "silhuet-foerst",
+   "kind": "ovelse",
+   "category": "Struktur",
+   "title": "Silhuet først",
+   "featured": true,
+   "published": true,
+   "summary": "Bestem fugle ud fra omrids, proportioner, holdning og næb alene – uden farver.",
+   "short": "Bestem fugle ud fra silhuetten alene.",
+   "skills": [
+    "Bemærk",
+    "Sammenlign"
+   ],
+   "hue": "himmel",
+   "sil": "spaette",
+   "questions": [
+    {
+     "id": "si1",
+     "type": "valg",
+     "prompt": "Hvilken gruppe?",
+     "media": {
+      "kind": "silhouette",
+      "value": "spaette",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Spætte",
+       "correct": true
+      },
+      {
+       "text": "Spurvefugl",
+       "correct": false
+      },
+      {
+       "text": "Due",
+       "correct": false
+      },
+      {
+       "text": "Hejre",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Lodret på stammen, stiv hale som støtte og mejselnæb."
+    },
+    {
+     "id": "si2",
+     "type": "valg",
+     "prompt": "Hvilken gruppe?",
+     "media": {
+      "kind": "silhouette",
+      "value": "svane",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Svane",
+       "correct": true
+      },
+      {
+       "text": "Gås",
+       "correct": false
+      },
+      {
+       "text": "And",
+       "correct": false
+      },
+      {
+       "text": "Skarv",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Meget lang, buet hals og stor krop."
+    },
+    {
+     "id": "si3",
+     "type": "valg",
+     "prompt": "Hvilken gruppe?",
+     "media": {
+      "kind": "silhouette",
+      "value": "skarv",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Skarv",
+       "correct": true
+      },
+      {
+       "text": "Rovfugl",
+       "correct": false
+      },
+      {
+       "text": "Due",
+       "correct": false
+      },
+      {
+       "text": "Måge",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Opret holdning, lang hals og krogspids på næbbet."
+    },
+    {
+     "id": "si4",
+     "type": "valg",
+     "prompt": "Hvilken gruppe?",
+     "media": {
+      "kind": "silhouette",
+      "value": "maage",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Måge",
+       "correct": true
+      },
+      {
+       "text": "And",
+       "correct": false
+      },
+      {
+       "text": "Vadefugl",
+       "correct": false
+      },
+      {
+       "text": "Svale",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Lange vinger der rækker ud over halen, kraftigt næb og mellemlange ben."
+    },
+    {
+     "id": "si5",
+     "type": "valg",
+     "prompt": "Hvilken gruppe?",
+     "media": {
+      "kind": "silhouette",
+      "value": "vadefugl",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Vadefugl",
+       "correct": true
+      },
+      {
+       "text": "Måge",
+       "correct": false
+      },
+      {
+       "text": "Due",
+       "correct": false
+      },
+      {
+       "text": "Mejse",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Langt, lige næb og lange ben."
+    },
+    {
+     "id": "si6",
+     "type": "valg",
+     "prompt": "Hvilken gruppe?",
+     "media": {
+      "kind": "silhouette",
+      "value": "gaas",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Gås",
+       "correct": true
+      },
+      {
+       "text": "Svane",
+       "correct": false
+      },
+      {
+       "text": "Skarv",
+       "correct": false
+      },
+      {
+       "text": "Hejre",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Kraftig krop, mellemlang hals og kort, kileformet næb."
+    }
+   ]
+  },
+  {
+   "slug": "relativ-stoerrelse",
+   "kind": "ovelse",
+   "category": "Skala",
+   "title": "Relativ størrelse",
+   "featured": false,
+   "published": true,
+   "summary": "Vurdér størrelse mod kendte referencefugle i stedet for at gætte ud fra et billede.",
+   "short": "Vurdér størrelse mod kendte fugle.",
+   "skills": [
+    "Sammenlign",
+    "Bemærk"
+   ],
+   "hue": "eng",
+   "sil": "due",
+   "questions": [
+    {
+     "id": "r1",
+     "type": "valg",
+     "prompt": "Hvilken er størst?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Ringdue",
+       "correct": true
+      },
+      {
+       "text": "Solsort",
+       "correct": false
+      },
+      {
+       "text": "Stær",
+       "correct": false
+      },
+      {
+       "text": "Musvit",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Ringduen (ca. 40 cm) er klart den største."
+    },
+    {
+     "id": "r2",
+     "type": "valg",
+     "prompt": "Omtrent hvor stor er en gransanger?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Mindre end en spurv",
+       "correct": true
+      },
+      {
+       "text": "Som en solsort",
+       "correct": false
+      },
+      {
+       "text": "Som en due",
+       "correct": false
+      },
+      {
+       "text": "Som en krage",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Gransangeren er ca. 11 cm – mindre end en gråspurv."
+    },
+    {
+     "id": "r3",
+     "type": "valg",
+     "prompt": "Hvilken referencefugl passer bedst til en spurvehøg-hun?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Ringdue",
+       "correct": true
+      },
+      {
+       "text": "Musvit",
+       "correct": false
+      },
+      {
+       "text": "Knopsvane",
+       "correct": false
+      },
+      {
+       "text": "Gærdesmutte",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "En spurvehøg-hun er omtrent på størrelse med en ringdue – hannen er mindre."
+    },
+    {
+     "id": "r4",
+     "type": "valg",
+     "prompt": "Hvilken måge er mindst?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Hættemåge",
+       "correct": true
+      },
+      {
+       "text": "Sølvmåge",
+       "correct": false
+      },
+      {
+       "text": "Svartbag",
+       "correct": false
+      },
+      {
+       "text": "Stormmåge",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Hættemågen er Danmarks mindste almindelige måge."
+    }
+   ]
+  },
+  {
+   "slug": "glimt",
+   "kind": "ovelse",
+   "category": "Opdagelse",
+   "title": "Glimt",
+   "featured": false,
+   "published": true,
+   "summary": "Øv et kort, delvist syn, og lær hvilke strukturelle spor der er værd at samle først.",
+   "short": "Øv det korte, delvise syn.",
+   "skills": [
+    "Bemærk"
+   ],
+   "hue": "skov",
+   "sil": "mejse",
+   "questions": [
+    {
+     "id": "g1",
+     "type": "valg",
+     "prompt": "Du ser kun bagenden af en lille fugl: rødbrun hale, der dirrer. Hvilken art?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Rødstjert",
+       "correct": true
+      },
+      {
+       "text": "Rødhals",
+       "correct": false
+      },
+      {
+       "text": "Gransanger",
+       "correct": false
+      },
+      {
+       "text": "Bogfinke",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Rødstjertens orange-røde hale, der dirrer, er meget karakteristisk."
+    },
+    {
+     "id": "g2",
+     "type": "valg",
+     "prompt": "Et glimt af en fugl med hvid overgump, der flyver væk lavt over marken. Hvad bør du tjekke først?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Størrelse og vingeform",
+       "correct": true
+      },
+      {
+       "text": "Øjenfarve",
+       "correct": false
+      },
+      {
+       "text": "Benfarve",
+       "correct": false
+      },
+      {
+       "text": "Næbbets spids",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Mange arter har hvid overgump. Størrelse og vingeform indsnævrer hurtigst."
+    },
+    {
+     "id": "g3",
+     "type": "valg",
+     "prompt": "Du ser kun hovedet af en and: grønt hoved og gult næb. Hvilken art?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Gråand (han)",
+       "correct": true
+      },
+      {
+       "text": "Troldand",
+       "correct": false
+      },
+      {
+       "text": "Knortegås",
+       "correct": false
+      },
+      {
+       "text": "Ederfugl",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Gråandhannen har det grønne hoved og gule næb."
+    }
+   ]
+  },
+  {
+   "slug": "bevaegelseslab",
+   "kind": "ovelse",
+   "category": "Adfærd",
+   "title": "Bevægelseslab",
+   "featured": false,
+   "published": true,
+   "summary": "Læs flugtmåde, fødesøgning og gentagne bevægelser som spor til bestemmelsen.",
+   "short": "Læs bevægelse som evidens.",
+   "skills": [
+    "Bemærk",
+    "Sammenlign"
+   ],
+   "hue": "himmel",
+   "sil": "svale",
+   "questions": [
+    {
+     "id": "b1",
+     "type": "valg",
+     "prompt": "En fugl går ned ad en træstamme med hovedet først. Hvilken art?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Spætmejse",
+       "correct": true
+      },
+      {
+       "text": "Træløber",
+       "correct": false
+      },
+      {
+       "text": "Stor flagspætte",
+       "correct": false
+      },
+      {
+       "text": "Musvit",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Spætmejsen er den eneste danske fugl, der regelmæssigt klatrer ned ad stammer med hovedet først."
+    },
+    {
+     "id": "b2",
+     "type": "valg",
+     "prompt": "En fugl vipper konstant med halen op og ned, mens den går ved vand. Hvilken art?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Hvid vipstjert",
+       "correct": true
+      },
+      {
+       "text": "Solsort",
+       "correct": false
+      },
+      {
+       "text": "Stær",
+       "correct": false
+      },
+      {
+       "text": "Gråspurv",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Vipstjerten har fået sit navn efter den vippende hale."
+    },
+    {
+     "id": "b3",
+     "type": "valg",
+     "prompt": "En lille fugl 'muser' – står stille i luften – over en vejkant. Hvilken art?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Tårnfalk",
+       "correct": true
+      },
+      {
+       "text": "Spurvehøg",
+       "correct": false
+      },
+      {
+       "text": "Musvåge",
+       "correct": false
+      },
+      {
+       "text": "Landsvale",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Tårnfalken er kendt for sin stillestående jagtflugt."
+    }
+   ]
+  },
+  {
+   "slug": "laes-sporene",
+   "kind": "ovelse",
+   "category": "Evidens",
+   "title": "Læs sporene",
+   "featured": false,
+   "published": true,
+   "summary": "Arbejd ud fra reder, huller og madrester uden at påstå mere, end sporet bærer.",
+   "short": "Arbejd ud fra spor og tegn.",
+   "skills": [
+    "Vurdér",
+    "Bemærk"
+   ],
+   "hue": "skov",
+   "sil": "spaette",
+   "questions": [
+    {
+     "id": "l1",
+     "type": "valg",
+     "prompt": "Kogler kilet fast i en barkspalte, med skæl der er hakket op. Hvem har sandsynligvis været der?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "En spætte (en 'smedje')",
+       "correct": true
+      },
+      {
+       "text": "Et egern",
+       "correct": false
+      },
+      {
+       "text": "En musvit",
+       "correct": false
+      },
+      {
+       "text": "En krage",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Spætter kiler kogler fast i en 'smedje' for at hakke frøene ud."
+    },
+    {
+     "id": "l2",
+     "type": "valg",
+     "prompt": "Et kugleformet rede af mos med sideindgang i et krat. Hvilken art er mest sandsynlig?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Gærdesmutte",
+       "correct": true
+      },
+      {
+       "text": "Ringdue",
+       "correct": false
+      },
+      {
+       "text": "Solsort",
+       "correct": false
+      },
+      {
+       "text": "Skarv",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Gærdesmuttens rede er kugleformet med indgang fra siden."
+    },
+    {
+     "id": "l3",
+     "type": "valg",
+     "prompt": "Gylp med hår og knogler under et gammelt træ. Hvad kan du med rimelighed sige?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "At en rovfugl eller ugle sandsynligvis har siddet der",
+       "correct": true
+      },
+      {
+       "text": "At det var en natugle",
+       "correct": false
+      },
+      {
+       "text": "At det var en musvåge",
+       "correct": false
+      },
+      {
+       "text": "Ingenting",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Gylp med knogler peger på rovfugle eller ugler – men ikke på en bestemt art."
+    }
+   ]
+  },
+  {
+   "slug": "lignende-arter",
+   "kind": "ovelse",
+   "category": "Sammenligning",
+   "title": "Lignende arter",
+   "featured": false,
+   "published": true,
+   "summary": "Sammenlign tætte kandidater og find den ene iagttagelse, der faktisk skiller dem.",
+   "short": "Find det, der skiller lignende arter.",
+   "skills": [
+    "Sammenlign",
+    "Vurdér"
+   ],
+   "hue": "hav",
+   "sil": "maage",
+   "questions": [
+    {
+     "id": "ls1",
+     "type": "valg",
+     "prompt": "Krage eller råge? Hvad skiller dem bedst hos voksne fugle?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Rågen har bar, lys hud ved næbroden",
+       "correct": true
+      },
+      {
+       "text": "Kragen er sort",
+       "correct": false
+      },
+      {
+       "text": "Rågen er større end en ørn",
+       "correct": false
+      },
+      {
+       "text": "Kragen lever kun i byer",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Voksne råger har en bar, gråhvid næbrod. (I Danmark er krage-formen oftest gråkrage.)"
+    },
+    {
+     "id": "ls2",
+     "type": "valg",
+     "prompt": "Fisketerne eller havterne? Hvilket træk er bedst i felten?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Næbbets farve og vingens gennemskinnelighed",
+       "correct": true
+      },
+      {
+       "text": "Halen",
+       "correct": false
+      },
+      {
+       "text": "Størrelsen",
+       "correct": false
+      },
+      {
+       "text": "Om den dykker",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Havternen har helt rødt næb og mere gennemskinnelige håndsvingfjer."
+    },
+    {
+     "id": "ls3",
+     "type": "valg",
+     "prompt": "Grå fluesnapper eller gransanger? Hvad skiller adfærden?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Fluesnapperen flyver ud og tager insekter i luften fra en fast post",
+       "correct": true
+      },
+      {
+       "text": "Gransangeren sidder stille",
+       "correct": false
+      },
+      {
+       "text": "Fluesnapperen går på jorden",
+       "correct": false
+      },
+      {
+       "text": "Der er ingen forskel",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Fluesnapperen jager fra en fast udkigspost og vender tilbage til den."
+    }
+   ]
+  },
+  {
+   "slug": "hele-metoden",
+   "kind": "ovelse",
+   "category": "Samlet øvelse",
+   "title": "Hele metoden",
+   "featured": false,
+   "published": true,
+   "summary": "Tag ét møde gennem alle fem beslutninger: forudsig, opdag, tolk, adskil, beslut.",
+   "short": "Ét møde gennem alle fem trin.",
+   "skills": [
+    "Bemærk",
+    "Sammenlign",
+    "Vurdér"
+   ],
+   "hue": "sø",
+   "sil": "skarv",
+   "questions": [
+    {
+     "id": "m1",
+     "type": "valg",
+     "prompt": "FORUDSIG: Lavvandet fjord i oktober. Hvilken gruppe forventer du flest af?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Ænder og vadefugle",
+       "correct": true
+      },
+      {
+       "text": "Spætter",
+       "correct": false
+      },
+      {
+       "text": "Sangere",
+       "correct": false
+      },
+      {
+       "text": "Svaler",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Om efteråret raster store flokke af ænder og vadefugle på lavvandede fjorde."
+    },
+    {
+     "id": "m2",
+     "type": "valg",
+     "prompt": "OPDAG: En stor, mørk fugl sidder opret på en pæl med vingerne spredt ud. Hvad noterer du?",
+     "media": {
+      "kind": "silhouette",
+      "value": "skarv",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Opret holdning, spredte vinger, lang hals",
+       "correct": true
+      },
+      {
+       "text": "Det er en skarv",
+       "correct": false
+      },
+      {
+       "text": "Den er sort",
+       "correct": false
+      },
+      {
+       "text": "Den tørrer sig",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Notér det, du ser – tolkningen kommer i næste trin."
+    },
+    {
+     "id": "m3",
+     "type": "valg",
+     "prompt": "TOLK: Hvad betyder de spredte vinger?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Fuglen tørrer fjerdragten – typisk for skarver",
+       "correct": true
+      },
+      {
+       "text": "Den er syg",
+       "correct": false
+      },
+      {
+       "text": "Den vil flyve",
+       "correct": false
+      },
+      {
+       "text": "Den er en rovfugl",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Skarvens fjer er ikke helt vandtætte, så den tørrer vingerne efter dyk."
+    },
+    {
+     "id": "m4",
+     "type": "valg",
+     "prompt": "ADSKIL: Skarv eller topskarv? Hvilket træk hjælper i Danmark?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Størrelse, næbbets kraft og levested",
+       "correct": true
+      },
+      {
+       "text": "Fjerenes farve",
+       "correct": false
+      },
+      {
+       "text": "Om den dykker",
+       "correct": false
+      },
+      {
+       "text": "Antallet af fugle",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Topskarven er mindre med tyndere næb og er sjælden i de indre farvande."
+    },
+    {
+     "id": "m5",
+     "type": "valg",
+     "prompt": "BESLUT: Hvilket niveau er rimeligt ud fra iagttagelserne?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Skarv – høj sikkerhed",
+       "correct": true
+      },
+      {
+       "text": "Topskarv",
+       "correct": false
+      },
+      {
+       "text": "Skarv sp. – lav sikkerhed",
+       "correct": false
+      },
+      {
+       "text": "Kan ikke bestemmes",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Holdning, størrelse, levested og adfærd peger samlet tydeligt mod skarv."
+    }
+   ]
+  },
+  {
+   "slug": "familiequiz",
+   "kind": "quiz",
+   "category": "Taksonomi",
+   "title": "Familiequiz",
+   "featured": false,
+   "published": true,
+   "summary": "Vælg én familie og øv dig i at skelne dens medlemmer.",
+   "short": "Øv én fuglefamilie ad gangen.",
+   "skills": [
+    "Genkald",
+    "Sammenlign"
+   ],
+   "hue": "skov",
+   "sil": "mejse",
+   "questions": [
+    {
+     "id": "f1",
+     "type": "valg",
+     "prompt": "Hvilken mejse har en blå isse og gult bryst?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Blåmejse",
+       "correct": true
+      },
+      {
+       "text": "Musvit",
+       "correct": false
+      },
+      {
+       "text": "Sortmejse",
+       "correct": false
+      },
+      {
+       "text": "Topmejse",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Blåmejsen er den eneste danske mejse med blå isse."
+    },
+    {
+     "id": "f2",
+     "type": "valg",
+     "prompt": "Hvilken mejse har en spids top på hovedet?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Topmejse",
+       "correct": true
+      },
+      {
+       "text": "Halemejse",
+       "correct": false
+      },
+      {
+       "text": "Sumpmejse",
+       "correct": false
+      },
+      {
+       "text": "Musvit",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Topmejsen har en tydelig sort-hvid fjertop."
+    },
+    {
+     "id": "f3",
+     "type": "valg",
+     "prompt": "Hvilken lille mejse har hvid nakkeplet og lever især i nåleskov?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Sortmejse",
+       "correct": true
+      },
+      {
+       "text": "Blåmejse",
+       "correct": false
+      },
+      {
+       "text": "Sumpmejse",
+       "correct": false
+      },
+      {
+       "text": "Skægmejse",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Sortmejsen har en hvid plet i nakken."
+    },
+    {
+     "id": "f4",
+     "type": "tekst",
+     "prompt": "Skriv navnet på den lille, lyserøde-hvide fugl med meget lang hale, der ofte ses i flokke om vinteren.",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [],
+     "accept": [
+      "halemejse"
+     ],
+     "explanation": "Halemejsen er ikke en ægte mejse, men har 'mejse' i navnet."
+    }
+   ]
+  },
+  {
+   "slug": "fugl-for-fugl",
+   "kind": "spil",
+   "category": "Dagens spil",
+   "title": "Fugl for fugl",
+   "featured": true,
+   "published": true,
+   "summary": "Bestem dagens fugl ud fra seks iagttagelser.",
+   "short": "Én ny fugl om dagen.",
+   "skills": [
+    "Genkald",
+    "Vurdér"
+   ],
+   "hue": "rav",
+   "sil": "spaette",
+   "questions": [
+    {
+     "id": "ff1",
+     "type": "valg",
+     "prompt": "Spor 1–3: Sort-hvid. Klatrer på stammer. Rød undergump. Hvilken art?",
+     "media": {
+      "kind": "silhouette",
+      "value": "spaette",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Stor flagspætte",
+       "correct": true
+      },
+      {
+       "text": "Husskade",
+       "correct": false
+      },
+      {
+       "text": "Spætmejse",
+       "correct": false
+      },
+      {
+       "text": "Sortspætte",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Stor flagspætte: sort-hvid med rød undergump, almindelig i skov og haver."
+    },
+    {
+     "id": "ff2",
+     "type": "valg",
+     "prompt": "Spor 1–3: Sort fugl. Gult næb. Synger fra tagryggen ved solnedgang. Hvilken art?",
+     "media": {
+      "kind": "",
+      "value": "",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Solsort (han)",
+       "correct": true
+      },
+      {
+       "text": "Stær",
+       "correct": false
+      },
+      {
+       "text": "Krage",
+       "correct": false
+      },
+      {
+       "text": "Allike",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Solsorthannen er helt sort med gult næb og øjenring."
+    },
+    {
+     "id": "ff3",
+     "type": "valg",
+     "prompt": "Spor 1–3: Stor hvid fugl. Orange næb med sort knop. Lang S-formet hals. Hvilken art?",
+     "media": {
+      "kind": "silhouette",
+      "value": "svane",
+      "credit": ""
+     },
+     "choices": [
+      {
+       "text": "Knopsvane",
+       "correct": true
+      },
+      {
+       "text": "Sangsvane",
+       "correct": false
+      },
+      {
+       "text": "Fiskehejre",
+       "correct": false
+      },
+      {
+       "text": "Sølvmåge",
+       "correct": false
+      }
+     ],
+     "accept": [],
+     "explanation": "Knopsvanen har orange næb med sort knop."
+    }
+   ]
+  },
+  {
+   "slug": "mine-fejl",
+   "kind": "quiz",
+   "category": "Personlig repetition",
+   "title": "Mine fejl-quiz",
+   "featured": false,
+   "published": true,
+   "summary": "Gør dine gentagne fejl til fokuseret repetition – du øver netop det, du har svaret forkert på.",
+   "short": "Øv de spørgsmål, du har svaret forkert på.",
+   "skills": [
+    "Fasthold",
+    "Genkald"
+   ],
+   "hue": "sand",
+   "sil": "due",
+   "dynamic": "misses",
+   "questions": []
+  },
+  {
+   "slug": "faerdighedstest",
+   "kind": "quiz",
+   "category": "Udgangspunkt",
+   "title": "Færdighedstest",
+   "featured": false,
+   "published": true,
+   "summary": "En kort test på tværs af levested, form, størrelse og sikkerhed, der foreslår, hvor du skal starte.",
+   "short": "Find dit udgangspunkt.",
+   "skills": [
+    "Bemærk",
+    "Vurdér"
+   ],
+   "hue": "eng",
+   "sil": "rovfugl",
+   "dynamic": "assessment",
+   "questions": []
+  }
+ ]
+}

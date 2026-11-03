@@ -14,8 +14,8 @@ export async function list(view) {
         h("label", { class: "lr-f" }, h("span", {}, "Titel"), t), h("button", { class: "btn primary" }, "Opret og redigér")));
     };
     view.replaceChildren(h("div", { class: "lr-actions" }, h("button", { class: "btn primary", onclick: create }, "+ Nyt forløb")),
-      rows.length ? h("table", { class: "lr-table" }, h("thead", {}, h("tr", {}, ...["Titel", "Status", "Punkter", "Fejl"].map(x => h("th", {}, x)))),
-        h("tbody", {}, ...rows.map(r => h("tr", {}, h("td", {}, h("a", { href: `${BASE}/byg/forloeb/${r.slug}` }, r.title)), h("td", {}, r.published ? chip("publiceret", "soft") : chip("kladde")), h("td", {}, r.n_punkter), h("td", {}, r.fejl ? chip(`${r.fejl}`, "warn") : ""))))) : empty("Ingen forløb endnu"));
+      rows.length ? h("div", { class: "lr-scroll" }, h("table", { class: "lr-table" }, h("thead", {}, h("tr", {}, ...["Titel", "Status", "Punkter", "Fejl"].map(x => h("th", {}, x)))),
+        h("tbody", {}, ...rows.map(r => h("tr", {}, h("td", {}, h("a", { href: `${BASE}/byg/forloeb/${r.slug}` }, r.title)), h("td", {}, r.published ? chip("publiceret", "soft") : chip("kladde")), h("td", {}, r.n_punkter), h("td", {}, r.fejl ? chip(`${r.fejl}`, "warn") : "")))))) : empty("Ingen forløb endnu"));
   } catch (e) { view.replaceChildren(errorBox(e)); }
 }
 

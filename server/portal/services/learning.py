@@ -246,3 +246,102 @@ async def migrate_v2(session: AsyncSession) -> int:
         c.version = max(c.version or 0, 1)
     await session.commit()
     return n
+
+
+# ---------------------------------------------------------------- startindhold fra Trækrute (docs/laering-spec.md §12.2)
+
+SEED_KEY = "laering_seed_v1"
+# Øvelser fra Trækrute, der nu er indbyggede funktioner (Repetition, Færdighedstest, Fugl for fugl) – de importeres ikke
+SKIP_DRILLS = {"mine-fejl", "faerdighedstest", "fugl-for-fugl", "familiequiz"}
+# Øvelser, der får datadrevne aktiviteter ovenpå de statiske spørgsmål
+GENERATED = {
+    "habitatdetektiv": [{"type": "obs_habitat", "prompt": "", "config": {"antal": 3, "n_valg": 3}}],
+    "observationsodds": [{"type": "obs_odds", "prompt": "", "config": {"antal": 3, "uge": "nu", "n_valg": 2}}],
+    "saesonskift": [{"type": "obs_saeson", "prompt": "", "config": {"antal": 3}}],
+}
+
+
+class _System:
+    """Stand-in for en bruger ved seed (ingen række i users)."""
+    id = None
+    role = "superadmin"
+    blocked = False
+    permissions = None
+
+
+async def seed_traekrute(session: AsyncSession) -> int:
+    """Første gang: importér Trækrutes kurser og øvelser som KLADDER (redaktøren gennemlæser og publicerer) og lav tre forløb som kladder.
+    Importeres kun én gang (markør i indstillingerne); findes en slug allerede, springes den over."""
+    from portal.services import learn_build
+    from portal.services.setting_store import get_setting, put_setting
+
+    path = SEED_DIR / "laering" / "traekrute.json"
+    if not path.exists() or await get_setting(session, SEED_KEY):
+        return 0
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["drills"] = [d for d in data.get("drills", []) if d["slug"] not in SKIP_DRILLS]
+    existing = {r for r in (await session.execute(text("SELECT slug FROM courses"))).scalars()}
+    data["courses"] = [c for c in data["courses"] if c["slug"] not in existing]
+    data["drills"] = [d for d in data["drills"] if d["slug"] not in existing]
+    report = await learn_build.import_courses(session, _System(), data)  # type: ignore[arg-type]
+    for slug, acts in GENERATED.items():
+        c = (await session.execute(select(Course).where(Course.slug == slug))).scalar_one_or_none()
+        if c is None:
+            continue
+        n = (await session.execute(text("SELECT count(*) FROM questions WHERE course_id = :c"), {"c": c.id})).scalar() or 0
+        for i, a in enumerate(acts):
+            session.add(Question(course_id=c.id, position=n + i, choices=[], explanation="", skills=["Forbered"], **a))
+    for c in (await session.execute(select(Course).where(Course.created_by.is_(None), Course.published.is_(False)))).scalars():
+        c.card = c.card or c.summary
+    await session.flush()
+    await _seed_paths(session)
+    await put_setting(session, SEED_KEY, {"kurser": len(report)}, commit=False)
+    await session.commit()
+    return len(report)
+
+
+async def _seed_paths(session: AsyncSession) -> None:
+    """Tre eksempelforløb som kladder (spec §9.1). Kurserne er kladder, så forløbene kan først publiceres, når de er publiceret."""
+    from portal.models import LrPath, LrPathItem
+
+    async def course_id(slug):
+        return (await session.execute(text("SELECT id FROM courses WHERE slug = :s"), {"s": slug})).scalar()
+
+    felt = lambda titel, tekst, regel, mode="underviser": {"titel": titel, "tekst_md": tekst, "godkendelse": mode, "regel": {"min_arter": 1, **regel, "periode": "efter_oplaasning"}}  # noqa: E731
+
+    async def make(slug, title, summary, level, items):
+        if (await session.execute(text("SELECT 1 FROM lr_paths WHERE slug = :s"), {"s": slug})).first():
+            return
+        p = LrPath(slug=slug, title=title, summary=summary, level=level, published=False, visibility="alle", certificate=True,
+                   certificate_text="Gennemført via DOF.tool", intro_md=summary)
+        session.add(p)
+        await session.flush()
+        for i, it in enumerate(items):
+            session.add(LrPathItem(path_id=p.id, position=i, unlock=it.pop("unlock", {"after": "none"}), **it))
+
+    kurser = ["iagttag-foer-du-navngiver", "en-bestemmelse-du-kan-forklare", "kend-dine-lokale-fugle", "fuglekig-naar-forholdene-skifter", "vanskelige-observationer", "selvstaendigt-feltarbejde"]
+    ids = {s: await course_id(s) for s in kurser + ["habitatdetektiv", "silhuet-foerst", "lignende-arter", "laes-sporene"]}
+    nxt = {"after": "previous"}
+    items = [{"kind": "kursus", "section": "Uge 1 – Iagttag", "course_id": ids[kurser[0]], "min_score_pct": 60},
+             {"kind": "ovelse", "section": "Uge 1 – Iagttag", "course_id": ids["silhuet-foerst"], "required": False, "title": "Silhuet først"},
+             {"kind": "felt", "section": "Uge 1 – Iagttag", "unlock": nxt, "field_task": felt("Beskriv tre fugle uden at navngive dem", "Gå en tur, og notér form, størrelse og bevægelse for tre fugle, før du ser efter navnet.", {"min_arter": 3}, "selv")},
+             {"kind": "kursus", "section": "Uge 2 – Bestemmelse", "course_id": ids[kurser[1]], "unlock": nxt, "min_score_pct": 60},
+             {"kind": "ovelse", "section": "Uge 2 – Bestemmelse", "course_id": ids["habitatdetektiv"], "required": False},
+             {"kind": "kursus", "section": "Uge 3 – Lokalt", "course_id": ids[kurser[2]], "unlock": nxt},
+             {"kind": "felt", "section": "Uge 3 – Lokalt", "unlock": nxt, "field_task": felt("Indrapportér mindst 10 arter på en lokal tur", "Indtast turen i DOFbasen – så afkrydses opgaven.", {"min_arter": 10}, "auto")},
+             {"kind": "kursus", "section": "Uge 4 – Forhold og vanskeligheder", "course_id": ids[kurser[3]], "unlock": nxt},
+             {"kind": "kursus", "section": "Uge 4 – Forhold og vanskeligheder", "course_id": ids[kurser[4]], "unlock": nxt},
+             {"kind": "kursus", "section": "Uge 5 – Selvstændighed", "course_id": ids[kurser[5]], "unlock": nxt},
+             {"kind": "felt", "section": "Uge 5 – Selvstændighed", "unlock": nxt, "field_task": felt("Planlæg og gennemfør en tur – og forklar én bestemmelse", "Fortæl underviseren, hvordan du kom frem til en bestemmelse.", {"min_arter": 5}, "underviser")}]
+    await make("fra-nysgerrig-til-feltbisse", "Fra nysgerrig til feltbisse", "Seks kurser og fire feltopgaver, der gør dig til en mere sikker og ærlig fuglebestemmer.", "begynder", items)
+    groups = [("Uge 1 – Haven", "spurvefugle"), ("Uge 2 – Skov og krat", "sangere"), ("Uge 3 – Drosler og finker", "drosler"), ("Uge 4 – Søer og enge", "aender"), ("Uge 5 – Kysten", "maager")]
+    tr = []
+    for sec, g in groups:
+        tr.append({"kind": "traening", "section": sec, "title": f"Foto og lyd: {g}", "training": {"kilde": "gruppe", "gruppe": g, "m": "begge", "metode": "valg", "rtype": "begge", "n": 20}, "text_md": "Træn til du kan svare uden at tøve – gentag gerne flere dage.", "unlock": nxt})
+        tr.append({"kind": "felt", "section": sec, "unlock": nxt, "field_task": felt("Find mindst fem arter i gruppen", "Ud i felten – brug det, du har trænet.", {"gruppe": g, "min_arter": 5}, "auto")})
+    await make("laer-50-almindelige-fugle", "Lær 50 almindelige fugle", "Fem uger med foto- og lydtræning, fra haven til kysten – og en feltopgave hver uge.", "begynder", tr)
+    await make("vadefugle-i-traekket", "Vadefugle i trækket", "Lær de svære vadefugle at kende, og forbered en tur til en god lokalitet.", "øvet",
+               [{"kind": "tekst", "section": "Forberedelse", "title": "Find en lokalitet", "text_md": "Brug **Forbered en tur** under Læring til at se, hvilke vadefugle der er sandsynlige på din lokalitet i trækugerne.", "required": False},
+                {"kind": "ovelse", "section": "Forberedelse", "course_id": ids["lignende-arter"], "required": False},
+                {"kind": "traening", "section": "Træning", "title": "Vadefugle på foto og lyd", "training": {"kilde": "gruppe", "gruppe": "vadefugle", "m": "begge", "metode": "valg", "rtype": "begge", "n": 30}, "unlock": nxt},
+                {"kind": "felt", "section": "Felt", "unlock": nxt, "field_task": felt("Find tre vadefuglearter", "Gå til en mudderflade eller strand i trækperioden.", {"gruppe": "vadefugle", "min_arter": 3}, "auto")}])

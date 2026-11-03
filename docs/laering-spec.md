@@ -10,6 +10,35 @@ model/udvikler. Læs **`docs/arkitektur.md`** først – alle regler dér gælde
 
 ---
 
+## Status (3.–4. november 2026): hvad er bygget, og hvad afviger fra specen
+
+Fase 0–7 er bygget autonomt (commits `612a85a` … «fase 7»; se `git log --grep=Læring`). Alle flag står som i §3.1 (`preview`/`off`), så den gamle Læring er uændret,
+til en superadmin sætter **Admin → Funktioner → «Læring 2.0»** til *til*. Trækrutes kurser og øvelser er importeret som **kladder** første gang (redaktøren
+gennemlæser og publicerer), sammen med tre eksempelforløb (kladder, kan først publiceres når deres kurser er publiceret).
+
+**Afvigelser og det, der ikke er bygget**
+
+| Spec | Virkelighed |
+|---|---|
+| §15 #2 anonyme brugere | Hele portalen kræver login (`main.py: PUBLIC_API`), så anonyme kan ikke bruge Læring. Koden tåler `user = None`, men ruterne er login-beskyttede. |
+| §4.6 skrifter (Inter, Instrument Serif, DM Mono) | Ikke indlæst; Læring bruger portalens skrifter og designtokens (lys/mørk følger portalen). |
+| §5.2 «kun aggregater» | `obs_odds`/`obs_habitat` og «Forbered en tur» læser `observations`/`trips` for **én lokalitet ad gangen** (`loknr`-indekseret, `hemmelig = 0`, kun ≥ 30 ture), fordi aggregaterne ikke har uge-opløsning pr. lokalitet. |
+| §9.1 oplåsning «efter forrige» | Betyder det forrige *krævede* punkt – valgfrie punkter blokerer ikke. |
+| §5.3 «Se igen», «Rapportér fejl i spørgsmålet», L/M/H-genveje | Ikke bygget (tal 1–8, Enter og mellemrum virker). |
+| §13.4 offline | **Ikke bygget.** Facit forlader aldrig serveren (§5.1), så et spørgsmål kan ikke besvares uden net; en offline læseversion af lektionsteksten er udeladt. |
+| §12.2 `foto_sammenlign`/`lyd_art` på «Lignende arter», Familiequiz | Ikke seedet (kræver artsnumre og `seed/laering/familier.json`, §15 #4). Byggeren kan lave dem. De tre øvelser Mine fejl, Færdighedstest og Fugl for fugl er i stedet indbyggede funktioner (Repetition, `#/laer/test`, `#/laer/dagens`). |
+| §6.2 «uendelig» antal | Ikke bygget (10/20/40). |
+| §13.1 hastighedsgrænse | Enkel tæller pr. bruger pr. minut (`_rate` i `api/learn_play.py`) på session, svar, træning og dagens art. |
+| §8.4 sonagram, §15 #5 | Udskudt som aftalt. |
+| §8.2 medforfattere | Kun ejeren/redaktører kan tilføje (via API; ingen brugerflade endnu). |
+| §10 feltopgaver | `periode: "efter_oplaasning"` regnes fra holdets startdato (ellers tilmeldingstidspunktet). Worker-opgaven `learn_field` kører hver time (Admin → Drift). |
+| §13.3 GDPR | Udtræk og sletning sker via skemaet (alle `lr_*`-tabeller har fremmednøgle til `users`). Svarloggen slettes efter 3 år i den natlige oprydning (ikke aggregeret). |
+| §14 fase 8 | Dokumentation er opdateret. Oprydning (sletning af `views/learn.js`-visningen og `learn-arter.js`, de gamle endpoints) er **ikke gjort**, fordi den gamle Læring stadig er faldbacken, mens flaget ikke er `til` i drift. |
+
+**Før flaget sættes til «til» i drift:** gennemlæs og publicér de importerede kurser/øvelser, tjek at lydquiz-nøglen (Admin → Funktioner → Lydquiz) er sat, og vælg hvem der skal have rettigheden *Læring: underviser* (Admin → Brugere).
+
+---
+
 ## 0. Kort fortalt
 
 Læring (`#/laer`) bliver en egentlig e-læringsportal. Udgangspunktet er **Trækrute** – en dansk prototype i

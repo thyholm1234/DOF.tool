@@ -354,3 +354,21 @@ async def test_faerdighedstest_bruger_publicerede_aktiviteter(web, db):  # noqa:
         await learning.migrate_v2(s)
     qs = (await web["a1"].get("/api/learn/faerdighedstest")).json()["questions"]
     assert len(qs) == 2 and all(q["skills"] == ["Bemærk"] for q in qs) and "correct" not in str(qs)
+
+
+async def test_gdpr_udtraek_og_sletning_dækker_læring(web, db):  # noqa: F811
+    from portal.models import LrAnswer, LrGoal, LrTraining, User
+    from portal.services import account
+
+    async with db() as s:
+        s.add(LrAnswer(user_id=2, source="kursus", modality="tekst", correct=True, skills=["Bemærk"]))
+        s.add(LrTraining(user_id=2, title="Min", config={"m": "foto"}))
+        s.add(LrGoal(user_id=2, n_species=10))
+        await s.commit()
+        u = await s.get(User, 2)
+        data = (await account.export(s, u))["data"]
+        assert {"lr_answers", "lr_trainings", "lr_goals"} <= set(data)
+        await account.delete(s, u)
+    async with db() as s:
+        for t in ("lr_answers", "lr_trainings", "lr_goals"):
+            assert (await s.execute(text(f"SELECT count(*) FROM {t} WHERE user_id = 2"))).scalar() == 0

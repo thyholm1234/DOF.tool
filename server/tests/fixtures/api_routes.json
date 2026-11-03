@@ -5648,6 +5648,34 @@ true,
 ]
 }
 },
+"/api/learn/dagens": {
+"get": {
+"body": false,
+"op": "dagens_api_learn_dagens_get",
+"params": [
+[
+"trin",
+"query",
+false,
+"{\"default\": 0, \"maximum\": 3, \"minimum\": 0, \"title\": \"Trin\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/dagens/gaet": {
+"post": {
+"body": true,
+"op": "dagens_gaet_api_learn_dagens_gaet_post",
+"params": []
+}
+},
+"/api/learn/faerdighedstest": {
+"get": {
+"body": false,
+"op": "faerdighedstest_api_learn_faerdighedstest_get",
+"params": []
+}
+},
 "/api/learn/forbered": {
 "get": {
 "body": false,
@@ -5745,6 +5773,27 @@ true,
 "path",
 true,
 "{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/fremgang": {
+"get": {
+"body": false,
+"op": "fremgang_api_learn_fremgang_get",
+"params": []
+}
+},
+"/api/learn/fremgang/arter": {
+"get": {
+"body": false,
+"op": "fremgang_arter_api_learn_fremgang_arter_get",
+"params": [
+[
+"gruppe",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Gruppe\"}"
 ]
 ]
 }
@@ -5975,6 +6024,13 @@ true,
 "post": {
 "body": true,
 "op": "lyd_svar_api_learn_lyd_svar_post",
+"params": []
+}
+},
+"/api/learn/maal": {
+"put": {
+"body": true,
+"op": "maal_api_learn_maal_put",
 "params": []
 }
 },

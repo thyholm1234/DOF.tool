@@ -27,10 +27,10 @@ export async function render(view, parts, info) {
       } }, h("label", { class: "lr-f" }, h("span", {}, "Titel"), title), tab === "ovelser" ? h("label", { class: "lr-f" }, h("span", {}, "Type"), kind) : null, h("button", { class: "btn primary" }, "Opret og redigér")));
     };
     body.replaceChildren(h("div", { class: "lr-actions" }, h("button", { class: "btn primary", onclick: create }, tab === "ovelser" ? "+ Ny øvelse" : "+ Nyt kursus")),
-      list.length ? h("table", { class: "lr-table" }, h("thead", {}, h("tr", {}, ...["Titel", "Status", "Aktiviteter", "Advarsler", "Ejer", "Rettet"].map(t => h("th", {}, t)))),
+      list.length ? h("div", { class: "lr-scroll" }, h("table", { class: "lr-table" }, h("thead", {}, h("tr", {}, ...["Titel", "Status", "Aktiviteter", "Advarsler", "Ejer", "Rettet"].map(t => h("th", {}, t)))),
         h("tbody", {}, ...list.map(r => h("tr", {}, h("td", {}, h("a", { href: `${BASE}/byg/kursus/${r.slug}` }, r.title), r.kind !== "kursus" ? h("small", { class: "muted" }, ` ${r.kind}`) : null),
           h("td", {}, r.published ? chip(r.changed ? "ændret" : `v${r.version}`, r.changed ? "warn" : "soft") : chip("kladde")), h("td", {}, r.n_units ? `${r.n_units} lektioner · ${r.n_acts}` : r.n_acts),
-          h("td", {}, r.fejl ? chip(`${r.fejl} fejl`, "warn") : null, r.advarsler ? chip(`${r.advarsler} adv.`) : null), h("td", {}, r.mine ? "mig" : r.owner || ""), h("td", {}, r.updated_at ? ago(r.updated_at) : ""))))) : empty("Intet her endnu"));
+          h("td", {}, r.fejl ? chip(`${r.fejl} fejl`, "warn") : null, r.advarsler ? chip(`${r.advarsler} adv.`) : null), h("td", {}, r.mine ? "mig" : r.owner || ""), h("td", {}, r.updated_at ? ago(r.updated_at) : "")))))) : empty("Intet her endnu"));
   } catch (e) { body.replaceChildren(errorBox(e)); }
 }
 

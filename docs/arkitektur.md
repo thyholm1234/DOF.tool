@@ -55,6 +55,7 @@ for sig.
 | Live | `live.js` | SSE-strømmen (`live.on("feed", …)`) |
 | Showcases | `dofbasen/`, `netfugl/` | Selvstændige moduler med egen skal, CSS og admin |
 | Krydslister | `views/krydslister.js`, `krydslister/*.js` | Modul med faner (oversigt, lister, mine kryds, artslister, World Bird List, admin); CSS hentes ved første besøg |
+| Læring | `views/learn.js` (skal + gammel visning), `views/laer.js`, `laer/*.js`, `laer/byg/*.js` | Læring 2.0: afspiller (`player.js`), kurser, træning, forløb, hold, fremgang og bygger; bag flaget `laering_portal`; CSS `laer.css` hentes ved første besøg |
 | Fotos | `views/fotos.js`, `fotos/*.js` | Modul med faner (galleri, mine fotos, retningslinjer, admin); CSS hentes ved første besøg |
 | Artikler | `views/artikler.js`, `artikler/*.js` | Modul med faner (forside, søg, emneord, arter, forfattere, admin); CSS hentes ved første besøg |
 | Editor | `editor/md-editor.js`, `editor/media-picker.js` | Fælles markdown-editor til artikler og nyheder; forhåndsvisningen renderes af serveren |

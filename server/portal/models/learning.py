@@ -165,7 +165,7 @@ class LrPath(Base):
     visibility: Mapped[str] = mapped_column(String(8), default="alle")  # alle / login / hold
     certificate: Mapped[bool] = mapped_column(Boolean, default=False)
     certificate_text: Mapped[str] = mapped_column(Text, default="")
-    created_by: Mapped[int | None] = mapped_column(Integer)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -200,7 +200,7 @@ class LrCohort(Base):
     join_code: Mapped[str] = mapped_column(String(12), unique=True)
     open_join: Mapped[bool] = mapped_column(Boolean, default=False)
     max_members: Mapped[int | None] = mapped_column(Integer)
-    created_by: Mapped[int | None] = mapped_column(Integer)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 

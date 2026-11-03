@@ -97,6 +97,7 @@ async def nightly_compute() -> None:
         await s.execute(text("DELETE FROM notifications WHERE created_at < now() - interval '90 days'"))
         await s.execute(text("DELETE FROM thread_follows WHERE dato < current_date - 7"))
         await s.execute(text("DELETE FROM activity WHERE created_at < now() - interval '180 days'"))
+        await s.execute(text("DELETE FROM lr_answers WHERE created_at < now() - interval '3 years'"))  # Læring: svarloggen opbevares højst tre år
         # En position, appen ikke har opdateret i 30 dage (fx afinstalleret), gemmes ikke længere
         await s.execute(text("DELETE FROM user_locations WHERE updated_at < now() - interval '30 days'"))
         await s.commit()

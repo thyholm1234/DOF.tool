@@ -144,6 +144,13 @@ træksteder med enkle tommelfingerregler. Se fanen *Metode* i appen.
 
 **Læring.** Redaktører (rolle *editor*) opretter kurser og spørgsmål med billede/lyd-upload.
 Forkerte svar kommer igen (Leitner-kasser). Fire automatiske quizzer genereres af portalens egne data.
+*Læring 2.0* (funktionen «Læring 2.0», `docs/laering-spec.md`) gør det til en e-læringsportal: kurser med lektioner (læsetekst,
+fotos, lyd, artskort) og aktiviteter af 14 typer – også datadrevne, der laves af DOFbasens observationer, fotobiblioteket og
+xeno-canto/Macaulay Library – egne foto- og lydtræninger (gem/del), dagens repetition pr. art, «Forbered en tur» (forventede arter på
+en lokalitet i en uge), fremgang (færdigheder, artsmestring, kalibrering af sikkerhed, mål), Fugl for fugl og en færdighedstest.
+Redaktører og undervisere (modulet *laering_undervis*) bygger kurser og forløb i en visuel bygger med publicering (låst kopi),
+import/eksport; forløb kan køres på hold med underviser, holdkode, oversigt og beviser, og feltopgaver afkrydses af brugerens egne
+DOFbasen-observationer. Alle dele ligger bag funktionsflag (Admin → Funktioner).
 
 **Moderation** (rolle *moderator* og op; eget menupunkt ved siden af Admin med fanerne Kommentarer, Nyheder, Ture og Arter – listekategorierne ligger under Arter → Kategorier). Fanen Kommentarer har tre underfaner: *Kommentarer* (skjul/vis,
 skriv til brugeren, udeluk), *Beskeder* (samtaler startet af moderatorer – de ligger i brugerens
