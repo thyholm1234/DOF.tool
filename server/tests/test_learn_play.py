@@ -283,3 +283,74 @@ async def test_traening_kraever_flag_og_repetition(web, db):  # noqa: F811
     d = (await web["a1"].get("/api/learn/repetition")).json()
     assert d["antal"]["spoergsmaal"] == 1 and len(d["questions"]) == 1 and "correct" not in str(d)
     assert (await web["a2"].get("/api/learn/repetition")).json()["questions"] == []
+
+
+# ---------------------------------------------------------------- fase 7: fremgang, mål, dagens art, færdighedstest
+
+async def test_fremgang_og_maal(web, db):  # noqa: F811
+    from datetime import datetime, timezone
+
+    from portal.models import LrAnswer, LrSpeciesMastery
+
+    await flags(db, laering_portal="on")
+    now = datetime.now(timezone.utc)
+    async with db() as s:
+        for i in range(12):  # høj sikkerhed, men kun halvdelen rigtige → dårligt kalibreret
+            s.add(LrAnswer(user_id=1, source="kursus", modality="tekst", correct=i % 2 == 0, confidence=2, skills=["Bemærk"], created_at=now))
+        for i in range(4):
+            s.add(LrAnswer(user_id=1, source="lyd", artnr=1, modality="lyd", correct=True, confidence=0, skills=["Lyt", "Genkald"], created_at=now))
+        s.add(LrSpeciesMastery(user_id=1, artnr=1, modality="lyd", box=5, correct=5, wrong=0, due_at=now))
+        s.add(LrSpeciesMastery(user_id=1, artnr=2, modality="lyd", box=1, correct=1, wrong=2, due_at=now))
+        s.add(LrSpeciesMastery(user_id=1, artnr=1, modality="foto", box=2, correct=2, wrong=0, due_at=now))
+        await s.commit()
+    d = (await web["a1"].get("/api/learn/fremgang")).json()
+    sk = {x["skill"]: x for x in d["faerdigheder"]}
+    assert sk["Bemærk"]["n"] == 12 and sk["Bemærk"]["pct"] == 50 and sk["Lyt"]["pct"] == 100 and sk["Opdatér"]["pct"] is None
+    cal = {x["niveau"]: x for x in d["kalibrering"]}
+    assert cal["Høj"]["n"] == 12 and cal["Høj"]["pct"] == 50 and cal["Høj"]["godt"] is False and cal["Lav"]["godt"] is None  # for få svar til at dømme
+    assert d["mestring"] == {"foto": {"set": 1, "mestret": 0}, "lyd": {"set": 2, "mestret": 1}} and d["streak"]["traenet_i_dag"] and d["streak"]["dage_i_traek"] == 1
+    arter = {a["artnr"]: a for a in (await web["a1"].get("/api/learn/fremgang/arter")).json()}
+    assert arter[1]["lyd"]["box"] == 5 and arter[1]["foto"]["box"] == 2 and arter[2]["foto"] is None
+    assert (await web["a2"].get("/api/learn/fremgang")).json()["mestring"]["lyd"]["set"] == 0  # privat
+    # mål
+    assert (await web["a1"].put("/api/learn/maal", json={"n_species": 40, "modality": "lyd", "deadline": "2027-04-01"})).status_code == 200
+    g = (await web["a1"].get("/api/learn/fremgang")).json()["maal"]
+    assert g["n_species"] == 40 and g["mestret"] == 1 and g["deadline"].startswith("2027-04-01")
+    await web["a1"].put("/api/learn/maal", json={"n_species": None})
+    assert (await web["a1"].get("/api/learn/fremgang")).json()["maal"] is None
+
+
+async def test_dagens_art_afsloerer_en_ledetraad_ad_gangen(web, db, monkeypatch):  # noqa: F811
+    from portal import cache
+    from portal.services import learn_daily
+
+    async def fixed(db_, day):
+        return [1]
+
+    monkeypatch.setattr(learn_daily, "candidates", fixed)
+    await cache.set_json("pheno:weekly", {"1": {"navn": "Dværgterne", "rr": [0.2] * 52}})
+    await flags(db, laering_portal="on", laering_data="on")
+    c0 = (await web["a1"].get("/api/learn/dagens?trin=0")).json()
+    assert c0["ledetraad"]["type"] == "faenologi" and len(c0["ledetraad"]["uger"]) == 52 and "Dværgterne" not in str(c0) and c0["point"] == 100
+    c1 = (await web["a1"].get("/api/learn/dagens?trin=1")).json()
+    assert c1["ledetraad"]["tekst"] == "Slægt: Sternula" and "Dværgterne" not in str(c1)
+    r = (await web["a1"].post("/api/learn/dagens/gaet", json={"trin": 1, "text": "Ravn"})).json()
+    assert not r["correct"] and r["art"] is None
+    r = (await web["a1"].post("/api/learn/dagens/gaet", json={"trin": 1, "text": "dværgterne"})).json()
+    assert r["correct"] and r["point"] == 70 and r["art"]["navn"] == "Dværgterne"
+    async with db() as s:
+        assert (await s.execute(text("SELECT count(*) FROM lr_answers WHERE user_id = 1 AND artnr = 1"))).scalar() == 1  # kun det afsluttende svar logges
+    await flags(db, laering_data="off")
+    assert (await web["a1"].get("/api/learn/dagens")).status_code == 404
+
+
+async def test_faerdighedstest_bruger_publicerede_aktiviteter(web, db):  # noqa: F811
+    from portal.services import learning
+
+    await flags(db, laering_portal="on")
+    assert (await web["a1"].get("/api/learn/faerdighedstest")).json()["questions"] == []
+    await seed_course(db)
+    async with db() as s:
+        await learning.migrate_v2(s)
+    qs = (await web["a1"].get("/api/learn/faerdighedstest")).json()["questions"]
+    assert len(qs) == 2 and all(q["skills"] == ["Bemærk"] for q in qs) and "correct" not in str(qs)

@@ -7,7 +7,7 @@ const PAGES = {
   forside: () => import("../laer/forside.js"), kurser: () => import("../laer/kurser.js"), udforsk: () => import("../laer/udforsk.js"),
   kursus: () => import("../laer/kursus.js"), ovelse: () => import("../laer/ovelse.js"), traen: () => import("../laer/traening.js"),
   forbered: () => import("../laer/forbered.js"), repetition: () => import("../laer/repetition.js"), fremgang: () => import("../laer/fremgang.js"),
-  byg: () => import("../laer/byg/oversigt.js"), forloeb: () => import("../laer/forloeb.js"), hold: () => import("../laer/hold.js"), bevis: () => import("../laer/bevis.js"),
+  dagens: () => import("../laer/dagens.js"), test: () => import("../laer/test.js"), byg: () => import("../laer/byg/oversigt.js"), forloeb: () => import("../laer/forloeb.js"), hold: () => import("../laer/hold.js"), bevis: () => import("../laer/bevis.js"),
 };
 
 /** Rute → [modul, argumenter]. */
@@ -15,7 +15,8 @@ function route(parts, info) {
   const [a, ...rest] = parts;
   if (a === undefined) return ["forside", []];
   if (["kurser", "udforsk", "repetition", "fremgang", "forbered"].includes(a)) return [a === "forbered" && !info.data ? null : a, rest];
-  if (a === "kursus" || a === "ovelse") return [a, rest];
+  if (a === "kursus" || a === "ovelse" || a === "test") return [a, rest];
+  if (a === "dagens") return info.data ? [a, rest] : null;
   if (a === "quiz") return ["kursus", rest];          // gammel adresse
   if (a === "auto") return ["ovelse", ["auto", ...rest]];
   if (a === "arter") return ["traen", ["foto"]];       // gammel adresse

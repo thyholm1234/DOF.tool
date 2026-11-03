@@ -146,3 +146,11 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 .lr-cert { max-width: 640px; margin: 20px auto; padding: 40px 30px; text-align: center; border: 3px double var(--brand); border-radius: 16px; background: var(--surface); }
 .lr-cert h2 { font-size: 2rem; margin: 6px 0; }
 @media print { .lr-head, .lr-tabs, .lr-back, .no-print, header, nav, aside { display: none !important; } .lr-cert { border-color: #000; } }
+
+/* fremgang, dagens art */
+.lr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 8px 0 16px; }
+.lr-stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; } .lr-stat b { font-size: 1.8rem; line-height: 1.1; } .lr-stat span { font-size: .8rem; color: var(--text-3); }
+.lr-radar { width: 100%; max-width: 300px; color: var(--text-2); }
+.lr-box5 { letter-spacing: 1px; font-size: .7rem; color: var(--brand-2); } .lr-box5.due { color: var(--warn); } .lr-box5.b0, .lr-box5.b1 { color: var(--err); }
+.lr-spark.big { height: 70px; width: 100%; max-width: 420px; } .lr-spark i.now { background: var(--brand); outline: 2px solid var(--brand); }
+.lr-clue { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin: 10px 0; }

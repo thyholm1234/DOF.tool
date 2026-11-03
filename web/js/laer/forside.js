@@ -19,6 +19,7 @@ export async function render(view, _p, info) {
     info.data ? ["Forbered din næste tur", "Vælg sted og dato – træn arterne, du sandsynligvis møder.", `${BASE}/forbered`] : null,
     ["Træn foto og lyd", "Gæt arten på fotos og optagelser – vælg selv arter.", `${BASE}/traen`],
   ].filter(Boolean);
+  const spil = [["Færdighedstest", "20 spørgsmål – find ud af, hvor du skal starte.", `${BASE}/test`], info.data ? ["Fugl for fugl", "Dagens art: gæt den med så få ledetråde som muligt.", `${BASE}/dagens`] : null].filter(Boolean);
   const fortsaet = d.kurser.filter(c => c.progress && c.progress.done > 0 && c.progress.done < c.progress.total);
   const quiz = [
     info.artsquiz ? ["Artsquiz", "Gæt arten på fotos fra fotobiblioteket.", `${BASE}/traen/foto`] : null,
@@ -35,7 +36,8 @@ export async function render(view, _p, info) {
     h("div", { class: "lr-grid four" }, ...dag.map(([t, s, href]) => h("a", { class: "lr-tile", href }, h("h3", {}, t), h("p", { class: "muted" }, s)))),
     h("h2", {}, "Kurserne"), d.kurser.length ? h("div", { class: "lr-grid" }, ...d.kurser.map(courseCard)) : h("p", { class: "muted" }, "Der er ingen publicerede kurser endnu."),
     h("h2", {}, "Metoden"), h("ol", { class: "lr-method" }, ...METODE_TEKST.map(([t, s], i) => h("li", {}, h("b", {}, `${i + 1}. ${t}`), h("span", {}, s)))),
-    quiz.length ? [h("h2", {}, "Quizzer og spil"), h("div", { class: "lr-grid four" }, ...quiz.map(([t, s, href]) => h("a", { class: "lr-tile", href }, h("h3", {}, t), h("p", { class: "muted" }, s))))] : null,
+    h("h2", {}, "Test og spil"), h("div", { class: "lr-grid four" }, ...spil.map(([t, s, href]) => h("a", { class: "lr-tile", href }, h("h3", {}, t), h("p", { class: "muted" }, s)))),
+    quiz.length ? [h("h2", {}, "Quizzer"), h("div", { class: "lr-grid four" }, ...quiz.map(([t, s, href]) => h("a", { class: "lr-tile", href }, h("h3", {}, t), h("p", { class: "muted" }, s))))] : null,
     d.oevelser.length ? [h("h2", {}, "Øvelser"), h("div", { class: "lr-grid" }, ...d.oevelser.slice(0, 6).map(courseCard)), h("p", {}, h("a", { href: `${BASE}/udforsk` }, "Se alle øvelser →"))] : null,
     d.forloeb?.length ? [h("h2", {}, "Forløb"), h("div", { class: "lr-grid" }, ...d.forloeb.map(p => h("a", { class: "lr-tile", href: `${BASE}/forloeb/${p.slug}` }, h("h3", {}, p.title), h("p", { class: "muted" }, p.summary))))] : null);
 }

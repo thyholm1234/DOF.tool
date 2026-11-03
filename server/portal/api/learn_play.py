@@ -331,3 +331,113 @@ async def forbered(loknr: int | None = None, dato: str | None = None, user: User
         return await learn_train.prepare(db, loknr, d)
     except learn_train.TrainError as exc:
         raise HTTPException(404, str(exc)) from exc
+
+
+# ---------------------------------------------------------------- fremgang, mål, dagens art og færdighedstest (spec §11–12)
+
+@router.get("/fremgang")
+async def fremgang(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.services import learn_progress
+
+    if not await learn_access.portal(db, user):
+        raise HTTPException(404)
+    return await learn_progress.overview(db, user)
+
+
+@router.get("/fremgang/arter")
+async def fremgang_arter(gruppe: str | None = None, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.services import learn_progress
+
+    return await learn_progress.species_list(db, user.id, gruppe)
+
+
+class GoalIn(BaseModel):
+    n_species: int | None = Field(None, ge=1, le=1000)
+    modality: str = Field("lyd", pattern="^(foto|lyd)$")
+    deadline: str | None = None
+
+
+@router.put("/maal")
+async def maal(body: GoalIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from datetime import datetime
+
+    from portal.services import learn_progress
+
+    try:
+        dl = datetime.fromisoformat(body.deadline) if body.deadline else None
+        if dl is not None and dl.tzinfo is None:
+            from datetime import timezone
+
+            dl = dl.replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise HTTPException(400, "Ugyldig dato") from exc
+    await learn_progress.set_goal(db, user, body.n_species, body.modality, dl)
+    return {"ok": True}
+
+
+@router.get("/dagens")
+async def dagens(trin: int = Query(0, ge=0, le=3), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from datetime import date
+
+    from portal.services import learn_daily
+
+    if not (await learn_access.portal(db, user) and await learn_access.data(db, user)):
+        raise HTTPException(404)
+    sp = await learn_daily.todays(db)
+    if sp is None:
+        raise HTTPException(409, "Der er ikke nok data til dagens fugl endnu")
+    return {"dato": date.today().isoformat(), "trin": trin, "ledetraad": await learn_daily.clue(db, sp, trin, date.today()), "point": learn_daily.POINTS[trin], "maks_trin": 3}
+
+
+class GuessIn(BaseModel):
+    trin: int = Field(ge=0, le=3)
+    chosen: int | None = None
+    text: str | None = Field(None, max_length=200)
+
+
+@router.post("/dagens/gaet")
+async def dagens_gaet(body: GuessIn, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    from portal.services import learn_daily
+
+    if not (await learn_access.portal(db, user) and await learn_access.data(db, user)):
+        raise HTTPException(404)
+    await _rate(user, "dagens", 60)
+    sp = await learn_daily.todays(db)
+    if sp is None:
+        raise HTTPException(409, "Der er ikke nok data til dagens fugl endnu")
+    artnr = body.chosen if body.chosen else await learn_play.resolve_text(db, body.text or "")
+    res = await learn_daily.guess(db, sp, artnr, body.trin)
+    if res["correct"] or body.trin >= 3:
+        learn_play.log_answer(db, user, source="forbered", question_id=None, artnr=sp["artnr"], modality="data", ok=res["correct"], confidence=None, skills=["Genkald", "Forbered"], ms=None)
+        await db.commit()
+        res["art"] = {"artnr": sp["artnr"], "navn": sp["navn"], "latin": sp["latin"]}
+    return res
+
+
+@router.get("/faerdighedstest")
+async def faerdighedstest(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """20 spørgsmål på tværs af færdigheder (statiske aktiviteter fra publicerede kurser og øvelser) – anbefaler bagefter, hvad der skal øves."""
+    import random
+
+    if not await learn_access.portal(db, user):
+        raise HTTPException(404)
+    rng = random.Random()
+    pool: dict[str, list] = {}
+    for c in await _visible_courses(db, user):
+        if not c.published or not c.published_snapshot:
+            continue
+        for u in c.published_snapshot["units"]:
+            for a in u["acts"]:
+                if a["type"] in ("valg", "silhuet", "tekst"):
+                    for s in (a.get("skills") or list(c.skills or [])):
+                        pool.setdefault(s, []).append((c, a))
+    chosen, seen = [], set()
+    for s in sorted(pool, key=lambda k: len(pool[k])):
+        rng.shuffle(pool[s])
+        for c, a in pool[s][:3]:
+            if a["id"] not in seen and len(chosen) < 20:
+                seen.add(a["id"])
+                chosen.append((c, a))
+    rng.shuffle(chosen)
+    qs = [await learn_play.public_static(db, a, rng, c.hue, list(c.skills or [])) for c, a in chosen]
+    return {"title": "Færdighedstest", "questions": qs}
