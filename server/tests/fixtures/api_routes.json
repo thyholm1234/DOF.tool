@@ -5024,6 +5024,362 @@ false,
 ]
 }
 },
+"/api/learn/byg/eksempler": {
+"post": {
+"body": true,
+"op": "eksempler_api_learn_byg_eksempler_post",
+"params": []
+}
+},
+"/api/learn/byg/eksport": {
+"get": {
+"body": false,
+"op": "eksport_api_learn_byg_eksport_get",
+"params": [
+[
+"slug",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Slug\"}"
+]
+]
+}
+},
+"/api/learn/byg/forhaandsvis": {
+"post": {
+"body": true,
+"op": "forhaandsvis_api_learn_byg_forhaandsvis_post",
+"params": []
+}
+},
+"/api/learn/byg/fotos": {
+"get": {
+"body": false,
+"op": "fotos_api_learn_byg_fotos_get",
+"params": [
+[
+"artnr",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Artnr\"}"
+],
+[
+"offset",
+"query",
+false,
+"{\"default\": 0, \"title\": \"Offset\", \"type\": \"integer\"}"
+],
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/import": {
+"post": {
+"body": true,
+"op": "importer_api_learn_byg_import_post",
+"params": []
+}
+},
+"/api/learn/byg/kurser": {
+"post": {
+"body": true,
+"op": "nyt_api_learn_byg_kurser_post",
+"params": []
+}
+},
+"/api/learn/byg/kurser/{slug}": {
+"delete": {
+"body": false,
+"op": "slet_api_learn_byg_kurser__slug__delete",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "hent_api_learn_byg_kurser__slug__get",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_api_learn_byg_kurser__slug__put",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/afpublicer": {
+"post": {
+"body": false,
+"op": "afpublicer_api_learn_byg_kurser__slug__afpublicer_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/aktiviteter": {
+"post": {
+"body": true,
+"op": "ny_aktivitet_api_learn_byg_kurser__slug__aktiviteter_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/aktiviteter/{qid}": {
+"delete": {
+"body": false,
+"op": "slet_aktivitet_api_learn_byg_kurser__slug__aktiviteter__qid__delete",
+"params": [
+[
+"qid",
+"path",
+true,
+"{\"title\": \"Qid\", \"type\": \"integer\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_aktivitet_api_learn_byg_kurser__slug__aktiviteter__qid__put",
+"params": [
+[
+"qid",
+"path",
+true,
+"{\"title\": \"Qid\", \"type\": \"integer\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/enheder": {
+"post": {
+"body": true,
+"op": "ny_enhed_api_learn_byg_kurser__slug__enheder_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/enheder/{uid}": {
+"delete": {
+"body": false,
+"op": "slet_enhed_api_learn_byg_kurser__slug__enheder__uid__delete",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+],
+[
+"uid",
+"path",
+true,
+"{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_enhed_api_learn_byg_kurser__slug__enheder__uid__put",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+],
+[
+"uid",
+"path",
+true,
+"{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/fortryd": {
+"post": {
+"body": false,
+"op": "fortryd_api_learn_byg_kurser__slug__fortryd_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/kopi": {
+"post": {
+"body": false,
+"op": "kopi_api_learn_byg_kurser__slug__kopi_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/medforfattere": {
+"post": {
+"body": true,
+"op": "medforfatter_api_learn_byg_kurser__slug__medforfattere_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/medforfattere/{uid}": {
+"delete": {
+"body": false,
+"op": "fjern_medforfatter_api_learn_byg_kurser__slug__medforfattere__uid__delete",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+],
+[
+"uid",
+"path",
+true,
+"{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/orden": {
+"post": {
+"body": true,
+"op": "orden_api_learn_byg_kurser__slug__orden_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/kurser/{slug}/publicer": {
+"post": {
+"body": false,
+"op": "publicer_api_learn_byg_kurser__slug__publicer_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/lyde": {
+"get": {
+"body": false,
+"op": "lyde_api_learn_byg_lyde_get",
+"params": [
+[
+"artnr",
+"query",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/byg/lyde/hent": {
+"post": {
+"body": false,
+"op": "lyde_hent_api_learn_byg_lyde_hent_post",
+"params": [
+[
+"artnr",
+"query",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/byg/medie": {
+"post": {
+"body": true,
+"op": "medie_api_learn_byg_medie_post",
+"params": []
+}
+},
+"/api/learn/byg/oversigt": {
+"get": {
+"body": false,
+"op": "oversigt_api_learn_byg_oversigt_get",
+"params": []
+}
+},
 "/api/learn/courses": {
 "get": {
 "body": false,

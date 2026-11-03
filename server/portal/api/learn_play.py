@@ -55,7 +55,8 @@ def _card(c: Course, prog: dict) -> dict:
     st = c.published_snapshot or {}
     n_units = len(st.get("units", [])) if st else None
     n_acts = sum(len(u["acts"]) for u in st.get("units", [])) if st else None
-    return {**learn_play.course_public(c), "n_units": n_units, "n_acts": n_acts, "progress": prog.get(c.id)}
+    base = {**st["course"], "id": c.id, "slug": c.slug, "kind": c.kind, "published": c.published, "visibility": c.visibility} if st else learn_play.course_public(c)
+    return {**base, "n_units": n_units, "n_acts": n_acts, "progress": prog.get(c.id)}
 
 
 @router.get("/katalog")

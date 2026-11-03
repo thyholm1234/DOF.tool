@@ -37,8 +37,8 @@ export async function api(path, { method = "GET", body, form } = {}) {
   const text = await res.text();
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!res.ok) {
-    const msg = (data && data.detail) ? (typeof data.detail === "string" ? data.detail : data.detail.map?.(d => d.msg).join(", ")) : `Fejl ${res.status}`;
-    const err = new Error(msg); err.status = res.status; throw err;
+    const msg = (data && data.detail) ? (typeof data.detail === "string" ? data.detail : data.detail.msg || data.detail.map?.(d => d.msg).join(", ")) : `Fejl ${res.status}`;
+    const err = new Error(msg || `Fejl ${res.status}`); err.status = res.status; err.detail = data?.detail; throw err;
   }
   return data;
 }
