@@ -5088,6 +5088,33 @@ true,
 ]
 }
 },
+"/api/learn/courses/{slug}/units": {
+"get": {
+"body": false,
+"op": "course_units_api_learn_courses__slug__units_get",
+"params": [
+[
+"preview",
+"query",
+false,
+"{\"default\": false, \"title\": \"Preview\", \"type\": \"boolean\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/katalog": {
+"get": {
+"body": false,
+"op": "katalog_api_learn_katalog_get",
+"params": []
+}
+},
 "/api/learn/lyd/audio/{token}": {
 "get": {
 "body": false,
@@ -5098,6 +5125,20 @@ true,
 "path",
 true,
 "{\"title\": \"Token\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/lyd/fil/{rid}": {
+"get": {
+"body": false,
+"op": "sound_file_api_learn_lyd_fil__rid__get",
+"params": [
+[
+"rid",
+"path",
+true,
+"{\"title\": \"Rid\", \"type\": \"integer\"}"
 ]
 ]
 }
@@ -5163,6 +5204,45 @@ true,
 "params": []
 }
 },
+"/api/learn/ovelser/{slug}/session": {
+"get": {
+"body": false,
+"op": "drill_session_api_learn_ovelser__slug__session_get",
+"params": [
+[
+"mode",
+"query",
+false,
+"{\"default\": \"smart\", \"pattern\": \"^(smart|random|tid)$\", \"title\": \"Mode\", \"type\": \"string\"}"
+],
+[
+"n",
+"query",
+false,
+"{\"default\": 10, \"maximum\": 40, \"minimum\": 1, \"title\": \"N\", \"type\": \"integer\"}"
+],
+[
+"preview",
+"query",
+false,
+"{\"default\": false, \"title\": \"Preview\", \"type\": \"boolean\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/portal": {
+"get": {
+"body": false,
+"op": "portal_info_api_learn_portal_get",
+"params": []
+}
+},
 "/api/learn/questions/{qid}": {
 "delete": {
 "body": false,
@@ -5194,6 +5274,47 @@ true,
 "body": true,
 "op": "result_api_learn_result_post",
 "params": []
+}
+},
+"/api/learn/svar": {
+"post": {
+"body": true,
+"op": "svar_api_learn_svar_post",
+"params": []
+}
+},
+"/api/learn/units/{unit_id}/faerdig": {
+"post": {
+"body": true,
+"op": "unit_done_api_learn_units__unit_id__faerdig_post",
+"params": [
+[
+"unit_id",
+"path",
+true,
+"{\"title\": \"Unit Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/units/{unit_id}/session": {
+"get": {
+"body": false,
+"op": "unit_session_api_learn_units__unit_id__session_get",
+"params": [
+[
+"preview",
+"query",
+false,
+"{\"default\": false, \"title\": \"Preview\", \"type\": \"boolean\"}"
+],
+[
+"unit_id",
+"path",
+true,
+"{\"title\": \"Unit Id\", \"type\": \"integer\"}"
+]
+]
 }
 },
 "/api/likes": {

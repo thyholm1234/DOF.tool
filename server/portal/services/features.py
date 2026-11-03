@@ -52,6 +52,15 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "lydquiz": ("Læring: lydquiz", "Under Læring: en quiz på 20 lydoptagelser fra xeno-canto og Macaulay Library, hvor brugeren gætter arten uden at "
                 "kunne se navnet under afspilningen. Samme valg af artsgrupper/egne arter og svarmetode som artsquizzen. Kræver en "
                 "xeno-canto-nøgle (Admin → Funktioner → Lydquiz).", None, "preview"),
+    "laering_portal": ("Læring 2.0: ny e-læringsportal", "Den nye Læring med forside, kurser, udforsk, øvelser, egne foto- og lydtræninger, "
+                       "repetition og fremgang (docs/laering-spec.md). Slået fra vises den gamle Læring.", None, "preview"),
+    "laering_data": ("Læring: DOFbasen-data og «Forbered en tur»", "Aktiviteter, der laves af DOFbasens observationer (sandsynlighed, sæson, "
+                     "levested, sjældenhed), og siden «Forbered en tur».", "laering_portal", "on"),
+    "laering_byg": ("Læring: kursusbygger", "Den visuelle kursusbygger med lektioner, aktivitetstyper, fotos og lyd, publicering og import/eksport.",
+                    "laering_portal", "on"),
+    "laering_forloeb": ("Læring: forløb og hold", "Forløbsbyggeren, forløb med kurser/øvelser/feltopgaver, hold med underviser og beviser.",
+                        "laering_portal", "off"),
+    "laering_felt": ("Læring: feltopgaver", "Feltopgaver i forløb, der afkrydses af brugerens egne DOFbasen-observationer.", "laering_forloeb", "on"),
     "dofbasen": ("DOFbasen (showcase)", "Hele modulet: en ny udgave af dofbasen.dk med forside, observationer, lister, fænologi, "
                  "tekstsider og eget admin-panel. Menupunktet DOFbasen vises kun, når modulet er synligt for brugeren.", None, "preview"),
     "dofbasen_search": ("DOFbasen: søgning", "Søgesiden med alle filtre, kort og CSV-udtræk.", "dofbasen", "on"),

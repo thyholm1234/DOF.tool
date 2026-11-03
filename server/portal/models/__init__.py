@@ -83,7 +83,10 @@ from portal.models.gallery import (
     GalImport,
 )
 from portal.models.krydslister import KlTaxon, KlSpeciesList, KlSpeciesListEntry, KlListDef, KlKryds, KlAutoList, KlImport
-from portal.models.learning import Course, Question, QuestionProgress, QuizResult, SoundRecording
+from portal.models.learning import (
+    Course, Question, QuestionProgress, QuizResult, SoundRecording, Unit, LrPath, LrPathItem, LrCohort, LrCohortMember,
+    LrEnrollment, LrUnitProgress, LrAnswer, LrSpeciesMastery, LrTraining, LrFieldDone, LrCourseEditor, LrGoal,
+)
 from portal.models.field import FieldTrip, FieldBreedingPair, FieldDisturbance, FieldReport, FieldReportUpdate
 from portal.models.matrikel import Matrikel, MatrikelPeriode
 from portal.models.social import Like, Activity, SupportThread, SupportMessage, CommentBan

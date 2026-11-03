@@ -18,7 +18,7 @@ from portal.services.auth import ensure_roles, ensure_superadmin, seed_roles
 from portal.services.categories import seed_categories
 from portal.services.danish_list import seed as seed_danish_list
 from portal.services.dofbasen import seed as seed_dofbasen
-from portal.services.learning import seed_courses
+from portal.services.learning import migrate_v2, seed_courses
 from portal.services.manual_finds import seed as seed_manual_finds
 from portal.services.netfugl import seed as seed_netfugl
 from portal.services.push import ensure_vapid
@@ -51,6 +51,7 @@ async def init_db() -> None:
             await ensure_roles(s, force=True)
             await ensure_superadmin(s)
             await seed_courses(s)
+            await migrate_v2(s)
             await seed_dofbasen(s)
             await seed_netfugl(s)
             await ensure_vapid(s)

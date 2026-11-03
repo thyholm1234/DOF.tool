@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import get_json, kv
 from portal.config import SEED_DIR
-from portal.models import Course, Question, QuestionProgress
+from portal.models import Course, Question, QuestionProgress, Unit
 
 BOX_DAYS = [0, 1, 3, 7, 16, 35, 90]
 MONTHS = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober",
@@ -58,20 +58,25 @@ async def session_questions(session: AsyncSession, user_id: int | None, course: 
     return [public_question(q, rng) for q in picked]
 
 
+async def touch_progress(session: AsyncSession, user_id: int, question_id: int, ok: bool) -> None:
+    """Leitner-kasse for et statisk spørgsmål (uden commit)."""
+    prog = await session.get(QuestionProgress, (user_id, question_id))
+    now = datetime.now(timezone.utc)
+    if prog is None:
+        prog = QuestionProgress(user_id=user_id, question_id=question_id, box=0, correct=0, wrong=0)
+        session.add(prog)
+    prog.box = min((prog.box or 0) + 1, len(BOX_DAYS) - 1) if ok else 0
+    prog.correct = (prog.correct or 0) + (1 if ok else 0)
+    prog.wrong = (prog.wrong or 0) + (0 if ok else 1)
+    prog.due_at = now + timedelta(days=BOX_DAYS[prog.box]) if ok else now + timedelta(minutes=10)
+    prog.last_at = now
+
+
 async def answer(session: AsyncSession, user_id: int | None, question: Question, chosen: list[int]) -> dict:
     correct_ids = {i for i, c in enumerate(question.choices) if c.get("correct")}
     ok = set(chosen) == correct_ids
     if user_id:
-        prog = await session.get(QuestionProgress, (user_id, question.id))
-        now = datetime.now(timezone.utc)
-        if prog is None:
-            prog = QuestionProgress(user_id=user_id, question_id=question.id, box=0, correct=0, wrong=0)
-            session.add(prog)
-        prog.box = min((prog.box or 0) + 1, len(BOX_DAYS) - 1) if ok else 0
-        prog.correct = (prog.correct or 0) + (1 if ok else 0)
-        prog.wrong = (prog.wrong or 0) + (0 if ok else 1)
-        prog.due_at = now + timedelta(days=BOX_DAYS[prog.box]) if ok else now + timedelta(minutes=10)
-        prog.last_at = now
+        await touch_progress(session, user_id, question.id, ok)
         await session.commit()
     return {"correct": ok, "correct_ids": sorted(correct_ids), "explanation": question.explanation}
 
@@ -219,3 +224,25 @@ async def seed_courses(session: AsyncSession) -> None:
                                  explanation=q.get("explanation", ""), media_kind=q.get("media_kind"),
                                  media_url=q.get("media_url"), media_credit=q.get("media_credit")))
     await session.commit()
+
+
+async def migrate_v2(session: AsyncSession) -> int:
+    """Læring 2.0 (spec §12.1): hvert gammelt kursus får én lektion med sine spørgsmål, og publicerede kurser får en låst kopi. Idempotent."""
+    from portal.services import learn_play
+
+    n = 0
+    courses = (await session.execute(text("""SELECT c.id FROM courses c WHERE c.kind = 'kursus'
+        AND NOT EXISTS (SELECT 1 FROM lr_units u WHERE u.course_id = c.id) AND EXISTS (SELECT 1 FROM questions q WHERE q.course_id = c.id)"""))).scalars().all()
+    for cid in courses:
+        c = await session.get(Course, cid)
+        u = Unit(course_id=cid, position=0, title="Spørgsmål", lesson_md=c.intro or "", blocks=[])
+        session.add(u)
+        await session.flush()
+        await session.execute(text("UPDATE questions SET unit_id = :u WHERE course_id = :c AND unit_id IS NULL"), {"u": u.id, "c": cid})
+        n += 1
+    await session.flush()
+    for c in (await session.execute(select(Course).where(Course.published, Course.published_snapshot.is_(None)))).scalars():
+        c.published_snapshot = await learn_play.make_snapshot(session, c)
+        c.version = max(c.version or 0, 1)
+    await session.commit()
+    return n

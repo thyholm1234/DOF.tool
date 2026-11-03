@@ -24,6 +24,8 @@ USER_TABLES = frozenset({
     "roles", "users", "user_locations", "push_subscriptions",
     "areas", "alert_rules", "thread_follows", "thread_comments", "thread_statuses", "notifications", "list_groups",
     "list_group_members", "settings", "news", "mob_presets", "courses", "questions", "question_progress", "quiz_results", "snd_recordings",
+    "lr_units", "lr_paths", "lr_path_items", "lr_cohorts", "lr_cohort_members", "lr_enrollments", "lr_unit_progress", "lr_answers",
+    "lr_species_mastery", "lr_trainings", "lr_field_done", "lr_course_editors", "lr_goals",
     "field_trips", "field_breeding_pairs", "field_disturbances", "field_reports", "field_report_updates", "matrikler",
     "matrikel_perioder", "likes", "activity", "support_threads", "support_messages", "comment_bans", "dof_events",
     "site_calendars", "calendar_visits", "dofb_pages", "dofb_news", "dofb_focus", "dofb_lists", "dofb_areas", "dofb_roles",
