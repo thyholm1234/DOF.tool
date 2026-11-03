@@ -37,12 +37,13 @@ export async function render(view, mode = "arter") {
   const saved = store(KEY) || {};
   const picked = new Set((saved.arter || []).filter(a => byNr.has(a)));
   let method = saved.metode === "tekst" ? "tekst" : "valg";
+  let kind = ["sang", "kald", "begge"].includes(saved.type) ? saved.type : "begge";  // lydquiz: hvilken slags lyd
   // antal kendte fotos/optagelser; ved lyd er arter uden tal endnu ikke slået op, og de tæller med
   const photos = (a) => info.fotos[a] ?? (M.unknown ? 1 : 0);
   const root = h("div", { class: "quiz-setup" });
   view.append(root);
 
-  const persist = () => store(KEY, { arter: [...picked], metode: method });
+  const persist = () => store(KEY, { arter: [...picked], metode: method, type: kind });
   const draw = () => { persist(); drawSetup(); };
 
   function drawSetup() {
@@ -81,6 +82,9 @@ export async function render(view, mode = "arter") {
       h("div", { class: "aq-methods", role: "radiogroup" },
         ...[["valg", "Multiple choice", "Vælg mellem fire arter."], ["tekst", "Skriv artens navn", "Skriv selv – med forslag fra alle arter, som ved indtastning."]].map(([v, t, d]) =>
           h("label", { class: "aq-method" + (method === v ? " on" : "") }, h("input", { type: "radio", name: "aq-m", checked: method === v, onchange: () => { method = v; draw(); } }), h("b", {}, t), h("small", { class: "muted" }, d)))),
+      mode === "lyd" ? h("div", {}, h("h2", { class: "mt2" }, "Hvilken lyd?"),
+        h("div", { class: "aq-methods", role: "radiogroup" }, ...[["sang", "Sang", "Kun sang."], ["kald", "Kald", "Kun kald (alarm-, flyve- og kontaktkald)."], ["begge", "Begge", "Både sang og kald."]].map(([v, t, d]) =>
+          h("label", { class: "aq-method" + (kind === v ? " on" : "") }, h("input", { type: "radio", name: "aq-k", checked: kind === v, onchange: () => { kind = v; draw(); } }), h("b", {}, t), h("small", { class: "muted" }, d))))) : null,
       h("div", { class: "mt2" }, h("button", { class: "btn primary", disabled: !ready, onclick: () => start() }, M.start)),
       mode === "lyd" && can("laering") ? mlPanel(species) : null);
   }
@@ -89,7 +93,7 @@ export async function render(view, mode = "arter") {
     const btn = root.querySelector(".btn.primary");
     if (btn) { btn.disabled = true; btn.textContent = mode === "lyd" ? "Finder optagelser … (kan tage lidt første gang)" : "Henter fotos …"; }
     let qs;
-    try { qs = (await api(`${M.base}/quiz`, { method: "POST", body: { arter: [...picked], metode: method } })).questions; }
+    try { qs = (await api(`${M.base}/quiz`, { method: "POST", body: { arter: [...picked], metode: method, ...(mode === "lyd" ? { type: kind } : {}) } })).questions; }
     catch (err) { toast(err.message, "err"); drawSetup(); return; }
     play(qs);
   }

@@ -162,10 +162,14 @@ async def lyd_grupper(user: User = Depends(_lydquiz), db: AsyncSession = Depends
     return {"grupper": await species_quiz.preset_groups(db), "fotos": await sound_quiz.counts(db), "ukendt": True}
 
 
+class SoundQuizIn(SpeciesQuizIn):
+    type: str = Field("begge", pattern="^(sang|kald|begge)$")
+
+
 @router.post("/lyd/quiz")
-async def lyd_quiz(body: SpeciesQuizIn, user: User = Depends(_lydquiz), db: AsyncSession = Depends(get_session)):
+async def lyd_quiz(body: SoundQuizIn, user: User = Depends(_lydquiz), db: AsyncSession = Depends(get_session)):
     try:
-        qs = await sound_quiz.build(db, body.arter, body.metode)
+        qs = await sound_quiz.build(db, body.arter, body.metode, body.type)
     except species_quiz.QuizError as exc:
         raise HTTPException(409, str(exc)) from exc
     return {"questions": qs}

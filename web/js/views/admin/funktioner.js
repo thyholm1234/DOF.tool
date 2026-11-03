@@ -59,7 +59,6 @@ function lydquizCard() {
       h("label", { class: "field" }, h("span", {}, "xeno-canto API-nøgle (xeno-canto.org → din konto → API-nøgle)"), key),
       sel("Mindste kvalitet", "min_quality", d, [["A", "A (bedst)"], ["B", "B eller bedre"], ["C", "C eller bedre"]]),
       sel("Område", "area", d, [["europe", "Europa"], ["denmark", "Kun Danmark"], ["", "Hele verden"]]),
-      sel("Type", "types", d, [["song", "Sang"], ["call", "Kald"], ["", "Alle"]]),
       num("Optagelser gemt pr. art", "per_species", d, 3, 50), num("Længste optagelse (sekunder)", "max_length", d, 5, 300),
       h("label", { class: "field" }, h("span", {}, "Ekstra søgetekst (xeno-canto-syntaks, valgfri – fx «method:field recording»)"), h("input", { type: "text", "data-k": "extra", value: d.extra || "", maxlength: 200 })));
     const collect = () => Object.fromEntries([...form.querySelectorAll("[data-k]")].map(e => [e.dataset.k, e.type === "number" ? +e.value : e.value]));

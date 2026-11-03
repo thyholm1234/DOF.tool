@@ -20,7 +20,6 @@ class SettingsIn(BaseModel):
     clear_key: bool = False
     min_quality: str | None = None
     area: str | None = None
-    types: str | None = None
     per_species: int | None = None
     max_length: int | None = None
     extra: str | None = None

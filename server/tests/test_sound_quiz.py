@@ -14,10 +14,10 @@ def fake_xc(monkeypatch, tmp_path):
 
     calls = []
 
-    async def xc_search(latin, s):
-        calls.append(latin)
-        return [{"ext_id": f"{abs(hash(latin)) % 10**6}{i}", "recordist": "Rita Optager", "license": "CC BY-NC-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-                 "rtype": "song", "quality": "A", "length_s": 20, "country": "Denmark", "page_url": f"https://xeno-canto.org/9{i}", "file_url": "https://example.invalid/x.mp3"} for i in range(3)]
+    async def xc_search(latin, s, rtype=None):
+        calls.append((latin, rtype))
+        return [{"ext_id": f"{abs(hash(latin)) % 10**6}{rtype}{i}", "recordist": "Rita Optager", "license": "CC BY-NC-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+                 "rtype": "call" if rtype == "call" else "song", "quality": "A", "length_s": 20, "country": "Denmark", "page_url": f"https://xeno-canto.org/9{i}", "file_url": "https://example.invalid/x.mp3"} for i in range(3)]
 
     async def audio_file(source, ext_id, url):
         p = tmp_path / f"{source}-{ext_id}.mp3"
@@ -55,7 +55,7 @@ async def test_lydquiz(web, db, monkeypatch, tmp_path):  # noqa: F811
     r = await web["a1"].post("/api/learn/lyd/quiz", json={"arter": arter, "metode": "valg"})
     assert r.status_code == 200
     qs = r.json()["questions"]
-    assert len(calls) == 1 + 5 and len(qs) == 15  # afprøvningen + ét opslag pr. art; 5 arter × 3 optagelser
+    assert len(calls) == 1 + 10 and len(qs) == 20  # afprøvningen + sang og kald pr. art (standard: begge); 30 optagelser, 20 spørgsmål
     q = qs[0]
     assert set(q) <= {"id", "media_url", "rtype", "metode", "choices"} and q["media_url"] == f"/api/learn/lyd/audio/{q['id']}" and len(q["choices"]) == 4
     a = await web["a1"].get(q["media_url"])
@@ -67,6 +67,12 @@ async def test_lydquiz(web, db, monkeypatch, tmp_path):  # noqa: F811
     before = len(calls)
     assert (await web["a1"].post("/api/learn/lyd/quiz", json={"arter": arter, "metode": "tekst"})).status_code == 200
     assert len(calls) == before
+    # kun sang / kun kald bruger de gemte optagelser (og slår ikke op igen)
+    for kind, want in (("sang", "song"), ("kald", "call")):
+        r = await web["a1"].post("/api/learn/lyd/quiz", json={"arter": arter, "metode": "tekst", "type": kind})
+        assert r.status_code == 200 and len(r.json()["questions"]) == 15 and {q["rtype"] for q in r.json()["questions"]} == {want}
+    assert len(calls) == before
+    assert (await web["a1"].post("/api/learn/lyd/quiz", json={"arter": arter, "metode": "tekst", "type": "bla"})).status_code == 422
     # Macaulay: kun redaktører/admin
     assert (await web["a1"].post("/api/learn/lyd/ml", json={"ref": "123456789", "artnr": arter[0]})).status_code == 403
     r = await web["ad"].post("/api/learn/lyd/ml", json={"ref": "https://macaulaylibrary.org/asset/123456789", "artnr": arter[0], "rtype": "sang"})

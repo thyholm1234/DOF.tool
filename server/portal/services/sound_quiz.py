@@ -27,10 +27,11 @@ from portal.services.setting_store import get_setting_dict, put_setting
 
 log = logging.getLogger("portal.soundquiz")
 KEY = "sound_quiz"
-DEFAULTS = {"xc_key": "", "min_quality": "B", "area": "europe", "types": "song", "per_species": 12, "max_length": 60, "extra": ""}
+DEFAULTS = {"xc_key": "", "min_quality": "B", "area": "europe", "per_species": 12, "max_length": 60, "extra": ""}
 QUALITIES = ("A", "B", "C")
 AREAS = ("", "europe", "denmark")
-TYPES = ("", "song", "call")
+KINDS = ("sang", "kald", "begge")  # hvilken slags lyd brugeren vil høre
+XC_TYPE = {"sang": "song", "kald": "call"}
 MAX_FETCHES = 25  # nye arter, der højst slås op hos xeno-canto pr. test
 MAX_BYTES = 40 * 1024 * 1024
 AUDIO_TYPES = {"audio/mpeg": ".mp3", "audio/mp3": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/wave": ".wav",
@@ -67,8 +68,6 @@ async def save_settings(db: AsyncSession, body: dict) -> dict:
         s["min_quality"] = body["min_quality"]
     if body.get("area") in AREAS:
         s["area"] = body["area"]
-    if body.get("types") in TYPES:
-        s["types"] = body["types"]
     for k, lo, hi in (("per_species", 3, 50), ("max_length", 5, 300)):
         if body.get(k) is not None:
             s[k] = max(lo, min(hi, int(body[k])))
@@ -81,15 +80,15 @@ async def save_settings(db: AsyncSession, body: dict) -> dict:
     return s
 
 
-def xc_query(latin: str, s: dict) -> str:
+def xc_query(latin: str, s: dict, rtype: str | None = None) -> str:
     gen, sp = latin.split()[:2]
     parts = [f"gen:{gen}", f"sp:{sp}", {"A": "q:A", "B": 'q:">C"', "C": 'q:">D"'}[s["min_quality"]]]
     if s["area"] == "europe":
         parts.append("area:europe")
     elif s["area"] == "denmark":
         parts.append("cnt:denmark")
-    if s["types"]:
-        parts.append(f"type:{s['types']}")
+    if rtype:
+        parts.append(f"type:{rtype}")
     if s["extra"]:
         parts.append(s["extra"])
     return " ".join(parts)
@@ -109,13 +108,13 @@ def _secs(v: str | None) -> int | None:
     return sum(p * 60 ** i for i, p in enumerate(reversed(parts)))
 
 
-async def xc_search(latin: str, s: dict) -> list[dict]:
-    """Optagelserne for en art fra xeno-canto's API (filtreret efter indstillingerne). Kaster SoundError ved fejl."""
+async def xc_search(latin: str, s: dict, rtype: str | None = None) -> list[dict]:
+    """Optagelserne for en art fra xeno-canto's API (filtreret efter indstillingerne og evt. type: song/call). Kaster SoundError ved fejl."""
     if not s["xc_key"]:
         raise SoundError("Der er ikke sat en xeno-canto-nøgle op (Admin → Funktioner → Lydquiz)")
     async with _client() as c:
         try:
-            resp = await c.get("https://xeno-canto.org/api/3/recordings", params={"query": xc_query(latin, s), "key": s["xc_key"], "per_page": 100})
+            resp = await c.get("https://xeno-canto.org/api/3/recordings", params={"query": xc_query(latin, s, rtype), "key": s["xc_key"], "per_page": 100})
         except httpx.HTTPError as exc:
             raise SoundError("xeno-canto svarer ikke lige nu") from exc
     if resp.status_code in (401, 403):
@@ -146,17 +145,25 @@ def _lic_name(url: str) -> str | None:
     return f"CC {m.group(1).upper()} {m.group(2)}" if m else None
 
 
-async def ensure_species(db: AsyncSession, artnr: int, *, force: bool = False) -> int:
-    """Antal optagelser af arten; slår dem op hos xeno-canto første gang (og igen efter 30 dage). Arter uden xeno-canto-træf huskes i 7 dage."""
-    have = await _count(db, artnr)
-    marker = f"snd:fetched:{artnr}"
+# sang = optagelser mærket «song»/«sang»; kald = mærket «call»/«kald» uden at være sang (så en «song, call»-optagelse ikke er tvetydig)
+_SONG = "(r.rtype ILIKE '%song%' OR r.rtype ILIKE '%sang%')"
+_CALL = "(r.rtype ILIKE '%call%' OR r.rtype ILIKE '%kald%')"
+KIND_SQL = {"sang": _SONG, "kald": f"({_CALL} AND NOT {_SONG})", "begge": "TRUE"}
+
+
+async def ensure_species(db: AsyncSession, artnr: int, rtype: str, *, force: bool = False) -> int:
+    """Antal optagelser af arten af typen (song/call); slår dem op hos xeno-canto første gang (og igen efter 30 dage).
+    Arter uden xeno-canto-træf huskes i 7 dage."""
+    kind = "sang" if rtype == "song" else "kald"
+    have = await _count(db, artnr, kind)
+    marker = f"snd:fetched:{artnr}:{rtype}"
     if not force and (have or await kv().exists(marker)):
         return have
     latin = (await db.execute(text("SELECT latin FROM species WHERE artnr = :a AND NOT excluded"), {"a": artnr})).scalar()
     if not latin or len(latin.split()) < 2 or "/" in latin:
         return have
     s = await settings(db)
-    found = await xc_search(latin, s)
+    found = await xc_search(latin, s, rtype)
     random.shuffle(found)
     for r in found[: s["per_species"]]:
         await db.execute(text("""
@@ -165,11 +172,11 @@ async def ensure_species(db: AsyncSession, artnr: int, *, force: bool = False) -
             ON CONFLICT (source, ext_id) DO NOTHING"""), {**r, "a": artnr, "latin": latin})
     await db.commit()
     await kv().set(marker, "1", ex=(30 if found else 7) * 86400)
-    return await _count(db, artnr)
+    return await _count(db, artnr, kind)
 
 
-async def _count(db: AsyncSession, artnr: int) -> int:
-    return (await db.execute(text("SELECT count(*) FROM snd_recordings WHERE artnr = :a AND enabled"), {"a": artnr})).scalar() or 0
+async def _count(db: AsyncSession, artnr: int, kind: str = "begge") -> int:
+    return (await db.execute(text(f"SELECT count(*) FROM snd_recordings r WHERE r.artnr = :a AND r.enabled AND {KIND_SQL[kind]}"), {"a": artnr})).scalar() or 0
 
 
 async def counts(db: AsyncSession) -> dict[str, int]:
@@ -281,9 +288,9 @@ def _extra(r) -> dict:
             "url": r["page_url"], "rtype": r["rtype"], "country": r["country"]}
 
 
-async def build(db: AsyncSession, artnrs: list[int], method: str, n: int = species_quiz.N_QUESTIONS) -> list[dict]:
-    if method not in ("valg", "tekst"):
-        raise species_quiz.QuizError("Ukendt svarmetode")
+async def build(db: AsyncSession, artnrs: list[int], method: str, kind: str = "begge", n: int = species_quiz.N_QUESTIONS) -> list[dict]:
+    if method not in ("valg", "tekst") or kind not in KINDS:
+        raise species_quiz.QuizError("Ukendt svarmetode eller lydtype")
     artnrs = sorted(set(artnrs))
     if len(artnrs) < species_quiz.MIN_SPECIES:
         raise species_quiz.QuizError(f"Vælg mindst {species_quiz.MIN_SPECIES} arter")
@@ -299,19 +306,24 @@ async def build(db: AsyncSession, artnrs: list[int], method: str, n: int = speci
     for a in order:  # arter uden optagelser slås op hos xeno-canto, til der er nok arter
         if len(per) >= n:
             break
-        if not await _count(db, a) and not await kv().exists(f"snd:fetched:{a}"):
-            if fetches >= MAX_FETCHES:
+        stop = False
+        for rtype in ([XC_TYPE[kind]] if kind in XC_TYPE else list(XC_TYPE.values())):  # «begge» henter både sang og kald
+            k = "sang" if rtype == "song" else "kald"
+            if await _count(db, a, k) or await kv().exists(f"snd:fetched:{a}:{rtype}"):
                 continue
+            if fetches >= MAX_FETCHES:
+                break
             fetches += 1
             try:
-                await ensure_species(db, a)
+                await ensure_species(db, a, rtype)
             except SoundError as exc:
                 last_error = str(exc)
-                if "nøgle" in last_error:
-                    break  # alle opslag vil fejle på samme måde
-                continue
-        rows = (await db.execute(text("SELECT id, source, ext_id, recordist, license, license_url, rtype, country, page_url, file_url "
-                                      "FROM snd_recordings WHERE artnr = :a AND enabled ORDER BY random()"), {"a": a})).mappings().all()
+                stop = "nøgle" in last_error  # alle opslag vil fejle på samme måde
+                break
+        if stop:
+            break
+        rows = (await db.execute(text("SELECT r.id, r.source, r.ext_id, r.recordist, r.license, r.license_url, r.rtype, r.country, r.page_url, r.file_url "
+                                      f"FROM snd_recordings r WHERE r.artnr = :a AND r.enabled AND {KIND_SQL[kind]} ORDER BY random()"), {"a": a})).mappings().all()
         if rows:
             per[a] = list(rows)
     have = list(per)
