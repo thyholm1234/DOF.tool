@@ -46,6 +46,12 @@ async def koder(acc: photo_access.Access = Depends(need()), db: AsyncSession = D
 
 # ---------------------------------------------------------------- galleri og fotoside
 
+@router.get("/forslag")
+async def forslag(acc: photo_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Forslag til art/race og lokalitet i galleriets søgning: kun det, der findes på publicerede fotos."""
+    return await photos.suggestions(db)
+
+
 @router.get("")
 async def galleri(request: Request, side: int = Query(1, ge=1, le=100000), per: int = Query(24), sort: str = "dato", acc: photo_access.Access = Depends(need()),
                   db: AsyncSession = Depends(get_session)):

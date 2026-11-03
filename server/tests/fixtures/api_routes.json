@@ -865,6 +865,13 @@ true,
 "params": []
 }
 },
+"/api/admin/fotos/import/uploads": {
+"delete": {
+"body": false,
+"op": "import_ryd_uploads_api_admin_fotos_import_uploads_delete",
+"params": []
+}
+},
 "/api/admin/fotos/import/{iid}": {
 "delete": {
 "body": false,
@@ -4364,10 +4371,37 @@ false,
 "params": []
 }
 },
+"/api/fotos/art/{artnr}": {
+"get": {
+"body": false,
+"op": "art_api_fotos_art__artnr__get",
+"params": [
+[
+"artnr",
+"path",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
+],
+[
+"n",
+"query",
+false,
+"{\"default\": 10, \"maximum\": 24, \"minimum\": 1, \"title\": \"N\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/fotos/banner": {
 "get": {
 "body": false,
 "op": "banner_api_fotos_banner_get",
+"params": []
+}
+},
+"/api/fotos/forslag": {
+"get": {
+"body": false,
+"op": "forslag_api_fotos_forslag_get",
 "params": []
 }
 },
@@ -4874,6 +4908,27 @@ false,
 "post": {
 "body": true,
 "op": "answer_api_learn_answer_post",
+"params": []
+}
+},
+"/api/learn/arter/grupper": {
+"get": {
+"body": false,
+"op": "arter_grupper_api_learn_arter_grupper_get",
+"params": []
+}
+},
+"/api/learn/arter/quiz": {
+"post": {
+"body": true,
+"op": "arter_quiz_api_learn_arter_quiz_post",
+"params": []
+}
+},
+"/api/learn/arter/svar": {
+"post": {
+"body": true,
+"op": "arter_svar_api_learn_arter_svar_post",
 "params": []
 }
 },

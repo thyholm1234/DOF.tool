@@ -32,6 +32,11 @@
 .fot-banner { display: block; position: relative; margin-bottom: 14px; border-radius: var(--radius); overflow: hidden; }
 .fot-banner img { width: 100%; aspect-ratio: 3 / 1; object-fit: cover; display: block; }
 .fot-banner span { position: absolute; left: 10px; bottom: 8px; color: #fff; text-shadow: 0 1px 3px rgb(0 0 0 / 70%); font-size: .85rem; }
+.fot-more { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px; margin: 18px 0 8px; color: var(--text-3); font-size: .92rem; }
+.fot-more.loading { color: var(--text-2); font-weight: 600; } .fot-more.err { color: var(--danger, #b3261e); }
+.fot-spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--brand); animation: fot-spin .8s linear infinite; }
+@keyframes fot-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fot-spin { animation-duration: 2.4s; } }
 .fot-pager { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 22px 0 0; }
 .fot-pager a, .fot-pager span { padding: 5px 11px; border-radius: 7px; border: 1px solid var(--line); text-decoration: none; font-size: .88rem; }
 .fot-pager .on { background: var(--brand); border-color: var(--brand); color: #fff; }

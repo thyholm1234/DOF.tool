@@ -185,3 +185,44 @@ async def test_artens_mest_likede_fotos(web, db):  # noqa: F811
     assert (await web["a1"].get("/api/fotos/art/1?n=99")).status_code == 422
     await flags(db, fotos="off")
     assert (await web["a1"].get("/api/fotos/art/1")).status_code == 404
+
+
+async def test_forslag_til_art_og_lokalitet(web, db):  # noqa: F811
+    await flags(db, fotos="on")
+    d = (await web["a1"].get("/api/fotos/forslag")).json()
+    assert any(a["artnr"] == 1 and a["n"] >= 2 and a["navn"] for a in d["arter"])
+    assert all(l["navn"] and l["n"] >= 1 for l in d["lokaliteter"])
+    await flags(db, fotos="off")
+    assert (await web["a1"].get("/api/fotos/forslag")).status_code == 404
+
+
+async def test_artsquiz(web, db):  # noqa: F811
+    await flags(db, fotos="on", artsquiz="on")
+    async with db() as s:  # to arter med enkeltfugl-fotos: omdøb den ene fugl i et af art 1's enkeltfoto til en anden art
+        await s.execute(text("""UPDATE gal_birds SET artnr = (SELECT min(artnr) FROM species WHERE artnr <> 1 AND NOT excluded) WHERE id = (
+            SELECT min(b.id) FROM gal_birds b WHERE b.artnr = 1 AND (SELECT count(*) FROM gal_birds x WHERE x.photo_id = b.photo_id) = 1)"""))
+        await s.commit()
+        rows = (await s.execute(text("""SELECT b.artnr, count(*) FROM gal_birds b JOIN gal_photos p ON p.id = b.photo_id AND p.status = 'publiceret'
+            WHERE b.artnr IS NOT NULL AND (SELECT count(*) FROM gal_birds x WHERE x.photo_id = p.id) = 1 GROUP BY b.artnr ORDER BY 2 DESC"""))).all()
+    assert len(rows) >= 2, rows
+    arter = [r[0] for r in rows[:2]]
+    assert (await web["a1"].get("/api/me")).json()["user"]["artsquiz"] is True
+    g = (await web["a1"].get("/api/learn/arter/grupper")).json()
+    assert {x["key"] for x in g["grupper"]} <= set(__import__("portal.services.species_quiz", fromlist=["GROUPS"]).GROUPS) and "fotos" in g
+    assert (await web["a1"].post("/api/learn/arter/quiz", json={"arter": [arter[0]], "metode": "valg"})).status_code == 422  # mindst to
+    r = await web["a1"].post("/api/learn/arter/quiz", json={"arter": arter, "metode": "valg"})
+    assert r.status_code == 200
+    qs = r.json()["questions"]
+    assert 2 <= len(qs) <= 20 and all(len(q["choices"]) == 4 or len(q["choices"]) >= 2 for q in qs)
+    assert all(q["media_url"].startswith("/media/art/") and "navn" not in q and "artnr" not in q for q in qs)
+    q = qs[0]
+    right = (await web["a1"].post("/api/learn/arter/svar", json={"token": q["id"], "artnr": 0})).json()  # opgivet = forkert, afslører facit
+    assert right["correct"] is False and right["navn"] and right["artnr"] in arter
+    ok = (await web["a1"].post("/api/learn/arter/svar", json={"token": q["id"], "artnr": right["artnr"]})).json()
+    assert ok["correct"] is True
+    t = (await web["a1"].post("/api/learn/arter/quiz", json={"arter": arter, "metode": "tekst"})).json()["questions"]
+    assert t and "choices" not in t[0]
+    assert (await web["a1"].post("/api/learn/arter/svar", json={"token": "findesikke", "artnr": 1})).status_code == 410
+    await flags(db, artsquiz="off")
+    assert (await web["a1"].get("/api/learn/arter/grupper")).status_code == 404
+    assert (await web["anon"].get("/api/learn/arter/grupper")).status_code in (401, 403)

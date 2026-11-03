@@ -46,6 +46,9 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "lokalitetsadmin": ("Lokaliteter: grænser og import", "Fanen Admin → Lokaliteter: importér DOFbasens lokaliteter (grænser, "
                         "typer, beskrivelser, kommuner, IBA) fra zip-filen fra tools/dofbasen_lokaliteter, se ændringsrapporten "
                         "og anvend den. Kræver admin-modulet Lokaliteter.", None, "preview"),
+    "artsquiz": ("Læring: artsquiz", "Under Læring: en quiz på 20 fotos fra fotogalleriet, hvor brugeren gætter arten. Arterne vælges fra en "
+                 "artsgruppe (skråper, havfugle, Phylloscopus, spurvefugle …) og/eller egne arter, og der svares med multiple choice eller "
+                 "ved at skrive artens navn. Kræver, at fotomodulet er synligt for brugeren.", None, "preview"),
     "dofbasen": ("DOFbasen (showcase)", "Hele modulet: en ny udgave af dofbasen.dk med forside, observationer, lister, fænologi, "
                  "tekstsider og eget admin-panel. Menupunktet DOFbasen vises kun, når modulet er synligt for brugeren.", None, "preview"),
     "dofbasen_search": ("DOFbasen: søgning", "Søgesiden med alle filtre, kort og CSV-udtræk.", "dofbasen", "on"),

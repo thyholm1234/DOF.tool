@@ -15,7 +15,7 @@ from portal.api.deps import optional_user, require_perm, require_user
 from portal.config import get_settings
 from portal.db import get_session
 from portal.models import Course, Question, QuizResult, User
-from portal.services import imagemeta, learning
+from portal.services import imagemeta, learn_access, learning, species_quiz
 from portal.services.auth import can
 
 router = APIRouter(prefix="/api/learn", tags=["learn"])
@@ -39,7 +39,8 @@ async def courses(user: User | None = Depends(optional_user), db: AsyncSession =
     rows = (await db.execute(q)).all()
     prog = await learning.course_progress(db, user.id) if user else {}
     return {"courses": [course_out(c, n, prog.get(c.id)) for c, n in rows],
-            "auto": [{"kind": k, "title": v} for k, v in learning.AUTO_KINDS.items()]}
+            "auto": [{"kind": k, "title": v} for k, v in learning.AUTO_KINDS.items()],
+            "artsquiz": bool(user) and await learn_access.artsquiz(db, user)}
 
 
 async def _course(db: AsyncSession, slug: str, user: User | None) -> Course:
@@ -99,6 +100,47 @@ class AutoAnswerIn(BaseModel):
 @router.post("/auto/answer")
 async def auto_answer(body: AutoAnswerIn):
     res = await learning.auto_answer(body.token, body.chosen)
+    if res is None:
+        raise HTTPException(410, "Spørgsmålet er udløbet")
+    return res
+
+
+# ---------------------------------------------------------------- artsquiz (fotos fra galleriet)
+
+async def _artsquiz(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> User:
+    if not await learn_access.artsquiz(db, user):
+        raise HTTPException(404, "Funktionen er ikke slået til")
+    return user
+
+
+@router.get("/arter/grupper")
+async def arter_grupper(user: User = Depends(_artsquiz), db: AsyncSession = Depends(get_session)):
+    """Forudindstillede artsgrupper (artnr) og antal egnede fotos pr. art."""
+    return await species_quiz.groups(db)
+
+
+class SpeciesQuizIn(BaseModel):
+    arter: list[int] = Field(min_length=2, max_length=600)
+    metode: str = Field(pattern="^(valg|tekst)$")
+
+
+@router.post("/arter/quiz")
+async def arter_quiz(body: SpeciesQuizIn, user: User = Depends(_artsquiz), db: AsyncSession = Depends(get_session)):
+    try:
+        qs = await species_quiz.build(db, body.arter, body.metode)
+    except species_quiz.QuizError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"questions": qs}
+
+
+class SpeciesAnswerIn(BaseModel):
+    token: str = Field(max_length=40)
+    artnr: int = Field(ge=0)  # 0 = opgivet
+
+
+@router.post("/arter/svar")
+async def arter_svar(body: SpeciesAnswerIn, user: User = Depends(_artsquiz), db: AsyncSession = Depends(get_session)):
+    res = await species_quiz.answer(db, body.token, body.artnr)
     if res is None:
         raise HTTPException(410, "Spørgsmålet er udløbet")
     return res

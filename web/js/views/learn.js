@@ -6,6 +6,7 @@ const isEditor = () => can("laering");
 export async function render(view, [sub]) {
   if (!sub) return overview(view);
   const [kind, arg] = sub.split("/");
+  if (kind === "arter") return (await import("./learn-arter.js")).render(view);
   if (kind === "quiz") return quiz(view, { course: arg });
   if (kind === "auto") return quiz(view, { auto: arg });
   if (kind === "rediger") return editor(view, arg);
@@ -24,7 +25,10 @@ async function overview(view) {
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Læring"), h("p", { class: "lead" }, "Træn artsbestemmelse af svære grupper, kald og stemmer – og årstidens fugle. Spørgsmål du svarer forkert på kommer igen (spaced repetition).")),
       h("span", { class: "spacer" }), isEditor() ? h("button", { class: "btn primary", onclick: newCourse, html: `${icon("plus")} Nyt kursus` }) : null),
     h("h2", {}, "Datadrevne quizzer"),
-    h("div", { class: "grid-2 mb" }, ...data.auto.map(a => h("a", { class: "card course-card", href: `#/laer/auto/${a.kind}`, style: { color: "inherit", textDecoration: "none" } },
+    h("div", { class: "grid-2 mb" }, data.artsquiz ? h("a", { class: "card course-card", href: "#/laer/arter", style: { color: "inherit", textDecoration: "none" } },
+      h("span", { class: "topic" }, "Artsquiz · 20 fotos"), h("h3", {}, "Gæt arten på fotos"),
+      h("span", { class: "muted" }, "Vælg en artsgruppe (skråper, havfugle, Phylloscopus, spurvefugle …) eller egne arter – og svar med multiple choice eller ved at skrive navnet.")) : null,
+      ...data.auto.map(a => h("a", { class: "card course-card", href: `#/laer/auto/${a.kind}`, style: { color: "inherit", textDecoration: "none" } },
       h("span", { class: "topic" }, "Automatisk · 10 spørgsmål"), h("h3", {}, a.title), h("span", { class: "muted" }, AUTO_DESC[a.kind] || "")))),
     h("h2", { class: "mt2" }, "Kurser"),
     data.courses.length ? h("div", { class: "grid-2" }, ...data.courses.map(c => {

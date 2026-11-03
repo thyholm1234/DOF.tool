@@ -17,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
-from portal.services import account, activity, article_access, auth, dku, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges
+from portal.services import account, activity, learn_access, article_access, auth, dku, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -86,6 +86,7 @@ async def me(request: Request, user: User | None = Depends(optional_user), db: A
                      "search": features.visible(flags, "search", superadmin=user.role == "superadmin", insider=False),
                      "statistik": features.visible(flags, "statistik", superadmin=user.role == "superadmin", insider=False),
                      "daymap": features.visible(flags, "daymap", superadmin=user.role == "superadmin", insider=False),
+                     "artsquiz": await learn_access.artsquiz(db, user),
                      "profiler": features.visible(flags, "profiler", superadmin=user.role == "superadmin", insider=False),
                      "lokalitetsadmin": features.visible(flags, "lokalitetsadmin", superadmin=user.role == "superadmin", insider=False)}}
 

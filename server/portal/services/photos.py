@@ -152,6 +152,24 @@ async def search(session: AsyncSession, q: dict, *, status: list[str] | None = N
     return out
 
 
+async def suggestions(session: AsyncSession) -> dict:
+    """Forslag til galleriets filtre: de arter/racer og lokaliteter, der faktisk findes på publicerede fotos (med antal fotos)."""
+    key = "photos:suggest:" + str(await version("photos"))
+    if hit := await kv().get(key):
+        return json.loads(hit)
+    arter = (await session.execute(text("""
+        SELECT b.artnr, coalesce(max(s.navn), max(b.navn)) AS navn, coalesce(max(s.latin), max(b.latin)) AS latin, count(DISTINCT b.photo_id) AS n
+        FROM gal_birds b JOIN gal_photos p ON p.id = b.photo_id AND p.status = 'publiceret' LEFT JOIN species s ON s.artnr = b.artnr
+        WHERE b.artnr IS NOT NULL GROUP BY b.artnr ORDER BY lower(coalesce(max(s.navn), max(b.navn)))"""))).mappings().all()
+    lok = (await session.execute(text("""
+        SELECT min(lokalitet) AS navn, count(*) AS n FROM gal_photos WHERE status = 'publiceret' AND coalesce(trim(lokalitet), '') <> ''
+        GROUP BY lower(trim(lokalitet)) ORDER BY lower(trim(lokalitet))"""))).mappings().all()
+    out = {"arter": [{"artnr": r["artnr"], "navn": r["navn"], "latin": r["latin"], "n": r["n"]} for r in arter],
+           "lokaliteter": [{"navn": r["navn"], "n": r["n"]} for r in lok]}
+    await kv().set(key, json.dumps(out, ensure_ascii=False), ex=300)
+    return out
+
+
 async def top_for_species(session: AsyncSession, artnr: int, n: int = 10) -> dict:
     """Artens mest likede fotos (til artssidens galleri): galleriets søgning på arten sorteret efter likes, de første ``n``."""
     d = await search(session, {"art": str(artnr), "sort": "likes", "per": PER_PAGES[0]})
