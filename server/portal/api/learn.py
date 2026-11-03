@@ -7,15 +7,16 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import optional_user, require_perm, require_user
 from portal.config import get_settings
 from portal.db import get_session
 from portal.models import Course, Question, QuizResult, User
-from portal.services import imagemeta, learn_access, learning, species_quiz
+from portal.services import imagemeta, learn_access, learning, sound_quiz, species_quiz
 from portal.services.auth import can
 
 router = APIRouter(prefix="/api/learn", tags=["learn"])
@@ -40,7 +41,8 @@ async def courses(user: User | None = Depends(optional_user), db: AsyncSession =
     prog = await learning.course_progress(db, user.id) if user else {}
     return {"courses": [course_out(c, n, prog.get(c.id)) for c, n in rows],
             "auto": [{"kind": k, "title": v} for k, v in learning.AUTO_KINDS.items()],
-            "artsquiz": bool(user) and await learn_access.artsquiz(db, user)}
+            "artsquiz": bool(user) and await learn_access.artsquiz(db, user),
+            "lydquiz": bool(user) and await learn_access.lydquiz(db, user)}
 
 
 async def _course(db: AsyncSession, slug: str, user: User | None) -> Course:
@@ -144,6 +146,82 @@ async def arter_svar(body: SpeciesAnswerIn, user: User = Depends(_artsquiz), db:
     if res is None:
         raise HTTPException(410, "Spørgsmålet er udløbet")
     return res
+
+
+# ---------------------------------------------------------------- lydquiz (xeno-canto og Macaulay Library)
+
+async def _lydquiz(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> User:
+    if not await learn_access.lydquiz(db, user):
+        raise HTTPException(404, "Funktionen er ikke slået til")
+    return user
+
+
+@router.get("/lyd/grupper")
+async def lyd_grupper(user: User = Depends(_lydquiz), db: AsyncSession = Depends(get_session)):
+    """Artsgrupperne (som i artsquizzen) og antal kendte optagelser pr. art. Arter uden tal er endnu ikke slået op hos xeno-canto."""
+    return {"grupper": await species_quiz.preset_groups(db), "fotos": await sound_quiz.counts(db), "ukendt": True}
+
+
+@router.post("/lyd/quiz")
+async def lyd_quiz(body: SpeciesQuizIn, user: User = Depends(_lydquiz), db: AsyncSession = Depends(get_session)):
+    try:
+        qs = await sound_quiz.build(db, body.arter, body.metode)
+    except species_quiz.QuizError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"questions": qs}
+
+
+@router.get("/lyd/audio/{token}")
+async def lyd_audio(token: str, user: User = Depends(_lydquiz), db: AsyncSession = Depends(get_session)):
+    """Lyden til et spørgsmål. Adressen indeholder kun spørgsmålets nøgle – hverken art eller optagelsesnummer."""
+    try:
+        path = await sound_quiz.question_file(db, token)
+    except sound_quiz.SoundError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    if path is None:
+        raise HTTPException(410, "Spørgsmålet er udløbet")
+    return FileResponse(path, headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
+
+
+@router.post("/lyd/svar")
+async def lyd_svar(body: SpeciesAnswerIn, user: User = Depends(_lydquiz), db: AsyncSession = Depends(get_session)):
+    res = await species_quiz.answer(db, body.token, body.artnr, "quiz:snd:")
+    if res is None:
+        raise HTTPException(410, "Spørgsmålet er udløbet")
+    return res
+
+
+# Macaulay Library: redaktører (modulet «laering») lægger optagelser ind, da ML ikke har et åbent API
+
+class MlIn(BaseModel):
+    ref: str = Field(min_length=1, max_length=300)
+    artnr: int
+    rtype: str | None = Field(None, max_length=80)
+    recordist: str | None = Field(None, max_length=200)
+
+
+@router.get("/lyd/ml")
+async def lyd_ml(user: User = Depends(require_perm("laering")), db: AsyncSession = Depends(get_session)):
+    rows = (await db.execute(text("""SELECT r.id, r.ext_id, r.artnr, s.navn, r.latin, r.recordist, r.rtype, r.page_url, r.enabled
+                                     FROM snd_recordings r LEFT JOIN species s ON s.artnr = r.artnr WHERE r.source = 'ml' ORDER BY s.navn, r.id"""))).mappings().all()
+    return [dict(r) for r in rows]
+
+
+@router.post("/lyd/ml")
+async def lyd_ml_add(body: MlIn, user: User = Depends(require_perm("laering")), db: AsyncSession = Depends(get_session)):
+    try:
+        return await sound_quiz.add_ml(db, body.ref, body.artnr, user.id, body.rtype, body.recordist)
+    except sound_quiz.SoundError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.delete("/lyd/ml/{rid}")
+async def lyd_ml_delete(rid: int, user: User = Depends(require_perm("laering")), db: AsyncSession = Depends(get_session)):
+    n = (await db.execute(text("DELETE FROM snd_recordings WHERE id = :i AND source = 'ml'"), {"i": rid})).rowcount
+    await db.commit()
+    if not n:
+        raise HTTPException(404)
+    return {"ok": True}
 
 
 class ResultIn(BaseModel):

@@ -12,3 +12,7 @@ async def artsquiz(db: AsyncSession, user: User) -> bool:
     if not features.visible(await features.load(db), "artsquiz", superadmin=user.role == "superadmin", insider=False):
         return False
     return (await photo_access.context(db, user)).on("fotos")
+
+
+async def lydquiz(db: AsyncSession, user: User) -> bool:
+    return features.visible(await features.load(db), "lydquiz", superadmin=user.role == "superadmin", insider=False)

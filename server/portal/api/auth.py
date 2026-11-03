@@ -86,7 +86,7 @@ async def me(request: Request, user: User | None = Depends(optional_user), db: A
                      "search": features.visible(flags, "search", superadmin=user.role == "superadmin", insider=False),
                      "statistik": features.visible(flags, "statistik", superadmin=user.role == "superadmin", insider=False),
                      "daymap": features.visible(flags, "daymap", superadmin=user.role == "superadmin", insider=False),
-                     "artsquiz": await learn_access.artsquiz(db, user),
+                     "artsquiz": await learn_access.artsquiz(db, user), "lydquiz": await learn_access.lydquiz(db, user),
                      "profiler": features.visible(flags, "profiler", superadmin=user.role == "superadmin", insider=False),
                      "lokalitetsadmin": features.visible(flags, "lokalitetsadmin", superadmin=user.role == "superadmin", insider=False)}}
 

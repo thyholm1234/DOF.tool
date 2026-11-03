@@ -6,7 +6,7 @@ const isEditor = () => can("laering");
 export async function render(view, [sub]) {
   if (!sub) return overview(view);
   const [kind, arg] = sub.split("/");
-  if (kind === "arter") return (await import("./learn-arter.js")).render(view);
+  if (kind === "arter" || kind === "lyd") return (await import("./learn-arter.js")).render(view, kind);
   if (kind === "quiz") return quiz(view, { course: arg });
   if (kind === "auto") return quiz(view, { auto: arg });
   if (kind === "rediger") return editor(view, arg);
@@ -28,6 +28,9 @@ async function overview(view) {
     h("div", { class: "grid-2 mb" }, data.artsquiz ? h("a", { class: "card course-card", href: "#/laer/arter", style: { color: "inherit", textDecoration: "none" } },
       h("span", { class: "topic" }, "Artsquiz · 20 fotos"), h("h3", {}, "Gæt arten på fotos"),
       h("span", { class: "muted" }, "Vælg en artsgruppe (skråper, havfugle, Phylloscopus, spurvefugle …) eller egne arter – og svar med multiple choice eller ved at skrive navnet.")) : null,
+      data.lydquiz ? h("a", { class: "card course-card", href: "#/laer/lyd", style: { color: "inherit", textDecoration: "none" } },
+        h("span", { class: "topic" }, "Lydquiz · 20 optagelser"), h("h3", {}, "Gæt arten på lyden"),
+        h("span", { class: "muted" }, "Sang og kald fra xeno-canto og Macaulay Library – artsnavnet skjules, til du har svaret. Samme artsgrupper og svarmetoder som artsquizzen.")) : null,
       ...data.auto.map(a => h("a", { class: "card course-card", href: `#/laer/auto/${a.kind}`, style: { color: "inherit", textDecoration: "none" } },
       h("span", { class: "topic" }, "Automatisk · 10 spørgsmål"), h("h3", {}, a.title), h("span", { class: "muted" }, AUTO_DESC[a.kind] || "")))),
     h("h2", { class: "mt2" }, "Kurser"),

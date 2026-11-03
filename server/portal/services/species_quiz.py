@@ -63,6 +63,10 @@ class QuizError(Exception):
 
 async def groups(session: AsyncSession) -> dict:
     """Forudindstillede artsgrupper (opløst til arter på artslisten) og antal fotos pr. art, så brugeren kan se, hvad der kan spørges om."""
+    return {"grupper": await preset_groups(session), "fotos": await photo_counts(session)}
+
+
+async def preset_groups(session: AsyncSession) -> list[dict]:
     rows = (await session.execute(text("""
         SELECT artnr, split_part(latin, ' ', 1) AS genus FROM species
         WHERE NOT excluded AND art_type = 'art' AND list_artnr = artnr AND latin IS NOT NULL AND latin NOT LIKE '%/%'"""))).all()
@@ -74,7 +78,7 @@ async def groups(session: AsyncSession) -> dict:
         arter = sorted({a for g in genera.split() for a in by_genus.get(g, [])})
         if len(arter) >= MIN_SPECIES:
             out.append({"key": key, "navn": navn, "beskrivelse": besk, "arter": arter})
-    return {"grupper": out, "fotos": await photo_counts(session)}
+    return out
 
 
 # enkeltfugl-fotos: publicerede fotos med netop én fugl, så spørgsmålet har ét facit
@@ -91,10 +95,27 @@ async def photo_counts(session: AsyncSession) -> dict[str, int]:
     return out
 
 
-async def _store(data: dict) -> str:
+async def store_token(data: dict, prefix: str = "quiz:art:") -> str:
     token = secrets.token_urlsafe(9)
-    await kv().set(f"quiz:art:{token}", json.dumps(data, ensure_ascii=False), ex=TOKEN_TTL)
+    await kv().set(prefix + token, json.dumps(data, ensure_ascii=False), ex=TOKEN_TTL)
     return token
+
+
+def choices(rng: random.Random, names: dict[int, str], artnr: int) -> list[dict]:
+    """Fire svarmuligheder (facit + op til tre andre) i tilfældig rækkefølge."""
+    opts = [artnr] + rng.sample([o for o in names if o != artnr], min(3, len(names) - 1))
+    rng.shuffle(opts)
+    return [{"id": o, "text": names[o]} for o in opts]
+
+
+async def fill_names(session: AsyncSession, rng: random.Random, have: list[int], names: dict[int, str], has_media_sql: str) -> None:
+    """Få arter i udvalget: fyld op med andre arter, der har medier (``has_media_sql`` er en EXISTS-betingelse på s), så der er fire svarmuligheder."""
+    if len(have) >= 4:
+        return
+    extra = (await session.execute(text(f"SELECT s.artnr, s.navn FROM species s WHERE s.art_type = 'art' AND NOT s.excluded AND s.artnr <> ALL(:x) AND {has_media_sql}"),
+                                    {"x": have})).all()
+    rng.shuffle(extra)
+    names.update({x: nm for x, nm in extra[:4 - len(have)]})
 
 
 async def build(session: AsyncSession, artnrs: list[int], method: str, n: int = N_QUESTIONS) -> list[dict]:
@@ -132,26 +153,21 @@ async def build(session: AsyncSession, artnrs: list[int], method: str, n: int = 
         picked = picked[:n]
     rng.shuffle(picked)
     names = {a: sp[a]["navn"] for a in have}
-    if method == "valg" and len(have) < 4:  # få arter i udvalget: fyld op med andre arter, der har fotos, så der er fire svarmuligheder
-        extra = (await session.execute(text("SELECT DISTINCT s.artnr, s.navn FROM species s JOIN gal_birds b ON b.artnr = s.artnr WHERE s.art_type = 'art' AND NOT s.excluded AND s.artnr <> ALL(:x)"),
-                                        {"x": have})).all()
-        rng.shuffle(extra)
-        names.update({x: nm for x, nm in extra[:4 - len(have)]})
+    if method == "valg":
+        await fill_names(session, rng, have, names, "EXISTS (SELECT 1 FROM gal_birds b WHERE b.artnr = s.artnr)")
     out = []
     for a, r in picked:
         s_ = sp[a]
-        data = {"artnr": a, "liste": s_["list_artnr"] or a, "navn": s_["navn"], "latin": s_["latin"], "foto": r["id"]}
-        q = {"id": await _store(data), "media_url": "/media/art/" + (r["medium_key"] or r["storage_key"]), "media_credit": r["fotograf"], "metode": method}
+        data = {"artnr": a, "liste": s_["list_artnr"] or a, "navn": s_["navn"], "latin": s_["latin"], "extra": {"photo_id": r["id"]}}
+        q = {"id": await store_token(data), "media_url": "/media/art/" + (r["medium_key"] or r["storage_key"]), "media_credit": r["fotograf"], "metode": method}
         if method == "valg":
-            opts = [a] + rng.sample([o for o in names if o != a], min(3, len(names) - 1))
-            rng.shuffle(opts)
-            q["choices"] = [{"id": o, "text": names[o]} for o in opts]
+            q["choices"] = choices(rng, names, a)
         out.append(q)
     return out
 
 
-async def answer(session: AsyncSession, token: str, artnr: int) -> dict | None:
-    raw = await kv().get(f"quiz:art:{token}")
+async def answer(session: AsyncSession, token: str, artnr: int, prefix: str = "quiz:art:") -> dict | None:
+    raw = await kv().get(prefix + token)
     if not raw:
         return None
     d = json.loads(raw)
@@ -159,4 +175,4 @@ async def answer(session: AsyncSession, token: str, artnr: int) -> dict | None:
     if not ok and artnr:  # en underart/race af samme listeart tæller som rigtigt
         chosen = (await session.execute(text("SELECT list_artnr FROM species WHERE artnr = :a"), {"a": artnr})).scalar()
         ok = chosen is not None and chosen == d["liste"]
-    return {"correct": ok, "artnr": d["artnr"], "navn": d["navn"], "latin": d["latin"], "photo_id": d["foto"]}
+    return {"correct": ok, "artnr": d["artnr"], "navn": d["navn"], "latin": d["latin"], **d.get("extra", {})}

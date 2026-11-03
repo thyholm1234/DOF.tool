@@ -49,6 +49,9 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "artsquiz": ("Læring: artsquiz", "Under Læring: en quiz på 20 fotos fra fotogalleriet, hvor brugeren gætter arten. Arterne vælges fra en "
                  "artsgruppe (skråper, havfugle, Phylloscopus, spurvefugle …) og/eller egne arter, og der svares med multiple choice eller "
                  "ved at skrive artens navn. Kræver, at fotomodulet er synligt for brugeren.", None, "preview"),
+    "lydquiz": ("Læring: lydquiz", "Under Læring: en quiz på 20 lydoptagelser fra xeno-canto og Macaulay Library, hvor brugeren gætter arten uden at "
+                "kunne se navnet under afspilningen. Samme valg af artsgrupper/egne arter og svarmetode som artsquizzen. Kræver en "
+                "xeno-canto-nøgle (Admin → Funktioner → Lydquiz).", None, "preview"),
     "dofbasen": ("DOFbasen (showcase)", "Hele modulet: en ny udgave af dofbasen.dk med forside, observationer, lister, fænologi, "
                  "tekstsider og eget admin-panel. Menupunktet DOFbasen vises kun, når modulet er synligt for brugeren.", None, "preview"),
     "dofbasen_search": ("DOFbasen: søgning", "Søgesiden med alle filtre, kort og CSV-udtræk.", "dofbasen", "on"),

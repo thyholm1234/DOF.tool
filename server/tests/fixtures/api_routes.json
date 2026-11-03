@@ -1645,6 +1645,39 @@ true,
 "params": []
 }
 },
+"/api/admin/lydquiz": {
+"get": {
+"body": false,
+"op": "get_settings_api_admin_lydquiz_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "put_settings_api_admin_lydquiz_put",
+"params": []
+}
+},
+"/api/admin/lydquiz/cache": {
+"delete": {
+"body": false,
+"op": "clear_api_admin_lydquiz_cache_delete",
+"params": []
+}
+},
+"/api/admin/lydquiz/test": {
+"post": {
+"body": false,
+"op": "test_api_admin_lydquiz_test_post",
+"params": [
+[
+"artnr",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Artnr\"}"
+]
+]
+}
+},
 "/api/admin/modules": {
 "get": {
 "body": false,
@@ -5053,6 +5086,67 @@ true,
 "{\"title\": \"Slug\", \"type\": \"string\"}"
 ]
 ]
+}
+},
+"/api/learn/lyd/audio/{token}": {
+"get": {
+"body": false,
+"op": "lyd_audio_api_learn_lyd_audio__token__get",
+"params": [
+[
+"token",
+"path",
+true,
+"{\"title\": \"Token\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/lyd/grupper": {
+"get": {
+"body": false,
+"op": "lyd_grupper_api_learn_lyd_grupper_get",
+"params": []
+}
+},
+"/api/learn/lyd/ml": {
+"get": {
+"body": false,
+"op": "lyd_ml_api_learn_lyd_ml_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "lyd_ml_add_api_learn_lyd_ml_post",
+"params": []
+}
+},
+"/api/learn/lyd/ml/{rid}": {
+"delete": {
+"body": false,
+"op": "lyd_ml_delete_api_learn_lyd_ml__rid__delete",
+"params": [
+[
+"rid",
+"path",
+true,
+"{\"title\": \"Rid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/lyd/quiz": {
+"post": {
+"body": true,
+"op": "lyd_quiz_api_learn_lyd_quiz_post",
+"params": []
+}
+},
+"/api/learn/lyd/svar": {
+"post": {
+"body": true,
+"op": "lyd_svar_api_learn_lyd_svar_post",
+"params": []
 }
 },
 "/api/learn/me": {

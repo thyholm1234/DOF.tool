@@ -12,6 +12,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -73,4 +74,30 @@ class QuizResult(Base):
     quiz_key: Mapped[str] = mapped_column(String(80))
     score: Mapped[int] = mapped_column(Integer)
     total: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SoundRecording(Base):
+    """Lydoptagelse til lydquizzen. xeno-canto-optagelser findes automatisk pr. art (API) og gemmes her; Macaulay Library-optagelser
+    lægges ind af redaktører (ML har intet åbent API)."""
+
+    __tablename__ = "snd_recordings"
+    __table_args__ = (UniqueConstraint("source", "ext_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(4))  # xc / ml
+    ext_id: Mapped[str] = mapped_column(String(20))  # XC-nummer eller ML-katalognummer
+    artnr: Mapped[int] = mapped_column(Integer, index=True)
+    latin: Mapped[str | None] = mapped_column(String(200))
+    recordist: Mapped[str | None] = mapped_column(String(200))
+    license: Mapped[str | None] = mapped_column(String(200))
+    license_url: Mapped[str | None] = mapped_column(String(300))
+    rtype: Mapped[str | None] = mapped_column(String(80))  # sang, kald …
+    quality: Mapped[str | None] = mapped_column(String(2))
+    length_s: Mapped[int | None] = mapped_column(Integer)
+    country: Mapped[str | None] = mapped_column(String(80))
+    page_url: Mapped[str] = mapped_column(String(300))
+    file_url: Mapped[str] = mapped_column(String(400))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    added_by: Mapped[int | None] = mapped_column(Integer)  # users.id (ML-optagelser)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
