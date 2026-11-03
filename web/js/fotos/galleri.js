@@ -29,7 +29,9 @@ export async function page(parts, query, fixed = {}) {
   let sug = null;
   const getSug = async () => sug ||= await api("/api/fotos/forslag").catch(() => ({ arter: [], lokaliteter: [] }));
   const out = h("div", {});
-  const q = h("input", { type: "search", value: st.q, placeholder: "Søg i titel, lokalitet, beskrivelse, fotograf eller art …", "aria-label": "Søg i fotos", style: { flex: 1, minWidth: "220px" } });
+  const q = h("input", { type: "search", value: st.q, placeholder: "Søg i titel, lokalitet, beskrivelse, fotograf eller art …", "aria-label": "Søg i fotos", autocomplete: "off", style: { width: "100%" } });
+  const qList = h("div", { class: "suggest dropdown", role: "listbox" });
+  const qWrap = h("div", { class: "dd-wrap", style: { flex: "1 1 0", minWidth: "220px" } }, q, qList);
   let advOpen = FILTERS.some(k => k !== "q" && st[k]);
 
   // Feedet: første side erstatter indholdet, derefter hentes næste side, når sentinelen under gitteret kommer til syne.
@@ -109,6 +111,24 @@ export async function page(parts, query, fixed = {}) {
   lokInput.onfocus = async () => { if (!lokList.children.length) lokList.replaceChildren(...(await getSug()).lokaliteter.map(l => h("option", { value: l.navn }, `${l.n} ${l.n === 1 ? "foto" : "fotos"}`))); };
   lokField.append(lokList);
 
+  // Forslag under hovedsøgefeltet: arter/racer og lokaliteter, der findes på fotos
+  const showQ = async () => {
+    const v = fold(q.value.trim());
+    if (!v) return qList.replaceChildren();
+    const sg = await getSug();
+    if (fold(q.value.trim()) !== v) return;
+    const arter = sg.arter.filter(a => fold(a.navn).split(/[\s,()/-]+/).some(w => w.startsWith(v)) || fold(a.navn).includes(v) || fold(a.latin).includes(v)).slice(0, 8);
+    const loks = sg.lokaliteter.filter(l => fold(l.navn).includes(v)).slice(0, 5);
+    const btn = (label, hint, pick) => h("button", { type: "button", role: "option", onmousedown: (e) => e.preventDefault(), onclick: () => { qList.replaceChildren(); pick(); } },
+      h("span", {}, label), h("i", { class: "muted" }, hint));
+    qList.replaceChildren(
+      ...arter.map(a => btn(a.navn, `Art · ${nowrap(a.n)}`, () => { st.art = String(a.artnr); st.q = ""; q.value = ""; artName.textContent = a.navn; adv.open = true; run(); })),
+      ...loks.map(l => btn(l.navn, `Lokalitet · ${nowrap(l.n)}`, () => { st.lok = l.navn; st.q = ""; q.value = ""; lokInput.value = l.navn; adv.open = true; run(); })));
+  };
+  q.oninput = q.onfocus = showQ;
+  q.onblur = () => setTimeout(() => qList.replaceChildren(), 150);
+  q.onkeydown = (e) => { if (e.key === "Escape") qList.replaceChildren(); };
+
   const adv = h("details", { class: "fot-adv", open: advOpen },
     h("summary", {}, "Avanceret søgning"),
     h("div", { class: "fot-filters" },
@@ -125,7 +145,7 @@ export async function page(parts, query, fixed = {}) {
     h("button", { class: "btn sm", type: "button", onclick: () => { for (const k of FILTERS) if (!fixed[k]) st[k] = ""; st.sort = "dato"; q.value = ""; location.hash = location.hash.split("?")[0]; } }, "Ryd filter"));
 
   const bar = h("div", { class: "fot-bar" },
-    h("form", { class: "row", style: { flex: 1 }, role: "search", onsubmit: (e) => { e.preventDefault(); st.q = q.value.trim(); run(); } }, q, h("button", { class: "btn primary", type: "submit" }, "Søg")),
+    h("form", { class: "row", style: { flex: 1 }, role: "search", onsubmit: (e) => { e.preventDefault(); st.q = q.value.trim(); run(); } }, qWrap, h("button", { class: "btn primary", type: "submit" }, "Søg")),
     h("label", { class: "field inline" }, h("span", {}, "Sortér"),
       h("select", { onchange: (e) => { st.sort = e.target.value; run(); } }, ...SORTS.map(([v, t]) => h("option", { value: v, selected: v === st.sort }, t)))));
   load();
