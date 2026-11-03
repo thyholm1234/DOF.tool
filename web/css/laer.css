@@ -134,3 +134,15 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 .lr-pcard { display: flex; flex-direction: column; border: 2px solid var(--line); border-radius: 8px; padding: 0; overflow: hidden; background: var(--surface); cursor: pointer; text-align: left; font: inherit; color: var(--text); } .lr-pcard img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 .lr-pcard.on { border-color: var(--brand); } .lr-pcard.no { opacity: .4; cursor: not-allowed; } .lr-pcard small { padding: 3px 6px; }
 .lr-zone.ok { border-color: var(--ok); background: rgb(47 138 76 / 25%); } .lr-zone { cursor: pointer; border-color: var(--err); }
+
+/* forløb, hold, bevis */
+.lr-psec { margin: 18px 0; } .lr-plist { display: grid; gap: 8px; }
+.lr-pitem { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.lr-pitem.done { border-color: var(--ok); } .lr-pitem.locked { opacity: .65; }
+.lr-pbody { flex: 1; min-width: 0; } .lr-tick { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line-strong); display: grid; place-items: center; font-weight: 700; color: var(--ok); flex: none; }
+.lr-pitem.done .lr-tick { border-color: var(--ok); }
+.lr-felt { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.lr-scroll { overflow-x: auto; } .lr-table td.ok { color: var(--ok); font-weight: 700; } .lr-table td.wait { color: var(--warn); }
+.lr-cert { max-width: 640px; margin: 20px auto; padding: 40px 30px; text-align: center; border: 3px double var(--brand); border-radius: 16px; background: var(--surface); }
+.lr-cert h2 { font-size: 2rem; margin: 6px 0; }
+@media print { .lr-head, .lr-tabs, .lr-back, .no-print, header, nav, aside { display: none !important; } .lr-cert { border-color: #000; } }

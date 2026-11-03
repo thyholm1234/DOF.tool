@@ -232,12 +232,13 @@ SCHEDULED: dict[str, Callable[[], Awaitable]] = {
     "articles_publish": _tracked("articles_publish", lambda: articles_publish()),
     "netfugl_kryds": _tracked("netfugl_kryds", lambda: netfugl_kryds()),
     "kryds_auto": _tracked("kryds_auto", lambda: kryds_auto()),
+    "learn_field": _tracked("learn_field", lambda: learn_field()),
     "netfugl_rss": _tracked("netfugl_rss", lambda: netfugl_rss(None)),
     "speech_model": speechmodel.request,
     "backup": _backup,
 }
 # Opgaver der springes over, når et funktionsflag er slået fra (Admin → Funktioner)
-FEATURE_OF: dict[str, tuple[str, ...]] = {"daymap": ("daymap",), "netfugl_kryds": ("netfugl", "netfugl_kryds"), "kryds_auto": ("krydslister",),
+FEATURE_OF: dict[str, tuple[str, ...]] = {"daymap": ("daymap",), "netfugl_kryds": ("netfugl", "netfugl_kryds"), "kryds_auto": ("krydslister",), "learn_field": ("laering_felt",),
                                           "netfugl_rss": ("netfugl", "netfugl_rss")}
 
 
@@ -319,6 +320,14 @@ async def _backfill_authors() -> None:
     async with SessionLocal() as s:
         n = await article_authors.backfill(s)
     log.info("Forfatterregister: %s artikler koblet", n)
+
+
+async def learn_field() -> None:
+    from portal.services import learn_paths
+
+    async with SessionLocal() as s:
+        n = await learn_paths.check_all(s)
+        log.info("Læring: %d feltopgaver afkrydset", n)
 
 
 async def kryds_auto() -> None:

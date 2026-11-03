@@ -38,6 +38,7 @@ LABELS = {
     "photos_import": "Fotos: import af fotoarkivet",
     "photos_link_taxa": "Fotos: koble arter til World Bird List",
     "kryds_auto": "Krydslister: automatiske kryds fra DOFbasen",
+    "learn_field": "Læring: feltopgaver",
     "articles_import": "Artikler: import af zip",
     "articles_species": "Artikler: arter i alle artikler",
     "content_rerender": "Artikler og nyheder: render alt igen",

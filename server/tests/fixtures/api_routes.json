@@ -5024,6 +5024,20 @@ false,
 ]
 }
 },
+"/api/learn/bevis/{number}": {
+"get": {
+"body": false,
+"op": "bevis_api_learn_bevis__number__get",
+"params": [
+[
+"number",
+"path",
+true,
+"{\"title\": \"Number\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/learn/byg/eksempler": {
 "post": {
 "body": true,
@@ -5050,6 +5064,150 @@ false,
 "body": true,
 "op": "forhaandsvis_api_learn_byg_forhaandsvis_post",
 "params": []
+}
+},
+"/api/learn/byg/forloeb": {
+"get": {
+"body": false,
+"op": "byg_liste_api_learn_byg_forloeb_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "byg_nyt_api_learn_byg_forloeb_post",
+"params": []
+}
+},
+"/api/learn/byg/forloeb/{slug}": {
+"delete": {
+"body": false,
+"op": "byg_slet_api_learn_byg_forloeb__slug__delete",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "byg_hent_api_learn_byg_forloeb__slug__get",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "byg_ret_api_learn_byg_forloeb__slug__put",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/forloeb/{slug}/afpublicer": {
+"post": {
+"body": false,
+"op": "byg_afpublicer_api_learn_byg_forloeb__slug__afpublicer_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/forloeb/{slug}/orden": {
+"post": {
+"body": true,
+"op": "byg_orden_api_learn_byg_forloeb__slug__orden_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/forloeb/{slug}/publicer": {
+"post": {
+"body": false,
+"op": "byg_publicer_api_learn_byg_forloeb__slug__publicer_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/forloeb/{slug}/punkter": {
+"post": {
+"body": true,
+"op": "byg_nyt_punkt_api_learn_byg_forloeb__slug__punkter_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/byg/forloeb/{slug}/punkter/{item_id}": {
+"delete": {
+"body": false,
+"op": "byg_slet_punkt_api_learn_byg_forloeb__slug__punkter__item_id__delete",
+"params": [
+[
+"item_id",
+"path",
+true,
+"{\"title\": \"Item Id\", \"type\": \"integer\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "byg_ret_punkt_api_learn_byg_forloeb__slug__punkter__item_id__put",
+"params": [
+[
+"item_id",
+"path",
+true,
+"{\"title\": \"Item Id\", \"type\": \"integer\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
 }
 },
 "/api/learn/byg/fotos": {
@@ -5506,6 +5664,234 @@ false,
 "query",
 false,
 "{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Loknr\"}"
+]
+]
+}
+},
+"/api/learn/forloeb": {
+"get": {
+"body": false,
+"op": "forloeb_liste_api_learn_forloeb_get",
+"params": []
+}
+},
+"/api/learn/forloeb/{slug}": {
+"get": {
+"body": false,
+"op": "forloeb_vis_api_learn_forloeb__slug__get",
+"params": [
+[
+"hold",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Hold\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/forloeb/{slug}/punkter/{item_id}/marker": {
+"post": {
+"body": true,
+"op": "marker_api_learn_forloeb__slug__punkter__item_id__marker_post",
+"params": [
+[
+"item_id",
+"path",
+true,
+"{\"title\": \"Item Id\", \"type\": \"integer\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/forloeb/{slug}/punkter/{item_id}/tjek": {
+"post": {
+"body": true,
+"op": "tjek_felt_api_learn_forloeb__slug__punkter__item_id__tjek_post",
+"params": [
+[
+"item_id",
+"path",
+true,
+"{\"title\": \"Item Id\", \"type\": \"integer\"}"
+],
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/forloeb/{slug}/tilmeld": {
+"post": {
+"body": false,
+"op": "tilmeld_api_learn_forloeb__slug__tilmeld_post",
+"params": [
+[
+"slug",
+"path",
+true,
+"{\"title\": \"Slug\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/learn/hold": {
+"get": {
+"body": false,
+"op": "hold_mine_api_learn_hold_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "hold_opret_api_learn_hold_post",
+"params": []
+}
+},
+"/api/learn/hold/tilmeld": {
+"post": {
+"body": true,
+"op": "hold_tilmeld_api_learn_hold_tilmeld_post",
+"params": []
+}
+},
+"/api/learn/hold/{cid}": {
+"get": {
+"body": false,
+"op": "hold_vis_api_learn_hold__cid__get",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "hold_ret_api_learn_hold__cid__put",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/hold/{cid}/besked": {
+"post": {
+"body": true,
+"op": "hold_besked_api_learn_hold__cid__besked_post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/hold/{cid}/felt/{item_id}/{uid}": {
+"post": {
+"body": true,
+"op": "hold_godkend_api_learn_hold__cid__felt__item_id___uid__post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+],
+[
+"item_id",
+"path",
+true,
+"{\"title\": \"Item Id\", \"type\": \"integer\"}"
+],
+[
+"uid",
+"path",
+true,
+"{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/hold/{cid}/forlad": {
+"post": {
+"body": false,
+"op": "hold_forlad_api_learn_hold__cid__forlad_post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/hold/{cid}/fremgang.csv": {
+"get": {
+"body": false,
+"op": "hold_csv_api_learn_hold__cid__fremgang_csv_get",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/hold/{cid}/medlemmer/{uid}": {
+"delete": {
+"body": false,
+"op": "hold_fjern_api_learn_hold__cid__medlemmer__uid__delete",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+],
+[
+"uid",
+"path",
+true,
+"{\"title\": \"Uid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/hold/{cid}/undervisere": {
+"post": {
+"body": true,
+"op": "hold_underviser_api_learn_hold__cid__undervisere_post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
 ]
 ]
 }

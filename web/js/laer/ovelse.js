@@ -40,7 +40,8 @@ export async function render(view, parts) {
     holder.replaceChildren(loadingBox());
     try {
       const s = await api(`/api/learn/ovelser/${slug}/session?n=${opts.n}&mode=${opts.mode}${preview ? "&preview=true" : ""}`);
-      stop = runPlayer(holder, { title: c.title, questions: s.questions, preview, timed: s.tid_s, again: setup });
+      stop = runPlayer(holder, { title: c.title, questions: s.questions, preview, timed: s.tid_s, again: setup,
+        onDone: async (score, total) => { if (!preview && total) { try { await api("/api/learn/result", { method: "POST", body: { quiz_key: `ovelse:${slug}`, score, total } }); } catch { /* ikke kritisk */ } } } });
     } catch (err) { holder.replaceChildren(errorBox(err)); }
   }
   view.append(backLink(`${BASE}/udforsk`, "Udforsk"), h("section", { class: "lr-course-head" }, art(c, "big"), h("div", {},

@@ -18,6 +18,7 @@ export async function render(view, parts, info) {
   if (a === "delt" && b) {
     try { Object.assign(cfg, (await api(`/api/learn/traeninger/delt/${b}`)).config); toast("Opsætning hentet fra en delt træning"); } catch (e) { toast(e.message, "err"); }
   }
+  try { const pre = sessionStorage.getItem("lr:traening"); if (pre) { Object.assign(cfg, JSON.parse(pre)); sessionStorage.removeItem("lr:traening"); } } catch { /* ignorer */ }
   const afd = state.user?.prefs?.afdelinger?.[0];
   if (afd && !cfg.afdeling_id) cfg.afdeling_id = afd;
 

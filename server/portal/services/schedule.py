@@ -45,6 +45,8 @@ TASKS: dict[str, tuple[str, str, dict]] = {
                          "og skriver læsetal til databasen", {"on": True, "every": 5, "unit": "min", "at": "00:00"}),
     "netfugl_kryds": ("Netfugl: krydslister", "Automatiske kryds fra DOFbasen (kun når Netfugl er slået til)",
                       {"on": True, "every": 6, "unit": "hour", "at": "00:10"}),
+    "learn_field": ("Læring: feltopgaver", "Afkrydser feltopgaver i forløb ud fra brugernes DOFbasen-observationer (kun når feltopgaver er slået til)",
+                    {"on": True, "every": 1, "unit": "hour", "at": "00:25"}),
     "kryds_auto": ("Krydslister: automatiske kryds", "Automatiske kryds fra DOFbasen (kun når Krydslister er slået til)",
                    {"on": True, "every": 6, "unit": "hour", "at": "00:20"}),
     "netfugl_rss": ("Netfugl: RSS-kilder", "Henter nyheder fra RSS-kilderne (kun når Netfugl er slået til)",
