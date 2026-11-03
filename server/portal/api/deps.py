@@ -68,3 +68,12 @@ def client_ip(request: Request) -> str:
     """Klientens IP. Uvicorn sætter den fra X-Forwarded-For, men kun når forespørgslen kommer fra en betroet proxy
     (FORWARDED_ALLOW_IPS) – headeren læses aldrig direkte, for den kan klienten selv skrive."""
     return request.client.host if request.client else "?"
+
+
+async def require_learn_builder(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> User:
+    """Kursusbyggeren (Læring): funktionsflagene er slået til, og brugeren har «laering» eller «laering_undervis»."""
+    from portal.services import learn_access
+
+    if not (await learn_access.portal(db, user) and await learn_access.byg(db, user) and learn_access.can_build(user)):
+        raise HTTPException(404, "Funktionen er ikke slået til")
+    return user

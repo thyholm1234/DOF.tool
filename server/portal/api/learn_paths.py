@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from portal.api.deps import require_learn_builder as builder
 from portal.api.deps import require_user
-from portal.api.learn_build import builder
 from portal.db import get_session
 from portal.models import Course, LrCohort, LrCohortMember, LrPath, LrPathItem, User
 from portal.services import learn_access, learn_paths, notify

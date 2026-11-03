@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import require_user
+from portal.api.deps import require_learn_builder, require_user
 from portal.config import get_settings
 from portal.db import get_session
 from portal.models import Course, Question, Unit, User
@@ -22,10 +22,7 @@ MEDIA_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
                "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/mp4": ".m4a", "audio/x-m4a": ".m4a", "audio/webm": ".webm"}
 
 
-async def builder(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> User:
-    if not (await learn_access.portal(db, user) and await learn_access.byg(db, user) and learn_access.can_build(user)):
-        raise HTTPException(404, "Funktionen er ikke slået til")
-    return user
+builder = require_learn_builder
 
 
 def _err(exc: learn_build.BuildError):
