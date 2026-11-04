@@ -1,0 +1,4008 @@
+{
+ "format": "laering-v2",
+ "exported": "2026-11-04T00:00:00+00:00",
+ "courses": [
+  {
+   "kind": "kursus",
+   "slug": "maager",
+   "title": "Mågernes verden: alle danske måger fra Hættemåge til Kaspisk Måge",
+   "summary": "Et dybdegående kursus i alders- og artsbestemmelse af de 24 mågearter, der er set i Danmark – med fældning, fjergrupper, stemmer, steder og dokumentation.",
+   "card": "Alder og fældning først, så arterne i de grupper, de forveksles i: hættemåger, havmåger, Stormmåge/Ringnæbbet, Sølv/Kaspisk/Middelhavs, de brune unge, de mørkryggede og de hvide.",
+   "intro": "Kurset følger Adriaens m.fl.'s metode – størrelse, helhed, analyse fjergruppe for fjergruppe – og bygger på, at alder er nøglen til alle måger. Kun arter på Den Danske Liste og underarter med godkendte danske fund.\n\n**Kilder:** Adriaens, Muusse, Dubois & Jiguet: *Gulls of Europe, North Africa, and the Middle East* (2022) · Malling Olsen: *Gulls of the World* (2018) ·\nHowell & Zufelt: *Oceanic Birds of the World* (2019) · DOFbasen: *Danmarks Fugle* og observationer · Olsen & Sjældenhedsudvalget: *The Danish List* (DOFT 2025) ·\nAVONET (Tobias m.fl. 2022, CC BY 4.0) · Pandion og Fugle i felten under Artikler (Haaning, Malling Olsen, Knudsen m.fl.). Fotos: DOF.tools fotobibliotek. Lyde: xeno-canto.",
+   "topic": "id",
+   "level": "øvet",
+   "number": 8,
+   "stage": "Artsgrupper i dybden",
+   "hours": "10–14 timer",
+   "hue": "hav",
+   "sil": "maage",
+   "skills": [
+    "Bemærk",
+    "Sammenlign",
+    "Lyt",
+    "Vurdér",
+    "Forbered"
+   ],
+   "featured": true,
+   "audience": "For let øvede fuglekiggere, der kender de almindelige måger og vil kunne aldersbestemme dem og finde – og dokumentere – de sjældne.",
+   "learn": [
+    {
+     "title": "Aldersbestem enhver måge",
+     "text": "Brug håndsvingfjer, dækfjer, tertialer, næb og øje til at bestemme kalenderår og fældningscyklus."
+    },
+    {
+     "title": "Brug metoden",
+     "text": "Størrelse → helhed → analyse fjergruppe for fjergruppe – og aldrig én karakter alene."
+    },
+    {
+     "title": "Skil de svære par ad",
+     "text": "Sølv/Kaspisk/Middelhavsmåge, Gråmåge/Hvidvinget, Stormmåge/Ringnæbbet og de unge store måger."
+    },
+    {
+     "title": "Find de sjældne",
+     "text": "Vid hvor og hvornår de 24 danske mågearter dukker op – og hvilket vejr der bringer dem."
+    },
+    {
+     "title": "Dokumentér og beslut ærligt",
+     "text": "Fotografér det, der afgør sagen, og vælg det rigtige niveau – også «stor måge sp.» og hybrid."
+    }
+   ],
+   "units": [
+    {
+     "title": "Velkommen til mågerne",
+     "lesson_md": "«Gå til mågerne og bliv en bedre feltornitolog,» skrev Klaus Malling Olsen i 1998. Det gælder stadig. Måger er nemme at komme tæt på, de står stille,\nog de er overalt. Til gengæld tager de store måger fire-fem år om at blive voksne, og de fælder næsten hele tiden. Derfor ser ingen to ens ud\n(Adriaens m.fl. 2022), og derfor er de så god en skole i fjerdragter, fældning og omhyggelig bestemmelse.\n\nKurset handler kun om de 24 mågearter, der er set i Danmark (Den Danske Liste, kategori A, Olsen & Sjældenhedsudvalget 2025), og om de underarter, der har\ngodkendte danske fund.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Sådan lærer du måger: og hvorfor kurset er bygget sådan\n\n| Princip | I kurset |\n|---|---|\n| **Forhåndstest** | Du gætter, før du har lært – det gør hjernen klar til svaret. |\n| **Alder før art** | Lektion 2 lærer dig alder og fældning, *før* arterne. Uden alder kan du ikke sammenligne. |\n| **Tre trin** | Størrelse → helhedsindtryk → analyse fjergruppe for fjergruppe (Adriaens m.fl. 2022). |\n| **Sammenlign side om side** | Arterne kommer i de grupper, de forveksles i, med fotos af *samme alder*. |\n| **Få kendetegn ad gangen** | Hver gruppe har en «nøglepakke». Ingen enkeltkarakter er nok hos de store måger – det er *kombinationen*. |\n| **Hentning og blanding** | Spørgsmål og fototests efter hver lektion, blandet prøve til sidst, og Repetition de følgende dage. |\n| **Ærlig sikkerhed** | En «stor måge sp.» eller «sølvmåge/kaspisk måge» er et rigtigt svar, når det er det, du kan forsvare. |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5820,
+         "nf": 42416
+        },
+        {
+         "artnr": 5900,
+         "nf": 122736
+        },
+        {
+         "artnr": 5920,
+         "nf": 120315,
+         "alder": "Adult (udfarvet)"
+        },
+        {
+         "artnr": 6000,
+         "nf": 57499
+        }
+       ],
+       "labels": [
+        "Hættemåge, adult vinter",
+        "Stormmåge, adult sommer",
+        "Sølvmåge, adult sommer",
+        "Svartbag med ungfugl"
+       ],
+       "tekst": "Fra lille til stor: de fire almindeligste måger i Danmark – og din reference for alt andet."
+      },
+      {
+       "type": "tip",
+       "titel": "Kursets bestemmelsesrækkefølge for en måge",
+       "md": "1. **Størrelsesklasse**: lille (Hættemåge-størrelse), mellem (Stormmåge, Ride) eller stor (Sølvmåge og større). Sammenlign med naboerne.\n2. **Alder**: hvilken fældningscyklus? (lektion 2)\n3. **Helhed**: form, hovedform, næbets kraft, vingernes længde bag halen, ryggens grå tone.\n4. **Analyse**: fjergruppe for fjergruppe: håndsvingfjerenes mønster, tertialer, store dækfjer, skulderfjer, hale, undervinge, næb, øje, ben.\n5. **Kontekst og dokumentation**: dato, sted, ring, foto af den udbredte vinge, lyd."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Hvor mange år tager det typisk en Sølvmåge at få fuld voksen dragt?",
+       "choices": [
+        {
+         "text": "Ca. 4 år",
+         "correct": true
+        },
+        {
+         "text": "1 år",
+         "correct": false
+        },
+        {
+         "text": "2 år",
+         "correct": false
+        },
+        {
+         "text": "8 år",
+         "correct": false
+        }
+       ],
+       "explanation": "Store måger er «fireårsmåger» (4–5 år). Hættemåge er voksen-agtig efter 1 år, Stormmåge efter 2–3.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Hvilken måge har sort hætte og hvide vingespidser som voksen i sommerdragt?",
+       "choices": [
+        {
+         "text": "Sorthovedet Måge",
+         "correct": true
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        },
+        {
+         "text": "Dværgmåge",
+         "correct": false
+        },
+        {
+         "text": "Ride",
+         "correct": false
+        }
+       ],
+       "explanation": "Hættemåge har en *chokoladebrun* hætte og sorte vingespidser; Sorthovedet Måge har kulsort hætte og hvide vinger.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Hvad er første skridt i Adriaens' metode til at bestemme en måge?",
+       "choices": [
+        {
+         "text": "At placere den i den rigtige størrelsesklasse",
+         "correct": true
+        },
+        {
+         "text": "At se på benfarven",
+         "correct": false
+        },
+        {
+         "text": "At tælle spejle i vingespidsen",
+         "correct": false
+        },
+        {
+         "text": "At høre kaldet",
+         "correct": false
+        }
+       ],
+       "explanation": "Størrelse → helhedsindtryk → analyse.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Forhåndstest: Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5900,
+         5920,
+         6000,
+         5910,
+         6020
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Hvad gør dig usikker, når du står ved en flok store måger? Skriv det ned, du skal sammenligne med dit svar i sidste lektion.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 80,
+        "example": "Fx: «Jeg kan kende de voksne sølvmåger og svartbage, men alle de brune unge ligner hinanden, og jeg ved ikke, hvordan man ser alderen.»"
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 15,
+     "min_score_pct": null
+    },
+    {
+     "title": "Mågernes verden: størrelse, form og metoden",
+     "lesson_md": "De store, hvidhovedede måger er unge i evolutionær forstand. Nogle arter har kun været adskilt i få hundredtusinde år, og flere krydser stadig med hinanden\n(Adriaens m.fl. 2022). Forskellene mellem dem er derfor ofte glidende. Man kommer langt med en fast fremgangsmåde, og den lærer du i denne lektion.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Trin 1: Størrelsesklasse: med tal fra AVONET\n\nAdriaens m.fl. inddeler Vestpalæarktis' måger i tre klasser. AVONET-databasens gennemsnitsmål viser, hvor store forskellene er:\n\n| Klasse | Art | Vægt (g) | Vinge (mm) | Tarsus (mm) |\n|---|---|---|---|---|\n| **Lille** | Dværgmåge | 118 | 219 | 26 |\n| | Hættemåge | 284 | 291 | 41 |\n| | Sorthovedet Måge | 256 | 302 | 48 |\n| **Mellem** | Stormmåge | 413 | 351 | 49 |\n| | Ride | 416 | 301 | **34** (meget korte ben!) |\n| | Ringnæbbet Måge | 516 | 366 | 51 |\n| **Stor** | Sildemåge | 762 | 412 | 62 |\n| | Sølvmåge | 1.091 | 431 | 63 |\n| | Kaspisk Måge | 1.112 | 427 | 67 (lange ben) |\n| | Gråmåge | 1.529 | 463 | 71 |\n| | Svartbag | 1.650 | 478 | 74 |\n\n### Trin 2: Helhedsindtrykket\n\nSammenlign med naboerne: Er næbbet kraftigere? Hovedet fladere eller rundere? Rager vingerne langt bag halen? Er ryggen lysere eller mørkere grå?\nAdriaens advarer: Helhedsindtrykket føles nemt, men «it is also very prone to error», fx kan en ung Sildemåge ligne en Middelhavsmåge og omvendt.\nDet er et startpunkt, ikke en bestemmelse.\n\nHan og hun: Hos de store måger er hannerne større med kraftigere næb, tydeligere næbvinkel og mere kantet hoved; hunnerne er mindre med rundere hoved\nog længere vinger i forhold til kroppen (Malling Olsen 2018). En lille gråmågehun kan ligne en hvidvinget måge, og en stor sølvmågehan kan nærme sig en svartbag.\n\n### Trin 3: Analysen\n\nFjergruppe for fjergruppe: håndsvingfjer (mønster, spejle, tunger), tertialer, store dækfjer, skulderfjer, overgump og hale, undervinge, næb, øje\nog orbitalring, ben. Aldrig én karakter alene hos de store måger."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Faldgruber, der snyder alle",
+       "md": "- **Lys**: Ryggens grå tone skifter med solens vinkel og lyset. Sammenlign altid fugle *ved siden af hinanden* i samme lys (Malling Olsen 2018).\n- **Slid og blegning**: Unge måger kan blive næsten hvide i spidserne af vingen sidst i første vinter, og ligne en «hvid» måge.\n- **Leucisme**: Sølvmåger med grå i stedet for sorte vingespidser er forvekslet med Gråvinget Måge (Haaning, Pandion 2016).\n- **Olie og smuds**: Gule eller brune skjolder kan efterligne farver.\n- **Hybrider**: I Polen er op mod halvdelen af parrene i nogle blandede kolonier sølvmåge × kaspisk måge (Malling Olsen 2018)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5820,
+         "nf": 43415
+        },
+        {
+         "artnr": 5900,
+         "nf": 122736
+        },
+        {
+         "artnr": 6000,
+         "nf": 57499
+        }
+       ],
+       "labels": [
+        "Hættemåge (lille)",
+        "Stormmåge (mellem)",
+        "Svartbag (stor)"
+       ],
+       "tekst": "Tre størrelsesklasser. Bemærk næbbets kraft – det vokser hurtigere end kroppen."
+      }
+     ],
+     "acts": [
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter gennemsnitlig vægt (AVONET), lettest først.",
+       "choices": [],
+       "explanation": "118 · 284 · 413 · 762 · 1.091 · 1.650 g.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "items": [
+         "Dværgmåge",
+         "Hættemåge",
+         "Stormmåge",
+         "Sildemåge",
+         "Sølvmåge",
+         "Svartbag"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken mellemstor måge har påfaldende korte ben?",
+       "choices": [
+        {
+         "text": "Ride",
+         "correct": true
+        },
+        {
+         "text": "Stormmåge",
+         "correct": false
+        },
+        {
+         "text": "Ringnæbbet Måge",
+         "correct": false
+        },
+        {
+         "text": "Kaspisk Måge",
+         "correct": false
+        }
+       ],
+       "explanation": "Ridens tarsus er kun ca. 34 mm mod Stormmågens 49 mm (AVONET). Den er en havmåge, der sjældent går på land.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan ser en han af en stor måge typisk ud sammenlignet med hunnen?",
+       "choices": [
+        {
+         "text": "Større, kraftigere næb med tydeligere næbvinkel, mere kantet hoved og relativt kortere vinger",
+         "correct": true
+        },
+        {
+         "text": "Mindre og mørkere",
+         "correct": false
+        },
+        {
+         "text": "Har sort hætte",
+         "correct": false
+        },
+        {
+         "text": "Har gule ben",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen (2018). Derfor skal størrelse altid bruges med forsigtighed.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er helhedsindtrykket alene ikke nok?",
+       "choices": [
+        {
+         "text": "Det er nemt at blive narret, fx kan ung Sildemåge og Middelhavsmåge ligne hinanden",
+         "correct": true
+        },
+        {
+         "text": "Fordi måger aldrig står stille",
+         "correct": false
+        },
+        {
+         "text": "Fordi størrelse ikke varierer",
+         "correct": false
+        },
+        {
+         "text": "Fordi alle måger er ens",
+         "correct": false
+        }
+       ],
+       "explanation": "Adriaens m.fl.: «prone to error». Brug analysen.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En sølvmåge med grå i stedet for sorte vingespidser i en dansk havn. Hvad er mest sandsynligt?",
+       "choices": [
+        {
+         "text": "En farveafvigende (leucistisk) sølvmåge",
+         "correct": true
+        },
+        {
+         "text": "En Gråvinget Måge",
+         "correct": false
+        },
+        {
+         "text": "En Hvidvinget Måge",
+         "correct": false
+        },
+        {
+         "text": "En hybrid med Ride",
+         "correct": false
+        }
+       ],
+       "explanation": "Gråvinget Måge er kun set én gang i Danmark (Aarhus 2009–2012). Leucistiske sølvmåger ses jævnligt (Haaning, Pandion 2016).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 30,
+     "min_score_pct": null
+    },
+    {
+     "title": "Alder og fældning: nøglen til alle måger",
+     "lesson_md": "Hvis du kun tager én ting med fra kurset, så lad det være aldersbestemmelse. Alderen afgør, hvilke kendetegn du kan bruge. En ung Sølvmåge i sin første\nvinter skal sammenlignes med en ung Kaspisk Måge på samme alder, ikke med en voksen.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Kalenderår og cyklusser\n\nI Danmark bruger vi kalenderår: 1K fra udklækning til nytår, 2K fra 1. januar, osv. En fugl i sin første vinter er altså 1K i\ndecember og 2K i januar, uden at have ændret sig (Haaning, Pandion 2019). Mange bøger (bl.a. Adriaens m.fl.) bruger cyklusser: En cyklus går\nfra én fuldstændig fældning til den næste, 1. cyklus begynder med ungedragten, 2. cyklus når den inderste håndsvingfjer (p1) fældes i 2K-sommeren.\n\n### To-, tre- og fireårsmåger\n\n| Type | Arter | Hvornår voksen-agtig |\n|---|---|---|\n| **«Toårsmåger»** (små) | Hættemåge, Dværgmåge, Sorthovedet Måge, Ride, Sabinemåge, Bonapartemåge, Rosenmåge | Efter 1 år (Dværgmåge og Sorthovedet har en tydelig 2. cyklus-dragt) |\n| **«Treårsmåger»** (mellem) | Stormmåge, Ringnæbbet Måge | Efter 2 år |\n| **«Fireårsmåger»** (store) | Sølv-, Kaspisk, Middelhavs-, Silde-, Svartbag, Gråmåge, Hvidvinget | Efter 3–4 år (ofte 4–5) |\n\nSabinemåge er en undtagelse: Den fælder næsten fuldstændigt allerede i 1. cyklus og ligner hurtigt en voksen (Adriaens m.fl.).\n\n### Topografien: navnene du skal kunne\n\n- **Håndsvingfjer** nummereres indefra og ud: p1 inderst, p10 yderst. Den første håndsvingfjer, du ser bag tertialerne på en siddende fugl, er normalt p6.\n- **Spejl** (*mirror*): hvid plet i det sorte nær spidsen af p10 (og evt. p9).\n- **Tunge** (*tongue*): grå kile ind i det sorte på håndsvingfjerenes inderfane, ses bedst på undersiden.\n- **Tertialhalvmåne**: den hvide kant på tertialerne hos voksne store måger.\n- **Gonysplet**: den røde plet ved næbvinklen på undernæbbet hos voksne store måger.\n- **Orbitalring**: den nøgne hudring om øjet, rød, orange, gul eller lyserød, ofte vigtig."
+      },
+      {
+       "type": "tekst",
+       "md": "### Sådan ser du alderen på en stor måge (Adriaens m.fl. 2022)\n\n| Alder | Håndsvingfjer | Resten |\n|---|---|---|\n| **1. cyklus** (1K–2K) | **Smalle, spidse, brunlige** juvenilfjer, flossede om foråret | Regelmæssigt mønster: store dækfjer med parallelle bånd; mørkt øje; næb uden tydelig lys spids; nye skulderfjer med «anker»-mønster mod slidte dækfjer |\n| **2. cyklus** (2K–3K) | **Bredere, rundere**, sortere yderst, grålige inderst | Store dækfjer med uregelmæssig «spaghetti»-vermikulering; brede hvide tertialspidser; ofte grå/sort «sadel»; næb med bred lys spids. Kaspisk, Svartbag og skandinavisk Sølvmåge har ofte et spejl på p10. |\n| **3. cyklus** (3K–4K) | Hvide spidser på håndsvingfjerene; voksenfarvede inderste håndsvingfjer | Mere voksen-agtig; nogle har allerede to spejle |\n| **4. cyklus** | Som voksen, men ofte mere sort og umodne pletter på hånddækfjer/hale/næb | «Subadult» |\n| **Voksen** | Fuldt mønster | Ensfarvet ryg uden brunt, hvid hale |\n\nSmå måger i 1. cyklus kendes på brune mellemste og små dækfjer, mørke tertialcentre, sort halebånd og mørke armsvingfjer. Stormmåge i 2. cyklus\nmangler de hvide spidser på de yderste håndsvingfjer og har sorte pletter på hånddækfjerene.\n\n### Fældningen gennem året\n\nStore måger fælder fuldstændigt efter yngletiden (sommer–efterår) og delvist om foråret (hoved og krop). Den hvide sommerhoved bliver\nstribet om vinteren. En vinterdragt-adult Sølvmåge har grovstribet hoved; en Kaspisk Måge er ofte næsten rent hvidhovedet med en stribet «sjal» i nakken."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5930,
+         "nf": 123374,
+         "alder": "1. kalenderår"
+        },
+        {
+         "artnr": 5930,
+         "nf": 120425,
+         "alder": "2. kalenderår"
+        },
+        {
+         "artnr": 5930,
+         "nf": 120310
+        }
+       ],
+       "labels": [
+        "Kaspisk Måge 1K",
+        "Kaspisk Måge 2K",
+        "Kaspisk Måge adult"
+       ],
+       "tekst": "Samme art, tre aldre: brune juvenilfjer → grå sadel og brede tertialspidser → ren voksen. Læg mærke til, hvordan øjet og næbbet ændrer sig."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5750,
+         "nf": 124994,
+         "alder": "1. kalenderår"
+        },
+        {
+         "artnr": 5750,
+         "nf": 120992,
+         "alder": "2. kalenderår"
+        },
+        {
+         "artnr": 5750,
+         "nf": 119073,
+         "alder": "3. kalenderår"
+        }
+       ],
+       "labels": [
+        "Sorthovedet Måge 1K",
+        "Sorthovedet Måge 2K",
+        "Sorthovedet Måge 3K"
+       ],
+       "tekst": "En lille måge med tydelig 2. cyklus: 2K har sorte tegninger i håndsvingfjerene, 3K er voksen."
+      },
+      {
+       "type": "tip",
+       "titel": "Øvelse i havnen",
+       "md": "Vælg én Sølvmågeflok. Find én fugl af hver alder: 1K/2K (brun, spidse håndsvingfjer), 2K/3K (grå sadel, «spaghetti»-dækfjer), 3K/4K (næsten voksen)\nog voksen. Fotografér den udbredte vinge, hvis du kan. Det er den bedste øvelse, der findes (Malling Olsen 2018: start i en lille fiskerihavn)."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En ung måge i sin første vinter ses den 15. januar. Hvad hedder dens alder i kalenderår?",
+       "choices": [
+        {
+         "text": "2K",
+         "correct": true
+        },
+        {
+         "text": "1K",
+         "correct": false
+        },
+        {
+         "text": "3K",
+         "correct": false
+        },
+        {
+         "text": "Juvenil",
+         "correct": false
+        }
+       ],
+       "explanation": "Fra 1. januar er den i sit 2. kalenderår, selvom den ikke har ændret sig siden december.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan nummereres håndsvingfjerene hos måger?",
+       "choices": [
+        {
+         "text": "Indefra og ud: p1 inderst, p10 yderst",
+         "correct": true
+        },
+        {
+         "text": "Udefra og ind: p1 yderst",
+         "correct": false
+        },
+        {
+         "text": "Fra spidsen af vingen",
+         "correct": false
+        },
+        {
+         "text": "De nummereres ikke",
+         "correct": false
+        }
+       ],
+       "explanation": "Det er derfor, «spejl på p10» betyder den yderste fjer.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad kendetegner juvenile håndsvingfjer hos store måger?",
+       "choices": [
+        {
+         "text": "Smalle, spidse og brunlige",
+         "correct": true
+        },
+        {
+         "text": "Brede og runde med hvide spidser",
+         "correct": false
+        },
+        {
+         "text": "Helt hvide",
+         "correct": false
+        },
+        {
+         "text": "Grå med to spejle",
+         "correct": false
+        }
+       ],
+       "explanation": "Andengenerationsfjer er bredere og rundere (Adriaens m.fl.).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er et spejl på en mågevinge?",
+       "choices": [
+        {
+         "text": "En hvid plet i det sorte nær spidsen af de yderste håndsvingfjer",
+         "correct": true
+        },
+        {
+         "text": "Den røde plet på næbbet",
+         "correct": false
+        },
+        {
+         "text": "Den hvide kant på tertialerne",
+         "correct": false
+        },
+        {
+         "text": "En grå kile på undersiden af hånden",
+         "correct": false
+        }
+       ],
+       "explanation": "Den grå kile er en «tunge»; den hvide tertialkant er tertialhalvmånen; den røde næbplet er gonyspletten.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter disse aldersgrupper efter, hvor mange år de skal bruge for at blive voksen-agtige, færrest først.",
+       "choices": [],
+       "explanation": "To-, tre- og fireårsmåge.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Hættemåge",
+         "Stormmåge",
+         "Sølvmåge"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken lille måge ligner næsten en voksen allerede i sin første vinter, fordi den fælder næsten fuldstændigt i 1. cyklus?",
+       "choices": [
+        {
+         "text": "Sabinemåge",
+         "correct": true
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        },
+        {
+         "text": "Dværgmåge",
+         "correct": false
+        },
+        {
+         "text": "Ride",
+         "correct": false
+        }
+       ],
+       "explanation": "Adriaens m.fl., kun næbspidsen (mørk) afslører den unge.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor måge har grå ryg («sadel»), dækfjer med uregelmæssig «spaghetti»-tegning, brede hvide tertialspidser og bred lys næbspids. Alder?",
+       "choices": [
+        {
+         "text": "2. cyklus (typisk 2K/3K)",
+         "correct": true
+        },
+        {
+         "text": "1. cyklus",
+         "correct": false
+        },
+        {
+         "text": "Voksen",
+         "correct": false
+        },
+        {
+         "text": "Juvenil",
+         "correct": false
+        }
+       ],
+       "explanation": "Klassisk andenårsdragt.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilke store måger har ofte allerede et spejl på p10 i 2. cyklus?",
+       "choices": [
+        {
+         "text": "Kaspisk Måge",
+         "correct": true
+        },
+        {
+         "text": "Svartbag",
+         "correct": true
+        },
+        {
+         "text": "Skandinavisk Sølvmåge (argentatus)",
+         "correct": true
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "Britisk Sølvmåge (argenteus)",
+         "correct": false
+        }
+       ],
+       "explanation": "Adriaens m.fl. 2022, nyttigt ved 2K-Kaspisk mod 2K-Middelhavsmåge.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art? (Se på alderen først)",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5930,
+         5750,
+         5920,
+         5900
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 55,
+     "min_score_pct": null
+    },
+    {
+     "title": "Hættemåge, Sorthovedet Måge og Dværgmåge",
+     "lesson_md": "Tre små måger med hætte. Hættemågen er med 87.000–100.000 par Danmarks talrigeste måge i yngletiden (DOF). Sorthovedet Måge er kommet til for nylig og går\nfrem. Dværgmågen er verdens mindste måge. Den ynglede i Vejlerne til 2004 og ses i dag kun på træk.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken: voksne\n\n| | **Hættemåge** | **Sorthovedet Måge** | **Dværgmåge** |\n|---|---|---|---|\n| Hætte (sommer) | **Chokoladebrun**, når ikke ned i nakken | **Kulsort**, går ned i nakken; hvide «øjenlåg» | Sort, går ned i nakken; ingen øjenlåg |\n| Vingeoverside | Grå med **hvid forkant** («hvid kile») på hånden og sort bagkant på håndsvingfjerene | **Hvide vingespidser** (kun en tynd sort streg langs ydre fane på p10), meget lys perlegrå ryg | Lysegrå, afrundede vinger med hvid bagkant; ingen sort |\n| Vingeunderside | Mørkegrå håndsvingfjer | Hvid | **Næsten sort** – afgørende i flugt |\n| Næb | Mørkerødt, slankt | **Kraftigt, rødt** med sort bånd og gullig spids, hængende næbspids | Lille, mørkt |\n| Vinterhoved | Mørk plet bag øjet | Mørk «maske» bag øjet | Mørk isse og øreplet |\n| Størrelse | 284 g | 256 g, men kraftigere | 118 g – verdens mindste |\n\n### Ungfugle\n\n- **Hættemåge 1K**: brune dækfjer, sort halebånd, hvid kile på håndens forkant (som voksen), den skal du kunne i søvne.\n- **Sorthovedet Måge 1K**: hvidt hoved med mørk maske bag øjet, ensfarvet lysegrå ryg allerede fra september, et lyst bånd af grå store dækfjer i en ellers\n  mørk armvinge, lys indre hånd og et skarpt sort halebånd. Om foråret i 2K har den stadig ungfuglens håndsvingfjer; efter sommerens fældning ligner den en voksen,\n  men med sort på p5–p10. 3K er voksen (gull-research.org; Haaning, Pandion 2020).\n- **Dværgmåge 1K**: et sort «W» over vingerne (som ung Ride, men Ride er større med sort nakkebånd), mørk isse."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5820,
+         "nf": 116579
+        },
+        {
+         "artnr": 5750,
+         "nf": 120613
+        },
+        {
+         "artnr": 5780,
+         "nf": 119516,
+         "alder": "Adult (udfarvet)"
+        }
+       ],
+       "labels": [
+        "Hættemåge, adult sommer",
+        "Sorthovedet Måge, adult sommer",
+        "Dværgmåge, adult sommer"
+       ],
+       "tekst": "Brun hætte og sorte vingespidser – sort hætte og hvide vinger – sort hætte og mørk undervinge."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5820,
+         "nf": 48409
+        },
+        {
+         "artnr": 5750,
+         "nf": 124994,
+         "alder": "1. kalenderår"
+        },
+        {
+         "artnr": 5780,
+         "nf": 120325,
+         "alder": "2. kalenderår"
+        }
+       ],
+       "labels": [
+        "Hættemåge, juvenil",
+        "Sorthovedet Måge 1K",
+        "Dværgmåge 2K vinter"
+       ],
+       "tekst": "Ungfuglene."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5820,
+        "latin": "Chroicocephalus ridibundus",
+        "type": "kald"
+       },
+       "tekst": "Hættemågens rå, skrattende «krrie-ar»."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5750,
+        "latin": "Ichthyaetus melanocephalus",
+        "type": "kald"
+       },
+       "tekst": "Sorthovedet Måges nasale, stigende «ye-ah» – helt forskelligt fra Hættemåge og ofte det, der afslører den i en koloni."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5780,
+        "latin": "Hydrocoloeus minutus",
+        "type": "kald"
+       },
+       "tekst": "Dværgmågens korte, hårde «kek-kek»."
+      },
+      {
+       "type": "tekst",
+       "md": "### Danmark\n\n- **Hættemåge**: ca. 245.000 par omkring 1970, ca. 86.000 par i 2018. Kolonierne beskytter andre fugle som sorthalset lappedykker og splitterne (DOFbasen).\n- **Sorthovedet Måge**: første fund 1931, første ynglefund 1970, ynglet årligt siden 1998, 38–43 par i 2021, næsten altid i hætte- eller\n  stormmågekolonier (Sneum Digesø, Haderslev Dam, Birkum, Sprogø, Holmesø). Hanstholm er blevet en fældeplads fra midt i juli til oktober med\n  op til 88 fugle på én dag i 2018 og 96 i 2020, den nordligste i Europa (Haaning, Pandion 2020). 3K-dragten med sort hætte kan kun kendes til\n  ind i juli; efter fældningen ligner 3K en voksen.\n- **Dværgmåge**: ynglede årligt i Vejlerne 1928–1980 (op til 30 par i 1951); sidste sikre ynglefund 2004. I dag en almindelig trækgæst fra Østersølandene\n , især i de sydlige farvande og i Nordsøen om vinteren."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken farve har en voksen Hættemåges hætte om sommeren?",
+       "choices": [
+        {
+         "text": "Chokoladebrun",
+         "correct": true
+        },
+        {
+         "text": "Kulsort",
+         "correct": false
+        },
+        {
+         "text": "Grå",
+         "correct": false
+        },
+        {
+         "text": "Hvid",
+         "correct": false
+        }
+       ],
+       "explanation": "Sorthovedet Måge og Dværgmåge har sort hætte.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken lille måge har hvide vingespidser som voksen?",
+       "choices": [
+        {
+         "text": "Sorthovedet Måge",
+         "correct": true
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        },
+        {
+         "text": "Ride",
+         "correct": false
+        },
+        {
+         "text": "Stormmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Kun en tynd sort streg langs p10 bryder det hvide. Dværgmåge har heller ikke sort på oversiden, men den har mørk undervinge.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille måge i flugt over havet viser næsten sorte undervinger med hvid bagkant. Art?",
+       "choices": [
+        {
+         "text": "Dværgmåge (voksen)",
+         "correct": true
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        },
+        {
+         "text": "Sorthovedet Måge",
+         "correct": false
+        },
+        {
+         "text": "Ride",
+         "correct": false
+        }
+       ],
+       "explanation": "Det mest sikre flugtkendetegn.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5750,
+         5780
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor ligger Danmarks kendte fældeplads for Sorthovedet Måge?",
+       "choices": [
+        {
+         "text": "Hanstholm",
+         "correct": true
+        },
+        {
+         "text": "Skagen",
+         "correct": false
+        },
+        {
+         "text": "Christiansø",
+         "correct": false
+        },
+        {
+         "text": "Vejlerne",
+         "correct": false
+        }
+       ],
+       "explanation": "Op til 96 fugle i 2020 (Haaning, Pandion).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår blev Dværgmågen sidst konstateret ynglende i Danmark?",
+       "choices": [
+        {
+         "text": "2004",
+         "correct": true
+        },
+        {
+         "text": "1951",
+         "correct": false
+        },
+        {
+         "text": "1980",
+         "correct": false
+        },
+        {
+         "text": "2020",
+         "correct": false
+        }
+       ],
+       "explanation": "Vejlerne, 2004 (DOFbasen).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En 2K Sorthovedet Måge i efteråret kan ligne en voksen. Hvad afslører den?",
+       "choices": [
+        {
+         "text": "Sort på de yderste håndsvingfjer (p5–p10)",
+         "correct": true
+        },
+        {
+         "text": "Brun hætte",
+         "correct": false
+        },
+        {
+         "text": "Sort halebånd og brune dækfjer",
+         "correct": false
+        },
+        {
+         "text": "Gule ben",
+         "correct": false
+        }
+       ],
+       "explanation": "Efter den første fuldstændige fældning har den grå dækfjer som en voksen, men sort i vingespidsen (gull-research.org). En 3K kan efter fældningen ikke skelnes fra en voksen.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5750,
+         5780
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5820,
+         5750
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Havmåger: Ride, Sabinemåge, Rosenmåge og Ismåge",
+     "lesson_md": "Fire måger, der hører hjemme på åbent hav og i Arktis. Du ser dem oftest fra en havobspost eller i en havn efter storm. I *Oceanic Birds of the World*\n(Howell & Zufelt 2019) står de side om side med stormfugle og suler, og det siger noget om, hvordan de lever.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Ride: Danmarks havmåge\n\n| | |\n|---|---|\n| Voksen | Som en lille, langvinget stormmåge, men med **helt sorte, «dyppede i blæk» vingespidser uden spejle**, **korte sorte ben** og ensfarvet gult næb. Mørkt øje. |\n| 1K | **Sort «W»** over vingerne, **sort nakkebånd**, sort halebånd med kløftet hale, sort øreplet. |\n| Kald | Det navngivende **«kitti-wæk»** i kolonien. |\n| Danmark | Første ynglefund Hirsholmene 1941; i dag ca. 500 par på **Bulbjerg** og små kolonier i Hanstholm og Hirtshals havne (DOFbasen). Store flokke passerer Skagen, Hanstholm, Blåvand og Gilbjerg Hoved i storm. Bestanden i Nordvesteuropa er gået stærkt tilbage, bl.a. pga. mangel på tobis. |\n\n### Sabinemåge: trefarvet vinge\n\nDiagnostisk vinge: en sort trekant på hånden, en hvid trekant bag den og grå arm og ryg, i alle aldre (hos ungfuglen er grå erstattet af\ngråbrun). Kløftet hale. Voksne har mørkegrå hætte og sort næb med gul spids. Ses ved den jyske vestkyst i september–oktober efter vestenstorme\n(sandsynligvis canadiske fugle slået ud af kurs) og senere i Kattegat (oktober–november). 1997 var et invasionsår med 207 fugle på Blåvand alene\ninden 26/9 (Bunch, DOF 1997).\n\n### Rosenmåge: den legendariske\n\nLille, med kileformet hale, mørk grå undervinge med hvid bagkant, ingen sort på hånden; voksen i sommerdragt med rosa underside og smal sort\nhalskrave. 1K har sort «W» som en ung ride, men kileformet hale. Kun ca. 10 danske fund (Malling Olsen m.fl. 2021), næsten alle fra Skagen og\nVestjylland. Thorsminde 1984 kaldes «dansk twitchings kickstarter»; Esbjerg Havn huste en i vinteren 2007/08.\n\n### Ismåge: den helt hvide\n\nVoksen: helt hvid med sorte ben, blågråt næb med gul spids og sort øje, den eneste helt hvide måge. 1K: hvid med sorte prikker og et beskidt\nsort ansigt. Kort tarsus og due-agtig gang. Blot 8 danske fund (2019), første i Kalveboderne; senest Langø 2006, Hanstholm 2013 (langtidsstationær)\nog Agger Tange 2016. Fundene falder i november–januar, ofte efter stormlavtryk (Haaning, Pandion 2019)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 6020,
+         "nf": 121232
+        },
+        {
+         "artnr": 5790,
+         "nf": 122603,
+         "alder": "1. kalenderår"
+        },
+        {
+         "artnr": 6010,
+         "nf": 119459
+        }
+       ],
+       "labels": [
+        "Ride 1K",
+        "Sabinemåge 1K, Roshage",
+        "Rosenmåge 1K"
+       ],
+       "tekst": "Tre unge havmåger med vingemønster: Ridens W, Sabinemågens trekanter, Rosenmågens W med kilehale."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 6040,
+         "nf": 54726
+        },
+        {
+         "artnr": 6020,
+         "nf": 121780,
+         "alder": "Adult (udfarvet)"
+        }
+       ],
+       "labels": [
+        "Ismåge, Langø, december 2006",
+        "Ride, adult"
+       ],
+       "tekst": "Den helt hvide og den med «blækdyppede» vingespidser."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 6020,
+        "latin": "Rissa tridactyla",
+        "type": "kald"
+       },
+       "tekst": "Ridens «kitti-wæk» fra en fuglefjeldskoloni."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5790,
+        "latin": "Xema sabini",
+        "type": "kald"
+       },
+       "tekst": "Sabinemågens skrattende, terne-agtige kald."
+      },
+      {
+       "type": "tip",
+       "titel": "Havobs efter Sabinemåge",
+       "md": "Gå efter de første timer efter en kraftig vestenstorm i september–oktober. Se efter en «terne» med *trefarvet* vinge og kløftet hale, unge sabinemåger\nflyver let og terneagtigt og forveksles især med unge rider (sort W, ikke trekanter) og unge dværgmåger (mørk isse, W)."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilket vingemønster er diagnostisk for Sabinemåge i alle aldre?",
+       "choices": [
+        {
+         "text": "Tre trekanter: sort hånd, hvid trekant, grå/brun arm",
+         "correct": true
+        },
+        {
+         "text": "Et sort W over vingerne",
+         "correct": false
+        },
+        {
+         "text": "Helt hvide vinger",
+         "correct": false
+        },
+        {
+         "text": "Sorte vingespidser med to spejle",
+         "correct": false
+        }
+       ],
+       "explanation": "Ride og Rosenmåge har W som ungfugle; Ismåge er hvid.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad skiller en ung Ride fra en ung Rosenmåge?",
+       "choices": [
+        {
+         "text": "Ridens kløftede hale og sorte nakkebånd, Rosenmågen har kileformet hale",
+         "correct": true
+        },
+        {
+         "text": "Ride har ingen W",
+         "correct": false
+        },
+        {
+         "text": "Rosenmåge har gul næb",
+         "correct": false
+        },
+        {
+         "text": "Ride har lyserøde ben",
+         "correct": false
+        }
+       ],
+       "explanation": "Begge har sort W.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken beskrivelse passer på en voksen Ride?",
+       "choices": [
+        {
+         "text": "Sorte vingespidser uden spejle, korte sorte ben, gult næb",
+         "correct": true
+        },
+        {
+         "text": "Hvide vingespidser og rødt næb",
+         "correct": false
+        },
+        {
+         "text": "Gule ben og rød gonysplet",
+         "correct": false
+        },
+        {
+         "text": "Helt hvid med sorte ben",
+         "correct": false
+        }
+       ],
+       "explanation": "«Dyppet i blæk».",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket vejr giver flest Sabinemåger ved den jyske vestkyst?",
+       "choices": [
+        {
+         "text": "Kraftige vestenstorme i september–oktober",
+         "correct": true
+        },
+        {
+         "text": "Østenvind i maj",
+         "correct": false
+        },
+        {
+         "text": "Stille højtryk i juli",
+         "correct": false
+        },
+        {
+         "text": "Frost i januar",
+         "correct": false
+        }
+       ],
+       "explanation": "DOFbasen.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår falder de danske fund af Ismåge?",
+       "choices": [
+        {
+         "text": "November–januar, ofte efter stormlavtryk",
+         "correct": true
+        },
+        {
+         "text": "Maj–juni",
+         "correct": false
+        },
+        {
+         "text": "August",
+         "correct": false
+        },
+        {
+         "text": "Hele året jævnt",
+         "correct": false
+        }
+       ],
+       "explanation": "Haaning (Pandion 2019).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan ser en 1K Ismåge ud?",
+       "choices": [
+        {
+         "text": "Hvid med sorte prikker og beskidt sort ansigt",
+         "correct": true
+        },
+        {
+         "text": "Helt hvid",
+         "correct": false
+        },
+        {
+         "text": "Brun med sort W",
+         "correct": false
+        },
+        {
+         "text": "Grå med sort hætte",
+         "correct": false
+        }
+       ],
+       "explanation": "Voksne er helt hvide.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter antal danske fund, færrest først (omtrentligt).",
+       "choices": [],
+       "explanation": "Kilder: Pandion og Artikler.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Ismåge (8 fund, 2019)",
+         "Rosenmåge (ca. 10)",
+         "Sabinemåge (årlig)",
+         "Ride (ynglefugl)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Ride, Hættemåge eller Stormmåge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         6020,
+         5820,
+         5900
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 5
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         6020,
+         5790,
+         6010,
+         6040,
+         5780
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Sjældne gæster: Bonapartemåge, Tyndnæbbet, Latter-, Prærie-, Audouins- og Stor Sorthovedet Måge",
+     "lesson_md": "Seks sjældne måger, som alle er set i Danmark. De fleste dukker op mellem Hættemåger eller i en havn efter storm. Har du først læst op på dem, er de\nnemmere at bestemme end en ung Sølvmåge.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "| Art | Ligner | Nøglen | Danske fund (eksempler) |\n|---|---|---|---|\n| **Bonapartemåge** (Nordamerika) | Hættemåge | Mindre, **tyndt sort næb**, **lys undervinge** (Hættemåge: mørk hånd under), voksen med **sort** hætte; 1K med **mørkt, brudt bånd** på armen og tydelig øreplet | Hirtshals 1995 og 2004, Skagen 2004, Blåvands Huk 2012; **Vejlerne 18/5 2025 – første indlandsfund** (Haaning) |\n| **Tyndnæbbet Måge** (Middelhavet) | Hættemåge | **Langt, tyndt næb, langt hoved med skrå pande og lang hals**; ingen hætte om sommeren, kun en lille øreplet om vinteren; lys iris; rosa skær under | **Filsø 27/5 2014** – første danske fund, længe ventet (Neergaard, Pandion 2012) |\n| **Lattermåge** (Nordamerika) | Sorthovedet Måge | **Mørkegrå ryg**, sorte vingespidser uden hvidt, **langt hængende næb**, lang og slank; 1K mørk med grå sadel | 8. fund Hanstholm 29–30/12 2017 (Haaning); Blåvand 2008 |\n| **Præriemåge** (Nordamerika) | Lattermåge | **Mindre og kortbenet**, kompakt; **halv-hætte** også om vinteren, **brede hvide øjenlåg**, hvidt bånd mellem det sorte og grå på hånden | **Hirtshals 27/11 2005** (1K, første); Sneum Digesø 2019 (voksen i sommerdragt) |\n| **Audouinsmåge** (Middelhavet) | Sølvmåge | **Mørkerødt næb med sort bånd** og gul spids, mørke ben, lang og slank, **meget lidt hvidt** i vingespidsen | **Helsingør juni 2006** (første); **2K Blåvand 8/7 2024** (Gabrielsen) |\n| **Stor Sorthovedet Måge** (Centralasien) | Svartbag (1K) / ingen (voksen) | Kæmpe: **sort hætte**, kraftigt gult næb med sort bånd og rød spids; 1K med **mørk «banditmaske»** og skarpt **sort halebånd** mod hvid hale | Blåvands Huk 1993; **Køge 2/11 2001** (Danmarks 3. fund) |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5810,
+         "nf": 41302
+        },
+        {
+         "artnr": 5770,
+         "nf": 112839
+        },
+        {
+         "artnr": 5880,
+         "nf": 52185
+        }
+       ],
+       "labels": [
+        "Bonapartemåge 1K, Hirtshals",
+        "Præriemåge adult, Sneum Digesø 2019",
+        "Audouinsmåge adult, Helsingør 2006"
+       ],
+       "tekst": "Tre danske sjældenheder. Bonapartemågens mørke armbånd, Præriemågens hvide øjenlåg og Audouinsmågens mørkerøde næb."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5880,
+         "nf": 122449,
+         "alder": "2. kalenderår"
+        },
+        {
+         "artnr": 5730,
+         "nf": 41322
+        }
+       ],
+       "labels": [
+        "Audouinsmåge 2K, Blåvand 2024",
+        "Stor Sorthovedet Måge 1K, Køge 2001"
+       ],
+       "tekst": "To store sjældne."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Hybrider og afvigere",
+       "md": "- **Sorthovedet Måge × Hættemåge** forekommer i Danmark (DOFbasen har en hybridkategori). En «Sorthovedet» med sorte vingespidser eller en «Hættemåge» med sort\n  hætte er en mulig hybrid, se på næb, vinge og kald.\n- **Melanistiske/ufarvede** Hættemåger og hættemåger med lyse håndsvingfjer kan ligne Bonapartemåge, Bonapartemågens tynde sorte næb og lyse undervinge er afgørende."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad skiller en Bonapartemåge fra en Hættemåge i flugt?",
+       "choices": [
+        {
+         "text": "Lys undervinge (Hættemåge har mørk hånd under) og tyndt sort næb",
+         "correct": true
+        },
+        {
+         "text": "Hvide vingespidser",
+         "correct": false
+        },
+        {
+         "text": "Gul næb",
+         "correct": false
+        },
+        {
+         "text": "Kileformet hale",
+         "correct": false
+        }
+       ],
+       "explanation": "Den sorte hætte (voksen) og det mørke armbånd (1K) hjælper også.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor blev Danmarks første Tyndnæbbede Måge set?",
+       "choices": [
+        {
+         "text": "Filsø, 27. maj 2014",
+         "correct": true
+        },
+        {
+         "text": "Hirtshals 2005",
+         "correct": false
+        },
+        {
+         "text": "Helsingør 2006",
+         "correct": false
+        },
+        {
+         "text": "Køge 2001",
+         "correct": false
+        }
+       ],
+       "explanation": "DOFbasen.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad skiller Præriemåge fra Lattermåge?",
+       "choices": [
+        {
+         "text": "Præriemåge er mindre og kortbenet med brede hvide øjenlåg og halv-hætte; Lattermåge er slank med langt hængende næb",
+         "correct": true
+        },
+        {
+         "text": "Præriemåge har hvide vingespidser",
+         "correct": false
+        },
+        {
+         "text": "Lattermåge har gule ben",
+         "correct": false
+        },
+        {
+         "text": "De kan ikke skilles",
+         "correct": false
+        }
+       ],
+       "explanation": "Haaning (Pandion 2015).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken stor måge har mørkerødt næb med sort bånd og mørke ben?",
+       "choices": [
+        {
+         "text": "Audouinsmåge",
+         "correct": true
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "Kaspisk Måge",
+         "correct": false
+        },
+        {
+         "text": "Stor Sorthovedet Måge",
+         "correct": false
+        }
+       ],
+       "explanation": "Middelhavsmågen har gult næb med rød plet og gule ben.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En kæmpe 1K-måge med mørk «banditmaske» og skarpt sort halebånd mod helt hvid hale. Art?",
+       "choices": [
+        {
+         "text": "Stor Sorthovedet Måge",
+         "correct": true
+        },
+        {
+         "text": "Svartbag",
+         "correct": false
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        },
+        {
+         "text": "Kaspisk Måge",
+         "correct": false
+        }
+       ],
+       "explanation": "Køge 2001: finderne troede først, det var en ung svartbag, indtil den lettede (Bentzon Hansen).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter disse danske førstefund kronologisk.",
+       "choices": [],
+       "explanation": "DOFbasen og Pandion.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Præriemåge (Hirtshals 2005)",
+         "Audouinsmåge (Helsingør 2006)",
+         "Tyndnæbbet Måge (Filsø 2014)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5810,
+         5770,
+         5760,
+         5880,
+         5850,
+         5820
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Stormmåge (inkl. Russisk Stormmåge) og Ringnæbbet Måge",
+     "lesson_md": "Malling Olsen kaldte Stormmågen den søde blandt de hvidhovedede måger: lille næb, rundt hoved og store mørke øjne. Mellem Stormmågerne gemmer der sig\naf og til en Ringnæbbet Måge, den nordamerikanske måge, der oftest når til Europa. Om vinteren kan der også være en østlig Russisk Stormmåge (*heinei*).",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Voksne\n\n| | **Stormmåge** (*canus*) | **Russisk Stormmåge** (*heinei*) | **Ringnæbbet Måge** |\n|---|---|---|---|\n| Størrelse/form | Mellem, rund og «sød» | En anelse større og mere langvinget | **Større og kraftigere**, fladere pande, kraftigere næb |\n| Ryg | Mellemgrå | **Lidt mørkere grå** | **Lysere grå** – som Hættemåge |\n| Øje | **Mørkt** | Mørkt (nogle lyse) | **Lyst** gult |\n| Næb | Gult, evt. svag mørk ring om vinteren | | Gult med **skarp, komplet sort ring** |\n| Vingespids | Sort med **store spejle** på p9–p10 og **bred hvid tertialhalvmåne** | Mere sort, ofte længere sort på p5 | Mere sort, **små spejle**, smal tertialhalvmåne |\n| Vinterhoved | Fin stribning/plet | Ofte grovere | Plettet |\n\n### Ungfugle (1K/2K): den klassiske test\n\n- **Stormmåge 1K**: brune dækfjer, grå sadel, sort halebånd, mørkt næb med lys basis. 2K mangler de hvide spidser yderst på håndsvingfjerene (Adriaens).\n- **Ringnæbbet Måge 1K**: lysere grå sadel end Stormmåge, grovere, mørkere tegnede dækfjer og tertialer, rosa næb med skarp sort spids, plettet\n  bryst og flanker og ofte uregelmæssigt halebånd. Kraftigere form.\n- **Russisk Stormmåge 1K** er ofte mere kontrastrig med hvidere bund og mørkere tegninger end vores Stormmåger, og forveksles med Ringnæbbet."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5900,
+         "nf": 122736
+        },
+        {
+         "artnr": 5890,
+         "nf": 41730
+        },
+        {
+         "artnr": 5890,
+         "nf": 50499,
+         "n": 1
+        }
+       ],
+       "labels": [
+        "Stormmåge adult sommer",
+        "Ringnæbbet Måge adult, Margrethekog 1999",
+        "Ringnæbbet Måge, Nærum 2006"
+       ],
+       "tekst": "Stormmåge med mørkt øje og store spejle – Ringnæbbet med skarp sort ring om næbbet, lys iris og mindre hvidt i vingespidsen."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5900,
+         "nf": 119486,
+         "alder": "1. kalenderår"
+        }
+       ],
+       "labels": [
+        "Stormmåge 1K"
+       ],
+       "tekst": "Stormmåge 1K: grå sadel, brune dækfjer, mørkt næb med lys basis."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5900,
+        "latin": "Larus canus",
+        "type": "kald"
+       },
+       "tekst": "Stormmågens høje, mjavende «kjii-a» – lysere end Sølvmågens."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5890,
+        "latin": "Larus delawarensis",
+        "type": "kald"
+       },
+       "tekst": "Ringnæbbet Måges kald."
+      },
+      {
+       "type": "tekst",
+       "md": "### Danmark\n\n- **Stormmåge**: gået fra ca. 100.000 par i 1940'erne til ca. 13.000 par i dag (DOFbasen). Om efteråret samles tusinder fra Østersøen; de danske\n  fugle overvintrer i Storbritannien og Biscayen, mens vinterens Stormmåger herhjemme mest er svenske og baltiske.\n- **Ringnæbbet Måge**: Første danske fund i maj 1999 i Margrethekog, fuglen blev fundet på den tyske side 200 m fra grænsen og fløj til sidst ind over\n  Danmark (Bentzon Hansen 1999). Senere bl.a. Nærum Gadekær 2006. Malling Olsen gættede allerede i 1998, at den første ville gemme sig i en\n  stormmågeflok, kig dem igennem!\n- **Russisk Stormmåge** (*heinei*): godkendte fund om vinteren fra 2010 (DOFbasen)."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken beskrivelse passer på en voksen Ringnæbbet Måge i forhold til Stormmåge?",
+       "choices": [
+        {
+         "text": "Lysere grå ryg, lys iris, skarp sort næbring og mindre hvidt i vingespidsen",
+         "correct": true
+        },
+        {
+         "text": "Mørkere ryg og mørkt øje",
+         "correct": false
+        },
+        {
+         "text": "Rødt næb",
+         "correct": false
+        },
+        {
+         "text": "Helt hvide vingespidser",
+         "correct": false
+        }
+       ],
+       "explanation": "Stormmågen har mørkt øje og store spejle.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er Stormmågens «ansigtsudtryk» ifølge Malling Olsen?",
+       "choices": [
+        {
+         "text": "Sødt: lille næb, rundt hoved, store mørke øjne",
+         "correct": true
+        },
+        {
+         "text": "Barskt med lyst stikkende øje",
+         "correct": false
+        },
+        {
+         "text": "Banditmaske",
+         "correct": false
+        },
+        {
+         "text": "Langt svaneagtigt hoved",
+         "correct": false
+        }
+       ],
+       "explanation": "Sølvmågens lyse, stikkende øje giver det modsatte, et «iskoldt» udtryk.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor er det bedst at lede efter en Ringnæbbet Måge i Danmark?",
+       "choices": [
+        {
+         "text": "I store flokke af Stormmåger, fx om vinteren",
+         "correct": true
+        },
+        {
+         "text": "Mellem svartbage på klipper",
+         "correct": false
+        },
+        {
+         "text": "I fuglefjeldskolonier med rider",
+         "correct": false
+        },
+        {
+         "text": "Mellem terner om sommeren",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen (1998).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan ser en 1K Ringnæbbet Måge typisk ud?",
+       "choices": [
+        {
+         "text": "Lysere grå sadel, grovere tegnede dækfjer, rosa næb med skarp sort spids og plettet bryst",
+         "correct": true
+        },
+        {
+         "text": "Helt brun uden grå sadel",
+         "correct": false
+        },
+        {
+         "text": "Sort hætte",
+         "correct": false
+        },
+        {
+         "text": "Gult næb med rød plet",
+         "correct": false
+        }
+       ],
+       "explanation": "Sammenlign med 1K Stormmåge.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Storm-, Hætte- eller Sølvmåge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         5900,
+         5820,
+         5920
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 5
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5900,
+         5890,
+         5820,
+         6020
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5900,
+         5890
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Sølvmåge, Kaspisk Måge, Middelhavsmåge og Armensk Måge – voksne",
+     "lesson_md": "Først i 1990'erne fandt danske feltornitologer ud af, at Sølvmågen ikke var den eneste store måge med lys ryg herhjemme (Malling Olsen 2002). I dag ses\nKaspisk Måge i tusindtal hvert år og Middelhavsmåge i snesevis, og Armensk Måge er set én gang. Her ser vi på de voksne. Ungfuglene får deres egen lektion.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken: voksne\n\n| | **Sølvmåge** | **Kaspisk Måge** | **Middelhavsmåge** |\n|---|---|---|---|\n| Form | Kraftig, «fedladen» krop med buet ryg; rundt hoved; kraftigt næb med **tydelig næbvinkel** | **Langstrakt**: pæreformet hoved, flad pande, højeste punkt bag øjet; **tyndt, langt næb uden næbvinkel**; tynde lange ben; langt håndsvingfremspring | «**Sølvmåge/svartbag foran benene, sildemåge bag**»: kantet hoved, bredt bryst, slankt bagparti |\n| Ryg | Lysegrå (*argenteus*) til lidt mørkere (*argentatus*) | Som *argenteus* eller en anelse mørkere | **Mørkere, renere røggrå** |\n| Øje / orbitalring | **Lyst stikkende**, gul–orange ring | **Mørkt** (sjældent lyst), **orange–rød** ring (aldrig lyserød) | Lidt mørkere end Sølvmåge, **bred rød** ring – en «rød brille» |\n| Ben | **Lyserøde** (gule hos en del østersøfugle!) | Grålige/kødfarvede om vinteren, blegt gule om sommeren | **Klart gule** |\n| Vinterhoved | **Grovstribet** | **Næsten rent hvidt** med stribet «**sjal**» i nakken | Streger omkring øjet og på øredækket i september–oktober; **snehvidt** midt på vinteren |\n| Vingespids | Sort på p6–p10; p5 ofte uden sort eller kun en lille plet (især skandinaviske *argentatus*); brede hvide spidser; uregelmæssig «savtakket» grænse mellem grå tunge og sort | Sort på 6 håndsvingfjer (også p5), **lange grå tunger**, stor hvid spids på p10 og rundt spejl på p9; **hvide tungespidser** p5–p7; under: mest grå med sort halvmåne | **Meget sort**: helt sort bånd på p5, stort sort felt på p10 og et **lille spejl på p9** (kun på inderfanen); grå tunger kun på den inderste halvdel; under: sortlig |\n| Kald/opvisning | Holder vingerne lukket ved langkaldet | **«Albatros-stilling»**: løfter vingerne helt op ved langkaldet | Vingerne åbne |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5920,
+         "nf": 120315,
+         "alder": "Adult (udfarvet)"
+        },
+        {
+         "artnr": 5930,
+         "nf": 120310
+        },
+        {
+         "artnr": 5915,
+         "nf": 120083,
+         "alder": "Adult (udfarvet)"
+        }
+       ],
+       "labels": [
+        "Sølvmåge adult, Peberholm",
+        "Kaspisk Måge adult, Fanø",
+        "Middelhavsmåge adult, Fanø"
+       ],
+       "tekst": "Stikkende lyst øje og kraftigt næb – mørkt øje, langt tyndt næb og hvidt hoved – mørkere ryg og gule ben."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Sølvmåger med gule ben er ikke Middelhavsmåger",
+       "md": "*«En ret stor del af især Østersøens Sølvmåger har gule ben»* (Malling Olsen, Pandion 2016). Hvert år indtastes «middelhavssølvmåger», hvor eneste\nkommentar er de gule ben. Tjek hovedet (Middelhavsmåge er næsten aldrig grovstribet ned under øjet), orbitalringen (bred rød brille),\nryggens tone, benenes længde og ikke mindst vingespidsen (helt sort bånd på p5, meget sort på p10, lille spejl på p9)."
+      },
+      {
+       "type": "tekst",
+       "md": "### Armensk Måge: én gang i Danmark\n\nArmensk Måge (Kaukasus, Armenien, Østtyrkiet) blev set på Grønningen, Blåvand, 4. maj 2017. Voksne er mørkere grå end Middelhavsmåge, har\nmørkt øje, et kort, kraftigt næb med sort bånd foran den røde plet og meget sort i vingespidsen med lille eller intet spejl på p9.\n\n### Kaspisk Måge i Danmark\n\nFørste gang registreret i 1953 (ringmærkede fugle fra Sortehavet). Rekordår: 2020 med 1.898 og 2023 med 2.082 fugle. Den største samling\nnogensinde: 288 på Fanø Vesterstrand 27/11 2024 efter et kæmpe opskyl af slangestjerner og knivmuslinger (Haaning). Flest i Østdanmark\n(Bornholm, Stevns, Møn, Langeland) og Sydvestjylland. Haaning om de voksne i vinterdragt: *«de står frem som lysende hvide og kontrastrige måger blandt\nde mere beskidt udseende Sølvmåger»*, med mørkt øje og et næsten stormmågeagtigt udtryk.\n\n### Middelhavsmåge i Danmark\n\nDen 2025-danske liste kalder den Middelhavsmåge (DOFbasen: Middelhavssølvmåge). Ca. 55–85 fugle om året siden ca. 2020, hele året, flest om efteråret,\nlidt flere unge end voksne (DOFbasen). Malling Olsen (2002): forholdet Middelhavs- til Kaspisk Måge er ca. 10:1 i Vadehavet, men omvendt i Østersøen."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5919,
+         "nf": 106925
+        },
+        {
+         "artnr": 5915,
+         "nf": 120370,
+         "alder": "Adult (udfarvet)"
+        }
+       ],
+       "labels": [
+        "Armensk Måge adult, Blåvand 4/5 2017",
+        "Middelhavsmåge adult, Blåvandshuk"
+       ],
+       "tekst": "Armensk: mørkere ryg, mørkt øje og sort bånd på næbbet."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5920,
+        "latin": "Larus argentatus",
+        "type": "kald"
+       },
+       "tekst": "Sølvmågens langkald – det klassiske havnekald."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5930,
+        "latin": "Larus cachinnans",
+        "type": "kald"
+       },
+       "tekst": "Kaspisk Måges langkald: mere hæst og «grinende», gennemtrængende – nu regelmæssigt hørt på Blåvandshuk (Knudsen, Pandion 2018)."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5915,
+        "latin": "Larus michahellis",
+        "type": "kald"
+       },
+       "tekst": "Middelhavsmågens langkald: dybere og mere nasalt end Sølvmågens."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken kombination peger på en voksen Kaspisk Måge?",
+       "choices": [
+        {
+         "text": "Langt tyndt næb uden næbvinkel, mørkt øje, hvidt hoved med stribet nakke-sjal og lange grå tunger i hånden",
+         "correct": true
+        },
+        {
+         "text": "Gule ben, meget sort hånd og rød brille",
+         "correct": false
+        },
+        {
+         "text": "Lyst stikkende øje og grovstribet hoved",
+         "correct": false
+        },
+        {
+         "text": "Rødt næb med sort bånd",
+         "correct": false
+        }
+       ],
+       "explanation": "Adriaens m.fl. 2022; Haaning 2024; gull-research.org (den glatte, vinklede grænse mellem grå tunge og sort).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En voksen stor måge med gule ben i januar på Sjælland. Hvad er mest sandsynligt?",
+       "choices": [
+        {
+         "text": "En Sølvmåge med gule ben",
+         "correct": true
+        },
+        {
+         "text": "En Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "En Kaspisk Måge",
+         "correct": false
+        },
+        {
+         "text": "En Armensk Måge",
+         "correct": false
+        }
+       ],
+       "explanation": "En stor del af Østersøens Sølvmåger har gule ben (Malling Olsen, Pandion 2016). Tjek hoved, orbitalring og vingespids.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken opvisning er typisk for Kaspisk Måge?",
+       "choices": [
+        {
+         "text": "«Albatros-stillingen»: vingerne løftes helt op under langkaldet",
+         "correct": true
+        },
+        {
+         "text": "Vingerne holdes lukkede",
+         "correct": false
+        },
+        {
+         "text": "Den dykker",
+         "correct": false
+        },
+        {
+         "text": "Den svæver som en tårnfalk",
+         "correct": false
+        }
+       ],
+       "explanation": "Sølvmågen holder vingerne lukket (Adriaens m.fl.).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan beskriver Malling Olsen Middelhavsmågens form?",
+       "choices": [
+        {
+         "text": "Sølvmåge/svartbag foran benene, sildemåge bag",
+         "correct": true
+        },
+        {
+         "text": "Som en stor stormmåge",
+         "correct": false
+        },
+        {
+         "text": "Pæreformet hoved og tyndt næb",
+         "correct": false
+        },
+        {
+         "text": "Kort og rund",
+         "correct": false
+        }
+       ],
+       "explanation": "Kantet hoved, bredt bryst, slankt bagparti.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange Kaspiske Måger blev der set på Fanø Vesterstrand 27/11 2024?",
+       "choices": [
+        {
+         "text": "288",
+         "correct": true
+        },
+        {
+         "text": "28",
+         "correct": false
+        },
+        {
+         "text": "88",
+         "correct": false
+        },
+        {
+         "text": "2.082",
+         "correct": false
+        }
+       ],
+       "explanation": "Hidtil største forekomst i Danmark (Haaning). 2.082 er årstotalen for 2023.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken farve har Kaspisk Måges orbitalring?",
+       "choices": [
+        {
+         "text": "Orange til rød, aldrig lyserød",
+         "correct": true
+        },
+        {
+         "text": "Lyserød",
+         "correct": false
+        },
+        {
+         "text": "Gul",
+         "correct": false
+        },
+        {
+         "text": "Blå",
+         "correct": false
+        }
+       ],
+       "explanation": "Adriaens m.fl.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Undersiden af vingespidsen hos en voksen Kaspisk Måge er…",
+       "choices": [
+        {
+         "text": "Mest grå (lange tunger) med en sort halvmåne langs spidsen",
+         "correct": true
+        },
+        {
+         "text": "Helt sort",
+         "correct": false
+        },
+        {
+         "text": "Helt hvid",
+         "correct": false
+        },
+        {
+         "text": "Brun",
+         "correct": false
+        }
+       ],
+       "explanation": "Middelhavsmåge og britisk Sølvmåge har sortlig underside uden tydelig tunge.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         5920,
+         5930,
+         5915,
+         5910
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Sølvmåge, Kaspisk Måge eller Middelhavsmåge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5920,
+         5930,
+         5915
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 60,
+     "min_score_pct": null
+    },
+    {
+     "title": "De brune: store måger i første vinter",
+     "lesson_md": "«De unge brune ligner jo hinanden.» Det hører man tit, og det er netop her, man lærer måger for alvor. Malling Olsen (2002) pegede på, at den unge Kaspiske\nMåge faktisk er den letteste i gruppen. Det handler om at gå fuglen igennem fjergruppe for fjergruppe.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken: 1K/2K (første cyklus)\n\n| | **Sølvmåge** | **Kaspisk Måge** | **Middelhavsmåge** | **Sildemåge** | **Svartbag** |\n|---|---|---|---|---|---|\n| Helhed | Brun, ensartet «beskidt» | **Grå og hvid**, ren | Kontrastrig, hvidt hoved, mørk «maske» | Mørk, kontrastrig, slank og **langvinget** | Kæmpe, **skaktern**, hvidlig bund |\n| Hoved | Stribet brunt | **Meget hvidt** med stribet «**sjal**» i nakken | Hvidt med **mørk maske** om øjet | Mørkt stribet | Hvidt, fint stribet; **enormt næb** |\n| Skulderfjer (nye) | «Anker»-mønster, brune; nordlige *argentatus* kan beholde ungedragten til februar | **Sølvgrå med tynd mørk skaftstreg**, nederste række ofte lysest | Hvidlige med sorte ankre; næsten alle udskiftet allerede i oktober | Mørke med lyse kanter | Skaktern |\n| Store dækfjer | **Grov tværbånding** | **Ensfarvet brune med hvide spidser** | Tværbåndet indre | Mørke med lyse spidser | Tværbåndet |\n| Tertialer | **Lyse hak** i kanten | **Mørke uden hak**, kun tynd lys kant | Brune med smal kant, der slides helt væk; mange har allerede nye, båndede tertialer om efteråret | Mørke, smal lys kant | **Lyse hak/bånd** |\n| Inderste håndsvingfjer | **Lyst «vindue»** i flugt | Svagt vindue | Mørke | **Mørke – intet vindue** | Lyst vindue |\n| Undervinge | Brunlig | **Næsten hvid** | Mørk | Mørk | Lys, plettet |\n| Hale | Brunlig, båndet | **Bredt sort bånd**, der glider over i hvid basis via fine «**kinesiske tegn**» | **Skarpt** sort bånd mod **ren hvid** basis | Mørkt bånd, tætbåndet overgump | Smalt bånd, båndet basis |\n| Næb | Mørkt | **Langt, mørkt, uden næbvinkel** | Mørkt, kraftigt | Mørkt, slankt | **Meget kraftigt** |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5930,
+         "nf": 123374,
+         "alder": "1. kalenderår"
+        },
+        {
+         "artnr": 5915,
+         "nf": 80873,
+         "alder": "1. kalenderår"
+        },
+        {
+         "artnr": 6000,
+         "nf": 50864
+        }
+       ],
+       "labels": [
+        "Kaspisk Måge 1K, Damhussøen",
+        "Middelhavsmåge 1K, Damhussøen",
+        "Svartbag, ung"
+       ],
+       "tekst": "Kaspisk: hvidt hoved, grå skulderfjer, ensfarvede brune store dækfjer, mørke tertialer uden hak. Middelhavs: mørk maske. Svartbag: skaktern og enormt næb."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5930,
+         "nf": 121122,
+         "alder": "1. kalenderår"
+        },
+        {
+         "artnr": 5930,
+         "nf": 120426,
+         "alder": "2. kalenderår"
+        },
+        {
+         "artnr": 5910,
+         "nf": 117902,
+         "alder": "1. kalenderår"
+        }
+       ],
+       "labels": [
+        "Kaspisk Måge 1K, Hvide Sande",
+        "Kaspisk Måge 2K, Thorsminde",
+        "Sildemåge 1K, Øland"
+       ],
+       "tekst": "Flere unge: Læg mærke til Kaspisk Måges rene grå-hvide indtryk og Sildemågens mørke vinge uden vindue."
+      },
+      {
+       "type": "tip",
+       "titel": "To gode tommelfingerregler fra gull-research.org",
+       "md": "- **Middelhavsmågen fælder tidligt og meget.** I oktober har over 80 % af 1K'erne udskiftet dækfjer eller tertialer. En ung Middelhavsmåge ser derfor allerede\n  «blandet» ud om efteråret, mens en ung Sildemåge i frisk ungedragt ser pæn og ensartet ud.\n- **Nye halefjer i senvinteren peger mod Middelhavsmåge.** En lille del af de unge Middelhavsmåger skifter halefjer i første vinter. Det gør Kaspisk Måge normalt ikke.\n  Og omvendt: En meget fremskreden ung Kaspisk Måge med mange grå fjer ligner snarere en 2K Sølvmåge end en 1K."
+      },
+      {
+       "type": "tip",
+       "titel": "Haaning: «Også immature står ret klart frem»",
+       "md": "Når en flok Sølvmåger står i opskyllet, så kig efter den hvideste unge med grå skulderfjer, langt tyndt næb og lange ben. Adriaens' eksempel:\nI en flok brune unge Sølvmåger lyser den unge Kaspiske Måge op med sit hvide hoved og bryst. Bekræft derefter med tertialer, store dækfjer og hale."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Ingen enkeltkarakter er nok",
+       "md": "Unge Sølvmåger kan være lyse og slidte i foråret; hybrider Sølvmåge × Kaspisk Måge ses i Danmark (DOFbasen har en hybridkategori med over 200 indtastninger).\nEn «kaspisk» med tværbåndede store dækfjer eller hakkede tertialer skal du være skeptisk over for (Adriaens m.fl. viser en mulig hybrid netop med «usædvanligt\nbåndede indre store dækfjer»). Brug mindst fem kendetegn, før du skriver Kaspisk Måge."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilke tertialer passer på en 1K Kaspisk Måge?",
+       "choices": [
+        {
+         "text": "Mørke uden lyse hak, kun en tynd lys kant",
+         "correct": true
+        },
+        {
+         "text": "Med tydelige lyse hak i kanten",
+         "correct": false
+        },
+        {
+         "text": "Helt hvide",
+         "correct": false
+        },
+        {
+         "text": "Grå med sort spids",
+         "correct": false
+        }
+       ],
+       "explanation": "Sølv- og Middelhavsmåge har lyse hak (Adriaens m.fl.).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilke store dækfjer passer på en 1K Kaspisk Måge?",
+       "choices": [
+        {
+         "text": "Ensfarvet brune med hvide spidser",
+         "correct": true
+        },
+        {
+         "text": "Grov tværbånding",
+         "correct": false
+        },
+        {
+         "text": "Helt grå",
+         "correct": false
+        },
+        {
+         "text": "Sort med hvide pletter",
+         "correct": false
+        }
+       ],
+       "explanation": "Ofte som et ensfarvet vingebånd.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan ser halen ud hos en 1K Middelhavsmåge?",
+       "choices": [
+        {
+         "text": "Skarpt afgrænset sort bånd mod ren hvid basis",
+         "correct": true
+        },
+        {
+         "text": "Brunlig og båndet hele vejen",
+         "correct": false
+        },
+        {
+         "text": "Bredt bånd, der glider over i hvidt via fine tegn",
+         "correct": false
+        },
+        {
+         "text": "Helt hvid",
+         "correct": false
+        }
+       ],
+       "explanation": "Det glidende bånd er Kaspisk; det brunlige båndede er Sølvmåge.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken ung stor måge har mørke inderste håndsvingfjer uden lyst vindue i flugt?",
+       "choices": [
+        {
+         "text": "Sildemåge",
+         "correct": true
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": true
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        },
+        {
+         "text": "Svartbag",
+         "correct": false
+        }
+       ],
+       "explanation": "Sølvmåge og Svartbag har lyst vindue; Kaspisk et svagt.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken ung stor måge har næsten hvid undervinge?",
+       "choices": [
+        {
+         "text": "Kaspisk Måge",
+         "correct": true
+        },
+        {
+         "text": "Sildemåge",
+         "correct": false
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Adriaens m.fl.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor ung måge er «skaktern» med hvidlig bund, kæmpestor med enormt næb. Art?",
+       "choices": [
+        {
+         "text": "Svartbag",
+         "correct": true
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        },
+        {
+         "text": "Kaspisk Måge",
+         "correct": false
+        },
+        {
+         "text": "Sildemåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Det kraftige næb og størrelsen afgør.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sæt de fem trin for en ung stor måge i rækkefølge (kurset).",
+       "choices": [],
+       "explanation": "Fra det grove til det fine, og alle trin skal pege samme vej.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "items": [
+         "Alder (juvenile håndsvingfjer?)",
+         "Helhed (hvid/grå/brun, form, næb)",
+         "Skulderfjer og store dækfjer",
+         "Tertialer",
+         "Hale, overgump og undervinge"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Ung stor måge: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5920,
+         5930,
+         5915,
+         5910,
+         6000
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 60,
+     "min_score_pct": null
+    },
+    {
+     "title": "Sildemåge (tre racer) og Svartbag: de mørkryggede",
+     "lesson_md": "To store måger med mørk ryg. Som voksne er de sjældent svære at kende fra hinanden, men Sildemågens racer kræver øvelse. I Danmark yngler Nordsøsildemåge\n(*intermedius*) i Kattegat og en lille rest af Baltisk Sildemåge (*fuscus*) på Bornholm og Christiansø. Britisk Sildemåge (*graellsii*) ses i Vestjylland\nog yngler måske også dér (DOFbasen).",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Voksne\n\n| | **Svartbag** | **Sildemåge** |\n|---|---|---|\n| Størrelse | **Største måge** (1.650 g) – næsten gåsestor | Slank, mindre end Sølvmåge, **lange vinger** langt bag halen |\n| Ryg | Sortlig | Skifergrå (graellsii) → sortlig (intermedius, fuscus) |\n| Ben | **Lyserøde** | **Gule** |\n| Vingespids | Stort hvidt felt på p10, sort hånd mod sort arm, bred hvid bagkant | Sort hånd **kontrasterer** mod lysere arm (graellsii/intermedius); fuscus næsten ingen kontrast |\n| Næb | Enormt | Slankt |\n\n### Sildemågens tre racer i Danmark\n\n| Race | Ryg | Kendetegn |\n|---|---|---|\n| **Britisk** *graellsii* | **Skifergrå** – tydeligt lysere end vingespidsen | Vestjylland, trækgæst |\n| **Nordsø** *intermedius* | **Sortgrå** – lidt kontrast til vingespidsen | Den danske ynglefugl i Kattegat (Anholt, Hirsholmene, Hjelm, Saltholm…) |\n| **Baltisk** *fuscus* | **Kulsort** som en svartbag, **ingen kontrast** til vingespidsen | Slank, langvinget, lille spejl; **fælder senere** og trækker til Østafrika – en voksen med frisk fældning i september er snarere ikke fuscus. Yngler i meget lille antal på Bornholm/Christiansø. |\n\nRacerne overlapper, og Baltisk Sildemåge kræver ofte ring eller meget detaljeret fældnings- og vingestudie for en sikker bestemmelse."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5913,
+         "nf": 123018
+        },
+        {
+         "artnr": 5910,
+         "nf": 119487
+        },
+        {
+         "artnr": 6000,
+         "nf": 57499
+        }
+       ],
+       "labels": [
+        "Sildemåge, Nordsø (intermedius) adult",
+        "Sildemåge 3K, Damhussøen",
+        "Svartbag, Varanger"
+       ],
+       "tekst": "Nordsøsildemåge: sortgrå ryg og gule ben. Svartbag: kæmpe med lyserøde ben."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 6000,
+        "latin": "Larus marinus",
+        "type": "kald"
+       },
+       "tekst": "Svartbagens dybe, gøende «aouk» – den dybeste stemme blandt vores måger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5910,
+        "latin": "Larus fuscus",
+        "type": "kald"
+       },
+       "tekst": "Sildemågens langkald: dybere og mere nasalt end Sølvmågens."
+      },
+      {
+       "type": "tekst",
+       "md": "### Danmark\n\n- **Svartbag**: ca. 3.200 par; næsten halvdelen i tre kolonier (Saltholm, Hirsholmene, Nordre Rønner). Første ynglefund Læsø 1930. Ca. 75 % af verdens\n  bestand yngler i Europa (DOFbasen).\n- **Sildemåge**: ca. 4.200 par; første sikre ynglefund i 1930'erne. Trækker til Den Iberiske Halvø og Vestafrika, men ses i stigende grad om vinteren.\n  Yngler nu også inde i landet ved ferskvand (Pandion 2007)."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken benfarve har en voksen Svartbag?",
+       "choices": [
+        {
+         "text": "Lyserød",
+         "correct": true
+        },
+        {
+         "text": "Gul",
+         "correct": false
+        },
+        {
+         "text": "Sort",
+         "correct": false
+        },
+        {
+         "text": "Orange",
+         "correct": false
+        }
+       ],
+       "explanation": "Sildemåge har gule ben.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken Sildemåge-race har kulsort ryg uden kontrast til vingespidsen?",
+       "choices": [
+        {
+         "text": "Baltisk Sildemåge (fuscus)",
+         "correct": true
+        },
+        {
+         "text": "Britisk Sildemåge (graellsii)",
+         "correct": false
+        },
+        {
+         "text": "Nordsøsildemåge (intermedius)",
+         "correct": false
+        }
+       ],
+       "explanation": "graellsii er skifergrå, intermedius sortgrå.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken race er Danmarks almindelige ynglende Sildemåge?",
+       "choices": [
+        {
+         "text": "Nordsøsildemåge (intermedius)",
+         "correct": true
+        },
+        {
+         "text": "Baltisk Sildemåge (fuscus)",
+         "correct": false
+        },
+        {
+         "text": "Britisk Sildemåge (graellsii)",
+         "correct": false
+        }
+       ],
+       "explanation": "Kattegatøerne (DOFbasen).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor blev Svartbagen første gang anerkendt som dansk ynglefugl?",
+       "choices": [
+        {
+         "text": "Læsø 1930",
+         "correct": true
+        },
+        {
+         "text": "Saltholm 1970",
+         "correct": false
+        },
+        {
+         "text": "Bornholm 1890",
+         "correct": false
+        },
+        {
+         "text": "Hirsholmene 2005",
+         "correct": false
+        }
+       ],
+       "explanation": "DOFbasen.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En voksen mørkrygget måge med kulsort ryg, gule ben og slank, langvinget form i Østersøen i maj. Den har kun et lille spejl. Bedste registrering uden ring?",
+       "choices": [
+        {
+         "text": "Sildemåge, sandsynlig Baltisk (fuscus), men uden ring/detaljer ofte bare Sildemåge",
+         "correct": true
+        },
+        {
+         "text": "Svartbag",
+         "correct": false
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "Sikker Baltisk Sildemåge",
+         "correct": false
+        }
+       ],
+       "explanation": "fuscus overlapper med mørke intermedius; ærligt niveau er arten, med en note.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Svartbag, Sildemåge eller Sølvmåge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         6000,
+         5910,
+         5920
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 5
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         6000,
+         5910,
+         5920,
+         5915
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "De hvide: Gråmåge, Hvidvinget Måge (Baffin- og Inuitmåge) og Gråvinget Måge",
+     "lesson_md": "«Lavtrykspassager og blæsevejr kan ofte give indslag af hvide måger i vores havne,» skriver Henrik Haaning (Pandion 2019). Gråmåge og Hvidvinget Måge er\nde faste vintergæster i de nordjyske fiskerihavne. Sjældnere kommer Baffinmåge og Inuitmåge, og én gang har Danmark haft en Gråvinget Måge.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Gråmåge mod Hvidvinget Måge: det er proportionerne\n\nDragtudviklingen er den samme hos de to arter. 1K/2K: mættet brun underside, «frostdækket» overside, lyse vingespidser, svagt halebånd.\nForskellen ligger i formen (Haaning, Pandion 2019):\n\n| | **Gråmåge** | **Hvidvinget Måge** |\n|---|---|---|\n| Størrelse | **Svartbag-stor** (1.529 g) | Sølvmåge-lille (693 g) – «midt mellem Sølv- og Stormmåge» (Malling Olsen) |\n| Hoved | **Fladt og kantet**, små «perleøjne» | **Rundt**, stormmågeagtigt |\n| Næb | **Kraftigt, langt**; hos 1K **skarpt tofarvet**: lyserødt med **sort spids** – lyser op | **Kort og fint**; 1K næsten helt mørkt (mørkt mod basis til ca. februar) |\n| Vinger | Når **kun kort** bag halen | **Lange**, når langt bag halen |\n| Voksen | Hvide vingespidser, gult øje | Hvide vingespidser, ofte mørkere øje, rød orbitalring |\n\nAVONET viser det samme: Gråmågens hånd-vinge-indeks er 51,8, Hvidvinget 54,9 (længere, spidsere hånd).\n\nPas på køn: Gråmågehunner er mindre med rundere hoved og længere vinger, en lille hun kan forveksles med Hvidvinget (Malling Olsen 2018)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5990,
+         "nf": 121684,
+         "alder": "2. kalenderår"
+        },
+        {
+         "artnr": 5980,
+         "nf": 120455,
+         "alder": "2. kalenderår"
+        }
+       ],
+       "labels": [
+        "Gråmåge 2K, Hvide Sande",
+        "Hvidvinget Måge 2K, Hvide Sande"
+       ],
+       "tekst": "Gråmåge: kantet hoved, kraftigt tofarvet næb, korte vinger bag halen. Hvidvinget: rundt hoved, lille næb, lange vinger."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5990,
+         "nf": 117912,
+         "alder": "Adult (udfarvet)"
+        },
+        {
+         "artnr": 5980,
+         "nf": 124014,
+         "alder": "Adult (udfarvet)"
+        }
+       ],
+       "labels": [
+        "Gråmåge adult, Svalbard",
+        "Hvidvinget Måge adult, Blåvands Huk"
+       ],
+       "tekst": "Voksne: begge med hvide vingespidser – se på form og næb."
+      },
+      {
+       "type": "tekst",
+       "md": "### Baffinmåge (*kumlieni*) og Inuitmåge (*thayeri*)\n\n- **Baffinmåge**: en canadisk form af Hvidvinget Måge med grå til mørkegrå tegninger i håndsvingfjerene. Pas på: Unge og immature (3K–4K) almindelige\n  Hvidvingede kan også have mørke tegninger. Under invasionen 2011/12 (58–59 Hvidvingede, 85 % på den jyske vestkyst) blev mange fejlagtigt kaldt Baffinmåger\n , SU godkendte fem (Haaning, Pandion 2018). Brug de nordiske kriterier, og bestem helst kun voksne.\n- **Inuitmåge** (Thayer's Gull): ligner en lille, mørk Sølvmåge med Hvidvinget-proportioner. 2K i Hirtshals/Hanstholm februar 2002: ensartet gråbrun,\n  mørke armsvingfjer, der danner et vindue mod lysere indre håndsvingfjer, tofarvede håndsvingfjer og lys underside af svingfjerene som hos en\n  havterne (Kristensen 2002). Godkendte danske fund 2002 og 2012 (DOFbasen).\n\n### Gråvinget Måge: én gang i Skandinavien\n\nRune Sø Neergaard fandt 27. november 2009 på Aarhus Havn Skandinaviens første Gråvingede Måge (genset 2010 og 2012). Voksen: grå håndsvingfjer i\nsamme tone som ryggen, korte vinger bag halen, mørkt øje, mørkvatret hoved og bryst, kraftigt næb. Den hybridiserer meget i sit udbredelsesområde,\nog leucistiske Sølvmåger med grå vingespidser er den store faldgrube (Haaning, Pandion 2016)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5960,
+         "nf": 70138
+        },
+        {
+         "artnr": 5980,
+         "nf": 97310,
+         "alder": "1. kalenderår"
+        }
+       ],
+       "labels": [
+        "Gråvinget Måge, Aarhus 2009",
+        "Hvidvinget Måge 1K, Hanstholm"
+       ],
+       "tekst": "Den danske Gråvingede Måge og en ung Hvidvinget."
+      },
+      {
+       "type": "tip",
+       "titel": "Hvornår og hvor",
+       "md": "- **Gråmåge**: årligt i små antal, mest i Hanstholm, Hirtshals og Skagen havne; om foråret også unge i Østdanmark; nogle oversomrer. Færre siden 1980'erne,\n  måske fordi fiskerne renser fangsten på havet (DOFbasen).\n- **Hvidvinget Måge**: 10–20 om året i gennemsnit, oktober–maj, oftest efter nytår, mest i de nordjyske havne (DOFbasen; Haaning).\n- **Begge**: Gå efter blæsevejr og lavtryk, og tjek havnene, når fiskerne lander igen."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad er det vigtigste skel mellem Gråmåge og Hvidvinget Måge?",
+       "choices": [
+        {
+         "text": "Proportionerne: næbbets størrelse, hovedform og vingernes længde bag halen",
+         "correct": true
+        },
+        {
+         "text": "Dragtens farve",
+         "correct": false
+        },
+        {
+         "text": "Benfarven",
+         "correct": false
+        },
+        {
+         "text": "Halebåndet",
+         "correct": false
+        }
+       ],
+       "explanation": "Dragtudviklingen er ens hos de to arter (Haaning, Pandion 2019).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan ser næbbet ud hos en 1K Gråmåge?",
+       "choices": [
+        {
+         "text": "Kraftigt og skarpt tofarvet: lyserødt med sort spids",
+         "correct": true
+        },
+        {
+         "text": "Kort og næsten helt mørkt",
+         "correct": false
+        },
+        {
+         "text": "Gult med rød plet",
+         "correct": false
+        },
+        {
+         "text": "Rødt med sort bånd",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Hvidvingede har et lille, mørkt næb.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken art har lange vinger, der når langt bag halen, og et rundt hoved?",
+       "choices": [
+        {
+         "text": "Hvidvinget Måge",
+         "correct": true
+        },
+        {
+         "text": "Gråmåge",
+         "correct": false
+        },
+        {
+         "text": "Svartbag",
+         "correct": false
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gråmågens vinger når kun kort bag halen.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange Baffinmåger godkendte SU fra invasionen 2011/12?",
+       "choices": [
+        {
+         "text": "Fem",
+         "correct": true
+        },
+        {
+         "text": "Ingen",
+         "correct": false
+        },
+        {
+         "text": "Femten",
+         "correct": false
+        },
+        {
+         "text": "58",
+         "correct": false
+        }
+       ],
+       "explanation": "58–59 Hvidvingede i alt (Haaning, Pandion 2018).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor skal man være forsigtig med at kalde en 3K–4K Hvidvinget Måge med mørke tegninger i håndsvingfjerene for Baffinmåge?",
+       "choices": [
+        {
+         "text": "Fordi immature almindelige Hvidvingede også kan have mørke tegninger",
+         "correct": true
+        },
+        {
+         "text": "Fordi Baffinmåge aldrig har mørke tegninger",
+         "correct": false
+        },
+        {
+         "text": "Fordi Baffinmåge er en Sølvmåge-race",
+         "correct": false
+        },
+        {
+         "text": "Fordi det er en hybrid med Ride",
+         "correct": false
+        }
+       ],
+       "explanation": "Den fejl blev begået under invasionen 2012 (Haaning).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor og hvornår blev Danmarks eneste Gråvingede Måge fundet?",
+       "choices": [
+        {
+         "text": "Aarhus Havn, 27. november 2009",
+         "correct": true
+        },
+        {
+         "text": "Hanstholm 2002",
+         "correct": false
+        },
+        {
+         "text": "Skagen 1995",
+         "correct": false
+        },
+        {
+         "text": "Hirtshals 2005",
+         "correct": false
+        }
+       ],
+       "explanation": "Første for Skandinavien.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En voksen «sølvmåge» med grå vingespidser i samme tone som ryggen, lyst stikkende øje og lange vinger bag halen. Hvad er den sandsynligvis?",
+       "choices": [
+        {
+         "text": "En leucistisk Sølvmåge",
+         "correct": true
+        },
+        {
+         "text": "En Gråvinget Måge",
+         "correct": false
+        },
+        {
+         "text": "En Inuitmåge",
+         "correct": false
+        },
+        {
+         "text": "En Ismåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gråvinget Måge har mørkt øje og korte vinger bag halen (Haaning, Pandion 2016).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvid måge, hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5990,
+         5980,
+         5920,
+         6040
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5990,
+         5980
+        ],
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 50,
+     "min_score_pct": null
+    },
+    {
+     "title": "Stemmer, adfærd og steder: hvor og hvornår",
+     "lesson_md": "Måger siger ikke bare «måge». Hver art har sit eget langkald og sine egne opvisninger, og en Kaspisk Måge kan høres, før du har set den. Bagefter ser vi\npå, hvor og hvornår du har størst chance for de sjældne.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Stemmerne\n\n| Art | Lyd |\n|---|---|\n| Hættemåge | Ru, skrattende «krrie-ar» |\n| Sorthovedet Måge | Nasalt, stigende «ye-ah» – helt anderledes end Hættemåge |\n| Dværgmåge | Korte, hårde «kek-kek» |\n| Ride | «Kitti-wæk» i kolonien |\n| Stormmåge | Høje, mjavende «kjii-a» |\n| Sølvmåge | Det klassiske langkald «kiau-kiau-kiau» med lukkede vinger |\n| Kaspisk Måge | Hæsere, «grinende» langkald i **albatros-stilling** – gennemtrængende og nu regelmæssigt hørt på Blåvandshuk |\n| Middelhavsmåge / Sildemåge | Dybere og mere nasale langkald |\n| Svartbag | Dybt, gøende «aouk» |"
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5820,
+        "latin": "Chroicocephalus ridibundus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Hættemåge."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5750,
+        "latin": "Ichthyaetus melanocephalus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Sorthovedet Måge."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5900,
+        "latin": "Larus canus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Stormmåge."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5920,
+        "latin": "Larus argentatus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Sølvmåge."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 5930,
+        "latin": "Larus cachinnans",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Kaspisk Måge."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 6000,
+        "latin": "Larus marinus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Svartbag."
+      },
+      {
+       "type": "tekst",
+       "md": "### Hvor og hvornår i Danmark\n\n| Hvor | Hvad |\n|---|---|\n| **Nordjyske fiskerihavne** (Hanstholm, Hirtshals, Skagen, Hvide Sande, Thorsminde) | Gråmåge og Hvidvinget Måge om vinteren; Ismåge, Rosenmåge, Lattermåge. Hanstholm Havn har haft **15 mågearter** + Inuit- og Baffinmåge (Haaning 2017). |\n| **Hanstholm** juli–oktober | Fældeplads for **Sorthovedet Måge** |\n| **Opskyl** på vestkyststrande (Fanø, Blåvand) | Store flokke – Kaspisk Måge i hundredvis i november 2024 |\n| **Østdanmark** (Bornholm, Stevns, Møn, Langeland, Køge Bugt) | Kaspisk Måge især september–november |\n| **Havobs** ved vestenstorm (Blåvand, Hanstholm, Skagen) | Sabinemåge, Ride, Dværgmåge |\n| **Stormmågeflokke** på marker og i parker om vinteren | Ringnæbbet Måge, Russisk Stormmåge |\n| **Hættemågekolonier** om foråret | Sorthovedet Måge, Bonapartemåge |\n\n### Aflæs ringe!\n\nFarveringe giver alder og oprindelse med det samme, Haaning aflæste i 2024 Kaspiske Måger fra Polen og Litauen på Fanø. Ringaflæsninger har\nlært os mere om fældning og alder end noget andet (Adriaens m.fl. 2022). Indtast dem i DOFbasen og hos ringmærkningscentralen."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken art kalder med vingerne løftet i «albatros-stilling»?",
+       "choices": [
+        {
+         "text": "Kaspisk Måge",
+         "correct": true
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        },
+        {
+         "text": "Svartbag",
+         "correct": false
+        },
+        {
+         "text": "Stormmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Adriaens m.fl.",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvilken måge kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5750,
+         5900,
+         5920,
+         5930,
+         6000
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken art har det dybeste, gøende kald?",
+       "choices": [
+        {
+         "text": "Svartbag",
+         "correct": true
+        },
+        {
+         "text": "Stormmåge",
+         "correct": false
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        },
+        {
+         "text": "Ride",
+         "correct": false
+        }
+       ],
+       "explanation": "«Aouk».",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor er det bedst at lede efter Ringnæbbet Måge?",
+       "choices": [
+        {
+         "text": "I stormmågeflokke om vinteren",
+         "correct": true
+        },
+        {
+         "text": "På fuglefjeld",
+         "correct": false
+        },
+        {
+         "text": "Ved havobs om sommeren",
+         "correct": false
+        },
+        {
+         "text": "I rørskov",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen (1998).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad kan en farvering fortælle dig om en måge?",
+       "choices": [
+        {
+         "text": "Dens præcise alder",
+         "correct": true
+        },
+        {
+         "text": "Hvor den er ringmærket",
+         "correct": true
+        },
+        {
+         "text": "Dens køn ved første blik",
+         "correct": false
+        },
+        {
+         "text": "Dens art, uanset udseende",
+         "correct": false
+        }
+       ],
+       "explanation": "Ringene har givet ny viden om alder og fældning (Adriaens m.fl.).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter, hvornår på året de typisk er bedst at finde i Danmark, tidligst først.",
+       "choices": [],
+       "explanation": "Et mågeår.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "items": [
+         "Sorthovedet Måge i Hanstholm (juli–oktober)",
+         "Sabinemåge ved vestkysten (september–oktober)",
+         "Kaspisk Måge i opskyl (november)",
+         "Hvidvinget Måge i nordjyske havne (efter nytår)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 35,
+     "min_score_pct": null
+    },
+    {
+     "title": "Hybrider, dokumentation og ærlige bestemmelser",
+     "lesson_md": "Hos måger er «stor måge sp.» oftere det rigtige svar end i nogen anden gruppe. Her samler vi trådene: hvordan du dokumenterer en sjælden måge, og hvornår\ndu lader den stå ubestemt.",
+     "blocks": [
+      {
+       "type": "metode",
+       "trin": 4
+      },
+      {
+       "type": "tekst",
+       "md": "### Hybrider, du kan møde i Danmark\n\nDOFbasen har egne kategorier for Sølvmåge × Sildemåge, Sølvmåge × Kaspisk Måge, Sølvmåge × Gråmåge («Viking Gull» i Adriaens m.fl.) og\nSorthovedet Måge × Hættemåge. Hybrider viser typisk en blanding: forkerte proportioner, mellemfarvet ryg, «forkert» vingespids eller øje. KMO: I nogle\npolske kolonier er op mod halvdelen af parrene blandede sølv- og kaspiske måger.\n\n### Dokumentationen\n\n| Hvad | Hvorfor |\n|---|---|\n| **Den udbredte vinge, over- og underside** | Håndsvingfjerenes mønster (tunger, spejle, p5) er det vigtigste hos voksne store måger – lettest fra fotos (Adriaens). |\n| **Hovedet i profil** | Næbform, næbvinkel, øje, orbitalring. |\n| **Fuglen ved siden af kendte arter** | Størrelse og ryggens grå tone i samme lys. |\n| **Tertialer, store dækfjer, skulderfjer, hale** | Ungfuglenes nøglekarakterer. |\n| **Ben** | Farve og længde. |\n| **Lydoptagelse af langkaldet** | Kaspisk, Middelhavs-, Sølvmåge. |\n| **Ring** | Alder og oprindelse. |\n\n### Ærlige niveauer\n\n- **Stor måge sp.**, Sølvmåge/Kaspisk Måge, Sølvmåge × Kaspisk Måge?, Sildemåge sp. (race ubestemt), Hvidvinget Måge (uden race).\n- En «Middelhavssølvmåge» med kun gule ben som argument: Sølvmåge (Malling Olsen, Pandion 2016).\n- En Baffinmåge-kandidat, der ikke opfylder de nordiske kriterier: Hvidvinget Måge."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken dokumentation er vigtigst for en voksen stor måge?",
+       "choices": [
+        {
+         "text": "Fotos af den udbredte vinge, over- og underside",
+         "correct": true
+        },
+        {
+         "text": "Et foto af benene",
+         "correct": false
+        },
+        {
+         "text": "En beskrivelse af adfærden",
+         "correct": false
+        },
+        {
+         "text": "Vejret",
+         "correct": false
+        }
+       ],
+       "explanation": "Håndsvingfjerenes mønster er hovedkarakteren (Adriaens m.fl.).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung «Kaspisk Måge» har tværbåndede store dækfjer og hakkede tertialer, men hvidt hoved og langt næb. Bedste registrering?",
+       "choices": [
+        {
+         "text": "Sølvmåge/Kaspisk Måge eller mulig hybrid, ikke sikker Kaspisk",
+         "correct": true
+        },
+        {
+         "text": "Kaspisk Måge",
+         "correct": false
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "Svartbag",
+         "correct": false
+        }
+       ],
+       "explanation": "Brug mindst fem karakterer.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad kaldes hybriden Sølvmåge × Gråmåge i Adriaens m.fl. (2022)?",
+       "choices": [
+        {
+         "text": "«Viking Gull»",
+         "correct": true
+        },
+        {
+         "text": "«Kumlien's Gull»",
+         "correct": false
+        },
+        {
+         "text": "«Thayer's Gull»",
+         "correct": false
+        },
+        {
+         "text": "«Baltic Gull»",
+         "correct": false
+        }
+       ],
+       "explanation": "Kumlien's Gull er Baffinmåge, Thayer's Gull er Inuitmåge og Baltic Gull er Baltisk Sildemåge, alle tre er (under)arter, ikke hybrider.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Skriv en kort beskrivelse til SU af en voksen Kaspisk Måge, du har set i en havn i november.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 150,
+        "example": "Stor lysrygget måge blandt Sølvmåger. Lidt slankere med langt, tyndt, parallelsidet næb uden tydelig næbvinkel, pæreformet hoved med flad pande. Næsten rent hvidt hoved med fint stribet nakke-sjal. Mørkt øje med orange-rød orbitalring. Grålige ben. Ryg som argentatus Sølvmåge eller en anelse mørkere. I flugt: sort på 6 håndsvingfjer, stor hvid spids på p10, rundt spejl på p9, lange grå tunger og en mest grå underside af hånden. Langkald i albatros-stilling. Fotos af stående fugl og udbredt vinge vedlagt."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 30,
+     "min_score_pct": null
+    },
+    {
+     "title": "Afsluttende prøve: alle måger blandet",
+     "lesson_md": "Nu bliver alle arterne blandet. Gå frem i samme rækkefølge hver gang: størrelse, alder, helhed, de enkelte fjergrupper og til sidst sted og tid. Vær ærlig\nom, hvor sikker du er. Tag prøven igen om en uge.",
+     "blocks": [
+      {
+       "type": "tip",
+       "titel": "Inden du starter",
+       "md": "Se på alderen først. Så ved du, hvilke kendetegn du kan bruge."
+      }
+     ],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken måge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5780,
+         5750,
+         5900,
+         5890,
+         6020,
+         5790,
+         5910,
+         5920,
+         5930,
+         5915,
+         6000,
+         5990,
+         5980,
+         6040,
+         6010,
+         5810,
+         5880
+        ],
+        "metode": "valg",
+        "antal": 15
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvilken måge kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5780,
+         5750,
+         5900,
+         6020,
+         5910,
+         5920,
+         5930,
+         5915,
+         6000,
+         5990,
+         5980
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "November, Fanø: stor, lysrygget, næsten rent hvidt hoved med stribet nakke, mørkt øje, langt tyndt næb uden næbvinkel, grålige ben. Art?",
+       "choices": [
+        {
+         "text": "Kaspisk Måge",
+         "correct": true
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "Gråmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Januar, Hanstholm: 2K «hvid» måge, svartbagstor, fladt hoved, kraftigt lyserødt næb med sort spids, vinger kun kort bag halen. Art?",
+       "choices": [
+        {
+         "text": "Gråmåge",
+         "correct": true
+        },
+        {
+         "text": "Hvidvinget Måge",
+         "correct": false
+        },
+        {
+         "text": "Ismåge",
+         "correct": false
+        },
+        {
+         "text": "Sølvmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Juli, Hanstholm: lille måge med sort hætte og hvide vingespidser, kraftigt rødt næb. Art?",
+       "choices": [
+        {
+         "text": "Sorthovedet Måge (voksen)",
+         "correct": true
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        },
+        {
+         "text": "Dværgmåge",
+         "correct": false
+        },
+        {
+         "text": "Bonapartemåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "September, havobs efter vestenstorm: lille ternelignende måge med sort hånd, hvid trekant og brun arm og kløftet hale. Art?",
+       "choices": [
+        {
+         "text": "Sabinemåge (1K)",
+         "correct": true
+        },
+        {
+         "text": "Ride 1K",
+         "correct": false
+        },
+        {
+         "text": "Dværgmåge 1K",
+         "correct": false
+        },
+        {
+         "text": "Rosenmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Februar, stormmågeflok: mellemstor måge med lysere ryg end Stormmågerne, lyst øje og skarp sort ring om det gule næb. Art?",
+       "choices": [
+        {
+         "text": "Ringnæbbet Måge",
+         "correct": true
+        },
+        {
+         "text": "Stormmåge",
+         "correct": false
+        },
+        {
+         "text": "Russisk Stormmåge",
+         "correct": false
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Oktober, Østersøkysten: voksen stor måge med gule ben, grovstribet hoved ned under øjet og lyserød-gul orbitalring. Art?",
+       "choices": [
+        {
+         "text": "Sølvmåge (med gule ben)",
+         "correct": true
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        },
+        {
+         "text": "Kaspisk Måge",
+         "correct": false
+        },
+        {
+         "text": "Sildemåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Middelhavsmåge har næsten aldrig grovstribet hoved og har rød brille.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Maj, Kattegat: mørkrygget måge med gule ben og sortgrå ryg med lidt kontrast til vingespidsen. Art/race?",
+       "choices": [
+        {
+         "text": "Sildemåge (sandsynligvis Nordsøsildemåge, intermedius)",
+         "correct": true
+        },
+        {
+         "text": "Svartbag",
+         "correct": false
+        },
+        {
+         "text": "Baltisk Sildemåge sikkert",
+         "correct": false
+        },
+        {
+         "text": "Middelhavsmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "December, havn efter storm: helt hvid måge med sorte ben og blågråt næb med gul spids. Art?",
+       "choices": [
+        {
+         "text": "Ismåge (voksen)",
+         "correct": true
+        },
+        {
+         "text": "Hvidvinget Måge",
+         "correct": false
+        },
+        {
+         "text": "Gråmåge",
+         "correct": false
+        },
+        {
+         "text": "Leucistisk Sølvmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor ung måge med ensfarvede brune store dækfjer, mørke tertialer uden hak, grå skulderfjer med skaftstreg og hvidt hoved. Art?",
+       "choices": [
+        {
+         "text": "Kaspisk Måge (1K)",
+         "correct": true
+        },
+        {
+         "text": "Sølvmåge 1K",
+         "correct": false
+        },
+        {
+         "text": "Middelhavsmåge 1K",
+         "correct": false
+        },
+        {
+         "text": "Svartbag 1K",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung lille måge med mørkt brudt bånd på armen, tyndt sort næb og lys undervinge blandt Hættemåger. Art?",
+       "choices": [
+        {
+         "text": "Bonapartemåge (1K)",
+         "correct": true
+        },
+        {
+         "text": "Hættemåge 1K",
+         "correct": false
+        },
+        {
+         "text": "Dværgmåge 1K",
+         "correct": false
+        },
+        {
+         "text": "Ride 1K",
+         "correct": false
+        }
+       ],
+       "explanation": "Gå nøglepakken igennem i lektionen om arten, hvis du var i tvivl: størrelse, alder, form, de afgørende fjergrupper og kontekst.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Gå tilbage til dit svar i første lektion. Hvordan griber du en flok store måger an nu?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 60,
+        "example": "Fx: «Jeg starter med alderen – juvenile, spidse håndsvingfjer eller ej – og sammenligner kun fugle af samme alder. Så form og næb, så tertialer, store dækfjer og hale. Hos voksne prøver jeg at få vingen at se, gerne på foto. Og jeg er tryg ved at skrive Sølvmåge/Kaspisk Måge, når det er det, jeg kan forsvare.»"
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    }
+   ],
+   "loose": false
+  },
+  {
+   "kind": "ovelse",
+   "slug": "maager-traening",
+   "title": "Måge-træning: foto og kald",
+   "summary": "Blandet foto- og lydtræning i de danske måger – nye fotos og optagelser hver gang.",
+   "card": "Alle aldre, alle arter: træn til du kan se forskel uden at tøve.",
+   "category": "Artsgrupper",
+   "skills": [
+    "Bemærk",
+    "Lyt",
+    "Sammenlign"
+   ],
+   "hue": "hav",
+   "sil": "maage",
+   "featured": true,
+   "units": [
+    {
+     "title": "",
+     "lesson_md": "",
+     "blocks": [],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken måge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5780,
+         5750,
+         5900,
+         5890,
+         6020,
+         5790,
+         5910,
+         5920,
+         5930,
+         5915,
+         6000,
+         5990,
+         5980,
+         6040,
+         6010,
+         5810,
+         5880
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Store måger, hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5920,
+         5930,
+         5915,
+         5910,
+         6000
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         5820,
+         5780,
+         5750,
+         5900,
+         6020,
+         5910,
+         5920,
+         5930,
+         5915,
+         6000,
+         5990,
+         5980
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5920,
+         5930
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5990,
+         5980
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5900,
+         5890
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5820,
+         5750
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ]
+    }
+   ],
+   "loose": true
+  }
+ ]
+}

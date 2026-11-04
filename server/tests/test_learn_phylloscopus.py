@@ -12,7 +12,7 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     from portal.services import learning
 
     async with db() as s:
-        assert await learning.seed_packs(s) == 2
+        assert await learning.seed_packs(s) == 4  # Phylloscopus- og mågekurset, hver med en øvelse
         assert await learning.seed_packs(s) == 0  # kun én gang
         c = (await s.execute(text("SELECT id, published, kind FROM courses WHERE slug = 'phylloscopus'"))).mappings().one()
         assert not c["published"] and c["kind"] == "kursus"
@@ -25,10 +25,11 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
         types = {r[0] for r in (await s.execute(text("SELECT DISTINCT type FROM questions WHERE course_id = :c"), {"c": c["id"]})).all()}
         assert {"valg", "raekkefoelge", "tekst", "refleksion", "foto_art", "lyd_art", "foto_sammenlign"} <= types
         assert (await s.execute(text("SELECT kind FROM courses WHERE slug = 'phylloscopus-traening'"))).scalar() == "ovelse"
+        assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'maager'"))).scalar() == 14
     # kladden har ingen blokerende fejl (der er ingen fotos i testbasen at tjekke rettigheder på)
     await flags(db, laering_portal="on", laering_byg="on")
     ov = {c["slug"]: c for c in (await web["ad"].get("/api/learn/byg/oversigt")).json()}
-    assert ov["phylloscopus"]["fejl"] == 0
+    assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0
     # lektionerne kan vises (redaktørens forhåndsvisning): blokke med referencer løses – uden fotos/lyd i basen bliver de blot tomme
     r = await web["ad"].get("/api/learn/courses/phylloscopus/units?preview=true")
     assert r.status_code == 200, r.text
@@ -105,3 +106,18 @@ def test_xc_soegning_med_underart():
                            {"id": 2, "gen": "Phylloscopus", "sp": "collybita", "ssp": "", "file": "//x/2.mp3", "length": "0:10"}]}
     assert [r["ext_id"] for r in sound_quiz._parse(data, "Phylloscopus collybita tristis", 60)] == ["1"]
     assert [r["ext_id"] for r in sound_quiz._parse(data, "Phylloscopus collybita", 60)] == ["1", "2"]
+
+
+async def test_foto_reference_med_alder(db):  # noqa: F811
+    from portal.services import learn_play
+
+    async with db() as s:
+        await s.execute(text("INSERT INTO gal_codes (kind, code, text, sort) VALUES ('alder', 'k1', '1. kalenderår', 1), ('alder', 'ad', 'Adult (udfarvet)', 9) ON CONFLICT DO NOTHING"))
+        await _photo(s, 911, 6001, 5930, "Larus cachinnans", 50, 1)
+        await _photo(s, 912, 6002, 5930, "Larus cachinnans", 10, 1)
+        await s.execute(text("UPDATE gal_birds SET alder = 'ad' WHERE photo_id = 911"))
+        await s.execute(text("UPDATE gal_birds SET alder = 'k1' WHERE photo_id = 912"))
+        await s.commit()
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930}) == 911
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "1. kalenderår"}) == 912
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "2. kalenderår"}) is None  # aldrig et foto af forkert alder

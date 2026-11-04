@@ -36,7 +36,7 @@ gennemlæser og publicerer), sammen med tre eksempelforløb (kladder, kan først
 | §14 fase 8 | Dokumentation er opdateret. Oprydning (sletning af `views/learn.js`-visningen og `learn-arter.js`, de gamle endpoints) er **ikke gjort**, fordi den gamle Læring stadig er faldbacken, mens flaget ikke er `til` i drift. |
 
 **Kursuspakker (4. nov. 2026):** `seed/laering/*.json` i DOF.tool-formatet importeres én gang som kladder (`learning.seed_packs`, markør pr. pakke).
-Første pakke er **«Phyllernes verden»** (`phylloscopus`, 13 lektioner, 132 aktiviteter) + øvelsen `phylloscopus-traening`. Startindhold kan ikke kende en
+Første pakke er **«Phyllernes verden»** (`phylloscopus`, 13 lektioner, 132 aktiviteter) + øvelsen `phylloscopus-traening`. Anden pakke er **«Mågernes verden»** (`maager`, 14 lektioner, 114 aktiviteter, kun arter på Den Danske Liste) + øvelsen `maager-traening`. Automatiske fotos vælges kun blandt fotos, DOF må bruge (rettighed 1 eller samtykke); en reference kan kræve en bestemt `alder` (fotobibliotekets aldertekst), så et erstatningsfoto aldrig viser en forkert alder. Startindhold kan ikke kende en
 installations foto-/optagelses-id'er, så blokke og aktiviteter kan pege på medier med en **reference** (`ref`/`refs` i blokke, `config.foto_ref`/`lyd_ref`
 i aktiviteter): `nf` (netfugl-foto), `xc` (xeno-canto-nr.), `artnr`/`latin` + `type` (sang/kald) + `n`. Referencen løses ved visning
 (`learn_play.photo_by_ref`/`rec_by_ref`); fotos der må indsættes fast foretrækkes, og byggerens rettighedstjek gælder også det automatisk valgte foto.

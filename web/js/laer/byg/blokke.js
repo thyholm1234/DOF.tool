@@ -10,7 +10,7 @@ const TYPER = [["tekst", "Tekst"], ["foto", "Foto"], ["fotoraekke", "Fotorække 
 /** Kort tekst for en automatisk medie-reference (startindhold): netfugl-foto, XC-nr. eller art + type. */
 export function refText(r) {
   if (!r) return "";
-  return [r.nf ? `netfugl-foto ${r.nf}` : "", r.xc ? `XC${r.xc}` : "", r.latin || (r.artnr ? `art ${r.artnr}` : ""), r.type || "", r.n ? `nr. ${r.n + 1}` : ""].filter(Boolean).join(", ");
+  return [r.nf ? `netfugl-foto ${r.nf}` : "", r.xc ? `XC${r.xc}` : "", r.latin || (r.artnr ? `art ${r.artnr}` : ""), r.alder || "", r.type || "", r.n ? `nr. ${r.n + 1}` : ""].filter(Boolean).join(", ");
 }
 
 /** «Brug automatisk igen»: fjerner et fast valgt medie, så blokkens reference bruges igen. */
