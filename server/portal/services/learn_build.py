@@ -243,6 +243,91 @@ async def create_course(db: AsyncSession, user: User, title: str, kind: str = "k
     return c
 
 
+# ---------------------------------------------------------------- udskift fotos uden rettigheder (knappen ved «Publicér»)
+
+_OK = "(coalesce(p.rettighed, ph.standard_rettighed) = 1 OR coalesce(ph.dof_samtykke, false))"
+
+
+async def _photo_ok(db: AsyncSession, pid: int) -> bool:
+    return bool((await db.execute(text(f"""SELECT 1 FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id
+        WHERE p.id = :i AND p.status = 'publiceret' AND {_OK}"""), {"i": pid})).first())
+
+
+async def _ref_for_photo(db: AsyncSession, pid: int, n: int = 0) -> dict | None:
+    """En automatisk reference til samme art (og alder) som fotoet, så portalen vælger et foto af den slags, DOF må bruge."""
+    r = (await db.execute(text("""SELECT b.artnr, b.latin, gc.text AS alder FROM gal_birds b
+        LEFT JOIN gal_codes gc ON gc.kind = 'alder' AND gc.code = b.alder WHERE b.photo_id = :i AND b.pos = 0"""), {"i": pid})).mappings().first()
+    if r is None or (r["artnr"] is None and not r["latin"]):
+        return None
+    ref = {"artnr": r["artnr"]} if r["artnr"] is not None else {"latin": r["latin"]}
+    if r["alder"]:
+        ref["alder"] = r["alder"]
+    if n:
+        ref["n"] = n
+    return ref
+
+
+async def replace_unusable_photos(db: AsyncSession, user: User, c: Course) -> dict:
+    """Erstat fast valgte fotos, DOF ikke må bruge (rettighed 2/3 uden samtykke), med automatiske referencer til samme art og alder.
+    Tilladte fotos bevares. Returnerer, hvor mange der er udskiftet, og hvilke steder der ikke findes et tilladt foto af arten."""
+    changed, missing = 0, []
+
+    async def convert(pid: int, used: dict) -> dict | None:
+        ref = await _ref_for_photo(db, pid)
+        if ref:  # flere fotos af samme art og alder i samme række: næste tilladte foto hver gang
+            key = (ref.get("artnr"), ref.get("latin"), ref.get("alder"))
+            ref = await _ref_for_photo(db, pid, used.get(key, 0))
+            used[key] = used.get(key, 0) + 1
+        return ref
+
+    async def check(ref: dict | None, where: str):
+        if not ref or not await learn_play.photo_by_ref(db, ref):
+            missing.append({"where": where, "art": await _ref_name(db, ref) if ref else "ukendt art"})
+
+    for u in (await db.execute(select(Unit).where(Unit.course_id == c.id).order_by(Unit.position))).scalars():
+        blocks, touched = [dict(b) for b in u.blocks or []], False
+        for b in blocks:
+            if b.get("type") == "foto" and b.get("photo_id") and not await _photo_ok(db, int(b["photo_id"])):
+                ref = await convert(int(b["photo_id"]), {})
+                b.pop("photo_id")
+                if ref:
+                    b["ref"] = ref
+                touched, changed = True, changed + 1
+                await check(ref, f"Lektionen «{u.title}»")
+            elif b.get("type") == "fotoraekke" and b.get("photo_ids"):
+                ids = [int(x) for x in b["photo_ids"]]
+                oks = [await _photo_ok(db, i) for i in ids]
+                if all(oks):
+                    continue
+                used, refs = {}, []
+                for i, ok in zip(ids, oks):
+                    ref = {"id": i} if ok else await convert(i, used)
+                    if not ok:
+                        changed += 1
+                        await check(ref, f"Lektionen «{u.title}» (fotorække)")
+                    if ref:
+                        refs.append(ref)
+                b.pop("photo_ids")
+                b["refs"] = refs
+                touched = True
+        if touched:
+            u.blocks = clean_blocks(blocks)
+    for q in (await db.execute(select(Question).where(Question.course_id == c.id))).scalars():
+        if q.media_photo_id and not await _photo_ok(db, q.media_photo_id):
+            ref = await convert(q.media_photo_id, {})
+            cfg = dict(q.config or {})
+            cfg.pop("foto_ref", None)
+            if ref:
+                cfg["foto_ref"] = ref
+            q.config, q.media_photo_id = cfg, None
+            changed += 1
+            await check(ref, f"Aktivitet «{(q.prompt or '')[:50]}»")
+    if changed:
+        touch(c, user)
+    await db.commit()
+    return {"udskiftet": changed, "mangler": missing}
+
+
 async def _ref_name(db: AsyncSession, r: dict) -> str:
     if r.get("artnr"):
         return (await db.execute(text("SELECT navn FROM species WHERE artnr = :a"), {"a": r["artnr"]})).scalar() or f"art {r['artnr']}"
@@ -254,7 +339,7 @@ def _clean_ref(r) -> dict | None:
     if not isinstance(r, dict):
         return None
     out: dict = {}
-    for k in ("nf", "xc", "artnr", "n"):
+    for k in ("id", "nf", "xc", "artnr", "n"):
         if str(r.get(k, "")).isdigit() and len(str(r[k])) <= 12:
             out[k] = str(r[k]) if k == "xc" else int(r[k])
     if isinstance(r.get("latin"), str) and r["latin"].strip():

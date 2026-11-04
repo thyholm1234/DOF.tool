@@ -270,6 +270,13 @@ async def publicer(slug: str, user: User = Depends(builder), db: AsyncSession = 
     return {"version": c.version, "visibility": c.visibility}
 
 
+@router.post("/kurser/{slug}/udskift-fotos")
+async def udskift_fotos(slug: str, user: User = Depends(builder), db: AsyncSession = Depends(get_session)):
+    """Knappen ved «Publicér»: fast valgte fotos, DOF ikke må bruge, erstattes af tilladte fotos af samme art og alder."""
+    c = await _course(db, user, slug)
+    return await learn_build.replace_unusable_photos(db, user, c)
+
+
 @router.post("/kurser/{slug}/afpublicer")
 async def afpublicer(slug: str, user: User = Depends(builder), db: AsyncSession = Depends(get_session)):
     c = await _course(db, user, slug)

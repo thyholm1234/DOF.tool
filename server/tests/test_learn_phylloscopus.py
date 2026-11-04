@@ -121,3 +121,32 @@ async def test_foto_reference_med_alder(db):  # noqa: F811
         assert await learn_play.photo_by_ref(s, {"artnr": 5930}) == 911
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "1. kalenderår"}) == 912
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "2. kalenderår"}) is None  # aldrig et foto af forkert alder
+
+
+async def test_udskift_fotos_uden_rettigheder(web, db):  # noqa: F811
+    from portal.services import learn_build, learning
+
+    async with db() as s:
+        await s.execute(text("INSERT INTO gal_codes (kind, code, text, sort) VALUES ('alder', 'k1', '1. kalenderår', 1) ON CONFLICT DO NOTHING"))
+        await _photo(s, 921, 7001, 5900, "Larus canus", 50, 2)   # Stormmåge 1K uden rettighed
+        await _photo(s, 922, 7002, 5900, "Larus canus", 10, 1)   # Stormmåge 1K, må bruges
+        await _photo(s, 923, 7003, 5900, "Larus canus", 5, 1)    # Stormmåge voksen, må bruges (forkert alder)
+        await _photo(s, 924, 7004, 6010, "Rhodostethia rosea", 9, 2)  # Rosenmåge uden rettighed – intet alternativ
+        await s.execute(text("UPDATE gal_birds SET alder = 'k1' WHERE photo_id IN (921, 922)"))
+        await s.commit()
+        data = {"format": "laering-v2", "courses": [{"kind": "kursus", "slug": "fototest", "title": "Fototest", "learn": [{"title": "a", "text": "b"}], "units": [
+            {"title": "L1", "lesson_md": "x", "blocks": [{"type": "foto", "photo_id": 921}, {"type": "fotoraekke", "photo_ids": [922, 924]}],
+             "acts": [{"type": "valg", "prompt": "?", "explanation": "x", "media_photo_id": 921, "choices": [{"text": "a", "correct": True}, {"text": "b"}]}]}]}]}
+        await learn_build.import_courses(s, learning._System(), data)
+    await flags(db, laering_portal="on", laering_byg="on")
+    assert (await web["ad"].post("/api/learn/byg/kurser/fototest/publicer")).status_code != 200  # røde rettighedsfejl
+    r = (await web["ad"].post("/api/learn/byg/kurser/fototest/udskift-fotos")).json()
+    assert r["udskiftet"] == 3 and len(r["mangler"]) == 1 and "fotorække" in r["mangler"][0]["where"]  # Rosenmågen har intet tilladt foto
+    async with db() as s:
+        blocks = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'fototest'"))).scalar()
+        assert blocks[0]["ref"] == {"artnr": 5900, "alder": "1. kalenderår"} and "photo_id" not in blocks[0]
+        assert blocks[1]["refs"][0] == {"id": 922} and blocks[1]["refs"][1]["artnr"] == 6010
+        q = (await s.execute(text("SELECT media_photo_id, config FROM questions q JOIN courses c ON c.id = q.course_id WHERE c.slug = 'fototest'"))).mappings().one()
+        assert q["media_photo_id"] is None and q["config"]["foto_ref"]["alder"] == "1. kalenderår"
+    # nu er der ingen røde fejl tilbage, og kurset kan publiceres (manglende Rosenmåge-foto er kun en advarsel)
+    assert (await web["ad"].post("/api/learn/byg/kurser/fototest/publicer")).status_code == 200

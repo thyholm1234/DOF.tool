@@ -159,6 +159,8 @@ async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
     latin = str(ref.get("latin") or "").strip() or None
     base = """SELECT p.id FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id
         WHERE p.status = 'publiceret' AND (coalesce(p.rettighed, ph.standard_rettighed) = 1 OR coalesce(ph.dof_samtykke, false))"""
+    if str(ref.get("id") or "").isdigit() and (pid := (await db.execute(text(f"{base} AND p.id = :i"), {"i": int(ref["id"])})).scalar()):
+        return pid  # et bestemt foto fra fotobiblioteket (fx et fast valgt foto, der må bruges)
     if nf and (pid := (await db.execute(text(f"{base} AND p.netfugl_id = :nf"), {"nf": nf})).scalar()):
         return pid
     if artnr is None and latin is None:
