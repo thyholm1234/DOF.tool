@@ -49,24 +49,33 @@ async def _photo(s, pid, nf, artnr, latin, likes, ret, samtykke=False, flere=Fal
         await s.execute(text("INSERT INTO gal_birds (photo_id, pos, artnr, navn, latin) VALUES (:i, 1, 13110, 'x', 'Phylloscopus collybita')"), {"i": pid})
 
 
-async def test_foto_reference_foretraekker_fotos_der_maa_bruges(db):  # noqa: F811
-    from portal.services import learn_play
+async def test_foto_reference_bruger_kun_fotos_dof_maa_bruge(web, db):  # noqa: F811
+    from portal.services import learn_build, learn_play
 
     async with db() as s:
         await _photo(s, 901, 5001, 13120, "Phylloscopus trochilus", 50, 2)            # mest likede, men rettighed 2
         await _photo(s, 902, 5002, 13120, "Phylloscopus trochilus", 10, 1)            # må bruges
         await _photo(s, 903, 5003, 13120, "Phylloscopus trochilus", 5, 2, samtykke=True)  # samtykke
         await _photo(s, 904, 5004, 13120, "Phylloscopus trochilus", 99, 1, flere=True)   # to fugle – aldrig valgt
-        await _photo(s, 905, 5005, None, "Phylloscopus canariensis", 1, 2)            # art uden artsnummer
+        await _photo(s, 905, 5005, None, "Phylloscopus canariensis", 1, 1)            # art uden artsnummer
+        await _photo(s, 906, 5006, 13110, "Phylloscopus collybita", 9, 2)             # gransanger: kun et foto uden rettighed
         await s.commit()
         assert await learn_play.photo_by_ref(s, {"artnr": 13120}) == 902
         assert await learn_play.photo_by_ref(s, {"artnr": 13120, "n": 1}) == 903
-        assert await learn_play.photo_by_ref(s, {"nf": 5003, "artnr": 13120}) == 903       # bestemt foto, der må bruges
-        assert await learn_play.photo_by_ref(s, {"nf": 5001, "artnr": 13120}) == 902       # bestemt foto uden rettighed → et der må
-        assert await learn_play.photo_by_ref(s, {"nf": 5001}) == 901                        # intet alternativ → det bestemte
+        assert await learn_play.photo_by_ref(s, {"artnr": 13120, "n": 2}) is None       # ikke flere, der må bruges
+        assert await learn_play.photo_by_ref(s, {"nf": 5003, "artnr": 13120}) == 903     # bestemt foto, der må bruges
+        assert await learn_play.photo_by_ref(s, {"nf": 5001, "artnr": 13120}) == 902     # bestemt foto uden rettighed → et der må
+        assert await learn_play.photo_by_ref(s, {"nf": 5001}) is None                     # aldrig et foto uden rettighed
+        assert await learn_play.photo_by_ref(s, {"artnr": 13110}) is None
         assert await learn_play.photo_by_ref(s, {"latin": "Phylloscopus canariensis"}) == 905
-        assert await learn_play.photo_by_ref(s, {"nf": 9999}) is None
         assert await learn_play.photo_by_ref(s, None) is None
+        # byggeren: ingen røde rettighedsfejl for automatiske fotos – kun en advarsel, når der intet tilladt foto er
+        st = {"course": {"kind": "kursus", "learn": [{"title": "x", "text": "y"}], "title": "T"},
+              "units": [{"id": 1, "title": "L", "lesson_md": "x", "acts": [], "blocks": [{"type": "foto", "ref": {"nf": 5001, "artnr": 13120}},
+                                                                                   {"type": "foto", "ref": {"artnr": 13110}}]}]}
+        w = await learn_build.warnings(s, st)
+        assert not [x for x in w if x["level"] == "fejl"]
+        assert any("Gransanger" in x["msg"] or "13110" in x["msg"] for x in w if x["level"] == "advarsel")
 
 
 async def test_lyd_reference_og_rensning(db):  # noqa: F811

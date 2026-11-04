@@ -150,29 +150,25 @@ async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
     """``{"nf": <netfugl-nr>}`` = et bestemt foto fra netfugl-arkivet; ``{"artnr"|"latin": …, "n": k}`` = artens k'te mest likede
     publicerede enkeltfugl-foto. Begge kan angives – ``nf`` prøves først.
 
-    Fotos, der må indsættes fast (rettighed 1 eller fotografens DOF-samtykke, spec §13.2), vælges før andre: et bestemt ``nf``-foto uden
-    rettigheder springes over, hvis arten har et foto, der må bruges. Byggerens advarsler tjekker det foto, referencen ender på."""
+    Der vælges **kun** fotos, DOF må bruge fast (rettighed 1 eller fotografens DOF-samtykke, spec §13.2). Har arten intet sådant foto,
+    returneres ``None`` – blokken vises uden foto, og byggeren advarer, så redaktøren kan vælge et selv."""
     if not isinstance(ref, dict):
         return None
     nf = int(ref["nf"]) if str(ref.get("nf") or "").isdigit() else None
     artnr = int(ref["artnr"]) if str(ref.get("artnr") or "").isdigit() else None
     latin = str(ref.get("latin") or "").strip() or None
-    ok = "(coalesce(p.rettighed, ph.standard_rettighed) = 1 OR coalesce(ph.dof_samtykke, false))"
-    base = f"SELECT p.id, {ok} AS ok FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id"
-    exact = (await db.execute(text(f"{base} WHERE p.netfugl_id = :nf AND p.status = 'publiceret'"), {"nf": nf})).first() if nf else None
-    if exact and exact.ok:
-        return exact.id
-    best = None
-    if artnr is not None or latin is not None:
-        best = (await db.execute(text(f"""{base} JOIN gal_birds b ON b.photo_id = p.id AND b.pos = 0
-            WHERE p.status = 'publiceret' AND NOT ('tvivl_art' = ANY(p.tags))
-              AND (b.artnr = :a OR (CAST(:a AS int) IS NULL AND lower(b.latin) = lower(:l)))
-              AND NOT EXISTS (SELECT 1 FROM gal_birds b2 WHERE b2.photo_id = p.id AND b2.pos > 0)
-            ORDER BY {ok} DESC, p.likes DESC, p.views DESC, p.id LIMIT 1 OFFSET :o"""),
-            {"a": artnr, "l": latin, "o": max(0, min(int(ref.get("n") or 0), 50))})).first()
-        if best and (best.ok or not exact):
-            return best.id
-    return exact.id if exact else (best.id if best else None)
+    base = """SELECT p.id FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id
+        WHERE p.status = 'publiceret' AND (coalesce(p.rettighed, ph.standard_rettighed) = 1 OR coalesce(ph.dof_samtykke, false))"""
+    if nf and (pid := (await db.execute(text(f"{base} AND p.netfugl_id = :nf"), {"nf": nf})).scalar()):
+        return pid
+    if artnr is None and latin is None:
+        return None
+    return (await db.execute(text(f"""{base} AND NOT ('tvivl_art' = ANY(p.tags))
+          AND EXISTS (SELECT 1 FROM gal_birds b WHERE b.photo_id = p.id AND b.pos = 0
+                      AND (b.artnr = :a OR (CAST(:a AS int) IS NULL AND lower(b.latin) = lower(:l))))
+          AND NOT EXISTS (SELECT 1 FROM gal_birds b2 WHERE b2.photo_id = p.id AND b2.pos > 0)
+        ORDER BY p.likes DESC, p.views DESC, p.id LIMIT 1 OFFSET :o"""),
+        {"a": artnr, "l": latin, "o": max(0, min(int(ref.get("n") or 0), 50))})).scalar()
 
 
 async def rec_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
@@ -562,7 +558,7 @@ async def resolve_blocks(db: AsyncSession, blocks: list[dict]) -> list[dict]:
             ids = [int(i) for i in b.get("photo_ids") or []] or [await photo_by_ref(db, x) for x in b.get("refs") or []]
             fotos = []
             for i, pid in enumerate(ids):
-                m = await photo_media(db, pid) if pid else None
+                m = await photo_media(db, pid) if pid and pid not in ids[:i] else None  # samme foto kun én gang i rækken
                 if m:
                     fotos.append({**m, "label": labels[i] if i < len(labels) and isinstance(labels[i], str) else ""})
             r["fotos"] = fotos

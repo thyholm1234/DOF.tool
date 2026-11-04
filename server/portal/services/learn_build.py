@@ -161,15 +161,21 @@ async def warnings(db: AsyncSession, st: dict) -> list[dict]:
         for b in u["blocks"]:
             if b.get("type") == "foto" and b.get("photo_id"):
                 photo_ids.append(int(b["photo_id"]))
-            elif b.get("type") == "foto" and b.get("ref") and (pid := await learn_play.photo_by_ref(db, b["ref"])):
-                photo_ids.append(pid)  # automatisk valgt foto: samme rettighedskrav som et fast valgt
+            # automatiske fotos vælges kun blandt dem, DOF må bruge – advar, hvis der ikke er noget
+            refs = []
+            if b.get("type") == "foto" and b.get("ref") and not b.get("photo_id"):
+                refs = [b["ref"]]
+            elif b.get("type") == "fotoraekke" and not b.get("photo_ids"):
+                refs = b.get("refs") or []
+            missing = [r for r in refs if not await learn_play.photo_by_ref(db, r)]
+            if missing:
+                names = ", ".join(sorted({await _ref_name(db, r) for r in missing}))
+                add("advarsel", f"lektion {u['id']}", f"Lektionen «{u['title']}»: intet foto, DOF må bruge, af {names} – vælg et selv eller fjern det", unit=u["id"])
             if b.get("type") == "fotoraekke":
-                photo_ids += [int(x) for x in b.get("photo_ids") or []] or [p for p in [await learn_play.photo_by_ref(db, r) for r in b.get("refs") or []] if p]
+                photo_ids += [int(x) for x in b.get("photo_ids") or []]
         for a in u["acts"]:
             if a.get("media_photo_id"):
                 photo_ids.append(int(a["media_photo_id"]))
-            elif (a.get("config") or {}).get("foto_ref") and not a.get("media_url") and (pid := await learn_play.photo_by_ref(db, a["config"]["foto_ref"])):
-                photo_ids.append(pid)
             for lvl, msg in act_problems(a):
                 add(lvl, f"aktivitet {a['id']}", msg, act=a["id"], unit=u["id"])
             # generatorer, der giver for få forskellige spørgsmål
@@ -235,6 +241,12 @@ async def create_course(db: AsyncSession, user: User, title: str, kind: str = "k
         db.add(Unit(course_id=c.id, position=0, title="Lektion 1", lesson_md="", blocks=[]))
     await db.commit()
     return c
+
+
+async def _ref_name(db: AsyncSession, r: dict) -> str:
+    if r.get("artnr"):
+        return (await db.execute(text("SELECT navn FROM species WHERE artnr = :a"), {"a": r["artnr"]})).scalar() or f"art {r['artnr']}"
+    return str(r.get("latin") or f"netfugl-foto {r.get('nf')}")
 
 
 def _clean_ref(r) -> dict | None:
