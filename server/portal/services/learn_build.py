@@ -161,11 +161,15 @@ async def warnings(db: AsyncSession, st: dict) -> list[dict]:
         for b in u["blocks"]:
             if b.get("type") == "foto" and b.get("photo_id"):
                 photo_ids.append(int(b["photo_id"]))
+            elif b.get("type") == "foto" and b.get("ref") and (pid := await learn_play.photo_by_ref(db, b["ref"])):
+                photo_ids.append(pid)  # automatisk valgt foto: samme rettighedskrav som et fast valgt
             if b.get("type") == "fotoraekke":
-                photo_ids += [int(x) for x in b.get("photo_ids") or []]
+                photo_ids += [int(x) for x in b.get("photo_ids") or []] or [p for p in [await learn_play.photo_by_ref(db, r) for r in b.get("refs") or []] if p]
         for a in u["acts"]:
             if a.get("media_photo_id"):
                 photo_ids.append(int(a["media_photo_id"]))
+            elif (a.get("config") or {}).get("foto_ref") and not a.get("media_url") and (pid := await learn_play.photo_by_ref(db, a["config"]["foto_ref"])):
+                photo_ids.append(pid)
             for lvl, msg in act_problems(a):
                 add(lvl, f"aktivitet {a['id']}", msg, act=a["id"], unit=u["id"])
             # generatorer, der giver for få forskellige spørgsmål
@@ -233,16 +237,38 @@ async def create_course(db: AsyncSession, user: User, title: str, kind: str = "k
     return c
 
 
+def _clean_ref(r) -> dict | None:
+    """En medie-reference: ``nf`` (netfugl-foto), ``xc`` (xeno-canto-nr.), ``artnr``, ``n`` (tal) og ``latin``, ``type`` (sang/kald)."""
+    if not isinstance(r, dict):
+        return None
+    out: dict = {}
+    for k in ("nf", "xc", "artnr", "n"):
+        if str(r.get(k, "")).isdigit() and len(str(r[k])) <= 12:
+            out[k] = str(r[k]) if k == "xc" else int(r[k])
+    if isinstance(r.get("latin"), str) and r["latin"].strip():
+        out["latin"] = r["latin"].strip()[:80]
+    if r.get("type") in ("sang", "kald"):
+        out["type"] = r["type"]
+    return out or None
+
+
 def clean_blocks(blocks: list) -> list[dict]:
     out = []
     for b in blocks or []:
         if not isinstance(b, dict) or b.get("type") not in BLOCKS:
             continue
+        ref = _clean_ref(b.get("ref"))
         b = {k: v for k, v in b.items() if isinstance(v, (str, int, float, bool, list, type(None)))}
+        if ref:  # automatisk foto/lyd (learn_play.photo_by_ref/rec_by_ref)
+            b["ref"] = ref
         if isinstance(b.get("md"), str):
             b["md"] = b["md"][:20000]
         if isinstance(b.get("photo_ids"), list):
             b["photo_ids"] = [int(x) for x in b["photo_ids"] if str(x).isdigit()][:8]
+        if isinstance(b.get("refs"), list):
+            b["refs"] = [r for r in (_clean_ref(x) for x in b["refs"]) if r][:8]
+        if isinstance(b.get("labels"), list):
+            b["labels"] = [str(x)[:120] for x in b["labels"]][:8]
         out.append(b)
     return out[:60]
 
@@ -432,6 +458,10 @@ def normalize_import(data: dict) -> list[dict]:
     return _from_dof(data)
 
 
+def _small_int(v, hi: int) -> int | None:
+    return max(0, min(int(v), hi)) if isinstance(v, int) or (isinstance(v, str) and v.isdigit()) else None
+
+
 async def import_courses(db: AsyncSession, user: User, data: dict, mode: str = "kopi", dry: bool = False) -> list[dict]:
     """``mode``: ``kopi`` = ny kladde med unik slug · ``overskriv`` = erstat indholdet i en eksisterende kladde (kun kladder)."""
     report = []
@@ -465,7 +495,8 @@ async def import_courses(db: AsyncSession, user: User, data: dict, mode: str = "
         for i, u in enumerate(c.get("units", [])):
             unit = None
             if not c.get("loose"):
-                unit = Unit(course_id=course.id, position=i, title=(u.get("title") or f"Lektion {i + 1}")[:160], lesson_md=u.get("lesson_md", ""), blocks=clean_blocks(u.get("blocks")))
+                unit = Unit(course_id=course.id, position=i, title=(u.get("title") or f"Lektion {i + 1}")[:160], lesson_md=u.get("lesson_md", ""), blocks=clean_blocks(u.get("blocks")),
+                            est_minutes=_small_int(u.get("est_minutes"), 600), min_score_pct=_small_int(u.get("min_score_pct"), 100))
                 db.add(unit)
                 await db.flush()
             for a in u.get("acts", []):
@@ -487,7 +518,7 @@ async def export_courses(db: AsyncSession, user: User, slugs: list[str] | None) 
             continue
         st = await learn_play.live_struct(db, c)
         out.append({**{k: st["course"][k] for k in ("slug", "title", "summary", "intro", "topic", "level", "kind", "number", "stage", "category", "card", "audience", "learn", "skills", "hours", "hue", "sil", "featured")},
-                    "units": [{"title": u["title"], "lesson_md": u["lesson_md"], "blocks": u["blocks"], "acts": [{k: a[k] for k in ("type", "prompt", "choices", "explanation", "config", "accept", "skills", "media_kind", "media_url", "media_credit", "media_photo_id", "media_rec_id", "ask_confidence")} for a in u["acts"]]} for u in st["units"]],
+                    "units": [{"title": u["title"], "lesson_md": u["lesson_md"], "blocks": u["blocks"], "est_minutes": u.get("est_minutes"), "min_score_pct": u.get("min_score_pct"), "acts": [{k: a[k] for k in ("type", "prompt", "choices", "explanation", "config", "accept", "skills", "media_kind", "media_url", "media_credit", "media_photo_id", "media_rec_id", "ask_confidence")} for a in u["acts"]]} for u in st["units"]],
                     "loose": not any(u["id"] for u in st["units"])})
     return {"format": "laering-v2", "exported": datetime.now(timezone.utc).isoformat(), "courses": out}
 

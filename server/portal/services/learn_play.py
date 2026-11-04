@@ -142,12 +142,84 @@ async def sound_media(db: AsyncSession, rec_id: int, hide: bool) -> dict | None:
     return {"kind": "audio", "value": f"/api/learn/lyd/fil/{r['id']}", "credit": credit, "artnr": r["artnr"], "navn": r["navn"], "url": r["page_url"]}
 
 
+# Automatiske medier: startindhold (fx Phylloscopus-kurset) kan ikke kende en installations foto- og optagelses-id'er, så det peger på
+# medier med en reference, der løses ved visning. Et fast valgt id (photo_id/rec_id, media_photo_id/media_rec_id) har altid forrang,
+# så redaktøren kan skifte billedet eller lyden i byggeren.
+
+async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
+    """``{"nf": <netfugl-nr>}`` = et bestemt foto fra netfugl-arkivet; ``{"artnr"|"latin": …, "n": k}`` = artens k'te mest likede
+    publicerede enkeltfugl-foto. Begge kan angives – ``nf`` prøves først.
+
+    Fotos, der må indsættes fast (rettighed 1 eller fotografens DOF-samtykke, spec §13.2), vælges før andre: et bestemt ``nf``-foto uden
+    rettigheder springes over, hvis arten har et foto, der må bruges. Byggerens advarsler tjekker det foto, referencen ender på."""
+    if not isinstance(ref, dict):
+        return None
+    nf = int(ref["nf"]) if str(ref.get("nf") or "").isdigit() else None
+    artnr = int(ref["artnr"]) if str(ref.get("artnr") or "").isdigit() else None
+    latin = str(ref.get("latin") or "").strip() or None
+    ok = "(coalesce(p.rettighed, ph.standard_rettighed) = 1 OR coalesce(ph.dof_samtykke, false))"
+    base = f"SELECT p.id, {ok} AS ok FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id"
+    exact = (await db.execute(text(f"{base} WHERE p.netfugl_id = :nf AND p.status = 'publiceret'"), {"nf": nf})).first() if nf else None
+    if exact and exact.ok:
+        return exact.id
+    best = None
+    if artnr is not None or latin is not None:
+        best = (await db.execute(text(f"""{base} JOIN gal_birds b ON b.photo_id = p.id AND b.pos = 0
+            WHERE p.status = 'publiceret' AND NOT ('tvivl_art' = ANY(p.tags))
+              AND (b.artnr = :a OR (CAST(:a AS int) IS NULL AND lower(b.latin) = lower(:l)))
+              AND NOT EXISTS (SELECT 1 FROM gal_birds b2 WHERE b2.photo_id = p.id AND b2.pos > 0)
+            ORDER BY {ok} DESC, p.likes DESC, p.views DESC, p.id LIMIT 1 OFFSET :o"""),
+            {"a": artnr, "l": latin, "o": max(0, min(int(ref.get("n") or 0), 50))})).first()
+        if best and (best.ok or not exact):
+            return best.id
+    return exact.id if exact else (best.id if best else None)
+
+
+async def rec_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
+    """``{"xc": "<XC-nr>"}`` = en bestemt xeno-canto-optagelse; ``{"artnr"|"latin": …, "type": "sang"|"kald", "n": k}`` = artens k'te
+    optagelse af typen. Mangler optagelsen, hentes den hos xeno-canto med portalens nøgle (husket, så det kun sker én gang)."""
+    if not isinstance(ref, dict):
+        return None
+    artnr = int(ref["artnr"]) if str(ref.get("artnr") or "").isdigit() else None
+    latin = str(ref.get("latin") or "").strip() or None
+    xc = str(ref.get("xc") or "").strip()
+    if xc.isdigit():
+        rid = (await db.execute(text("SELECT id FROM snd_recordings WHERE source = 'xc' AND ext_id = :x AND enabled"), {"x": xc})).scalar()
+        if rid is None:
+            try:
+                rid = await sound_quiz.ensure_xc(db, xc, artnr=artnr, latin=latin)
+            except sound_quiz.SoundError:
+                rid = None
+        if rid:
+            return rid
+    if artnr is None and latin is None:
+        return None
+    kind = "sang" if ref.get("type") == "sang" else "kald" if ref.get("type") == "kald" else "begge"
+    sql = text(f"""SELECT r.id FROM snd_recordings r WHERE r.enabled AND {sound_quiz.KIND_SQL[kind]}
+        AND (CASE WHEN CAST(:l AS text) IS NOT NULL THEN lower(r.latin) = lower(:l) ELSE r.artnr = :a END)
+        ORDER BY r.quality NULLS LAST, r.id LIMIT 1 OFFSET :o""")
+    args = {"a": artnr, "l": latin, "o": max(0, min(int(ref.get("n") or 0), 20))}
+    rid = (await db.execute(sql, args)).scalar()
+    if rid is None and latin:
+        try:
+            await sound_quiz.ensure_latin(db, latin, "song" if kind == "sang" else "call", artnr=artnr)
+        except sound_quiz.SoundError:
+            return None
+        rid = (await db.execute(sql, {**args, "o": 0})).scalar()
+    return rid
+
+
 async def act_media(db: AsyncSession, a: dict, hue: str) -> dict | None:
     t = a["type"]
+    cfg = a.get("config") or {}
     if a.get("media_photo_id"):
         return await photo_media(db, a["media_photo_id"])
     if a.get("media_rec_id"):
         return await sound_media(db, a["media_rec_id"], hide=True)
+    if cfg.get("foto_ref") and not a.get("media_url") and (pid := await photo_by_ref(db, cfg["foto_ref"])):
+        return await photo_media(db, pid)
+    if cfg.get("lyd_ref") and not a.get("media_url") and (rid := await rec_by_ref(db, cfg["lyd_ref"])):
+        return await sound_media(db, rid, hide=True)
     if t == "silhuet":
         return {"kind": "silhouette", "value": (a.get("config") or {}).get("sil", "spurvefugl"), "hue": (a.get("config") or {}).get("hue", hue), "credit": ""}
     if a.get("media_url"):
@@ -482,14 +554,23 @@ async def resolve_blocks(db: AsyncSession, blocks: list[dict]) -> list[dict]:
             r["html"] = await render_md(db, b.get("md"))
             r["titel"] = b.get("titel", "")
         elif t == "foto":
-            m = await photo_media(db, int(b.get("photo_id") or 0))
+            pid = int(b.get("photo_id") or 0) or await photo_by_ref(db, b.get("ref"))
+            m = await photo_media(db, pid) if pid else None
             r.update({"foto": m, "tekst": b.get("tekst", "")})
         elif t == "fotoraekke":
-            r["fotos"] = [m for m in [await photo_media(db, int(i)) for i in b.get("photo_ids") or []] if m]
+            labels = b.get("labels") or []
+            ids = [int(i) for i in b.get("photo_ids") or []] or [await photo_by_ref(db, x) for x in b.get("refs") or []]
+            fotos = []
+            for i, pid in enumerate(ids):
+                m = await photo_media(db, pid) if pid else None
+                if m:
+                    fotos.append({**m, "label": labels[i] if i < len(labels) and isinstance(labels[i], str) else ""})
+            r["fotos"] = fotos
             r["tekst"] = b.get("tekst", "")
         elif t == "lyd":
-            if b.get("rec_id"):
-                r["lyd"] = await sound_media(db, int(b["rec_id"]), hide=False)
+            rid = int(b.get("rec_id") or 0) or (await rec_by_ref(db, b.get("ref")) if b.get("ref") else None)
+            if rid:
+                r["lyd"] = await sound_media(db, rid, hide=False)
             elif b.get("url"):
                 r["lyd"] = {"kind": "audio", "value": b["url"], "credit": b.get("credit", "")}
             r["tekst"] = b.get("tekst", "")

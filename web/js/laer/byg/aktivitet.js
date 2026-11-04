@@ -2,6 +2,7 @@
 import { api, h, toast, state } from "../../core.js";
 import { speciesPicker, locationPicker, afdelingSelect } from "../pickers.js";
 import { photoPicker, soundPicker, uploadMedia } from "./pickere.js";
+import { refText } from "./blokke.js";
 import { mediaEl } from "../common.js";
 import { TYPER, TYPE_NAME, GENERATOR, SILS, HUES } from "./konstanter.js";
 
@@ -103,10 +104,11 @@ function mediaField(a, onChange, required) {
     if (a.media_photo_id) prev.append(h("p", {}, `Foto fra fotobiblioteket (#${a.media_photo_id})`));
     else if (a.media_rec_id) prev.append(h("p", {}, `Lydoptagelse (#${a.media_rec_id})`));
     else if (a.media_url) prev.append(mediaEl({ kind: a.media_kind || "image", value: a.media_url, credit: a.media_credit }));
+    else if (a.config?.foto_ref || a.config?.lyd_ref) prev.append(h("p", {}, `Automatisk ${a.config.foto_ref ? "foto" : "lyd"}: ${refText(a.config.foto_ref || a.config.lyd_ref)} – vælg et andet medie for at skifte.`));
     else prev.append(h("p", { class: "muted" }, required ? "Vælg et billede." : "Intet medie."));
     credit.hidden = !a.media_url;
   };
-  const clear = () => { a.media_photo_id = a.media_rec_id = a.media_url = a.media_kind = a.media_credit = null; };
+  const clear = () => { a.media_photo_id = a.media_rec_id = a.media_url = a.media_kind = a.media_credit = null; if (a.config) { delete a.config.foto_ref; delete a.config.lyd_ref; } };
   draw();
   const file = h("input", { type: "file", accept: "image/*,audio/*", hidden: true, onchange: async (e) => {
     try { const r = await uploadMedia(e.target.files[0]); clear(); a.media_url = r.url; a.media_kind = r.kind; onChange(); draw(); } catch (err) { toast(err.message, "err"); }

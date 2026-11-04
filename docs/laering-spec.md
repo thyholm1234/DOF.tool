@@ -35,6 +35,14 @@ gennemlæser og publicerer), sammen med tre eksempelforløb (kladder, kan først
 | §13.3 GDPR | Udtræk og sletning sker via skemaet (alle `lr_*`-tabeller har fremmednøgle til `users`). Svarloggen slettes efter 3 år i den natlige oprydning (ikke aggregeret). |
 | §14 fase 8 | Dokumentation er opdateret. Oprydning (sletning af `views/learn.js`-visningen og `learn-arter.js`, de gamle endpoints) er **ikke gjort**, fordi den gamle Læring stadig er faldbacken, mens flaget ikke er `til` i drift. |
 
+**Kursuspakker (4. nov. 2026):** `seed/laering/*.json` i DOF.tool-formatet importeres én gang som kladder (`learning.seed_packs`, markør pr. pakke).
+Første pakke er **«Phyllernes verden»** (`phylloscopus`, 13 lektioner, 132 aktiviteter) + øvelsen `phylloscopus-traening`. Startindhold kan ikke kende en
+installations foto-/optagelses-id'er, så blokke og aktiviteter kan pege på medier med en **reference** (`ref`/`refs` i blokke, `config.foto_ref`/`lyd_ref`
+i aktiviteter): `nf` (netfugl-foto), `xc` (xeno-canto-nr.), `artnr`/`latin` + `type` (sang/kald) + `n`. Referencen løses ved visning
+(`learn_play.photo_by_ref`/`rec_by_ref`); fotos der må indsættes fast foretrækkes, og byggerens rettighedstjek gælder også det automatisk valgte foto.
+Et fast valgt foto/lyd i byggeren har forrang («Brug automatisk» fjerner det igen). Manglende optagelser hentes hos xeno-canto med lydquiz-nøglen
+(også underarter, fx *tristis*, og arter uden artsnummer, der gemmes med `artnr = 0`).
+
 **Før flaget sættes til «til» i drift:** gennemlæs og publicér de importerede kurser/øvelser, tjek at lydquiz-nøglen (Admin → Funktioner → Lydquiz) er sat, og vælg hvem der skal have rettigheden *Læring: underviser* (Admin → Brugere).
 
 ---

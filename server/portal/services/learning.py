@@ -300,6 +300,30 @@ async def seed_traekrute(session: AsyncSession) -> int:
     return len(report)
 
 
+# Kursuspakker i DOF.tool-formatet (``learn_build.export_courses``, "laering-v2"): importeres én gang som KLADDER, så en redaktør
+# kan gennemlæse, skifte fotos/lyde og publicere. Nøglen er markøren i indstillingerne; ny version af en pakke = ny nøgle.
+SEED_PACKS = {"phylloscopus.json": "laering_seed_phylloscopus_v1"}
+
+
+async def seed_packs(session: AsyncSession) -> int:
+    from portal.services import learn_build
+    from portal.services.setting_store import get_setting, put_setting
+
+    n = 0
+    for name, key in SEED_PACKS.items():
+        path = SEED_DIR / "laering" / name
+        if not path.exists() or await get_setting(session, key):
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        existing = {r for r in (await session.execute(text("SELECT slug FROM courses"))).scalars()}
+        data["courses"] = [c for c in data["courses"] if c["slug"] not in existing]
+        report = await learn_build.import_courses(session, _System(), data)  # type: ignore[arg-type]
+        await put_setting(session, key, {"kurser": len(report)}, commit=False)
+        await session.commit()
+        n += len(report)
+    return n
+
+
 async def _seed_paths(session: AsyncSession) -> None:
     """Tre eksempelforløb som kladder (spec §9.1). Kurserne er kladder, så forløbene kan først publiceres, når de er publiceret."""
     from portal.models import LrPath, LrPathItem

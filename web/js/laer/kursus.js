@@ -6,12 +6,18 @@ import { silEl } from "./common.js";
 
 const METODE = ["Forudsig", "Opdag", "Tolk", "Adskil", "Beslut"];
 
+/** Fotorække: artsnavn/billedtekst øverst på hvert foto, så de kan sammenlignes side om side. */
+function labelled(fig, label) {
+  if (fig && label) fig.prepend(h("b", { class: "lr-label" }, label));
+  return fig;
+}
+
 function block(b) {
   switch (b.type) {
     case "tekst": return h("div", { class: "lr-md", html: b.html });
     case "tip": case "advarsel": return h("aside", { class: `lr-box ${b.type}` }, b.titel ? h("b", {}, b.titel) : null, h("div", { class: "lr-md", html: b.html }));
     case "foto": return b.foto ? h("div", {}, mediaEl(b.foto), b.tekst ? h("p", { class: "muted" }, b.tekst) : null) : null;
-    case "fotoraekke": return h("div", {}, h("div", { class: "lr-row" }, ...b.fotos.map(f => mediaEl(f))), b.tekst ? h("p", { class: "muted" }, b.tekst) : null);
+    case "fotoraekke": return h("div", {}, h("div", { class: "lr-row" }, ...b.fotos.map(f => labelled(mediaEl(f), f.label))), b.tekst ? h("p", { class: "muted" }, b.tekst) : null);
     case "lyd": return b.lyd ? h("div", {}, mediaEl(b.lyd), b.tekst ? h("p", { class: "muted" }, b.tekst) : null) : null;
     case "silhuet": return h("div", {}, mediaEl({ kind: "silhouette", value: b.sil, hue: b.hue }), b.tekst ? h("p", { class: "muted" }, b.tekst) : null);
     case "artskort": {

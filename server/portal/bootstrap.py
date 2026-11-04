@@ -18,7 +18,7 @@ from portal.services.auth import ensure_roles, ensure_superadmin, seed_roles
 from portal.services.categories import seed_categories
 from portal.services.danish_list import seed as seed_danish_list
 from portal.services.dofbasen import seed as seed_dofbasen
-from portal.services.learning import migrate_v2, seed_courses, seed_traekrute
+from portal.services.learning import migrate_v2, seed_courses, seed_packs, seed_traekrute
 from portal.services.manual_finds import seed as seed_manual_finds
 from portal.services.netfugl import seed as seed_netfugl
 from portal.services.push import ensure_vapid
@@ -52,11 +52,12 @@ async def init_db() -> None:
             await ensure_superadmin(s)
             await seed_courses(s)
             await migrate_v2(s)
-            try:
-                await seed_traekrute(s)
-            except Exception:  # noqa: BLE001 – startindholdet må aldrig vælte opstarten
-                await s.rollback()
-                logging.getLogger(__name__).exception("Startindhold til Læring kunne ikke importeres")
+            for seed in (seed_traekrute, seed_packs):
+                try:
+                    await seed(s)
+                except Exception:  # noqa: BLE001 – startindholdet må aldrig vælte opstarten
+                    await s.rollback()
+                    logging.getLogger(__name__).exception("Startindhold til Læring kunne ikke importeres (%s)", seed.__name__)
             await seed_dofbasen(s)
             await seed_netfugl(s)
             await ensure_vapid(s)

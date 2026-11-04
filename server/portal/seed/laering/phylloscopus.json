@@ -1,0 +1,4639 @@
+{
+ "format": "laering-v2",
+ "exported": "2026-11-04T00:00:00+00:00",
+ "courses": [
+  {
+   "kind": "kursus",
+   "slug": "phylloscopus",
+   "title": "Phyllernes verden: Løvsangere fra løvsanger til sibiriske sjældenheder",
+   "summary": "Et dybdegående kursus i feltbestemmelse af alle europæiske Phylloscopus-arter – struktur, hovedtegning, vinge, stemme, træk og dokumentation.",
+   "card": "Løvsanger og gransanger, de sibiriske vingebånd, de brune og de store med ét bånd. Fotos fra fotobiblioteket, stemmer fra xeno-canto og danske fund fra Pandion.",
+   "intro": "Fra de to hjemlige ynglefugle til Nordsanger, Himalayasanger og Schwarz' Løvsanger – med fokus på det feltornitologiske framework: struktur → hoved → vinge → bare dele → stemme → adfærd → kontekst, og en ærlig beslutning til sidst.\n\n**Kilder:** Shirihai & Svensson: *Handbook of Western Palearctic Birds* I (2018) · Svensson m.fl.: *Fugle i felten/Collins Bird Guide* ·\nChernetsov: *Passerine Migration* (2012) · DOFbasen: *Danmarks Fugle* · AVONET (Tobias m.fl. 2022, CC BY 4.0) · *Avian Lexicon Atlas* (Shultz m.fl. 2025) ·\nWikipedia · Pandion-artikler (Haaning, Malling Olsen, Kofoed-Hansen m.fl.) under Artikler. Fotos: DOF.tools fotobibliotek. Lyde: xeno-canto.",
+   "topic": "id",
+   "level": "øvet",
+   "number": 7,
+   "stage": "Artsgrupper i dybden",
+   "hours": "8–12 timer",
+   "hue": "skov",
+   "sil": "spurvefugl",
+   "skills": [
+    "Bemærk",
+    "Lyt",
+    "Sammenlign",
+    "Vurdér",
+    "Forbered"
+   ],
+   "featured": true,
+   "audience": "For let øvede fuglekiggere, der kender løvsanger og gransanger og vil kunne bestemme – og dokumentere – alle europæiske phyller.",
+   "learn": [
+    {
+     "title": "Læs strukturen",
+     "text": "Brug håndsvingfremspring, form og adfærd til at placere en phyl i den rigtige gruppe på få sekunder."
+    },
+    {
+     "title": "Kend nøglepakkerne",
+     "text": "Skil de nærmeste forvekslinger ad med 3–5 kendetegn: øjenbryn, tøjle, vingebånd, tertialer, næb og ben."
+    },
+    {
+     "title": "Bestem på stemmen",
+     "text": "Genkend kald og sang hos alle arter – sorteret efter lydtype, som du møder dem i felten."
+    },
+    {
+     "title": "Forudsig og find",
+     "text": "Brug dato, vejr og lokalitet til at vide, hvornår og hvor de enkelte arter dukker op i Danmark."
+    },
+    {
+     "title": "Dokumentér og beslut ærligt",
+     "text": "Dokumentér med lyd og foto til SU, og vælg det rigtige bestemmelsesniveau – også «ubestemt»."
+    }
+   ],
+   "units": [
+    {
+     "title": "Velkommen ind i phyllernes verden",
+     "lesson_md": "Små, grønne, rastløse – og berygtede. Løvsangerne (slægten *Phylloscopus*, i felten bare **«phyller»**) er dem, der får selv erfarne\nfeltornitologer til at sige *«…lad os lige høre den kalde»*. Men de er ikke umulige. De er **systematiske**: Hver art har en lille pakke\naf kendetegn, der næsten altid holder – når man ved, hvor man skal kigge og lytte.\n\nDette kursus er bygget til dig, der allerede kender løvsanger og gransanger og gerne vil helt ind under huden på slægten:\nfra de to hjemlige ynglefugle til de sibiriske «vingebånd», der får Blåvand og Skagen til at koge i oktober.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Sådan er kurset bygget – og hvorfor\n\nKurset følger det, vi ved virker, når hjernen skal lære at skelne ting, der ligner hinanden:\n\n| Princip | Hvad du møder i kurset |\n|---|---|\n| **Forhåndstest** | Du starter med en lille test *før* du har lært noget. Det lyder bagvendt, men forsøg på at svare gør hjernen klar til at gemme svaret, når det kommer. |\n| **Sammenligning frem for beskrivelse** | Arterne præsenteres i **par og grupper**, der skal skilles ad – ikke én ad gangen. Fotos står side om side. |\n| **Få kendetegn ad gangen** | Hver artsgruppe får en kort **«nøglepakke»** (3–5 kendetegn) frem for en lang liste. |\n| **Øre og øje sammen** | Hvert kendetegn kobles til en lyd. Stemmen er ofte den afgørende karakter hos phyller. |\n| **Hentning frem for genlæsning** | Hver lektion slutter med spørgsmål, foto- og lydtests. Det er at *hente* viden frem, der gør den holdbar. |\n| **Blanding** | Til sidst blandes alle arter. Det er sværere – og netop derfor lærer du mere. |\n| **Ærlig sikkerhed** | Du angiver hver gang, hvor sikker du er. Feltornitologi handler om at vide, *hvornår* man ved noget. |\n\nBrug gerne **Repetition** under Læring de næste dage: Arter og spørgsmål, du har svaret forkert på, kommer igen med stigende mellemrum."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13120,
+         "nf": 121738
+        },
+        {
+         "artnr": 13110,
+         "nf": 106526
+        },
+        {
+         "artnr": 13000,
+         "nf": 122758
+        },
+        {
+         "artnr": 12950,
+         "nf": 121305
+        }
+       ],
+       "labels": [
+        "Løvsanger",
+        "Gransanger",
+        "Hvidbrynet Løvsanger",
+        "Nordsanger"
+       ],
+       "tekst": "Fire phyller fra fotobiblioteket. Om lidt kan du sige, hvad der skiller dem – og hvordan de lyder."
+      },
+      {
+       "type": "tip",
+       "titel": "Kursets fem spørgsmål til enhver phyl",
+       "md": "1. **Struktur** – hvor lange er håndsvingfjerene i forhold til tertialerne (håndsvingfremspringet)? Kompakt eller langstrakt?\n2. **Hovedet** – øjenbrynsstribe (når den næbbet? mødes den over panden?), øjenstribe og øjenring.\n3. **Vingen** – vingebånd (hvor mange, hvor lange?) og lyse kanter på tertialerne.\n4. **Næb og ben** – farve på undernæbbet og benene.\n5. **Stemmen** – kald og sang. Ofte det, der afgør sagen.\n\nDertil kommer **adfærd** (dypper den halen?), **dato og vejr**. Rækkefølgen er bevidst: Farver kommer sidst, fordi lys og slid snyder."
+      },
+      {
+       "type": "metode",
+       "trin": 0
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Hvilket kendetegn skiller oftest **løvsanger** fra **gransanger** i en tæt busk, hvor du kun ser fuglen kort?",
+       "choices": [
+        {
+         "text": "Benfarven – lyst brunlige hos løvsanger, mørke hos de fleste gransangere",
+         "correct": true
+        },
+        {
+         "text": "Vingebåndet – løvsanger har ét, gransanger har ingen",
+         "correct": false
+        },
+        {
+         "text": "Issestriben – kun gransanger har en lys issestribe",
+         "correct": false
+        },
+        {
+         "text": "Halen – løvsanger har tydeligt længere hale",
+         "correct": false
+        }
+       ],
+       "explanation": "Benfarven holder hos ca. 3 ud af 4 gransangere (HBWP). Ingen af de to har vingebånd eller issestribe. Gransangeren *ser* ofte langhalet ud, fordi dens vinger er kortere – men halen er ikke længere. Det lærer du mere om i lektion 2 og 3.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: En lille phyl med **to tydelige vingebånd** og **hvide kanter på tertialerne** i en dansk kystplantage i begyndelsen af oktober. Hvad er mest sandsynligt?",
+       "choices": [
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": true
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Nordsanger",
+         "correct": false
+        },
+        {
+         "text": "Gransanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Hvidbrynet Løvsanger er den talrigeste sibiriske phyl om efteråret med top i slutningen af september og starten af oktober. Lundsanger og Nordsanger har tertialer *uden* hvide kanter – et af kursets vigtigste skel.",
+       "skills": [
+        "Forbered",
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Hvilken art har det **længste håndsvingfremspring** (vingespidsen rager længst ud over tertialerne) af alle europæiske phyller?",
+       "choices": [
+        {
+         "text": "Skovsanger",
+         "correct": true
+        },
+        {
+         "text": "Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Brun Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Skovsangeren: håndsvingfremspringet er mindst lige så langt som tertialerne. Det er den længst trækkende og mest luftbårne af vores phyller. AVONET-målene giver den et hånd-vinge-indeks på 31 – højest i slægten i Europa.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Et skarpt, skrattende **«dzrit»** – som et vandstærkald – fra en stor phyl i september. Hvilken art?",
+       "choices": [
+        {
+         "text": "Nordsanger",
+         "correct": true
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Fuglekongesanger",
+         "correct": false
+        },
+        {
+         "text": "Bjergløvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Nordsangerens kald minder om vandstær og ligner intet andet kald hos vestpalæarktiske phyller (HBWP). Lundsangerens kald minder om hvid vipstjert.",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Forhåndstest: Hvem synger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 2
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Før du går videre: Skriv kort, hvad *du* plejer at kigge efter, når du ser en lille grøn sanger. Hvad gør dig usikker?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 80,
+        "example": "Fx: «Jeg kigger mest på farven og om den er gul. Jeg bliver usikker, når den ikke synger, og jeg ved ikke rigtig, hvad jeg skal se efter på vingen.» Gem dit svar i tankerne – sammenlign med det, du kan efter lektion 12."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 15,
+     "min_score_pct": null
+    },
+    {
+     "title": "Slægten Phylloscopus: biologi, navne og systematik",
+     "lesson_md": "**Phylloscopus** betyder *bladspejder*: græsk *phyllon* (blad) og *skopos* (en der spejder). Navnet blev givet af Friedrich Boie i 1826 – og\ntypearten er **løvsangeren**. Det er præcis, hvad de gør: De afsøger løvet blad for blad for små insekter, ofte med små vingeslag og korte svirreflugter.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### En familie med én slægt\n\nLøvsangerne blev engang regnet til den store «sangerfamilie» Sylviidae. DNA har vist, at sangerne er mange forskellige familier, og i **2006**\nfik løvsangerne deres egen: **Phylloscopidae** (Per Alström og kolleger). I **2018** viste en ny stamtræsanalyse, at slægten *Seicercus*\n(«brillesangere») lå inde i *Phylloscopus* – så de blev slået sammen. I dag har familien **én slægt med ca. 80 arter** (AviList), fra Europa over\nhele Asien til Afrika, Wallacea og Alaska (Nordsanger yngler helt til Alaska).\n\n| Fællestræk | |\n|---|---|\n| Størrelse | 9–14,5 cm, 3,5–17 g – i Europa 5–12 g |\n| Dragt | Grønlig eller brunlig overside, hvidlig eller gullig underside, ofte et lyst øjenbryn |\n| Hale | 12 halefjer |\n| Føde | Insekter og edderkopper, fanget i løvet, i flugten eller ved svirreflugt |\n| Rede | Overdækket kuppelrede, ofte på eller nær jorden – gransangeren anbringer den gerne i stedsegrønt eller græstuer, fordi den yngler, før løvet springer ud (DOFbasen) |\n| Træk | De tempererede arter er markante trækfugle – flere trækker mellem Sibirien og Sydøstasien eller Afrika |\n\n### Hvorfor de ligner hinanden\n\nPhyller er et klassisk eksempel på, at natur*valg* holder udseendet nede: grønt og gråt i løvet er godt camouflage. Til gengæld er **stemmen**\nartsspecifik – det er den, hunnerne vælger efter, og det er den, der holder arterne adskilt. Per Alström og Urban Olsson fandt omkring 1990 nye\nphyl-arter netop på stemmen. Derfor er stemmen i dette kursus en hovedperson, ikke et tillæg."
+      },
+      {
+       "type": "tip",
+       "titel": "Navnenes logik – en hjælp til hukommelsen",
+       "md": "De engelske navne på phyller fordeler sig næsten ligeligt mellem **udseende** (*Yellow-browed, Greenish, Dusky, Sulphur-bellied, Two-barred*),\n**sted** (*Arctic, Iberian, Eastern Crowned*) og **personer** (*Pallas's, Hume's, Radde's, Blyth's*) – det viser *Avian Lexicon Atlas*, der har\nklassificeret alle verdens engelske fuglenavne. De latinske navne er ofte de bedste huskeregler:\n\n- *sibilatrix* = «den hvislende/fløjtende» – **Skovsanger**, hvis sang lyder som en snurrende mønt.\n- *collybita* = af græsk *kollybistes*, «pengeveksler» – **Gransangerens** «tjif-tjaf» er blevet sammenlignet med klirrende mønter.\n- *trochilus* = en lille fugl (græsk) – **Løvsanger**, typearten.\n- *inornatus* = «uden pynt» – et sjovt navn til **Hvidbrynet Løvsanger** med sine to vingebånd og lange bryn.\n- *proregulus* = «for-fuglekonge» – **Fuglekongesanger**, der ligner en fuglekonge i størrelse og adfærd.\n- *plumbeitarsus* = «blyfarvet mellemfod» – **Østlig Lundsanger** (Two-barred Warbler).\n- *borealis* = nordlig – **Nordsanger**. *fuscatus* = mørk/brun – **Brun Løvsanger**.\n- *schwarzi*: Gustav Radde beskrev arten og opkaldte den efter astronomen Ludwig Schwarz. På engelsk hedder den derfor *Radde's Warbler*, på dansk *Schwarz' Løvsanger* – samme fugl!"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 12980,
+         "nf": 120109
+        },
+        {
+         "artnr": 13000,
+         "nf": 98522
+        },
+        {
+         "artnr": 13080,
+         "nf": 122396
+        }
+       ],
+       "labels": [
+        "Fuglekongesanger (proregulus)",
+        "Hvidbrynet Løvsanger (inornatus)",
+        "Skovsanger (sibilatrix)"
+       ],
+       "tekst": "Navne der hjælper: «for-fuglekonge», «uden pynt» (!) og «den hvislende»."
+      },
+      {
+       "type": "tekst",
+       "md": "### Artsbegrebet er i bevægelse\n\nMange af de arter, du møder i kurset, er **splittet** inden for de sidste 30 år, ofte på stemme og DNA:\n\n- **Bjergløvsanger / Balkanløvsanger** (Helbig m.fl. 1995).\n- **Iberisk Gransanger** og **Kanarisk Gransanger** fra Gransanger; **Kaukasisk Gransanger** (*lorenzii*) og **Bjerggransanger** (*sindianus*).\n- **Grøn Sanger** og **Østlig Lundsanger** fra Lundsanger.\n- **Nordsanger** er delt i tre (Nordsanger, Kamchatkasanger, Japansk Løvsanger) – i Østasien er de næsten kun til at skille på stemme og DNA.\n- **Sibirisk Gransanger** (*tristis*) behandles som underart, men HBWP kalder den en «begyndende art».\n\nDet betyder to ting for dig i felten: **noter stemmen**, og vær forberedt på, at bestemmelseskriterier opdateres. Kurset bruger *Handbook of Western\nPalearctic Birds* (Shirihai & Svensson 2018) som hovedreference."
+      }
+     ],
+     "acts": [
+      {
+       "type": "tekst",
+       "prompt": "Hvad betyder *Phylloscopus* oversat fra græsk? (to ord)",
+       "choices": [],
+       "explanation": "*phyllon* = blad, *skopos* = en der spejder. «Bladspejder» beskriver præcis fødesøgningen.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "fuzzy": true
+       },
+       "accept": [
+        "bladspejder",
+        "blad spejder",
+        "bladseer",
+        "blad-spejder",
+        "bladsøger",
+        "leaf seeker",
+        "leaf watcher"
+       ],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken art er **typeart** for slægten Phylloscopus?",
+       "choices": [
+        {
+         "text": "Løvsanger",
+         "correct": true
+        },
+        {
+         "text": "Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Skovsanger",
+         "correct": false
+        },
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Boie oprettede slægten i 1826 med løvsangeren (*P. trochilus*) som eneste art.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er **stemmen** ofte vigtigere end udseendet hos phyller?",
+       "choices": [
+        {
+         "text": "Fordi arterne holdes adskilt af stemmen, mens dragten er formet af camouflage i løvet",
+         "correct": true
+        },
+        {
+         "text": "Fordi phyller kun synger om efteråret",
+         "correct": false
+        },
+        {
+         "text": "Fordi alle phyller har samme kald",
+         "correct": false
+        },
+        {
+         "text": "Fordi farverne altid er ens hos alle arter",
+         "correct": false
+        }
+       ],
+       "explanation": "Grøn/grå camouflage er en fordel for alle arter – derfor ligner de hinanden. Sangen er det, der bruges til at finde en mage af egen art, så den er artsspecifik.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "*Schwarz' Løvsanger* hedder på engelsk…",
+       "choices": [
+        {
+         "text": "Radde's Warbler",
+         "correct": true
+        },
+        {
+         "text": "Dusky Warbler",
+         "correct": false
+        },
+        {
+         "text": "Pallas's Leaf Warbler",
+         "correct": false
+        },
+        {
+         "text": "Hume's Warbler",
+         "correct": false
+        }
+       ],
+       "explanation": "Radde beskrev arten og opkaldte den efter Schwarz. Englænderne har så opkaldt den efter beskriveren.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket af disse navnepar er **samme art**?",
+       "choices": [
+        {
+         "text": "Hvidbrynet Løvsanger = Yellow-browed Warbler",
+         "correct": true
+        },
+        {
+         "text": "Himalayasanger = Yellow-browed Warbler",
+         "correct": false
+        },
+        {
+         "text": "Nordsanger = Greenish Warbler",
+         "correct": false
+        },
+        {
+         "text": "Lundsanger = Arctic Warbler",
+         "correct": false
+        }
+       ],
+       "explanation": "Bemærk ironien: på dansk *hvid*brynet, på engelsk *Yellow*-browed – og på latin *inornatus*, «uden pynt». Himalayasanger = Hume's Warbler, Nordsanger = Arctic Warbler, Lundsanger = Greenish Warbler.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår fik løvsangerne deres egen familie, **Phylloscopidae**?",
+       "choices": [
+        {
+         "text": "2006",
+         "correct": true
+        },
+        {
+         "text": "1826",
+         "correct": false
+        },
+        {
+         "text": "1958",
+         "correct": false
+        },
+        {
+         "text": "2018",
+         "correct": false
+        }
+       ],
+       "explanation": "Alström m.fl. 2006. I 2018 blev *Seicercus* slået sammen med *Phylloscopus*. 1826 er året for slægtsnavnet.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter disse phyller efter **hvornår de blev splittet til egne arter** i den moderne behandling – ældst først (omtrentligt).",
+       "choices": [],
+       "explanation": "Bjerg-/Balkanløvsanger: Helbig m.fl. 1995. Grøn Sanger: anerkendt af BOURC i 2008. Nordsanger: Alström m.fl. 2011. Slægtssammenlægningen: 2018.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Bjergløvsanger/Balkanløvsanger (1995)",
+         "Grøn Sanger (BOURC 2008)",
+         "Nordsanger i tre arter (2011)",
+         "Seicercus ind i Phylloscopus (2018)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 25,
+     "min_score_pct": null
+    },
+    {
+     "title": "Værktøjskassen: struktur, hoved, vinge, næb og ben",
+     "lesson_md": "Før arterne: værktøjet. Alle bestemmelser i resten af kurset bygger på de samme få fjerpartier og mål. Lær dem én gang, og du kan bruge dem på\nalle phyller – også dem, der ikke er i bogen endnu.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### 1. Håndsvingfremspringet – vingens fingeraftryk\n\n**Håndsvingfremspringet** er det stykke af de lange håndsvingfjer, der rager ud bag spidsen af den længste tertial, når vingen er foldet.\nMan angiver det i forhold til tertialernes synlige længde:\n\n| Art | Håndsvingfremspring (HBWP/Collins) | Hånd-vinge-indeks (AVONET) | Træk |\n|---|---|---|---|\n| Skovsanger | ≥ 1/1 af tertialerne | **30,9** | Tropisk Afrika |\n| Løvsanger | ca. 3/4 – 1/1 | 25,9 | Tropisk Afrika (sibiriske fugle helt fra Østsibirien) |\n| Nordsanger | mindst 3/4 | 25,8 | Østsibirien/Alaska → Sydøstasien |\n| Himalayasanger | – | 24,8 | Centralasien → Indien |\n| Lundsanger | – | 19,9 | Østeuropa/Sibirien → Indien |\n| Gransanger | 1/2 – 2/3 | 18,4 | Sydeuropa/Nordafrika/Sahel |\n| Kanarisk Gransanger | meget kort | **14,1** | Standfugl |\n\n**Hånd-vinge-indekset** (Kipps afstand / vingelængde × 100) fra den åbne database **AVONET** er det mål, ornitologer bruger for vingens\nspidshed. Mønstret er tydeligt: **jo længere træk, jo spidsere vinge, jo længere håndsvingfremspring.** Du kan bruge det baglæns i felten:\nEn phyl med kort, rund vinge er sjældent en langdistancetrækker.\n\n### 2. Hovedet\n\n- **Øjenbrynsstribe (supercilium)**: Hvor langt bagud går den? Når den **næbroden**, og **mødes** den over panden (Lundsanger) eller stopper den før (Nordsanger, Østlig Lundsanger)?\n  Er den lysest **foran** øjet (Brun Løvsanger) eller **bag** øjet (Schwarz' Løvsanger)? Gul eller hvid?\n- **Øjenstribe og tøjle**: En gennemgående mørk streg til næbbet (Nordsanger) eller blot en plet foran øjet (Lundsanger)?\n- **Øjenring**: Brudt af øjenstriben i to halvmåner (Løv- og Gransanger, Skovsanger) eller **ubrudt** (Bjerg- og Balkanløvsanger)?\n- **Issestribe**: En lys midterstribe i issen har Fuglekongesanger (skarp) og Østlig Kronsanger (mest bagtil).\n\n### 3. Vingen\n\n- **Vingebånd** dannes af lyse spidser på de **store dækfjer** (nederste/bageste bånd) og evt. de **mellemste dækfjer** (øverste/forreste bånd).\n  Se på *antal*, *længde* og *form*: Lundsangers bånd er kort og smalner ind mod kroppen; Østlig Lundsangers er langt og ensartet bredt.\n- **Tertialerne**: Mørke med **hvide kanter og spidser** (Hvidbrynet, Himalaya, Fuglekongesanger) eller ensfarvede (Lundsanger-gruppen og Nordsanger). Et af de hurtigste skel i felten!\n- **Indskæringer** (emargination) på håndsvingfjerene ses kun i hånden: Løvsanger har 3 (p3–5), Gransanger 4 (p3–6). Det er ringmærkernes sikreste skel."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13000,
+         "nf": 122856
+        },
+        {
+         "artnr": 12930,
+         "nf": 122400
+        },
+        {
+         "artnr": 13070,
+         "nf": 123470
+        }
+       ],
+       "labels": [
+        "To vingebånd + hvide tertialkanter",
+        "Ét kort vingebånd, ensfarvede tertialer",
+        "Ubrudt øjenring, lys overgump"
+       ],
+       "tekst": "Tre vingetyper og to hovedtyper, du skal kunne genkende på et sekund."
+      },
+      {
+       "type": "tekst",
+       "md": "### 4. Næb og ben\n\n- **Undernæbbet**: helt lyst (Østlig Lundsanger, Østlig Kronsanger), lyst med **mørk plet nær spidsen** (Lundsanger, ofte Nordsanger), eller næsten helt mørkt (Himalayasanger, Sibirisk Gransanger).\n- **Benfarve**: lyse, gulbrune–lyserøde (Løvsanger, Nordsanger, Schwarz') eller mørke til sorte (Gransanger, Sibirisk Gransanger, Dværgløvsanger). **Pas på skygge** – ben ser mørkere ud i skygge.\n- **Benenes kraft**: Schwarz' Løvsanger har kraftige, lyse ben og fødder, der passer til en fugl, der ofte går på jorden.\n\n### 5. Adfærd\n\n- **Halen dyppes** nedad igen og igen: hele *gransangergruppen* (Gran-, Iberisk og Kanarisk Gransanger). Løvsanger **vipper** i stedet med både hale og vinger, ofte lidt til siden.\n- **Vibrerende vinger** under sang: Lundsanger.\n- **Svirreflugt** ved grenspidserne afslører den gule overgump hos Fuglekongesanger og den lyse overgump hos Bjerg-/Balkanløvsanger.\n\n### 6. Slid og fældning – derfor kommer farverne sidst\n\nFjer slides og blegner. Om sommeren mister Gransanger brune toner og kan ligne en Iberisk Gransanger; slidte Himalayasangere mister de lyse\ntertialkanter og kan ligne en Lundsanger. Løvsangeren er speciel: den fælder **hele fjerdragten to gange om året** (efter yngletiden og igen i\nAfrika). Lundsanger og Bjergløvsanger fælder alle aldersklasser fuldstændigt om vinteren, så om foråret kan man ikke kende gamle fra unge."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Lys er en løgner",
+       "md": "Gult løv, sollys gennem blade og overskyet vejr ændrer farverne. Ved Grøn Sanger i Skagen i 2020 var det i stærk sol «svært at blive klog på graden\naf gult og grønt» (Henrik Haaning, Pandion). **Brug strukturer og mønstre først – farve sidst.**"
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad er **håndsvingfremspringet**?",
+       "choices": [
+        {
+         "text": "Den del af håndsvingfjerene, der rager ud bag den længste tertial på den foldede vinge",
+         "correct": true
+        },
+        {
+         "text": "Afstanden fra næbspids til øje",
+         "correct": false
+        },
+        {
+         "text": "Længden af halen bag vingespidserne",
+         "correct": false
+        },
+        {
+         "text": "Bredden af det nederste vingebånd",
+         "correct": false
+        }
+       ],
+       "explanation": "Det er det mest brugte strukturmål hos sangere. Det angives i forhold til tertialernes længde.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter **hånd-vinge-indeks** (vingens spidshed) i AVONET – spidsest først.",
+       "choices": [],
+       "explanation": "Skovsanger 30,9 · Løvsanger 25,9 · Lundsanger 19,9 · Gransanger 18,4 · Kanarisk Gransanger 14,1. Jo længere træk, desto spidsere vinge.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "items": [
+         "Skovsanger",
+         "Løvsanger",
+         "Lundsanger",
+         "Gransanger",
+         "Kanarisk Gransanger"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilke **vingebånd** ses *nederst/bagest* på den foldede vinge?",
+       "choices": [
+        {
+         "text": "Dem på de store dækfjer",
+         "correct": true
+        },
+        {
+         "text": "Dem på de mellemste dækfjer",
+         "correct": false
+        },
+        {
+         "text": "Dem på tertialerne",
+         "correct": false
+        },
+        {
+         "text": "Dem på armsvingfjerene",
+         "correct": false
+        }
+       ],
+       "explanation": "De store dækfjer danner det nederste (og oftest længste) bånd. De mellemste dækfjer danner det øverste, kortere bånd.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Du ser en phyl med **hvide kanter og spidser på tertialerne**. Hvilken gruppe kan du med det samme se bort fra?",
+       "choices": [
+        {
+         "text": "Lundsanger, Østlig Lundsanger og Nordsanger",
+         "correct": true
+        },
+        {
+         "text": "Hvidbrynet Løvsanger og Himalayasanger",
+         "correct": false
+        },
+        {
+         "text": "Fuglekongesanger",
+         "correct": false
+        },
+        {
+         "text": "Ingen – alle phyller kan have det",
+         "correct": false
+        }
+       ],
+       "explanation": "Lundsanger-gruppen og Nordsanger har tertialer uden hvide kanter (Haaning, Pandion). Hvide tertialkanter peger mod Hvidbrynet, Himalaya og Fuglekongesanger.",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken adfærd er typisk for **gransangergruppen**?",
+       "choices": [
+        {
+         "text": "Halen dyppes mekanisk nedad igen og igen",
+         "correct": true
+        },
+        {
+         "text": "Vingerne vibrerer under sang",
+         "correct": false
+        },
+        {
+         "text": "Den går på jorden som en pibe",
+         "correct": false
+        },
+        {
+         "text": "Den svirrer foran blade og viser gul overgump",
+         "correct": false
+        }
+       ],
+       "explanation": "Tail-dipping. Løvsanger vipper mere uregelmæssigt med både hale og vinger. Vibrerende vinger under sang er Lundsanger, svirreflugt med gul overgump Fuglekongesanger.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange **indskårne håndsvingfjer** har en løvsanger i hånden?",
+       "choices": [
+        {
+         "text": "3 (p3–p5)",
+         "correct": true
+        },
+        {
+         "text": "4 (p3–p6)",
+         "correct": false
+        },
+        {
+         "text": "2 (p3–p4)",
+         "correct": false
+        },
+        {
+         "text": "5 (p2–p6)",
+         "correct": false
+        }
+       ],
+       "explanation": "Løvsanger p3–5, Gransanger p3–6 (med en tydelig, dyb indskæring på p6). Et klassisk ringmærkerkendetegn.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er **farver** det sidste, du bør lægge vægt på?",
+       "choices": [
+        {
+         "text": "Slid og blegning ændrer dem",
+         "correct": true
+        },
+        {
+         "text": "Lyset i løvet ændrer dem",
+         "correct": true
+        },
+        {
+         "text": "Phyller har ingen farver",
+         "correct": false
+        },
+        {
+         "text": "Farver er ens hos alle phyller",
+         "correct": false
+        }
+       ],
+       "explanation": "Begge dele. Strukturer (håndsvingfremspring), mønstre (vingebånd, hovedtegning) og bare dele (ben, næb) er mere stabile.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken phyl fælder **hele fjerdragten to gange om året**?",
+       "choices": [
+        {
+         "text": "Løvsanger",
+         "correct": true
+        },
+        {
+         "text": "Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Skovsanger",
+         "correct": false
+        },
+        {
+         "text": "Fuglekongesanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Løvsanger har en fuldstændig fældning efter yngletiden og igen i vinterkvarteret i Afrika – usædvanligt blandt palæarktiske spurvefugle.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Løvsanger og Gransanger: grundtræningen",
+     "lesson_md": "Alt starter her. Løvsanger og Gransanger er Danmarks to talrigeste phyller – **180.000–240.000** og **220.000–400.000** par (DOF, 2021/23) – og de\ner referencen for alle andre arter. Kan du skille dem ad på struktur, ben, ansigt, kald og sang, har du løst 90 % af dine phyl-problemer.",
+     "blocks": [
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13120,
+         "nf": 121738
+        },
+        {
+         "artnr": 13110,
+         "nf": 106526
+        }
+       ],
+       "labels": [
+        "Løvsanger",
+        "Gransanger"
+       ],
+       "tekst": "Forår: Bemærk løvsangerens lyse ben, tydeligere øjenstribe og lange håndsvingfremspring – og gransangerens mørke ben, mørke kind og kortere vinge."
+      },
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Løvsanger** | **Gransanger** |\n|---|---|---|\n| Ben | Lyse, gulbrune til lyserødbrune | Mørke, sortbrune (hos ca. 75 %) – men nogle gamle og sydlige fugle har brunlige ben |\n| Håndsvingfremspring | Langt: ca. 3/4 af tertialerne eller mere | Kort: 1/2–2/3 – derfor *ser* den langhalet ud |\n| Ansigt | Tydeligere øjenbryn og mørkere øjenstribe, **lys kind** → øjenringen ses ikke så tydeligt | Svagere øjenbryn, **mørk kind** → den hvide nederste øjenring lyser op |\n| Farver | Rent grønlig, gul og hvid – uden brune toner | Mere snusket: brungrå og beige toner på hoved, hals og bryst |\n| Form | Langstrakt, «længere hals» | Kompakt, rundere hoved |\n| Adfærd | Vipper med hale *og* vinger, lidt til siden | **Dypper halen nedad** – mekanisk og gentaget |\n| Kald | «**hu**-it» – trykket på **første** stavelse, tydeligt tostavet (som rødstjert, lidt svagere) | «hu-**it**» – mere enstavet, trykket på **sidste** del |\n| Sang | En blød, **faldende** fløjtestrofe – «en bogfinke, der har lært at fløjte» | Taktfast «**tjif-tjaf-tjif-tjif-tjaf**» på 2–3 tonehøjder |\n| Indskæringer (i hånd) | p3–5 | p3–6 |\n| Ankomst | Fra ca. 10. april (fænologiart på DOFbasen frem til 10/4) | Fra midt i marts |\n| Vinter | Tropisk Afrika | Sydeuropa, Nordafrika og Sahel – enkelte overvintrer i Danmark |"
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13120,
+        "latin": "Phylloscopus trochilus",
+        "type": "sang"
+       },
+       "tekst": "Løvsangerens sang: blød, faldende, ca. 3 sekunder – og en ny strofe hvert 12. sekund, når den lige er ankommet (HBWP)."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13110,
+        "latin": "Phylloscopus collybita",
+        "type": "sang"
+       },
+       "tekst": "Gransangerens sang: «tjif-tjaf» – den har givet arten navn på engelsk (*Chiffchaff*) og tysk (*Zilpzalp*)."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13120,
+        "latin": "Phylloscopus trochilus",
+        "type": "kald"
+       },
+       "tekst": "Løvsangerens kald: «HU-it» med trykket forrest."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13110,
+        "latin": "Phylloscopus collybita",
+        "type": "kald"
+       },
+       "tekst": "Gransangerens kald: «hu-IT», mere enstavet og med trykket bagerst."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel til kaldene",
+       "md": "Sig dem højt: Løvsanger spørger **«HVA'-så?»** (trykket forrest, to tydelige stavelser) – Gransanger svarer **«hu-IIT!»** (glider op, trykket bagerst).\nØv dig på dem nu, i lydspillerne ovenfor – det er det kendetegn, du får mest brug for i september."
+      },
+      {
+       "type": "tekst",
+       "md": "### Underarterne du møder i Danmark\n\n- **Løvsanger**: Danske fugle er nominatformen *trochilus*. Skandinaviske og østlige fugle er **nordlig løvsanger** *acredula* – gråere, mindre grønne og gule. I Skandinavien går en\n  **trækskel** omkring 62° N: Sydlige fugle trækker mod **sydvest** til Vestafrika, nordlige mod **sydøst** til Øst- og Sydafrika. DOFbasen: «De danske løvsangere overvintrer i\n  tropisk Vestafrika. De skandinaviske løvsangere, der gæster os på trækket i stort tal, overvintrer derimod i tropisk Østafrika.» Den østligste race (*yakutensis*) trækker fra\n  Østsibirien til Afrika – målt i forhold til kropsstørrelsen måske verdens længste trækrute (Alerstam 2003, citeret i Chernetsov 2012).\n- **Gransanger**: Danske fugle er *collybita*. **Nordlig gransanger** *abietinus* (Nordskandinavien, Nordvestrusland) er lysere og køligere grøn – kaldet er det samme.\n  Sibirisk Gransanger (*tristis*) får sin egen lektion.\n\n### Bestandene går hver sin vej\n\nGransangeren indvandrede til Danmark i 1800-tallet og er **seksdoblet** siden 1976. Løvsangeren er gået **50–80 % tilbage** siden 1981 – måske på grund af\ndårligere forhold i vinterkvarteret (DOFbasen, *Danmarks Fugle*). Løvsangeren har i dag sin største tæthed i **Vestjyllands klitplantager**."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Faldgruber",
+       "md": "- **Træløber** synger også en faldende strofe – men højere og sammensat af 2–3 faldende stykker (Kofoed-Hansen, Pandion). En «løvsanger» i marts er næsten altid en træløber.\n- **Løvsanger på trækket elsker grantræer** – navnene hjælper ikke.\n- **Blandingssangere**: Nogle fugle synger både løv- og gransangersang, og hybrider forekommer. En fugl, der synger «forkert», skal *ses*.\n- **Unge gransangere** om efteråret kan være ret gule og ligne en ung løvsanger. Se på ben, håndsvingfremspring og ansigt."
+      },
+      {
+       "type": "foto",
+       "ref": {
+        "artnr": 13110,
+        "nf": 123971
+       },
+       "tekst": "Gransanger, Christiansø, september: snusket brungrøn, mørke ben, mørk kind og en hvid øjenring, der lyser op."
+      }
+     ],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Løvsanger eller gransanger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem synger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem kalder? (Lyt efter, hvor trykket ligger)",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket kald har trykket på **første** stavelse?",
+       "choices": [
+        {
+         "text": "Løvsanger: «HU-it»",
+         "correct": true
+        },
+        {
+         "text": "Gransanger: «hu-IT»",
+         "correct": false
+        },
+        {
+         "text": "Begge",
+         "correct": false
+        },
+        {
+         "text": "Ingen af dem",
+         "correct": false
+        }
+       ],
+       "explanation": "Løvsangerens kald er tydeligt tostavet med tryk forrest – Gransangerens er mere enstavet med tryk bagerst (HBWP).",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En phyl dypper halen nedad igen og igen, mens den søger føde i et træ. Hvad peger det på?",
+       "choices": [
+        {
+         "text": "Gransangergruppen",
+         "correct": true
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Skovsanger",
+         "correct": false
+        },
+        {
+         "text": "Nordsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Tail-dipping er gransangergruppens varemærke – også Iberisk og Kanarisk Gransanger gør det.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor ser gransangeren ofte **mere langhalet** ud end løvsangeren?",
+       "choices": [
+        {
+         "text": "Fordi dens vinger er kortere og rundere (kortere håndsvingfremspring)",
+         "correct": true
+        },
+        {
+         "text": "Fordi dens hale er markant længere",
+         "correct": false
+        },
+        {
+         "text": "Fordi den altid holder halen løftet",
+         "correct": false
+        },
+        {
+         "text": "Fordi den er større",
+         "correct": false
+        }
+       ],
+       "explanation": "Halens længde i forhold til kroppen er stort set ens; det er vingen, der er kortere hos gransanger.",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken beskrivelse passer på en **typisk gransanger** om efteråret?",
+       "choices": [
+        {
+         "text": "Snusket olivengrøn, mørk kind, så den hvide øjenring lyser op, og mørke ben",
+         "correct": true
+        },
+        {
+         "text": "Rent grøn og hvid med lyse ben og tydelig mørk øjenstribe",
+         "correct": false
+        },
+        {
+         "text": "Grå med to hvide vingebånd",
+         "correct": false
+        },
+        {
+         "text": "Brun med kraftige lyse ben og gylden underside",
+         "correct": false
+        }
+       ],
+       "explanation": "Hos gransanger er øjenringen ofte det mest fremtrædende i ansigtet (Haaning, Pandion). Løvsanger har lysere kind.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Du hører en faldende fløjtestrofe den **20. marts**. Hvad er mest sandsynligt?",
+       "choices": [
+        {
+         "text": "Træløber",
+         "correct": true
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Skovsanger",
+         "correct": false
+        },
+        {
+         "text": "Gransanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Løvsanger er fænologiart på DOFbasen frem til 10. april; en martsløvsanger er endnu ikke set (Kofoed-Hansen, Pandion 2013). Træløberens strofe er højere og sammensat.",
+       "skills": [
+        "Forbered",
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor overvintrer **de danske** løvsangere ifølge DOFbasen?",
+       "choices": [
+        {
+         "text": "Tropisk Vestafrika",
+         "correct": true
+        },
+        {
+         "text": "Tropisk Østafrika",
+         "correct": false
+        },
+        {
+         "text": "Sydeuropa",
+         "correct": false
+        },
+        {
+         "text": "Indien",
+         "correct": false
+        }
+       ],
+       "explanation": "Danske fugle (ssp. *trochilus*) trækker sydvest. Skandinaviske *acredula* trækker til Østafrika.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter **gennemsnitlig ankomst** til Danmark om foråret – tidligst først.",
+       "choices": [],
+       "explanation": "Gransanger fra midt i marts, Løvsanger fra ca. 10. april, Skovsanger fra sidst i april/maj.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "items": [
+         "Gransanger",
+         "Løvsanger",
+         "Skovsanger"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken af disse er **ikke** et pålideligt skel mellem løvsanger og gransanger alene?",
+       "choices": [
+        {
+         "text": "Benfarven",
+         "correct": true
+        },
+        {
+         "text": "Sangen",
+         "correct": false
+        },
+        {
+         "text": "Antallet af indskårne håndsvingfjer i hånden",
+         "correct": false
+        },
+        {
+         "text": "Kaldet hørt godt",
+         "correct": false
+        }
+       ],
+       "explanation": "Benfarven holder hos ca. 3 ud af 4 – men nogle gransangere har brune ben og (sjældnere) løvsangere mørke. Brug den sammen med andre kendetegn.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         13120,
+         13110
+        ],
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Gransangerkomplekset: Sibirisk, Iberisk, Kanarisk og Kaukasisk",
+     "lesson_md": "Gransangeren er ikke én fugl, men en hel familie af former – fra grønne og gule i sydvest til grå og brune i nordøst. Fire af dem er\nfeltornitologisk vigtige for os: **Nordlig gransanger** (*abietinus*), **Sibirisk Gransanger** (*tristis*), **Iberisk Gransanger** og – på rejser –\n**Kanarisk** og **Kaukasisk Gransanger**. Grundreglen er HBWP's: *jo længere mod nord og øst, desto mindre grønt og gult.*",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Sibirisk Gransanger – «den triste»\n\n*tristis* lever op til sit navn: Den er **trist** i farverne – og i kaldet. I mange år stod der i årsrapporterne, at kun ringmærkede fugle kunne\ngodkendes. Henrik Haaning gjorde i Pandion (2015) op med det: Med dragtkendetegn **og** kaldet er den *relativt let* at bestemme.\n\n| | Sydlig gransanger *collybita* | Nordlig gransanger *abietinus* | **Sibirisk Gransanger *tristis*** |\n|---|---|---|---|\n| Overside | Grøn, ingen kontrast til vingen | Køligere grøn, ofte kontrast til grønne svingfjer | **Gråbrun til grå** – ingen grøn på isse og ryg; grønne kanter på sving- og halefjer giver kontrast |\n| Underside | Olivengullig | Grålig med svag olivenstoning | **Gråhvid** med **beige** flanker – aldrig gullig/oliven |\n| Øjenbryn | Svagt, gulligt | Tydeligt, olivengulligt | **Markant hvidligt/beige** – det dominerende i ansigtet |\n| Kind | Mørk grønlig | Grønlig som issen | **Varmt brun** |\n| Øjenring | Markant | Tydelig | **Ikke fremtrædende** |\n| Næb og ben | Lys basis på undernæbbet | Tydelig lys basis | **Sort næb**, kun lidt lyst; **«knaldsorte» ben** |\n| Gult | Mange steder | Lidt | Kun i undervingen og på vingebøjningen (og grønne kanter på svingfjerene er tilladt) |\n| Kald | Blødt, opadgående «hu-it» | Som *collybita* | **«Kyllingekaldet»**: monotont, ligeud eller svagt **faldende** «iiihp» |\n| Sang | Tjif-tjaf | Tjif-tjaf | Hurtigere, mere melodisk; tonerne snubler over hinanden – som en langsomt syngende lundsanger |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13113,
+         "nf": 75610
+        },
+        {
+         "artnr": 13113,
+         "nf": 69908,
+         "n": 1
+        },
+        {
+         "artnr": 13110,
+         "nf": 123970
+        }
+       ],
+       "labels": [
+        "Sibirisk Gransanger, Ho, oktober",
+        "Sibirisk Gransanger, Møn, november",
+        "Gransanger, Christiansø, september"
+       ],
+       "tekst": "Til venstre og i midten: gråbrun, beige og hvid – øjenbrynet dominerer. Til højre: en almindelig efterårsgransanger med oliven og gult."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13113,
+        "latin": "Phylloscopus collybita tristis",
+        "type": "kald"
+       },
+       "tekst": "Sibirisk Gransangers «kyllingekald» – diagnostisk, når man har lært det (Haaning, Pandion)."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13113,
+        "latin": "Phylloscopus collybita tristis",
+        "type": "sang"
+       },
+       "tekst": "Sibirisk Gransangers sang: hurtigere og mere varieret end vores gransangers – ikke et klart «tjif-tjaf»."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Et ligeud-kald er ikke en billet til tristis",
+       "md": "Nogle efterårsgransangere i Nordeuropa – ofte lyse, *abietinus*-agtige fugle, måske fra østlige bestande eller en hybridzone – kalder også ligeud.\nUnge gransangere tigger med et rørende «füt». HBWP: *«Always try to secure a plumage description, just the call is not enough!»* Og omvendt: Hører du\nikke kaldet hos en lys, kølig fugl, må den måske stå som **gransanger sp.** Det er god feltornitologi, ikke et nederlag."
+      },
+      {
+       "type": "tekst",
+       "md": "### Iberisk Gransanger – findes på sangen\n\nIberisk Gransanger yngler næsten kun på Den Iberiske Halvø og i Nordvestafrika. De fleste rariteter i Nordeuropa opdages på **sangen**, som har\ntre dele: en gransangeragtig, men **hurtigere og tørre** indledning på én tone, en **stammende serie** og nogle **bløde, trukne toner**:\n*«tjif tjif tjif tjif – te-te-te-te – svii svii svii»* (rækkefølgen kan byttes om). Kaldet er et **faldende** «siu/fiu» – lidt som **rørspurv eller\ngrønsisken** (Haaning & Christiansen, Pandion) – modsat gransangerens stigende «hu-it».\n\nUdseendet er en blanding: gransangerens form og dyppende hale, men **renere grøn, gul og hvid** som en løvsanger, ofte **stærkt gult foran øjet**,\nlidt lysere næb og ben og lidt længere vinger end gransanger. Men slidte sommergransangere mister først de brune toner og kan ligne meget.\n\n> **Blandingssang og hybrider**: Der er mange eksempler på Iberiske Gransangere, der synger *gransangeragtigt* eller blander («conflicting song»).\n> Skagen Fuglestation fangede i 2018 en fugl ved Tversted Søerne og tog DNA-prøve – de nordiske sjældenhedsudvalg har diskuteret kriterierne for\n> godkendelse netop fordi variationen er så stor."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13116,
+         "nf": 56598
+        },
+        {
+         "artnr": 13116,
+         "nf": 58097,
+         "n": 1
+        },
+        {
+         "artnr": 13110,
+         "nf": 106526
+        }
+       ],
+       "labels": [
+        "Iberisk Gransanger, Viborg, maj",
+        "Iberisk Gransanger, Spanien",
+        "Gransanger, Hellebæk, april"
+       ],
+       "tekst": "Iberisk: renere grøn og gul, ofte stærkt gult øjenbryn foran øjet. Gransanger: mere snusket."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13116,
+        "latin": "Phylloscopus ibericus",
+        "type": "sang"
+       },
+       "tekst": "Iberisk Gransangers tredelte sang – lyt efter den stammende serie og de trukne fløjt."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13116,
+        "latin": "Phylloscopus ibericus",
+        "type": "kald"
+       },
+       "tekst": "Iberisk Gransangers kald: faldende «fiu» – det modsatte af gransangerens stigende kald."
+      },
+      {
+       "type": "tekst",
+       "md": "### Kanarisk Gransanger og Kaukasisk Gransanger – til rejsen\n\n- **Kanarisk Gransanger** (standfugl på De Vestlige Kanariske Øer): **meget kort håndsvingfremspring** (AVONET hånd-vinge-indeks 14,1 – lavest i\n  kurset), lange ben, langt næb med en antydning af nedadbøjet spids, mørk overside og okkerbuff bryst. Sangen er **eksplosiv**, nogle strofer minder\n  om **cettisanger**. Overvintrende gransangere på øerne har længere vinger og kortere, mere lige næb.\n- **Kaukasisk Gransanger** (*P. lorenzii*, «Mountain Chiffchaff» i HBWP; i netfugl-arkivet ofte som *Bjerggransanger*): brun overside, **mørk varmbrun isse**\n  og et bredt, **hvidt øjenbryn foran øjet**, **hvid strube** og lyserødbuff sider. **Kraftige sorte fødder med lange kløer**, bred, firkantet hale.\n  Dypper ikke halen så meget. Kaldet er et let faldende, pibende «pii(e)» – som *tristis*, men mere mekanisk («en knirkende låge»).\n- **Dværgløvsanger** (*P. neglectus*) er den mindste i slægten – næsten fuglekongestor, gråbrun og hvidlig med helt sorte, tynde ben, kort firkantet\n  hale og et lavt, **«tjep»**-kald, der ikke ligner nogen gransangers. Ét skandinavisk fund (Sverige, oktober 1991, Collins)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "latin": "Phylloscopus canariensis",
+         "nf": 123286
+        },
+        {
+         "latin": "Phylloscopus lorenzii",
+         "nf": 67200
+        },
+        {
+         "latin": "Phylloscopus neglectus",
+         "nf": 45309
+        }
+       ],
+       "labels": [
+        "Kanarisk Gransanger, Tenerife",
+        "Kaukasisk Gransanger, Georgien",
+        "Dværgløvsanger, Emiraterne"
+       ],
+       "tekst": "Tre brune/grå «gransangere» fra udkanten af udbredelsen."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad er det **mest dominerende** træk i ansigtet på en typisk Sibirisk Gransanger?",
+       "choices": [
+        {
+         "text": "Det markante hvidlige/beige øjenbryn",
+         "correct": true
+        },
+        {
+         "text": "Den hvide øjenring",
+         "correct": false
+        },
+        {
+         "text": "Et gult øjenbryn",
+         "correct": false
+        },
+        {
+         "text": "To vingebånd",
+         "correct": false
+        }
+       ],
+       "explanation": "Hos tristis træder øjenringen ikke markant frem – øjenbrynet dominerer, og kinden er varmt brun (Haaning, Pandion).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan beskrives Sibirisk Gransangers kald?",
+       "choices": [
+        {
+         "text": "Monotont, ligeud eller svagt faldende – «kyllingekaldet»",
+         "correct": true
+        },
+        {
+         "text": "Opadgående «hu-it» med tryk bagerst",
+         "correct": false
+        },
+        {
+         "text": "Skarpt «dzrit» som vandstær",
+         "correct": false
+        },
+        {
+         "text": "Hårdt «tak» som gærdesanger",
+         "correct": false
+        }
+       ],
+       "explanation": "HBWP: «iihp» – som en «chicken in distress». Det er diagnostisk sammen med dragten.",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Almindelig eller sibirisk gransanger? Lyt til kaldet.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13110,
+         13113
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lys, kølig gransanger med hvidlig underside, men et **gult** strøg i øjenbrynet over øjet. Den kalder ikke. Hvad gør du?",
+       "choices": [
+        {
+         "text": "Noterer den som gransanger – sandsynligvis nordlig (abietinus) – men ikke tristis",
+         "correct": true
+        },
+        {
+         "text": "Melder den ud som Sibirisk Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Noterer den som Iberisk Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Noterer den som løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Gult over øjet passer ikke på tristis (Haaning). Lyse abietinus kan minde om tristis – uden kald kan den kun bestemmes til gransanger.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "foto_ref": {
+         "artnr": 13114
+        },
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken beskrivelse passer på **Iberisk Gransangers kald**?",
+       "choices": [
+        {
+         "text": "Et fint, **faldende** «fiu»",
+         "correct": true
+        },
+        {
+         "text": "Et opadgående «hu-it»",
+         "correct": false
+        },
+        {
+         "text": "Et kyllingeagtigt ligeud-kald",
+         "correct": false
+        },
+        {
+         "text": "Et tostavet «tsi-lii» som hvid vipstjert",
+         "correct": false
+        }
+       ],
+       "explanation": "Faldende – kan minde om rørspurv eller grønsisken. HBWP: «readily separable from upwards-inflected hweet of Common Chiffchaff».",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sæt delene af en **typisk Iberisk Gransanger-sang** i den mest almindelige rækkefølge (HBWP).",
+       "choices": [],
+       "explanation": "«chiff chiff chiff chiff te-te-te-te swee swee swee» – men rækkefølgen af de to sidste dele kan byttes om, og dele kan udelades.",
+       "skills": [
+        "Lyt",
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Tørre gransangeragtige toner på én tonehøjde («tjif tjif tjif»)",
+         "Stammende serie («te-te-te-te»)",
+         "Bløde, trukne toner («svii svii»)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er Iberisk Gransanger svær at godkende uden lyd eller DNA?",
+       "choices": [
+        {
+         "text": "Den kan synge gransangeragtigt eller blandet",
+         "correct": true
+        },
+        {
+         "text": "Slidte sommergransangere mister brune toner og kommer til at ligne",
+         "correct": true
+        },
+        {
+         "text": "Hybrider forekommer",
+         "correct": true
+        },
+        {
+         "text": "Den har altid samme dragt som løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Alle tre er rigtige. Derfor fokuserer SU-arbejdet på lydoptagelser, fotos – og i Skagen-fundet 2018 også DNA.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Gransanger eller Iberisk Gransanger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13110,
+         13116
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken af disse har det **korteste håndsvingfremspring** (rundeste vinge) – og er standfugl?",
+       "choices": [
+        {
+         "text": "Kanarisk Gransanger",
+         "correct": true
+        },
+        {
+         "text": "Iberisk Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Sibirisk Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "AVONET: hånd-vinge-indeks 14,1. Standfugle behøver ikke spidse vinger.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Kaukasisk Gransanger kendes fra Sibirisk Gransanger på…",
+       "choices": [
+        {
+         "text": "Mørk varmbrun isse og bredt hvidt øjenbryn foran øjet",
+         "correct": true
+        },
+        {
+         "text": "Kraftige sorte fødder med lange kløer og bred, firkantet hale",
+         "correct": true
+        },
+        {
+         "text": "To hvide vingebånd",
+         "correct": false
+        },
+        {
+         "text": "Stærkt gul strube",
+         "correct": false
+        }
+       ],
+       "explanation": "Begge dele (HBWP). Sibirisk Gransanger har desuden olivengrønne kanter på vinge- og halefjer og ofte grønlig overgump.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art/form? (Løvsanger, Gransanger, Sibirisk Gransanger eller Iberisk Gransanger)",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13110,
+         13113,
+         13120,
+         13116
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 50,
+     "min_score_pct": null
+    },
+    {
+     "title": "Skovsanger, Bjergløvsanger og Balkanløvsanger: de hvidbugede",
+     "lesson_md": "Tre arter med **hvid bug** og **kontrastrige tertialer** – og så er lighederne stort set slut. Skovsangeren er en dansk ynglefugl i høj bøgeskov.\nBjergløvsangeren er en sjælden gæst fra Syd- og Mellemeuropa, og Balkanløvsangeren, dens østlige tvilling, er endnu ikke sikkert set i Danmark.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Skovsanger – den langvingede\n\n| Kendetegn | |\n|---|---|\n| Struktur | Stor som en løvsanger, men **håndsvingfremspringet er mindst lige så langt som tertialerne** – længst i slægten. Ser korthalet ud. |\n| Hoved | **Bredt, langt, klart gult øjenbryn** og tydelig mørk øjenstribe. Brudt øjenring. |\n| Farver | Klar grøn overside **uden brune eller grå toner**, **citrongul strube og øvre bryst skarpt afgrænset mod rent hvid bug** og undergump. |\n| Vinge | Meget mørke tertialer og store dækfjer med gulgrønne kanter – stærk kontrast. |\n| Sang 1 | Accelererende metalliske toner, der ender i en trille: *«zip… zip… zip, zip, zipzipzip-zirrrrr»* – **«en mønt, der snurrer på en marmorplade»**. Ofte i en kort, vandret sangflugt med trillen ved landingen. |\n| Sang 2 | Melankolske, bløde *«tyh tyh tyh-tyh»* – minder lidt om fyrremejse. |\n| Kald | Et skarpt «zip» og et blødt, fløjtende «tyh». |\n| Status | 1.300–3.600 par (DOF 2021/23), 50–80 % tilbagegang siden 1981. Høj bøgeskov med lidt underskov; Østjylland og Øerne. Overvintrer i Vest- og Centralafrika. |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13080,
+         "nf": 122396
+        },
+        {
+         "artnr": 13080,
+         "nf": 123321,
+         "n": 1
+        }
+       ],
+       "labels": [
+        "Skovsanger, Øland, maj",
+        "Skovsanger, Dyrehaven, maj"
+       ],
+       "tekst": "Gul strube skarpt mod hvid bug, langt gult øjenbryn og meget lange vinger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13080,
+        "latin": "Phylloscopus sibilatrix",
+        "type": "sang"
+       },
+       "tekst": "Skovsangerens «snurrende mønt» – en af de letteste phyl-sange at lære."
+      },
+      {
+       "type": "tekst",
+       "md": "### Bjergløvsanger og Balkanløvsanger – tvillingerne\n\nFørst skal de skilles fra alle andre phyller. Det er let, når man ved, hvad man skal se efter. De deler (HBWP):\n\n1. **Lys overgump** – hos gamle fugle klart gulgrøn til okkergul, kontrasterende mod en gråbrun ryg. Ses bedst, når fuglen svirrer.\n2. **Silkehvid underside** med kun svagt brungrå bryst.\n3. **Ubrudt, hvidlig øjenring** – øjet ser stort ud, en mørk «peberkorn» i et blegt, utegnet ansigt.\n4. **Lyse kinder og tøjler**.\n5. **Klart gulgrønne kanter** på hale- og svingfjer – et «grønt panel» i vingen.\n6. **Kontrastrige tertialer** – mørke med lyse kanter.\n\nDerefter er det **den svære del**: *Bjerg* (vest) mod *Balkan* (øst). Safest er **kaldet**:\n\n| | **Bjergløvsanger** (*P. bonelli*) | **Balkanløvsanger** (*P. orientalis*) |\n|---|---|---|\n| Kald | Tydeligt **tostavet, opadgående «hu-iit»** – kraftigt, så man kan tænke på **grønirisk** | Et fladt, **enstavet «tjip»/«tjiirp»** – som en **tiggende gråspurveunge** |\n| Sang | En hurtig gentagelse af én høj tone, *sølvklar, «leende»* – lidt som blåmejse | Samme opbygning, men **tørrere, mere mekanisk, insektagtig** – som **gærdeværling** på afstand; flere toner pr. strofe (14–22) |\n| Dragt om foråret | Vingen er friskere med grønne kanter | Slidte, **gråhvide tertialer og dækfjer** giver et lyst «panel» |\n| Næb og ben | Næbbet lidt længere og lysere | Næbbet ofte helt mørkt, benene mørkere |\n\nUnge fugle om efteråret er ifølge HBWP *«depressingly difficult»* – kun kaldet hjælper. Gedser Fuglestation ringmærkede i 2017 en fugl, hvor\nvingemål (62 mm) og indskæringer pegede på Bjergløvsanger – men man sendte fjer og ekskrementer til **DNA-analyse** i Aberdeen for at være sikker.\nSvaret: *bonelli*. Danmark havde da 8 fund af Bjergløvsanger og 4 af **Bjergløvsanger/Balkanløvsanger** (Liebermann, Pandion 2017) –\nDOFbasen har netop artsnummeret 13079 til den ærlige kombination."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13070,
+         "nf": 123469
+        },
+        {
+         "artnr": 13070,
+         "nf": 120860,
+         "n": 1
+        },
+        {
+         "latin": "Phylloscopus orientalis",
+         "nf": 123473
+        }
+       ],
+       "labels": [
+        "Bjergløvsanger, Dyrehaven, maj 2025",
+        "Bjergløvsanger, Christiansø, maj 2023",
+        "Balkanløvsanger, Tyrkiet, maj"
+       ],
+       "tekst": "Peberkornsøjet i et blegt ansigt, silkehvid underside og grønne vingekanter. Balkanløvsanger har ofte slidte, lyse tertialer om foråret."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13070,
+        "latin": "Phylloscopus bonelli",
+        "type": "kald"
+       },
+       "tekst": "Bjergløvsangerens tostavede «hu-iit»."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "latin": "Phylloscopus orientalis",
+        "type": "kald"
+       },
+       "tekst": "Balkanløvsangerens enstavede, spurveagtige «tjip»."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13070,
+        "latin": "Phylloscopus bonelli",
+        "type": "sang"
+       },
+       "tekst": "Bjergløvsangerens sølvklare, «leende» sang. Fuglen i Dyrehaven i maj 2025 blev fundet på netop den."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "latin": "Phylloscopus orientalis",
+        "type": "sang"
+       },
+       "tekst": "Balkanløvsangerens tørre, mekaniske sang."
+      },
+      {
+       "type": "tip",
+       "titel": "Feltcase: Dyrehaven, 9. maj 2025",
+       "md": "Stefan Andersen hørte «en ivrig sang, der ikke plejer at være der». Han så det **meget hvide bryst og de grønlige vingedækfjer**, tjekkede sangen\nog meldte den ud med noten *«sy ivrigt. kan kun få det til Bjergs»*. Balkanløvsanger var i spil, så optagelser blev gennemgået – og kaldet,\n**kraftigt «huuiit» frem for spurveagtigt «tjiirp»**, var afgørende ([finderberetning på Artikler](netfugl:3391))."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken art har det **længste håndsvingfremspring** af europæiske phyller?",
+       "choices": [
+        {
+         "text": "Skovsanger",
+         "correct": true
+        },
+        {
+         "text": "Bjergløvsanger",
+         "correct": false
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Nordsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Skovsangerens håndsvingfremspring er mindst lige så langt som tertialerne (HBWP). AVONET-indeks 30,9.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken kombination er **diagnostisk** for Skovsanger?",
+       "choices": [
+        {
+         "text": "Citrongul strube skarpt afgrænset mod hvid bug + meget langt håndsvingfremspring + bredt gult øjenbryn",
+         "correct": true
+        },
+        {
+         "text": "Ubrudt øjenring og lys overgump",
+         "correct": false
+        },
+        {
+         "text": "To vingebånd og hvide tertialkanter",
+         "correct": false
+        },
+        {
+         "text": "Mørke ben og dyppende hale",
+         "correct": false
+        }
+       ],
+       "explanation": "Bjergløvsanger har hvid bug men *ingen* gul strube og en ubrudt øjenring.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan lyder Skovsangerens hovedsang?",
+       "choices": [
+        {
+         "text": "Accelererende metalliske toner, der ender i en trille – som en snurrende mønt",
+         "correct": true
+        },
+        {
+         "text": "Et taktfast «tjif-tjaf»",
+         "correct": false
+        },
+        {
+         "text": "En blød faldende fløjtestrofe",
+         "correct": false
+        },
+        {
+         "text": "En monoton tør trille på én tone, 2–4 sekunder",
+         "correct": false
+        }
+       ],
+       "explanation": "Den monotone tørre trille er Nordsanger. Tjif-tjaf er gransanger, den faldende strofe løvsanger.",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket kendetegn deler Bjergløvsanger og Balkanløvsanger, som **ingen** løv- eller gransanger har?",
+       "choices": [
+        {
+         "text": "En ubrudt hvidlig øjenring om et stort mørkt øje",
+         "correct": true
+        },
+        {
+         "text": "Gul strube",
+         "correct": false
+        },
+        {
+         "text": "Mørke ben",
+         "correct": false
+        },
+        {
+         "text": "To vingebånd",
+         "correct": false
+        }
+       ],
+       "explanation": "Løv- og gransanger har øjenringen brudt i to halvmåner af øjenstriben.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Den sikreste måde at skille Bjergløvsanger fra Balkanløvsanger i felten er…",
+       "choices": [
+        {
+         "text": "Kaldet",
+         "correct": true
+        },
+        {
+         "text": "Benfarven",
+         "correct": false
+        },
+        {
+         "text": "Overgumpens farve",
+         "correct": false
+        },
+        {
+         "text": "Øjenringen",
+         "correct": false
+        }
+       ],
+       "explanation": "HBWP: «Safest separation is by call». Bjerg: tostavet «hu-iit»; Balkan: enstavet, spurveagtigt «tjip».",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En bjerg-/balkanløvsanger fanges i september. Den kalder ikke, og målene er ikke entydige. Hvordan bør den registreres?",
+       "choices": [
+        {
+         "text": "Bjergløvsanger/Balkanløvsanger",
+         "correct": true
+        },
+        {
+         "text": "Bjergløvsanger – det er den hyppigste",
+         "correct": false
+        },
+        {
+         "text": "Balkanløvsanger",
+         "correct": false
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Unge efterårsfugle er næsten ens. DOFbasen har netop en kombinationsart (13079). I Gedser 2017 blev det afklaret med DNA.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem synger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13080,
+         13070,
+         13120,
+         13110
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Skovsanger, Bjergløvsanger eller Løvsanger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13080,
+         13070,
+         13120
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken lyd er en **Balkanløvsanger**?",
+       "choices": [
+        {
+         "text": "Den enstavede, spurveagtige",
+         "correct": true
+        },
+        {
+         "text": "Den tostavede, opadgående",
+         "correct": false
+        }
+       ],
+       "explanation": "Balkanløvsangeren siger «tjip» som en gråspurveunge.",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "lyd_ref": {
+         "latin": "Phylloscopus orientalis",
+         "type": "kald"
+        }
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Lundsanger, Østlig Lundsanger, Grøn Sanger og Nordsanger: de store med ét (eller to) bånd",
+     "lesson_md": "Nu bliver det feltornitologi for alvor. Fire arter med **langt øjenbryn**, **ét (eller to) vingebånd** og **tertialer uden hvide kanter**.\nLundsangeren er en sjælden forårsgæst og ynglefugl, Nordsangeren den store sibiriske sensationsfugl i august–september, og Østlig\nLundsanger og Grøn Sanger er stjernefund (Danmarks første Østlige Lundsanger 2019, anden Grøn Sanger 2020).",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Først: Hvorfor ikke Hvidbrynet Løvsanger?\n\nTjek **tertialerne**. Ingen af de fire arter i denne lektion har hvide kanter på tertialerne. Har din fugl det, er du i næste lektion.\nTjek også **issen**: Ingen af dem har en lys issestribe – har din fugl det, så tænk **Østlig Kronsanger** (Haaning, Pandion).\n\n### Haanings fire nøgler: Lundsanger, Østlig Lundsanger og Nordsanger\n\n| | **Lundsanger** | **Østlig Lundsanger** | **Nordsanger** |\n|---|---|---|---|\n| **1. Øjenbryn** | Når **næbroden** og **mødes ofte over panden** | Stopper **lige før** næbroden, fortil mere diffust | **Langt, men ensartet smalt**, stopper **brat** før næbbet; bagtil ofte opadbuet som en «spytkrølle» |\n| **2. Tøjle/øjenstribe** | En **mørk plet** foran øjet; smal, diffus stribe bag øjet → øjet står frem | Gennemgående mørk tøjle og bred stribe bag øjet | **Bred, mørk, gennemgående streg** helt til næbbet – stregen dominerer mere end øjet |\n| **3. Vingebånd (store dækfjer)** | Kort, **smalner ind** og bliver diffust mod kroppen; 3–4 fjer | **Langt og ensartet bredt**, 6–7 fjer; tydeligt **øvre bånd** | Kort og ensartet bredt, fader opad; ofte «perlerække» af små brud |\n| **4. Undernæb** | Lyst med **mørkt smuds nær spidsen** | **Helt lyst** | Stort næb med **markant mørk aflang plet**, så det ser **kroget** ud |\n| Kald | Tostavet **«tsli-e»** – som **hvid vipstjert** | Ofte tre led – mere komplekst | **Skarpt «dzrit»** – som **vandstær** |\n| Størrelse/form | Lille, kompakt, meget rastløs | Som Lundsanger, lidt større næb | **Stor**, storhovedet, bred; sidder stille længere på en gren |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 12930,
+         "nf": 120912
+        },
+        {
+         "artnr": 12920,
+         "nf": 61588
+        },
+        {
+         "artnr": 12950,
+         "nf": 121305
+        }
+       ],
+       "labels": [
+        "Lundsanger, Rømø, juni",
+        "Østlig Lundsanger, Kina",
+        "Nordsanger, Hanstholm, september"
+       ],
+       "tekst": "Sammenlign øjenbrynet foran øjet, tøjlen og vingebåndets længde. Østlig Lundsanger er en mellemting med «nordsangerlook»."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12930,
+        "latin": "Phylloscopus trochiloides",
+        "type": "kald",
+        "xc": "575392"
+       },
+       "tekst": "Lundsangerens kald – tostavet og vipstjertagtigt (XC-optagelse brugt i Pandion-artiklen «Kratlusk og find Nords!»)."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12920,
+        "latin": "Phylloscopus plumbeitarsus",
+        "type": "kald",
+        "xc": "327189"
+       },
+       "tekst": "Østlig Lundsangers kald – ofte med en ekstra tone, så det bliver tredelt."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12950,
+        "latin": "Phylloscopus borealis",
+        "type": "kald",
+        "xc": "420696"
+       },
+       "tekst": "Nordsangerens vandstæragtige kald – ligner intet andet hos vores phyller."
+      },
+      {
+       "type": "tekst",
+       "md": "### Lundsanger i Danmark\n\nLundsangeren har udvidet sit yngleområde mod vest gennem det 20. århundrede i takt med varmere forår. Første danske fund var på **Als i 1952**,\nden er set årligt siden **1970**, og første dokumenterede ynglefund var på **Christiansø i 1990** (DOFbasen). Vi ser den mest om foråret, når\nfugle ved kraftig sydøstenvind «skyder over» Polen og Baltikum – flest på **Christiansø, Bornholm og Østmøn**, fra sidst i maj ind i juni.\nDen overvintrer, «som noget specielt for vores hjemlige sangere», i **Indien og Sydøstasien**.\n\n**Sangen** er en kort, høj, «kradsende» og hastig strofe med et halvt stop midtvejs, 2–3 sekunder: *tisli-zizi-tislizet-zittsli…*. Den synger fra\ntrækronerne med **vibrerende, halvåbne vinger**.\n\n### Grøn Sanger – den gule lundsanger\n\nGrøn Sanger (Tyrkiet, Kaukasus, Iran) var den første «lundsanger» i Skagens Ellekrat den 27. maj 2020 – Rolf Christensen studsede over en\n**afvigende kort sang**. Kendetegn i forhold til Lundsanger (HBWP, i prioriteret rækkefølge):\n\n1. **Øjenbryn, ansigt og hele undersiden lyst, men klart gul** – mest mættet på øjenbryn, strube og bryst.\n2. Oversiden **lysere og mere frisk grøn**.\n3. Øjenbrynet stopper før næbroden.\n4. Bredere og længere nederste vingebånd; **sommetider et kort øvre**.\n5. **Kaldet tre-tonet «tji-tu-ve»** mod Lundsangerens to-tonede «tji-ve»; sangen indeholder ofte en tør, summende trille («tsi-tserr»).\n\nPas på: Friske efterårslundsangere (unge) kan have et let gult skær i ansigt og øjenbryn (Haaning, Pandion 2020). Og «broen» over panden er\naf lille værdi – lyse fjer kan puffe op hos Grøn Sanger også."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 12910,
+         "nf": 115990
+        },
+        {
+         "artnr": 12930,
+         "nf": 121020
+        }
+       ],
+       "labels": [
+        "Grøn Sanger, Skagen, 27. maj 2020",
+        "Lundsanger, Christiansø, juni"
+       ],
+       "tekst": "Grøn Sanger: gul strube og ansigt, frisk grøn overside. Lundsanger: køligere grågrøn og hvidlig."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12910,
+        "latin": "Phylloscopus nitidus",
+        "type": "kald",
+        "xc": "482832"
+       },
+       "tekst": "Grøn Sangers kald (Georgien, XC482832 – optagelsen Thomas W. Johansen sammenlignede Skagen-fuglen med)."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12930,
+        "latin": "Phylloscopus trochiloides",
+        "type": "sang"
+       },
+       "tekst": "Lundsangerens korte, kradsende strofe."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12950,
+        "latin": "Phylloscopus borealis",
+        "type": "sang"
+       },
+       "tekst": "Nordsangerens sang: en monoton, tør trille på én tone, 2,5–4 sekunder – kan minde om gærdeværling, men «fyldigere»."
+      },
+      {
+       "type": "tekst",
+       "md": "### Nordsanger – hvornår og hvordan\n\nDanmarks første Nordsanger blev fundet på **Tipperne den 18. september 1996**. Haaning (Pandion 2020) opgjorde 7 danske fund i perioden\n**11. august–28. september**, heraf 5 mellem 8. og 28. september – og siden er der kommet flere, også i oktober (fx Haurvig 15. oktober 2024 i\nfotobiblioteket). Nordsangeren er **den sidste sommerfugl, der ankommer** til ynglepladserne i Fennoskandien – ofte først midt på sommeren (HBWP).\n\nFørsteindtrykket: **storhovedet, stornæbbet, bred, markeret**, mørkegrøn over og lys under, ofte **gråplettet nedre strube og brystsider**.\nDen bevæger sig langsommere end de små phyller og kan sidde et stykke tid på samme gren. Benene er lyse, ofte lyserødbrune.\n\n### Østlig Kronsanger og Lysbenet Løvsanger – de næste kandidater\n\n**Østlig Kronsanger** (England, Holland, Norge, Tyskland m.fl. i oktober) ligner en Nordsanger, men har en **lys issestribe** (bedst set bagfra/ovenfra),\nmørke issesider, et øjenbryn der er **gult foran øjet og hvidt og bredere bag det**, og **gullig undergump mod hvid bug**. Undernæbbet er helt lyst\norange. **Lysbenet Løvsanger** (England 2016) har **meget lyse lyserøde ben**, mørkere grå isse end ryg og et højt, metallisk «zriit»."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "latin": "Phylloscopus coronatus",
+         "nf": 41966
+        },
+        {
+         "latin": "Phylloscopus tenellipes",
+         "nf": 61676
+        },
+        {
+         "artnr": 12950,
+         "nf": 122858
+        }
+       ],
+       "labels": [
+        "Østlig Kronsanger, Norge, september",
+        "Lysbenet Løvsanger, Kina, maj",
+        "Nordsanger, Haurvig, oktober"
+       ],
+       "tekst": "Kronsangerens issestribe og Lysbenets lyse ben – to tjek, før du melder en Nordsanger ud."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvor stopper **Lundsangerens** øjenbryn fortil?",
+       "choices": [
+        {
+         "text": "Det når næbroden og mødes ofte over panden",
+         "correct": true
+        },
+        {
+         "text": "Det stopper brat et stykke før næbbet",
+         "correct": false
+        },
+        {
+         "text": "Det begynder først over øjet",
+         "correct": false
+        },
+        {
+         "text": "Det har ikke noget øjenbryn",
+         "correct": false
+        }
+       ],
+       "explanation": "Det er Haanings nøgle 1. Hos Nordsanger stopper det brat før næbbet; hos Østlig Lundsanger lige før.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken art har en **bred, mørk, gennemgående øjenstribe** helt til næbbet, et **kroget-udseende stort næb** og et **kort, ensartet bredt vingebånd**?",
+       "choices": [
+        {
+         "text": "Nordsanger",
+         "correct": true
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Østlig Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Nordsangerens «hårde» ansigt og store næb med mørk plet på undernæbbet.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad kendetegner **Østlig Lundsangers** nederste vingebånd?",
+       "choices": [
+        {
+         "text": "Langt og ensartet bredt, på 6–7 store dækfjer",
+         "correct": true
+        },
+        {
+         "text": "Kort og smalnende ind mod kroppen",
+         "correct": false
+        },
+        {
+         "text": "Helt fraværende",
+         "correct": false
+        },
+        {
+         "text": "Gult og diffust",
+         "correct": false
+        }
+       ],
+       "explanation": "Lundsangers er kort (3–4 fjer) og smalner ind. Tommelfingerregel i HBWP: Østlig Lundsangers bånd er klart bredere end mellemfoden er tyk.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Et **skarpt, skrattende «dzrit»** fra en stor phyl. Hvilken art?",
+       "choices": [
+        {
+         "text": "Nordsanger",
+         "correct": true
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Grøn Sanger",
+         "correct": false
+        },
+        {
+         "text": "Østlig Lundsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Som vandstær. Lundsanger, Grøn Sanger og Østlig Lundsanger har vipstjertagtige kald.",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Lundsanger eller Nordsanger? Lyt til kaldet.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         12930,
+         12950
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken lyd er en **Nordsanger**?",
+       "choices": [
+        {
+         "text": "Den skarpe, vandstæragtige",
+         "correct": true
+        },
+        {
+         "text": "Den bløde, tostavede, vipstjertagtige",
+         "correct": false
+        }
+       ],
+       "explanation": "Nordsanger: «dzre/zrik» (HBWP).",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "lyd_ref": {
+         "artnr": 12950,
+         "latin": "Phylloscopus borealis",
+         "type": "kald",
+         "xc": "420696"
+        }
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår har Danmark fået de fleste af sine Nordsangere?",
+       "choices": [
+        {
+         "text": "Sidst i august og i september",
+         "correct": true
+        },
+        {
+         "text": "Maj–juni",
+         "correct": false
+        },
+        {
+         "text": "November",
+         "correct": false
+        },
+        {
+         "text": "Om vinteren",
+         "correct": false
+        }
+       ],
+       "explanation": "De 7 fund til og med 2020 lå 11/8–28/9, heraf 5 mellem 8. og 28. september (Haaning, Pandion).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er **førstekendetegnet** for Grøn Sanger i forhold til Lundsanger (HBWP)?",
+       "choices": [
+        {
+         "text": "Øjenbryn, ansigt og underside klart gule",
+         "correct": true
+        },
+        {
+         "text": "Lyse lyserøde ben",
+         "correct": false
+        },
+        {
+         "text": "En lys issestribe",
+         "correct": false
+        },
+        {
+         "text": "Hvide tertialkanter",
+         "correct": false
+        }
+       ],
+       "explanation": "Dernæst friskere grøn overside, øjenbryn der stopper før næbbet og bredere vingebånd – og kaldet.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Grøn Sanger i Skagen 2020 blev først opdaget, fordi…",
+       "choices": [
+        {
+         "text": "Sangen var afvigende kort",
+         "correct": true
+        },
+        {
+         "text": "Den havde to hvide vingebånd",
+         "correct": false
+        },
+        {
+         "text": "Den kaldede som en vandstær",
+         "correct": false
+        },
+        {
+         "text": "Den blev ringmærket",
+         "correct": false
+        }
+       ],
+       "explanation": "Rolf Christensen bemærkede den korte sang og nævnte «måske en grøn sanger» allerede om morgenen (Haaning, Pandion).",
+       "skills": [
+        "Lyt",
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Du har en «Nordsanger» med en tydelig **lys issestribe**, gult øjenbryn foran øjet og gullig undergump. Hvad bør du overveje?",
+       "choices": [
+        {
+         "text": "Østlig Kronsanger",
+         "correct": true
+        },
+        {
+         "text": "Fuglekongesanger",
+         "correct": false
+        },
+        {
+         "text": "Grøn Sanger",
+         "correct": false
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Østlig Kronsanger har en lys midterstribe i issen, mest bagtil. Ingen af Lundsanger-gruppen eller Nordsanger har det.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter disse **første danske fund** kronologisk.",
+       "choices": [],
+       "explanation": "Kilder: DOFbasen og Pandion/Artikler.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Lundsanger (Als 1952)",
+         "Nordsanger (Tipperne 1996)",
+         "Østlig Lundsanger (Blåvand/Tipmosen 2019)",
+         "Grøn Sanger nr. 2 (Skagen 2020)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken af de fire?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         12930,
+         12950,
+         12920,
+         12910
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem synger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         12930,
+         12950,
+         13080,
+         13070
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 5
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 55,
+     "min_score_pct": null
+    },
+    {
+     "title": "Hvidbrynet Løvsanger, Himalayasanger og Fuglekongesanger: «vingebåndene»",
+     "lesson_md": "*«De kan redde en dag i felten.»* (Klaus Malling Olsen, Pandion). Tre små sibiriske og centralasiatiske phyller med **to vingebånd**, **hvide kanter\npå tertialerne** og **mørke armsvingfjer-baser**, der får det nederste bånd til at lyse. Problemet er sjældent at kende dem – det er at **finde og\nfastholde** dem i et blæsende krat.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Først: Er det overhovedet en sanger?\n\nDe små vingebånd fouragerer ofte sammen med **fuglekonger**. Fuglekongen har **olivenfarvet underside**, et **vinklet vingemønster** (ikke et langt\nbånd) og et *«sørgmodigt»* ansigt med stort mørkt øje i lyst – de små sangere har **hvidlig underside**, et **langt bagerste vingebånd** og et langt\nøjenbryn (Malling Olsen). Rødtoppet fuglekonge har hvidt øjenbryn, men det er kort, bredt og «afklippet».\n\n### Nøglepakken\n\n| | **Hvidbrynet Løvsanger** | **Himalayasanger** | **Fuglekongesanger** |\n|---|---|---|---|\n| Indtryk | En lille, korthalet gransanger med vingebånd – **kontrastrig** | En «hvidbrynet» med **dæmpede kontraster** – grålig, «trist» | Fuglekongestor «**tigerdyr**» i grønt, gult og sort |\n| Øjenbryn | Langt, hvidligt (svagt gult) | Hvidligt, med buff toning om efteråret | **Gult foran øjet**, hvidt bagtil |\n| Issestribe | Højst en antydning bagtil | Nej | **Skarp gul issestribe** |\n| Vingebånd | **To skarpe**: langt nederst, kort øverst | **Ét tydeligt**; det øverste diffust eller næsten væk | To, gultonede; det øverste kortere |\n| Tertialer | **Tydelige hvide kanter** | Smallere, mindre kontrastrige | Hvide spidser når friske |\n| Kind | **Mørkplettet** | **Lys og uplettet** | Gennemgående sort øjenstribe skjuler øjet |\n| Næb og ben | Tydelig lys basis på undernæbbet; mellemlyse ben | **Mørkt næb**, **mørke ben** | Kort, mørkt næb |\n| Overgump | – | – | **Lysegul**, ses ved svirreflugt eller når den flyver bort |\n| Kald | Gennemtrængende, stigende **«tsoo-EEST»** – som sortmejse, men højere og mere «fizzy» | Mere «grødet», tostavet **«tsu-viis»/«tse-lee»** – som **hvid vipstjert**/lundsanger | Svagt, hæst **«huit»** – overhøres let |\n| Hvornår i DK | Top **sidste uge af september–første uge af oktober** | Sent: **30/9–25/11**, top omkring månedsskiftet okt/nov; nu også vinter | Udpræget **oktober**, top midt i måneden |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13000,
+         "nf": 122758
+        },
+        {
+         "artnr": 13005,
+         "nf": 120142
+        },
+        {
+         "artnr": 12980,
+         "nf": 120109
+        }
+       ],
+       "labels": [
+        "Hvidbrynet Løvsanger, Blåvand, oktober",
+        "Himalayasanger, Lille Vejlesø, november",
+        "Fuglekongesanger, Ølsemagle Revle, november"
+       ],
+       "tekst": "Kontrastrig – kontrastfattig – tigerstribet. Se efter det øverste vingebånd, kinden og issestriben."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13000,
+        "latin": "Phylloscopus inornatus",
+        "type": "kald"
+       },
+       "tekst": "Hvidbrynet Løvsangers kald – det, de fleste findes på. Kan være tavs længe og så kalde «næsten provokerende hyppigt» (Malling Olsen)."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13005,
+        "latin": "Phylloscopus humei",
+        "type": "kald"
+       },
+       "tekst": "Himalayasangerens kald – tostavet og vipstjertagtigt. Varianter kan ligne Hvidbrynet, især på afstand."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12980,
+        "latin": "Phylloscopus proregulus",
+        "type": "kald"
+       },
+       "tekst": "Fuglekongesangerens svage kald – let at overhøre i et kor af fuglekonger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13000,
+        "latin": "Phylloscopus inornatus",
+        "type": "sang"
+       },
+       "tekst": "Hvidbrynet Løvsangers sang (sjælden uden for ynglepladsen): tynde, tøvende fløjt – kaldet kan høres i strofen."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12980,
+        "latin": "Phylloscopus proregulus",
+        "type": "sang"
+       },
+       "tekst": "Fuglekongesangerens sang er overraskende kraftig for så lille en fugl – som gærdesmutte: serier af gentagne toner og triller."
+      },
+      {
+       "type": "tip",
+       "titel": "Feltcase: Himalaya eller Hvidbrynet? Salthammer, Bornholm, 8. november 2019",
+       "md": "Vicky Knudsen så «et meget stort øjenbryn og et enkelt vingebånd på en ret brun fugl». Lydfilen lød først som Himalaya, så som Hvidbrynet – og\ntvivlen bredte sig. Sune Riis Sørensen fik til sidst optaget de typiske kald: *«Det var bare afstanden, der fik det til at snyde et øjeblik.»*\n\n**Læren** (Haaning & Knudsen, [Pandion 2019](netfugl:1533)): Bliv ved fuglen, til den er bestemt. Dokumentér med fotos *og* lyd. Og husk, at nogle\nefterårs**gransangere** (sandsynligvis nordøstlige *abietinus*) kan give et forvirrende Himalaya-agtigt kald – men de udelukkes hurtigt, når man ser dem."
+      },
+      {
+       "type": "tekst",
+       "md": "### Hvorfor kommer de hertil?\n\nHvidbrynet Løvsanger yngler fra **Ural** og østover, Fuglekongesanger fra Østrusland og østover; begge overvintrer i **Sydøstasien**. Alligevel ses\nde hvert efterår i Vesteuropa. Den klassiske forklaring er **omvendt træk** – fejlorienterede unge fugle, der flyver den modsatte vej (DOFbasen).\nMalling Olsen argumenterer i Pandion (2015) for **spredningstræk**: Forekomsten flytter sig gradvist mod sydvest gennem Europa over ca. 6 uger,\nHvidbrynet Løvsanger overvintrer nu regelmæssigt på **De Kanariske Øer**, og fra de vestligste ynglepladser er der stort set lige langt til Sydvesteuropa\nsom til Sydøstasien. For **Himalayasanger**, der yngler i Centralasien og overvintrer i Indien, er «omvendt træk» næsten umuligt. Og i januar 2025\novervintrede en Himalayasanger i **Kongens Enghave** i København (fotobiblioteket) – i december 2022 sås en på Nyord Kirkegård – Danmarks første egentlige decemberfund.\n\n**Antal**: Malling Olsen angav (2015) 25–35 Hvidbrynede og 5–10 Fuglekongesangere i normale år. Rekorderne viser variationen: **35 Hvidbrynede i\nBlåvandsområdet på én dag**, 28. september 2013, og **min. 83 Fuglekongesangere** i efteråret 1996 – heraf **17 på Christiansø den 19. oktober**.\nHimalayasanger: 27 fund til 2015; **9 i 2022** – kun overgået af **10 i 2003** (Artikler)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13005,
+         "nf": 123020
+        },
+        {
+         "artnr": 12980,
+         "nf": 123336
+        }
+       ],
+       "labels": [
+        "Himalayasanger, Kongens Enghave, januar 2025",
+        "Fuglekongesanger, Bøtø, april 2025"
+       ],
+       "tekst": "To fugle «på den forkerte årstid»: en overvintrende Himalayasanger i København og en forårs-Fuglekongesanger på Falster."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Hvidbrynet er altid i spil",
+       "md": "«Selv om datoen siger himalayasanger, er det ikke givet, at det er en sådan» (Haaning). Sene Hvidbrynede forekommer, og nogle har et svagt\nforreste vingebånd. Brug **hele pakken**: kind, næb, tertialer, kontrast og kald."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad skiller hurtigst en lille vingebånds-sanger fra en **fuglekonge**?",
+       "choices": [
+        {
+         "text": "Hvidlig underside og et langt bagerste vingebånd",
+         "correct": true
+        },
+        {
+         "text": "Grøn overside",
+         "correct": false
+        },
+        {
+         "text": "Lille størrelse",
+         "correct": false
+        },
+        {
+         "text": "At den søger føde i nåletræer",
+         "correct": false
+        }
+       ],
+       "explanation": "Fuglekongen har olivenfarvet underside og et vinklet vingemønster (Malling Olsen, Pandion).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken af de tre har en **skarp gul issestribe** og **gul overgump**?",
+       "choices": [
+        {
+         "text": "Fuglekongesanger",
+         "correct": true
+        },
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Himalayasanger",
+         "correct": false
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Fans kalder den «tigerdyret». Overgumpen ses især, når den svirrer foran blade.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken beskrivelse passer på **Himalayasanger** i forhold til Hvidbrynet Løvsanger?",
+       "choices": [
+        {
+         "text": "Mattere og grålig, kun ét tydeligt vingebånd, lys uplettet kind og mørkt næb",
+         "correct": true
+        },
+        {
+         "text": "Mere kontrastrig med mørkplettet kind",
+         "correct": false
+        },
+        {
+         "text": "Gul issestribe",
+         "correct": false
+        },
+        {
+         "text": "Tydeligt lyst undernæb og lyse ben",
+         "correct": false
+        }
+       ],
+       "explanation": "Himalayasangeren er «relativt kontrastfattig» (Haaning & Knudsen). Hvidbrynet har mørkplettet kind og lys basis på undernæbbet.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvidbrynet Løvsanger eller Himalayasanger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13000,
+         13005
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken lyd er en **Hvidbrynet Løvsanger**?",
+       "choices": [
+        {
+         "text": "Den gennemtrængende, stigende",
+         "correct": true
+        },
+        {
+         "text": "Den grødede, tostavede",
+         "correct": false
+        }
+       ],
+       "explanation": "«tsoo-EEST» – sortmejseagtigt, men højere og skarpere (Malling Olsen).",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "lyd_ref": {
+         "artnr": 13000,
+         "latin": "Phylloscopus inornatus",
+         "type": "kald"
+        }
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår topper **Hvidbrynet Løvsanger** i Danmark?",
+       "choices": [
+        {
+         "text": "Sidste uge af september og første uge af oktober",
+         "correct": true
+        },
+        {
+         "text": "Midt i oktober",
+         "correct": false
+        },
+        {
+         "text": "Omkring 1. november",
+         "correct": false
+        },
+        {
+         "text": "I maj",
+         "correct": false
+        }
+       ],
+       "explanation": "Midt i oktober er Fuglekongesanger; månedsskiftet okt/nov er Himalayasanger.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter **typisk tidspunkt** i Danmark om efteråret – tidligst først.",
+       "choices": [],
+       "explanation": "Top: Hvidbrynet sidst i sept./start okt., Fuglekongesanger midt i okt., Himalayasanger omkring månedsskiftet okt./nov.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "items": [
+         "Hvidbrynet Løvsanger",
+         "Fuglekongesanger",
+         "Himalayasanger"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket vejr giver typisk mange vingebånd ved den jyske vestkyst?",
+       "choices": [
+        {
+         "text": "Den første dag med vestenvind efter en periode med østenvind",
+         "correct": true
+        },
+        {
+         "text": "Langvarig vestenvind og klart vejr",
+         "correct": false
+        },
+        {
+         "text": "Stille højtryk i august",
+         "correct": false
+        },
+        {
+         "text": "Sydvestlig storm i september",
+         "correct": false
+        }
+       ],
+       "explanation": "Østlige vinde bringer dem; regn, tåge og omslag til vest får nattrækkerne til at gå ned ved kysten (Malling Olsen; Kofoed-Hansen om rekorddagen 2013).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er **omvendt træk** en dårlig forklaring på Himalayasangere i Vesteuropa?",
+       "choices": [
+        {
+         "text": "Den yngler i Centralasien og overvintrer i Indien – den modsatte retning fører ikke til Vesteuropa",
+         "correct": true
+        },
+        {
+         "text": "Fordi den aldrig ses i Vesteuropa",
+         "correct": false
+        },
+        {
+         "text": "Fordi den er standfugl",
+         "correct": false
+        },
+        {
+         "text": "Fordi den kun ses om foråret",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen (Pandion 2015) peger i stedet på spredningstræk.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Du ser en phyl med ét tydeligt vingebånd og et svagt øvre bånd. Hvilke kendetegn skal du tjekke for at skelne Himalaya fra Hvidbrynet?",
+       "choices": [
+        {
+         "text": "Kinden (lys og uplettet eller mørkplettet)",
+         "correct": true
+        },
+        {
+         "text": "Undernæbbet (mørkt eller med tydelig lys basis)",
+         "correct": true
+        },
+        {
+         "text": "Tertialkanternes kontrast",
+         "correct": true
+        },
+        {
+         "text": "Kaldet",
+         "correct": true
+        },
+        {
+         "text": "Halens længde",
+         "correct": false
+        }
+       ],
+       "explanation": "Alle fire. Et enkelt svagt bånd alene er ikke nok – også Hvidbrynet kan have et svagt forreste bånd.",
+       "skills": [
+        "Sammenlign",
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken af de tre?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13000,
+         13005,
+         12980
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Vingebånd: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13000,
+         13005,
+         12980,
+         12930,
+         12950
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 50,
+     "min_score_pct": null
+    },
+    {
+     "title": "Brun Løvsanger, Schwarz' Løvsanger og Sinkiangløvsanger: de brune",
+     "lesson_md": "Sidst i oktober, lavt i et tæt krat på Vestkysten: en **brun phyl med et langt, lyst øjenbryn**. Det passer på begge de to klassiske østasiatiske\n«brune» – og i begyndelsen ser man som regel ikke mere end det (Haaning, Pandion). Men med tålmodighed, de rigtige fire spørgsmål og kaldet kan de\nskilles «forholdsvis hurtigt».",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Brun Løvsanger** | **Schwarz' Løvsanger** |\n|---|---|---|\n| Indtryk | «Typisk phyl»: lille, rundt hoved, **speedet** – hurtige hop, hurtige halebevægelser | **Tung**, storhovedet med **«tyrenakke»**, stejl pande; langsom og tøvende, vifter meget med halen, ofte på jorden |\n| Øjenbryn | **Klarest og hvidest foran og over øjet**, bagtil mere brunligt og diffust | **Buff/okker foran øjet, klarest bag øjet**; fortil diffust – det **omvendte** mønster |\n| Over øjenbrynet | Ingen mørk skygge | **Mørk skyggestreg** over den bageste del af øjenbrynet (mørk isse-sidestribe) |\n| Næb | **Tyndt, spidst**, gransangeragtigt – ansigtet ser «tilspidset» ud | **Kraftigt, kort, mejseagtigt** med lys basis |\n| Ben og fødder | Tynde, brunlige med gullige fødder – kan se mørke ud | **Kraftige, påfaldende lyst gulorange** |\n| Underside | **Støvet gråbrun**, lysest på midten af bugen | **Gyldenbrunlig** med varmt **orangegul undergump** (men Brun kan også have varm undergump!) |\n| Kald | **Hårdt, skarpt «tsek/tak»** – som gærdesanger, men svagere; ophidset hårdere som gærdesmutte | **Blødt, smaskende «tjuck»**, mere nasalt |\n| Sang | Simpel serie af én gentaget tone i roligt tempo | Højt, eksplosivt udbrud af fløjt og triller, ofte indledt med et par korte toner |\n| Danske fund | ca. 55 (2016); rekord 12 i 2020 – **oktober**, enkelte nov., sept. og januar | ca. 23 (2016); første fund **Christiansø 1976** – alle sidst i september–20. oktober |\n| Habitat (yngle) | Lav vegetation, buske og højt græs, gerne ved vand | Krat og skovbryn med tæt underskov |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13030,
+         "nf": 115899
+        },
+        {
+         "artnr": 13010,
+         "nf": 119966
+        }
+       ],
+       "labels": [
+        "Brun Løvsanger, Blåvand, oktober 2020",
+        "Schwarz' Løvsanger, Sdr. Lyngvig, oktober 2022"
+       ],
+       "tekst": "Brun: tyndt næb, øjenbryn klarest foran øjet, støvet gråbrun. Schwarz: kraftigt næb, øjenbryn klarest bagtil, mørk skygge over det, gyldne toner."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13030,
+        "latin": "Phylloscopus fuscatus",
+        "type": "kald"
+       },
+       "tekst": "Brun Løvsangers hårde «tsek» – tænk gærdesanger eller munk, men svagere."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13010,
+        "latin": "Phylloscopus schwarzi",
+        "type": "kald"
+       },
+       "tekst": "Schwarz' Løvsangers bløde, smaskende «tjuck»."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13010,
+        "latin": "Phylloscopus schwarzi",
+        "type": "sang"
+       },
+       "tekst": "Schwarz' Løvsangers eksplosive sang – hurtigere og mere varieret end Brun Løvsangers."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13030,
+        "latin": "Phylloscopus fuscatus",
+        "type": "sang"
+       },
+       "tekst": "Brun Løvsangers sang – én tone gentaget i roligt tempo."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel: «Brun fører, Schwarz slutter»",
+       "md": "Brun Løvsangers øjenbryn er stærkest **forrest** – Schwarz' er stærkest **bagest**. HBWP: Brun har øjenbrynet *«white in front of the eye but tinged\nrufous-buff behind (the reverse pattern compared to Radde's)»*. Kombinér med næbbet: tyndt og spidst (Brun) eller tykt som en mejse (Schwarz)."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Andre brune at udelukke",
+       "md": "- **Sibirisk Gransanger**: **sorte** ben, olivengrønne kanter på vinge og hale, kortere og mindre markeret øjenbryn – og det pibende kald.\n- **Dværgløvsanger**: meget lille, gråbrun med sorte ben og et lavt «tjep».\n- **Lille Gulbug** og **Lille Rørsanger**: kortere øjenbryn og lyse kanter på halen (Lille Gulbug) eller lysere iris, afrundet hale og kraftigere næb (Lille Rørsanger) – HBWP."
+      },
+      {
+       "type": "tekst",
+       "md": "### Sinkiangløvsanger – Vestpalæarktis' første på Christiansø\n\nDen **30. maj 2016** fandt Sebastian Klein en «underlig løvs» på Christiansø. Da den kaldte et besynderligt **«tjub»**, udbrød Peter Lyngs: *«nej – det\ner ikke en løvs!»* Det var en **Sinkiangløvsanger** (*P. griseolus*, *Sulphur-bellied Warbler*), som normalt yngler i Centralasiens bjerge og\novervintrer i Indien – **det første fund i Vestpalæarktis** ([Pandion 2016](netfugl:1748)).\n\nKendetegn: en ret stor, **langnæbbet** phyl uden vingebånd, gråbrun overside **uden olivenskær**, en grålig nakke, **svovlgullig underside** (ikke\nstærk) og et **klart gult, påfaldende øjenbryn** fra næbbet til over øjet, der fader ud bagtil. Lyse, kraftige ben (dog ikke så kraftige som Schwarz').\nDen søger ofte føde på sten og klipper som en træløber."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 13050,
+         "nf": 103950
+        },
+        {
+         "artnr": 13050,
+         "nf": 117612,
+         "n": 1
+        }
+       ],
+       "labels": [
+        "Sinkiangløvsanger, Christiansø, 31. maj 2016",
+        "Sinkiangløvsanger, Mongoliet"
+       ],
+       "tekst": "Gult øjenbryn foran øjet, gråbrun overside, svovlgult skær under."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13050,
+        "latin": "Phylloscopus griseolus",
+        "type": "kald"
+       },
+       "tekst": "Sinkiangløvsangerens kald – «tjub»."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvor er øjenbrynet **klarest** hos en **Brun Løvsanger**?",
+       "choices": [
+        {
+         "text": "Foran og over øjet",
+         "correct": true
+        },
+        {
+         "text": "Bag øjet",
+         "correct": false
+        },
+        {
+         "text": "Lige meget hele vejen",
+         "correct": false
+        },
+        {
+         "text": "Den har intet øjenbryn",
+         "correct": false
+        }
+       ],
+       "explanation": "Det omvendte af Schwarz' Løvsanger, hvor det er klarest bag øjet og buff foran.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken kombination peger på **Schwarz' Løvsanger**?",
+       "choices": [
+        {
+         "text": "Kraftigt mejsenæb, tyrenakke, lyse kraftige ben og mørk skygge over øjenbrynet",
+         "correct": true
+        },
+        {
+         "text": "Tyndt spidst næb og tynde ben",
+         "correct": false
+        },
+        {
+         "text": "To vingebånd og hvide tertialkanter",
+         "correct": false
+        },
+        {
+         "text": "Sorte ben og pibende kald",
+         "correct": false
+        }
+       ],
+       "explanation": "Haaning (Pandion 2016) og HBWP.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan lyder **Brun Løvsangers** kald?",
+       "choices": [
+        {
+         "text": "Et hårdt, skarpt «tsek» – som gærdesanger",
+         "correct": true
+        },
+        {
+         "text": "Et blødt, smaskende «tjuck»",
+         "correct": false
+        },
+        {
+         "text": "Et stigende «tsoo-eest»",
+         "correct": false
+        },
+        {
+         "text": "Et pibende «iiihp»",
+         "correct": false
+        }
+       ],
+       "explanation": "Schwarz' kald er blødere og mere nasalt.",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Brun eller Schwarz'? Lyt til kaldet.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13030,
+         13010
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En orangegullig undergump hos en brun phyl…",
+       "choices": [
+        {
+         "text": "Peger mod Schwarz', men udelukker ikke Brun Løvsanger",
+         "correct": true
+        },
+        {
+         "text": "Beviser Schwarz' Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Beviser Brun Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Udelukker begge",
+         "correct": false
+        }
+       ],
+       "explanation": "Schwarz viser det altid, men der er eksempler på Brun Løvsanger med varmt brunlig undergump (Haaning).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken bevægelse passer på **Schwarz' Løvsanger**?",
+       "choices": [
+        {
+         "text": "Langsom og tøvende, lavt i krattet, ofte på jorden",
+         "correct": true
+        },
+        {
+         "text": "Hurtige hop og svirreflugt foran blade",
+         "correct": false
+        },
+        {
+         "text": "Hænger med hovedet nedad som en mejse højt i træerne",
+         "correct": false
+        },
+        {
+         "text": "Vibrerer med vingerne under sang i trætoppen",
+         "correct": false
+        }
+       ],
+       "explanation": "Brun Løvsanger er betydeligt mere speedet.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter **typisk tidspunkt** for danske fund om efteråret – tidligst først.",
+       "choices": [],
+       "explanation": "Nordsanger aug.–sept., Schwarz' sidst i sept.–20. okt., Brun mest oktober, Himalaya omkring månedsskiftet okt./nov.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "items": [
+         "Nordsanger",
+         "Schwarz' Løvsanger",
+         "Brun Løvsanger",
+         "Himalayasanger"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad gjorde Sinkiangløvsangeren på Christiansø 2016 særlig?",
+       "choices": [
+        {
+         "text": "Det var det første fund i Vestpalæarktis",
+         "correct": true
+        },
+        {
+         "text": "Det var Danmarks første ynglepar",
+         "correct": false
+        },
+        {
+         "text": "Den blev fundet i januar",
+         "correct": false
+        },
+        {
+         "text": "Den blev bestemt ved DNA",
+         "correct": false
+        }
+       ],
+       "explanation": "Arten yngler i Centralasien og overvintrer i Indien.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket kendetegn skiller **Sibirisk Gransanger** fra Brun Løvsanger?",
+       "choices": [
+        {
+         "text": "Sorte ben og olivengrønne kanter på vinge- og halefjer",
+         "correct": true
+        },
+        {
+         "text": "Lyst øjenbryn",
+         "correct": false
+        },
+        {
+         "text": "Brunlig overside",
+         "correct": false
+        },
+        {
+         "text": "Lille størrelse",
+         "correct": false
+        }
+       ],
+       "explanation": "HBWP. Kaldet er også helt forskelligt: pibende «iihp» mod hårdt «tsek».",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken brun phyl?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13030,
+         13010,
+         13113,
+         13050
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Træk, vejr og steder: hvornår og hvor du finder dem",
+     "lesson_md": "Phyller er **nattrækkere**. De flyver om natten og raster om dagen for at æde og genopbygge fedtdepoterne. Hvor og hvornår de går ned, bestemmes\naf vejr, kystlinje og tid på året – og det kan du bruge.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Hvad trækforskningen siger\n\nNikita Chernetsov sammenfatter i *Passerine Migration – Stopovers and Flight* (Springer 2012) årtiers forskning fra bl.a. den biologiske station\nRybachy på Den Kuriske Landtange:\n\n- **Natlige trækkere flyver ikke non-stop.** De fleste gør mange rastestop, og rasten bruges mest til at **tanke op**, ikke til at hvile.\n- **Rastetiden varierer meget.** I en oase i Vestkasakhstan blev løvsangere i gennemsnit kun **0,85 dag**, gransangere **2,75 dage**. I en oase i\n  Mauretanien før Saharakrydsningen blev løvsangerne gennemsnitligt **6,3 dage**. En rastende løvsanger i dit krat kan altså være væk i morgen.\n- **Trækprogrammet er medfødt.** Eberhard Gwinners klassiske forsøg viste, at løvsangere og skovsangere har en indre **årsrytme**, der styrer\n  trækuro og fældning – også i fangenskab uden årstidsskift. Trækretningen er arvelig (Helbig 1996).\n- **Løvsangeren trækker «vidt omkring i Afrika»** efter Saharakrydsningen – den har ikke ét fast vinterterritorium som fx broget fluesnapper.\n- Den østlige løvsanger, der trækker fra Østsibirien til Afrika, har måske **verdens længste træk i forhold til kropsstørrelsen** (Alerstam 2003).\n\n### Hvorfor du finder dem ved kysten\n\nMalling Olsen (Pandion 2015): Vingebåndene kommer med **kolde østlige vinde**. Møder de en **varmfront med nedbør og tåge**, tvinges de ned sammen\nmed andre nattrækkere. **Flest ses ved kystlokaliteter**, hvor fuglene bremser op over for havet eller trækker ind til land tidligt om morgenen.\nVed den jyske vestkyst er flest fundet **den første dag med vestenvind efter en østenvindsperiode**. Rekorddagen med 35 Hvidbrynede i Blåvand\n(28/9 2013) fulgte netop et vindskift til nordvest efter østenvind, faldende temperatur og byger om natten.\n\n| Lokalitetstype | Eksempler |\n|---|---|\n| Fyrhaver og kystkrat i Vestjylland | Hanstholm, Nørre Lyngvig, Blåvandshuk, Skagen/Grenen |\n| Vadehavsøerne | Mandø, Fanø, Rømø |\n| Nordsjællands kyst | Nakkehoved og Spodsbjerg fyr |\n| Christiansø | Størst antal under **nordøstenvind og nedsat sigt** |\n| Fuglestationer | Blåvand, Skagen, Christiansø, Gedser – mange sjældne phyller er fundet i nettene |\n\n### Lundsangeren og foråret\n\nOm foråret er det **sydøstenvind** i maj–juni, der får Lundsangere til at «skyde over» Polen og Baltikum – med flest fund på Christiansø, Bornholm\nog Østmøn (DOFbasen). Christiansø i **månedsskiftet maj–juni** har givet bl.a. Sinkiangløvsangeren."
+      },
+      {
+       "type": "tip",
+       "titel": "Brug DOF.tool før turen",
+       "md": "- **Forbered en tur** (under Læring) viser, hvilke arter der er sandsynlige på en lokalitet i den uge.\n- **Fænologi** viser, hvornår arterne topper i Danmark.\n- Artssiderne (klik på artsnavnet i et artskort) viser den seneste forekomst."
+      },
+      {
+       "type": "artskort",
+       "artnr": 13000
+      },
+      {
+       "type": "artskort",
+       "artnr": 13120
+      },
+      {
+       "type": "artskort",
+       "artnr": 13110
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad bruger nattrækkende phyller **primært** rasteophold til?",
+       "choices": [
+        {
+         "text": "At tanke op – genopbygge fedtdepoterne",
+         "correct": true
+        },
+        {
+         "text": "At sove",
+         "correct": false
+        },
+        {
+         "text": "At synge territorium",
+         "correct": false
+        },
+        {
+         "text": "At fælde svingfjer",
+         "correct": false
+        }
+       ],
+       "explanation": "Dolnik 1985, citeret i Chernetsov 2012: «Stopovers are mainly made for refuelling, not for rest».",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "I Chernetsovs undersøgelse i en kasakhisk oase blev løvsangere i gennemsnit…",
+       "choices": [
+        {
+         "text": "Under én dag (0,85)",
+         "correct": true
+        },
+        {
+         "text": "En uge",
+         "correct": false
+        },
+        {
+         "text": "Tre uger",
+         "correct": false
+        },
+        {
+         "text": "Hele efteråret",
+         "correct": false
+        }
+       ],
+       "explanation": "Gransangerne blev 2,75 dage. Før Saharakrydsningen i Mauretanien blev løvsangerne ca. 6 dage.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken vejrsituation giver flest vingebånd på den jyske vestkyst?",
+       "choices": [
+        {
+         "text": "Første dag med vestenvind efter en østenvindsperiode – gerne med byger om natten",
+         "correct": true
+        },
+        {
+         "text": "Langvarigt højtryk med svag vestenvind",
+         "correct": false
+        },
+        {
+         "text": "Sydvestlig kuling i august",
+         "correct": false
+        },
+        {
+         "text": "Frost og klart vejr i november",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen og rekorddagen i Blåvand 2013.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken vind giver flest **Lundsangere** om foråret?",
+       "choices": [
+        {
+         "text": "Sydøstenvind",
+         "correct": true
+        },
+        {
+         "text": "Nordvestenvind",
+         "correct": false
+        },
+        {
+         "text": "Vestenvind",
+         "correct": false
+        },
+        {
+         "text": "Ingen vind",
+         "correct": false
+        }
+       ],
+       "explanation": "Fuglene «skyder over» Polen og Baltikum (DOFbasen).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad viste Gwinners forsøg med løvsangere og skovsangere?",
+       "choices": [
+        {
+         "text": "At trækuro og fældning styres af en medfødt årsrytme",
+         "correct": true
+        },
+        {
+         "text": "At de lærer trækruten af forældrene",
+         "correct": false
+        },
+        {
+         "text": "At de kun trækker om dagen",
+         "correct": false
+        },
+        {
+         "text": "At de ikke fælder i fangenskab",
+         "correct": false
+        }
+       ],
+       "explanation": "Circannuale rytmer (Gwinner 1968, citeret i Chernetsov 2012).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter disse **phyl-begivenheder** gennem året – tidligst først.",
+       "choices": [],
+       "explanation": "Et phyl-år i Danmark. Brug det til at planlægge – og til at vurdere, om en observation er fænologisk afvigende.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "items": [
+         "Gransangeren ankommer (midt i marts)",
+         "Løvsangeren ankommer (ca. 10. april)",
+         "Lundsangere ved sydøstenvind (sidst i maj–juni)",
+         "Nordsanger-tid (sidst i aug.–sept.)",
+         "Hvidbrynet Løvsanger topper (sidst i sept.–start okt.)",
+         "Himalayasanger topper (omkring 1. november)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Planlæg din næste oktobertur efter sibiriske phyller: Hvilken vejrudsigt venter du på, hvor tager du hen, og hvad gør du, når du hører et ukendt kald?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "min_chars": 100,
+        "example": "Jeg holder øje med en periode med østlige vinde og venter på omslaget til vest med byger om natten. Så tager jeg til en fyrhave eller et kystkrat på Vestkysten tidligt om morgenen. Hører jeg et ukendt kald, starter jeg lydoptageren på telefonen med det samme, prøver at se fuglen og noterer øjenbryn, vingebånd, tertialer, næb og ben – og bliver ved den, til den er bestemt eller væk."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 35,
+     "min_score_pct": null
+    },
+    {
+     "title": "Lydbiblioteket: kald og sang sorteret efter lyd",
+     "lesson_md": "Phyller lærer man med ørerne. Her er kaldene ordnet efter **lydtype** – ikke efter slægtskab – fordi det er sådan, du møder dem i felten: Du hører en\nlyd og skal vide, hvilken «skuffe» den hører til i. Lyt, sig lyden højt, og lyt igen. Gentagelse over flere dage virker bedre end mange gange i træk.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "| Skuffe | Lyden | Arter |\n|---|---|---|\n| **1. «Hu-it»-skuffen** | Bløde, opadgående fløjt | Løvsanger (HU-it), Gransanger (hu-IT), Bjergløvsanger (kraftigt tostavet hu-IIT, som grønirisk) |\n| **2. Faldende fløjt** | Fint, nedadgående | Iberisk Gransanger («fiu» – rørspurv/grønsisken) |\n| **3. Pibende, ligeud** | Monotont, klagende | Sibirisk Gransanger («kyllingekaldet»), Kaukasisk Gransanger (mere mekanisk) |\n| **4. Vipstjert-skuffen** | Tostavet, «frådende» | Lundsanger («tsli-e»), Himalayasanger («tsu-viis»), Østlig Lundsanger og Grøn Sanger (ofte tre led) |\n| **5. Høj og gennemtrængende** | Stigende, «fizzy» | Hvidbrynet Løvsanger («tsoo-EEST» – sortmejse) |\n| **6. Svage og hæse** | Let at overhøre | Fuglekongesanger («huit») |\n| **7. Skarpe/skrattende** | Vandstær | Nordsanger («dzrit») |\n| **8. Klik og smask** | Tunge-klik | Brun Løvsanger (hårdt «tsek» – gærdesanger), Schwarz' (blødt «tjuck»), Dværgløvsanger («tjep») |\n| **9. Spurveagtigt** | Fladt «tjip» | Balkanløvsanger, Skovsanger (skarpt «zip») |"
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13120,
+        "latin": "Phylloscopus trochilus",
+        "type": "kald"
+       },
+       "tekst": "Skuffe 1: Løvsanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13110,
+        "latin": "Phylloscopus collybita",
+        "type": "kald"
+       },
+       "tekst": "Skuffe 1: Gransanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13070,
+        "latin": "Phylloscopus bonelli",
+        "type": "kald"
+       },
+       "tekst": "Skuffe 1: Bjergløvsanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13116,
+        "latin": "Phylloscopus ibericus",
+        "type": "kald"
+       },
+       "tekst": "Skuffe 2: Iberisk Gransanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13113,
+        "latin": "Phylloscopus collybita tristis",
+        "type": "kald"
+       },
+       "tekst": "Skuffe 3: Sibirisk Gransanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12930,
+        "latin": "Phylloscopus trochiloides",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Skuffe 4: Lundsanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13005,
+        "latin": "Phylloscopus humei",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Skuffe 4: Himalayasanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13000,
+        "latin": "Phylloscopus inornatus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Skuffe 5: Hvidbrynet Løvsanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12980,
+        "latin": "Phylloscopus proregulus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Skuffe 6: Fuglekongesanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 12950,
+        "latin": "Phylloscopus borealis",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Skuffe 7: Nordsanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13030,
+        "latin": "Phylloscopus fuscatus",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Skuffe 8: Brun Løvsanger."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 13010,
+        "latin": "Phylloscopus schwarzi",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Skuffe 8: Schwarz' Løvsanger."
+      },
+      {
+       "type": "tekst",
+       "md": "### Sangene i én sætning hver\n\n- **Løvsanger**: blød, faldende fløjtestrofe – «en bogfinke, der har lært at fløjte».\n- **Gransanger**: «tjif-tjaf» på 2–3 tonehøjder, ofte med dæmpet «perre-perre» imellem.\n- **Sibirisk Gransanger**: hurtigere, mere melodisk, tonerne snubler over hinanden.\n- **Iberisk Gransanger**: tjif-tjif – stammen – trukne fløjt.\n- **Skovsanger**: snurrende mønt + melankolske «tyh tyh».\n- **Bjergløvsanger**: sølvklar, «leende» gentagelse af én tone. **Balkanløvsanger**: samme, men tør og mekanisk.\n- **Lundsanger**: kort, kradsende, hastig strofe med et halvt stop. **Grøn Sanger**: endnu kortere, ofte med en tør trille «tsi-tserr».\n- **Nordsanger**: monoton, tør trille på én tone – lidt som gærdeværling.\n- **Fuglekongesanger**: kraftig som gærdesmutte, serier af gentagne toner.\n- **Hvidbrynet Løvsanger**: høje, tynde, tøvende fløjt – kaldet kan høres i strofen.\n- **Schwarz' Løvsanger**: eksplosivt udbrud. **Brun Løvsanger**: én tone gentaget roligt."
+      },
+      {
+       "type": "tip",
+       "titel": "Sådan øver du",
+       "md": "1. Lyt til én skuffe ad gangen, sig lyden højt.\n2. Tag lydquizzerne nedenfor – gæt, *før* du er sikker, og angiv ærlig sikkerhed.\n3. Kom tilbage i morgen og om tre dage (Repetition). Det er mellemrummene, der får lydene til at sidde fast.\n4. Brug **Træn foto og lyd** under Læring med artsgruppen *Løvsangere (Phylloscopus)* og «kald»."
+      }
+     ],
+     "acts": [
+      {
+       "type": "lyd_art",
+       "prompt": "Skuffe 1–2: hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13070,
+         13116
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Skuffe 4–7: hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         12930,
+         13005,
+         13000,
+         12950
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Skuffe 3 og 8: hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13030,
+         13010,
+         13113,
+         13110
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Alle sange: hvem synger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Alle kald: hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken skuffe hører **Himalayasangerens** typiske kald til?",
+       "choices": [
+        {
+         "text": "Vipstjert-skuffen (tostavet, frådende)",
+         "correct": true
+        },
+        {
+         "text": "Høj og gennemtrængende",
+         "correct": false
+        },
+        {
+         "text": "Klik og smask",
+         "correct": false
+        },
+        {
+         "text": "Pibende, ligeud",
+         "correct": false
+        }
+       ],
+       "explanation": "Den deler skuffe med Lundsanger. Hvidbrynet er «høj og gennemtrængende».",
+       "skills": [
+        "Lyt",
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken art kalder som en **tiggende gråspurveunge**?",
+       "choices": [
+        {
+         "text": "Balkanløvsanger",
+         "correct": true
+        },
+        {
+         "text": "Bjergløvsanger",
+         "correct": false
+        },
+        {
+         "text": "Iberisk Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Fuglekongesanger",
+         "correct": false
+        }
+       ],
+       "explanation": "HBWP og Collins.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "tekst",
+       "prompt": "Hvilken anden fugleart minder **Nordsangerens** kald om? (dansk navn)",
+       "choices": [],
+       "explanation": "Som vandstær (HBWP: «like the call of White-throated Dipper»).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "fuzzy": true
+       },
+       "accept": [
+        "vandstær",
+        "vandstæren"
+       ],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Dokumentation, SU og ærlige bestemmelser",
+     "lesson_md": "En sjælden phyl er først «fundet», når den er **dokumenteret**. Og en almindelig phyl er først rigtigt bestemt, når du kan forklare, *hvordan*.\nDenne lektion samler det feltornitologiske framework: fra første indtryk til beskrivelse, lydfil og – når det er det rigtige svar – «ubestemt».",
+     "blocks": [
+      {
+       "type": "metode",
+       "trin": 4
+      },
+      {
+       "type": "tekst",
+       "md": "### Frameworket i fem trin (Metoden) – anvendt på phyller\n\n1. **Forudsig** – Hvad er sandsynligt *her og nu*? Dato, vejr, lokalitet. (En «løvsanger» i marts? En «himalaya» sidst i september?)\n2. **Opdag** – Hvad ser og hører du faktisk? Noter **struktur**, **hoved**, **vinge**, **bare dele**, **stemme**, **adfærd** – i den rækkefølge.\n3. **Tolk** – Hvilken gruppe? (Uden vingebånd / ét bånd / to bånd + hvide tertialer / brun.)\n4. **Adskil** – Gå nøglepakken igennem mod de **nærmeste forvekslinger**. Kun de kendetegn, der faktisk skiller.\n5. **Beslut** – Art, artspar (fx *Bjergløvsanger/Balkanløvsanger*), slægt (*Phylloscopus sp.*) eller ubestemt – med **ærlig sikkerhed**.\n\n### Hvad du skal dokumentere\n\n| | Hvorfor |\n|---|---|\n| **Lydoptagelse** (telefonen er nok) | Kaldet afgør Bjerg/Balkan, tristis, Hvidbrynet/Himalaya, Grøn/Lund – og sonogrammer kan vise det, øret ikke kan (fx Grøn Sangers «W»-formede kald, Skagen 2020). |\n| **Fotos af hovedet fra siden** | Øjenbryn ved næbbet, tøjle, kind, undernæb. |\n| **Fotos af den foldede vinge** | Vingebånd, tertialkanter, håndsvingfremspring. |\n| **Ben og undergump** | Benfarve, undergumpens farve. |\n| **Noter skrevet på stedet** | Adfærd, bevægelser, vejr, tid. Skriv, hvad du *så* – ikke hvad bogen siger. |\n| **Ringmærkning** | Vingeformel, indskæringer, mål; evt. **DNA** (fjer/ekskrementer) – brugt på Bjergløvsangeren i Gedser 2017 og den Iberiske Gransanger i Skagen 2018. |\n\n### SU og fænologi\n\n- **Sjældenhedsudvalget (SU)** behandler fund af SU-arter (bl.a. Grøn Sanger, Østlig Lundsanger, Nordsanger, Himalayasanger, Schwarz', Sinkiang,\n  Bjergløvsanger, Iberisk Gransanger). En god beskrivelse med fotos og lyd er nøglen.\n- **DOFbasens fænologiarter**: For tidlige fund skal beskrives – fx **løvsanger før 10. april** (Kofoed-Hansen, Pandion 2013). *«Jeg kender udmærket sangen»*\n  er ikke dokumentation.\n- Kriterier ændrer sig: Sibirisk Gransanger blev i årsrapporten tidligere kun godkendt, hvis den var ringmærket – i dag er **dragt + kald** accepteret\n  feltornitologisk praksis (Haaning, Pandion 2015).\n\n### «Ubestemt» er et rigtigt svar\n\nEn lys, kølig gransanger uden kald. En efterårs-bjerg/balkanløvsanger uden kald. En phyl set i tre sekunder i modlys. Den rigtige registrering er\n**gransanger sp.**, **Bjergløvsanger/Balkanløvsanger** eller **Phylloscopus sp.** I aktiviteterne med valget *«Lad den stå ubestemt»* tæller et ubestemt\nsvar med **lav sikkerhed** som et **ærligt svar** – ikke som en fejl."
+      },
+      {
+       "type": "tip",
+       "titel": "Til finderen af en sjælden phyl",
+       "md": "1. **Optag lyd med det samme** – også selvom du ikke ser fuglen.\n2. Tag mange billeder, også dårlige – de kan vise vingebånd og tertialer.\n3. **Meld den ud**, også med forbehold («Artsbestemmelse usikker»). Flere øjne og ører hjælper.\n4. Skriv dine noter, *før* du læser i bogen.\n5. Send beskrivelse, fotos og lyd til SU."
+      }
+     ],
+     "acts": [
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sæt **Metodens** fem trin i rækkefølge.",
+       "choices": [],
+       "explanation": "Kursets og Lærings fælles framework.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Forudsig",
+         "Opdag",
+         "Tolk",
+         "Adskil",
+         "Beslut"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Du ser en phyl i fem sekunder i modlys. Den har et lyst øjenbryn og muligvis et vingebånd, og den kalder ikke. Hvad er den bedste registrering?",
+       "choices": [
+        {
+         "text": "Phylloscopus sp.",
+         "correct": true
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Nordsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Uden flere kendetegn er slægtsniveau det ærlige svar.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken dokumentation er **vigtigst** for at skelne Bjergløvsanger fra Balkanløvsanger?",
+       "choices": [
+        {
+         "text": "En lydoptagelse af kaldet",
+         "correct": true
+        },
+        {
+         "text": "Et foto af benene",
+         "correct": false
+        },
+        {
+         "text": "Et foto af overgumpen",
+         "correct": false
+        },
+        {
+         "text": "Vejret på dagen",
+         "correct": false
+        }
+       ],
+       "explanation": "Kaldet er den sikreste karakter (HBWP).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket udsagn om at indtaste en tidlig løvsanger den 3. april er rigtigt?",
+       "choices": [
+        {
+         "text": "Den skal beskrives og gerne både ses og høres – helst med lyd eller foto",
+         "correct": true
+        },
+        {
+         "text": "«Jeg kender sangen godt» er tilstrækkeligt",
+         "correct": false
+        },
+        {
+         "text": "Tidlige fund indtastes ikke",
+         "correct": false
+        },
+        {
+         "text": "Kun ringmærkede fugle må indtastes",
+         "correct": false
+        }
+       ],
+       "explanation": "Løvsanger er fænologiart frem til 10. april. DKU og kvalitetsudvalget kræver dokumentation (Kofoed-Hansen, Pandion 2013).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor blev der taget DNA-prøve af Bjergløvsangeren i Gedser 2017?",
+       "choices": [
+        {
+         "text": "For at udelukke Balkanløvsanger med sikkerhed",
+         "correct": true
+        },
+        {
+         "text": "For at bestemme køn",
+         "correct": false
+        },
+        {
+         "text": "For at bestemme alder",
+         "correct": false
+        },
+        {
+         "text": "Fordi den var død",
+         "correct": false
+        }
+       ],
+       "explanation": "Mål og fjerdetaljer pegede på Bjergløvsanger, men kun DNA kunne udelukke Balkanløvsanger helt (Liebermann, Pandion).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Skriv en kort SU-beskrivelse af en Nordsanger, du forestiller dig at have fundet i et kystkrat i september. Hvilke kendetegn og hvilken dokumentation skal med?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 150,
+        "example": "Stor phyl, større end løvsanger, med stort hoved og stort næb. Langt, smalt, ensartet hvidligt øjenbryn, der stopper brat før næbbet og buer op bagtil. Bred, mørk, gennemgående øjenstribe helt til næbbet. Ét kort, ensartet bredt hvidt vingebånd på de store dækfjer; tertialer uden hvide kanter; ingen issestribe. Stort næb med mørk plet på undernæbbet, lyse lyserødbrune ben. Gråplettede brystsider. Kald: skarpt «dzrit» som vandstær, optaget på telefon. Fotos af hoved og vinge vedlagt. Set 08.15–08.40 i let vestenvind efter østenvind."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 30,
+     "min_score_pct": null
+    },
+    {
+     "title": "Afsluttende prøve: alle phyller blandet",
+     "lesson_md": "Nu blandes det hele. Blandede prøver er sværere end lektionernes – og det er meningen: Det er sådan, du møder fuglene i felten, og det er den\ntype øvelse, der giver mest holdbar læring. Tag prøven, læs forklaringerne på dine fejl, og tag den igen om en uge.",
+     "blocks": [
+      {
+       "type": "tip",
+       "titel": "Inden du starter",
+       "md": "Brug **Metoden** på hvert spørgsmål: Hvilken gruppe? Hvilke nærmeste forvekslinger? Hvilket kendetegn skiller? Og angiv din sikkerhed ærligt – din\nkalibrering vises under **Min fremgang**."
+      }
+     ],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken phyl er det?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "antal": 15
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvilken phyl kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvilken phyl synger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En phyl med **ubrudt øjenring**, silkehvid underside og lys overgump i maj i en lysning i Dyrehaven. Den siger et kraftigt, tostavet «hu-iit». Art?",
+       "choices": [
+        {
+         "text": "Bjergløvsanger",
+         "correct": true
+        },
+        {
+         "text": "Balkanløvsanger",
+         "correct": false
+        },
+        {
+         "text": "Skovsanger",
+         "correct": false
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Dyrehaven 2025. Balkan ville sige et enstavet «tjip».",
+       "skills": [
+        "Sammenlign",
+        "Lyt"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Oktober, Vestkysten: en lille phyl med to vingebånd, men det øverste er næsten væk; **lys uplettet kind**, **mørkt næb**, mørke ben og et vipstjertagtigt kald. Art?",
+       "choices": [
+        {
+         "text": "Himalayasanger",
+         "correct": true
+        },
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Fuglekongesanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Kontrastfattig, ét tydeligt bånd, mørke bare dele og kaldet.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "September, Hanstholm fyrhave: stor phyl, smalt øjenbryn der stopper brat før næbbet, bred mørk tøjle, kort vingebånd, tertialer uden hvide kanter, kald som vandstær. Art?",
+       "choices": [
+        {
+         "text": "Nordsanger",
+         "correct": true
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Østlig Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Østlig Kronsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Haanings nøgler + kaldet.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Juni, Christiansø: lille kompakt phyl, øjenbryn der mødes over panden, mørk plet foran øjet, kort smalnende vingebånd, synger en kort kradsende strofe med vibrerende vinger. Art?",
+       "choices": [
+        {
+         "text": "Lundsanger",
+         "correct": true
+        },
+        {
+         "text": "Nordsanger",
+         "correct": false
+        },
+        {
+         "text": "Grøn Sanger",
+         "correct": false
+        },
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Klassisk forårslundsanger.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "November, Møn: gråbrun gransanger med beige flanker, markant hvidligt øjenbryn, varmt brun kind, sort næb og ben og et monotont pibende kald. Art/form?",
+       "choices": [
+        {
+         "text": "Sibirisk Gransanger",
+         "correct": true
+        },
+        {
+         "text": "Nordlig gransanger (abietinus)",
+         "correct": false
+        },
+        {
+         "text": "Iberisk Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Brun Løvsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Dragt + kyllingekald.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Oktober, krat ved Blåvand: brun phyl, kraftigt kort næb, tyrenakke, øjenbryn klarest bag øjet med mørk skygge over, kraftige lyse ben, blødt «tjuck». Art?",
+       "choices": [
+        {
+         "text": "Schwarz' Løvsanger",
+         "correct": true
+        },
+        {
+         "text": "Brun Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Sinkiangløvsanger",
+         "correct": false
+        },
+        {
+         "text": "Sibirisk Gransanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Alle Schwarz-pakkens kendetegn.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Maj, Skagen: «lundsanger» med gul strube og ansigt, frisk grøn overside, to vingebånd og et tretonet kald «tji-tu-ve». Art?",
+       "choices": [
+        {
+         "text": "Grøn Sanger",
+         "correct": true
+        },
+        {
+         "text": "Lundsanger",
+         "correct": false
+        },
+        {
+         "text": "Skovsanger",
+         "correct": false
+        },
+        {
+         "text": "Østlig Lundsanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Skagen 2020.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "April, bøgeskov: phyl med meget langt håndsvingfremspring, bredt gult øjenbryn, gul strube skarpt mod hvid bug. Art?",
+       "choices": [
+        {
+         "text": "Skovsanger",
+         "correct": true
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Bjergløvsanger",
+         "correct": false
+        },
+        {
+         "text": "Iberisk Gransanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Den langvingede.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Maj, nordjysk skov: en «gransanger» synger «tjif tjif tjif – te-te-te – svii svii» og kalder et faldende «fiu». Bedste registrering?",
+       "choices": [
+        {
+         "text": "Mulig Iberisk Gransanger – optag og dokumentér til SU",
+         "correct": true
+        },
+        {
+         "text": "Gransanger",
+         "correct": false
+        },
+        {
+         "text": "Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Hybrid løvsanger × gransanger",
+         "correct": false
+        }
+       ],
+       "explanation": "Sang og kald peger på Iberisk Gransanger – men på grund af blandingssang og hybrider kræver det god dokumentation.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Oktober: en phyl med to tydelige vingebånd, **hvide tertialkanter**, skarp gul issestribe og gul overgump. Art?",
+       "choices": [
+        {
+         "text": "Fuglekongesanger",
+         "correct": true
+        },
+        {
+         "text": "Hvidbrynet Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Østlig Kronsanger",
+         "correct": false
+        },
+        {
+         "text": "Fuglekonge",
+         "correct": false
+        }
+       ],
+       "explanation": "Tigerdyret.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken af disse bestemmelser er **mest sandsynligt forkert**?",
+       "choices": [
+        {
+         "text": "En Løvsanger, der synger den 15. marts",
+         "correct": true
+        },
+        {
+         "text": "En Gransanger, der synger den 20. marts",
+         "correct": false
+        },
+        {
+         "text": "En Hvidbrynet Løvsanger den 1. oktober",
+         "correct": false
+        },
+        {
+         "text": "En Lundsanger på Christiansø den 5. juni",
+         "correct": false
+        }
+       ],
+       "explanation": "Løvsangeren ankommer fra ca. 10. april. Den faldende strofe i marts er næsten altid en træløber.",
+       "skills": [
+        "Forbered",
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken bestemmelse er **ikke** mulig på dragten alene i felten ifølge HBWP?",
+       "choices": [
+        {
+         "text": "Unge efterårs-Bjergløvsangere fra Balkanløvsangere",
+         "correct": true
+        },
+        {
+         "text": "Skovsanger fra Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Fuglekongesanger fra Hvidbrynet Løvsanger",
+         "correct": false
+        },
+        {
+         "text": "Nordsanger fra Lundsanger set godt",
+         "correct": false
+        }
+       ],
+       "explanation": "«Young autumn Western and Eastern Bonelli's are depressingly difficult to separate» – kun kaldet hjælper.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Gå tilbage til dit svar i første lektion. Hvad kigger og lytter du efter nu, som du ikke gjorde før?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 60,
+        "example": "Fx: «Nu starter jeg med håndsvingfremspringet og benene, så hovedet (når øjenbrynet næbbet? mørk plet eller streg i tøjlen?), så vingen (bånd og tertialkanter) – og jeg prøver altid at få kaldet. Jeg er også mere tryg ved at lade en fugl stå som Phylloscopus sp.»"
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    }
+   ],
+   "loose": false
+  },
+  {
+   "kind": "ovelse",
+   "slug": "phylloscopus-traening",
+   "title": "Phyl-træning: foto, kald og sang",
+   "summary": "Blandet foto- og lydtræning i alle danske Phylloscopus-arter. Tag den igen og igen – hver gang med nye fotos og optagelser.",
+   "card": "Nye fotos og lyde hver gang: løvsangere, gransangere, vingebånd og de brune.",
+   "category": "Artsgrupper",
+   "skills": [
+    "Bemærk",
+    "Lyt",
+    "Sammenlign"
+   ],
+   "hue": "skov",
+   "sil": "spurvefugl",
+   "featured": true,
+   "units": [
+    {
+     "title": "",
+     "lesson_md": "",
+     "blocks": [],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken phyl?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem synger?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         13120,
+         13110,
+         13113,
+         13116,
+         13080,
+         13070,
+         12930,
+         12920,
+         12910,
+         12950,
+         13000,
+         13005,
+         12980,
+         13030,
+         13010,
+         13050
+        ],
+        "metode": "valg",
+        "rtype": "sang",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         13120,
+         13110
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         13000,
+         13005
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         12930,
+         12950
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         13030,
+         13010
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ]
+    }
+   ],
+   "loose": true
+  }
+ ]
+}

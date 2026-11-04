@@ -7,6 +7,18 @@ import { SILS, HUES } from "./konstanter.js";
 const TYPER = [["tekst", "Tekst"], ["foto", "Foto"], ["fotoraekke", "Fotorække (sammenlign)"], ["lyd", "Lyd"], ["silhuet", "Silhuet"], ["artskort", "Artskort"],
   ["kort", "Sted"], ["artikel", "Artikel"], ["tip", "Tip"], ["advarsel", "Advarsel"], ["metode", "Metoden (fem trin)"]];
 
+/** Kort tekst for en automatisk medie-reference (startindhold): netfugl-foto, XC-nr. eller art + type. */
+export function refText(r) {
+  if (!r) return "";
+  return [r.nf ? `netfugl-foto ${r.nf}` : "", r.xc ? `XC${r.xc}` : "", r.latin || (r.artnr ? `art ${r.artnr}` : ""), r.type || "", r.n ? `nr. ${r.n + 1}` : ""].filter(Boolean).join(", ");
+}
+
+/** «Brug automatisk igen»: fjerner et fast valgt medie, så blokkens reference bruges igen. */
+function autoBtn(b, keys, prev, label, change) {
+  if (!b.ref && !b.refs) return null;
+  return h("button", { type: "button", class: "btn sm ghost", title: "Fjern det valgte og brug det automatisk valgte foto/den automatisk valgte lyd", onclick: () => { keys.forEach(k => delete b[k]); prev.textContent = label(); change(); } }, "Brug automatisk");
+}
+
 /** Blok-editor. ``blocks`` er en liste, der redigeres på stedet; ``onChange`` kaldes ved hver ændring. */
 export function blocksEditor(blocks, onChange) {
   const root = h("div", { class: "lr-blocks" });
@@ -26,18 +38,23 @@ export function blocksEditor(blocks, onChange) {
     switch (b.type) {
       case "tekst": case "tip": case "advarsel": body.append(b.type !== "tekst" ? field("Overskrift", text("titel")) : null, field("Tekst (markdown)", area("md"))); break;
       case "foto": {
-        const prev = h("span", { class: "muted" }, b.photo_id ? `Foto ${b.photo_id}` : "Intet foto valgt");
-        body.append(h("div", { class: "lr-actions" }, prev, h("button", { type: "button", class: "btn sm", onclick: () => photoPicker({ onPick: (p) => { set("photo_id", p.id); prev.textContent = `Foto ${p.id} · ${p.arter || ""}`; } }) }, "Vælg foto")), field("Billedtekst", text("tekst")));
+        const prev = h("span", { class: "muted" }, b.photo_id ? `Foto ${b.photo_id}` : b.ref ? `Automatisk: ${refText(b.ref)}` : "Intet foto valgt");
+        body.append(h("div", { class: "lr-actions" }, prev, h("button", { type: "button", class: "btn sm", onclick: () => photoPicker({ onPick: (p) => { set("photo_id", p.id); prev.textContent = `Foto ${p.id} · ${p.arter || ""}`; } }) }, b.ref ? "Skift foto" : "Vælg foto"),
+          autoBtn(b, ["photo_id"], prev, () => `Automatisk: ${refText(b.ref)}`, change)), field("Billedtekst", text("tekst")));
         break;
       }
       case "fotoraekke": {
-        const prev = h("span", { class: "muted" }, `${(b.photo_ids || []).length} fotos`);
-        body.append(h("div", { class: "lr-actions" }, prev, h("button", { type: "button", class: "btn sm", onclick: () => photoPicker({ multi: true, onPick: (ps) => { set("photo_ids", ps.map(p => p.id).slice(0, 6)); prev.textContent = `${ps.length} fotos`; } }) }, "Vælg fotos")), field("Billedtekst", text("tekst")));
+        const count = () => (b.photo_ids || []).length ? `${b.photo_ids.length} fotos` : (b.refs || []).length ? `Automatisk: ${b.refs.map(refText).join(" · ")}` : "0 fotos";
+        const prev = h("span", { class: "muted" }, count());
+        body.append(h("div", { class: "lr-actions" }, prev, h("button", { type: "button", class: "btn sm", onclick: () => photoPicker({ multi: true, onPick: (ps) => { set("photo_ids", ps.map(p => p.id).slice(0, 6)); prev.textContent = count(); } }) }, b.refs ? "Skift fotos" : "Vælg fotos"),
+          autoBtn(b, ["photo_ids"], prev, count, change)),
+          field("Etiketter (én pr. foto, adskilt af |)", h("input", { value: (b.labels || []).join(" | "), oninput: (e) => set("labels", e.target.value.split("|").map(x => x.trim())) })), field("Billedtekst", text("tekst")));
         break;
       }
       case "lyd": {
-        const prev = h("span", { class: "muted" }, b.rec_id ? `Optagelse ${b.rec_id}` : "Ingen lyd valgt");
-        body.append(h("div", { class: "lr-actions" }, prev, h("button", { type: "button", class: "btn sm", onclick: () => soundPicker({ onPick: (r) => { set("rec_id", r.id); prev.textContent = `${r.source.toUpperCase()} ${r.ext_id}`; } }) }, "Vælg optagelse")), field("Tekst", text("tekst")));
+        const prev = h("span", { class: "muted" }, b.rec_id ? `Optagelse ${b.rec_id}` : b.ref ? `Automatisk: ${refText(b.ref)}` : "Ingen lyd valgt");
+        body.append(h("div", { class: "lr-actions" }, prev, h("button", { type: "button", class: "btn sm", onclick: () => soundPicker({ onPick: (r) => { set("rec_id", r.id); prev.textContent = `${r.source.toUpperCase()} ${r.ext_id}`; } }) }, b.ref ? "Skift optagelse" : "Vælg optagelse"),
+          autoBtn(b, ["rec_id"], prev, () => `Automatisk: ${refText(b.ref)}`, change)), field("Tekst", text("tekst")));
         break;
       }
       case "silhuet": body.append(field("Silhuet", h("select", { onchange: (e) => set("sil", e.target.value) }, ...SILS.map(s => h("option", { value: s, selected: s === b.sil }, s)))),

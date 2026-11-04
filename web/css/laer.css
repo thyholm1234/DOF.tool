@@ -154,3 +154,12 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 .lr-box5 { letter-spacing: 1px; font-size: .7rem; color: var(--brand-2); } .lr-box5.due { color: var(--warn); } .lr-box5.b0, .lr-box5.b1 { color: var(--err); }
 .lr-spark.big { height: 70px; width: 100%; max-width: 420px; } .lr-spark i.now { background: var(--brand); outline: 2px solid var(--brand); }
 .lr-clue { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin: 10px 0; }
+
+/* Lektionstekst: tabeller, fold-ud-svar og fotorækker med etiketter (bl.a. Phylloscopus-kurset) */
+.lr-md table { border-collapse: collapse; margin: 12px 0; font-size: .92rem; display: block; overflow-x: auto; max-width: 100%; }
+.lr-md th, .lr-md td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.lr-md th { font-size: .78rem; text-transform: uppercase; letter-spacing: .02em; color: var(--text-3); }
+.lr-md details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 12px; margin: 10px 0; }
+.lr-md details > summary { cursor: pointer; font-weight: 600; }
+.lr-md h3 { margin-top: 1.4em; }
+.lr-label { display: block; font-size: .85rem; margin-bottom: 4px; }

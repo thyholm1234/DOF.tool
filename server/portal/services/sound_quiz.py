@@ -81,8 +81,10 @@ async def save_settings(db: AsyncSession, body: dict) -> dict:
 
 
 def xc_query(latin: str, s: dict, rtype: str | None = None) -> str:
-    gen, sp = latin.split()[:2]
+    gen, sp, *rest = latin.split()
     parts = [f"gen:{gen}", f"sp:{sp}", {"A": "q:A", "B": 'q:">C"', "C": 'q:">D"'}[s["min_quality"]]]
+    if rest:  # underart (fx «Phylloscopus collybita tristis») – ellers får en underart optagelser af nominatformen
+        parts.append(f"ssp:{rest[0]}")
     if s["area"] == "europe":
         parts.append("area:europe")
     elif s["area"] == "denmark":
@@ -110,11 +112,33 @@ def _secs(v: str | None) -> int | None:
 
 async def xc_search(latin: str, s: dict, rtype: str | None = None) -> list[dict]:
     """Optagelserne for en art fra xeno-canto's API (filtreret efter indstillingerne og evt. type: song/call). Kaster SoundError ved fejl."""
+    data = await _xc_get(s, xc_query(latin, s, rtype))
+    return _parse(data, latin, s["max_length"])
+
+
+def _parse(data: dict, latin: str | None, max_length: int) -> list[dict]:
+    gen, sp, *rest = (latin or "x y").lower().split()
+    out = []
+    for r in data.get("recordings", []):
+        length = _secs(r.get("length"))
+        if latin and (str(r.get("gen", "")).lower() != gen or str(r.get("sp", "")).lower() != sp or (rest and str(r.get("ssp", "")).lower() != rest[0])):
+            continue
+        if not r.get("file") or length is None or length > max_length:
+            continue
+        lic = r.get("lic") or ""
+        out.append({"ext_id": str(r["id"]), "recordist": r.get("rec"), "license_url": ("https:" + lic if lic.startswith("//") else lic) or None,
+                    "license": _lic_name(lic), "rtype": r.get("type"), "quality": r.get("q"), "length_s": length, "country": r.get("cnt"),
+                    "page_url": f"https://xeno-canto.org/{r['id']}", "file_url": r["file"] if r["file"].startswith("http") else "https:" + r["file"],
+                    "latin": " ".join(x for x in (r.get("gen"), r.get("sp")) if x)})
+    return out
+
+
+async def _xc_get(s: dict, query: str) -> dict:
     if not s["xc_key"]:
         raise SoundError("Der er ikke sat en xeno-canto-nøgle op (Admin → Funktioner → Lydquiz)")
     async with _client() as c:
         try:
-            resp = await c.get("https://xeno-canto.org/api/3/recordings", params={"query": xc_query(latin, s, rtype), "key": s["xc_key"], "per_page": 100})
+            resp = await c.get("https://xeno-canto.org/api/3/recordings", params={"query": query, "key": s["xc_key"], "per_page": 100})
         except httpx.HTTPError as exc:
             raise SoundError("xeno-canto svarer ikke lige nu") from exc
     if resp.status_code in (401, 403):
@@ -127,17 +151,7 @@ async def xc_search(latin: str, s: dict, rtype: str | None = None) -> list[dict]
         raise SoundError(f"xeno-canto svarede {resp.status_code} uden gyldigt svar") from exc
     if resp.status_code != 200 or data.get("error"):
         raise SoundError(f"xeno-canto: {data.get('error', resp.status_code)} {data.get('message', '')}".strip())
-    gen, sp = latin.lower().split()[:2]
-    out = []
-    for r in data.get("recordings", []):
-        length = _secs(r.get("length"))
-        if str(r.get("gen", "")).lower() != gen or str(r.get("sp", "")).lower() != sp or not r.get("file") or length is None or length > s["max_length"]:
-            continue
-        lic = r.get("lic") or ""
-        out.append({"ext_id": str(r["id"]), "recordist": r.get("rec"), "license_url": ("https:" + lic if lic.startswith("//") else lic) or None,
-                    "license": _lic_name(lic), "rtype": r.get("type"), "quality": r.get("q"), "length_s": length, "country": r.get("cnt"),
-                    "page_url": f"https://xeno-canto.org/{r['id']}", "file_url": r["file"] if r["file"].startswith("http") else "https:" + r["file"]})
-    return out
+    return data
 
 
 def _lic_name(url: str) -> str | None:
@@ -149,6 +163,12 @@ def _lic_name(url: str) -> str | None:
 _SONG = "(r.rtype ILIKE '%song%' OR r.rtype ILIKE '%sang%')"
 _CALL = "(r.rtype ILIKE '%call%' OR r.rtype ILIKE '%kald%')"
 KIND_SQL = {"sang": _SONG, "kald": f"({_CALL} AND NOT {_SONG})", "begge": "TRUE"}
+
+
+_INSERT = text("""
+    INSERT INTO snd_recordings (source, ext_id, artnr, latin, recordist, license, license_url, rtype, quality, length_s, country, page_url, file_url)
+    VALUES ('xc', :ext_id, :a, :latin, :recordist, :license, :license_url, :rtype, :quality, :length_s, :country, :page_url, :file_url)
+    ON CONFLICT (source, ext_id) DO NOTHING""")
 
 
 async def ensure_species(db: AsyncSession, artnr: int, rtype: str, *, force: bool = False) -> int:
@@ -166,13 +186,45 @@ async def ensure_species(db: AsyncSession, artnr: int, rtype: str, *, force: boo
     found = await xc_search(latin, s, rtype)
     random.shuffle(found)
     for r in found[: s["per_species"]]:
-        await db.execute(text("""
-            INSERT INTO snd_recordings (source, ext_id, artnr, latin, recordist, license, license_url, rtype, quality, length_s, country, page_url, file_url)
-            VALUES ('xc', :ext_id, :a, :latin, :recordist, :license, :license_url, :rtype, :quality, :length_s, :country, :page_url, :file_url)
-            ON CONFLICT (source, ext_id) DO NOTHING"""), {**r, "a": artnr, "latin": latin})
+        await db.execute(_INSERT, {**r, "a": artnr, "latin": latin})
     await db.commit()
     await kv().set(marker, "1", ex=(30 if found else 7) * 86400)
     return await _count(db, artnr, kind)
+
+
+async def ensure_latin(db: AsyncSession, latin: str, rtype: str, *, artnr: int | None = None) -> int:
+    """Som ``ensure_species``, men for et latinsk navn (også underarter og arter uden artsnummer, fx Kanarisk Gransanger).
+    Optagelser af arter uden artsnummer gemmes med ``artnr = 0`` og indgår derfor aldrig i lydquizzens artsgrupper."""
+    kind = "sang" if rtype == "song" else "kald"
+    count = text(f"SELECT count(*) FROM snd_recordings r WHERE lower(r.latin) = lower(:l) AND r.enabled AND {KIND_SQL[kind]}")
+    have = (await db.execute(count, {"l": latin})).scalar() or 0
+    marker = f"snd:fetched:l:{latin.lower()}:{rtype}"
+    if have or len(latin.split()) < 2 or "/" in latin or await kv().exists(marker):
+        return have
+    s = await settings(db)
+    found = await xc_search(latin, s, rtype)
+    random.shuffle(found)
+    for r in found[: s["per_species"]]:
+        await db.execute(_INSERT, {**r, "a": artnr or 0, "latin": latin})
+    await db.commit()
+    await kv().set(marker, "1", ex=(30 if found else 7) * 86400)
+    return (await db.execute(count, {"l": latin})).scalar() or 0
+
+
+async def ensure_xc(db: AsyncSession, xc_id: str, *, artnr: int | None = None, latin: str | None = None) -> int | None:
+    """Én bestemt xeno-canto-optagelse (fx en, en Pandion-artikel henviser til); gemmes og returneres som ``snd_recordings.id``."""
+    marker = f"snd:fetched:xc:{xc_id}"
+    if await kv().exists(marker):
+        return None
+    s = await settings(db)
+    found = _parse(await _xc_get(s, f"nr:{xc_id}"), None, 10_000)
+    await kv().set(marker, "1", ex=7 * 86400)
+    if not found:
+        return None
+    r = found[0]
+    await db.execute(_INSERT, {**r, "a": artnr or 0, "latin": latin or r["latin"]})
+    await db.commit()
+    return (await db.execute(text("SELECT id FROM snd_recordings WHERE source = 'xc' AND ext_id = :x"), {"x": xc_id})).scalar()
 
 
 async def _count(db: AsyncSession, artnr: int, kind: str = "begge") -> int:
