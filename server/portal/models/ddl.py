@@ -5,6 +5,7 @@ EXTRA_DDL = [
     # Læring 2.0 (docs/laering-spec.md): kurser/øvelser og aktiviteter udvides
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS kind varchar(8) NOT NULL DEFAULT 'kursus'",
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS number integer",
+    "ALTER TABLE courses ADD COLUMN IF NOT EXISTS cover_ref jsonb",
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS stage varchar(40) NOT NULL DEFAULT ''",
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS category varchar(40) NOT NULL DEFAULT ''",
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS card text NOT NULL DEFAULT ''",

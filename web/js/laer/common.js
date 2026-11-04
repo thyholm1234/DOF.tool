@@ -30,9 +30,18 @@ export function silEl(key, { label = "" } = {}) {
 
 /** Kortets billedflade: silhuet på farveflade. */
 export function art(c, cls = "") {
+  if (c.cover?.url) {  // forsidebillede fra fotobiblioteket
+    return h("div", { class: `lr-art lr-art-photo ${cls}`, style: { background: hueOf(c.hue) } },
+      h("img", { src: c.cover.url, alt: "", loading: "lazy" }), c.cover.credit ? h("small", { class: "lr-credit" }, `Foto: ${c.cover.credit}`) : null);
+  }
   const el = h("div", { class: `lr-art ${cls}`, style: { background: hueOf(c.hue) } });
   el.append(silEl(c.sil));
   return el;
+}
+
+/** Bredt bannerbillede med kreditering (kursusside). */
+export function banner(cover, alt = "") {
+  return h("figure", { class: "lr-banner" }, h("img", { src: cover.url, alt }), cover.credit ? h("figcaption", { class: "lr-credit" }, `Foto: ${cover.credit}`) : null);
 }
 
 /** Medie til et spørgsmål eller en blok: foto, lyd, silhuet, to fotos side om side. */

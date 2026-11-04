@@ -71,8 +71,9 @@ async def katalog(user: User | None = Depends(_portal), db: AsyncSession = Depen
         due += (await db.execute(text("SELECT count(*) FROM lr_species_mastery WHERE user_id = :u AND due_at <= now()"), {"u": user.id})).scalar() or 0
     else:
         due = 0
-    cards = [_card(c, prog) for c in courses]
+    cards = [{**_card(c, prog), "cover": await learn_play.course_cover(db, c)} for c in courses]
     out = {"kurser": [c for c in cards if c["kind"] == "kursus"], "oevelser": [c for c in cards if c["kind"] != "kursus"], "forfald": due,
+           "banner": await learn_play.banner(db),
            "auto": [{"kind": k, "title": v} for k, v in __import__("portal.services.learning", fromlist=["AUTO_KINDS"]).AUTO_KINDS.items()]}
     if await learn_access.forloeb(db, user):
         from portal.services import learn_paths
@@ -99,7 +100,7 @@ async def course_units(slug: str, preview: bool = False, user: User | None = Dep
     for u, s in zip([u for u in st["units"] if u["id"]], states):
         units.append({"id": u["id"], "title": u["title"], "html": await learn_play.render_md(db, u["lesson_md"]), "blocks": await learn_play.resolve_blocks(db, u["blocks"]),
                       "n_acts": len(u["acts"]), "est_minutes": u["est_minutes"], "min_score_pct": u["min_score_pct"], **s})
-    return {"course": st["course"], "units": units, "preview": preview, "anonymous": user is None}
+    return {"course": {**st["course"], "cover": await learn_play.course_cover(db, c)}, "units": units, "preview": preview, "anonymous": user is None}
 
 
 @router.get("/units/{unit_id}/session")

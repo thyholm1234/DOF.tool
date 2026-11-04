@@ -1,6 +1,6 @@
 // Læring 2.0: ét kursus – lektionsliste, læsetekst, indholdsblokke og aktiviteter (docs/laering-spec.md §4.4).
 import { api, h, toast, errorBox } from "../core.js";
-import { BASE, backLink, bar, chip, art, mediaEl, pct, loadingBox } from "./common.js";
+import { BASE, backLink, bar, chip, art, banner, mediaEl, pct, loadingBox } from "./common.js";
 import { runPlayer } from "./player.js";
 import { silEl } from "./common.js";
 
@@ -77,7 +77,8 @@ export async function render(view, [slug, unitId], info) {
   }
 
   view.append(backLink(`${BASE}/kurser`, "Kurser"),
-    h("section", { class: "lr-course-head" }, art(c, "big"), h("div", {},
+    c.cover?.url ? banner(c.cover, c.title) : null,
+    h("section", { class: "lr-course-head" }, c.cover?.url ? null : art(c, "big"), h("div", {},
       h("div", { class: "lr-kicker" }, [c.number ? `Kursus ${c.number}` : "Kursus", c.stage ? ` · ${c.stage}` : ""]), h("h2", {}, c.title), h("p", {}, c.intro || c.summary),
       h("div", { class: "lr-meta" }, c.hours ? chip(c.hours) : null, ...(c.skills || []).map(s => chip(s, "soft")), preview ? chip("forhåndsvisning", "warn") : null),
       bar(done, d.units.length), h("small", { class: "muted" }, `${done} af ${d.units.length} lektioner`))),

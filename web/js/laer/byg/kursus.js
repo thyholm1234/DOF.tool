@@ -2,7 +2,8 @@
 import { api, h, toast, errorBox, modal } from "../../core.js";
 import { BASE, backLink, loadingBox } from "../common.js";
 import { activityForm } from "./aktivitet.js";
-import { blocksEditor } from "./blokke.js";
+import { blocksEditor, refText } from "./blokke.js";
+import { photoPicker } from "./pickere.js";
 import { SILS, HUES, TYPE_NAME } from "./konstanter.js";
 
 const SKILLS = ["Bemærk", "Lyt", "Genkald", "Sammenlign", "Afprøv", "Vurdér", "Opdatér", "Forbered", "Fasthold"];
@@ -35,7 +36,7 @@ export async function render(view, [slug]) {
     }
     saving = false;
   }
-  const saveCourse = () => queue("course", () => api(P(""), { method: "PUT", body: { stamp: stamp(), ...pick(course(), ["title", "summary", "intro", "topic", "level", "number", "stage", "category", "card", "audience", "learn", "skills", "hours", "hue", "sil", "visibility", "featured"]) } }));
+  const saveCourse = () => queue("course", () => api(P(""), { method: "PUT", body: { stamp: stamp(), ...pick(course(), ["title", "summary", "intro", "topic", "level", "number", "stage", "category", "card", "audience", "learn", "skills", "hours", "hue", "sil", "visibility", "featured", "cover_ref"]) } }));
   const saveUnit = (u) => queue("u" + u.id, () => api(P(`/enheder/${u.id}`), { method: "PUT", body: { stamp: stamp(), title: u.title, lesson_md: u.lesson_md, blocks: u.blocks, min_score_pct: u.min_score_pct, est_minutes: u.est_minutes } }));
   const saveAct = (a, uid) => queue("a" + a.id, () => api(P(`/aktiviteter/${a.id}`), { method: "PUT", body: { stamp: stamp(), unit_id: uid, ...pick(a, ["type", "prompt", "choices", "explanation", "config", "accept", "skills", "media_kind", "media_url", "media_credit", "media_photo_id", "media_rec_id", "ask_confidence"]) } }));
   const pick = (o, keys) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
@@ -114,9 +115,17 @@ export async function render(view, [slug]) {
         h("div", { class: "lr-f" }, h("span", {}, "Det lærer du (læringsmål)"), lrows, h("button", { type: "button", class: "btn sm", onclick: () => { learn.push({ title: "", text: "" }); dl(); } }, "+ Læringsmål"))] : null,
       h("div", { class: "lr-two" }, f("Niveau", h("select", { onchange: set("level") }, ...["begynder", "øvet", "erfaren"].map(l => h("option", { selected: l === c.level }, l)))),
         f("Synlighed", h("select", { onchange: set("visibility") }, ...[["alle", "Alle indloggede"], ["login", "Indloggede"], ["hold", "Kun hold (via forløb)"]].map(([v, t]) => h("option", { value: v, selected: v === c.visibility }, t))))),
-      h("div", { class: "lr-two" }, f("Silhuet", h("select", { onchange: set("sil") }, ...SILS.map(s => h("option", { value: s, selected: s === c.sil }, s)))), f("Farveflade", h("select", { onchange: set("hue") }, ...HUES.map(s => h("option", { value: s, selected: s === c.hue }, s))))),
+      coverField(c),
+      h("div", { class: "lr-two" }, f("Silhuet (vises uden forsidebillede)", h("select", { onchange: set("sil") }, ...SILS.map(s => h("option", { value: s, selected: s === c.sil }, s)))), f("Farveflade", h("select", { onchange: set("hue") }, ...HUES.map(s => h("option", { value: s, selected: s === c.hue }, s))))),
       f("Færdigheder", h("div", { class: "lr-chips" }, ...SKILLS.map(s => { const b = h("button", { type: "button", class: `lr-chip${(c.skills || []).includes(s) ? " on" : ""}`, onclick: () => { c.skills = c.skills || []; const i = c.skills.indexOf(s); i >= 0 ? c.skills.splice(i, 1) : c.skills.push(s); b.classList.toggle("on"); saveCourse(); } }, s); return b; }))),
       data.editors ? h("p", { class: "muted small" }, `Medforfattere: ${data.editors.map(e => e.navn).join(", ") || "ingen"}`) : null);
+  }
+  /** Forsidebillede (banner) fra fotobiblioteket – vises på kortet og øverst på kursussiden; uden billede vises silhuetten. */
+  function coverField(c) {
+    const prev = h("span", { class: "muted" }, c.cover_ref ? (c.cover_ref.id ? `Foto ${c.cover_ref.id}` : `Automatisk: ${refText(c.cover_ref)}`) : "Intet forsidebillede – silhuetten bruges");
+    return f("Forsidebillede", h("div", { class: "lr-actions" }, prev,
+      h("button", { type: "button", class: "btn sm", onclick: () => photoPicker({ onPick: (p) => { c.cover_ref = { id: p.id }; prev.textContent = `Foto ${p.id} · ${p.arter || ""}`; saveCourse(); } }) }, c.cover_ref ? "Skift foto" : "Vælg foto"),
+      c.cover_ref ? h("button", { type: "button", class: "btn sm ghost danger", onclick: () => { c.cover_ref = null; prev.textContent = "Intet forsidebillede – silhuetten bruges"; saveCourse(); } }, "Fjern") : null));
   }
   function unitForm(u) {
     const ta = h("textarea", { rows: 12, class: "lr-md-ta", spellcheck: "true", oninput: (e) => { u.lesson_md = e.target.value; saveUnit(u); } }, u.lesson_md || "");

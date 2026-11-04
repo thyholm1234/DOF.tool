@@ -117,3 +117,33 @@ async def test_foto_reference_med_alder(db):  # noqa: F811
         assert await learn_play.photo_by_ref(s, {"artnr": 5930}) == 911
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "1. kalenderår"}) == 912
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "2. kalenderår"}) is None  # aldrig et foto af forkert alder
+
+
+async def test_forsidebillede_og_banner(web, db):  # noqa: F811
+    from portal.cache import kv
+    from portal.services import learn_play, learning
+
+    async with db() as s:
+        await learning.seed_packs(s)
+        await s.execute(text("UPDATE courses SET cover_ref = NULL WHERE slug = 'maager'"))
+        await s.commit()
+        await learning.seed_packs(s)  # efterfyldning: allerede importerede kurser får pakkens forsidebillede
+        assert (await s.execute(text("SELECT cover_ref FROM courses WHERE slug = 'maager'"))).scalar() == {"artnr": 5930, "nf": 120310}
+        await s.execute(text("INSERT INTO content_media (id, owner_kind, kind, storage_key, filename, mime, size, alt, caption, credit, sha256, sort) VALUES (9901, 'galleri', 'billede', 'x/y.jpg', 'y.jpg', 'image/jpeg', 1, '', '', 'Fotograf', 'abc', 0) ON CONFLICT DO NOTHING"))
+        await _photo(s, 931, 120310, 5930, "Larus cachinnans", 99, 2)
+        await s.execute(text("UPDATE gal_photos SET media_id = 9901 WHERE id = 931"))
+        await s.commit()
+        c = (await s.execute(select_course("maager"))).scalar_one()
+        cover = await learn_play.course_cover(s, c)
+        assert cover and cover["url"].endswith("x/y.jpg")
+        for k in [k async for k in kv().scan_iter("lr:banner:*")]:
+            await kv().delete(k)
+        b = await learn_play.banner(s)
+        assert b and b["url"].endswith("x/y.jpg")
+
+
+def select_course(slug):
+    from sqlalchemy import select
+
+    from portal.models import Course
+    return select(Course).where(Course.slug == slug)

@@ -192,7 +192,7 @@ async def warnings(db: AsyncSession, st: dict) -> list[dict]:
 # ---------------------------------------------------------------- redigering
 
 COURSE_FIELDS = ("title", "summary", "intro", "topic", "level", "kind", "number", "stage", "category", "card", "audience", "learn", "skills", "hours",
-                 "hue", "sil", "visibility", "cover_media_id", "featured")
+                 "hue", "sil", "visibility", "cover_media_id", "cover_ref", "featured")
 
 
 def clean_course_fields(user: User, c: Course, data: dict) -> dict:
@@ -221,6 +221,8 @@ def clean_course_fields(user: User, c: Course, data: dict) -> dict:
             v = v[:1000]
         if k == "intro" and isinstance(v, str):
             v = v[:20000]
+        if k == "cover_ref":
+            v = _clean_ref(v)
         out[k] = v
     return out
 
@@ -492,7 +494,7 @@ async def import_courses(db: AsyncSession, user: User, data: dict, mode: str = "
         else:
             course = Course(slug=await unique_slug(db, slug if status == "ny" else slug + "-import"), title=(c.get("title") or "Uden titel")[:160], created_by=user.id)
             db.add(course)
-        fields = {k: c[k] for k in ("summary", "intro", "topic", "level", "number", "stage", "category", "card", "audience", "learn", "skills", "hours", "hue", "sil", "featured") if c.get(k) is not None}
+        fields = {k: c[k] for k in ("summary", "intro", "topic", "level", "number", "stage", "category", "card", "audience", "learn", "skills", "hours", "hue", "sil", "featured", "cover_ref") if c.get(k) is not None}
         fields = clean_course_fields(user, course, {**fields, "kind": c.get("kind", "kursus"), "title": c.get("title") or "Uden titel"})
         for k, v in fields.items():
             setattr(course, k, v)
@@ -526,7 +528,7 @@ async def export_courses(db: AsyncSession, user: User, slugs: list[str] | None) 
         if not learn_play.can_edit_course(user, c, await learn_play.editor_ids(db, c.id)):
             continue
         st = await learn_play.live_struct(db, c)
-        out.append({**{k: st["course"][k] for k in ("slug", "title", "summary", "intro", "topic", "level", "kind", "number", "stage", "category", "card", "audience", "learn", "skills", "hours", "hue", "sil", "featured")},
+        out.append({**{k: st["course"].get(k) for k in ("slug", "title", "summary", "intro", "topic", "level", "kind", "number", "stage", "category", "card", "audience", "learn", "skills", "hours", "hue", "sil", "featured", "cover_ref")},
                     "units": [{"title": u["title"], "lesson_md": u["lesson_md"], "blocks": u["blocks"], "est_minutes": u.get("est_minutes"), "min_score_pct": u.get("min_score_pct"), "acts": [{k: a[k] for k in ("type", "prompt", "choices", "explanation", "config", "accept", "skills", "media_kind", "media_url", "media_credit", "media_photo_id", "media_rec_id", "ask_confidence")} for a in u["acts"]]} for u in st["units"]],
                     "loose": not any(u["id"] for u in st["units"])})
     return {"format": "laering-v2", "exported": datetime.now(timezone.utc).isoformat(), "courses": out}

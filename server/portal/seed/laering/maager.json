@@ -3815,7 +3815,11 @@
      "min_score_pct": null
     }
    ],
-   "loose": false
+   "loose": false,
+   "cover_ref": {
+    "artnr": 5930,
+    "nf": 120310
+   }
   },
   {
    "kind": "ovelse",
@@ -4002,7 +4006,11 @@
      ]
     }
    ],
-   "loose": true
+   "loose": true,
+   "cover_ref": {
+    "artnr": 5750,
+    "nf": 120613
+   }
   }
  ]
 }

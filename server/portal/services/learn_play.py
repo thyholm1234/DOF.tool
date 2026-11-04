@@ -87,7 +87,7 @@ def course_public(c: Course) -> dict:
     return {"id": c.id, "slug": c.slug, "title": c.title, "summary": c.summary, "intro": c.intro, "topic": c.topic, "level": c.level,
             "kind": c.kind, "number": c.number, "stage": c.stage, "category": c.category, "card": c.card, "audience": c.audience,
             "learn": c.learn or [], "skills": list(c.skills or []), "hours": c.hours, "hue": c.hue, "sil": c.sil, "featured": c.featured,
-            "published": c.published, "visibility": c.visibility, "version": c.version, "cover_media_id": c.cover_media_id}
+            "published": c.published, "visibility": c.visibility, "version": c.version, "cover_media_id": c.cover_media_id, "cover_ref": c.cover_ref}
 
 
 async def live_struct(db: AsyncSession, c: Course) -> dict:
@@ -173,6 +173,41 @@ async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
           AND NOT EXISTS (SELECT 1 FROM gal_birds b2 WHERE b2.photo_id = p.id AND b2.pos > 0)
         ORDER BY p.likes DESC, p.views DESC, p.id LIMIT 1 OFFSET :o"""),
         {"a": artnr, "l": latin, "alder": alder, "o": max(0, min(int(ref.get("n") or 0), 50))})).scalar()
+
+
+async def course_cover(db: AsyncSession, c: Course) -> dict | None:
+    """Kursets forsidebillede: et uploadet billede (``cover_media_id``) eller et foto fra fotobiblioteket (``cover_ref``). Ellers ``None``
+    (kortet viser så silhuetten). Bruger altid det levende kursus, så et nyt billede ses uden ny publicering."""
+    if c.cover_media_id:
+        r = (await db.execute(text("SELECT medium_key, storage_key, credit FROM content_media WHERE id = :i"), {"i": c.cover_media_id})).mappings().first()
+        if r:
+            return {"url": "/media/art/" + (r["medium_key"] or r["storage_key"]), "credit": r["credit"] or ""}
+    if c.cover_ref and (pid := await photo_by_ref(db, c.cover_ref)) and (m := await photo_media(db, pid)):
+        return {"url": m["value"], "credit": m["credit"]}
+    return None
+
+
+async def banner(db: AsyncSession) -> dict | None:
+    """Forsidens bannerfoto: skifter dagligt mellem fotobibliotekets 40 mest likede enkeltfugle-fotos (cachet til dagen er omme)."""
+    from datetime import date
+
+    key = f"lr:banner:{date.today().isoformat()}"
+    if (hit := await kv().get(key)) is not None:
+        return json.loads(hit) or None
+    rows = (await db.execute(text("""
+        SELECT p.id, (SELECT s.navn FROM species s WHERE s.artnr = b.artnr) AS art, b.navn
+        FROM gal_photos p JOIN gal_birds b ON b.photo_id = p.id AND b.pos = 0
+        WHERE p.status = 'publiceret' AND NOT ('tvivl_art' = ANY(p.tags))
+          AND NOT EXISTS (SELECT 1 FROM gal_birds b2 WHERE b2.photo_id = p.id AND b2.pos > 0)
+        ORDER BY p.likes DESC, p.views DESC, p.id LIMIT 40"""))).mappings().all()
+    out = None
+    if rows:
+        r = rows[date.today().toordinal() % len(rows)]
+        m = await photo_media(db, r["id"])
+        if m:
+            out = {"url": m["value"], "credit": m["credit"], "art": r["art"] or r["navn"], "photo_id": r["id"]}
+    await kv().set(key, json.dumps(out), ex=6 * 3600)
+    return out
 
 
 async def rec_by_ref(db: AsyncSession, ref: dict | None) -> int | None:

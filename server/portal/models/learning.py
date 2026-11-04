@@ -50,6 +50,7 @@ class Course(Base):
     hue: Mapped[str] = mapped_column(String(16), default="eng", server_default="eng")
     sil: Mapped[str] = mapped_column(String(16), default="spurvefugl", server_default="spurvefugl")
     cover_media_id: Mapped[int | None] = mapped_column(Integer)
+    cover_ref: Mapped[dict | None] = mapped_column(JSONB)  # forsidebillede fra fotobiblioteket (learn_play.photo_by_ref)
     featured: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     visibility: Mapped[str] = mapped_column(String(8), default="alle", server_default="alle")  # alle / login / hold
     version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

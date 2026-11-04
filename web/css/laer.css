@@ -167,3 +167,14 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 /* Kort og fliser er hele links: ingen understregning af al teksten ved hover (app.css: a:hover) – kun titlen markeres, kortet løfter sig i forvejen */
 .lr-card:hover, .lr-tile:hover, .lr-due:hover, .lr-sp:hover, .lr-units li a:hover, .lr-subtabs a:hover, .lr-tabs .seg a:hover, .lr-back a:hover, .lr-head h1 a:hover { text-decoration: none; }
 .lr-card:hover h3, .lr-tile:hover h3 { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Bannerbilleder: forsidens hero, kursuskort og kursusside */
+.lr-hero { position: relative; overflow: hidden; }
+.lr-hero-photo { background: linear-gradient(90deg, rgb(15 40 30 / 92%) 0%, rgb(15 40 30 / 70%) 45%, rgb(15 40 30 / 15%) 100%), var(--lr-banner) center 40% / cover no-repeat, #17382b; min-height: 260px; display: flex; align-items: center; }
+.lr-hero > div { position: relative; }
+.lr-credit { position: absolute; right: 10px; bottom: 8px; font-size: .7rem; color: rgb(255 255 255 / 85%); text-shadow: 0 1px 2px rgb(0 0 0 / 70%); }
+.lr-art-photo { position: relative; overflow: hidden; display: block; }
+.lr-art-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lr-banner { position: relative; margin: 0 0 16px; border-radius: var(--radius); overflow: hidden; aspect-ratio: 16 / 5; background: var(--bg-2); }
+.lr-banner img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; display: block; }
+@media (max-width: 640px) { .lr-banner { aspect-ratio: 16 / 7; } .lr-hero-photo { background: linear-gradient(180deg, rgb(15 40 30 / 55%), rgb(15 40 30 / 92%)), var(--lr-banner) center / cover no-repeat, #17382b; } }

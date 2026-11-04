@@ -312,7 +312,15 @@ async def seed_packs(session: AsyncSession) -> int:
     n = 0
     for name, key in SEED_PACKS.items():
         path = SEED_DIR / "laering" / name
-        if not path.exists() or await get_setting(session, key):
+        if not path.exists():
+            continue
+        if await get_setting(session, key):
+            # allerede importeret: giv kurser uden forsidebillede pakkens billede (kom til efter første import)
+            for c in json.loads(path.read_text(encoding="utf-8"))["courses"]:
+                if c.get("cover_ref"):
+                    await session.execute(text("""UPDATE courses SET cover_ref = CAST(:r AS jsonb)
+                        WHERE slug = :s AND cover_ref IS NULL AND cover_media_id IS NULL"""), {"r": json.dumps(c["cover_ref"]), "s": c["slug"]})
+            await session.commit()
             continue
         data = json.loads(path.read_text(encoding="utf-8"))
         existing = {r for r in (await session.execute(text("SELECT slug FROM courses"))).scalars()}

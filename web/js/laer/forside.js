@@ -27,7 +27,9 @@ export async function render(view, _p, info) {
     ...(info.data ? d.auto.map(a => [a.title, "Genereret af DOFbasens data.", `${BASE}/ovelse/auto/${a.kind}`]) : []),
   ].filter(Boolean);
   view.append(
-    h("section", { class: "lr-hero" }, h("div", {}, h("h2", {}, "Lær at fuglekigge – ikke kun at få svaret."),
+    h("section", { class: `lr-hero${d.banner ? " lr-hero-photo" : ""}`, style: d.banner ? { "--lr-banner": `url("${d.banner.url}")` } : null },
+      d.banner ? h("small", { class: "lr-credit" }, `${d.banner.art ? `${d.banner.art} · ` : ""}Foto: ${d.banner.credit}`) : null,
+      h("div", {}, h("h2", {}, "Lær at fuglekigge – ikke kun at få svaret."),
       h("p", {}, "Træn det, erfarne fuglekiggere gør: forudsige, iagttage, sammenligne og beslutte – med rigtige danske fotos, lyde og DOFbasens observationer."),
       h("div", { class: "lr-actions" }, h("a", { class: "btn primary", href: `${BASE}/kurser` }, "Start et kursus"), h("a", { class: "btn", href: `${BASE}/traen` }, "Træn arter")))),
     d.forfald ? h("a", { class: "lr-due", href: `${BASE}/repetition` }, h("b", {}, d.forfald), ` ${d.forfald === 1 ? "ting" : "ting"} til repetition i dag →`) : null,

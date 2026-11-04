@@ -93,6 +93,7 @@ class CourseIn(BaseModel):
     sil: str | None = None
     visibility: str | None = None
     cover_media_id: int | None = None
+    cover_ref: dict | None = None
     featured: bool | None = None
 
 
