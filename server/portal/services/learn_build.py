@@ -161,7 +161,7 @@ async def warnings(db: AsyncSession, st: dict) -> list[dict]:
         for b in u["blocks"]:
             if b.get("type") == "foto" and b.get("photo_id"):
                 photo_ids.append(int(b["photo_id"]))
-            # automatiske fotos vælges kun blandt dem, DOF må bruge – advar, hvis der ikke er noget
+            # automatiske fotos: advar, hvis fotobiblioteket ikke har et foto af arten (i den alder)
             refs = []
             if b.get("type") == "foto" and b.get("ref") and not b.get("photo_id"):
                 refs = [b["ref"]]
@@ -170,7 +170,7 @@ async def warnings(db: AsyncSession, st: dict) -> list[dict]:
             missing = [r for r in refs if not await learn_play.photo_by_ref(db, r)]
             if missing:
                 names = ", ".join(sorted({await _ref_name(db, r) for r in missing}))
-                add("advarsel", f"lektion {u['id']}", f"Lektionen «{u['title']}»: intet foto, DOF må bruge, af {names} – vælg et selv eller fjern det", unit=u["id"])
+                add("advarsel", f"lektion {u['id']}", f"Lektionen «{u['title']}»: intet foto i fotobiblioteket af {names} – vælg et selv eller fjern det", unit=u["id"])
             if b.get("type") == "fotoraekke":
                 photo_ids += [int(x) for x in b.get("photo_ids") or []]
         for a in u["acts"]:
@@ -183,12 +183,7 @@ async def warnings(db: AsyncSession, st: dict) -> list[dict]:
             if a["type"] in ("foto_art", "lyd_art") and cfg.get("arter") and not cfg.get("gruppe") and len(cfg["arter"]) < 5 and int(cfg.get("antal") or 1) > len(cfg["arter"]):
                 add("advarsel", f"aktivitet {a['id']}", "Få arter i forhold til antal spørgsmål – spørgsmålene vil gentage sig", act=a["id"], unit=u["id"])
     if photo_ids:
-        rows = (await db.execute(text("""SELECT p.id, coalesce(p.rettighed, ph.standard_rettighed) AS ret, coalesce(ph.dof_samtykke, false) AS samtykke
-            FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id WHERE p.id = ANY(:i)"""), {"i": sorted(set(photo_ids))})).mappings().all()
-        found = {r["id"] for r in rows}
-        for r in rows:
-            if r["ret"] in (2, 3) and not r["samtykke"]:
-                add("fejl", f"foto {r['id']}", f"Foto {r['id']} har rettighed {r['ret']} og må ikke indsættes fast (fotografen har ikke givet DOF samtykke)", photo=r["id"])
+        found = {r[0] for r in (await db.execute(text("SELECT id FROM gal_photos WHERE id = ANY(:i) AND status = 'publiceret'"), {"i": sorted(set(photo_ids))})).all()}
         for i in sorted(set(photo_ids) - found):
             add("fejl", f"foto {i}", f"Foto {i} findes ikke eller er ikke publiceret", photo=i)
     return out
@@ -241,91 +236,6 @@ async def create_course(db: AsyncSession, user: User, title: str, kind: str = "k
         db.add(Unit(course_id=c.id, position=0, title="Lektion 1", lesson_md="", blocks=[]))
     await db.commit()
     return c
-
-
-# ---------------------------------------------------------------- udskift fotos uden rettigheder (knappen ved «Publicér»)
-
-_OK = "(coalesce(p.rettighed, ph.standard_rettighed) = 1 OR coalesce(ph.dof_samtykke, false))"
-
-
-async def _photo_ok(db: AsyncSession, pid: int) -> bool:
-    return bool((await db.execute(text(f"""SELECT 1 FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id
-        WHERE p.id = :i AND p.status = 'publiceret' AND {_OK}"""), {"i": pid})).first())
-
-
-async def _ref_for_photo(db: AsyncSession, pid: int, n: int = 0) -> dict | None:
-    """En automatisk reference til samme art (og alder) som fotoet, så portalen vælger et foto af den slags, DOF må bruge."""
-    r = (await db.execute(text("""SELECT b.artnr, b.latin, gc.text AS alder FROM gal_birds b
-        LEFT JOIN gal_codes gc ON gc.kind = 'alder' AND gc.code = b.alder WHERE b.photo_id = :i AND b.pos = 0"""), {"i": pid})).mappings().first()
-    if r is None or (r["artnr"] is None and not r["latin"]):
-        return None
-    ref = {"artnr": r["artnr"]} if r["artnr"] is not None else {"latin": r["latin"]}
-    if r["alder"]:
-        ref["alder"] = r["alder"]
-    if n:
-        ref["n"] = n
-    return ref
-
-
-async def replace_unusable_photos(db: AsyncSession, user: User, c: Course) -> dict:
-    """Erstat fast valgte fotos, DOF ikke må bruge (rettighed 2/3 uden samtykke), med automatiske referencer til samme art og alder.
-    Tilladte fotos bevares. Returnerer, hvor mange der er udskiftet, og hvilke steder der ikke findes et tilladt foto af arten."""
-    changed, missing = 0, []
-
-    async def convert(pid: int, used: dict) -> dict | None:
-        ref = await _ref_for_photo(db, pid)
-        if ref:  # flere fotos af samme art og alder i samme række: næste tilladte foto hver gang
-            key = (ref.get("artnr"), ref.get("latin"), ref.get("alder"))
-            ref = await _ref_for_photo(db, pid, used.get(key, 0))
-            used[key] = used.get(key, 0) + 1
-        return ref
-
-    async def check(ref: dict | None, where: str):
-        if not ref or not await learn_play.photo_by_ref(db, ref):
-            missing.append({"where": where, "art": await _ref_name(db, ref) if ref else "ukendt art"})
-
-    for u in (await db.execute(select(Unit).where(Unit.course_id == c.id).order_by(Unit.position))).scalars():
-        blocks, touched = [dict(b) for b in u.blocks or []], False
-        for b in blocks:
-            if b.get("type") == "foto" and b.get("photo_id") and not await _photo_ok(db, int(b["photo_id"])):
-                ref = await convert(int(b["photo_id"]), {})
-                b.pop("photo_id")
-                if ref:
-                    b["ref"] = ref
-                touched, changed = True, changed + 1
-                await check(ref, f"Lektionen «{u.title}»")
-            elif b.get("type") == "fotoraekke" and b.get("photo_ids"):
-                ids = [int(x) for x in b["photo_ids"]]
-                oks = [await _photo_ok(db, i) for i in ids]
-                if all(oks):
-                    continue
-                used, refs = {}, []
-                for i, ok in zip(ids, oks):
-                    ref = {"id": i} if ok else await convert(i, used)
-                    if not ok:
-                        changed += 1
-                        await check(ref, f"Lektionen «{u.title}» (fotorække)")
-                    if ref:
-                        refs.append(ref)
-                b.pop("photo_ids")
-                b["refs"] = refs
-                touched = True
-        if touched:
-            u.blocks = clean_blocks(blocks)
-    for q in (await db.execute(select(Question).where(Question.course_id == c.id))).scalars():
-        if q.media_photo_id and not await _photo_ok(db, q.media_photo_id):
-            ref = await convert(q.media_photo_id, {})
-            cfg = dict(q.config or {})
-            cfg.pop("foto_ref", None)
-            if ref:
-                cfg["foto_ref"] = ref
-            q.config, q.media_photo_id = cfg, None
-            changed += 1
-            await check(ref, f"Aktivitet «{(q.prompt or '')[:50]}»")
-    if changed:
-        touch(c, user)
-    await db.commit()
-    return {"udskiftet": changed, "mangler": missing}
 
 
 async def _ref_name(db: AsyncSession, r: dict) -> str:
@@ -633,7 +543,7 @@ async def search_photos(db: AsyncSession, q: str, artnr: int | None, limit: int 
           AND (:q = '' OR EXISTS (SELECT 1 FROM gal_birds b JOIN species s ON s.artnr = b.artnr WHERE b.photo_id = p.id AND s.navn ILIKE :ql) OR ph.navn ILIKE :ql OR p.lokalitet ILIKE :ql)
         ORDER BY p.likes DESC, p.id DESC LIMIT :n OFFSET :o"""), {"a": artnr, "q": q.strip(), "ql": f"%{q.strip()}%", "n": limit, "o": offset})).mappings().all()
     return [{"id": r["id"], "thumb": "/media/art/" + (r["thumb_key"] or r["medium_key"] or r["storage_key"]), "fotograf": r["fotograf"], "rettighed": r["ret"], "samtykke": r["samtykke"],
-             "fast_ok": r["ret"] == 1 or r["samtykke"], "arter": r["arter"], "lokalitet": r["lokalitet"], "dato": r["dato"].isoformat() if r["dato"] else None} for r in rows]
+             "arter": r["arter"], "lokalitet": r["lokalitet"], "dato": r["dato"].isoformat() if r["dato"] else None} for r in rows]
 
 
 async def search_sounds(db: AsyncSession, artnr: int) -> list[dict]:

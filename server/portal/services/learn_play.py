@@ -150,15 +150,14 @@ async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
     """``{"nf": <netfugl-nr>}`` = et bestemt foto fra netfugl-arkivet; ``{"artnr"|"latin": …, "n": k}`` = artens k'te mest likede
     publicerede enkeltfugl-foto, evt. kun med en bestemt ``alder`` (fotobibliotekets aldertekst). Begge kan angives – ``nf`` prøves først.
 
-    Der vælges **kun** fotos, DOF må bruge fast (rettighed 1 eller fotografens DOF-samtykke, spec §13.2). Har arten intet sådant foto,
-    returneres ``None`` – blokken vises uden foto, og byggeren advarer, så redaktøren kan vælge et selv."""
+    Alle publicerede fotos kan bruges (DOF.tool overtager netfugl-arkivet). Med ``alder`` vælges kun et foto af samme alder; findes det ikke,
+    returneres ``None`` – blokken vises uden foto, og byggeren advarer."""
     if not isinstance(ref, dict):
         return None
     nf = int(ref["nf"]) if str(ref.get("nf") or "").isdigit() else None
     artnr = int(ref["artnr"]) if str(ref.get("artnr") or "").isdigit() else None
     latin = str(ref.get("latin") or "").strip() or None
-    base = """SELECT p.id FROM gal_photos p LEFT JOIN gal_photographers ph ON ph.id = p.photographer_id
-        WHERE p.status = 'publiceret' AND (coalesce(p.rettighed, ph.standard_rettighed) = 1 OR coalesce(ph.dof_samtykke, false))"""
+    base = "SELECT p.id FROM gal_photos p WHERE p.status = 'publiceret'"
     if str(ref.get("id") or "").isdigit() and (pid := (await db.execute(text(f"{base} AND p.id = :i"), {"i": int(ref["id"])})).scalar()):
         return pid  # et bestemt foto fra fotobiblioteket (fx et fast valgt foto, der må bruges)
     if nf and (pid := (await db.execute(text(f"{base} AND p.netfugl_id = :nf"), {"nf": nf})).scalar()):

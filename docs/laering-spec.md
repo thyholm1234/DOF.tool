@@ -36,10 +36,10 @@ gennemlæser og publicerer), sammen med tre eksempelforløb (kladder, kan først
 | §14 fase 8 | Dokumentation er opdateret. Oprydning (sletning af `views/learn.js`-visningen og `learn-arter.js`, de gamle endpoints) er **ikke gjort**, fordi den gamle Læring stadig er faldbacken, mens flaget ikke er `til` i drift. |
 
 **Kursuspakker (4. nov. 2026):** `seed/laering/*.json` i DOF.tool-formatet importeres én gang som kladder (`learning.seed_packs`, markør pr. pakke).
-Første pakke er **«Phyllernes verden»** (`phylloscopus`, 13 lektioner, 132 aktiviteter) + øvelsen `phylloscopus-traening`. Anden pakke er **«Mågernes verden»** (`maager`, 14 lektioner, 114 aktiviteter, kun arter på Den Danske Liste) + øvelsen `maager-traening`. Automatiske fotos vælges kun blandt fotos, DOF må bruge (rettighed 1 eller samtykke); en reference kan kræve en bestemt `alder` (fotobibliotekets aldertekst), så et erstatningsfoto aldrig viser en forkert alder. Startindhold kan ikke kende en
+Første pakke er **«Phyllernes verden»** (`phylloscopus`, 13 lektioner, 132 aktiviteter) + øvelsen `phylloscopus-traening`. Anden pakke er **«Mågernes verden»** (`maager`, 14 lektioner, 114 aktiviteter, kun arter på Den Danske Liste) + øvelsen `maager-traening`. Automatiske fotos vælges blandt alle publicerede fotos; en reference kan kræve en bestemt `alder` (fotobibliotekets aldertekst), så et erstatningsfoto aldrig viser en forkert alder. Startindhold kan ikke kende en
 installations foto-/optagelses-id'er, så blokke og aktiviteter kan pege på medier med en **reference** (`ref`/`refs` i blokke, `config.foto_ref`/`lyd_ref`
 i aktiviteter): `nf` (netfugl-foto), `xc` (xeno-canto-nr.), `artnr`/`latin` + `type` (sang/kald) + `n`. Referencen løses ved visning
-(`learn_play.photo_by_ref`/`rec_by_ref`); fotos der må indsættes fast foretrækkes, og byggerens rettighedstjek gælder også det automatisk valgte foto.
+(`learn_play.photo_by_ref`/`rec_by_ref`); finder en reference intet foto, advarer byggeren (gult).
 Et fast valgt foto/lyd i byggeren har forrang («Brug automatisk» fjerner det igen). Manglende optagelser hentes hos xeno-canto med lydquiz-nøglen
 (også underarter, fx *tristis*, og arter uden artsnummer, der gemmes med `artnr = 0`).
 
@@ -431,7 +431,7 @@ lektioner), midten **redigering** af det valgte, højre **forhåndsvisning** (de
   til/fra. Generatortyper har knappen **"Vis 5 eksempler"**, som kalder generatoren og viser fem konkrete spørgsmål, så
   redaktøren ser, hvad brugerne får.
 - **Advarsler** (port af `qWarnings`/`itemWarnings`): intet rigtigt svar, kun ét svar, tomt spørgsmål, manglende
-  forklaring, medie uden kreditering, foto med rettighed 2/3 (§13.2), generator der giver < 5 forskellige spørgsmål,
+  forklaring, medie uden kreditering, generator der giver < 5 forskellige spørgsmål,
   lektion uden aktiviteter, kursus uden læringsmål. Publicering blokeres ved fejl (røde), ikke ved advarsler (gule).
 - **Autogem** hver 3 s efter ændring (kladde), med "Gemt"/"Ikke gemt"-indikator; samtidig redigering: optimistisk lås
   med `updated_at` (409 → "Kurset er ændret af X – genindlæs").
@@ -588,8 +588,7 @@ Generatorer læser kun aggregater og cacher kandidatlister i Valkey (nøgle med 
 
 ### 13.2 Rettigheder til medier
 
-- Fotos: kun `status='publiceret'`. Generatorer (`foto_art`) bruger som i dag alle publicerede enkeltfugl-fotos; **fast
-  indsatte** fotos i kurser (blokke og `media_photo_id`) må kun være rettighed 1 eller fotografens DOF-samtykke – ellers rød advarsel (§15).
+- Fotos: kun `status='publiceret'`. **Ændret 4. nov. 2026 (ejeren):** DOF.tool overtager netfugl-arkivet, så alle publicerede fotos må bruges – også fast indsat i kurser; byggeren tjekker ikke længere rettighed 2/3.
 - Fotograf/optager og licens vises altid ved svaret og i blokke. xeno-canto: respektér licensen (ND = ingen beskæring;
   NC = ingen kommerciel brug – DOF.tool er ikke kommerciel). Macaulay Library: kun indlagt af redaktører som i dag.
 - Ingen medier i URL'er, der afslører facit (som lydquizzen).
@@ -640,7 +639,7 @@ medier; svar køes i `offline.js` og sendes, når der er net. Generatorer kræve
 |---|---|---|
 | 1 | Skal portalen hedde "Læring" eller have et navn (fx "Trækrute")? | Menupunkt "Læring"; forsidens overskrift kan sættes i Admin → Funktioner → Læring (standard "Læring"). |
 | 2 | Må anonyme brugere tage statiske kurser? | Ja, uden fremgang. Foto/lyd/data kræver login. |
-| 3 | Fast indsatte fotos i kurser: hvilke rettigheder? | Kun rettighed 1 eller DOF-samtykke; ellers blokeret. |
+| 3 | Fast indsatte fotos i kurser: hvilke rettigheder? | ~~Kun rettighed 1 eller DOF-samtykke~~ – ændret 4. nov. 2026: alle publicerede fotos må bruges (DOF.tool overtager netfugl). |
 | 4 | Familie pr. art (til Familiequiz) | Tilføj `seed/laering/familier.json` (latin-slægt → familie) og brug den; ingen ændring af `species`. |
 | 5 | Sonagram-visning af lyde | Udskydes; lav ikke selv FFT i fase 1–8. |
 | 6 | Ranglister/konkurrencer mellem brugere | Ikke bygget. Kun inden for et hold, og kun hvis underviseren slår det til (fase 7+, valgfrit). |

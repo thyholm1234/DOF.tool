@@ -163,3 +163,7 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 .lr-md details > summary { cursor: pointer; font-weight: 600; }
 .lr-md h3 { margin-top: 1.4em; }
 .lr-label { display: block; font-size: .85rem; margin-bottom: 4px; }
+
+/* Kort og fliser er hele links: ingen understregning af al teksten ved hover (app.css: a:hover) – kun titlen markeres, kortet løfter sig i forvejen */
+.lr-card:hover, .lr-tile:hover, .lr-due:hover, .lr-sp:hover, .lr-units li a:hover, .lr-subtabs a:hover, .lr-tabs .seg a:hover, .lr-back a:hover, .lr-head h1 a:hover { text-decoration: none; }
+.lr-card:hover h3, .lr-tile:hover h3 { text-decoration: underline; text-underline-offset: 3px; }

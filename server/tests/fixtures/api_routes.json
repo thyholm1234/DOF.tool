@@ -5496,20 +5496,6 @@ true,
 ]
 }
 },
-"/api/learn/byg/kurser/{slug}/udskift-fotos": {
-"post": {
-"body": false,
-"op": "udskift_fotos_api_learn_byg_kurser__slug__udskift_fotos_post",
-"params": [
-[
-"slug",
-"path",
-true,
-"{\"title\": \"Slug\", \"type\": \"string\"}"
-]
-]
-}
-},
 "/api/learn/byg/lyde": {
 "get": {
 "body": false,

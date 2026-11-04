@@ -2,8 +2,8 @@
 import { api, h, modal, toast } from "../../core.js";
 import { speciesPicker } from "../pickers.js";
 
-/** Fotovælger: søg i fotobiblioteket; kun fotos, der må indsættes fast, kan vælges (rettighed 1 eller fotografens DOF-samtykke), når ``kraevFast``. */
-export function photoPicker({ multi = false, kraevFast = true, onPick }) {
+/** Fotovælger: søg i fotobiblioteket; alle publicerede fotos kan vælges. */
+export function photoPicker({ multi = false, onPick }) {
   const picked = [];
   const grid = h("div", { class: "lr-pgrid" });
   const q = h("input", { type: "search", placeholder: "Søg art, fotograf eller lokalitet", "aria-label": "Søg fotos" });
@@ -13,8 +13,7 @@ export function photoPicker({ multi = false, kraevFast = true, onPick }) {
     const rows = await api(`/api/learn/byg/fotos?q=${encodeURIComponent(q.value)}&offset=${offset}`).catch(e => { toast(e.message, "err"); return []; });
     offset += rows.length;
     grid.append(...rows.map(p => {
-      const ok = !kraevFast || p.fast_ok;
-      const b = h("button", { type: "button", class: `lr-pcard${ok ? "" : " no"}`, title: ok ? `${p.arter || "Foto"} · ${p.fotograf || ""}` : `Rettighed ${p.rettighed} – må ikke indsættes fast`, disabled: !ok, onclick: () => {
+      const b = h("button", { type: "button", class: "lr-pcard", title: `${p.arter || "Foto"} · ${p.fotograf || ""}`, onclick: () => {
         if (!multi) { m.close(); onPick(p); return; }
         const i = picked.findIndex(x => x.id === p.id);
         if (i >= 0) { picked.splice(i, 1); b.classList.remove("on"); } else { picked.push(p); b.classList.add("on"); }
@@ -26,8 +25,7 @@ export function photoPicker({ multi = false, kraevFast = true, onPick }) {
   let t = null;
   q.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => load(false), 250); });
   const m = modal("Vælg foto fra fotobiblioteket", h("div", { class: "stack" }, q, grid, h("div", { class: "lr-actions" }, h("button", { class: "btn", onclick: () => load(true) }, "Vis flere"),
-    multi ? h("button", { class: "btn primary", onclick: () => { m.close(); onPick(picked.slice()); } }, "Brug valgte") : null),
-    kraevFast ? h("p", { class: "muted small" }, "Kun fotos med rettighed 1 eller hvor fotografen har givet DOF samtykke kan indsættes fast.") : null), { wide: true });
+    multi ? h("button", { class: "btn primary", onclick: () => { m.close(); onPick(picked.slice()); } }, "Brug valgte") : null)), { wide: true });
   load(false);
 }
 

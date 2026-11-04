@@ -148,35 +148,16 @@ export async function render(view, [slug]) {
       h("div", { class: "lr-actions" },
         h("a", { class: "btn", href: `${BASE}/${kind() === "kursus" ? "kursus" : "ovelse"}/${slug}?preview=1`, target: "_blank" }, "Forhåndsvis"),
         h("button", { class: "btn primary", onclick: publish }, c.published ? "Publicér ændringer" : "Publicér"),
-        photoProblems() ? h("button", { class: "btn", title: "Erstat fotos, DOF ikke må bruge, med tilladte fotos af samme art og alder", onclick: replacePhotos }, `Udskift fotos uden rettigheder (${photoProblems()})`) : null,
         c.has_snapshot && data.changed ? h("button", { class: "btn", onclick: revert }, "Fortryd ændringer") : null,
         c.published ? h("button", { class: "btn", onclick: unpublish }, "Afpublicér") : null,
         h("button", { class: "btn", onclick: dup }, "Kopiér"),
         h("button", { class: "btn ghost danger", onclick: del }, "Slet")));
   }
-  // Fotos uden rettigheder (røde fejl) og automatiske fotos uden et tilladt alternativ (gule advarsler)
-  const photoProblems = () => (data.warnings || []).filter(w => w.photo || /intet foto, DOF må bruge/.test(w.msg)).length;
-  async function replacePhotos() {
-    await flush();
-    try {
-      const r = await api(P("/udskift-fotos"), { method: "POST" });
-      await reload();
-      if (!r.mangler.length) { toast(r.udskiftet ? `${r.udskiftet} foto(s) udskiftet med fotos, DOF må bruge` : "Alle fotos må allerede bruges"); return; }
-      const m = modal("Fotos udskiftet", h("div", { class: "stack" },
-        h("p", {}, `${r.udskiftet} foto(s) er udskiftet. Disse steder findes der endnu intet foto af arten (i den alder), som DOF må bruge – vælg et selv, eller fjern blokken:`),
-        h("ul", {}, ...r.mangler.map(x => h("li", {}, `${x.where}: ${x.art}`))),
-        h("button", { class: "btn", onclick: () => m.close() }, "Luk")));
-    } catch (e) { toast(e.message, "err"); }
-  }
   async function publish() {
     await flush();
     try { const r = await api(P("/publicer"), { method: "POST" }); toast(`Publiceret (version ${r.version})${r.visibility === "hold" ? " – kun for hold" : ""}`); await reload(); }
     catch (e) {
-      const d = e.detail?.warnings; const rights = (d || []).some(w => w.photo);
-      const m = modal("Kan ikke publicere endnu", h("div", { class: "stack" }, h("p", {}, e.message), d ? h("ul", {}, ...d.map(w => h("li", {}, w.msg))) : null,
-        h("div", { class: "lr-actions" },
-          rights ? h("button", { class: "btn primary", onclick: async () => { m.close(); await replacePhotos(); } }, "Udskift fotos uden rettigheder") : null,
-          h("button", { class: "btn", onclick: () => m.close() }, "Luk"))));
+      const d = e.detail?.warnings; const m = modal("Kan ikke publicere endnu", h("div", { class: "stack" }, h("p", {}, e.message), d ? h("ul", {}, ...d.map(w => h("li", {}, w.msg))) : null, h("button", { class: "btn", onclick: () => m.close() }, "Luk")));
     }
   }
   async function revert() { if (!confirm("Kassér alle ændringer siden sidste publicering?")) return; await api(P("/fortryd"), { method: "POST" }); await reload(); toast("Ændringer fortrudt"); }
