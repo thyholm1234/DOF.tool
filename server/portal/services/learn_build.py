@@ -258,8 +258,9 @@ def _clean_ref(r) -> dict | None:
         out["latin"] = r["latin"].strip()[:80]
     if r.get("type") in ("sang", "kald"):
         out["type"] = r["type"]
-    if isinstance(r.get("alder"), str) and r["alder"].strip():
-        out["alder"] = r["alder"].strip()[:40]
+    for k in ("alder", "adfaerd"):
+        if isinstance(r.get(k), str) and r[k].strip():
+            out[k] = r[k].strip()[:40]
     return out or None
 
 

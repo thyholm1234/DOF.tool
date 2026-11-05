@@ -165,14 +165,17 @@ async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
     if artnr is None and latin is None:
         return None
     alder = str(ref.get("alder") or "").strip() or None  # fx «1. kalenderår» – vigtigt for måger: et erstatningsfoto skal have samme alder
+    adfaerd = str(ref.get("adfaerd") or "").strip() or None  # fx «Flyvende» – vigtigt for rovfugle, der bestemmes i flugt
     return (await db.execute(text(f"""{base} AND NOT ('tvivl_art' = ANY(p.tags))
           AND EXISTS (SELECT 1 FROM gal_birds b WHERE b.photo_id = p.id AND b.pos = 0
                       AND (b.artnr = :a OR (CAST(:a AS int) IS NULL AND lower(b.latin) = lower(:l)))
                       AND (CAST(:alder AS text) IS NULL OR EXISTS (SELECT 1 FROM gal_codes gc WHERE gc.kind = 'alder' AND gc.code = b.alder
-                                                                  AND lower(gc.text) = lower(:alder))))
+                                                                  AND lower(gc.text) = lower(:alder)))
+                      AND (CAST(:adf AS text) IS NULL OR EXISTS (SELECT 1 FROM gal_codes gc WHERE gc.kind = 'adfaerd' AND gc.code = b.adfaerd
+                                                                AND lower(gc.text) = lower(:adf))))
           AND NOT EXISTS (SELECT 1 FROM gal_birds b2 WHERE b2.photo_id = p.id AND b2.pos > 0)
         ORDER BY p.likes DESC, p.views DESC, p.id LIMIT 1 OFFSET :o"""),
-        {"a": artnr, "l": latin, "alder": alder, "o": max(0, min(int(ref.get("n") or 0), 50))})).scalar()
+        {"a": artnr, "l": latin, "alder": alder, "adf": adfaerd, "o": max(0, min(int(ref.get("n") or 0), 50))})).scalar()
 
 
 async def course_cover(db: AsyncSession, c: Course) -> dict | None:

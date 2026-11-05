@@ -12,7 +12,7 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     from portal.services import learning
 
     async with db() as s:
-        assert await learning.seed_packs(s) == 4  # Phylloscopus- og mågekurset, hver med en øvelse
+        assert await learning.seed_packs(s) == 6  # Phylloscopus-, måge- og rovfuglekurset, hver med en øvelse
         assert await learning.seed_packs(s) == 0  # kun én gang
         c = (await s.execute(text("SELECT id, published, kind FROM courses WHERE slug = 'phylloscopus'"))).mappings().one()
         assert not c["published"] and c["kind"] == "kursus"
@@ -26,10 +26,14 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
         assert {"valg", "raekkefoelge", "tekst", "refleksion", "foto_art", "lyd_art", "foto_sammenlign"} <= types
         assert (await s.execute(text("SELECT kind FROM courses WHERE slug = 'phylloscopus-traening'"))).scalar() == "ovelse"
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'maager'"))).scalar() == 14
+        assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'rovfugle'"))).scalar() == 19
+        # rovfuglekurset beder om flugtfotos – filteret overlever importens rensning
+        rb = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'rovfugle' ORDER BY position"))).scalars().all()
+        assert any(r.get("adfaerd") == "Flyvende" for bl in rb for b in bl for r in [b.get("ref") or {}] + (b.get("refs") or []))
     # kladden har ingen blokerende fejl (der er ingen fotos i testbasen at tjekke rettigheder på)
     await flags(db, laering_portal="on", laering_byg="on")
     ov = {c["slug"]: c for c in (await web["ad"].get("/api/learn/byg/oversigt")).json()}
-    assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0
+    assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0 and ov["rovfugle"]["fejl"] == 0
     # lektionerne kan vises (redaktørens forhåndsvisning): blokke med referencer løses – uden fotos/lyd i basen bliver de blot tomme
     r = await web["ad"].get("/api/learn/courses/phylloscopus/units?preview=true")
     assert r.status_code == 200, r.text
@@ -117,6 +121,12 @@ async def test_foto_reference_med_alder(db):  # noqa: F811
         assert await learn_play.photo_by_ref(s, {"artnr": 5930}) == 911
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "1. kalenderår"}) == 912
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "alder": "2. kalenderår"}) is None  # aldrig et foto af forkert alder
+        # adfærd: et flugtfoto vælges frem for det mest likede siddende foto
+        await s.execute(text("INSERT INTO gal_codes (kind, code, text, sort) VALUES ('adfaerd', 'fl', 'Flyvende', 1) ON CONFLICT DO NOTHING"))
+        await s.execute(text("UPDATE gal_birds SET adfaerd = 'fl' WHERE photo_id = 912"))
+        await s.commit()
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "adfaerd": "Flyvende"}) == 912
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "adfaerd": "Flyvende", "alder": "Adult (udfarvet)"}) is None
 
 
 async def test_forsidebillede_og_banner(web, db):  # noqa: F811
@@ -127,7 +137,12 @@ async def test_forsidebillede_og_banner(web, db):  # noqa: F811
         await learning.seed_packs(s)
         await s.execute(text("UPDATE courses SET cover_ref = NULL WHERE slug = 'maager'"))
         await s.commit()
-        await learning.seed_packs(s)  # efterfyldning: allerede importerede kurser får pakkens forsidebillede
+        await learning.seed_packs(s)  # en redaktør har fjernet billedet: en ny opstart lægger det ikke tilbage
+        assert (await s.execute(text("SELECT cover_ref FROM courses WHERE slug = 'maager'"))).scalar() is None
+        await s.execute(text("DELETE FROM settings WHERE key = 'laering_seed_maager_v1_cover'"))
+        await s.commit()
+        s.expunge_all()
+        await learning.seed_packs(s)  # efterfyldning (én gang): kurser importeret før forsidebilleder får pakkens billede
         assert (await s.execute(text("SELECT cover_ref FROM courses WHERE slug = 'maager'"))).scalar() == {"artnr": 5930, "nf": 120310}
         await s.execute(text("INSERT INTO content_media (id, owner_kind, kind, storage_key, filename, mime, size, alt, caption, credit, sha256, sort) VALUES (9901, 'galleri', 'billede', 'x/y.jpg', 'y.jpg', 'image/jpeg', 1, '', '', 'Fotograf', 'abc', 0) ON CONFLICT DO NOTHING"))
         await _photo(s, 931, 120310, 5930, "Larus cachinnans", 99, 2)

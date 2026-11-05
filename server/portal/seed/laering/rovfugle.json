@@ -1,0 +1,5138 @@
+{
+ "format": "laering-v2",
+ "exported": "2026-11-05T00:00:00+00:00",
+ "courses": [
+  {
+   "kind": "kursus",
+   "slug": "rovfugle",
+   "title": "Rovfugle i flugt: alle danske rovfugle fra Spurvehøg til Gåsegrib",
+   "summary": "Et grundigt kursus i at bestemme de 37 rovfuglearter, der er set i Danmark, i flugt: GISS, gruppenøglen, træk og trækstrategier og så arterne gruppe for gruppe.",
+   "card": "Først silhuet, vingestilling, håndform og flugt, så de syv grupper, så trækket, og til sidst arterne: falke, høge, kærhøge, våger, glenter, ørne og gribbe.",
+   "intro": "Kurset bygger på Dick Forsmans metode: helhedsindtryk og silhuet før farver. Først lærer du at sætte enhver rovfugl i den rigtige gruppe med syv enkle billeder, derefter skiller vi arterne ad inden for hver gruppe. Et helt trin handler om træk og trækstrategier. Kun arter på Den Danske Liste, kategori A.\n\n**Kilder:** Forsman: *Flight Identification of Raptors of Europe, North Africa and the Middle East* (2016) · Forsman: *The Raptors of Europe and the Middle East.\nA Handbook of Field Identification* (1999) · Panuccio, Mellone & Agostini (red.): *Migration Strategies of Birds of Prey in Western Palearctic* (2021) · DOFbasen: *Danmarks Fugle*\nog observationer · Olsen & Sjældenhedsudvalget: *The Danish List* (DOFT 2025) · AVONET (Tobias m.fl. 2022, CC BY 4.0) · Pandion og Fugle i felten under Artikler\n(Haaning, Malling Olsen, Tofte, Knudsen m.fl.). Fotos: DOF.tools fotobibliotek. Lyde: xeno-canto.",
+   "topic": "id",
+   "level": "øvet",
+   "number": 9,
+   "stage": "Artsgrupper i dybden",
+   "hours": "12–16 timer",
+   "hue": "himmel",
+   "sil": "rovfugl",
+   "skills": [
+    "Bemærk",
+    "Sammenlign",
+    "Lyt",
+    "Vurdér",
+    "Forbered"
+   ],
+   "featured": true,
+   "audience": "For let øvede fuglekiggere, der kender Musvåge, Spurvehøg og Tårnfalk og vil kunne bestemme rovfugle på træk, også langt væk.",
+   "learn": [
+    {
+     "title": "Læs en rovfugl på afstand",
+     "text": "Brug silhuet, vingestilling, håndform, flugt og de store lyse felter, før du ser på farver."
+    },
+    {
+     "title": "Sæt den i en gruppe",
+     "text": "Syv billeder (kniv, saks, V, pandekage, drage, dør og bord) giver gruppen på få sekunder."
+    },
+    {
+     "title": "Forstå trækket",
+     "text": "Svæveflyvere og aktive flyvere, ledelinjer, sløjfetræk, alder og vejr: hvorfor rovfuglene kommer, hvor og hvornår de gør."
+    },
+    {
+     "title": "Skil arterne ad",
+     "text": "Huskeregler for de svære par: Musvåge/Hvepsevåge, Steppehøg/Hedehøg, skrigeørnene, Lærkefalk/Aftenfalk og mange flere."
+    },
+    {
+     "title": "Dokumentér og beslut ærligt",
+     "text": "Fotografér det, der afgør sagen, og vælg det rigtige niveau, også «våge sp.» og «storfalk sp.»."
+    }
+   ],
+   "units": [
+    {
+     "title": "Velkommen til rovfuglene",
+     "lesson_md": "En prik over Skagen i maj. Den kredser, glider, kredser igen. Er det en Musvåge, en Hvepsevåge eller noget helt andet? De fleste rovfugle ser du\nlangt væk, i modlys og kun i få sekunder. Derfor bestemmer vi dem på silhuet, vingestilling, flugt og nogle få lyse og mørke felter, og først\nbagefter på detaljer. Den måde at se på kaldes GISS (*General Impression of Size and Shape*), og den er rygraden i hele forløbet.\n\nForløbet dækker alle 39 rovfuglearter på Den Danske Liste (kategori A, Olsen & Sjældenhedsudvalget 2025): fra Musvåge og Tårnfalk til Munkegrib\nog Tophvepsevåge. Amerikansk Tårnfalk står også på listen, men kun i kategori B (set før 1950), så den nævnes kun her.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Sådan er forløbet bygget op\n\nDu lærer det i den rækkefølge, du bruger det i felten:\n\n1. **GISS-værktøjskassen**: silhuet, vingestilling, håndform, flugt og lyse felter.\n2. **Gruppenøglen**: syv grupper med hver sin huskeregel. Kan du placere fuglen i den rigtige gruppe, er du nået langt.\n3. **Trækket**: hvorfor rovfugle trækker, som de gør, og hvor og hvornår du ser dem i Danmark.\n4. **Arterne gruppe for gruppe**: falke, høge, kærhøge, våger, glenter, ørne og gribbe, altid med de nærmeste forvekslinger side om side.\n5. **Alder, dokumentation og en afsluttende prøve**.\n\nUndervejs bruger vi det, vi ved om læring: korte forklaringer, fotos side om side, en huskeregel pr. skel, mange spørgsmål og blandede prøver. Svar\ngerne, før du er sikker, og vær ærlig om din sikkerhed. Det er sådan, man lærer mest."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2870,
+         "nf": 119580,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2390,
+         "nf": 118257,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2690,
+         "nf": 123699,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3040,
+         "nf": 122155,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Musvåge",
+        "Rød Glente",
+        "Spurvehøg",
+        "Tårnfalk"
+       ],
+       "tekst": "Fire almindelige rovfugle og fire silhuetter. Om lidt kan du se forskel på dem som skygger mod himlen."
+      },
+      {
+       "type": "tip",
+       "titel": "Den vigtigste regel",
+       "md": "Bestem gruppen, før du bestemmer arten. En fugl, du ikke kan placere i en gruppe, skal ikke have et artsnavn endnu. «Rovfugl sp.» eller «våge sp.» er\ngode svar, når det er det, du kan forsvare."
+      },
+      {
+       "type": "metode",
+       "trin": 0
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: En rovfugl med lange, spidse vinger uden «fingre» og en lang hale. Hvilken gruppe?",
+       "choices": [
+        {
+         "text": "Falk",
+         "correct": true
+        },
+        {
+         "text": "Høg",
+         "correct": false
+        },
+        {
+         "text": "Våge",
+         "correct": false
+        },
+        {
+         "text": "Ørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Spidse vinger uden fingre er falkenes kendetegn. Høge har korte, runde vinger, våger og ørne brede vinger med fingre.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: En stor rovfugl kredser på vinger, der holdes i et tydeligt V. Den har lang hale og glider lavt hen over en eng med vingerne løftet. Hvilken gruppe?",
+       "choices": [
+        {
+         "text": "Kærhøg",
+         "correct": true
+        },
+        {
+         "text": "Falk",
+         "correct": false
+        },
+        {
+         "text": "Høg",
+         "correct": false
+        },
+        {
+         "text": "Glente",
+         "correct": false
+        }
+       ],
+       "explanation": "Lav, gyngende glideflugt med løftede vinger er kærhøgenes varemærke.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Hvilken art er Danmarks talrigeste ynglende rovfugl?",
+       "choices": [
+        {
+         "text": "Musvåge",
+         "correct": true
+        },
+        {
+         "text": "Tårnfalk",
+         "correct": false
+        },
+        {
+         "text": "Spurvehøg",
+         "correct": false
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Musvåge med 4.500–5.000 par (DOF). Spurvehøg har 2.500–3.000 og Tårnfalk 1.500–1.700 par.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Forhåndstest: Hvor ser man flest trækkende rovfugle i Danmark om foråret?",
+       "choices": [
+        {
+         "text": "Skagen",
+         "correct": true
+        },
+        {
+         "text": "Stevns",
+         "correct": false
+        },
+        {
+         "text": "Gedser",
+         "correct": false
+        },
+        {
+         "text": "Blåvand",
+         "correct": false
+        }
+       ],
+       "explanation": "Om foråret samles nordgående rovfugle på Skagen-halvøen. Om efteråret er Stevns, Gedser og Falsterbo lige over Øresund de store steder.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Forhåndstest: Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2870,
+         2690,
+         3040,
+         2600,
+         2310,
+         2390,
+         2430,
+         2900
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Hvad gør dig usikker, når du ser en rovfugl højt oppe? Skriv det ned, så du kan sammenligne med dit svar i sidste trin.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 80,
+        "example": "Fx: «Jeg ser mest på farverne, og de forsvinder i modlys. Jeg ved ikke rigtig, hvad jeg skal se efter på vingerne, og Musvåge og Hvepsevåge ligner hinanden.»"
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 20,
+     "min_score_pct": null
+    },
+    {
+     "title": "GISS: silhuet, vingestilling, håndform, flugt og lyse felter",
+     "lesson_md": "GISS er det, erfarne trækobservatører gør uden at tænke over det: De ser på helheden, før de ser på detaljer. Dick Forsman (2016) skriver det ligeud:\nDer findes ingen erstatning for erfaring. Men erfaring bliver hurtigere til viden, når man ved, hvad man skal kigge efter. Her er de seks ting.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### 1. Silhuetten: vinge, hale og hoved\n\nSe på forholdet mellem tre ting: hvor lange vingerne er, hvor bred armen er i forhold til hånden, og hvor langt hoved og hale rager ud foran og bag vingen.\n\n| Proportion | Eksempler |\n|---|---|\n| Lange, smalle, spidse vinger | Falke, især Lærkefalk og Eleonorafalk |\n| Korte, brede, runde vinger og lang hale | Høge (Spurvehøg, Duehøg) |\n| Lange, smalle vinger og lang hale | Kærhøge |\n| Brede vinger, mellemlang hale, rundt hoved | Våger |\n| Lange vinger med knæk og kløftet hale | Glenter |\n| Meget store, brede vinger med lange fingre | Ørne og gribbe |\n| Hoved og hale rager lige langt ud | Havørn |\n| Lille hoved på lang hals, som en due | Hvepsevåge |\n\n### 2. Vingestillingen set forfra\n\nDet er den mest oversete og en af de bedste karakterer. Øv dig på fugle, der kommer mod dig.\n\n| Stilling | Hvordan | Typisk for |\n|---|---|---|\n| **V-stilling** (dihedral) | Vingerne løftet i et tydeligt V | Kærhøge, Fjeldvåge, Musvåge (svagt), Gåsegrib (svagt) |\n| **Modificeret V** | Armen løftet, hånden vandret | Musvåge og Ørnevåge i glid, Kongeørn |\n| **Plan** | Vingerne vandrette | Havørn, Steppeørn, Hvepsevåge |\n| **Hængende hånd** | Armen vandret, hånden bøjet ned | Hvepsevåge i glid, skrigeørne, Sort Glente |\n| **Hvælvet (bueformet)** | Hele vingen bøjet nedad som en bue | Dværgørn, Fiskeørn i glid, Rørhøg i langt glid |\n\n### 3. Hånden: fingre og spids\n\n«Fingrene» er de yderste håndsvingfjer, der spredes, når fuglen kredser. Tæl dem, hvis du kan, men se mest på helheden.\n\n- **Ingen fingre, spids hånd**: falke.\n- **Fire synlige fingre**: Steppehøg og Hedehøg. Fem: Blå Kærhøg og Rørhøg. Fortællingen om fire mod fem er korrekt, men man når sjældent at tælle (Malling Olsen, Pandion 2015).\n- **Seks fingre og firkantet hånd**: Dværgørn. Syv lange fingre: de store ørne og gribbe.\n- **Rund hånd**: høge. Blå Kærhøgs hånd er rund som en spurvehøgs.\n\n### 4. Flugten\n\n| Flugtmåde | Eksempler |\n|---|---|\n| Hurtige, stive slag og lange glid | Spurvehøg: «flaks-flaks-flaks-glid» |\n| Kraftige, rolige slag, der ser lette ud | Duehøg, Vandrefalk |\n| Muser (står stille i luften) | Tårnfalk, Fjeldvåge, Blå Glente, Musvåge (kort), Slangeørn |\n| Lav, gyngende glideflugt med løftede vinger | Kærhøge |\n| Bløde, langsomme, «elastiske» slag | Hvepsevåge, Rød Glente |\n| Langsomme, værdige, flade slag | Havørn |\n| Stive, mursejleragtige slag | Lærkefalk |\n\n### 5. Lyse og mørke felter\n\nFra afstand ser du kun store felter. Lær dem udenad:\n\n- **Hvid overgump**: kærhøgenes hunner og unge (de såkaldte «ringtails»), Fjeldvåge (hvid halerod).\n- **Hvide felter i hånden**: Fjeldvåge (oversiden), Kongeørn ung (begge sider), Ørnevåge, Rød Glente (stort lyst «vindue» under).\n- **Mørkt felt ved håndleddet**: Fjeldvåge, Musvåge, Fiskeørn.\n- **Sort hånd og grå vinge**: Blå Kærhøg han, Steppehøg han (smal sort kile), Hedehøg han (sort vingebånd).\n- **Hvid hale**: voksen Havørn.\n\n### 6. Lys, fældning og køn\n\n- **Lys**: En Musvåge mod blå himmel viser detaljer, men mod en lys sky bliver den en sort silhuet. Over sne eller sand ser den næsten hvid ud, over skov mørk. Morgen og aften er undersiden mørk, fordi lyset ikke kastes op fra jorden (Forsman 2016).\n- **Fældning**: Fælder en rovfugl svingfjer i august, er den ikke en ungfugl. Ungfugle har en ensartet dragt, hvor alle svingfjer er lige gamle. De store ørne fælder lidt ad gangen over flere år, så man kan se alderen på, hvor mange gamle fjer der er tilbage.\n- **Køn**: Hos de fleste rovfugle er hunnen størst. Hos Spurvehøg er hunnen op til næsten dobbelt så tung som hannen."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2600,
+         "nf": 119614,
+         "alder": "Adult (udfarvet)",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2430,
+         "nf": 118501,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2310,
+         "nf": 119252,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "V-stilling: Rørhøg",
+        "Plan: Havørn",
+        "Hængende hånd: Hvepsevåge"
+       ],
+       "tekst": "Tre vingestillinger. Se på vingerne, ikke på farverne."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 3100,
+         "nf": 121505,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2670,
+         "nf": 118676,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2960,
+         "nf": 119415,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Ingen fingre: Lærkefalk",
+        "Rund hånd: Duehøg",
+        "Lange fingre: Kongeørn"
+       ],
+       "tekst": "Tre håndtyper."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel: se på ham, ikke på frakken",
+       "md": "Kropsdragten hos rovfugle varierer enormt. Forsman: Hos Hvepsevåge kan man ignorere den variable kropsdragt helt og se på svingfjerenes underside. Så bliver\ndet pludselig let at se både alder og køn. Det gælder for mange arter: Se på svingfjerene, ikke på kroppen."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad betyder GISS?",
+       "choices": [
+        {
+         "text": "General Impression of Size and Shape: helhedsindtrykket af størrelse og form",
+         "correct": true
+        },
+        {
+         "text": "Grå, Inderste, Spidse Svingfjer",
+         "correct": false
+        },
+        {
+         "text": "En bestemt type kikkert",
+         "correct": false
+        },
+        {
+         "text": "Et fældningsmønster",
+         "correct": false
+        }
+       ],
+       "explanation": "Helhedsindtrykket kommer først, detaljerne bagefter.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En rovfugl kommer mod dig med vingerne løftet i et tydeligt V. Hvilke grupper er mest sandsynlige?",
+       "choices": [
+        {
+         "text": "Kærhøge",
+         "correct": true
+        },
+        {
+         "text": "Fjeldvåge",
+         "correct": true
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        },
+        {
+         "text": "Høge",
+         "correct": false
+        }
+       ],
+       "explanation": "Havørn kredser på plane vinger, og høge holder vingerne fladt.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken vingestilling kendetegner Dværgørn i glid?",
+       "choices": [
+        {
+         "text": "Hvælvet: hele vingen bøjet nedad som en bue",
+         "correct": true
+        },
+        {
+         "text": "Tydeligt V",
+         "correct": false
+        },
+        {
+         "text": "Plan",
+         "correct": false
+        },
+        {
+         "text": "Armen løftet og hånden vandret",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman: «a most reliable character once learnt», med fingrene bøjet opad.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter disse arter efter hånd-vinge-indeks i AVONET (spidse vinger først).",
+       "choices": [],
+       "explanation": "57,8 · 51,0 · 49,9 · 38,3 · 35,5. Falke har de spidseste vinger, høge de rundeste.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "items": [
+         "Lærkefalk",
+         "Tårnfalk",
+         "Rød Glente",
+         "Musvåge",
+         "Spurvehøg"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor rovfugl fælder tydeligt sine svingfjer (huller i vingen) i midten af august. Hvad kan du sige om alderen?",
+       "choices": [
+        {
+         "text": "Den er ikke en ungfugl",
+         "correct": true
+        },
+        {
+         "text": "Den er en ungfugl",
+         "correct": false
+        },
+        {
+         "text": "Den er under et år gammel",
+         "correct": false
+        },
+        {
+         "text": "Ingenting",
+         "correct": false
+        }
+       ],
+       "explanation": "Ungfugle fælder ikke svingfjer i deres første efterår (Forsman 2016).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor ser en Musvåge mørk ud på undersiden tidligt om morgenen, selv i klart vejr?",
+       "choices": [
+        {
+         "text": "Fordi der kastes mindre lys op fra jorden, når solen står lavt",
+         "correct": true
+        },
+        {
+         "text": "Fordi den har fældet",
+         "correct": false
+        },
+        {
+         "text": "Fordi den er en ung fugl",
+         "correct": false
+        },
+        {
+         "text": "Fordi den er en anden art",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman: Omkring middag kastes mest lys op på undersiden.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken flugt passer på en Spurvehøg på træk?",
+       "choices": [
+        {
+         "text": "Nogle hurtige, stive slag og så et glid: «flaks-flaks-flaks-glid»",
+         "correct": true
+        },
+        {
+         "text": "Lange, langsomme, flade slag",
+         "correct": false
+        },
+        {
+         "text": "Lav, gyngende glideflugt",
+         "correct": false
+        },
+        {
+         "text": "Stive, mursejleragtige slag",
+         "correct": false
+        }
+       ],
+       "explanation": "Høgene flyver i rytmer: en byge hurtige, stive slag og så et kort glid. Musvågen svæver, falkene slår jævnt og hurtigt.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange synlige fingre har Blå Kærhøg, og hvor mange har Steppe- og Hedehøg?",
+       "choices": [
+        {
+         "text": "Fem mod fire",
+         "correct": true
+        },
+        {
+         "text": "Fire mod fem",
+         "correct": false
+        },
+        {
+         "text": "Syv mod seks",
+         "correct": false
+        },
+        {
+         "text": "Ingen af dem har fingre",
+         "correct": false
+        }
+       ],
+       "explanation": "Korrekt, men svært at tælle i felten (Malling Olsen).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 60,
+     "min_score_pct": null
+    },
+    {
+     "title": "Gruppenøglen: syv grupper og syv billeder",
+     "lesson_md": "Har du først sat fuglen i den rigtige gruppe, er der sjældent mere end tre-fire arter tilbage. Her får hver gruppe et billede, man kan huske. Billeder\nvirker, fordi hjernen husker former bedre end lister.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Syv billeder til syv grupper\n\n| Gruppe | Billede | Det betyder |\n|---|---|---|\n| **Falke** | En **kniv** eller et anker | Spidse, smalle vinger uden fingre, lang hale, hurtig og målrettet |\n| **Høge** | En **saks** eller et kors | Korte, runde vinger og lang hale; flaks-flaks-glid |\n| **Kærhøge** | Et **V** over marken | Lange, smalle vinger løftet i V, lang hale, lav gyngende flugt |\n| **Våger** | En **pandekage** | Brede vinger, kort-mellemlang hale, rund krop, kredser meget |\n| **Glenter** | En **drage** | Lange vinger med knæk ved håndleddet og en kløftet hale, der drejes som et ror |\n| **Ørne** | En **dør** eller en planke | Store, brede vinger med lange fingre og et kraftigt hoved |\n| **Gribbe** | Et **bord** | Enorme, lige vinger, meget lange fingre og kort hale |\n\nFiskeørn er sin egen: en stor «måge» med M-formede vinger.\n\n### Sådan skelner du de nemme forvekslinger mellem grupperne\n\n| Forveksling | Huskeregel |\n|---|---|\n| Spurvehøg mod Tårnfalk | Tårnfalkens vinger er **spidse**, Spurvehøgens **runde**. Tårnfalken muser, Spurvehøgen gør aldrig. |\n| Spurvehøg mod Gøg | Gøgen har spidse vinger, der aldrig løftes over ryggen, og flyver med lav, konstant flaksen uden glid. |\n| Duehøg mod Musvåge | Duehøgen har **lang hale med runde hjørner**, tydeligt S-formet bagkant på vingen og flyver kraftigt og direkte. Musvågen har kort hale og kredser. |\n| Rørhøg mod Sort Glente | Glenten har kløftet hale og vinger med knæk; Rørhøgen har rund hale og vinger i V. |\n| Musvåge mod Hvepsevåge | Hvepsevågen har lille «duehoved» og lang hals, længere hale og flade vinger med hængende hånd. Musvågen har stort hoved, kort hals og V-vinger. |\n| Kærhøg mod falk | Kærhøgen har fingre og løftede vinger; falken er spids og har vandrette vinger. |\n| Havørn mod Musvåge på afstand | Havørnen er dobbelt så stor, og hoved og hale rager lige langt ud. |"
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 3200,
+         "nf": 124089,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2670,
+         "nf": 124073,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2620,
+         "nf": 122819,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2870,
+         "nf": 118158,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Falk: kniven (Vandrefalk)",
+        "Høg: saksen (Duehøg)",
+        "Kærhøg: V'et (Steppehøg)",
+        "Våge: pandekagen (Musvåge)"
+       ],
+       "tekst": "Fire af de syv billeder."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2390,
+         "nf": 118257,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2430,
+         "nf": 118501,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2550,
+         "nf": 124908,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Glente: dragen (Rød Glente)",
+        "Ørn: døren (Havørn)",
+        "Grib: bordet (Munkegrib)"
+       ],
+       "tekst": "Og de sidste tre."
+      },
+      {
+       "type": "tip",
+       "titel": "Øvelse til næste tur",
+       "md": "Sig gruppen højt, hver gang du ser en rovfugl: «kniv», «saks», «V», «pandekage». Først når du siger det uden at tøve, går du videre til arten."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilket billede hører til glenterne?",
+       "choices": [
+        {
+         "text": "En drage med kløftet hale, der drejes som et ror",
+         "correct": true
+        },
+        {
+         "text": "En saks",
+         "correct": false
+        },
+        {
+         "text": "Et bord",
+         "correct": false
+        },
+        {
+         "text": "En pandekage",
+         "correct": false
+        }
+       ],
+       "explanation": "Glenterne er dragen: lange, knækkede vinger og en lang, kløftet hale, som hele tiden drejes og vrides som et ror.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket billede hører til høgene?",
+       "choices": [
+        {
+         "text": "En saks eller et kors: korte, runde vinger og lang hale",
+         "correct": true
+        },
+        {
+         "text": "En kniv",
+         "correct": false
+        },
+        {
+         "text": "Et V",
+         "correct": false
+        },
+        {
+         "text": "En dør",
+         "correct": false
+        }
+       ],
+       "explanation": "Høgene er saksen eller korset: korte, runde vinger og en lang hale, bygget til hurtige sving mellem træer.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan skelner du hurtigst en Spurvehøg fra en Tårnfalk i flugt?",
+       "choices": [
+        {
+         "text": "Spurvehøgen har runde vinger og muser aldrig; Tårnfalken har spidse vinger og muser",
+         "correct": true
+        },
+        {
+         "text": "Spurvehøgen er større end en Duehøg",
+         "correct": false
+        },
+        {
+         "text": "Tårnfalken har kløftet hale",
+         "correct": false
+        },
+        {
+         "text": "Spurvehøgen har sort hætte",
+         "correct": false
+        }
+       ],
+       "explanation": "Vingeformen afgør det: runde vinger med fingre er høg, spidse vinger uden fingre er falk. Og kun Tårnfalken står stille i luften og muser.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En rovfugl har lille hoved på en lang hals, flade vinger med hængende hånd og ret lang hale. Hvilken art?",
+       "choices": [
+        {
+         "text": "Hvepsevåge",
+         "correct": true
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Duehøg",
+         "correct": false
+        },
+        {
+         "text": "Rød Glente",
+         "correct": false
+        }
+       ],
+       "explanation": "Musvågen har stort hoved, kort hals og vinger i let V.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad skiller Rørhøg fra Sort Glente på silhuetten?",
+       "choices": [
+        {
+         "text": "Glenten har kløftet hale og knæk på vingen; Rørhøgen har rund hale og vinger i V",
+         "correct": true
+        },
+        {
+         "text": "Rørhøgen har kløftet hale",
+         "correct": false
+        },
+        {
+         "text": "Glenten har vinger i V",
+         "correct": false
+        },
+        {
+         "text": "De har samme silhuet",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken gruppe kendes på lange, smalle vinger løftet i V og lav, gyngende glideflugt?",
+       "choices": [
+        {
+         "text": "Kærhøge",
+         "correct": true
+        },
+        {
+         "text": "Våger",
+         "correct": false
+        },
+        {
+         "text": "Falke",
+         "correct": false
+        },
+        {
+         "text": "Gribbe",
+         "correct": false
+        }
+       ],
+       "explanation": "Kærhøgene jager lavt over rørskov og marker med vingerne i V og vipper fra side til side, når de ser efter bytte.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter grupperne efter typisk størrelse, mindst først.",
+       "choices": [],
+       "explanation": "Tænk på Spurvehøg, Rørhøg, Musvåge, Havørn og Munkegrib.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "items": [
+         "Falke og høge",
+         "Kærhøge",
+         "Våger",
+         "Ørne",
+         "Gribbe"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken art? (Bestem gruppen først)",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2690,
+         3040,
+         2870,
+         2600,
+         2390,
+         2430,
+         3200,
+         2670
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 50,
+     "min_score_pct": null
+    },
+    {
+     "title": "Træk og trækstrategier: hvorfor rovfugle trækker, som de gør",
+     "lesson_md": "Rovfugle er de bedste fugle at forstå træk med, fordi man kan se dem gøre det. En Musvåge, der kredser op i en termikboble og glider videre, viser\ndig fysikken bag trækket. *Migration Strategies of Birds of Prey in Western Palearctic* (Panuccio, Mellone & Agostini 2021) samler, hvad sendere,\nradar og trækstationer har lært os. Her er det vigtigste.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### To måder at flyve på\n\n| | **Svæveflyvere** | **Flaksere** |\n|---|---|---|\n| Hvem | Store fugle med brede vinger: ørne, gribbe, våger, Hvepsevåge, glenter | Mindre fugle med smalle, spidse vinger: falke, høge, kærhøge, Fiskeørn |\n| Hvordan | Kredser op i termik (varm, opstigende luft) eller i opvind ved skrænter og glider videre | Slår med vingerne det meste af vejen |\n| Brændstof | Fedt, som de oplagrer før trækket (15–25 % af kropsvægten), og spiser kun lidt undervejs | Små depoter; jager undervejs |\n| Vand | Termik dannes næsten ikke over vand, så de undgår havet og samles ved de korteste overfarter | Krydser gerne hav på bred front, også om natten |\n| Tid på dagen | Fra termikken starter (formiddag) til den stopper (eftermiddag) | Hele dagen, nogle også om natten |\n\nSvæveflugt er billig: Den samme mængde fedt holder en svævende rovfugl i luften op til fire gange længere end en flaksende (Smith m.fl. 1986).\nTil gengæld er svæveflyverne bundet af vejret og af landjorden. 80–90 % af de trækkende rovfugle flyver under 1.000 meters højde.\n\n### Derfor samles de på bestemte steder\n\nFordi svæveflyverne undgår havet, samles de, hvor overfarten er kortest. I Europa er de store flaskehalse Gibraltar, Bosporus og Messina-strædet. For\nSkandinaviens rovfugle er det Falsterbo i Skåne, og derfra kommer mange ind over Stevns. Om foråret er det omvendt: Fuglene, der skal mod nord,\nsamles på Skagen, før de krydser Skagerrak. Svenske Musvåger med sendere foretrækker endda at krydse ved Helsingborg, hvor afstanden over vand er under\nen fjerdedel af den ved Falsterbo.\n\nMellemformerne, Hvepsevåge, Sort Glente, kærhøgene og Fiskeørn, kan godt flyve langt over vand med vingeslag. Hvepsevåger og Sorte Glenter tøver dog\nved kysten og samler sig i flokke, til nogle tør tage springet. Så følger de andre efter.\n\n### Tid eller energi\n\nOm foråret har fuglene travlt: De, der kommer først, får de bedste territorier. Derfor trækker de fleste hurtigere om foråret end om efteråret. Svenske\nFiskeørne krydser Sahara hurtigere om foråret (309 km om dagen) end om efteråret (275 km), selvom vinden er dårligere. Om efteråret er der mere tid, og\nnogle arter tager lange omveje for at undgå havet.\n\n### Unge og gamle trækker forskelligt\n\n- **Langtrækkere**, der fælder i Afrika (Fiskeørn, Hvepsevåge), sender de gamle først. Danske Hvepsevåger: de voksne forlader landet i august, ungerne følger cirka to uger senere (DOF).\n- **Kortdistancetrækkere**, der fælder hjemme (Spurvehøg), sender de unge først.\n- Unge Hvepsevåger trækker alene. De har ingen voksne at følge, og de bliver drevet af med vinden. Finske ungfugle var spredt over en over 1.000 km bred front, allerede da de nåede Mellemeuropa.\n- Unge trækkere navigerer med en medfødt kompasretning. Voksne kan rette op, hvis de bliver flyttet. Det viste Rudolf Drost allerede i 1930'erne ved at flytte ringmærkede Spurvehøge 600 km fra Helgoland til Polen.\n- Mange unge langtrækkere bliver i Afrika, til de er voksne. En ung Hvepsevåge ses først igen i Europa næsten to år senere, i voksendragt (Forsman 2016).\n- Trækket er farligt: En ud af tre unge svenske Fiskeørne dør under deres første krydsning af Sahara.\n\n### Sløjfetræk\n\nMange arter flyver ad forskellige ruter forår og efterår, fordi vindene er forskellige. Rørhøge fra Sverige og Holland flyver i en sløjfe med uret gennem\nVestafrika: lidt østligere om efteråret, vestligere om foråret. Rørhøg krydser også gerne Middelhavet direkte, mens Slangeørnen, en ren svæveflyver,\nkan flyve op til halvanden gang den direkte afstand for at undgå havet.\n\n### Fedt eller fødesøgning\n\n- Svæveflyvere, der trækker langt og i flok, faster næsten og lever af fedtet.\n- Flaksere, som falke, kærhøge og høge, jager undervejs. Vandrefalke og Spurvehøge følger deres byttedyrs træk og kan blive flere dage på et rastested."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2310,
+         "nf": 117698,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3100,
+         "nf": 121505,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Svæveflyver: Hvepsevåge",
+        "Flakser: Lærkefalk"
+       ],
+       "tekst": "To strategier i to silhuetter."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel: brede vinger elsker land, spidse vinger tør havet",
+       "md": "Brede vinger (ørne, våger, gribbe) svæver på termik og følger land. Spidse vinger (falke, kærhøge) flakser og krydser hav. Mellemformerne (Hvepsevåge,\nglenter, Fiskeørn) kan begge dele, men tøver ved kysten."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvorfor undgår svæveflyvende rovfugle at krydse åbent hav?",
+       "choices": [
+        {
+         "text": "Der dannes næsten ingen termik over vand, og de kan ikke lande",
+         "correct": true
+        },
+        {
+         "text": "Fordi de ikke kan se land",
+         "correct": false
+        },
+        {
+         "text": "Fordi de jager over land",
+         "correct": false
+        },
+        {
+         "text": "Fordi det er forbudt",
+         "correct": false
+        }
+       ],
+       "explanation": "Panuccio m.fl. 2021.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor meget længere kan den samme mængde fedt holde en svævende rovfugl i luften sammenlignet med en flaksende?",
+       "choices": [
+        {
+         "text": "Op til fire gange",
+         "correct": true
+        },
+        {
+         "text": "Lige lang tid",
+         "correct": false
+        },
+        {
+         "text": "Halvt så lang tid",
+         "correct": false
+        },
+        {
+         "text": "Ti gange",
+         "correct": false
+        }
+       ],
+       "explanation": "Smith m.fl. 1986, citeret i Panuccio m.fl.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken aldersgruppe forlader Danmark først hos Hvepsevåge?",
+       "choices": [
+        {
+         "text": "De voksne, i august; ungerne cirka to uger senere",
+         "correct": true
+        },
+        {
+         "text": "Ungerne",
+         "correct": false
+        },
+        {
+         "text": "De trækker sammen",
+         "correct": false
+        },
+        {
+         "text": "Hannerne om foråret",
+         "correct": false
+        }
+       ],
+       "explanation": "Langtrækkere, der fælder i Afrika, sender de gamle først.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad viste Drosts forsøg med Spurvehøge fra Helgoland?",
+       "choices": [
+        {
+         "text": "At unge fugle følger en medfødt kompasretning, mens voksne kan rette op mod deres gamle rute",
+         "correct": true
+        },
+        {
+         "text": "At Spurvehøge ikke trækker",
+         "correct": false
+        },
+        {
+         "text": "At unge og gamle navigerer ens",
+         "correct": false
+        },
+        {
+         "text": "At Spurvehøge kun trækker om natten",
+         "correct": false
+        }
+       ],
+       "explanation": "Unge Spurvehøge, der blev flyttet, fortsatte i deres medfødte retning og endte et forkert sted. De voksne kendte ruten og kunne rette op.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor trækker de fleste rovfugle hurtigere om foråret end om efteråret?",
+       "choices": [
+        {
+         "text": "Fordi de, der ankommer først, får de bedste territorier",
+         "correct": true
+        },
+        {
+         "text": "Fordi vinden altid er bedre om foråret",
+         "correct": false
+        },
+        {
+         "text": "Fordi dagene er kortere",
+         "correct": false
+        },
+        {
+         "text": "Fordi de er lettere",
+         "correct": false
+        }
+       ],
+       "explanation": "Tidsminimering om foråret (Panuccio m.fl.).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilke rovfugle jager typisk undervejs på trækket i stedet for at leve af fedt?",
+       "choices": [
+        {
+         "text": "Falke",
+         "correct": true
+        },
+        {
+         "text": "Kærhøge",
+         "correct": true
+        },
+        {
+         "text": "Spurvehøg",
+         "correct": true
+        },
+        {
+         "text": "Store ørne og gribbe, der trækker i flok",
+         "correct": false
+        }
+       ],
+       "explanation": "Flaksere har små depoter og må æde undervejs.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er et sløjfetræk?",
+       "choices": [
+        {
+         "text": "At fuglen bruger forskellige ruter forår og efterår",
+         "correct": true
+        },
+        {
+         "text": "At den flyver i cirkler i termik",
+         "correct": false
+        },
+        {
+         "text": "At den vender om og flyver tilbage",
+         "correct": false
+        },
+        {
+         "text": "At den trækker om natten",
+         "correct": false
+        }
+       ],
+       "explanation": "Mange rovfugle bruger én rute om efteråret og en anden om foråret, fordi vind, termik og føde er forskellig i de to sæsoner. Fiskeørn og Rød Glente er eksempler.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor stor en del af de unge svenske Fiskeørne dør under den første krydsning af Sahara?",
+       "choices": [
+        {
+         "text": "Cirka en tredjedel",
+         "correct": true
+        },
+        {
+         "text": "Næsten ingen",
+         "correct": false
+        },
+        {
+         "text": "Halvdelen",
+         "correct": false
+        },
+        {
+         "text": "Alle",
+         "correct": false
+        }
+       ],
+       "explanation": "Strandberg m.fl., citeret i Panuccio m.fl.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Forklar med dine egne ord, hvorfor man ser mange flere Hvepsevåger og Musvåger over Stevns end over Blåvand om efteråret.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 80,
+        "example": "Svæveflyvere undgår havet. Fra Skandinavien er den korteste vej mod syd over Øresund ved Falsterbo eller Helsingborg, og derfra kommer de ind over Stevns og fortsætter over Falster, Lolland og Langeland. Vestkysten ligger ikke på deres vej, og der er ingen kort overfart ved Blåvand."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 55,
+     "min_score_pct": null
+    },
+    {
+     "title": "Trækket i Danmark: steder, kalender og vejr",
+     "lesson_md": "Nu til praksis. Hvornår skal du stå hvor, og hvilket vejr skal du håbe på? Danmark ligger i den sydlige ende af den skandinaviske tragt. Om foråret\nfylder rovfuglene Skagen-halvøen, om efteråret Stevns og Sydøstdanmark.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Stederne\n\n| Tid | Sted | Hvad |\n|---|---|---|\n| **Forår** (marts–juni) | **Skagen** (Grenen, Hulsig, Kandestederne) | Danmarks bedste sted. Fjeldvåge (1972–98 i snit 1.153 pr. forår, maks 2.718 i 1978), Blå Kærhøg (i snit 201, maks 548 i 1975), Hvepsevåge i maj, Lærkefalk, alle fire kærhøge og de sjældne ørne |\n| Forår | **Rørvig, Hellebæk, Gilbjerg Hoved, Gilleleje** | Nordsjællands træksteder: Fjeldvåge, Blå Kærhøg, Sort Glente, Spurvehøg |\n| Forår | **Hyllekrog** (Sydlolland) | Musvåger over Femern Bælt, op til 1.000 på en dag |\n| **Efterår** (august–november) | **Stevns** | Fugle fra Falsterbo; over 2.000 indtrækkende svenske Røde Glenter på et efterår (DOF) |\n| Efterår | **Gedser Odde, Stigsnæs, Dueodde, Sydlangeland, Hyllekrog** | Udtræk mod syd; Fjeldvåge især ved Gedser og Dueodde |\n| Efterår | **Falsterbo** (Skåne) | Nabostedet: i snit 4.434 Hvepsevåger (2010–19), ca. 20.000 Spurvehøge om året, 842 Rørhøge og 889 Fjeldvåger i snit |\n\n### Kalenderen\n\n| Måned | Det sker |\n|---|---|\n| Marts | Rød Glente, Musvåge, Spurvehøg, Rørhøg, Blå Kærhøg; Havørne på vinterpladserne |\n| April | Fjeldvåge og Blå Kærhøg topper på Skagen (midt april til først i maj); Steppehøg (de gamle) |\n| Maj | Hvepsevåge, Lærkefalk, Aftenfalk, Sort Glente, Hedehøg, 2K Steppehøge og de sydlige sjældenheder |\n| Juni | Forlænget træk og «oversommerende» unge: Ørnevåge, gribbe, Slangeørn |\n| August | Unge Rørhøge og Hvepsevåger trækker; Aftenfalk ved østenvind |\n| September | Stor rovfugledag ved Falsterbo og Stevns; Hvepsevåge, Fiskeørn, Rød Glente, unge Steppehøge |\n| Oktober | Musvåge, Fjeldvåge, Spurvehøg, Rød Glente; skrigeørne |\n| Vinter | Fjeldvåge, Havørn, Kongeørn, Blå Kærhøg, Vandrefalk og Dværgfalk |\n\n### Vejret\n\n- **Forår**: Varme fra syd og sydøst giver «forlænget træk»: fugle der flyver for langt mod nord og ender i Danmark. Det er sådan, de fleste Sorte Glenter,\n  Steppehøge, Aftenfalke og sjældne ørne kommer. Svag vind og sol giver termik.\n- **Efterår**: Højtryk med nordlig til østlig vind sender svæveflyverne ud over Falsterbo og ind over Stevns. Sydvestlig vind og regn stopper trækket.\n- **Middag** er tid til svæveflyverne, når termikken er stærkest. Spurvehøge, falke og kærhøge trækker også om morgenen."
+      },
+      {
+       "type": "artskort",
+       "artnr": 2310
+      },
+      {
+       "type": "artskort",
+       "artnr": 2900
+      },
+      {
+       "type": "artskort",
+       "artnr": 2390
+      },
+      {
+       "type": "tip",
+       "titel": "Stå rigtigt",
+       "md": "På Skagen om foråret står mange i klitterne ved Grenen eller på Hulsig Hede. Fuglene kommer lavt ind over land og stiger op, før de krydser. På Stevns om efteråret\nkommer de højt ind fra Øresund om formiddagen. Tag en kikkert og et teleskop med, og lær de almindelige arter så godt, at de sjældne skiller sig ud."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvor ser man flest trækkende Fjeldvåger og Blå Kærhøge om foråret i Danmark?",
+       "choices": [
+        {
+         "text": "Skagen",
+         "correct": true
+        },
+        {
+         "text": "Stevns",
+         "correct": false
+        },
+        {
+         "text": "Blåvand",
+         "correct": false
+        },
+        {
+         "text": "Gedser",
+         "correct": false
+        }
+       ],
+       "explanation": "Fjeldvåge i snit 1.153 pr. forår 1972–98.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket vejr giver «forlænget træk» af sydlige rovfugle om foråret?",
+       "choices": [
+        {
+         "text": "Varme med sydlige og sydøstlige vinde",
+         "correct": true
+        },
+        {
+         "text": "Kold nordvestenvind",
+         "correct": false
+        },
+        {
+         "text": "Regn og blæst fra vest",
+         "correct": false
+        },
+        {
+         "text": "Frost",
+         "correct": false
+        }
+       ],
+       "explanation": "Varme og sydøstlig vind får fugle, der skulle have stoppet længere mod syd, til at fortsætte nordpå. Det er vejret, der giver sjældne sydlige rovfugle på Skagen.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter, hvornår de typisk topper på Skagen om foråret, tidligst først.",
+       "choices": [],
+       "explanation": "Rød Glente er en tidlig korttrækker, Fjeldvågen topper fra midt i april, og Hvepsevågen kommer sidst, fordi den lever af hvepselarver og først er hjemme i maj.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "items": [
+         "Rød Glente (marts)",
+         "Fjeldvåge (midt april–start maj)",
+         "Hvepsevåge (maj)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor krydser mange svenske svæveflyvende rovfugle Øresund om efteråret, før de kommer til Danmark?",
+       "choices": [
+        {
+         "text": "Falsterbo",
+         "correct": true
+        },
+        {
+         "text": "Helsingborg",
+         "correct": true
+        },
+        {
+         "text": "Skagen",
+         "correct": false
+        },
+        {
+         "text": "Bornholm",
+         "correct": false
+        }
+       ],
+       "explanation": "Musvåger med sendere foretrak Helsingborg, hvor overfarten er kortest.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår på dagen trækker svæveflyverne mest?",
+       "choices": [
+        {
+         "text": "Midt på dagen, når termikken er stærkest",
+         "correct": true
+        },
+        {
+         "text": "Ved solopgang",
+         "correct": false
+        },
+        {
+         "text": "Om natten",
+         "correct": false
+        },
+        {
+         "text": "Lige efter solnedgang",
+         "correct": false
+        }
+       ],
+       "explanation": "Svæveflyverne bruger termik, og den er stærkest fra sidst på formiddagen til først på eftermiddagen. Spurvehøge og falke trækker også tidligt om morgenen.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Planlæg en rovfugledag. Vælg sted, dato og vejr, og skriv hvilke fem arter du håber på, og hvorfor.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "min_chars": 80,
+        "example": "Skagen, 10. maj, svag sydøstenvind og sol. Jeg håber på Hvepsevåge, Lærkefalk, Sort Glente, Steppehøg og en Lille Skrigeørn, fordi de trækker i maj og kommer med varme sydøstlige vinde."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Falke 1: Tårnfalk, Lille Tårnfalk og Aftenfalk",
+     "lesson_md": "Falkene er kniven: spidse vinger uden fingre og en lang hale. Inden for gruppen skiller du dem først på størrelse og flugt, derefter på farverne\nunder vingen. Vi starter med de tre lette falke, der muser eller jager insekter.\n\nEn vigtig huskeregel fra Forsman (2016) gælder hele gruppen: Unge falke har en generel falkesilhuet. Ud fra silhuetten alene kan man ikke kende en\nung Aftenfalk fra en ung Lærkefalk eller Eleonorafalk. De voksnes silhuet er derimod ofte helt artstypisk.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Tårnfalk** | **Lille Tårnfalk** | **Aftenfalk** |\n|---|---|---|---|\n| Form | Lang hale, ret brede vinger med stump spids | Lidt mindre og slankere, lidt kortere hale med fremstående midterfjer | Lærkefalk-agtig, men større hoved, slankere krop og længere hale |\n| Flugt | Muser ofte og længe; «roende» flugt | Muser også, med hurtigere vingeslag | Let og flagrende, dybe elastiske slag; glider med sænket hånd; kan minde om en gøg |\n| Han | Rødbrun ryg med sorte pletter, grå hoved og hale | Uplettet rødbrun ryg, grå felt på armen (svært at se) | Mørk skifergrå med **rødbrune bukser og undergump** og røde ben |\n| Hun og ung | Brun og plettet; undervinge tæt plettet | Som Tårnfalk; forskellene ses bedst under hånden og på hovedet | Hun: orangebrun isse og underside, grå ryg; ung: lyst ansigt, mørk «maske» og stribet underside |\n| Kløer | Sorte | Lyse (kun på nært hold) | |\n\nMalling Olsen (Pandion 2015): Ved siden af en Aftenfalk er Tårnfalken «næsten en klumpe-dumpe med bredere krop og kortere, knapt så spidse vinger».\n\n### Danmark\n\n- **Tårnfalk**: 1.500–1.700 par; mange yngler i falkekasser. De fleste bliver her om vinteren, nogle trækker til Tyskland, Holland og Frankrig.\n- **Lille Tårnfalk**: meget sjælden; godkendte danske fund fra 2003 og frem (DOFbasen).\n- **Aftenfalk**: fåtallig trækgæst, der svinger meget fra år til år. Den kommer i småflokke med østenvind og højtryk i forsommeren eller sensommeren;\n  flest på Skagen om foråret og på Sydbornholm om efteråret. Hele bestanden overvintrer i det sydvestlige Afrika."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 3040,
+         "nf": 122155,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3030,
+         "nf": 122887,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3070,
+         "nf": 119182,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Tårnfalk",
+        "Lille Tårnfalk 2K",
+        "Aftenfalk 2K"
+       ],
+       "tekst": "Tre lette falke."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 3040,
+        "latin": "Falco tinnunculus",
+        "type": "kald"
+       },
+       "tekst": "Tårnfalkens høje «ki-ki-ki-ki»."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Tårnfalken står stille, Aftenfalken danser. Tårnfalken muser og ror; Aftenfalken flagrer let, ofte i flok, og jager insekter i luften som en stor svale."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken falk muser oftest i Danmark?",
+       "choices": [
+        {
+         "text": "Tårnfalk",
+         "correct": true
+        },
+        {
+         "text": "Lærkefalk",
+         "correct": false
+        },
+        {
+         "text": "Vandrefalk",
+         "correct": false
+        },
+        {
+         "text": "Dværgfalk",
+         "correct": false
+        }
+       ],
+       "explanation": "Den står stille i luften og kigger efter mus.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En mørk skifergrå falk med rødbrune bukser og undergump. Art?",
+       "choices": [
+        {
+         "text": "Aftenfalk, voksen han",
+         "correct": true
+        },
+        {
+         "text": "Lærkefalk",
+         "correct": false
+        },
+        {
+         "text": "Tårnfalk han",
+         "correct": false
+        },
+        {
+         "text": "Vandrefalk",
+         "correct": false
+        }
+       ],
+       "explanation": "Lærkefalken har også rødbrune bukser, men hvid kind og stribet bryst.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er det svært at kende en ung Aftenfalk fra en ung Lærkefalk på silhuetten?",
+       "choices": [
+        {
+         "text": "Unge falke har en generel falkesilhuet; de voksnes typiske form udvikles først senere",
+         "correct": true
+        },
+        {
+         "text": "Fordi de er samme art",
+         "correct": false
+        },
+        {
+         "text": "Fordi Aftenfalk ikke flyver",
+         "correct": false
+        },
+        {
+         "text": "Fordi Lærkefalk muser",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket vejr giver flest Aftenfalke i Danmark?",
+       "choices": [
+        {
+         "text": "Højtryk med østenvind i forsommeren eller sensommeren",
+         "correct": true
+        },
+        {
+         "text": "Vestenstorm i oktober",
+         "correct": false
+        },
+        {
+         "text": "Frost i januar",
+         "correct": false
+        },
+        {
+         "text": "Regn fra sydvest",
+         "correct": false
+        }
+       ],
+       "explanation": "Aftenfalkene yngler i Østeuropa. Højtryk og østenvind skubber dem mod vest, og så kommer de i småflokke, især i maj–juni og august–september.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken flugt passer på Aftenfalk?",
+       "choices": [
+        {
+         "text": "Let og flagrende med dybe, elastiske slag og glid med sænket hånd",
+         "correct": true
+        },
+        {
+         "text": "Stive, mursejleragtige slag",
+         "correct": false
+        },
+        {
+         "text": "Muser længe og ror",
+         "correct": false
+        },
+        {
+         "text": "Lav, kraftig jagtflugt over vand",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen, Pandion 2015.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken falk?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         3040,
+         3070,
+         3100,
+         3090
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Falke 2: Dværgfalk, Lærkefalk og Eleonorafalk",
+     "lesson_md": "Tre falke, der jager andre fugle eller store insekter i hurtig flugt. Dværgfalken er den lille, kraftige jæger lavt over marken. Lærkefalken er\nden elegante luftakrobat, der fanger guldsmede og svaler. Eleonorafalken er en sjælden gæst fra Middelhavet.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Dværgfalk** | **Lærkefalk** | **Eleonorafalk** |\n|---|---|---|---|\n| Størrelse | Mindst, drossel-stor; hun større | Som Tårnfalk, men slankere | Større, mellem Lærkefalk og Vandrefalk |\n| Form | Kompakt, korte spidse vinger, ret kort hale | **Lange, seglformede vinger**, kort hale; som en kæmpe mursejler | Meget lange vinger og **lang hale**, slank krop |\n| Flugt | Lav, hurtig og direkte med korte, rappe slag og korte glid, «som en drossel med raketmotor» | Stive, mursejleragtige slag; elegant og hurtig | Blødt og elastisk, «kjovesvirp» med vingerne |\n| Dragt | Han blågrå over; hun og ung brune; ingen tydelig moustache | **Hvid kind med sort moustache**, kraftigt stribet bryst, rødbrune bukser (voksen) | Lys og mørk morf; mørke undervingedækfjer mod lysere svingfjer |\n| Danmark | Træk- og vintergæst fra Skandinavien | 20–30 par; op til et par hundrede på Skagen på et godt forår | Meget sjælden: fire fund til 2017, bl.a. en mørk fugl på Blåvand 2017 |\n\n### Faldgruber\n\n- **Dværgfalk og Spurvehøg** jager begge lavt efter småfugle. Dværgfalken har spidse vinger og glider kort; Spurvehøgen runde vinger og flaks-flaks-glid.\n- **Lærkefalk og Vandrefalk**: Vandrefalken er større og bredbrystet med kortere vinger i forhold til kroppen og tværbåndet underside (voksen). Lærkefalken har rødbrune bukser og slankere «mursejler»-form.\n- **Eleonorafalk og Lærkefalk**: Henrik Knudsen meldte først Dværgfalk, så Lærkefalk og så Vandrefalk, før han fik den: «utrolig elegant med sin aflange krop og lange hale, den lange hånd og arm» (Haaning, Pandion 2017). Lys morgen kan få en Lærkefalk til at se mørk ud på undersiden og ligne Eleonorafalk (Forsman 2016)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 3090,
+         "nf": 121372,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3100,
+         "nf": 123614,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3110,
+         "nf": 120814,
+         "alder": "Adult (udfarvet)",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Dværgfalk 2K",
+        "Lærkefalk",
+        "Eleonorafalk"
+       ],
+       "tekst": "Tre fuglejægere."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 3100,
+        "latin": "Falco subbuteo",
+        "type": "kald"
+       },
+       "tekst": "Lærkefalkens kald ved reden."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Dværgfalken skøjter, Lærkefalken svæver som en mursejler, Eleonorafalken svirper som en kjove."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En lille, kompakt falk flyver lavt og hurtigt over en mark med korte, rappe vingeslag. Art?",
+       "choices": [
+        {
+         "text": "Dværgfalk",
+         "correct": true
+        },
+        {
+         "text": "Lærkefalk",
+         "correct": false
+        },
+        {
+         "text": "Tårnfalk",
+         "correct": false
+        },
+        {
+         "text": "Vandrefalk",
+         "correct": false
+        }
+       ],
+       "explanation": "Dværgfalken er den lille, kompakte falk, der jager småfugle lavt over terrænet med hurtige, kraftige slag og pludselige kast.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken falk har hvid kind, sort moustache, stribet bryst og rødbrune bukser?",
+       "choices": [
+        {
+         "text": "Lærkefalk",
+         "correct": true
+        },
+        {
+         "text": "Dværgfalk",
+         "correct": false
+        },
+        {
+         "text": "Aftenfalk",
+         "correct": false
+        },
+        {
+         "text": "Tårnfalk",
+         "correct": false
+        }
+       ],
+       "explanation": "De rødbrune bukser og undergump er Lærkefalkens kendemærke som voksen. Vandrefalken er tværbåndet og har ingen røde bukser.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan beskrives Lærkefalkens silhuet?",
+       "choices": [
+        {
+         "text": "Som en kæmpe mursejler: lange, seglformede vinger og kort hale",
+         "correct": true
+        },
+        {
+         "text": "Kort og kompakt",
+         "correct": false
+        },
+        {
+         "text": "Bred med fingre",
+         "correct": false
+        },
+        {
+         "text": "Lang hale og runde vinger",
+         "correct": false
+        }
+       ],
+       "explanation": "Lærkefalken har lange, spidse vinger og en kort hale og jager insekter og svaler i luften som en stor mursejler.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor kan en Lærkefalk forveksles med Eleonorafalk tidligt om morgenen?",
+       "choices": [
+        {
+         "text": "Undersiden ser mørk ud, fordi der ikke kastes lys op fra jorden",
+         "correct": true
+        },
+        {
+         "text": "Fordi den fælder",
+         "correct": false
+        },
+        {
+         "text": "Fordi den er stor",
+         "correct": false
+        },
+        {
+         "text": "Fordi den muser",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor ses flest trækkende Lærkefalke i Danmark?",
+       "choices": [
+        {
+         "text": "Skagen om foråret",
+         "correct": true
+        },
+        {
+         "text": "Stevns om vinteren",
+         "correct": false
+        },
+        {
+         "text": "Blåvand i januar",
+         "correct": false
+        },
+        {
+         "text": "Christiansø i december",
+         "correct": false
+        }
+       ],
+       "explanation": "Op til et par hundrede på et godt forår (DOF).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken falk?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         3090,
+         3100,
+         3040,
+         3200
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Falke 3: Vandrefalk, Jagtfalk og Slagfalk",
+     "lesson_md": "De store falke. Vandrefalken er verdens hurtigste fugl og i dag en fast dansk ynglefugl igen. Jagtfalken er verdens største falk og en sjælden\nvintergæst. Slagfalken er så sjælden, at hvert fund skal vurderes, om det kan være en undsluppen falkonerfugl.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Vandrefalk** | **Jagtfalk** | **Slagfalk** |\n|---|---|---|---|\n| Form | **Bredskuldret og bredbrystet mod en smal talje**; spidse, brede vinger; kort hale | Større og tungere, **smalle skuldre og «hængemave»**; bredere hånd og længere hale | Stor, langhalet; bredere og mere stump hånd end Vandrefalk |\n| Siddende | Vingespidserne når næsten halespidsen | Vingespidserne når tydeligt kortere end halen | Vingespidserne når kortere end halen |\n| Hoved | **Bred sort moustache** og mørk hætte | Svag moustache, lysere hoved | Lyst hoved med smal moustache |\n| Undervinge | Ensartet tværbåndet (voksen) | Mørkere dækfjer mod lyse svingfjer (kontrast) | **Mørke dækfjer** mod lyse svingfjer, stærk kontrast |\n| Flugt | Kraftige, lette slag; dykker | Langsomme, dybe slag; jager lavt | Kraftig, «tung» falk |\n| Danmark | 19 par; 30–40 overvintrer, flest i Vadehavet | 0–5 om året; rekord 21 i efteråret 2015 | Første godkendte fund maj 2006 (2K), dernæst Værnengene august 2017 (1K) |\n\nHaaning (Pandion 2015) om Jagtfalk mod Vandrefalk: Fokuser på kontrasten under vingen, ansigtstegningerne og kropsholdningen. Vandrefalken er bred over\nskuldrene med smal talje; Jagtfalken er smal over skuldrene og har hængemave.\n\n### Unge Vandrefalke\n\nUnge Vandrefalke er brune med stribet underside og kan ligne både Jagtfalk og Slagfalk. Se efter den brede moustache, de korte vinger og den kompakte form."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 3200,
+         "nf": 124089,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3200,
+         "nf": 125104,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3180,
+         "nf": 119895,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 3160,
+         "nf": 119087,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Vandrefalk",
+        "Vandrefalk 1K med bytte",
+        "Jagtfalk 1K",
+        "Slagfalk 2K"
+       ],
+       "tekst": "Storfalkene. Læg mærke til Vandrefalkens brede skuldre og Jagtfalkens tungere krop."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 3200,
+        "latin": "Falco peregrinus",
+        "type": "kald"
+       },
+       "tekst": "Vandrefalkens hæse, ophidsede «kek-kek-kek» ved reden."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Vandrefalken er en bodybuilder, Jagtfalken en bamse. Brede skuldre og smal talje mod smalle skuldre og hængemave."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Undslupne falkonerfugle",
+       "md": "Slagfalk, Jagtfalk og hybrider bruges i falkoneri. SU godkendte Slagfalken på Værnengene i 2017, fordi bestanden i Østeuropa vokser, vilde unge Slagfalke med\nsendere er nået tæt på Danmark, og fuglen ikke viste tegn på fangenskab. Fotografér ben (ringe, remme), fjerdragt (slid af bur) og adfærd."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken storfalk er «bredskuldret og bredbrystet mod en smal talje»?",
+       "choices": [
+        {
+         "text": "Vandrefalk",
+         "correct": true
+        },
+        {
+         "text": "Jagtfalk",
+         "correct": false
+        },
+        {
+         "text": "Slagfalk",
+         "correct": false
+        },
+        {
+         "text": "Lærkefalk",
+         "correct": false
+        }
+       ],
+       "explanation": "Haaning, Pandion 2015.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan skelner du en siddende Jagtfalk fra en Vandrefalk på vingerne?",
+       "choices": [
+        {
+         "text": "Jagtfalkens vingespidser når tydeligt kortere end halen; Vandrefalkens næsten til halespidsen",
+         "correct": true
+        },
+        {
+         "text": "Jagtfalkens vinger er længere end halen",
+         "correct": false
+        },
+        {
+         "text": "Der er ingen forskel",
+         "correct": false
+        },
+        {
+         "text": "Vandrefalken har kortere vinger",
+         "correct": false
+        }
+       ],
+       "explanation": "Jagtfalken har længere hale og kortere vinger end Vandrefalken. Siddende rager halen derfor tydeligt ud bag vingespidserne.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor overvintrer flest Vandrefalke i Danmark?",
+       "choices": [
+        {
+         "text": "Vadehavet",
+         "correct": true
+        },
+        {
+         "text": "Skagen",
+         "correct": false
+        },
+        {
+         "text": "Christiansø",
+         "correct": false
+        },
+        {
+         "text": "Bornholms skove",
+         "correct": false
+        }
+       ],
+       "explanation": "10–20 af de 30–40 overvintrende (DOF).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er det bedste kendetegn for Slagfalk i flugt?",
+       "choices": [
+        {
+         "text": "Mørke undervingedækfjer i stærk kontrast til lyse svingfjer og et lyst hoved",
+         "correct": true
+        },
+        {
+         "text": "Bred sort moustache",
+         "correct": false
+        },
+        {
+         "text": "Rødbrune bukser",
+         "correct": false
+        },
+        {
+         "text": "Sort hætte og hvid kind",
+         "correct": false
+        }
+       ],
+       "explanation": "Slagfalken har mørke undervingedækfjer, der står tydeligt mod lyse svingfjer, og et lyst hoved. Unge Vandrefalke er mere ensartet stribede under vingen.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er SU forsigtige med danske Slagfalke?",
+       "choices": [
+        {
+         "text": "Fordi arten bruges i falkoneri og undslupne fugle forekommer",
+         "correct": true
+        },
+        {
+         "text": "Fordi den ligner en musvåge",
+         "correct": false
+        },
+        {
+         "text": "Fordi den kun ses om natten",
+         "correct": false
+        },
+        {
+         "text": "Fordi den aldrig trækker",
+         "correct": false
+        }
+       ],
+       "explanation": "Slagfalke og hybrider holdes af falkonerer, og der slipper fugle ud. Derfor ser SU på ringe, remme og fældning, før et fund godkendes.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken falk?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         3200,
+         3180,
+         3100,
+         3090,
+         3040
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Høge: Spurvehøg og Duehøg",
+     "lesson_md": "Høgene er saksen: korte, runde vinger og lang hale. De jager i skov og krat og overrasker byttet. I Danmark skal du kun skelne to arter, og Forsman\n(2016) giver den bedste huskeregel: Kæmper du med bestemmelsen, er det en Spurvehøg. Når du først har set en Duehøg ordentligt, er du ikke i tvivl.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Spurvehøg** | **Duehøg** |\n|---|---|---|\n| Størrelse | Han som en Turteldue, hun som en Tyrkerdue | Han som en Musvåge-han, hun som en stor Musvåge |\n| Hale | Lang, **firkantet med skarpe hjørner** | Lang, men **bredere med runde hjørner** |\n| Vinger | Korte og runde, hånden ret smal | Længere arm og **S-formet bagkant**: udbugtet arm, indknebet hånd |\n| Hoved | Lille, rundt; kort hals | **Stort hoved, der rager langt frem**, kraftigt bryst |\n| Krop | Spinkel bagkrop | Tung bagkrop, «tyk i numsen», hvide undergumpsfjer, der ofte stritter |\n| Flugt | Hurtige, stive slag: flaks-flaks-flaks-glid | Kraftige, rolige slag, der ser lette ud; stigende og dykkende flugt |\n| Voksen | Han: blågrå over, orange tværbånd under; hun: brungrå over, grå tværbånd | Grå over, fint tværbåndet under, **hvidt øjenbryn**, mørk kind |\n| Ung | Brun, tværbåndet under | Brun, **dråbeplettet/stribet** under (ikke tværbåndet) |\n\n### Duehøgen mod Musvågen\n\nKan forveksles på afstand, især når Duehøgen kredser. Se på halen: Duehøgen har lang hale (længere end vingebredden), Musvågen kort. Duehøgen kredser\nmed fremskudt hoved og plane vinger; Musvågen holder vingerne i let V.\n\n### Danmark\n\n- **Spurvehøg**: 2.500–3.000 par. Ca. 15 % af de jyske og 30 % af de sjællandske fugle trækker til Sydvesteuropa. Mange skandinaviske fugle passerer\n  Skagen, Gilbjerg Hoved og Hellebæk om foråret og Stevns, Gedser Odde og Stigsnæs om efteråret. Ved Falsterbo tælles i snit ca. 20.000 om året.\n- **Duehøg**: ca. 500 par, udpræget standfugl. Ungfuglene strejfer op til ca. 100 km fra reden."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2690,
+         "nf": 123699,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2670,
+         "nf": 118676,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2670,
+         "nf": 124073,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Spurvehøg 1K",
+        "Duehøg 2K",
+        "Duehøg med bytte"
+       ],
+       "tekst": "Spurvehøgens smalle, firkantede hale mod Duehøgens tunge krop og runde halehjørner."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2690,
+        "latin": "Accipiter nisus",
+        "type": "kald"
+       },
+       "tekst": "Spurvehøgens ophidsede «kew-kew-kew» ved reden."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2670,
+        "latin": "Astur gentilis",
+        "type": "kald"
+       },
+       "tekst": "Duehøgens kraftige «kjak-kjak-kjak»."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Spurvehøgen er en saks, Duehøgen er et kors. Spurvehøgen er let med lille hoved og firkantet hale. Duehøgen har stort hoved fremme og tung bagkrop,\nså den ligner et kors. Og husk Forsmans regel: Er du i tvivl, er det en Spurvehøg."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken hale passer på Spurvehøg?",
+       "choices": [
+        {
+         "text": "Lang og firkantet med skarpe hjørner",
+         "correct": true
+        },
+        {
+         "text": "Bred med runde hjørner",
+         "correct": false
+        },
+        {
+         "text": "Kløftet",
+         "correct": false
+        },
+        {
+         "text": "Kort og kileformet",
+         "correct": false
+        }
+       ],
+       "explanation": "Spurvehøgen har en lang, smal hale med skarpe hjørner. Duehøgens hale er bredere og har runde hjørner.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er Forsmans huskeregel for Spurvehøg mod Duehøg?",
+       "choices": [
+        {
+         "text": "Kæmper du med bestemmelsen, er det en Spurvehøg",
+         "correct": true
+        },
+        {
+         "text": "Er den stor, er det altid en Duehøg",
+         "correct": false
+        },
+        {
+         "text": "Duehøg muser altid",
+         "correct": false
+        },
+        {
+         "text": "Spurvehøg har hvidt øjenbryn",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan er undersiden hos en ung Duehøg?",
+       "choices": [
+        {
+         "text": "Dråbeplettet eller stribet på lys bund",
+         "correct": true
+        },
+        {
+         "text": "Tværbåndet orange",
+         "correct": false
+        },
+        {
+         "text": "Helt hvid",
+         "correct": false
+        },
+        {
+         "text": "Ensfarvet grå",
+         "correct": false
+        }
+       ],
+       "explanation": "Ung Spurvehøg er tværbåndet.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan skelner du en kredsende Duehøg fra en Musvåge?",
+       "choices": [
+        {
+         "text": "Duehøgen har lang hale og fremskudt hoved; Musvågen kort hale og vinger i let V",
+         "correct": true
+        },
+        {
+         "text": "Duehøgen har kortere hale",
+         "correct": false
+        },
+        {
+         "text": "Musvågen har længere hale",
+         "correct": false
+        },
+        {
+         "text": "Der er ingen forskel på silhuetten",
+         "correct": false
+        }
+       ],
+       "explanation": "Duehøgen har lang hale og hovedet skudt frem, og vingerne holdes plant. Musvågen har kort hale, kort hals og vinger i let V.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange Spurvehøge trækker i snit forbi Falsterbo om året?",
+       "choices": [
+        {
+         "text": "Cirka 20.000",
+         "correct": true
+        },
+        {
+         "text": "Cirka 200",
+         "correct": false
+        },
+        {
+         "text": "Cirka 2.000",
+         "correct": false
+        },
+        {
+         "text": "Over en million",
+         "correct": false
+        }
+       ],
+       "explanation": "Panuccio m.fl. 2021.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2690,
+         2670
+        ],
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Høg eller falk? Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2690,
+         2670,
+         3040,
+         3090
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Kærhøge 1: Rørhøg og trioen med Sort Glente og mørk Dværgørn",
+     "lesson_md": "Rørhøgen er den største og mørkeste kærhøg og den, du ser oftest. Den er også halvdelen af en klassisk trio: Rørhøg, Sort Glente og mørk Dværgørn kan\nalle være mørkebrune rovfugle i samme størrelse. Forsman (2016) giver en hel side til at skille dem ad, og nøglen er proportionerne.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Rørhøgen\n\n- Kærhøgens V og lave, gyngende flugt over rørskov og marker.\n- **Han** (voksen): tre farver; brun krop og arm, grå armsvingfjer og hale, sorte vingespidser.\n- **Hun og ung**: mørk chokoladebrun med lys, gul isse og strube og lys forkant på armen. Ungfugle er ofte næsten ensfarvet mørke med gyldent hoved.\n- Fem fingre, rund hale. Hannerne udfører luftakrobatik over rørskoven om foråret og kan have flere hunner (DOF).\n- Danmark: 800–1.100 par. De første unge trækker allerede i juli. Ved Falsterbo tælles i snit 842 om efteråret.\n\n### Trioen\n\n| | **Rørhøg** | **Sort Glente** | **Dværgørn, mørk form** |\n|---|---|---|---|\n| Vinger | Smallere, rundet hånd med 5 fingre; armen lidt bredere end hånden | Lange, smalle og parallelle med knæk; 5–6 fingre | Korte og brede med 6 tydelige fingre; firkantet hånd |\n| Hale | Lang, smal, **rund** | Smal, **kløftet** (kan forsvinde, når den spredes) | **Firkantet** med skarpe hjørner |\n| Stilling | V i glid; hvælvet i langt glid | Flad, armen let løftet og hånden sænket | **Hvælvet** med fingrene bøjet opad |\n| Særlige felter | Lys isse (hun) | Lyst felt på armens overside | **«Lygter»**: små hvide pletter, hvor vingen sidder på kroppen; lyse skulderfelter og hvid overgump |\n\nForsman: Dværgørnens «lygter» og den lyse overside afgør den altid, hvis du kan se dem."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2600,
+         "nf": 119614,
+         "alder": "Adult (udfarvet)",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2600,
+         "nf": 125159,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2380,
+         "nf": 119256,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2980,
+         "nf": 119265,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Rørhøg, voksen han",
+        "Rørhøg 2K",
+        "Sort Glente",
+        "Dværgørn"
+       ],
+       "tekst": "Trioen: rund hale, kløftet hale og firkantet hale."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2600,
+        "latin": "Circus aeruginosus",
+        "type": "kald"
+       },
+       "tekst": "Rørhøgens mjavende skrig over rørskoven, som kan minde om en Stormmåge (DOF)."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Rund, kløftet, firkantet. Rørhøgen har rund hale, Glenten kløftet og Dværgørnen firkantet. Se halen, før du ser farven."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En mørkebrun kærhøg med lys gul isse og strube. Hvad er det?",
+       "choices": [
+        {
+         "text": "Rørhøg, hun eller ung",
+         "correct": true
+        },
+        {
+         "text": "Sort Glente",
+         "correct": false
+        },
+        {
+         "text": "Blå Kærhøg han",
+         "correct": false
+        },
+        {
+         "text": "Hvepsevåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Hunner og unge Rørhøge er chokoladebrune med en lys, cremegul isse og strube. Mange har også lyse forkanter på vingen.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken hale passer på den mørke Dværgørn?",
+       "choices": [
+        {
+         "text": "Firkantet med skarpe hjørner",
+         "correct": true
+        },
+        {
+         "text": "Kløftet",
+         "correct": false
+        },
+        {
+         "text": "Rund",
+         "correct": false
+        },
+        {
+         "text": "Kileformet",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken vingestilling har Dværgørn i glid?",
+       "choices": [
+        {
+         "text": "Hvælvet, med fingrene bøjet opad",
+         "correct": true
+        },
+        {
+         "text": "Tydeligt V",
+         "correct": false
+        },
+        {
+         "text": "Helt flad",
+         "correct": false
+        },
+        {
+         "text": "Hånden løftet over ryggen",
+         "correct": false
+        }
+       ],
+       "explanation": "Dværgørnen glider på hvælvede vinger med fingrene bøjet op. Sort Glente holder vingerne fladt og hånden lidt sænket.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er Dværgørnens «lygter»?",
+       "choices": [
+        {
+         "text": "Små hvide pletter, hvor vingen sidder på kroppen",
+         "correct": true
+        },
+        {
+         "text": "Hvide felter i halen",
+         "correct": false
+        },
+        {
+         "text": "Lyse øjne",
+         "correct": false
+        },
+        {
+         "text": "Hvide fingerspidser",
+         "correct": false
+        }
+       ],
+       "explanation": "Dværgørnen har en lille hvid plet, hvor vingen sidder på kroppen. Set forfra ligner de to små lygter.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sæt de tre arter efter halens form: rund, kløftet, firkantet.",
+       "choices": [],
+       "explanation": "Rørhøgen har en lang, afrundet hale, Sort Glente en svagt kløftet hale, der kan se lige ud, når den spreder den, og Dværgørnen en firkantet hale.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Rørhøg",
+         "Sort Glente",
+         "Dværgørn"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Mørk rovfugl: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2600,
+         2380,
+         2980,
+         2310
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Kærhøge 2: Blå Kærhøg, Amerikansk Kærhøg, Steppehøg og Hedehøg",
+     "lesson_md": "«Ringtails» kaldes hunnerne og ungfuglene af de lyse kærhøge: brune fugle med hvid overgump. Forsman (2016) kalder dem et af de sværeste problemer\nblandt Europas rovfugle, især 2K-fuglene om foråret. Klaus Malling Olsen har skrevet den danske guide (Pandion 2015), og den er grundlaget for dette trin.\nHan starter med formen og flugten, og det gør vi også.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Først formen: fire billeder\n\n| | Billede | Form og flugt |\n|---|---|---|\n| **Blå Kærhøg** | En **langvinget Spurvehøg** | Kraftigst; bredere vinger med **rund, bred hånd** (fem fingre), bred hale; korte, musvågeagtige vingeslag på træk |\n| **Steppehøg** | En **træfigur, der trækkes i en snor** | Mindst og lettest; stort hoved og bryst, slank krop og tynd hale; bred arm og **kort, spids hånd rettet bagud som en sabel**; **S-formet** bagkant; stive, dybe slag; glider som en papirsflyver |\n| **Hedehøg** | Et **flyvende skelet** | Pindetynd krop, lille hoved, **længst og smallest vinge** med lang hånd; bløde, elastiske, glenteagtige slag |\n| **Amerikansk Kærhøg** | En **mørkere Blå Kærhøg** | Som Blå Kærhøg i form; ungfugle med ensfarvet rustbrun underside |\n\nMalling Olsen: Steppehøgen kan «jizzes» på flere kilometers afstand. Blå Kærhøg bliver ofte taget for en Spurvehøg på træk, til de musvågeagtige vingeslag\nafslører den.\n\n### Voksne hanner (de nemme)\n\n| | Undervinge | Overside |\n|---|---|---|\n| Blå Kærhøg | **Bred sort hånd** og sort bagkant | Grå med hvid overgump |\n| Steppehøg | **Smal sort kile** i hånden, ellers næsten hvid | Lys grå, uden tydelig hvid overgump |\n| Hedehøg | Sort hånd og **sorte bånd** gennem armen, rustbrune striber på armhulen | Mørkere grå med sort vingebånd |\n\n### Ungfugle om efteråret (1K): se på hovedet og hånden\n\n| | Hoved | Underside | Hånd under |\n|---|---|---|---|\n| **Steppehøg** | Kontrastrigt: mørk kind til mundvigen, hvid plet under øjet og en **skarp lys halsring** bag de mørke halssider («**boa'en**» eller halstørklædet) | Ustribet orangegul | **Åben**: lys med svage fingerspidser og grå bagkant; mørk «komma» ved håndroden |\n| **Hedehøg** | Brede hvide felter om øjet som **snebriller** eller en hummerklo; svag eller falsk halsring | Ræverød med brun undertone, af og til svage striber | **Lukket**: bred sort spids og bagkant |\n| **Blå Kærhøg** | Svagere tegnet | **Stribet** over bryst og flanker | Fem fingre med sorte spidser «dyppet i blæk»; lyst bånd gennem armen |\n| **Amerikansk Kærhøg** | Mørk hætte og kind | **Ensfarvet rustbrun**, næsten ustribet | Mørk arm og mørkere hånd end Blå Kærhøg |\n\nMalling Olsen giver også et billede af oversiden: Blå Kærhøg ligner en Lille Stormsvale (bred hvid overgump, ensartet vinge), Steppe- og Hedehøg en Stor\nStormsvale (smallere overgump, tydelige lyse felter over armen).\n\n### Forår: de svære 2K'ere\n\nSteppehøgen bevarer sin ungedragt næsten uændret vinteren over. Hedehøgen fælder meget og er om foråret i en «mellemdragt» med nye hovedfjer, dele af\nundersiden og nye midterste halefjer hos ni ud af ti. Mange 2K Hedehøge har næsten samme hovedtegning som Steppehøg (Forsman). Her afgør formen og hånden.\n\n### Danmark\n\n- **Blå Kærhøg**: ret almindelig træk- og vintergæst; meget sjælden ynglefugl (1–2 par). Skagen i april–maj er stedet, hvor man kan se alle fire danske kærhøge.\n- **Steppehøg**: i snit 168 om året 2010–19, ca. 40 om året på Skagen i maj–juni. De gamle kommer sidst i april, 2K'erne i maj, og om efteråret de unge i september.\n- **Hedehøg**: 17–23 par, stærkt gået tilbage fra ca. 400 par midt i 1900-tallet. Danske Hedehøge med sender trækker via Spanien (78 %) eller Italien.\n- **Amerikansk Kærhøg**: godkendte fund fra efteråret 2023 til 2024 (DOFbasen)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2620,
+         "nf": 122819,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2630,
+         "nf": 119646,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2610,
+         "nf": 121558,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2615,
+         "nf": 121402,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Steppehøg 1K",
+        "Hedehøg 1K",
+        "Blå Kærhøg 1K",
+        "Amerikansk Kærhøg 1K"
+       ],
+       "tekst": "Fire unge ringtails. Se på hovedets tegning, undersidens striber og hånden."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2620,
+         "nf": 124618,
+         "alder": "3. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2610,
+         "nf": 123191,
+         "alder": "Adult (udfarvet)",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2630,
+         "nf": 122477,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Steppehøg han",
+        "Blå Kærhøg han",
+        "Hedehøg 2K"
+       ],
+       "tekst": "Hannerne: smal kile, bred sort hånd og sort vingebånd."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Blå er bred, Steppe er en sabel, Hede er et skelet.**\n- **Steppehøgen har boa, Hedehøgen har snebriller.**\n- **Åben hånd (Steppe), lukket hånd (Hede), blækdyppede fingre (Blå).**"
+      },
+      {
+       "type": "advarsel",
+       "titel": "Hold igen med 2K om foråret og fældende fugle i sensommeren",
+       "md": "Forsman: 2K Hedehøge om foråret er de oftest fejlbestemte, og i august–september kan fældende Blå Kærhøge vise en hånd, der ligner Steppe- eller Hedehøg.\nBrug altid formen, og fotografér undervingen."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken kærhøg beskrives som «en træfigur, der trækkes i en snor»?",
+       "choices": [
+        {
+         "text": "Steppehøg",
+         "correct": true
+        },
+        {
+         "text": "Blå Kærhøg",
+         "correct": false
+        },
+        {
+         "text": "Hedehøg",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Stive, dybe vingeslag (Malling Olsen, Pandion 2015).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken kærhøg har en rund, bred hånd som en spurvehøg?",
+       "choices": [
+        {
+         "text": "Blå Kærhøg",
+         "correct": true
+        },
+        {
+         "text": "Steppehøg",
+         "correct": false
+        },
+        {
+         "text": "Hedehøg",
+         "correct": false
+        },
+        {
+         "text": "Amerikansk Kærhøg har spids hånd",
+         "correct": false
+        }
+       ],
+       "explanation": "Blå Kærhøg har fem fingre og en bred, rund hånd. Steppehøg og Hedehøg har smallere, spidsere hånd med fire fingre.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung kærhøg har ustribet orangegul underside, mørk kind, en skarp lys halsring og mørke halssider. Art?",
+       "choices": [
+        {
+         "text": "Steppehøg",
+         "correct": true
+        },
+        {
+         "text": "Hedehøg",
+         "correct": false
+        },
+        {
+         "text": "Blå Kærhøg",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Boa'en og den skarpe halsring.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung kærhøg har brede hvide felter om øjet («snebriller») og en bred sort spids og bagkant på hånden under. Art?",
+       "choices": [
+        {
+         "text": "Hedehøg",
+         "correct": true
+        },
+        {
+         "text": "Steppehøg",
+         "correct": false
+        },
+        {
+         "text": "Blå Kærhøg",
+         "correct": false
+        },
+        {
+         "text": "Amerikansk Kærhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Hedehøg har lyst ansigt med hvide «snebriller» og mangler den skarpe halsring. Den unge Steppehøg har mørk kind og en tydelig lys «boa».",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung ringtail har stribet bryst og flanker og fem sorte fingerspidser. Art?",
+       "choices": [
+        {
+         "text": "Blå Kærhøg",
+         "correct": true
+        },
+        {
+         "text": "Steppehøg",
+         "correct": false
+        },
+        {
+         "text": "Hedehøg",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Blå Kærhøg er den eneste af de unge ringtails med stribet underside og fem fingre. Steppe- og Hedehøg er ustribede og orangegule under.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken voksen han har kun en smal sort kile i hånden og ellers næsten hvid undervinge?",
+       "choices": [
+        {
+         "text": "Steppehøg",
+         "correct": true
+        },
+        {
+         "text": "Blå Kærhøg",
+         "correct": false
+        },
+        {
+         "text": "Hedehøg",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Den voksne Steppehøg-han er bleg grå med en smal sort kile i hånden. Hedehøg-hannen har mere sort i hånden og et sort bånd over armen.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er 2K Hedehøge om foråret svære?",
+       "choices": [
+        {
+         "text": "De fælder meget om vinteren, og mange får næsten samme hovedtegning som Steppehøg",
+         "correct": true
+        },
+        {
+         "text": "De er helt hvide",
+         "correct": false
+        },
+        {
+         "text": "De ligner en Rørhøg",
+         "correct": false
+        },
+        {
+         "text": "De ses kun om natten",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor kan man se alle fire danske kærhøge i træktiden?",
+       "choices": [
+        {
+         "text": "Skagen i april–maj",
+         "correct": true
+        },
+        {
+         "text": "Stevns i januar",
+         "correct": false
+        },
+        {
+         "text": "Vadehavet i juli",
+         "correct": false
+        },
+        {
+         "text": "Bornholm i december",
+         "correct": false
+        }
+       ],
+       "explanation": "DOFbasen.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung kærhøg med næsten ensfarvet rustbrun underside, mørk hætte og mørk arm. Art?",
+       "choices": [
+        {
+         "text": "Amerikansk Kærhøg",
+         "correct": true
+        },
+        {
+         "text": "Blå Kærhøg",
+         "correct": false
+        },
+        {
+         "text": "Steppehøg",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Amerikanske Kærhøg er rustbrun og næsten ustribet under, med mørk hætte og mørke armsvingfjer. Den unge Blå Kærhøg er stribet.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken kærhøg?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2610,
+         2620,
+         2630,
+         2600
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2620,
+         2630
+        ],
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 70,
+     "min_score_pct": null
+    },
+    {
+     "title": "Våger: Musvåge, Hvepsevåge, Tophvepsevåge, Fjeldvåge og Ørnevåge",
+     "lesson_md": "Vågerne er pandekagen: brede vinger, rund krop og mellemlang hale. Musvågen er din målestok for alt andet. Forsman (2016) kalder den unge Hvepsevåge\nden oftest fejlbestemte rovfugl i Vestpalæarktis, fordi vi kun ser den nogle få uger om efteråret.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Musvåge mod Hvepsevåge\n\n| | **Musvåge** | **Hvepsevåge** |\n|---|---|---|\n| Hoved | **Stort og rundt**, kort hals | **Lille og fremstrakt** som en due eller gøg |\n| Vinger | Bredere hånd; i glid let V eller modificeret V; armen tydeligt knækket set forfra | **Flade**, ofte med **hængende hånd**; indknebet vingerod, buet arm og smallere hånd |\n| Hale | Kort, ofte spredt | **Længere og fyldigere**, med afrundede hjørner |\n| Flugt | Lidt hurtigere, mere «hastige» slag | **Bløde, langsomme og elastiske** slag; bryst skudt frem og hoved let løftet |\n| Undervinge | Mørk bagkant og mørk håndrodsplet; tæt tværbånding | **Voksen**: få, brede bånd på svingfjerene og halen (to tæt ved roden, et ved spidsen); **ung**: mørkere svingfjer, flere bånd og mørk hånd |\n| Øje og næb (ung) | Lysere brunt øje; lidt gult ved næbroden | **Mørkebrunt øje**, næb gult med kun mørk spids |\n\nHvepsevåge-hannen har grå hoved, gule øjne og en bred mørk bagkant på vingen; hunnen er brunere med smallere mørke bånd.\n\n### Fjeldvåge og Ørnevåge\n\n| | **Fjeldvåge** | **Ørnevåge** |\n|---|---|---|\n| Hale | **Hvid med bred sort endebånd** (ung: diffust bånd) | **Lys rustorange** uden tydelige bånd (voksen); ung: lys med fine bånd |\n| Vinger | Længere og smallere end Musvåge; **V-stilling**; **muser ofte** | Lange, ørneagtige vinger; **store lyse felter i hånden over**; holdes i tydeligt V |\n| Underside | **Mørkt bugskjold** og sorte håndrodspletter på lys undervinge | Lyst hoved og bryst, **mørk bug og bukser**, sort håndrodsplet |\n| Danmark | Vintergæst over hele landet; forår på Skagen | Sjælden: bl.a. Skagen og Lille Vildmose 2016 |\n\nEn Musvåge kan være næsten hvid eller næsten sort. Se på formen, halens bånd og håndrodspletten, før du tænker Fjeldvåge eller Ørnevåge.\n\n### Tophvepsevåge\n\nEn østasiatisk slægtning af Hvepsevåge. Større og tungere med bredere vinger og seks fingre, kortere hale og ofte en lille top. Undervingen har\ntydelige mørke bånd og ofte en mørk struberstribe. Set ved Grenen 1. maj 2025 (Frich, Artikler).\n\n### Danmark\n\n- **Musvåge**: 4.500–5.000 par. Ungfuglene trækker til Holland, Belgien og Nordfrankrig; om vinteren fordobles antallet med nordiske fugle.\n- **Hvepsevåge**: 350–450 par (DOF). Kommer i maj, de gamle trækker i august, ungerne cirka to uger senere. Store tal på Skagen i maj og ved Falsterbo og Stevns i august–september.\n- **Fjeldvåge**: Antallet svinger med lemmingårene; i gode lemmingår er der mange unge blandt trækfuglene og vintergæsterne."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2870,
+         "nf": 119580,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2870,
+         "nf": 118158,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2310,
+         "nf": 117698,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2310,
+         "nf": 121322,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Musvåge, lys",
+        "Musvåge, mørk 2K",
+        "Hvepsevåge",
+        "Hvepsevåge 1K"
+       ],
+       "tekst": "Musvågens store hoved og korte hale mod Hvepsevågens lille duehoved og længere hale."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2900,
+         "nf": 120382,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2900,
+         "nf": 120190,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2880,
+         "nf": 123789,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2320,
+         "nf": 124143,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Fjeldvåge 2K",
+        "Fjeldvåge 1K",
+        "Ørnevåge 2K",
+        "Tophvepsevåge"
+       ],
+       "tekst": "Fjeldvågens hvide hale med sort bånd og Ørnevågens lyse rustorange hale."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2870,
+        "latin": "Buteo buteo",
+        "type": "kald"
+       },
+       "tekst": "Musvågens mjavende «pi-ææh», som Skovskaden efterligner."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2310,
+        "latin": "Pernis apivorus",
+        "type": "kald"
+       },
+       "tekst": "Hvepsevågens melodiske, fløjtende kald ved reden."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Musvåge med stort hoved, Hvepsevåge med duehoved.**\n- **Hvepsevågen flyver, som om den har god tid.** Bløde, langsomme slag og flade vinger.\n- **Fjeldvågen har sort sløjfe på hvid hale, Ørnevågen rustrød hale.**\n- **Muser den, og har den hvid hale, så er det Fjeldvåge.**"
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken våge har lille, fremstrakt hoved som en due og flade vinger med hængende hånd?",
+       "choices": [
+        {
+         "text": "Hvepsevåge",
+         "correct": true
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Fjeldvåge",
+         "correct": false
+        },
+        {
+         "text": "Ørnevåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Hvepsevågen har et lille duehoved på en lang hals, flade vinger med hængende hånd og bløde, dybe slag. Musvågen har kort hals og vinger i let V.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan er halen hos en voksen Hvepsevåge?",
+       "choices": [
+        {
+         "text": "Få, brede mørke bånd: to tæt ved roden og et ved spidsen",
+         "correct": true
+        },
+        {
+         "text": "Hvid med bred sort endebånd",
+         "correct": false
+        },
+        {
+         "text": "Rustorange uden bånd",
+         "correct": false
+        },
+        {
+         "text": "Tæt og fint tværbåndet",
+         "correct": false
+        }
+       ],
+       "explanation": "To bånd tæt ved roden og et bredt bånd ved spidsen er Hvepsevågens mønster. Musvågen har mange smalle bånd.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken våge har hvid hale med bredt sort endebånd og muser ofte?",
+       "choices": [
+        {
+         "text": "Fjeldvåge",
+         "correct": true
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Ørnevåge",
+         "correct": false
+        },
+        {
+         "text": "Hvepsevåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Fjeldvågen har hvid hale med sort endebånd og muser ofte. Den mørke bug og de sorte håndrodspletter er også gode kendetegn.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken våge har lys rustorange hale og store lyse felter i hånden over?",
+       "choices": [
+        {
+         "text": "Ørnevåge",
+         "correct": true
+        },
+        {
+         "text": "Fjeldvåge",
+         "correct": false
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Hvepsevåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Ørnevågen er stor og langvinget med lys rustorange hale og store lyse håndfelter på oversiden. Den ligner en lys Musvåge, men er en hel størrelse større.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er den unge Hvepsevåge så ofte fejlbestemt?",
+       "choices": [
+        {
+         "text": "Den ses kun få uger om efteråret og ligner Musvåge på afstand",
+         "correct": true
+        },
+        {
+         "text": "Den er meget sjælden",
+         "correct": false
+        },
+        {
+         "text": "Den har altid hvid hale",
+         "correct": false
+        },
+        {
+         "text": "Den muser",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken farve har øjet hos en ung Hvepsevåge?",
+       "choices": [
+        {
+         "text": "Mørkebrunt",
+         "correct": true
+        },
+        {
+         "text": "Gult",
+         "correct": false
+        },
+        {
+         "text": "Rødt",
+         "correct": false
+        },
+        {
+         "text": "Lyseblåt",
+         "correct": false
+        }
+       ],
+       "explanation": "Unge Musvåger har lysere brunt øje med synlig pupil.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad styrer, hvor mange unge Fjeldvåger der kommer til Danmark?",
+       "choices": [
+        {
+         "text": "Lemmingårene i yngleområdet",
+         "correct": true
+        },
+        {
+         "text": "Vinden over Skagerrak",
+         "correct": false
+        },
+        {
+         "text": "Antallet af mus i Danmark",
+         "correct": false
+        },
+        {
+         "text": "Jagt i Afrika",
+         "correct": false
+        }
+       ],
+       "explanation": "Kjellén, citeret i Panuccio m.fl.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2870,
+         2310
+        ],
+        "antal": 4
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken våge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2870,
+         2310,
+         2900,
+         2880
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 65,
+     "min_score_pct": null
+    },
+    {
+     "title": "Glenter: Rød Glente, Sort Glente og Blå Glente",
+     "lesson_md": "Glenterne er dragen: lange vinger med knæk ved håndleddet og en hale, der drejes som et ror. Rød Glente er i dag en almindelig dansk ynglefugl, Sort\nGlente en årlig gæst og Blå Glente en sjælden sydlig gæst, der i virkeligheden ligner en lille kærhøg.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Rød Glente** | **Sort Glente** | **Blå Glente** |\n|---|---|---|---|\n| Hale | **Dybt kløftet, lys rustorange** | **Svagt kløftet**, mørk; kløften kan forsvinde, når halen spredes | **Kort, hvid, firkantet** |\n| Vinger | Lange og smalle med knæk | Kortere og bredere end Rød Glente | Spidse; holdes højt løftet som en kærhøg |\n| Undervinge | **Stort hvidt «vindue»** i hånden, der når bagkanten | Mindre og svagere lyst felt i hånden | Hvid med **sort hånd** |\n| Hoved | Lyst, næsten hvidt | Mørkt (lysere hos unge) | Stort, lyst, rødt øje |\n| Andet | Lang, slank og elegant | Mørkere og mindre | **Sorte skuldre**; muser med løftede vinger; kort og kompakt |\n\nForsman: Rød Glente er altid let at kende, når man ser den ordentligt. Sort Glente er den, man skal være forsigtig med; den kan ligne Rørhøg og mørk Dværgørn (se Kærhøge 1).\n\n### Danmark\n\n- **Rød Glente**: ca. 400 par, over 500 % fremgang. Overvintrer mest i Spanien og Sydfrankrig, men flere og flere bliver. Ved Falsterbo steg tallene fra 227 om\n  året i 1980'erne til 3.178 i 2010–17 og 4.574 i 2017. Over 2.000 svenske glenter er talt ind over Stevns på et efterår.\n- **Sort Glente**: 300–500 om året, flest i april–maj og september. Mange er «overskydende» forårsfugle med lune sydlige vinde. Skagen, Rørvig, Hellebæk og Gilbjerg Hoved.\n  Hybrider med Rød Glente forekommer.\n- **Blå Glente**: sjælden sydlig gæst. Fem fund fra Skagen (1998, 2005, 2007, 2013, 2016), de fleste i marts–maj (Haaning, Pandion 2016)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2390,
+         "nf": 118257,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2380,
+         "nf": 119256,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2350,
+         "nf": 123870,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Rød Glente",
+        "Sort Glente",
+        "Blå Glente"
+       ],
+       "tekst": "Dyb kløft, svag kløft og kort hvid hale."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2390,
+        "latin": "Milvus milvus",
+        "type": "kald"
+       },
+       "tekst": "Rød Glentes fløjtende, rystende kald."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Rød Glente har et vindue, Sort Glente har en gardin.** Det store hvide felt i hånden mod det svage.\n- **Blå Glente er en kærhøg i tårnfalketøj.** Hvid med sort hånd, sorte skuldre og muser med løftede vinger."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken glente har dybt kløftet rustorange hale og stort hvidt felt i hånden under?",
+       "choices": [
+        {
+         "text": "Rød Glente",
+         "correct": true
+        },
+        {
+         "text": "Sort Glente",
+         "correct": false
+        },
+        {
+         "text": "Blå Glente",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Rød Glente har en dybt kløftet, rustorange hale og et stort hvidt «vindue» i hånden. Sort Glente har svagere kløft og et mørkt «gardin».",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor kan Sort Glentes kløftede hale være svær at se?",
+       "choices": [
+        {
+         "text": "Kløften er svag og kan forsvinde, når halen spredes",
+         "correct": true
+        },
+        {
+         "text": "Den har ingen hale",
+         "correct": false
+        },
+        {
+         "text": "Den er altid hvid",
+         "correct": false
+        },
+        {
+         "text": "Den har kileformet hale",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille hvid rovfugl med sort hånd, sorte skuldre og kort hvid hale muser med løftede vinger. Art?",
+       "choices": [
+        {
+         "text": "Blå Glente",
+         "correct": true
+        },
+        {
+         "text": "Tårnfalk",
+         "correct": false
+        },
+        {
+         "text": "Steppehøg han",
+         "correct": false
+        },
+        {
+         "text": "Blå Kærhøg han",
+         "correct": false
+        }
+       ],
+       "explanation": "Blå Glente er lille, lys og grå med sorte skuldre og sort hånd. Den står stille i luften som en Tårnfalk.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår ses flest Sorte Glenter i Danmark?",
+       "choices": [
+        {
+         "text": "April–maj og september",
+         "correct": true
+        },
+        {
+         "text": "December–februar",
+         "correct": false
+        },
+        {
+         "text": "Kun i juli",
+         "correct": false
+        },
+        {
+         "text": "Kun i november",
+         "correct": false
+        }
+       ],
+       "explanation": "DOFbasen.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan har antallet af Røde Glenter ved Falsterbo udviklet sig?",
+       "choices": [
+        {
+         "text": "Fra ca. 227 om året i 1980'erne til over 3.000 om året efter 2010",
+         "correct": true
+        },
+        {
+         "text": "Det er faldet",
+         "correct": false
+        },
+        {
+         "text": "Det er uændret",
+         "correct": false
+        },
+        {
+         "text": "Arten ses ikke ved Falsterbo",
+         "correct": false
+        }
+       ],
+       "explanation": "Panuccio m.fl. 2021.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Glente, kærhøg eller våge? Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2390,
+         2380,
+         2600,
+         2870
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Ørne 1: Havørn, Kongeørn og Kejserørn",
+     "lesson_md": "De store ørne er døren eller planken: kæmpe vinger med lange fingre. Havørnen er Danmarks største rovfugl og i dag ikke længere sjælden. Kongeørnen er\nen fåtallig dansk ynglefugl, og Kejserørnen en sjælden østlig gæst. Alder spiller en stor rolle, fordi de store ørne er fire til seks år om at blive voksne.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Havørn** | **Kongeørn** | **Kejserørn** |\n|---|---|---|---|\n| Silhuet | Vinger «**som et par døre**»: brede og lige, lange fingre; **hoved og hale rager lige langt ud** | Lang hale og vinger, der er **smallest ved roden** og bredest ved hånden; S-formet bagkant | Lige, parallelle vinger og ret lang, firkantet hale |\n| Stilling | **Plan**, hånden lidt bagudrettet i glid; kan løfte vingerne krampagtigt | **Tydeligt V** eller modificeret V | Plan |\n| Hale | Kort og **kileformet**; hvid hos voksne | Lang; ung med **hvid halerod og sort endebånd** | Firkantet |\n| Flugt | Langsomme, værdige, flade slag; kompenserer for vinden med den ene vinge | Elegant svæven; 5–6 dybe slag | Tung, rolig |\n| Voksen | Brun med lyst hoved, gult næb og hvid hale | Mørk med **gyldent nakkefelt** | Mørk med **hvide skulderpletter** og lys isse og nakke |\n| Ung | Mørk, plettet, mørkt næb; lyse armhuler og smalle lyse bånd under armen | **Store hvide felter** i hånden og hvid halerod | **Lys sandfarvet** og stribet med lyst «vindue» i hånden og mørke svingfjer |\n\nMalling Olsen og Tofte (2008): Havørnen er dobbelt så stor som en Musvåge, og set fra siden rager hoved og hale lige langt ud foran og bag vingen.\n\n### Aldersbestemmelse af Havørn\n\nDe unge er mørke med mørkt næb og lyse armhuler. Med årene bliver hovedet lysere, næbbet gult og halen hvid. En voksen Havørn har ensfarvet brun krop,\nlyst hoved og helt hvid hale. Fordi de store ørne fælder lidt ad gangen, kan man ofte se alderen på mængden af gamle, slidte ungfuglefjer i vingen (Forsman 2016).\n\n### Danmark\n\n- **Havørn**: 164 par og over 500 % fremgang siden genindvandringen i 1990'erne. Om vinteren mange unge fra nabolandene, i Vadehavet måske over 100.\n- **Kongeørn**: 7 par (2021: fem par med fem unger) fra Store Vildmose til Mariager Fjord. Sjælden vintergæst på Sydsjælland (Tystrup-Bavelse, Tissø) og op til fem om foråret på Skagen.\n- **Kejserørn**: sjælden østlig gæst, godkendte fund siden 1971 (DOFbasen)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2430,
+         "nf": 118501,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2430,
+         "nf": 120290,
+         "alder": "Adult (udfarvet)",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2960,
+         "nf": 119415,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2950,
+         "nf": 122942,
+         "alder": "3. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Havørn",
+        "Havørn, voksen",
+        "Kongeørn 2K",
+        "Kejserørn 3K"
+       ],
+       "tekst": "Havørnens døre, den unge Kongeørns hvide felter og den unge Kejserørns lyse dragt."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Havørnen er en dør med et hoved i hver ende.** Hoved og hale lige lange.\n- **Kongeørnen holder vingerne i V og har en lang hale.** Den unge har hvide «lygter» i hånden og en hvid halerod.\n- **Kejserørnen har hvide seler på skuldrene** som voksen."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken ørn har brede vinger «som et par døre», hvor hoved og hale rager lige langt ud?",
+       "choices": [
+        {
+         "text": "Havørn",
+         "correct": true
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        },
+        {
+         "text": "Kejserørn",
+         "correct": false
+        },
+        {
+         "text": "Fiskeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Havørnen har plane, brede vinger og hoved og hale, der rager lige langt ud foran og bag vingen.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken ørn holder vingerne i tydeligt V og har lang hale?",
+       "choices": [
+        {
+         "text": "Kongeørn",
+         "correct": true
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        },
+        {
+         "text": "Kejserørn",
+         "correct": false
+        },
+        {
+         "text": "Gåsegrib",
+         "correct": false
+        }
+       ],
+       "explanation": "Kongeørnen holder vingerne i V og har en lang hale. Vingerne er smallest ved roden og bredest ved hånden.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung ørn med store hvide felter i hånden og hvid halerod med sort endebånd. Art?",
+       "choices": [
+        {
+         "text": "Kongeørn",
+         "correct": true
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        },
+        {
+         "text": "Fjeldvåge",
+         "correct": false
+        },
+        {
+         "text": "Steppeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Kongeørn har store hvide håndfelter og hvid halerod med sort endebånd. Med alderen forsvinder det hvide gradvist.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan kendes en voksen Havørn?",
+       "choices": [
+        {
+         "text": "Ensfarvet brun med lyst hoved, gult næb og hvid kileformet hale",
+         "correct": true
+        },
+        {
+         "text": "Mørk med gyldent nakkefelt",
+         "correct": false
+        },
+        {
+         "text": "Hvide skulderpletter",
+         "correct": false
+        },
+        {
+         "text": "Hvid med sort hånd",
+         "correct": false
+        }
+       ],
+       "explanation": "Den voksne Havørn er brun med lyst hoved, gult næb og helt hvid, kileformet hale. Det tager fem år eller mere at nå den dragt.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken ørn har hvide skulderpletter som voksen?",
+       "choices": [
+        {
+         "text": "Kejserørn",
+         "correct": true
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        },
+        {
+         "text": "Steppeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Den voksne Kejserørn har hvide pletter på skuldrene og lys isse og nakke.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange ynglepar af Havørn har Danmark ifølge DOF?",
+       "choices": [
+        {
+         "text": "164",
+         "correct": true
+        },
+        {
+         "text": "7",
+         "correct": false
+        },
+        {
+         "text": "19",
+         "correct": false
+        },
+        {
+         "text": "1.600",
+         "correct": false
+        }
+       ],
+       "explanation": "Havørnen er gået frem fra genindvandringen i 1990'erne til 164 par i dag. Kongeørnen har kun omkring 7 par.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken ørn?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2430,
+         2960,
+         2950,
+         2945
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 55,
+     "min_score_pct": null
+    },
+    {
+     "title": "Ørne 2: Lille Skrigeørn, Stor Skrigeørn og Steppeørn",
+     "lesson_md": "Tre mørke, mellemstore ørne, som alle er sjældne i Danmark og alle kan være svære. Malling Olsen kalder det «ID-udfordringen: Aquila». Han peger på, at\nfuglene næsten altid ses på afstand og i dårligt lys. Derfor starter vi med hånden og vingestillingen, før vi ser på farverne.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Først: skille dem fra Havørn\n\nAlle tre er mindre end Havørn, har mørk, afrundet hale (længere end hovedet), og holder hånden hængende, når de kredser. Havørnen har plane vinger, lyse\narmhuler som ung og en kort hale. Skrige- og Steppeørn har ofte hvide håndrodspletter på oversiden og et hvidt U på overgumpen.\n\n### Nøglepakken\n\n| | **Lille Skrigeørn** | **Stor Skrigeørn** | **Steppeørn** |\n|---|---|---|---|\n| Størrelse | Mindst; stort hoved, fint næb | Større, fladere hoved, kraftigt næb | Størst, langt hoved og bred «mund» |\n| Hånd | Smallere, kortere fingre | Bredere hånd; 7. finger ca. 50–70 % af den næstyderste | **Længst fingre**; 7. finger over 50 %, nogle har antydning af en 8. |\n| Undervinge, ung | Svingfjer **lige så mørke eller mørkere** end de brune dækfjer | **Lyse grå svingfjer** mod **sortagtige dækfjer**: stærk kontrast | **Bred hvid stribe** langs de store dækfjer og **bred hvid bagkant** og halespids |\n| Undervinge, voksen | Dækfjer lysere end svingfjerene | Ensfarvet mørk | Tydelige, spredte bånd på svingfjerene |\n| Ung, overside | Små hvide pletter | Rækker af hvide **dråbepletter** på dækfjerene | Solid hvid linje (ikke pletter) |\n\nForsman: De unge Steppeørne er lette; den brede hvide bagkant er meget bredere end hos nogen ung Lille Skrigeørn. Det svære er subadulte fugle, hvor\nSteppeørn i 4.–5. dragt kan ligne en voksen Lille Skrigeørn.\n\n### Hybrider og særlige former\n\n- Hybrider mellem Stor og Lille Skrigeørn er blevet almindelige. I Brandenburg var en tredjedel af de ringmærkede Store Skrigeørne hybrider (Otis 2022, Artikler).\n- **Fulvescens** er en lys, cremebrun form af Stor Skrigeørn. En sådan fugl blev set ved Hyllekrog i efteråret 2017 (Haaning, Pandion 2017).\n\n### Danmark\n\n- **Lille Skrigeørn**: op mod 130 fugle siden 2000, flest i Østdanmark og på Skagen, mest om foråret.\n- **Stor Skrigeørn**: 83 fund til og med 2016, flest i april–maj og oktober.\n- **Steppeørn**: meget sjælden gæst med få godkendte danske fund."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2920,
+         "nf": 123502,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2930,
+         "nf": 120663,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2945,
+         "nf": 123503,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2945,
+         "nf": 121774,
+         "alder": "3. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Lille Skrigeørn",
+        "Stor Skrigeørn",
+        "Steppeørn 2K",
+        "Steppeørn 3K"
+       ],
+       "tekst": "Den unge Steppeørns brede hvide stribe og bagkant er det letteste kendetegn i gruppen."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Lille Skrigeørn: mørke vinger, brunere arm.** Stor Skrigeørn: lyse svingfjer under sorte dækfjer.\n- **Steppeørnen har den længste hånd og den bredeste hvide bagkant.**\n- Skrigeørne og Steppeørn holder hånden hængende; Havørnen holder vingerne plane."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En ung ørn har en bred hvid stribe langs de store dækfjer under vingen og en bred hvid bagkant. Art?",
+       "choices": [
+        {
+         "text": "Steppeørn",
+         "correct": true
+        },
+        {
+         "text": "Lille Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Stor Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Forsman 2016.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken ung skrigeørn har lyse grå svingfjer mod sortagtige dækfjer under vingen?",
+       "choices": [
+        {
+         "text": "Stor Skrigeørn",
+         "correct": true
+        },
+        {
+         "text": "Lille Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Steppeørn",
+         "correct": false
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Stor Skrigeørn har lyse grå svingfjer og sortagtige dækfjer under vingen. Hos Lille Skrigeørn er dækfjerene lysere end svingfjerene.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken art har de længste fingre i gruppen?",
+       "choices": [
+        {
+         "text": "Steppeørn",
+         "correct": true
+        },
+        {
+         "text": "Lille Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Stor Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen, Artikler.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan holder skrigeørne og Steppeørn typisk vingerne, når de kredser?",
+       "choices": [
+        {
+         "text": "Med hængende hånd",
+         "correct": true
+        },
+        {
+         "text": "I tydeligt V",
+         "correct": false
+        },
+        {
+         "text": "Hvælvet som en bue",
+         "correct": false
+        },
+        {
+         "text": "Helt over ryggen",
+         "correct": false
+        }
+       ],
+       "explanation": "De mellemstore Aquila- og Clanga-ørne kredser med hængende hånd. Havørnen holder vingerne plant og Kongeørnen i V.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor kan en skrigeørn være svær at artsbestemme i dag, selv set godt?",
+       "choices": [
+        {
+         "text": "Hybrider mellem Stor og Lille Skrigeørn er blevet almindelige",
+         "correct": true
+        },
+        {
+         "text": "Arterne er slået sammen",
+         "correct": false
+        },
+        {
+         "text": "De ligner altid Musvåge",
+         "correct": false
+        },
+        {
+         "text": "De kan kun bestemmes om natten",
+         "correct": false
+        }
+       ],
+       "explanation": "Hybrider mellem Stor og Lille Skrigeørn har mellemting af kendetegn. Derfor skal mange skrigeørne fotograferes godt, og nogle må stå som Lille/Stor Skrigeørn.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Ung Stor Skrigeørn har på oversiden…",
+       "choices": [
+        {
+         "text": "Rækker af hvide dråbepletter på dækfjerene",
+         "correct": true
+        },
+        {
+         "text": "En solid hvid linje",
+         "correct": false
+        },
+        {
+         "text": "Helt ensfarvet brune dækfjer",
+         "correct": false
+        },
+        {
+         "text": "Hvide skulderpletter",
+         "correct": false
+        }
+       ],
+       "explanation": "Rækker af hvide dråbepletter på dækfjerene er typisk for den unge Stor Skrigeørn. Den unge Steppeørn har i stedet en solid hvid linje.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken ørn?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2920,
+         2930,
+         2945,
+         2430
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 55,
+     "min_score_pct": null
+    },
+    {
+     "title": "Ørne 3: Fiskeørn, Slangeørn, Dværgørn og Høgeørn",
+     "lesson_md": "Fire ørne med lys underside. Fiskeørnen er den eneste almindelige; de tre andre er sjældne sydlige gæster. Alle fire kan forveksles med en lys Musvåge\neller Hvepsevåge på afstand, så se på silhuetten først.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Fiskeørn** | **Slangeørn** | **Dværgørn, lys form** | **Høgeørn** |\n|---|---|---|---|---|\n| Silhuet | **Lange, smalle vinger med knæk: et «M» som en kæmpemåge** | Stor, bredvinget, stort **uglehoved** | Lille som en Musvåge; **seks fingre, firkantet hale** | Mellemstor; lange vinger og **lang hale** |\n| Stilling | Hvælvet i glid, hånden sænket | Plan; **muser** ofte med hængende ben | Hvælvet | Plan |\n| Underside | Hvid krop, sort håndrodsplet og mørkt vingebånd; brystbånd | **Lys med mørkt hoved og bryst**; fine bånd på svingfjerene | Hvide dækfjer mod sorte svingfjer; **«lygterne»** ved vingeroden | Voksen: lys krop, **mørkt bånd** gennem undervingedækfjerene og bred sort halespids; ung: rustfarvet |\n| Overside | Mørkebrun med hvidt hoved og sort øjenstribe | Lysebrun | Lyse skulderfelter og lyst bånd over armen | Mørk med lys plet på ryggen |\n\n### Danmark\n\n- **Fiskeørn**: 8 par, men en almindelig trækfugl forår og efterår. En svensk han med GPS-sender fløj 746 km på én dag på vej mod Afrika.\n- **Slangeørn**: uddød som ynglefugl i 1882 (Sønderjylland). I dag 1–2 om året, flest på Skagen og i maj og juli–august.\n- **Dværgørn**: sjælden; fx Hulsig Hede 2012 (Klein).\n- **Høgeørn**: sjælden. I april 2020 fulgte man Danmarks sjette fund via en fransk GPS-sender fra overnatningsplads til overnatningsplads op gennem Jylland til Skagen (Haaning, Pandion 2020)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 3010,
+         "nf": 121241,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2560,
+         "nf": 119262,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2980,
+         "nf": 119265,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2990,
+         "nf": 124646,
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Fiskeørn 2K",
+        "Slangeørn",
+        "Dværgørn",
+        "Høgeørn"
+       ],
+       "tekst": "Fiskeørnens måge-M, Slangeørnens uglehoved, Dværgørnens firkantede hale og Høgeørnens lange hale."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 3010,
+        "latin": "Pandion haliaetus",
+        "type": "kald"
+       },
+       "tekst": "Fiskeørnens korte, fløjtende kald."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Fiskeørnen er en kæmpemåge.** Lange, smalle vinger med knæk i M og hvid underside.\n- **Slangeørnen har et uglehoved og muser.**\n- **Dværgørnen har seks fingre, firkantet hale og lygter tændt ved vingeroden.**"
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken rovfugl flyver med lange, smalle vinger med knæk som et «M», som en kæmpemåge?",
+       "choices": [
+        {
+         "text": "Fiskeørn",
+         "correct": true
+        },
+        {
+         "text": "Slangeørn",
+         "correct": false
+        },
+        {
+         "text": "Høgeørn",
+         "correct": false
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Fiskeørnen har lange, smalle vinger med knæk ved håndleddet, så den ser ud som et M, ligesom en stor måge.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken lys ørn har stort, mørkt «uglehoved» og muser?",
+       "choices": [
+        {
+         "text": "Slangeørn",
+         "correct": true
+        },
+        {
+         "text": "Fiskeørn",
+         "correct": false
+        },
+        {
+         "text": "Dværgørn",
+         "correct": false
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Slangeørnen har stort, rundt hoved og mørkt bryst. Den står ofte stille i luften med hængende ben og kigger efter slanger.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår uddøde Slangeørnen som dansk ynglefugl?",
+       "choices": [
+        {
+         "text": "1882",
+         "correct": true
+        },
+        {
+         "text": "1950",
+         "correct": false
+        },
+        {
+         "text": "1990",
+         "correct": false
+        },
+        {
+         "text": "Den har aldrig ynglet her",
+         "correct": false
+        }
+       ],
+       "explanation": "DOFbasen.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken lille ørn har seks tydelige fingre og firkantet hale?",
+       "choices": [
+        {
+         "text": "Dværgørn",
+         "correct": true
+        },
+        {
+         "text": "Høgeørn",
+         "correct": false
+        },
+        {
+         "text": "Fiskeørn",
+         "correct": false
+        },
+        {
+         "text": "Slangeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Dværgørnen er på størrelse med en Musvåge, men har seks tydelige fingre og en firkantet hale.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Lys rovfugl: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         3010,
+         2560,
+         2980,
+         2870,
+         2310
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Gribbe: Gåsegrib, Munkegrib og Ådselgrib",
+     "lesson_md": "Gribbene er bordet: enorme, lige vinger med meget lange fingre. De er sjældne gæster, men de dukker op oftere end før, nogle gange i flok. I juni 2016\nkredsede 34 Gåsegribbe over Nordjylland, Danmarks første flok (Haaning, Pandion 2016).",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Nøglepakken\n\n| | **Gåsegrib** | **Munkegrib** | **Ådselgrib** |\n|---|---|---|---|\n| Størrelse | Kæmpe, vingefang omkring 2,5 m | Kæmpe, lige så stor eller større | Lille som en Rød Glente |\n| Silhuet | Lange, brede vinger med **S-formet** bagkant, kort hale, lille hoved | Bredere, mere **lige, plankeagtige** vinger, **savtakket** bagkant og lidt **kileformet** hale | Lange vinger og **kileformet hvid hale** |\n| Stilling | Let V | **Plan**, hånden ofte let sænket | Plan |\n| Farve | Lys sandbrun krop og dækfjer mod **sorte svingfjer** | **Ensfarvet mørk** | Voksen: **hvid med sorte svingfjer**; ung: mørk |\n| Alder | 2K: mørkt næb og brun, løs halskrave | Unge sortere, voksne brunere | Unge brune, voksne hvide efter 4–5 år |\n\n### Danmark\n\n- **Gåsegrib**: 34 over Lindenborg 24. juni 2016; Bøtø 2016 (sjette fund, en vild 2K). Flere flokke i Holland og Belgien de seneste år. En mulig forklaring er EU's\n  forbud fra 2002 mod at lade døde husdyr ligge i naturen, som tog føden fra gribbene i Sydeuropa.\n- **Munkegrib**: meget sjælden; fund i 2019 og i juli 2026 (DOFbasen).\n- **Ådselgrib**: første godkendte fund 1993, flere siden."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2510,
+         "nf": 119414,
+         "alder": "2. kalenderår",
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2550,
+         "nf": 124908,
+         "adfaerd": "Flyvende"
+        },
+        {
+         "artnr": 2470,
+         "nf": 122696,
+         "alder": "1. kalenderår",
+         "adfaerd": "Flyvende"
+        }
+       ],
+       "labels": [
+        "Gåsegrib 2K",
+        "Munkegrib",
+        "Ådselgrib 1K"
+       ],
+       "tekst": "Tre gribbe."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Gåsegribben er lys med sorte vinger, Munkegribben er et sort bord, og Ådselgribben er en hvid glente med kilehale."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken grib er ensfarvet mørk med lige, plankeagtige vinger og savtakket bagkant?",
+       "choices": [
+        {
+         "text": "Munkegrib",
+         "correct": true
+        },
+        {
+         "text": "Gåsegrib",
+         "correct": false
+        },
+        {
+         "text": "Ådselgrib",
+         "correct": false
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Munkegribben er mørk og har lige vinger med savtakket bagkant og en lidt kileformet hale.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken grib er lys sandbrun med sorte svingfjer?",
+       "choices": [
+        {
+         "text": "Gåsegrib",
+         "correct": true
+        },
+        {
+         "text": "Munkegrib",
+         "correct": false
+        },
+        {
+         "text": "Ådselgrib",
+         "correct": false
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Gåsegribben har lys sandbrun krop og dækfjer mod sorte svingfjer. Vingernes bagkant er S-formet.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille, hvid rovfugl med sorte svingfjer og kileformet hvid hale. Art?",
+       "choices": [
+        {
+         "text": "Ådselgrib, voksen",
+         "correct": true
+        },
+        {
+         "text": "Fiskeørn",
+         "correct": false
+        },
+        {
+         "text": "Blå Glente",
+         "correct": false
+        },
+        {
+         "text": "Gåsegrib",
+         "correct": false
+        }
+       ],
+       "explanation": "Den voksne Ådselgrib er hvid med sorte svingfjer og en kileformet hvid hale. Den er kun på størrelse med en glente.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange Gåsegribbe så man over Nordjylland 24. juni 2016?",
+       "choices": [
+        {
+         "text": "34",
+         "correct": true
+        },
+        {
+         "text": "3",
+         "correct": false
+        },
+        {
+         "text": "12",
+         "correct": false
+        },
+        {
+         "text": "340",
+         "correct": false
+        }
+       ],
+       "explanation": "Haaning, Pandion 2016.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Grib eller ørn? Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2510,
+         2550,
+         2430,
+         2960
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 35,
+     "min_score_pct": null
+    },
+    {
+     "title": "Alder, dokumentation og ærlige bestemmelser",
+     "lesson_md": "Rovfugle er sjældent svære, når de flyver tæt på i godt lys. De er svære, når de er små prikker. Derfor handler det sidste trin om, hvad du gør, når\nfuglen er langt væk, og hvordan du dokumenterer den sjældne.",
+     "blocks": [
+      {
+       "type": "metode",
+       "trin": 4
+      },
+      {
+       "type": "tekst",
+       "md": "### Metoden på en rovfugl\n\n1. **Forudsig**: Hvad trækker her og nu? Dato, vind, sted.\n2. **Opdag**: Silhuet, vingestilling, flugt, store lyse og mørke felter.\n3. **Tolk**: Hvilken gruppe? Sig billedet højt: kniv, saks, V, pandekage, drage, dør, bord.\n4. **Adskil**: Gå artsnøglen igennem for gruppen.\n5. **Beslut**: Art, gruppe («våge sp.», «storfalk sp.», «Lille/Stor Skrigeørn») eller «rovfugl sp.». DOFbasen har kategorier netop til det.\n\n### Alder\n\n- **Ungfugle** har en ensartet dragt; alle svingfjer er lige gamle. Mange har lysere spidser på fjerene og en anden silhuet end de voksne.\n- **Fælder fuglen svingfjer** i sensommeren, er den mindst et år gammel.\n- **Store ørne og gribbe** fælder trinvist over flere år. Forskellen mellem gamle, lyse og nye, mørke fjer viser alderen.\n- **Unge falke** har en generel silhuet; de voksnes typiske form kommer med de voksne fjer.\n\n### Dokumentation\n\n- **Fotografér undervingen**: svingfjerenes bånd afgør de fleste svære par (Hvepsevåge, skrigeørne, kærhøge).\n- **Fotografér oversiden**, når fuglen drejer: hvide felter, overgump, lygter.\n- **Noter flugten og stillingen** med det samme; de kan ikke ses på et foto.\n- **Tjek for ringe, remme og sendere**, især på falke og gribbe. En GPS-sender gav fx Danmarks sjette Høgeørn.\n- **Meld den ud**, også med forbehold."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2870,
+        "latin": "Buteo buteo",
+        "type": "kald",
+        "n": 1
+       },
+       "tekst": "Musvågen igen. Lær den så godt, at alle andre lyde skiller sig ud."
+      }
+     ],
+     "acts": [
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sæt Metodens fem trin i rækkefølge.",
+       "choices": [],
+       "explanation": "Forudsig hvad der kan komme, opdag silhuet og felter, tolk gruppen, adskil arterne og beslut til sidst niveauet.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Forudsig",
+         "Opdag",
+         "Tolk",
+         "Adskil",
+         "Beslut"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor mørk ørn kredser langt væk med hængende hånd. Du ser ingen detaljer. Bedste registrering?",
+       "choices": [
+        {
+         "text": "Ørn sp. eller skrigeørn sp.",
+         "correct": true
+        },
+        {
+         "text": "Lille Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        },
+        {
+         "text": "Havørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Uden detaljer er gruppe det ærlige niveau.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket foto er vigtigst for en svær kærhøg eller våge?",
+       "choices": [
+        {
+         "text": "Undervingen, så svingfjerenes bånd og håndens mønster ses",
+         "correct": true
+        },
+        {
+         "text": "Et foto af fuglen siddende langt væk",
+         "correct": false
+        },
+        {
+         "text": "Et foto af landskabet",
+         "correct": false
+        },
+        {
+         "text": "Et foto af halen alene",
+         "correct": false
+        }
+       ],
+       "explanation": "Undervingens bånd og håndens mønster afgør de fleste svære kærhøge og våger. Flugt og stilling noterer du med det samme.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor skal du tjekke for ringe og remme på en sjælden storfalk?",
+       "choices": [
+        {
+         "text": "Den kan være en undsluppen falkonerfugl",
+         "correct": true
+        },
+        {
+         "text": "Fordi den ellers ikke kan bestemmes",
+         "correct": false
+        },
+        {
+         "text": "Fordi alle vilde falke har ringe",
+         "correct": false
+        },
+        {
+         "text": "Fordi det er lovpligtigt",
+         "correct": false
+        }
+       ],
+       "explanation": "Mange storfalke holdes af falkonerer. Ringe, remme og sendere kan vise, at fuglen er undsluppet, og så kan den ikke godkendes som vild.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Beskriv en Steppehøg, du forestiller dig at se trække på Skagen i maj, som du ville skrive den til SU.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 150,
+        "example": "Lille, let kærhøg, mindre end en Rørhøg. Stort hoved og bryst mod slank krop og tynd hale, bred arm og kort, spids hånd rettet bagud; S-formet bagkant. Stive, dybe vingeslag og lange glid på løftede vinger. Ung fugl: ustribet orangegul underside, mørk kind og skarp lys halsring foran mørke halssider; åben, lys hånd med svage fingerspidser. Smal hvid overgump. Set 10.15–10.20 trækkende mod nordøst i svag sydøstenvind. Fotos af underside vedlagt."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 30,
+     "min_score_pct": null
+    },
+    {
+     "title": "Afsluttende prøve: alle rovfugle blandet",
+     "lesson_md": "Nu blander vi alle grupperne. Gå frem på samme måde hver gang: gruppen først, så arten. Vær ærlig om din sikkerhed, og tag prøven igen om en uge.",
+     "blocks": [
+      {
+       "type": "tip",
+       "titel": "Før du starter",
+       "md": "Sig gruppebilledet for dig selv, før du vælger art: kniv, saks, V, pandekage, drage, dør eller bord."
+      }
+     ],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken rovfugl?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2870,
+         2310,
+         2900,
+         2880,
+         2690,
+         2670,
+         3040,
+         3090,
+         3100,
+         3200,
+         3070,
+         3180,
+         2600,
+         2610,
+         2620,
+         2630,
+         2390,
+         2380,
+         2430,
+         2960,
+         3010,
+         2920,
+         2930,
+         2945,
+         2950,
+         2980,
+         2560,
+         2510
+        ],
+        "metode": "valg",
+        "antal": 20
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Maj, Skagen: en våge med lille duehoved, flade vinger med hængende hånd og bløde, langsomme slag. Art?",
+       "choices": [
+        {
+         "text": "Hvepsevåge",
+         "correct": true
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Fjeldvåge",
+         "correct": false
+        },
+        {
+         "text": "Ørnevåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Hvepsevågen kommer i maj og har lille duehoved, flade vinger med hængende hånd og bløde, langsomme slag.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "April, Skagen: en våge med hvid hale og bredt sort endebånd, mørkt bugskjold; den muser over klitten. Art?",
+       "choices": [
+        {
+         "text": "Fjeldvåge",
+         "correct": true
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Ørnevåge",
+         "correct": false
+        },
+        {
+         "text": "Hvepsevåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Fjeldvågen topper på Skagen fra midt i april. Hvid hale med sort endebånd og mørk bug kendetegner den, og den muser ofte.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille, let kærhøg med kort, spids, bagudrettet hånd og stive, dybe slag; ung med skarp lys halsring og ustribet orangegul underside. Art?",
+       "choices": [
+        {
+         "text": "Steppehøg",
+         "correct": true
+        },
+        {
+         "text": "Hedehøg",
+         "correct": false
+        },
+        {
+         "text": "Blå Kærhøg",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Steppehøg har skarp lys halsring foran mørke halssider og ustribet orangegul underside. Hånden er kort og spids.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En høg med stort, fremskudt hoved, tung bagkrop, lang hale med runde hjørner og S-formet bagkant på vingen. Art?",
+       "choices": [
+        {
+         "text": "Duehøg",
+         "correct": true
+        },
+        {
+         "text": "Spurvehøg",
+         "correct": false
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        },
+        {
+         "text": "Vandrefalk",
+         "correct": false
+        }
+       ],
+       "explanation": "Duehøgen har tung bagkrop, lang hale med runde hjørner og S-formet bagkant på vingen. Spurvehøgen er spinklere og har firkantet hale.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En falk med bredt bryst, smal talje, bred sort moustache og tværbåndet underside. Art?",
+       "choices": [
+        {
+         "text": "Vandrefalk",
+         "correct": true
+        },
+        {
+         "text": "Jagtfalk",
+         "correct": false
+        },
+        {
+         "text": "Lærkefalk",
+         "correct": false
+        },
+        {
+         "text": "Dværgfalk",
+         "correct": false
+        }
+       ],
+       "explanation": "Vandrefalken er bred over brystet med kraftig moustache. Den voksne er tværbåndet under.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En glente med dybt kløftet rustorange hale og stort hvidt felt i hånden. Art?",
+       "choices": [
+        {
+         "text": "Rød Glente",
+         "correct": true
+        },
+        {
+         "text": "Sort Glente",
+         "correct": false
+        },
+        {
+         "text": "Blå Glente",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        }
+       ],
+       "explanation": "Rød Glente har den dybeste kløft og et stort hvidt felt i hånden.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En mørk rovfugl med firkantet hale, seks fingre, hvælvede vinger og små hvide pletter ved vingeroden. Art?",
+       "choices": [
+        {
+         "text": "Dværgørn, mørk form",
+         "correct": true
+        },
+        {
+         "text": "Sort Glente",
+         "correct": false
+        },
+        {
+         "text": "Rørhøg",
+         "correct": false
+        },
+        {
+         "text": "Musvåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Den mørke Dværgørn har firkantet hale, seks fingre, hvælvede vinger og små hvide «lygter» ved vingeroden. Sort Glente har kløftet hale og flade vinger.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En kæmpe ørn med plane vinger som døre, kort kileformet hvid hale og lyst hoved. Art?",
+       "choices": [
+        {
+         "text": "Havørn, voksen",
+         "correct": true
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        },
+        {
+         "text": "Kejserørn",
+         "correct": false
+        },
+        {
+         "text": "Gåsegrib",
+         "correct": false
+        }
+       ],
+       "explanation": "Den voksne Havørn har plane, brede vinger, kort kileformet hvid hale og lyst hoved.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung ørn med bred hvid stribe gennem undervingen og bred hvid bagkant. Art?",
+       "choices": [
+        {
+         "text": "Steppeørn",
+         "correct": true
+        },
+        {
+         "text": "Stor Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Lille Skrigeørn",
+         "correct": false
+        },
+        {
+         "text": "Kongeørn",
+         "correct": false
+        }
+       ],
+       "explanation": "Den brede hvide stribe og bagkant er den unge Steppeørns kendetegn. Skrigeørnene har smallere eller ingen hvide striber.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Om efteråret ser du langt flere svævende rovfugle over Stevns end over Blåvand. Hvorfor?",
+       "choices": [
+        {
+         "text": "Svæveflyverne følger land og krydser Øresund ved Falsterbo og Helsingborg",
+         "correct": true
+        },
+        {
+         "text": "Fordi der er flere mus på Stevns",
+         "correct": false
+        },
+        {
+         "text": "Fordi de trækker mod vest",
+         "correct": false
+        },
+        {
+         "text": "Fordi Blåvand ligger for højt",
+         "correct": false
+        }
+       ],
+       "explanation": "Svæveflyverne undgår lange vandflader. De følger land fra Sverige og krydser Øresund de korteste steder, så de passerer Østdanmark og ikke Vestjylland.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken aldersgruppe af Fiskeørn forlader typisk Skandinavien først om efteråret?",
+       "choices": [
+        {
+         "text": "De voksne",
+         "correct": true
+        },
+        {
+         "text": "Ungfuglene",
+         "correct": false
+        },
+        {
+         "text": "De trækker samtidig",
+         "correct": false
+        },
+        {
+         "text": "Kun hunnerne trækker",
+         "correct": false
+        }
+       ],
+       "explanation": "Langtrækkere, der fælder i Afrika, sender de voksne først.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Gå tilbage til dit svar i første trin. Hvad kigger du efter nu, når du ser en rovfugl langt væk?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 60,
+        "example": "Fx: «Først silhuet og vingestilling set forfra, så flugten. Jeg sætter fuglen i en gruppe med billederne (kniv, saks, V …) og ser derefter efter de store lyse felter: overgump, hånd, hale. Farverne kommer til sidst, og jeg skriver gerne våge sp.»"
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    }
+   ],
+   "loose": false,
+   "cover_ref": {
+    "artnr": 2310,
+    "nf": 117698
+   }
+  },
+  {
+   "kind": "ovelse",
+   "slug": "rovfugle-traening",
+   "title": "Rovfugle-træning: flugtfotos og kald",
+   "summary": "Blandet foto- og lydtræning i de danske rovfugle med nye fotos og optagelser hver gang.",
+   "card": "Alle grupper og de svære par: træn, til du kan se forskel uden at tøve.",
+   "category": "Artsgrupper",
+   "skills": [
+    "Bemærk",
+    "Lyt",
+    "Sammenlign"
+   ],
+   "hue": "himmel",
+   "sil": "rovfugl",
+   "featured": true,
+   "units": [
+    {
+     "title": "",
+     "lesson_md": "",
+     "blocks": [],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken rovfugl?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2870,
+         2310,
+         2900,
+         2880,
+         2690,
+         2670,
+         3040,
+         3090,
+         3100,
+         3200,
+         3070,
+         3180,
+         2600,
+         2610,
+         2620,
+         2630,
+         2390,
+         2380,
+         2430,
+         2960,
+         3010,
+         2920,
+         2930,
+         2945,
+         2950,
+         2980,
+         2560,
+         2510
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Våger: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2870,
+         2310,
+         2900,
+         2880
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Kærhøge: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2600,
+         2610,
+         2620,
+         2630
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Falke: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         3040,
+         3090,
+         3100,
+         3200,
+         3070
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "lyd_art",
+       "prompt": "Hvem kalder?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Lyt"
+       ],
+       "config": {
+        "arter": [
+         2870,
+         2690,
+         3040,
+         2600,
+         2310,
+         2390,
+         2430,
+         2900,
+         2670,
+         2610,
+         3200,
+         3090,
+         3100,
+         3010
+        ],
+        "metode": "valg",
+        "rtype": "kald",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2870,
+         2310
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2690,
+         2670
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2620,
+         2630
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2390,
+         2380
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         3100,
+         3070
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ]
+    }
+   ],
+   "loose": true,
+   "cover_ref": {
+    "artnr": 2870,
+    "nf": 119580
+   }
+  }
+ ]
+}

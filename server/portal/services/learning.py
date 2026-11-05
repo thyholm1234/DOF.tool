@@ -206,9 +206,15 @@ async def auto_quiz(session: AsyncSession, kind: str, n: int = 10, afdeling_id: 
 # ---------------------------------------------------------------- seed
 
 
+SEED_COURSES_KEY = "laering_seed_learning_v1"
+
+
 async def seed_courses(session: AsyncSession) -> None:
+    """De første startkurser – kun én gang, så et kursus, en redaktør har slettet, ikke kommer igen ved næste opstart."""
+    from portal.services.setting_store import get_setting, put_setting
+
     path = SEED_DIR / "learning.json"
-    if not path.exists():
+    if not path.exists() or await get_setting(session, SEED_COURSES_KEY):
         return
     data = json.loads(path.read_text(encoding="utf-8"))
     for c in data["courses"]:
@@ -223,6 +229,7 @@ async def seed_courses(session: AsyncSession) -> None:
             session.add(Question(course_id=course.id, position=i, prompt=q["prompt"], choices=q["choices"],
                                  explanation=q.get("explanation", ""), media_kind=q.get("media_kind"),
                                  media_url=q.get("media_url"), media_credit=q.get("media_credit")))
+    await put_setting(session, SEED_COURSES_KEY, {"kurser": len(data["courses"])}, commit=False)
     await session.commit()
 
 
@@ -302,7 +309,8 @@ async def seed_traekrute(session: AsyncSession) -> int:
 
 # Kursuspakker i DOF.tool-formatet (``learn_build.export_courses``, "laering-v2"): importeres én gang som KLADDER, så en redaktør
 # kan gennemlæse, skifte fotos/lyde og publicere. Nøglen er markøren i indstillingerne; ny version af en pakke = ny nøgle.
-SEED_PACKS = {"phylloscopus.json": "laering_seed_phylloscopus_v1", "maager.json": "laering_seed_maager_v1"}
+SEED_PACKS = {"phylloscopus.json": "laering_seed_phylloscopus_v1", "maager.json": "laering_seed_maager_v1",
+              "rovfugle.json": "laering_seed_rovfugle_v1"}
 
 
 async def seed_packs(session: AsyncSession) -> int:
@@ -315,18 +323,22 @@ async def seed_packs(session: AsyncSession) -> int:
         if not path.exists():
             continue
         if await get_setting(session, key):
-            # allerede importeret: giv kurser uden forsidebillede pakkens billede (kom til efter første import)
-            for c in json.loads(path.read_text(encoding="utf-8"))["courses"]:
-                if c.get("cover_ref"):
-                    await session.execute(text("""UPDATE courses SET cover_ref = CAST(:r AS jsonb)
-                        WHERE slug = :s AND cover_ref IS NULL AND cover_media_id IS NULL"""), {"r": json.dumps(c["cover_ref"]), "s": c["slug"]})
-            await session.commit()
+            # allerede importeret: giv ÉN gang kurser uden forsidebillede pakkens billede (kom til efter første import).
+            # Derefter rører pakken aldrig kurset igen – redaktørens rettelser (også et fjernet billede) bliver stående.
+            if not await get_setting(session, key + "_cover"):
+                for c in json.loads(path.read_text(encoding="utf-8"))["courses"]:
+                    if c.get("cover_ref"):
+                        await session.execute(text("""UPDATE courses SET cover_ref = CAST(:r AS jsonb)
+                            WHERE slug = :s AND cover_ref IS NULL AND cover_media_id IS NULL"""), {"r": json.dumps(c["cover_ref"]), "s": c["slug"]})
+                await put_setting(session, key + "_cover", {"ok": True}, commit=False)
+                await session.commit()
             continue
         data = json.loads(path.read_text(encoding="utf-8"))
         existing = {r for r in (await session.execute(text("SELECT slug FROM courses"))).scalars()}
         data["courses"] = [c for c in data["courses"] if c["slug"] not in existing]
         report = await learn_build.import_courses(session, _System(), data)  # type: ignore[arg-type]
         await put_setting(session, key, {"kurser": len(report)}, commit=False)
+        await put_setting(session, key + "_cover", {"ok": True}, commit=False)  # forsidebilledet fulgte med importen
         await session.commit()
         n += len(report)
     return n
