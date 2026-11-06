@@ -1,16 +1,23 @@
 // Dagslisten: dagens observationer som en traditionel liste, med de samme filtre som DOFbasens observationsside –
 // visning, dato (med dag frem/tilbage), sortering på art eller lokalitet, summering (tur/dato/ingen) og lokalafdeling.
-import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, icon } from "../core.js";
+import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, store, toast, icon } from "../core.js";
 
 const VISNING = [["fugle", "Fugle – bemærkelsesværdige"], ["allfugle", "Fugle – alle"], ["sufugle", "Fugle – sjældne"], ["trkfugle", "Fugle – trækkende"],
   ["patdyr", "Pattedyr"], ["somfugle", "Sommerfugle"], ["krybdyr", "Padder/krybdyr"]];
 const SORT = [["art", "Art"], ["lokalitet", "Lokalitet"]];
-const SUM = [["tur", "Summér pr. tur"], ["dato", "Summér pr. dato"], ["ingen", "Ingen summering"]];
+const SUM = [["tur", "Summér pr. tur"], ["dato", "Summér pr. lokalitet"], ["ingen", "Ingen summering"]];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const pick = (v, list, def) => list.some(x => x[0] === v) ? v : def;
 const sexSign = (k) => !k ? "" : k.includes("M") && k.includes("F") ? " ♂♀" : k.includes("M") ? " ♂" : k.includes("F") ? " ♀" : "";
+// Trækkende: flere retninger (N, S, SØ …) på samme linje samles til ét «T»; øvrige adfærdskoder bevares
+const DIR = /^(T|TF|TI|TU|N|NNØ|NØ|ØNØ|Ø|ØSØ|SØ|SSØ|S|SSV|SV|VSV|V|VNV|NV|NNV)( |$)/;
+function adf(code) {
+  const codes = String(code || "").split(", ").filter(Boolean);
+  const dirs = codes.filter(c => DIR.test(c));
+  return dirs.length > 1 ? ["T", ...codes.filter(c => !DIR.test(c))].join(", ") : codes.join(", ");
+}
 const WEEKDAY = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
 
 function select(label, options, value, onChange) {
@@ -47,11 +54,16 @@ export async function render(view) {
       state.user?.role === "superadmin" ? [" ", h("a", { href: "#/admin?tab=funktioner" }, "Slå den til under Admin → Funktioner")] : null));
     return;
   }
-  const q = params();
+  // Gemt standardvisning (visning, sortering, summering, afdeling – ikke datoen) gælder, medmindre adressen siger noget andet
+  const KEY = `dagsliste:${state.user.id ?? state.user.obserkode ?? ""}`;
+  let saved = store(KEY) || {};
+  const q = { ...saved, ...params() };
   const st = {
     visning: pick(q.visning, VISNING, "fugle"), dato: ISO.test(q.dato || "") && q.dato <= todayISO() ? q.dato : todayISO(),
     sort: pick(q.sort, SORT, "art"), summering: pick(q.summering, SUM, "tur"), lok: /^\d+$/.test(q.lok || "") ? q.lok : "", lokalitet: /^\d+$/.test(q.lokalitet || "") ? q.lokalitet : "",
   };
+  const view_ = () => ({ visning: st.visning, sort: st.sort, summering: st.summering, lok: st.lok });
+  const isDefault = () => JSON.stringify(view_()) === JSON.stringify({ visning: "fugle", sort: "art", summering: "tur", lok: "", ...saved });
   let afd = [];
   try { afd = await api("/api/dagsliste/afdelinger"); } catch (err) { view.append(errorBox(err)); return; }
 
@@ -71,13 +83,17 @@ export async function render(view) {
     const date = h("input", { type: "date", value: st.dato, max: todayISO(), "aria-label": "Dato", onchange: () => { if (ISO.test(date.value)) go({ dato: date.value }); } });
     filters.replaceChildren(
       select("Observationer", VISNING, st.visning, v => go({ visning: v })),
-      h("div", { class: "dl-field" }, h("span", { class: "muted small" }, "Dato"), h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
+      h("div", { class: "dl-field dl-date" }, h("span", { class: "muted small" }, "Dato"), h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
         h("button", { class: "btn sm", type: "button", title: "Dagen før", onclick: () => go({ dato: addDays(st.dato, -1) }) }, "‹"), date,
         h("button", { class: "btn sm", type: "button", title: "Dagen efter", disabled: isToday, onclick: () => go({ dato: addDays(st.dato, 1) }) }, "›"),
         isToday ? null : h("button", { class: "btn sm", type: "button", onclick: () => go({ dato: todayISO() }) }, "I dag"))),
       select("Sortering", SORT, st.sort, v => go({ sort: v })),
       select("Summering", SUM, st.summering, v => go({ summering: v })),
       select("Afdeling", [["", "Hele landet"], ...afd.map(a => [a.id, a.navn])], st.lok, v => go({ lok: v })),
+      h("div", { class: "dl-field dl-save" }, h("span", { class: "muted small" }, "Standard"),
+        h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
+          h("button", { class: "btn sm", type: "button", disabled: isDefault(), title: "Brug denne visning, når du åbner Dagslisten", onclick: () => { saved = view_(); store(KEY, saved); toast("Gemt som standardvisning"); drawFilters(); } }, isDefault() && Object.keys(saved).length ? "✓ Standard" : "Gem som standard"),
+          Object.keys(saved).length ? h("button", { class: "btn sm", type: "button", title: "Fjern din standardvisning", onclick: () => { saved = {}; localStorage.removeItem(KEY); toast("Standardvisningen er fjernet"); drawFilters(); } }, "Nulstil") : null)),
       st.lokalitet ? h("div", { class: "dl-field" }, h("span", { class: "muted small" }, "Lokalitet"),
         h("button", { class: "btn sm", type: "button", onclick: () => go({ lokalitet: "" }) }, "Kun én lokalitet ✕")) : null);
   }
@@ -92,7 +108,7 @@ export async function render(view) {
     note(r, dato, "dl-tur", "Turnote", r.turnote || r.turkommentar),
     note(r, dato, "dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
     note(r, dato, "dl-obs", "Observationsnote", r.obsnote || r.kommentar),
-    r.medobser ? icoLink(r, dato, "dl-med", "users", "Medobservatører", true) : null);
+    r.medobser ? icoLink(r, dato, "dl-med", "users", r.medobsnote || "Medobservatører", true) : null);  // feltets indhold (fx «MV») vises i stedet for en generisk tekst
   const extra = (r, dato) => h("td", { class: "dl-extra" },
     r.foto ? icoLink(r, dato, "", "camera", "Foto", true) : null,
     r.lyd ? icoLink(r, dato, "", "sound", "Lydoptagelse", true) : null,
@@ -103,8 +119,8 @@ export async function render(view) {
   const row = (r, dato, byLoc) => h("tr", {},
     notes(r, dato),
     h("td", { class: "num" }, h("a", { href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)),
-      r.n_obs > 1 ? h("span", { class: "muted", title: `Summeret af ${r.n_obs} observationer` }, ` Σ${r.n_obs}`) : null),
-    h("td", {}, ald(r)), h("td", {}, r.adfkode || ""), extra(r, dato),
+      ),
+    h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r, dato),
     h("td", {}, byLoc ? h("a", { href: `#/art/${r.artnr}` }, r.art)
       : h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr)),
       h("span", { class: "dl-obs-m" }, obsLink(r))),  // på smalle skærme står observatøren under lokaliteten
@@ -155,7 +171,7 @@ export async function render(view) {
       d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [byAfd.size > 1 ? head([afdName[id] || "Uden afdeling"], "dl-afd") : null, ...groups(rows, st.dato)])) : null);
   }
 
-  view.append(h("h1", {}, "Dagsliste"), h("p", { class: "muted" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
+  view.append(h("h1", {}, "Dagsliste"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
   drawFilters();
   initPopup(out);
   load();

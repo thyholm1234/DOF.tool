@@ -1063,3 +1063,12 @@ body.is-viewas .topbar { top: 34px; }
 a.dl-ic { text-decoration: none; cursor: pointer; } .dl-notes .dl-med { color: var(--text-3); } a.dl-ic:hover { filter: brightness(.8); }
 .dl-pop { position: fixed; z-index: 1100; max-width: min(360px, calc(100vw - 16px)); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 22px rgb(0 0 0 / 22%); padding: 8px 11px; font-size: .84rem; line-height: 1.35; pointer-events: none; }
 .dl-pop b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); } .dl-pop div { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .dl-intro { display: none; }
+  .dl-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0 10px; }
+  .dl-field > span.small { display: none; }
+  .dl-field select, .dl-field input, .dl-field .btn { width: 100%; font-size: .85rem; padding-top: 5px; padding-bottom: 5px; min-height: 0; }
+  .dl-field.dl-date, .dl-field.dl-save { grid-column: 1 / -1; }
+  .dl-date .row { gap: 4px; } .dl-date input { flex: 1; min-width: 0; } .dl-save .row { display: grid; grid-template-columns: 1fr auto; }
+  .dl-table tr.dl-head td { border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+}
