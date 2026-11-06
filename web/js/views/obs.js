@@ -68,9 +68,11 @@ export async function render(view, [obsid]) {
 /** Resten af turlisten: alle (ikke-hemmelige) indtastninger på samme tur, den åbne markeret. */
 function tripCard(tur, o) {
   if (!tur.length) return null;
-  const rows = tur.map(r => h("tr", { class: r.obsid === o.obsid ? "cur" : "" },
+  // SU, SUB og bemærk øverst (i den rækkefølge), derefter resten – inden for hver gruppe i systematisk orden (fra serveren)
+  const rank = (k) => ({ SU: 0, SUB: 1, bemaerk: 2 })[k] ?? 3;
+  const rows = [...tur].sort((a, b) => rank(a.kategori) - rank(b.kategori)).map(r => h("tr", { class: r.obsid === o.obsid ? "cur" : "" },
     h("td", { class: "num" }, r.obsid === o.obsid ? h("b", {}, fmtN(r.antal)) : h("a", { href: `#/obs/${r.obsid}` }, fmtN(r.antal))),
-    h("td", {}, h("a", { href: `#/art/${r.artnr}` }, r.art), r.kategori === "SU" || r.kategori === "SUB" ? [" ", tag(r.kategori)] : null),
+    h("td", {}, h("a", { href: `#/art/${r.artnr}` }, r.art), rank(r.kategori) < 3 ? [" ", tag(r.kategori, KAT[r.kategori])] : null),
     h("td", {}, [sexText(r.koen), r.alderkode, r.dragtkode && r.dragtkode !== "-" ? r.dragt || r.dragtkode : null].filter(Boolean).join(", ")),
     h("td", {}, r.adfaerd || r.adfkode || ""),
     h("td", { class: "nowrap" }, span(r.obstidfra, r.obstidtil)),
