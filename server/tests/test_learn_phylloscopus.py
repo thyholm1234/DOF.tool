@@ -12,7 +12,7 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     from portal.services import learning
 
     async with db() as s:
-        assert await learning.seed_packs(s) == 8  # Phylloscopus-, måge-, rovfugle- og havfuglekurset, hver med en øvelse
+        assert await learning.seed_packs(s) == 14  # Se på fugle, Phylloscopus-, måge-, rovfugle-, havfugle-, vadefugle- og 100-arter-kurset, hver med en øvelse
         assert await learning.seed_packs(s) == 0  # kun én gang
         c = (await s.execute(text("SELECT id, published, kind FROM courses WHERE slug = 'phylloscopus'"))).mappings().one()
         assert not c["published"] and c["kind"] == "kursus"
@@ -28,13 +28,32 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'maager'"))).scalar() == 14
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'rovfugle'"))).scalar() == 19
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'havfugle'"))).scalar() == 16
+        assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'vadefugle'"))).scalar() == 25
+        assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'fugle-100'"))).scalar() == 31
+        # 100-arter-kurset beder om fotos af et bestemt køn (han/hun) – filteret overlever importens rensning
+        fb = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'fugle-100' ORDER BY position"))).scalars().all()
+        assert any(r.get("koen") == "Hun" for bl in fb for b in bl for r in [b.get("ref") or {}] + (b.get("refs") or []))
+        assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'se-paa-fugle'"))).scalar() == 21
+        st = {r[0] for r in (await s.execute(text("SELECT DISTINCT q.type FROM questions q JOIN courses c ON c.id = q.course_id WHERE c.slug = 'se-paa-fugle'"))).all()}
+        assert {"valg", "silhuet", "raekkefoelge", "tekst", "refleksion", "foto_art", "foto_sammenlign", "lyd_art", "obs_odds", "obs_habitat"} <= st
+        # «Se på fugle» afløser Trækrutes fem metodekurser: de importeres ikke, og forløbet peger på det nye kursus
+        assert await learning.seed_traekrute(s) == 11
+        assert not (await s.execute(text("SELECT 1 FROM courses WHERE slug = ANY(:s)"), {"s": list(learning.SKIP_COURSES)})).first()
+        pc = (await s.execute(text("""SELECT c.slug FROM lr_path_items i JOIN lr_paths p ON p.id = i.path_id JOIN courses c ON c.id = i.course_id
+                                       WHERE p.slug = 'fra-nysgerrig-til-feltbisse' AND i.kind = 'kursus' ORDER BY i.position"""))).scalars().all()
+        assert pc == ["se-paa-fugle", "selvstaendigt-feltarbejde"]
+        # vadefuglekurset beder om bestemte dragter (sommer/vinter) – filteret overlever importens rensning
+        vb = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'vadefugle' ORDER BY position"))).scalars().all()
+        assert any(r.get("dragt") == "Vinterdragt" for bl in vb for b in bl for r in [b.get("ref") or {}] + (b.get("refs") or []))
         # rovfuglekurset beder om flugtfotos – filteret overlever importens rensning
         rb = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'rovfugle' ORDER BY position"))).scalars().all()
         assert any(r.get("adfaerd") == "Flyvende" for bl in rb for b in bl for r in [b.get("ref") or {}] + (b.get("refs") or []))
     # kladden har ingen blokerende fejl (der er ingen fotos i testbasen at tjekke rettigheder på)
     await flags(db, laering_portal="on", laering_byg="on")
     ov = {c["slug"]: c for c in (await web["ad"].get("/api/learn/byg/oversigt")).json()}
-    assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0 and ov["rovfugle"]["fejl"] == 0 and ov["havfugle"]["fejl"] == 0
+    assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0 and ov["rovfugle"]["fejl"] == 0 and ov["havfugle"]["fejl"] == 0 and ov["vadefugle"]["fejl"] == 0
+    assert ov["se-paa-fugle"]["fejl"] == 0 and ov["se-paa-fugle-traening"]["fejl"] == 0
+    assert ov["fugle-100"]["fejl"] == 0 and ov["fugle-100-traening"]["fejl"] == 0
     # lektionerne kan vises (redaktørens forhåndsvisning): blokke med referencer løses – uden fotos/lyd i basen bliver de blot tomme
     r = await web["ad"].get("/api/learn/courses/phylloscopus/units?preview=true")
     assert r.status_code == 200, r.text
@@ -43,6 +62,18 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     uid = units[3]["id"]
     s = await web["ad"].get(f"/api/learn/units/{uid}/session?preview=true")
     assert s.status_code == 200, s.text
+    r = await web["ad"].get("/api/learn/courses/se-paa-fugle/units?preview=true")
+    assert r.status_code == 200, r.text
+    assert len(r.json()["units"]) == 21
+    for u in r.json()["units"]:  # alle lektioner kan afspilles (silhuetter, generatorer uden data springes over)
+        s = await web["ad"].get(f"/api/learn/units/{u['id']}/session?preview=true")
+        assert s.status_code == 200, s.text
+    r = await web["ad"].get("/api/learn/courses/fugle-100/units?preview=true")
+    assert r.status_code == 200, r.text
+    assert len(r.json()["units"]) == 31
+    for u in r.json()["units"]:  # alle lektioner i 100-arter-kurset kan afspilles (fotoreferencer uden fotos i basen bliver blot tomme)
+        s = await web["ad"].get(f"/api/learn/units/{u['id']}/session?preview=true")
+        assert s.status_code == 200, s.text
 
 
 async def _photo(s, pid, nf, artnr, latin, likes, ret, samtykke=False, flere=False):
@@ -128,6 +159,18 @@ async def test_foto_reference_med_alder(db):  # noqa: F811
         await s.commit()
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "adfaerd": "Flyvende"}) == 912
         assert await learn_play.photo_by_ref(s, {"artnr": 5930, "adfaerd": "Flyvende", "alder": "Adult (udfarvet)"}) is None
+        # dragt: vadefugle skifter dragt, så et erstatningsfoto skal vise den dragt, teksten beskriver
+        await s.execute(text("INSERT INTO gal_codes (kind, code, text, sort) VALUES ('dragt', 'v', 'Vinterdragt', 2) ON CONFLICT DO NOTHING"))
+        await s.execute(text("UPDATE gal_birds SET dragt = 'v' WHERE photo_id = 912"))
+        await s.commit()
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "dragt": "Vinterdragt"}) == 912
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "dragt": "Sommerdragt/yngledragt"}) is None
+        # køn: et erstatningsfoto til «han»/«hun» skal vise samme køn
+        await s.execute(text("INSERT INTO gal_codes (kind, code, text, sort) VALUES ('koen', 'hun', 'Hun', 2) ON CONFLICT DO NOTHING"))
+        await s.execute(text("UPDATE gal_birds SET koen = 'hun' WHERE photo_id = 912"))
+        await s.commit()
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "koen": "Hun"}) == 912
+        assert await learn_play.photo_by_ref(s, {"artnr": 5930, "koen": "Han"}) is None
 
 
 async def test_forsidebillede_og_banner(web, db):  # noqa: F811

@@ -154,23 +154,24 @@ async def test_traekrute_startindhold_som_kladder(web, db):  # noqa: F811
 
     async with db() as s:
         n = await learning.seed_traekrute(s)
-    assert n == 16  # 6 kurser + 10 øvelser (de fire indbyggede funktioner er ikke importeret)
+    assert n == 11  # 1 kursus + 10 øvelser (de fire indbyggede funktioner og de fem metodekurser, som «Se på fugle» afløser, importeres ikke)
     async with db() as s:
         assert await learning.seed_traekrute(s) == 0  # kun én gang
         rows = (await s.execute(text("SELECT slug, kind, published, (SELECT count(*) FROM lr_units u WHERE u.course_id = c.id) AS u, (SELECT count(*) FROM questions q WHERE q.course_id = c.id) AS q FROM courses c ORDER BY slug"))).mappings().all()
-        assert len(rows) == 16 and not any(r["published"] for r in rows)
+        assert len(rows) == 11 and not any(r["published"] for r in rows)
         by = {r["slug"]: r for r in rows}
-        assert by["iagttag-foer-du-navngiver"]["u"] == 4 and by["iagttag-foer-du-navngiver"]["q"] == 10 and by["glimt"]["u"] == 0
+        assert by["selvstaendigt-feltarbejde"]["u"] == 3 and by["selvstaendigt-feltarbejde"]["q"] == 3 and by["glimt"]["u"] == 0
+        assert "iagttag-foer-du-navngiver" not in by
         assert "fugl-for-fugl" not in by and "mine-fejl" not in by
         gen = (await s.execute(text("SELECT c.slug, q.type FROM questions q JOIN courses c ON c.id = q.course_id WHERE q.type LIKE 'obs_%' ORDER BY 1"))).all()
         assert gen == [("habitatdetektiv", "obs_habitat"), ("observationsodds", "obs_odds"), ("saesonskift", "obs_saeson")]
         paths = {r[0]: r[1] for r in (await s.execute(text("SELECT slug, (SELECT count(*) FROM lr_path_items i WHERE i.path_id = p.id) FROM lr_paths p"))).all()}
-        assert paths == {"fra-nysgerrig-til-feltbisse": 11, "laer-50-almindelige-fugle": 10, "vadefugle-i-traekket": 4}
+        assert paths == {"fra-nysgerrig-til-feltbisse": 6, "laer-50-almindelige-fugle": 10, "vadefugle-i-traekket": 4}  # uden pakken mangler «Se på fugle»
     # kladdekurserne har ingen fejl (kun advarsler om manglende forklaring m.m.), så de kan publiceres af en redaktør
     await flags(db, laering_portal="on", laering_byg="on", laering_forloeb="on")
     ov = {c["slug"]: c for c in (await web["ad"].get("/api/learn/byg/oversigt")).json()}
-    assert ov["iagttag-foer-du-navngiver"]["fejl"] == 0 and ov["habitatdetektiv"]["fejl"] == 0
-    assert (await web["ad"].post("/api/learn/byg/kurser/iagttag-foer-du-navngiver/publicer")).status_code == 200
+    assert ov["selvstaendigt-feltarbejde"]["fejl"] == 0 and ov["habitatdetektiv"]["fejl"] == 0
+    assert (await web["ad"].post("/api/learn/byg/kurser/selvstaendigt-feltarbejde/publicer")).status_code == 200
     # forløbet kan ikke publiceres, før alle kurserne er det
     r = await web["ad"].post("/api/learn/byg/forloeb/fra-nysgerrig-til-feltbisse/publicer")
     assert r.status_code == 400 and "ikke publiceret" in r.json()["detail"]["warnings"][0]["msg"]

@@ -148,7 +148,7 @@ async def sound_media(db: AsyncSession, rec_id: int, hide: bool) -> dict | None:
 
 async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
     """``{"nf": <netfugl-nr>}`` = et bestemt foto fra netfugl-arkivet; ``{"artnr"|"latin": …, "n": k}`` = artens k'te mest likede
-    publicerede enkeltfugl-foto, evt. kun med en bestemt ``alder`` (fotobibliotekets aldertekst). Begge kan angives – ``nf`` prøves først.
+    publicerede enkeltfugl-foto, evt. kun med en bestemt ``koen``, ``alder``, ``adfaerd`` og/eller ``dragt`` (fotobibliotekets tekster). Begge kan angives – ``nf`` prøves først.
 
     Alle publicerede fotos kan bruges (DOF.tool overtager netfugl-arkivet). Med ``alder`` vælges kun et foto af samme alder; findes det ikke,
     returneres ``None`` – blokken vises uden foto, og byggeren advarer."""
@@ -166,16 +166,22 @@ async def photo_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
         return None
     alder = str(ref.get("alder") or "").strip() or None  # fx «1. kalenderår» – vigtigt for måger: et erstatningsfoto skal have samme alder
     adfaerd = str(ref.get("adfaerd") or "").strip() or None  # fx «Flyvende» – vigtigt for rovfugle, der bestemmes i flugt
+    dragt = str(ref.get("dragt") or "").strip() or None  # fx «Vinterdragt» – vigtigt for vadefugle, der skifter dragt
+    koen = str(ref.get("koen") or "").strip() or None  # «Han»/«Hun» – vigtigt for kønsforskelle: et erstatningsfoto skal vise samme køn
     return (await db.execute(text(f"""{base} AND NOT ('tvivl_art' = ANY(p.tags))
           AND EXISTS (SELECT 1 FROM gal_birds b WHERE b.photo_id = p.id AND b.pos = 0
                       AND (b.artnr = :a OR (CAST(:a AS int) IS NULL AND lower(b.latin) = lower(:l)))
                       AND (CAST(:alder AS text) IS NULL OR EXISTS (SELECT 1 FROM gal_codes gc WHERE gc.kind = 'alder' AND gc.code = b.alder
                                                                   AND lower(gc.text) = lower(:alder)))
                       AND (CAST(:adf AS text) IS NULL OR EXISTS (SELECT 1 FROM gal_codes gc WHERE gc.kind = 'adfaerd' AND gc.code = b.adfaerd
-                                                                AND lower(gc.text) = lower(:adf))))
+                                                                AND lower(gc.text) = lower(:adf)))
+                      AND (CAST(:dragt AS text) IS NULL OR EXISTS (SELECT 1 FROM gal_codes gc WHERE gc.kind = 'dragt' AND gc.code = b.dragt
+                                                                  AND lower(gc.text) = lower(:dragt)))
+                      AND (CAST(:koen AS text) IS NULL OR EXISTS (SELECT 1 FROM gal_codes gc WHERE gc.kind = 'koen' AND gc.code = b.koen
+                                                                 AND lower(gc.text) = lower(:koen))))
           AND NOT EXISTS (SELECT 1 FROM gal_birds b2 WHERE b2.photo_id = p.id AND b2.pos > 0)
         ORDER BY p.likes DESC, p.views DESC, p.id LIMIT 1 OFFSET :o"""),
-        {"a": artnr, "l": latin, "alder": alder, "adf": adfaerd, "o": max(0, min(int(ref.get("n") or 0), 50))})).scalar()
+        {"a": artnr, "l": latin, "alder": alder, "adf": adfaerd, "dragt": dragt, "koen": koen, "o": max(0, min(int(ref.get("n") or 0), 50))})).scalar()
 
 
 async def course_cover(db: AsyncSession, c: Course) -> dict | None:

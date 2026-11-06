@@ -52,7 +52,7 @@ async def init_db() -> None:
             await ensure_superadmin(s)
             await seed_courses(s)
             await migrate_v2(s)
-            for seed in (seed_traekrute, seed_packs):
+            for seed in (seed_packs, seed_traekrute):  # pakkerne først: forløbet «Fra nysgerrig til feltbisse» bruger «Se på fugle»
                 try:
                     await seed(s)
                 except Exception:  # noqa: BLE001 – startindholdet må aldrig vælte opstarten

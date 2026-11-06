@@ -260,6 +260,10 @@ async def migrate_v2(session: AsyncSession) -> int:
 SEED_KEY = "laering_seed_v1"
 # Øvelser fra Trækrute, der nu er indbyggede funktioner (Repetition, Færdighedstest, Fugl for fugl) – de importeres ikke
 SKIP_DRILLS = {"mine-fejl", "faerdighedstest", "fugl-for-fugl", "familiequiz"}
+# Trækrutes fem metodekurser er afløst af det samlede kursus «Se på fugle» (pakken se-paa-fugle.json) og importeres ikke længere.
+# Allerede importerede kladder røres ikke (startindhold rører aldrig et kursus efter første import) – en redaktør kan slette dem.
+SKIP_COURSES = {"iagttag-foer-du-navngiver", "en-bestemmelse-du-kan-forklare", "kend-dine-lokale-fugle", "fuglekig-naar-forholdene-skifter",
+                "vanskelige-observationer"}
 # Øvelser, der får datadrevne aktiviteter ovenpå de statiske spørgsmål
 GENERATED = {
     "habitatdetektiv": [{"type": "obs_habitat", "prompt": "", "config": {"antal": 3, "n_valg": 3}}],
@@ -288,7 +292,7 @@ async def seed_traekrute(session: AsyncSession) -> int:
     data = json.loads(path.read_text(encoding="utf-8"))
     data["drills"] = [d for d in data.get("drills", []) if d["slug"] not in SKIP_DRILLS]
     existing = {r for r in (await session.execute(text("SELECT slug FROM courses"))).scalars()}
-    data["courses"] = [c for c in data["courses"] if c["slug"] not in existing]
+    data["courses"] = [c for c in data["courses"] if c["slug"] not in existing | SKIP_COURSES]
     data["drills"] = [d for d in data["drills"] if d["slug"] not in existing]
     report = await learn_build.import_courses(session, _System(), data)  # type: ignore[arg-type]
     for slug, acts in GENERATED.items():
@@ -309,8 +313,9 @@ async def seed_traekrute(session: AsyncSession) -> int:
 
 # Kursuspakker i DOF.tool-formatet (``learn_build.export_courses``, "laering-v2"): importeres én gang som KLADDER, så en redaktør
 # kan gennemlæse, skifte fotos/lyde og publicere. Nøglen er markøren i indstillingerne; ny version af en pakke = ny nøgle.
-SEED_PACKS = {"phylloscopus.json": "laering_seed_phylloscopus_v1", "maager.json": "laering_seed_maager_v1",
-              "rovfugle.json": "laering_seed_rovfugle_v1", "havfugle.json": "laering_seed_havfugle_v1"}
+SEED_PACKS = {"se-paa-fugle.json": "laering_seed_se_paa_fugle_v1", "phylloscopus.json": "laering_seed_phylloscopus_v1", "maager.json": "laering_seed_maager_v1",
+              "rovfugle.json": "laering_seed_rovfugle_v1", "havfugle.json": "laering_seed_havfugle_v1",
+              "vadefugle.json": "laering_seed_vadefugle_v1", "fugle100.json": "laering_seed_fugle100_v1"}
 
 
 async def seed_packs(session: AsyncSession) -> int:
@@ -363,21 +368,17 @@ async def _seed_paths(session: AsyncSession) -> None:
         for i, it in enumerate(items):
             session.add(LrPathItem(path_id=p.id, position=i, unlock=it.pop("unlock", {"after": "none"}), **it))
 
-    kurser = ["iagttag-foer-du-navngiver", "en-bestemmelse-du-kan-forklare", "kend-dine-lokale-fugle", "fuglekig-naar-forholdene-skifter", "vanskelige-observationer", "selvstaendigt-feltarbejde"]
-    ids = {s: await course_id(s) for s in kurser + ["habitatdetektiv", "silhuet-foerst", "lignende-arter", "laes-sporene"]}
+    ids = {s: await course_id(s) for s in ["se-paa-fugle", "selvstaendigt-feltarbejde", "habitatdetektiv", "silhuet-foerst", "lignende-arter", "laes-sporene"]}
     nxt = {"after": "previous"}
-    items = [{"kind": "kursus", "section": "Uge 1 – Iagttag", "course_id": ids[kurser[0]], "min_score_pct": 60},
-             {"kind": "ovelse", "section": "Uge 1 – Iagttag", "course_id": ids["silhuet-foerst"], "required": False, "title": "Silhuet først"},
-             {"kind": "felt", "section": "Uge 1 – Iagttag", "unlock": nxt, "field_task": felt("Beskriv tre fugle uden at navngive dem", "Gå en tur, og notér form, størrelse og bevægelse for tre fugle, før du ser efter navnet.", {"min_arter": 3}, "selv")},
-             {"kind": "kursus", "section": "Uge 2 – Bestemmelse", "course_id": ids[kurser[1]], "unlock": nxt, "min_score_pct": 60},
-             {"kind": "ovelse", "section": "Uge 2 – Bestemmelse", "course_id": ids["habitatdetektiv"], "required": False},
-             {"kind": "kursus", "section": "Uge 3 – Lokalt", "course_id": ids[kurser[2]], "unlock": nxt},
-             {"kind": "felt", "section": "Uge 3 – Lokalt", "unlock": nxt, "field_task": felt("Indrapportér mindst 10 arter på en lokal tur", "Indtast turen i DOFbasen – så afkrydses opgaven.", {"min_arter": 10}, "auto")},
-             {"kind": "kursus", "section": "Uge 4 – Forhold og vanskeligheder", "course_id": ids[kurser[3]], "unlock": nxt},
-             {"kind": "kursus", "section": "Uge 4 – Forhold og vanskeligheder", "course_id": ids[kurser[4]], "unlock": nxt},
-             {"kind": "kursus", "section": "Uge 5 – Selvstændighed", "course_id": ids[kurser[5]], "unlock": nxt},
+    items = [{"kind": "kursus", "section": "Uge 1–4 – Se på fugle", "course_id": ids["se-paa-fugle"], "min_score_pct": 60},
+             {"kind": "ovelse", "section": "Uge 1–4 – Se på fugle", "course_id": ids["silhuet-foerst"], "required": False, "title": "Silhuet først"},
+             {"kind": "felt", "section": "Uge 1–4 – Se på fugle", "unlock": nxt, "field_task": felt("Beskriv tre fugle uden at navngive dem", "Gå en tur, og notér form, størrelse og bevægelse for tre fugle, før du ser efter navnet.", {"min_arter": 3}, "selv")},
+             {"kind": "ovelse", "section": "Uge 1–4 – Se på fugle", "course_id": ids["habitatdetektiv"], "required": False},
+             {"kind": "felt", "section": "Uge 1–4 – Se på fugle", "unlock": nxt, "field_task": felt("Indrapportér mindst 10 arter på en lokal tur", "Indtast turen i DOFbasen – så afkrydses opgaven.", {"min_arter": 10}, "auto")},
+             {"kind": "kursus", "section": "Uge 5 – Selvstændighed", "course_id": ids["selvstaendigt-feltarbejde"], "unlock": nxt},
              {"kind": "felt", "section": "Uge 5 – Selvstændighed", "unlock": nxt, "field_task": felt("Planlæg og gennemfør en tur – og forklar én bestemmelse", "Fortæl underviseren, hvordan du kom frem til en bestemmelse.", {"min_arter": 5}, "underviser")}]
-    await make("fra-nysgerrig-til-feltbisse", "Fra nysgerrig til feltbisse", "Seks kurser og fire feltopgaver, der gør dig til en mere sikker og ærlig fuglebestemmer.", "begynder", items)
+    items = [it for it in items if it["kind"] not in ("kursus", "ovelse") or it["course_id"]]  # et kursus, der ikke findes, springes over
+    await make("fra-nysgerrig-til-feltbisse", "Fra nysgerrig til feltbisse", "Kurset «Se på fugle», selvstændigt feltarbejde og tre feltopgaver, der gør dig til en mere sikker og ærlig fuglebestemmer.", "begynder", items)
     groups = [("Uge 1 – Haven", "spurvefugle"), ("Uge 2 – Skov og krat", "sangere"), ("Uge 3 – Drosler og finker", "drosler"), ("Uge 4 – Søer og enge", "aender"), ("Uge 5 – Kysten", "maager")]
     tr = []
     for sec, g in groups:

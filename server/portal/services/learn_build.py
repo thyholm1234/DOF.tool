@@ -247,7 +247,7 @@ async def _ref_name(db: AsyncSession, r: dict) -> str:
 
 
 def _clean_ref(r) -> dict | None:
-    """En medie-reference: ``nf`` (netfugl-foto), ``xc`` (xeno-canto-nr.), ``artnr``, ``n`` (tal) og ``latin``, ``type`` (sang/kald)."""
+    """En medie-reference: ``nf`` (netfugl-foto), ``xc`` (xeno-canto-nr.), ``artnr``, ``n`` (tal) og ``latin``, ``type`` (sang/kald), ``koen``, ``alder``, ``adfaerd``, ``dragt``."""
     if not isinstance(r, dict):
         return None
     out: dict = {}
@@ -258,7 +258,7 @@ def _clean_ref(r) -> dict | None:
         out["latin"] = r["latin"].strip()[:80]
     if r.get("type") in ("sang", "kald"):
         out["type"] = r["type"]
-    for k in ("alder", "adfaerd"):
+    for k in ("koen", "alder", "adfaerd", "dragt"):
         if isinstance(r.get(k), str) and r[k].strip():
             out[k] = r[k].strip()[:40]
     return out or None
