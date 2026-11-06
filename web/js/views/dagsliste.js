@@ -54,7 +54,7 @@ function initPopup(root) {
 
 export async function render(view) {
   if (!state.user?.dagsliste) {
-    view.append(h("div", { class: "notice" }, "Dagslisten er ikke slået til.",
+    view.append(h("div", { class: "notice" }, "Observationer er ikke slået til.",
       state.user?.role === "superadmin" ? [" ", h("a", { href: "#/admin?tab=funktioner" }, "Slå den til under Admin → Funktioner")] : null));
     return;
   }
@@ -96,7 +96,7 @@ export async function render(view) {
       select("Afdeling", [["", "Hele landet"], ...afd.map(a => [a.id, a.navn])], st.lok, v => go({ lok: v })),
       h("div", { class: "dl-field dl-save" }, h("span", { class: "muted small" }, "Standard"),
         h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
-          h("button", { class: "btn sm", type: "button", disabled: isDefault(), title: "Brug denne visning, når du åbner Dagslisten", onclick: () => { saved = view_(); store(KEY, saved); toast("Gemt som standardvisning"); drawFilters(); } }, isDefault() && Object.keys(saved).length ? "✓ Standard" : "Gem som standard"),
+          h("button", { class: "btn sm", type: "button", disabled: isDefault(), title: "Brug denne visning, når du åbner Observationer", onclick: () => { saved = view_(); store(KEY, saved); toast("Gemt som standardvisning"); drawFilters(); } }, isDefault() && Object.keys(saved).length ? "✓ Standard" : "Gem som standard"),
           Object.keys(saved).length ? h("button", { class: "btn sm", type: "button", title: "Fjern din standardvisning", onclick: () => { saved = {}; localStorage.removeItem(KEY); toast("Standardvisningen er fjernet"); drawFilters(); } }, "Nulstil") : null)),
       st.lokalitet ? h("div", { class: "dl-field" }, h("span", { class: "muted small" }, "Lokalitet"),
         h("button", { class: "btn sm", type: "button", onclick: () => go({ lokalitet: "" }) }, "Kun én lokalitet ✕")) : null);
@@ -178,7 +178,7 @@ export async function render(view) {
       d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...groups(rows, st.dato)])) : null);
   }
 
-  view.append(h("h1", {}, "Dagsliste"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
+  view.append(h("h1", {}, "Observationer"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
   drawFilters();
   initPopup(out);
   load();

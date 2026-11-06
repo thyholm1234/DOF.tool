@@ -11,7 +11,7 @@ export async function render(view, [date, artnr, loknr]) {
   view.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } }));
   let t;
   try { t = await api(`/api/thread/${date}/${artnr}/${loknr}`); }
-  catch (err) { view.replaceChildren(errorBox(err), h("p", {}, h("a", { href: "#/" }, "← Tilbage til feedet"))); return; }
+  catch (err) { view.replaceChildren(errorBox(err), h("p", {}, h("a", { href: "#/" }, "← Mit overblik"))); return; }
 
   const obs = t.observations;
   const reps = t.reports || [];
@@ -58,7 +58,7 @@ export async function render(view, [date, artnr, loknr]) {
   };
 
   view.replaceChildren(
-    h("p", {}, backLink("#/", "Feed")),
+    h("p", {}, backLink("#/", "Mit overblik")),
     h("div", { class: "page-head" },
       h("div", {},
         h("div", { class: "row" }, tag(best, KAT[best]), badgeEl, h("span", { class: "muted" }, fmtDate(date))),

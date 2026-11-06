@@ -34,7 +34,7 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "search": ("Søg i observationer", "Søgeside (menuen Statistik → Søg) med samme felter som DOFbasens søgning: resultatet "
                "listes efter dato og kan sorteres på alle kolonner, et kort viser alle fundene, og resultatet kan hentes som CSV, "
                "ODS eller XLSX.", None, "preview"),
-    "dagsliste": ("Dagsliste: traditionel observationsliste", "Menupunktet Nu og her → Dagsliste: dagens observationer som en klassisk liste "
+    "dagsliste": ("Observationer: traditionel observationsliste (dagsliste)", "Menupunktet Nu og her → Observationer: dagens observationer som en klassisk liste "
                   "med samme filtre som DOFbasens observationsside – visning (bemærkelsesværdige, alle, sjældne, trækkende), dato med "
                   "dag frem/tilbage, sortering på art eller lokalitet, summering (tur/dato/ingen) og lokalafdeling.", None, "preview"),
     "statistik": ("Statistik-modulet", "Menupunktet Statistik → Statistik med fanerne Arter pr. år (flyttes hertil fra Lister) "

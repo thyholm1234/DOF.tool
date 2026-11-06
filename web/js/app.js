@@ -10,7 +10,7 @@ applyTheme();  // straks, så siden ikke blinker i det forkerte tema
 
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
-  ["Nu og her", [["#/", "now", "Nu"]]],
+  ["Nu og her", [["#/", "now", "Mit overblik"]]],
   ["Ud i felten", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
   ["Statistik", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
@@ -22,7 +22,7 @@ const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
 const ARTIKLER = ["#/artikler", "news", "Artikler"];
 const FOTOS = ["#/fotos", "camera", "Fotos"];
 const KRYDS = ["#/krydslister", "list", "Krydslister"];
-const DAGSLISTE = ["#/dagsliste", "list", "Dagsliste"];
+const DAGSLISTE = ["#/dagsliste", "list", "Observationer"];
 const SEARCH = ["#/soeg", "search", "Søg"];
 const STATS = ["#/statistik", "chart", "Statistik"];
 const OBSERVERS = ["#/observator", "user", "Observatører"];
@@ -35,7 +35,7 @@ function sections() {
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
   // Statistik-modulet og Søg under Statistik, når funktionerne er synlige for brugeren
   const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler ? OBSERVERS : null].filter(Boolean);
-  const dl = state.user?.dagsliste ? DAGSLISTE : null;  // Dagslisten står lige under Nu
+  const dl = state.user?.dagsliste ? DAGSLISTE : null;  // Observationer (dagslisten) står lige under Mit overblik
   if (!extra.length && !dku && !stat.length && !dl) return SECTIONS;
   return SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku]
     : t === "Statistik" ? [...items, ...stat] : items]);
@@ -309,7 +309,7 @@ function rememberFrom() {
     const exact = navItem(p);
     const h1 = $("#view h1")?.textContent.trim();
     const near = navItem(activeHref(p, NAV.map(n => n[0])) || "");
-    const label = p === "#/" || p === "#" ? "Feed" : exact ? exact[2] : h1 && h1.length <= 40 ? h1 : near ? near[2] : "Tilbage";
+    const label = p === "#/" || p === "#" ? "Mit overblik" : exact ? exact[2] : h1 && h1.length <= 40 ? h1 : near ? near[2] : "Tilbage";
     from = { hash: prev, label: label.replace(/<[^>]*>/g, "").trim() };
   }
   history.replaceState({ ...history.state, from }, "");
