@@ -1079,7 +1079,11 @@ a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brig
   .dl-field > span.small { display: none; }
   .dl-field select, .dl-field input, .dl-field .btn { width: 100%; font-size: .85rem; padding-top: 5px; padding-bottom: 5px; min-height: 0; }
   .dl-field.dl-date, .dl-field.dl-save { grid-column: 1 / -1; }
-  .dl-date .row { gap: 4px; } .dl-date input { flex: 1; min-width: 0; } .dl-save .row { display: grid; grid-template-columns: 1fr auto; }
+  /* Datolinjen: ‹ [dato] › [I dag] – knapperne kun så brede som indholdet, datofeltet tager resten */
+  .dl-date .row { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px auto; gap: 4px; }
+  .dl-date .row .btn { width: auto; padding-left: 10px; padding-right: 10px; }
+  .dl-date input { width: 100%; min-width: 0; -webkit-appearance: none; appearance: none; text-align: center; min-height: 32px; }
+  .dl-filters > .dl-field:first-child { grid-column: 1 / -1; }  /* visningen har lange navne: hele bredden */ .dl-save .row { display: grid; grid-template-columns: 1fr auto; }
   .dl-table tr.dl-head td { border-bottom: 1px solid var(--line); padding-bottom: 3px; }
   .dl-table tr.dl-head + tr:not(.dl-head):not(.dl-afd) td { padding-top: 5px; }  /* luft mellem stregen og første linje */
 }
