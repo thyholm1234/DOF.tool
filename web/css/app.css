@@ -1054,7 +1054,7 @@ body.is-viewas .topbar { top: 34px; }
 .dl-ic { display: inline-flex; vertical-align: -2px; margin-right: 2px; }
 .dl-ic .ic { width: 14px; height: 14px; }
 .dl-notes .dl-ic .ic { fill: currentColor; }
-.dl-sum { color: #f2c200; } .dl-tur { color: #e0821e; } .dl-vejr { color: #2e9e3a; } .dl-obs { color: #1e7fc4; } .dl-med { color: #6cb4f0; }
+.dl-sum { color: #f2c200; } .dl-tur { color: #e0821e; } .dl-vejr { color: #2e9e3a; } .dl-obs { color: #000; } .dl-notes .dl-obs .ic { fill: #fff; } .dl-med { color: #6cb4f0; }
 .dl-extra .dl-ic { color: var(--muted, #667); }
 .dl-obs-m { display: none; }
 @media (max-width: 640px) {
