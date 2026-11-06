@@ -96,16 +96,14 @@ async def course_units(slug: str, preview: bool = False, user: User | None = Dep
     st = await learn_play.struct(db, c, preview)
     ids = [u["id"] for u in st["units"] if u["id"]]
     states = learn_play.unit_states([u for u in st["units"] if u["id"]], await learn_play.unit_progress_map(db, user, ids))
-    units = []
-    for u, s in zip([u for u in st["units"] if u["id"]], states):
-        units.append({"id": u["id"], "title": u["title"], "html": await learn_play.render_md(db, u["lesson_md"]), "blocks": await learn_play.resolve_blocks(db, u["blocks"]),
-                      "n_acts": len(u["acts"]), "est_minutes": u["est_minutes"], "min_score_pct": u["min_score_pct"], **s})
+    # kun lektionslisten – indholdet (tekst, fotos, lyd) hentes lektion for lektion med /units/{id}/indhold, så store kurser åbner hurtigt
+    units = [{"id": u["id"], "title": u["title"], "n_acts": len(u["acts"]), "n_blocks": len(u["blocks"]), "est_minutes": u["est_minutes"],
+              "min_score_pct": u["min_score_pct"], **s} for u, s in zip([u for u in st["units"] if u["id"]], states)]
     return {"course": {**st["course"], "cover": await learn_play.course_cover(db, c)}, "units": units, "preview": preview, "anonymous": user is None}
 
 
-@router.get("/units/{unit_id}/session")
-async def unit_session(unit_id: int, preview: bool = False, user: User | None = Depends(_portal), db: AsyncSession = Depends(get_session)):
-    await _rate(user, "session", 60)
+async def _open_unit(db: AsyncSession, unit_id: int, user: User | None, preview: bool) -> tuple[Course, dict, dict, bool]:
+    """Lektionen, som brugeren må se: (kursus, struktur, lektion, forhåndsvisning). 404 hvis den ikke findes, 403 hvis den er låst."""
     u = await db.get(Unit, unit_id)
     c = await db.get(Course, u.course_id) if u else None
     if u is None or c is None or not await learn_play.can_view(db, user, c):
@@ -119,6 +117,19 @@ async def unit_session(unit_id: int, preview: bool = False, user: User | None = 
     states = learn_play.unit_states(units, await learn_play.unit_progress_map(db, user, [x["id"] for x in units]))
     if states[units.index(unit)]["locked"] and not preview:
         raise HTTPException(403, "Lektionen er låst – klar den forrige først")
+    return c, st, unit, preview
+
+
+@router.get("/units/{unit_id}/indhold")
+async def unit_content(unit_id: int, preview: bool = False, user: User | None = Depends(_portal), db: AsyncSession = Depends(get_session)):
+    c, st, unit, preview = await _open_unit(db, unit_id, user, preview)
+    return await learn_play.unit_content(db, c.id, None if preview else st["course"].get("version"), unit)
+
+
+@router.get("/units/{unit_id}/session")
+async def unit_session(unit_id: int, preview: bool = False, user: User | None = Depends(_portal), db: AsyncSession = Depends(get_session)):
+    await _rate(user, "session", 60)
+    c, st, unit, preview = await _open_unit(db, unit_id, user, preview)
     return {"course": st["course"], "unit": {"id": unit_id, "title": unit["title"]}, "questions": await learn_play.unit_questions(db, user, st, unit)}
 
 

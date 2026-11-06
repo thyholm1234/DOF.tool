@@ -58,7 +58,13 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     r = await web["ad"].get("/api/learn/courses/phylloscopus/units?preview=true")
     assert r.status_code == 200, r.text
     units = r.json()["units"]
-    assert len(units) == 13 and "<table>" in "".join(b.get("html", "") for u in units for b in u["blocks"])
+    assert len(units) == 13 and "blocks" not in units[0] and units[0]["n_blocks"] > 0  # kun lektionslisten – indholdet hentes pr. lektion
+    html = ""
+    for u in units:
+        ind = await web["ad"].get(f"/api/learn/units/{u['id']}/indhold?preview=true")
+        assert ind.status_code == 200, ind.text
+        html += "".join(b.get("html", "") for b in ind.json()["blocks"])
+    assert "<table>" in html
     uid = units[3]["id"]
     s = await web["ad"].get(f"/api/learn/units/{uid}/session?preview=true")
     assert s.status_code == 200, s.text

@@ -45,8 +45,29 @@ export function banner(cover, alt = "") {
 }
 
 /** Medie til et spørgsmål eller en blok: foto, lyd, silhuet, to fotos side om side. */
+/** Klik på et foto i læringsmodulet åbner det stort (Esc, klik eller ✕ lukker). Én delegeret lytter dækker alle fotos. */
+let lightboxOn = false;
+function initLightbox() {
+  if (lightboxOn) return;
+  lightboxOn = true;
+  const close = () => { document.querySelector(".lr-lightbox")?.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("click", e => {
+    const img = e.target instanceof Element ? e.target.closest(".lr-media img") : null;
+    if (!img) return;
+    close();
+    const cap = img.closest("figure")?.querySelector("figcaption")?.textContent;
+    const box = h("div", { class: "lr-lightbox", role: "dialog", "aria-label": "Foto i stort format", onclick: close },
+      h("button", { class: "lr-lightbox-x", "aria-label": "Luk", onclick: close }, "✕"),
+      h("img", { src: img.currentSrc || img.src, alt: img.alt }), cap ? h("p", {}, cap) : null);
+    document.body.append(box);
+    document.addEventListener("keydown", onKey);
+  });
+}
+
 export function mediaEl(m, { onHidden } = {}) {
   if (!m || !m.kind) return null;
+  initLightbox();
   if (m.kind === "silhouette") {
     const f = h("figure", { class: "lr-media lr-sil", style: { background: hueOf(m.hue) } });
     f.append(silEl(m.value, { label: "Silhuet af en fugl" }));

@@ -55,7 +55,9 @@ async def test_byg_publicer_og_laast_kopi(web, db):  # noqa: F811
     assert (await t.get(f"/api/learn/courses/{slug}/units")).status_code == 200
     await db_set(db, f"UPDATE courses SET visibility = 'login' WHERE slug = '{slug}'")
     u = (await web["a2"].get(f"/api/learn/courses/{slug}/units")).json()
-    assert u["units"][0]["title"] == "Start" and "<strong>verden</strong>" in u["units"][0]["html"]
+    assert u["units"][0]["title"] == "Start"
+    ind = (await web["a2"].get(f"/api/learn/units/{uid}/indhold")).json()
+    assert "<strong>verden</strong>" in ind["html"]
     # ændring efter publicering ses ikke af brugerne, før der publiceres igen
     await t.put(f"/api/learn/byg/kurser/{slug}/aktiviteter/{aid}", json={"unit_id": uid, "type": "valg", "prompt": "ÆNDRET", "choices": ch(("A", True), ("B", False))})
     assert (await t.get(f"/api/learn/byg/kurser/{slug}")).json()["changed"]

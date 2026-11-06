@@ -352,7 +352,8 @@ Port af Trækrutes `player.js` til `h()` og API-kald:
 
 | Metode | Sti | Hvad |
 |---|---|---|
-| GET | `/api/learn/courses/{slug}/units` | Lektioner med læsetekst (renderet HTML) og låsestatus |
+| GET | `/api/learn/courses/{slug}/units` | Lektionslisten med låsestatus og antal blokke/aktiviteter (uden indhold, så store kurser åbner hurtigt) |
+| GET | `/api/learn/units/{id}/indhold` | Én lektions læsetekst og blokke med fotos/lyd løst fra referencer; caches en time pr. publiceret version (ikke i forhåndsvisning). Låst lektion → 403 |
 | GET | `/api/learn/units/{id}/session` | Lektionens aktiviteter, klar til afspilning (statiske uden facit, generatorer udfoldet til konkrete spørgsmål med token) |
 | GET | `/api/learn/ovelser/{slug}/session?n=10&mode=smart\|random\|tid` | Øvelse |
 | POST | `/api/learn/svar` | `{question_id?|token?, chosen?: [int], text?: str, order?: [int], point?: {x,y}, confidence?, ms?, niveau?}` → `{correct, honest?, correct_ids, explanation, reveal:{art, foto…}}`. Skriver `lr_answers`, `question_progress`/`lr_species_mastery`. Erstatter på sigt `/answer`, `/auto/answer`, `/arter/svar`, `/lyd/svar` (de gamle beholdes som tynde indpakninger, til de gamle visninger er væk). |

@@ -8,6 +8,7 @@ før svaret er afgivet. Alle spørgsmål har et ``id``: et tal for statiske, ell
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import random
 import re
@@ -17,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from portal import cache
 from portal.cache import kv
 from portal.models import Course, LrAnswer, LrSpeciesMastery, Question, QuestionProgress, Unit, User
 from portal.services import learn_access, learn_gen, learning, sound_quiz, species_quiz
@@ -191,9 +193,15 @@ async def course_cover(db: AsyncSession, c: Course) -> dict | None:
         r = (await db.execute(text("SELECT medium_key, storage_key, credit FROM content_media WHERE id = :i"), {"i": c.cover_media_id})).mappings().first()
         if r:
             return {"url": "/media/art/" + (r["medium_key"] or r["storage_key"]), "credit": r["credit"] or ""}
-    if c.cover_ref and (pid := await photo_by_ref(db, c.cover_ref)) and (m := await photo_media(db, pid)):
-        return {"url": m["value"], "credit": m["credit"]}
-    return None
+    if not c.cover_ref:
+        return None
+    key = "lr:cover:" + hashlib.sha1(json.dumps(c.cover_ref, sort_keys=True).encode()).hexdigest()
+    if (hit := await cache.get_json(key)) is not None:  # kataloget viser alle kursers forsider – opslaget er dyrt, så det caches
+        return hit or None
+    m = await photo_media(db, pid) if (pid := await photo_by_ref(db, c.cover_ref)) else None
+    out = {"url": m["value"], "credit": m["credit"]} if m else {}
+    await cache.set_json(key, out, 600)
+    return out or None
 
 
 async def banner(db: AsyncSession) -> dict | None:
@@ -587,10 +595,31 @@ async def render_md(db: AsyncSession, md: str | None) -> str:
     return (await content_render.render_for(db, md or "", "artikel")).html if md else ""
 
 
+UNIT_TTL = 3600  # en publiceret lektions færdige indhold caches en time (fotos/lyde løses fra referencer, og det er dyrt)
+
+
+async def unit_content(db: AsyncSession, course_id: int, version: int | None, unit: dict) -> dict:
+    """Én lektions læsetekst og indholdsblokke klar til visning. En publiceret version (``version``) ændres aldrig, så resultatet caches;
+    redaktørens forhåndsvisning (``version=None``) løses altid på ny."""
+    async def build() -> dict:
+        return {"html": await render_md(db, unit["lesson_md"]), "blocks": await resolve_blocks(db, unit["blocks"])}
+
+    if version is None:
+        return await build()
+    return await cache.cached(f"lr:indhold:{course_id}:v{version}:{unit['id']}", UNIT_TTL, build)
+
+
 async def resolve_blocks(db: AsyncSession, blocks: list[dict]) -> list[dict]:
     """Gør en lektions indholdsblokke klar til visning (fotos, lyd, artskort, kort og markdown → html)."""
     out: list[dict] = []
     wk = await learn_gen.weekly()
+    memo: dict[str, int | None] = {}
+
+    async def photo_ref(ref: dict | None) -> int | None:  # samme reference (fx et foto i både portræt og sammenligning) slås kun op én gang
+        k = json.dumps(ref, sort_keys=True)
+        if k not in memo:
+            memo[k] = await photo_by_ref(db, ref)
+        return memo[k]
     for b in blocks or []:
         t = b.get("type")
         r = {"type": t}
@@ -598,12 +627,12 @@ async def resolve_blocks(db: AsyncSession, blocks: list[dict]) -> list[dict]:
             r["html"] = await render_md(db, b.get("md"))
             r["titel"] = b.get("titel", "")
         elif t == "foto":
-            pid = int(b.get("photo_id") or 0) or await photo_by_ref(db, b.get("ref"))
+            pid = int(b.get("photo_id") or 0) or await photo_ref(b.get("ref"))
             m = await photo_media(db, pid) if pid else None
             r.update({"foto": m, "tekst": b.get("tekst", "")})
         elif t == "fotoraekke":
             labels = b.get("labels") or []
-            ids = [int(i) for i in b.get("photo_ids") or []] or [await photo_by_ref(db, x) for x in b.get("refs") or []]
+            ids = [int(i) for i in b.get("photo_ids") or []] or [await photo_ref(x) for x in b.get("refs") or []]
             fotos = []
             for i, pid in enumerate(ids):
                 m = await photo_media(db, pid) if pid and pid not in ids[:i] else None  # samme foto kun én gang i rækken

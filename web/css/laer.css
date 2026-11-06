@@ -45,6 +45,7 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 
 .lr-course-head { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; }
 .lr-course-head > div { flex: 1; min-width: 260px; } .lr-course-head h2 { margin: 2px 0 8px; }
+.lr-about { margin-top: 10px; font-size: .92rem; } .lr-about summary { cursor: pointer; color: var(--text-3); } .lr-about .lr-learn { margin: 8px 0 0; }
 .lr-learn { padding-left: 18px; margin: 0 0 16px; display: grid; gap: 4px; font-size: .92rem; }
 .lr-split { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
 @media (max-width: 800px) { .lr-split { grid-template-columns: 1fr; } }
@@ -178,3 +179,8 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 .lr-banner { position: relative; margin: 0 0 16px; border-radius: var(--radius); overflow: hidden; aspect-ratio: 16 / 5; background: var(--bg-2); }
 .lr-banner img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; display: block; }
 @media (max-width: 640px) { .lr-banner { aspect-ratio: 16 / 7; } .lr-hero-photo { background: linear-gradient(180deg, rgb(15 40 30 / 55%), rgb(15 40 30 / 92%)), var(--lr-banner) center / cover no-repeat, #17382b; } }
+.lr-media img { cursor: zoom-in; }
+.lr-lightbox { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; cursor: zoom-out; }
+.lr-lightbox img { max-width: 100%; max-height: calc(100vh - 80px); object-fit: contain; border-radius: 4px; }
+.lr-lightbox p { color: #ddd; margin: 0; font-size: .9rem; }
+.lr-lightbox-x { position: absolute; top: 10px; right: 14px; background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; }

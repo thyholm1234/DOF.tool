@@ -12,6 +12,12 @@ function labelled(fig, label) {
   return fig;
 }
 
+/** Kursusintroen er ren tekst med lidt markdown (**fed**, *kursiv*) – escapes og formateres her. */
+function inlineMd(t) {
+  const esc = String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return esc.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
+}
+
 function block(b) {
   switch (b.type) {
     case "tekst": return h("div", { class: "lr-md", html: b.html });
@@ -50,10 +56,14 @@ export async function render(view, [slug, unitId], info) {
 
   async function showUnit(u, idx) {
     stop?.();
-    body.replaceChildren(h("h2", {}, u.title),
-      u.est_minutes ? h("p", { class: "muted" }, `Ca. ${u.est_minutes} min.`) : null,
-      u.html ? h("div", { class: "lr-md", html: u.html }) : null,
-      ...u.blocks.map(block));
+    const head = [h("h2", {}, u.title), u.est_minutes ? h("p", { class: "muted" }, `Ca. ${u.est_minutes} min.`) : null];
+    body.replaceChildren(...head, loadingBox());
+    // indholdet hentes kun for den lektion, der vises (store kurser har hundredvis af fotos og lyde)
+    u.indhold ??= await api(`/api/learn/units/${u.id}/indhold${preview ? "?preview=true" : ""}`).catch(err => { body.replaceChildren(...head, errorBox(err)); return null; });
+    if (!u.indhold) return;
+    body.replaceChildren(...head,
+      u.indhold.html ? h("div", { class: "lr-md", html: u.indhold.html }) : null,
+      ...u.indhold.blocks.map(block));
     if (!u.n_acts) {
       body.append(h("div", { class: "lr-actions" }, nextBtn(idx)));
       return;
@@ -76,15 +86,21 @@ export async function render(view, [slug, unitId], info) {
     return nx ? h("a", { class: "btn", href: `${BASE}/kursus/${slug}/${nx.id}${preview ? "?preview=1" : ""}` }, "Næste lektion →") : h("a", { class: "btn", href: `${BASE}/kurser` }, "Til kurserne");
   }
 
+  const idx = d.units.findIndex(u => u.id === uid);
+  // intro og læringsmål står fuldt ud ved første og sidste lektion; ellers kort resumé og resten foldet sammen
+  const full = idx <= 0 || idx === d.units.length - 1;
+  const intro = c.intro ? h("p", { html: inlineMd(c.intro) }) : null;
+  const learn = c.learn?.length ? h("ul", { class: "lr-learn" }, ...c.learn.map(l => h("li", {}, h("b", {}, l.title), " ", h("span", { class: "muted" }, l.text)))) : null;
+  const about = !full && (intro || learn) ? h("details", { class: "lr-about" }, h("summary", {}, "Om kurset og læringsmål"), intro, learn) : null;
   view.append(backLink(`${BASE}/kurser`, "Kurser"),
     c.cover?.url ? banner(c.cover, c.title) : null,
     h("section", { class: "lr-course-head" }, c.cover?.url ? null : art(c, "big"), h("div", {},
-      h("div", { class: "lr-kicker" }, [c.number ? `Kursus ${c.number}` : "Kursus", c.stage ? ` · ${c.stage}` : ""]), h("h2", {}, c.title), h("p", {}, c.intro || c.summary),
+      h("div", { class: "lr-kicker" }, [c.number ? `Kursus ${c.number}` : "Kursus", c.stage ? ` · ${c.stage}` : ""]), h("h2", {}, c.title),
+      full ? (intro || h("p", {}, c.summary)) : (c.summary ? h("p", {}, c.summary) : null),
       h("div", { class: "lr-meta" }, c.hours ? chip(c.hours) : null, ...(c.skills || []).map(s => chip(s, "soft")), preview ? chip("forhåndsvisning", "warn") : null),
-      bar(done, d.units.length), h("small", { class: "muted" }, `${done} af ${d.units.length} lektioner`))),
-    c.learn?.length ? h("ul", { class: "lr-learn" }, ...c.learn.map(l => h("li", {}, h("b", {}, l.title), " ", h("span", { class: "muted" }, l.text)))) : null,
+      bar(done, d.units.length), h("small", { class: "muted" }, `${done} af ${d.units.length} lektioner`), about)),
+    full ? learn : null,
     h("div", { class: "lr-split" }, h("nav", { "aria-label": "Lektioner" }, list), body));
-  const idx = d.units.findIndex(u => u.id === uid);
   const u = d.units[idx];
   if (u && !u.locked) await showUnit(u, idx);
   else body.append(h("div", { class: "notice" }, "Klar den forrige lektion først."));

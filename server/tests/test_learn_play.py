@@ -113,11 +113,17 @@ async def test_synlighed_og_snapshot(web, db):  # noqa: F811
     async with db() as s:
         await learning.migrate_v2(s)
     await flags(db, laering_portal="on")
-    assert (await web["a1"].get("/api/learn/courses/k1/units")).status_code == 200
+    k1 = (await web["a1"].get("/api/learn/courses/k1/units")).json()
+    uid0 = k1["units"][0]["id"]
+    ind = await web["a1"].get(f"/api/learn/units/{uid0}/indhold")  # lektionens indhold hentes for sig (og caches for den publicerede version)
+    assert ind.status_code == 200 and set(ind.json()) == {"html", "blocks"}
+    assert (await web["a1"].get(f"/api/learn/units/{uid0}/indhold")).json() == ind.json()
+    assert (await web["a1"].get("/api/learn/units/999999/indhold")).status_code == 404
     async with db() as s:
         await s.execute(text("UPDATE courses SET visibility = 'hold' WHERE slug = 'k1'"))
         await s.commit()
     assert (await web["a1"].get("/api/learn/courses/k1/units")).status_code == 404  # kun for medlemmer af et hold
+    assert (await web["a1"].get(f"/api/learn/units/{uid0}/indhold")).status_code == 404
     assert (await web["ad"].get("/api/learn/courses/k1/units")).status_code == 200  # redaktører ser alt
     async with db() as s:
         await s.execute(text("UPDATE courses SET visibility = 'login' WHERE slug = 'k1'"))
