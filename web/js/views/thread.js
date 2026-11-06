@@ -177,6 +177,29 @@ export async function render(view, [date, artnr, loknr]) {
   return () => { off(); offFeed(); offMedia(); offLike(); offStatus(); clearTimeout(pending); clearTimeout(mediaTimer); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
 }
 
+const SEX = { M: "han", F: "hun", MF: "han og hun", FM: "han og hun" };
+const sexText = (k) => !k || k === "-" ? null : SEX[k.replace(/[^MF]/g, "")] || k;
+const dragtText = (o) => o.dragt && o.dragt !== "Uspecificeret dragt" ? o.dragt : !o.dragt && o.dragtkode && o.dragtkode !== "-" ? o.dragtkode : null;
+
+/** Alle DOFbasens oplysninger om observationen som en lille tabel (kun felter, der er udfyldt). */
+function obsFacts(o) {
+  const tid = [o.obstidfra, o.obstidtil].filter(Boolean).join("–");
+  const turtid = [o.turtidfra, o.turtidtil].filter(Boolean).join("–");
+  const facts = [
+    ["Køn", sexText(o.koen)],
+    ["Alder", o.alderkode],
+    ["Dragt", dragtText(o) && (o.dragt && o.dragtkode ? `${o.dragt} (${o.dragtkode})` : dragtText(o))],
+    ["Adfærd", o.adf ? (o.adfkode ? `${o.adf} (${o.adfkode})` : o.adf) : o.adfkode],
+    ["Metode", o.metode],
+    ["Obs.-tid", tid],
+    ["Turtid", turtid],
+    ["Medobs.", o.medobser],
+    ["Position", o.obs_lat != null && o.obs_lon != null ? `${Number(o.obs_lat).toFixed(5)}, ${Number(o.obs_lon).toFixed(5)}` : null],
+    ["Obsid", h("a", { href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, target: "_blank", rel: "noopener" }, String(o.obsid))],
+  ].filter(([, v]) => v != null && v !== "");
+  return h("dl", { class: "obs-facts" }, ...facts.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
+}
+
 function obsRow(o, ms, mediaRows) {
   const media = h("div", {});
   const tid = [o.obstidfra || o.turtidfra, o.obstidtil || o.turtidtil].filter(Boolean).join("–");
@@ -200,13 +223,14 @@ function obsRow(o, ms, mediaRows) {
   show(o.media, ms);
   return h("div", { style: { borderBottom: "1px dashed var(--line)", paddingBottom: "10px" } },
     h("div", { class: "row between" },
-      h("div", {}, h("b", { class: "num" }, `${fmtN(o.antal)} `), [o.adf, o.dragt && o.dragt !== "Uspecificeret dragt" ? o.dragt : null, o.koen && o.koen !== "-" ? o.koen : null].filter(Boolean).join(", ")),
+      h("div", {}, h("b", { class: "num" }, `${fmtN(o.antal)} `), [o.adf || o.adfkode, o.alderkode, sexText(o.koen), dragtText(o)].filter(Boolean).join(", ")),
       h("span", { class: "row", style: { gap: "5px" } }, dkuEl, tag(o.kategori, KAT[o.kategori]))),
     h("div", { class: "muted", style: { fontSize: ".86rem" } },
       o.obserkode && state.user?.profiler ? observerLink(o.obserkode, o.observer)
         : o.obserkode ? h("a", { href: `https://dofbasen.dk/popobser.php?obserkode=${encodeURIComponent(o.obserkode)}`, target: "_blank", rel: "noopener", title: "Observatøren i DOFbasen" }, o.observer || o.obserkode) : o.observer,
       o.medobser ? ` m.fl. (${o.medobser})` : "", tid ? ` · ${tid}` : "",
       " · ", h("span", { class: "nowrap" }, `set i portalen ${fmtTime(o.first_seen)}`)),
+    obsFacts(o),
     o.fuglnoter ? h("p", { style: { margin: "4px 0 0" } }, o.fuglnoter) : null,
     o.turnoter ? h("p", { class: "muted", style: { margin: "4px 0 0", fontSize: ".85rem" } }, "Tur: ", o.turnoter) : null,
     h("div", { class: "row mt" }, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),

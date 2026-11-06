@@ -1083,3 +1083,7 @@ a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brig
   .dl-table tr.dl-head td { border-bottom: 1px solid var(--line); padding-bottom: 3px; }
   .dl-table tr.dl-head + tr:not(.dl-head):not(.dl-afd) td { padding-top: 5px; }  /* luft mellem stregen og første linje */
 }
+
+/* Trådens observationer: alle DOFbasens felter i en kompakt to-kolonne-liste */
+.obs-facts { display: grid; grid-template-columns: max-content 1fr; gap: 1px 12px; margin: 6px 0 0; font-size: .84rem; }
+.obs-facts dt { color: var(--text-3); } .obs-facts dd { margin: 0; overflow-wrap: anywhere; }

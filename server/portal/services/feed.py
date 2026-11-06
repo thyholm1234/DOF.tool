@@ -113,7 +113,7 @@ async def thread_detail(session: AsyncSession, day: date, artnr: int, loknr: int
         SELECT o.obsid, o.turid, o.antal, o.koen, o.adfkode, ca.text AS adf, o.alderkode, o.dragtkode, cd.text AS dragt,
                o.obstidfra, o.obstidtil, t.turtidfra, t.turtidtil, o.fuglnoter, t.turnoter, o.kategori, o.first_seen,
                o.obserkode, trim(coalesce(ob.fornavn,'') || ' ' || coalesce(ob.efternavn,'')) AS observer, t.medobser,
-               o.obs_lat, o.obs_lon, o.hemmelig
+               o.obs_lat, o.obs_lon, o.hemmelig, o.metode
         FROM observations o
         LEFT JOIN trips t ON t.turid = o.turid
         LEFT JOIN observers ob ON ob.obserkode = o.obserkode
