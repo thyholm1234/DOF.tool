@@ -472,3 +472,43 @@ def csv_line(r: dict) -> list:
             r["antal"], r["koen"], r["adfkode"], r["adfaerd"], r["alderkode"], r["dragtkode"], r["obserkode"], r["observator"],
             r["obser_by"], r["medobser"], r["turnoter"], r["fuglnoter"], r["metode"], r["obstidfra"], r["obstidtil"], r["kvalitet"],
             r["turid"], r["obsid"], r["afdeling"], r["kommune"], r["lat"], r["lon"]]
+
+
+
+
+# ---------------------------------------------------------------- dagens observationer (DOFbasens og Dagslistens liste)
+
+VISNING_RE = "^(fugle|allfugle|sufugle|trkfugle|patdyr|somfugle|krybdyr)$"
+VISNING = {"fugle": "o.kategori <> 'alm'", "allfugle": "TRUE", "sufugle": "o.kategori IN ('SU', 'SUB')", "trkfugle": ADF[2][1]}
+
+
+async def day_observations(db: AsyncSession, me: str | None, d: date, visning: str, lok: int | None, lokalitet: int | None, summering: str) -> dict:
+    """Observationer på en dag: visning, afdeling (lok), én lokalitet og summering (tur/dato/ingen). Hemmelige vises kun for observatøren selv."""
+    if visning in ("patdyr", "somfugle", "krybdyr"):
+        return {"dato": d.isoformat(), "rows": [], "note": "Portalen henter kun fugle fra DOFbasen – andre dyr findes ikke i data."}
+    where = [VISNING[visning], "o.dato = :d", "(o.hemmelig = 0 OR o.obserkode = :me)"]
+    args: dict[str, Any] = {"d": d, "me": me}
+    if lok:
+        where.append("l.afdeling_id = :lok")
+        args["lok"] = lok
+    if lokalitet:
+        where.append("o.loknr = :loknr")
+        args["loknr"] = lokalitet
+    group = {"tur": "o.turid, o.artnr", "dato": "o.obserkode, o.loknr, o.artnr", "ingen": "o.obsid"}[summering]
+    rows = [dict(r) for r in (await db.execute(text(f"""
+        SELECT min(o.obsid) AS obsid, count(*) AS n_obs, sum(o.antal) AS antal, o.artnr, s.navn AS art, s.latin, s.sortering,
+               min(o.kategori) FILTER (WHERE o.kategori <> 'alm') AS kat, o.loknr, l.navn AS lokalitet, l.afdeling_id,
+               o.obserkode, max(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, ''))) AS observator,
+               string_agg(DISTINCT o.adfkode, ', ') AS adfkode, string_agg(DISTINCT o.alderkode, ', ') AS alder,
+               string_agg(DISTINCT o.koen, ', ') AS koen, string_agg(DISTINCT o.dragtkode, ', ') AS dragt,
+               bool_or(coalesce(o.fuglnoter, '') <> '') AS kommentar, bool_or(coalesce(t.turnoter, '') <> '') AS turkommentar,
+               bool_or(coalesce(t.medobser, '') <> '') AS medobser, bool_or(o.obs_lat IS NOT NULL) AS position,
+               bool_or(o.obstidfra IS NOT NULL OR t.turtidfra IS NOT NULL) AS tid, max(st.status) AS dku
+        FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
+        LEFT JOIN trips t ON t.turid = o.turid LEFT JOIN observers ob ON ob.obserkode = o.obserkode
+        LEFT JOIN dofb_obs_status st ON st.obsid = o.obsid
+        WHERE {' AND '.join(where)}
+        GROUP BY {group}, s.navn, s.latin, s.sortering, o.loknr, l.navn, l.afdeling_id, o.obserkode, o.artnr
+        ORDER BY l.afdeling_id, s.sortering, l.navn LIMIT 10000
+    """), args)).mappings().all()]
+    return {"dato": d.isoformat(), "rows": rows, "summering": summering}

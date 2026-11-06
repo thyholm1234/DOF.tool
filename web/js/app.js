@@ -21,6 +21,7 @@ const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
 const ARTIKLER = ["#/artikler", "news", "Artikler"];
 const FOTOS = ["#/fotos", "camera", "Fotos"];
 const KRYDS = ["#/krydslister", "list", "Krydslister"];
+const DAGSLISTE = ["#/dagsliste", "list", "Dagsliste"];
 const SEARCH = ["#/soeg", "search", "Søg"];
 const STATS = ["#/statistik", "chart", "Statistik"];
 const OBSERVERS = ["#/observator", "user", "Observatører"];
@@ -33,11 +34,12 @@ function sections() {
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
   // Statistik-modulet og Søg under Statistik, når funktionerne er synlige for brugeren
   const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler ? OBSERVERS : null].filter(Boolean);
-  if (!extra.length && !dku && !stat.length) return SECTIONS;
-  return SECTIONS.map(([t, items]) => [t, t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku]
+  const dl = state.user?.dagsliste ? DAGSLISTE : null;  // Dagslisten står lige under Nu
+  if (!extra.length && !dku && !stat.length && !dl) return SECTIONS;
+  return SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku]
     : t === "Statistik" ? [...items, ...stat] : items]);
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, KRYDS, STATS, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"]];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, KRYDS, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"]];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -59,6 +61,7 @@ const ROUTES = [
   [/^\/arter$/, () => import("./views/arter.js")],
   [/^\/art\/(\d+)$/, () => import("./views/species.js")],
   [/^\/lokaliteter$/, () => import("./views/lokaliteter.js")],
+  [/^\/dagsliste$/, () => import("./views/dagsliste.js")],
   [/^\/soeg$/, () => import("./views/soeg.js")],
   [/^\/statistik$/, () => import("./views/stats.js")],
   [/^\/observator(?:\/([^/]+))?$/, () => import("./views/observer.js")],

@@ -12,7 +12,7 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     from portal.services import learning
 
     async with db() as s:
-        assert await learning.seed_packs(s) == 14  # Se på fugle, Phylloscopus-, måge-, rovfugle-, havfugle-, vadefugle- og 100-arter-kurset, hver med en øvelse
+        assert await learning.seed_packs(s) == 16  # Se på fugle, Phylloscopus-, måge-, rovfugle-, havfugle-, vadefugle-, 100-arter- og trækkurset, hver med en øvelse
         assert await learning.seed_packs(s) == 0  # kun én gang
         c = (await s.execute(text("SELECT id, published, kind FROM courses WHERE slug = 'phylloscopus'"))).mappings().one()
         assert not c["published"] and c["kind"] == "kursus"
@@ -30,6 +30,12 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'havfugle'"))).scalar() == 16
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'vadefugle'"))).scalar() == 25
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'fugle-100'"))).scalar() == 31
+        assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'fugletraek'"))).scalar() == 22
+        # trækkurset beder om nattrækkald – typen overlever importens rensning (både i blokke og i aktiviteternes lyd_ref)
+        tb = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'fugletraek' ORDER BY position"))).scalars().all()
+        assert any(b.get("type") == "lyd" and b["ref"].get("type") == "nattraek" for bl in tb for b in bl)
+        assert (await s.execute(text("""SELECT count(*) FROM questions q JOIN courses c ON c.id = q.course_id
+                                        WHERE c.slug = 'fugletraek' AND q.config->'lyd_ref'->>'type' = 'nattraek'"""))).scalar() >= 16
         # 100-arter-kurset beder om fotos af et bestemt køn (han/hun) – filteret overlever importens rensning
         fb = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'fugle-100' ORDER BY position"))).scalars().all()
         assert any(r.get("koen") == "Hun" for bl in fb for b in bl for r in [b.get("ref") or {}] + (b.get("refs") or []))
@@ -54,6 +60,7 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0 and ov["rovfugle"]["fejl"] == 0 and ov["havfugle"]["fejl"] == 0 and ov["vadefugle"]["fejl"] == 0
     assert ov["se-paa-fugle"]["fejl"] == 0 and ov["se-paa-fugle-traening"]["fejl"] == 0
     assert ov["fugle-100"]["fejl"] == 0 and ov["fugle-100-traening"]["fejl"] == 0
+    assert ov["fugletraek"]["fejl"] == 0 and ov["fugletraek-traening"]["fejl"] == 0
     # lektionerne kan vises (redaktørens forhåndsvisning): blokke med referencer løses – uden fotos/lyd i basen bliver de blot tomme
     r = await web["ad"].get("/api/learn/courses/phylloscopus/units?preview=true")
     assert r.status_code == 200, r.text
@@ -129,6 +136,14 @@ async def test_lyd_reference_og_rensning(db):  # noqa: F811
         assert await learn_play.rec_by_ref(s, {"xc": "420696"}) == nord
         assert await learn_play.rec_by_ref(s, {"artnr": 12950, "type": "kald"}) == nord
         assert await learn_play.rec_by_ref(s, {"latin": "Phylloscopus canariensis", "type": "sang"}) == kan
+        # nattrækkald: en «nocturnal flight call» foretrækkes; findes ingen, bruges artens almindelige kald
+        await s.execute(text("""INSERT INTO snd_recordings (source, ext_id, artnr, latin, rtype, page_url, file_url) VALUES
+            ('xc', '2', 12010, 'Turdus iliacus', 'call', 'u', 'f'), ('xc', '3', 12010, 'Turdus iliacus', 'nocturnal flight call', 'u', 'f')"""))
+        await s.commit()
+        vin_nat = (await s.execute(text("SELECT id FROM snd_recordings WHERE ext_id = '3'"))).scalar()
+        assert await learn_play.rec_by_ref(s, {"artnr": 12010, "type": "nattraek"}) == vin_nat
+        assert await learn_play.rec_by_ref(s, {"artnr": 12950, "type": "nattraek"}) == nord  # intet trækkald – det almindelige kald
+    assert learn_build.clean_blocks([{"type": "lyd", "ref": {"artnr": 12010, "type": "nattraek"}}])[0]["ref"] == {"artnr": 12010, "type": "nattraek"}
     clean = learn_build.clean_blocks([{"type": "foto", "ref": {"nf": "12", "artnr": 13120, "latin": "x" * 200, "evil": "<script>", "type": "andet"}},
                                       {"type": "fotoraekke", "refs": [{"nf": 1}, "nej", {"n": "abc"}], "labels": ["A", 3]}])
     assert clean[0]["ref"] == {"nf": 12, "artnr": 13120, "latin": "x" * 80}
@@ -140,6 +155,7 @@ def test_xc_soegning_med_underart():
 
     s = {"min_quality": "A", "area": "alle", "extra": ""}
     assert "ssp:tristis" in sound_quiz.xc_query("Phylloscopus collybita tristis", s, "call")
+    assert 'type:"nocturnal flight call"' in sound_quiz.xc_query("Turdus iliacus", s, sound_quiz.NIGHT_TYPE)  # flerordstype i anførselstegn
     data = {"recordings": [{"id": 1, "gen": "Phylloscopus", "sp": "collybita", "ssp": "tristis", "file": "//x/1.mp3", "length": "0:10"},
                            {"id": 2, "gen": "Phylloscopus", "sp": "collybita", "ssp": "", "file": "//x/2.mp3", "length": "0:10"}]}
     assert [r["ext_id"] for r in sound_quiz._parse(data, "Phylloscopus collybita tristis", 60)] == ["1"]

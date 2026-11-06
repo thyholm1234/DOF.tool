@@ -315,7 +315,8 @@ async def seed_traekrute(session: AsyncSession) -> int:
 # kan gennemlæse, skifte fotos/lyde og publicere. Nøglen er markøren i indstillingerne; ny version af en pakke = ny nøgle.
 SEED_PACKS = {"se-paa-fugle.json": "laering_seed_se_paa_fugle_v1", "phylloscopus.json": "laering_seed_phylloscopus_v1", "maager.json": "laering_seed_maager_v1",
               "rovfugle.json": "laering_seed_rovfugle_v1", "havfugle.json": "laering_seed_havfugle_v1",
-              "vadefugle.json": "laering_seed_vadefugle_v1", "fugle100.json": "laering_seed_fugle100_v1"}
+              "vadefugle.json": "laering_seed_vadefugle_v1", "fugle100.json": "laering_seed_fugle100_v1",
+              "traek.json": "laering_seed_traek_v1"}
 
 
 async def seed_packs(session: AsyncSession) -> int:

@@ -250,44 +250,12 @@ async def species_profile(db: AsyncSession, artnr: int) -> dict | None:
 
 # ---------------------------------------------------------------- observationer (dagens liste)
 
-VISNING = {"fugle": "o.kategori <> 'alm'", "allfugle": "TRUE", "sufugle": "o.kategori IN ('SU', 'SUB')",
-           "trkfugle": svc.ADF[2][1]}
-
-
 @router.get("/observationer")
-async def observationer(dato: date | None = None, visning: str = Query("fugle", pattern="^(fugle|allfugle|sufugle|trkfugle|patdyr|somfugle|krybdyr)$"),
+async def observationer(dato: date | None = None, visning: str = Query("fugle", pattern=svc.VISNING_RE),
                         lok: int | None = None, lokalitet: int | None = None, summering: str = Query("tur", pattern="^(tur|dato|ingen)$"),
                         user: User = Depends(require_user), ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
     """Observationer på en dag – som /observationer/index.php: visning, afdeling og summering (tur/dato/ingen)."""
-    d = dato or dk_today()
-    if visning in ("patdyr", "somfugle", "krybdyr"):
-        return {"dato": d.isoformat(), "rows": [], "note": "Portalen henter kun fugle fra DOFbasen – andre dyr findes ikke i data."}
-    where = [VISNING[visning], "o.dato = :d", "(o.hemmelig = 0 OR o.obserkode = :me)"]
-    args: dict[str, Any] = {"d": d, "me": user.obserkode}
-    if lok:
-        where.append("l.afdeling_id = :lok")
-        args["lok"] = lok
-    if lokalitet:
-        where.append("o.loknr = :loknr")
-        args["loknr"] = lokalitet
-    group = {"tur": "o.turid, o.artnr", "dato": "o.obserkode, o.loknr, o.artnr", "ingen": "o.obsid"}[summering]
-    rows = await _rows(db, f"""
-        SELECT min(o.obsid) AS obsid, count(*) AS n_obs, sum(o.antal) AS antal, o.artnr, s.navn AS art, s.latin, s.sortering,
-               min(o.kategori) FILTER (WHERE o.kategori <> 'alm') AS kat, o.loknr, l.navn AS lokalitet, l.afdeling_id,
-               o.obserkode, max(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, ''))) AS observator,
-               string_agg(DISTINCT o.adfkode, ', ') AS adfkode, string_agg(DISTINCT o.alderkode, ', ') AS alder,
-               string_agg(DISTINCT o.koen, ', ') AS koen, string_agg(DISTINCT o.dragtkode, ', ') AS dragt,
-               bool_or(coalesce(o.fuglnoter, '') <> '') AS kommentar, bool_or(coalesce(t.turnoter, '') <> '') AS turkommentar,
-               bool_or(coalesce(t.medobser, '') <> '') AS medobser, bool_or(o.obs_lat IS NOT NULL) AS position,
-               bool_or(o.obstidfra IS NOT NULL OR t.turtidfra IS NOT NULL) AS tid, max(st.status) AS dku
-        FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
-        LEFT JOIN trips t ON t.turid = o.turid LEFT JOIN observers ob ON ob.obserkode = o.obserkode
-        LEFT JOIN dofb_obs_status st ON st.obsid = o.obsid
-        WHERE {' AND '.join(where)}
-        GROUP BY {group}, s.navn, s.latin, s.sortering, o.loknr, l.navn, l.afdeling_id, o.obserkode, o.artnr
-        ORDER BY l.afdeling_id, s.sortering, l.navn LIMIT 10000
-    """, **args)
-    return {"dato": d.isoformat(), "rows": rows, "summering": summering}
+    return await svc.day_observations(db, user.obserkode, dato or dk_today(), visning, lok, lokalitet, summering)
 
 
 @router.get("/obs/{obsid}")

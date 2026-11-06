@@ -228,7 +228,7 @@ async def banner(db: AsyncSession) -> dict | None:
 
 
 async def rec_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
-    """``{"xc": "<XC-nr>"}`` = en bestemt xeno-canto-optagelse; ``{"artnr"|"latin": …, "type": "sang"|"kald", "n": k}`` = artens k'te
+    """``{"xc": "<XC-nr>"}`` = en bestemt xeno-canto-optagelse; ``{"artnr"|"latin": …, "type": "sang"|"kald"|"nattraek", "n": k}`` = artens k'te
     optagelse af typen. Mangler optagelsen, hentes den hos xeno-canto med portalens nøgle (husket, så det kun sker én gang)."""
     if not isinstance(ref, dict):
         return None
@@ -246,7 +246,11 @@ async def rec_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
             return rid
     if artnr is None and latin is None:
         return None
-    kind = "sang" if ref.get("type") == "sang" else "kald" if ref.get("type") == "kald" else "begge"
+    if ref.get("type") == "nattraek":  # trækkald optaget om natten; findes de ikke, bruges artens almindelige kald
+        if rid := await rec_by_ref(db, {**ref, "type": "_nattraek"}):
+            return rid
+        return await rec_by_ref(db, {**ref, "type": "kald"})
+    kind = {"sang": "sang", "kald": "kald", "_nattraek": "nattraek"}.get(ref.get("type"), "begge")
     sql = text(f"""SELECT r.id FROM snd_recordings r WHERE r.enabled AND {sound_quiz.KIND_SQL[kind]}
         AND (CASE WHEN CAST(:l AS text) IS NOT NULL THEN lower(r.latin) = lower(:l) ELSE r.artnr = :a END)
         ORDER BY r.quality NULLS LAST, r.id LIMIT 1 OFFSET :o""")
@@ -254,7 +258,7 @@ async def rec_by_ref(db: AsyncSession, ref: dict | None) -> int | None:
     rid = (await db.execute(sql, args)).scalar()
     if rid is None and latin:
         try:
-            await sound_quiz.ensure_latin(db, latin, "song" if kind == "sang" else "call", artnr=artnr)
+            await sound_quiz.ensure_latin(db, latin, {"sang": "song", "nattraek": sound_quiz.NIGHT_TYPE}.get(kind, "call"), artnr=artnr)
         except sound_quiz.SoundError:
             return None
         rid = (await db.execute(sql, {**args, "o": 0})).scalar()

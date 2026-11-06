@@ -2766,6 +2766,51 @@ true,
 "params": []
 }
 },
+"/api/dagsliste": {
+"get": {
+"body": false,
+"op": "dagsliste_api_dagsliste_get",
+"params": [
+[
+"dato",
+"query",
+false,
+"{\"anyOf\": [{\"format\": \"date\", \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Dato\"}"
+],
+[
+"lok",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Lok\"}"
+],
+[
+"lokalitet",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Lokalitet\"}"
+],
+[
+"summering",
+"query",
+false,
+"{\"default\": \"tur\", \"pattern\": \"^(tur|dato|ingen)$\", \"title\": \"Summering\", \"type\": \"string\"}"
+],
+[
+"visning",
+"query",
+false,
+"{\"default\": \"fugle\", \"pattern\": \"^(fugle|allfugle|sufugle|trkfugle|patdyr|somfugle|krybdyr)$\", \"title\": \"Visning\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/dagsliste/afdelinger": {
+"get": {
+"body": false,
+"op": "afdelinger_api_dagsliste_afdelinger_get",
+"params": []
+}
+},
 "/api/daymap": {
 "get": {
 "body": false,
@@ -6221,6 +6266,26 @@ true,
 "body": true,
 "op": "unit_done_api_learn_units__unit_id__faerdig_post",
 "params": [
+[
+"unit_id",
+"path",
+true,
+"{\"title\": \"Unit Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/learn/units/{unit_id}/indhold": {
+"get": {
+"body": false,
+"op": "unit_content_api_learn_units__unit_id__indhold_get",
+"params": [
+[
+"preview",
+"query",
+false,
+"{\"default\": false, \"title\": \"Preview\", \"type\": \"boolean\"}"
+],
 [
 "unit_id",
 "path",

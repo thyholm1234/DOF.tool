@@ -90,7 +90,7 @@ def xc_query(latin: str, s: dict, rtype: str | None = None) -> str:
     elif s["area"] == "denmark":
         parts.append("cnt:denmark")
     if rtype:
-        parts.append(f"type:{rtype}")
+        parts.append(f'type:"{rtype}"' if " " in rtype else f"type:{rtype}")
     if s["extra"]:
         parts.append(s["extra"])
     return " ".join(parts)
@@ -162,7 +162,10 @@ def _lic_name(url: str) -> str | None:
 # sang = optagelser mærket «song»/«sang»; kald = mærket «call»/«kald» uden at være sang (så en «song, call»-optagelse ikke er tvetydig)
 _SONG = "(r.rtype ILIKE '%song%' OR r.rtype ILIKE '%sang%')"
 _CALL = "(r.rtype ILIKE '%call%' OR r.rtype ILIKE '%kald%')"
-KIND_SQL = {"sang": _SONG, "kald": f"({_CALL} AND NOT {_SONG})", "begge": "TRUE"}
+KIND_SQL = {"sang": _SONG, "kald": f"({_CALL} AND NOT {_SONG})", "begge": "TRUE",
+            # trækkald (xeno-cantos «flight call»/«nocturnal flight call») – kun til lydreferencer i kurser, ikke et valg i lydquizzen
+            "nattraek": "(r.rtype ILIKE '%flight call%')"}
+NIGHT_TYPE = "nocturnal flight call"
 
 
 _INSERT = text("""
@@ -195,7 +198,7 @@ async def ensure_species(db: AsyncSession, artnr: int, rtype: str, *, force: boo
 async def ensure_latin(db: AsyncSession, latin: str, rtype: str, *, artnr: int | None = None) -> int:
     """Som ``ensure_species``, men for et latinsk navn (også underarter og arter uden artsnummer, fx Kanarisk Gransanger).
     Optagelser af arter uden artsnummer gemmes med ``artnr = 0`` og indgår derfor aldrig i lydquizzens artsgrupper."""
-    kind = "sang" if rtype == "song" else "kald"
+    kind = "sang" if rtype == "song" else "nattraek" if rtype == NIGHT_TYPE else "kald"
     count = text(f"SELECT count(*) FROM snd_recordings r WHERE lower(r.latin) = lower(:l) AND r.enabled AND {KIND_SQL[kind]}")
     have = (await db.execute(count, {"l": latin})).scalar() or 0
     marker = f"snd:fetched:l:{latin.lower()}:{rtype}"
