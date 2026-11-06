@@ -107,12 +107,14 @@ export async function render(view) {
   const icoLink = (r, dato, cls, ic, title, text) => h("a", { class: `dl-ic ${cls}`, href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, "data-pop-t": title, "data-pop": typeof text === "string" ? text : "",
     "aria-label": typeof text === "string" ? `${title}: ${text}` : title, html: icon(ic) });
   const note = (r, dato, cls, title, text) => text || text === true ? icoLink(r, dato, cls, "chat", title, text) : null;
-  const notes = (r, dato) => h("td", { class: "dl-notes" },
-    r.n_obs > 1 ? icoLink(r, dato, "dl-sum", "chat", "Sammensat observation", `Summeret af ${r.n_obs} observationer`) : null,
-    note(r, dato, "dl-tur", "Turnote", r.turnote || r.turkommentar),
-    note(r, dato, "dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
-    note(r, dato, "dl-obs", "Observationsnote", r.obsnote || r.kommentar),
-    r.medobser ? icoLink(r, dato, "dl-med", "users", r.medobsnote || "Medobservatører", true) : null);  // feltets indhold (fx «MV») vises i stedet for en generisk tekst
+  // Fem faste pladser, så hver slags kommentar står i sin egen kolonne hele vejen ned (tom plads, når den mangler)
+  const notes = (r, dato) => h("td", { class: "dl-notes" }, h("span", { class: "dl-slots" },
+    ...[r.n_obs > 1 ? icoLink(r, dato, "dl-sum", "chat", "Sammensat observation", `Summeret af ${r.n_obs} observationer`) : null,
+      note(r, dato, "dl-tur", "Turnote", r.turnote || r.turkommentar),
+      note(r, dato, "dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
+      note(r, dato, "dl-obs", "Observationsnote", r.obsnote || r.kommentar),
+      r.medobser ? icoLink(r, dato, "dl-med", "chat", r.medobsnote || "Medobservatører", true) : null,  // feltets indhold (fx «MV») vises i stedet for en generisk tekst
+    ].map(el => el || h("span", {}))));
   const extra = (r, dato) => h("td", { class: "dl-extra" },
     r.foto ? icoLink(r, dato, "", "camera", "Foto", true) : null,
     r.lyd ? icoLink(r, dato, "", "sound", "Lydoptagelse", true) : null,

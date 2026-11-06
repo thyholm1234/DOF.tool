@@ -1042,26 +1042,28 @@ body.is-viewas .topbar { top: 34px; }
 .dl-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .86rem; line-height: 1.25; }
 .dl-table td { padding: 1px 6px; vertical-align: top; overflow-wrap: anywhere; border: 0; }
 .dl-table td.num { text-align: right; white-space: nowrap; }
-.dl-table col.c-notes { width: 82px; } .dl-table col.c-num { width: 72px; } .dl-table col.c-ald { width: 64px; }
+.dl-table col.c-notes { width: 90px; } .dl-table col.c-num { width: 72px; } .dl-table col.c-ald { width: 64px; }
 .dl-table col.c-adf { width: 44px; } .dl-table col.c-extra { width: 74px; } .dl-table col.c-obs { width: 30%; }
 .dl-table tr.dl-head td { padding: 4px 4px 1px; }
 .dl-table tr.dl-afd td { padding: 14px 4px 3px; font-weight: 700; font-size: .95rem; border-bottom: 2px solid var(--line); }
 .dl-table tr.dl-afd + tr.dl-head td { padding-top: 10px; }  /* luft mellem afdelingens streg og første art */
 .dl-table tbody tr:not(.dl-head):not(.dl-afd):hover td { background: var(--hover, rgba(0, 0, 0, .04)); }
 .dl-notes, .dl-extra { white-space: nowrap; }
+.dl-slots { display: grid; grid-template-columns: repeat(5, 1fr); justify-items: start; }
+.dl-notes .dl-slots .dl-ic { margin-right: 0; }
 .dl-ic { display: inline-flex; vertical-align: -2px; margin-right: 2px; }
 .dl-ic .ic { width: 14px; height: 14px; }
 .dl-notes .dl-ic .ic { fill: currentColor; }
-.dl-sum { color: #f2c200; } .dl-tur { color: #e0821e; } .dl-vejr { color: #2e9e3a; } .dl-obs { color: #1e7fc4; } .dl-notes .dl-med .ic { fill: none; }
+.dl-sum { color: #f2c200; } .dl-tur { color: #e0821e; } .dl-vejr { color: #2e9e3a; } .dl-obs { color: #1e7fc4; } .dl-med { color: #6cb4f0; }
 .dl-extra .dl-ic { color: var(--muted, #667); }
 .dl-obs-m { display: none; }
 @media (max-width: 640px) {
-  .dl-table col.c-notes { width: 52px; } .dl-table col.c-num { width: 60px; } .dl-table col.c-ald { width: 44px; } .dl-table col.c-adf { width: 30px; }
+  .dl-table col.c-notes { width: 62px; } .dl-notes .dl-ic .ic { width: 11px; height: 11px; } .dl-table col.c-num { width: 60px; } .dl-table col.c-ald { width: 44px; } .dl-table col.c-adf { width: 30px; }
   .dl-table col.c-extra { width: 36px; } .dl-table col.c-obs { width: 0; } .dl-table td.dl-obs { display: none; }
   .dl-table td { padding: 1px 3px; } .dl-notes .dl-ic, .dl-extra .dl-ic { margin-right: 0; }
   .dl-obs-m { display: block; font-size: .8rem; color: var(--muted, #667); }
 }
-a.dl-ic { text-decoration: none; cursor: pointer; } .dl-notes .dl-med { color: var(--text-3); } a.dl-ic:hover { filter: brightness(.8); }
+a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brightness(.8); }
 .dl-pop { position: fixed; z-index: 1100; max-width: min(360px, calc(100vw - 16px)); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 22px rgb(0 0 0 / 22%); padding: 8px 11px; font-size: .84rem; line-height: 1.35; pointer-events: none; }
 .dl-pop b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); } .dl-pop div { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 640px) {
