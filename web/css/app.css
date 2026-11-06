@@ -1046,6 +1046,7 @@ body.is-viewas .topbar { top: 34px; }
 .dl-table col.c-adf { width: 44px; } .dl-table col.c-extra { width: 74px; } .dl-table col.c-obs { width: 30%; }
 .dl-table tr.dl-head td { padding: 4px 4px 1px; }
 .dl-table tr.dl-afd td { padding: 14px 4px 3px; font-weight: 700; font-size: .95rem; border-bottom: 2px solid var(--line); }
+.dl-table tr.dl-afd + tr.dl-head td { padding-top: 10px; }  /* luft mellem afdelingens streg og første art */
 .dl-table tbody tr:not(.dl-head):not(.dl-afd):hover td { background: var(--hover, rgba(0, 0, 0, .04)); }
 .dl-notes, .dl-extra { white-space: nowrap; }
 .dl-ic { display: inline-flex; vertical-align: -2px; margin-right: 2px; }
@@ -1071,4 +1072,5 @@ a.dl-ic { text-decoration: none; cursor: pointer; } .dl-notes .dl-med { color: v
   .dl-field.dl-date, .dl-field.dl-save { grid-column: 1 / -1; }
   .dl-date .row { gap: 4px; } .dl-date input { flex: 1; min-width: 0; } .dl-save .row { display: grid; grid-template-columns: 1fr auto; }
   .dl-table tr.dl-head td { border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+  .dl-table tr.dl-head + tr:not(.dl-head):not(.dl-afd) td { padding-top: 5px; }  /* luft mellem stregen og første linje */
 }

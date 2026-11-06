@@ -96,7 +96,7 @@ function renderNav() {
   const link = ([href, ic, label], cls = "") =>
     h("a", { href, class: `${cls} ${href === current ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
   document.body.classList.toggle("anon", !state.user);
-  // Mobil: Nu · Træk · [Indtast] · Kalender · Mere (resten i arket, i samme grupper som sidepanelet)
+  // Mobil: Nu · Træk · [Indtast] · Kalender · Mere (arket viser alle moduler i samme grupper som sidepanelet)
   const inMore = current && !BOTTOM.includes(current);
   const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
@@ -127,8 +127,8 @@ function openMore() {
   const u = state.user;
   const sheet = h("div", { class: "more-sheet", onclick: (e) => { if (e.target === sheet) close(); } },
     h("div", { class: "more-panel" },
-      // Samme grupper som sidepanelet; punkterne fra bundmenuen er udeladt
-      ...sections().map(([title, items]) => [title, items.filter(n => !BOTTOM.includes(n[0]))])
+      // Samme grupper og moduler som sidepanelet – også dem, der står i bundmenuen
+      ...sections()
         .map(([title, items]) => items.length ? [h("div", { class: "more-h" }, title), h("div", { class: "more-grid" }, ...items.map(([href, ic, label]) => tile(href, ic, label)))] : [])
         .flat(),
       h("div", { class: "more-h" }, "Konto"),
