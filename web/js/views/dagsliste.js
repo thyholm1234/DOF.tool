@@ -175,7 +175,7 @@ export async function render(view) {
     out.replaceChildren(h("p", { class: "muted" }, `${wd[0].toUpperCase()}${wd.slice(1)} ${fmtDate(st.dato)} · ${fmtN(n)} observationer${d.rows.length >= 10000 ? " (første 10.000 poster)" : ""}`),
       d.note ? h("div", { class: "notice" }, d.note) : null,
       !d.rows.length && !d.note ? empty("Ingen observationer", "Prøv en anden visning, dato eller afdeling") : null,
-      d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [byAfd.size > 1 ? head([afdName[id] || "Uden afdeling"], "dl-afd") : null, ...groups(rows, st.dato)])) : null);
+      d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...groups(rows, st.dato)])) : null);
   }
 
   view.append(h("h1", {}, "Dagsliste"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
