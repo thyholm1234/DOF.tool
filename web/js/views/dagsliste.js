@@ -1,6 +1,6 @@
 // Dagslisten: dagens observationer som en traditionel liste, med de samme filtre som DOFbasens observationsside –
 // visning, dato (med dag frem/tilbage), sortering på art eller lokalitet, summering (tur/dato/ingen) og lokalafdeling.
-import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, tag } from "../core.js";
+import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, tag, icon } from "../core.js";
 
 const VISNING = [["fugle", "Fugle – bemærkelsesværdige"], ["allfugle", "Fugle – alle"], ["sufugle", "Fugle – sjældne"], ["trkfugle", "Fugle – trækkende"],
   ["patdyr", "Pattedyr"], ["somfugle", "Sommerfugle"], ["krybdyr", "Padder/krybdyr"]];
@@ -60,42 +60,56 @@ export async function render(view) {
         h("button", { class: "btn sm", type: "button", onclick: () => go({ lokalitet: "" }) }, "Kun én lokalitet ✕")) : null);
   }
 
-  const row = (r, dato, showArt) => h("tr", {},
-    showArt ? h("td", {}, h("a", { href: `#/art/${r.artnr}` }, r.art), r.kat && r.kat !== "alm" ? [" ", tag(r.kat)] : null) : null,
-    h("td", { class: "num" }, h("a", { href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)), sexSign(r.koen),
-      r.n_obs > 1 ? h("span", { class: "muted small", title: `Summeret af ${r.n_obs} observationer` }, ` Σ${r.n_obs}`) : null),
-    h("td", {}, r.alder || ""), h("td", {}, r.adfkode || ""), h("td", {}, r.dragt || ""),
-    showArt ? null : h("td", {}, h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr))),
-    h("td", {}, r.tid ? h("span", { title: "Tidspunkt angivet" }, "🕓 ") : null, r.position ? h("span", { title: "Fuglens position" }, "📍 ") : null,
-      r.kommentar || r.turkommentar ? h("span", { title: "Kommentar" }, "💬") : null),
-    h("td", {}, h("a", { href: `#/observator/${r.obserkode}` }, r.observator || r.obserkode)));
+  // Ét samlet, kompakt skema (som DOFbasens gamle liste): ingen kolonnetitler, faste kolonnebredder hele vejen ned,
+  // noteikonerne forrest – billede, lyd, nål og tid står efter antal/alder/adfærd.
+  const note = (cls, title, text) => text || text === true ? h("span", { class: `dl-ic ${cls}`, title: typeof text === "string" ? `${title}: ${text}` : title, html: icon("chat") }) : null;
+  const notes = (r) => h("td", { class: "dl-notes" },
+    note("dl-tur", "Turnote", r.turnote || r.turkommentar),
+    note("dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
+    note("dl-obs", "Observationsnote", r.obsnote || r.kommentar),
+    r.medobser ? h("span", { class: "dl-ic dl-med", title: "Medobservatører", html: icon("users") }) : null);
+  const extra = (r) => h("td", { class: "dl-extra" },
+    r.foto ? h("span", { class: "dl-ic", title: "Foto", html: icon("camera") }) : null,
+    r.lyd ? h("span", { class: "dl-ic", title: "Lydoptagelse", html: icon("sound") }) : null,
+    r.position ? h("span", { class: "dl-ic", title: "Fuglens position", html: icon("pin") }) : null,
+    r.tid ? h("span", { class: "dl-ic", title: "Tidspunkt angivet", html: icon("now") }) : null);
+  const ald = (r) => [r.alder, sexSign(r.koen).trim(), r.dragt].filter(Boolean).join(" ");
 
-  function table(rows, dato, byLoc) {
-    const head = h("thead", {}, h("tr", {}, byLoc ? h("th", {}, "Art") : null, h("th", { class: "num" }, "Antal"), h("th", {}, "Alder"), h("th", {}, "Adfærd"), h("th", {}, "Dragt"),
-      byLoc ? null : h("th", {}, "Lokalitet"), h("th", {}, ""), h("th", {}, "Observatør")));
-    return h("div", { class: "table-wrap" }, h("table", { class: "data dl-table" }, head, h("tbody", {}, ...rows.map(r => row(r, dato, byLoc)))));
-  }
+  const row = (r, dato, byLoc) => h("tr", {},
+    notes(r),
+    h("td", { class: "num" }, h("a", { href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)),
+      r.n_obs > 1 ? h("span", { class: "muted", title: `Summeret af ${r.n_obs} observationer` }, ` Σ${r.n_obs}`) : null),
+    h("td", {}, ald(r)), h("td", {}, r.adfkode || ""), extra(r),
+    h("td", {}, byLoc ? [h("a", { href: `#/art/${r.artnr}` }, r.art), r.kat && r.kat !== "alm" ? [" ", tag(r.kat)] : null]
+      : h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr)),
+      h("span", { class: "dl-obs-m" }, obsLink(r))),  // på smalle skærme står observatøren under lokaliteten
+    h("td", { class: "dl-obs" }, obsLink(r)));
+  const obsLink = (r) => h("a", { href: `#/observator/${r.obserkode}` }, r.observator || r.obserkode);
+
+  const head = (content, cls = "dl-head") => h("tr", { class: cls }, h("td", { colspan: 7 }, ...content));
 
   function groups(rows, dato) {
     const out = [];
-    if (st.sort === "art") {
-      const by = new Map();
-      for (const r of rows) { if (!by.has(r.artnr)) by.set(r.artnr, []); by.get(r.artnr).push(r); }
-      for (const [, list] of by) {
-        const n = list.reduce((s, r) => s + (r.antal || 0), 0);
-        out.push(h("section", { class: "dl-group" }, h("h3", {}, h("a", { href: `#/art/${list[0].artnr}` }, list[0].art), " ", h("i", { class: "muted small" }, list[0].latin || ""),
-          list[0].kat && list[0].kat !== "alm" ? [" ", tag(list[0].kat)] : null, h("span", { class: "muted small" }, ` · ${fmtN(n)} ind.`)), table(list, dato, false)));
-      }
-    } else {
-      const by = new Map();
-      for (const r of rows) { if (!by.has(r.loknr)) by.set(r.loknr, []); by.get(r.loknr).push(r); }
-      for (const [loknr, list] of [...by].sort((a, b) => (a[1][0].lokalitet || "").localeCompare(b[1][0].lokalitet || "", "da"))) {
-        out.push(h("section", { class: "dl-group" }, h("h3", {}, h("a", { href: `#/lok/${loknr}` }, list[0].lokalitet || String(loknr)),
-          h("span", { class: "muted small" }, ` · ${list.length} ${list.length === 1 ? "art" : "poster"}`)), table(list, dato, true)));
-      }
+    const by = new Map();
+    const key = st.sort === "art" ? (r) => r.artnr : (r) => r.loknr;
+    for (const r of rows) { if (!by.has(key(r))) by.set(key(r), []); by.get(key(r)).push(r); }
+    let list = [...by.values()];
+    if (st.sort !== "art") list = list.sort((a, b) => (a[0].lokalitet || "").localeCompare(b[0].lokalitet || "", "da"));
+    for (const g of list) {
+      const f = g[0];
+      out.push(st.sort === "art"
+        ? head([h("a", { href: `#/art/${f.artnr}` }, h("b", {}, f.art)), " ", h("span", { class: "muted" }, "(", h("i", {}, f.latin || ""), ")"),
+          f.kat && f.kat !== "alm" ? [" ", tag(f.kat)] : null, ":"])
+        : head([h("a", { href: `#/lok/${f.loknr}` }, h("b", {}, f.lokalitet || String(f.loknr))), ":"]));
+      out.push(...g.map(r => row(r, dato, st.sort !== "art")));
     }
     return out;
   }
+
+  const sheet = (bodyRows) => h("div", { class: "table-wrap" }, h("table", { class: "dl-table" },
+    h("colgroup", {}, h("col", { class: "c-notes" }), h("col", { class: "c-num" }), h("col", { class: "c-ald" }), h("col", { class: "c-adf" }),
+      h("col", { class: "c-extra" }), h("col", { class: "c-lok" }), h("col", { class: "c-obs" })),
+    h("tbody", {}, ...bodyRows)));
 
   async function load() {
     const my = ++seq;
@@ -113,7 +127,7 @@ export async function render(view) {
     out.replaceChildren(h("p", { class: "muted" }, `${wd[0].toUpperCase()}${wd.slice(1)} ${fmtDate(st.dato)} · ${fmtN(n)} observationer${d.rows.length >= 10000 ? " (første 10.000 poster)" : ""}`),
       d.note ? h("div", { class: "notice" }, d.note) : null,
       !d.rows.length && !d.note ? empty("Ingen observationer", "Prøv en anden visning, dato eller afdeling") : null,
-      ...[...byAfd].flatMap(([id, rows]) => [byAfd.size > 1 ? h("h2", { class: "dl-afd" }, afdName[id] || "Uden afdeling") : null, ...groups(rows, st.dato)]));
+      d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [byAfd.size > 1 ? head([afdName[id] || "Uden afdeling"], "dl-afd") : null, ...groups(rows, st.dato)])) : null);
   }
 
   view.append(h("h1", {}, "Dagsliste"), h("p", { class: "muted" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
