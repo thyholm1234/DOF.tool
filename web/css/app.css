@@ -1066,6 +1066,10 @@ body.is-viewas .topbar { top: 34px; }
   .dl-table td { padding: 1px 3px; } .dl-notes .dl-ic, .dl-extra .dl-ic { margin-right: 0; }
   .dl-obs-m { display: block; font-size: .8rem; color: var(--muted, #667); }
 }
+/* SU/SUB-arter: artsnavnet er selv mærkatet – hvid fed skrift på kategoriens farve */
+a.dl-rare { display: inline-block; padding: 0 6px; border-radius: 5px; color: #fff; font-weight: 700; text-decoration: none; line-height: 1.45; }
+/* faste, mørke farver, så den hvide skrift kan læses i begge temaer */
+a.dl-rare.SU { background: #d32f2f; } a.dl-rare.SUB { background: #2e7d32; } a.dl-rare:hover { filter: brightness(.9); }
 a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brightness(.8); }
 .dl-pop { position: fixed; z-index: 1100; max-width: min(360px, calc(100vw - 16px)); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 22px rgb(0 0 0 / 22%); padding: 8px 11px; font-size: .84rem; line-height: 1.35; pointer-events: none; }
 .dl-pop b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); } .dl-pop div { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }

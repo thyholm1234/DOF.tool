@@ -1,9 +1,10 @@
 // Dagslisten: dagens observationer som en traditionel liste, med de samme filtre som DOFbasens observationsside –
 // visning, dato (med dag frem/tilbage), sortering på art eller lokalitet, summering (tur/dato/ingen) og lokalafdeling.
-import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, store, toast, icon, tag } from "../core.js";
+import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, store, toast, icon } from "../core.js";
 
-/** SU/SUB-mærkat efter artsnavnet (bemærk-kategorien vises ikke). */
-const rareTag = (kat) => kat === "SU" || kat === "SUB" ? [" ", tag(kat)] : null;
+/** Artsnavn som link; for SU/SUB-arter er selve navnet et mærkat (hvid fed skrift på kategoriens farve).
+ *  Bemærk-kategorien vises ikke. */
+const artName = (artnr, navn, kat) => h("a", { href: `#/art/${artnr}`, class: kat === "SU" || kat === "SUB" ? `dl-rare ${kat}` : null, title: kat === "SU" || kat === "SUB" ? kat : null }, navn);
 
 const VISNING = [["fugle", "Fugle – bemærkelsesværdige"], ["allfugle", "Fugle – alle"], ["sufugle", "Fugle – sjældne"], ["trkfugle", "Fugle – trækkende"],
   ["patdyr", "Pattedyr"], ["somfugle", "Sommerfugle"], ["krybdyr", "Padder/krybdyr"]];
@@ -127,7 +128,7 @@ export async function render(view) {
     h("td", { class: "num" }, h("a", { href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)),
       ),
     h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r, dato),
-    h("td", {}, byLoc ? [h("a", { href: `#/art/${r.artnr}` }, r.art), rareTag(r.kat)]
+    h("td", {}, byLoc ? artName(r.artnr, r.art, r.kat)
       : h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr)),
       h("span", { class: "dl-obs-m" }, obsLink(r))),  // på smalle skærme står observatøren under lokaliteten
     h("td", { class: "dl-obs" }, obsLink(r)));
@@ -145,8 +146,8 @@ export async function render(view) {
     for (const g of list) {
       const f = g[0];
       out.push(st.sort === "art"
-        ? head([h("a", { href: `#/art/${f.artnr}` }, h("b", {}, f.art)), " ", h("span", { class: "muted" }, "(", h("i", {}, f.latin || ""), ")"),
-          rareTag(["SU", "SUB"].find(k => g.some(r => r.kat === k))), ":"])
+        ? head([h("b", {}, artName(f.artnr, f.art, ["SU", "SUB"].find(k => g.some(r => r.kat === k)))), " ", h("span", { class: "muted" }, "(", h("i", {}, f.latin || ""), ")"),
+          ":"])
         : head([h("a", { href: `#/lok/${f.loknr}` }, h("b", {}, f.lokalitet || String(f.loknr))), ":"]));
       out.push(...g.map(r => row(r, dato, st.sort !== "art")));
     }
