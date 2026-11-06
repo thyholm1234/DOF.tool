@@ -105,6 +105,7 @@ export async function render(view) {
     "aria-label": typeof text === "string" ? `${title}: ${text}` : title, html: icon(ic) });
   const note = (r, dato, cls, title, text) => text || text === true ? icoLink(r, dato, cls, "chat", title, text) : null;
   const notes = (r, dato) => h("td", { class: "dl-notes" },
+    r.n_obs > 1 ? icoLink(r, dato, "dl-sum", "chat", "Sammensat observation", `Summeret af ${r.n_obs} observationer`) : null,
     note(r, dato, "dl-tur", "Turnote", r.turnote || r.turkommentar),
     note(r, dato, "dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
     note(r, dato, "dl-obs", "Observationsnote", r.obsnote || r.kommentar),
