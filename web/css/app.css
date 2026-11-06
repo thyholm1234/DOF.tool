@@ -1055,6 +1055,9 @@ body.is-viewas .topbar { top: 34px; }
 .dl-ic .ic { width: 14px; height: 14px; }
 .dl-notes .dl-ic .ic { fill: currentColor; }
 .dl-sum { color: #f2c200; } .dl-tur { color: #e0821e; } .dl-vejr { color: #2e9e3a; } .dl-obs { color: #000; } .dl-notes .dl-obs .ic { fill: #fff; } .dl-med { color: #6cb4f0; }
+/* Mørkt tema: hvid boble uden sort kant (kanten i hvidt, så den har samme størrelse som de andre) */
+:root[data-theme="dark"] .dl-obs { color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dl-obs { color: #fff; } }
 .dl-extra .dl-ic { color: var(--muted, #667); }
 .dl-obs-m { display: none; }
 @media (max-width: 640px) {

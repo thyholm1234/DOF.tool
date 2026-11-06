@@ -6,6 +6,7 @@ import { initSelectMenu } from "./select-menu.js";
 // Build-id fra den versionerede sti (/v/<build>/js/app.js) – vises i brugermenuen
 const BUILD = new URL(import.meta.url).pathname.split("/")[2] || "dev";
 initSelectMenu();
+applyTheme();  // straks, så siden ikke blinker i det forkerte tema
 
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
@@ -203,8 +204,9 @@ export async function refreshUnread() {
   try { const s = await api("/api/support/unread"); state.supportUnread = s.user || 0; state.adminSupportUnread = s.admin || 0; renderNav(); } catch { /* ignore */ }
 }
 
+/** Udseendet (auto/lys/mørk) gemmes pr. enhed i localStorage – ikke på kontoen. */
 function applyTheme() {
-  const t = state.user?.prefs?.theme || localStorage.getItem("theme") || "auto";
+  const t = localStorage.getItem("theme") || "auto";
   if (t === "auto") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", t);
 }

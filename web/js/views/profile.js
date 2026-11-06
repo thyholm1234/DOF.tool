@@ -53,7 +53,8 @@ export async function render(view) {
   const push = h("input", { type: "checkbox", checked: p.push_enabled });
   // GPS-rute på nye ture: spørg ved oprettelse (standard), start altid, eller aldrig
   const tripGps = seg([["ask", "Spørg"], ["on", "Altid"], ["off", "Aldrig"]], p.trip_gps || "ask", (v) => { p.trip_gps = v; });
-  const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], p.theme || "auto", (v) => { p.theme = v; localStorage.setItem("theme", v); state.user.prefs.theme = v; applyTheme(); });
+  // Udseendet gemmes straks og kun på denne enhed (localStorage)
+  const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], localStorage.getItem("theme") || "auto", (v) => { localStorage.setItem("theme", v); applyTheme(); });
 
   // Baggrundsposition (kun appen): positionen følger én enhed ad gangen; tændes her, overtager denne enhed
   const dev = p.share_location === true ? p.position_device : null;
@@ -82,7 +83,7 @@ export async function render(view) {
   const save = async () => {
     try {
       await api("/api/me", { method: "PATCH", body: { afdelinger: p.afdelinger, kommuner: p.kommuner, lists_public: pub.checked, ...(state.user.profiler ? { profile_public: profilePub.checked } : {}), push_enabled: push.checked,
-        quiet_hours: qs.value && qe.value ? { start: qs.value, end: qe.value } : null, theme: p.theme || "auto", phone: phone.value.trim(), trip_gps: p.trip_gps || "ask" } });
+        quiet_hours: qs.value && qe.value ? { start: qs.value, end: qe.value } : null, phone: phone.value.trim(), trip_gps: p.trip_gps || "ask" } });
       await refreshUser();
       toast("Indstillinger gemt");
     } catch (err) { toast(err.message, "err"); }
@@ -110,7 +111,7 @@ export async function render(view) {
         state.user.profiler ? h("label", { class: "check" }, profilePub, "Vis min observatørside for andre brugere (tal og fund fra DOFbasen, uden hemmelige observationer)") : null,
         h("h3", { class: "mt" }, "Ture"),
         h("div", {}, h("p", { class: "muted", style: { marginBottom: "6px" } }, "Optag GPS-rute, når du opretter en tur med dags dato. Ruten kan altid startes og stoppes på turen."), tripGps),
-        h("h3", { class: "mt" }, "Udseende"), theme)),
+        h("h3", { class: "mt" }, "Udseende"), h("p", { class: "muted", style: { marginBottom: "6px" } }, "Gemmes på denne enhed."), theme)),
     h("div", { class: "row mt" }, h("button", { class: "btn primary", onclick: save }, "Gem indstillinger")),
     h("div", { class: "card mt2 row between" }, h("div", {}, h("h3", { style: { margin: 0 } }, "Boligbirding"),
         h("p", { class: "muted", style: { margin: 0 } }, "Matrikler, perioder, flytning og placeringer har deres eget modul.")),
