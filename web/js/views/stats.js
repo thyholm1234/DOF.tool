@@ -103,6 +103,8 @@ export async function regionsTab(body, tab = "arter") {
     if (!d.regions.length) { out.replaceChildren(empty("Ikke beregnet endnu", "Tallene beregnes i baggrunden – kom tilbage om lidt.")); return; }
     const years = d.years.slice(0, SHOW_YEARS);
     const max = Object.fromEntries(years.map(y => [y, Math.max(...d.regions.map(r => r.years[y] || 0))]));
+    const maxTotal = Math.max(...d.regions.map(r => r.total || 0));
+    const best = (n, top) => n && n === top ? h("span", { class: "best-badge" }, fmtN(n)) : fmtN(n);  // flest: grønt mærkat
     const search = h("input", { type: "search", placeholder: st.lv === "kom" ? "Søg kommune…" : "Søg lokalafdeling…", value: st.q, style: { maxWidth: "260px" } });
     const wrap = h("div", { class: "table-wrap", style: { maxHeight: "70vh" } });
     const val = (r, k) => k === "label" ? r.label : k === "total" ? r.total || 0 : r.years[k] || 0;
@@ -119,13 +121,13 @@ export async function regionsTab(body, tab = "arter") {
           ...years.map(y => th(y === YEAR ? `${y}*` : String(y), y)))),
         h("tbody", {}, ...rows.map(r => h("tr", {},
           h("td", { class: "nowrap" }, h("a", { href: "javascript:void 0", onclick: () => open(r) }, r.label)),
-          h("td", { class: "right num muted" }, fmtN(r.total)),
-          ...years.map(y => h("td", { class: "right num", style: { cursor: "pointer", fontWeight: r.years[y] && r.years[y] === max[y] ? 800 : null }, title: `${r.label} ${y}`,
-            onclick: () => open(r, y) }, r.years[y] ? fmtN(r.years[y]) : "–")))))));
+          h("td", { class: "right num muted" }, best(r.total, maxTotal)),
+          ...years.map(y => h("td", { class: "right num", style: { cursor: "pointer" }, title: `${r.label} ${y}`,
+            onclick: () => open(r, y) }, r.years[y] ? best(r.years[y], max[y]) : "–")))))));
     };
     let t; search.oninput = () => { clearTimeout(t); t = setTimeout(() => { st.q = search.value; draw(); }, 150); };
     out.replaceChildren(h("div", { class: "card" }, h("div", { class: "row between mb" }, search,
-      h("span", { class: "muted", style: { fontSize: ".85rem" } }, `Seneste ${years.length} år · * = til dato · fed = flest i året · klik for artsliste`)), wrap));
+      h("span", { class: "muted", style: { fontSize: ".85rem" } }, `Seneste ${years.length} år · * = til dato · grøn = flest · klik for artsliste`)), wrap));
     draw();
   }
 

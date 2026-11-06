@@ -1097,3 +1097,5 @@ a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brig
 .obs-trip td { padding: 3px 6px; border-top: 1px solid var(--line); vertical-align: top; }
 .obs-trip td.num { text-align: right; white-space: nowrap; }
 .obs-trip tr.cur td { background: var(--brand-soft); }
+/* Bedste antal i tabeller (fx lokalafdelinger/kommuner): standardgrønt mærkat med hvid fed skrift i begge temaer */
+.best-badge { display: inline-block; padding: 0 6px; border-radius: 5px; background: #1f5a44; color: #fff; font-weight: 700; }
