@@ -1060,3 +1060,6 @@ body.is-viewas .topbar { top: 34px; }
   .dl-table td { padding: 1px 3px; } .dl-notes .dl-ic, .dl-extra .dl-ic { margin-right: 0; }
   .dl-obs-m { display: block; font-size: .8rem; color: var(--muted, #667); }
 }
+a.dl-ic { text-decoration: none; cursor: pointer; } .dl-notes .dl-med { color: var(--text-3); } a.dl-ic:hover { filter: brightness(.8); }
+.dl-pop { position: fixed; z-index: 1100; max-width: min(360px, calc(100vw - 16px)); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 22px rgb(0 0 0 / 22%); padding: 8px 11px; font-size: .84rem; line-height: 1.35; pointer-events: none; }
+.dl-pop b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); } .dl-pop div { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }

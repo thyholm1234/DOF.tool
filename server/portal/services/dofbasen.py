@@ -502,6 +502,7 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
                string_agg(DISTINCT o.adfkode, ', ') AS adfkode, string_agg(DISTINCT o.alderkode, ', ') AS alder,
                string_agg(DISTINCT o.koen, ', ') AS koen, string_agg(DISTINCT o.dragtkode, ', ') AS dragt,
                bool_or(coalesce(o.fuglnoter, '') <> '') AS kommentar, bool_or(coalesce(t.turnoter, '') <> '') AS turkommentar,
+               left(string_agg(DISTINCT nullif(o.fuglnoter, ''), ' · '), 600) AS obsnote, left(max(nullif(t.turnoter, '')), 600) AS turnote,
                bool_or(coalesce(t.medobser, '') <> '') AS medobser, bool_or(o.obs_lat IS NOT NULL) AS position,
                bool_or(o.obstidfra IS NOT NULL OR t.turtidfra IS NOT NULL) AS tid, max(st.status) AS dku
         FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr

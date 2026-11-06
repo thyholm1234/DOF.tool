@@ -1,6 +1,6 @@
 // Dagslisten: dagens observationer som en traditionel liste, med de samme filtre som DOFbasens observationsside –
 // visning, dato (med dag frem/tilbage), sortering på art eller lokalitet, summering (tur/dato/ingen) og lokalafdeling.
-import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, tag, icon } from "../core.js";
+import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, icon } from "../core.js";
 
 const VISNING = [["fugle", "Fugle – bemærkelsesværdige"], ["allfugle", "Fugle – alle"], ["sufugle", "Fugle – sjældne"], ["trkfugle", "Fugle – trækkende"],
   ["patdyr", "Pattedyr"], ["somfugle", "Sommerfugle"], ["krybdyr", "Padder/krybdyr"]];
@@ -17,6 +17,28 @@ function select(label, options, value, onChange) {
   const sel = h("select", { "aria-label": label, onchange: () => onChange(sel.value) },
     ...options.map(([v, t]) => h("option", { value: v, selected: String(v) === String(value) }, t)));
   return h("label", { class: "dl-field" }, h("span", { class: "muted small" }, label), sel);
+}
+
+/** Boks ved hover over et ikon: viser noten/forklaringen ved siden af ikonet (data-pop-t = overskrift, data-pop = indhold). */
+let pop = null;
+function initPopup(root) {
+  const hide = () => { pop?.remove(); pop = null; };
+  const show = (el) => {
+    hide();
+    const t = el.dataset.popT, txt = el.dataset.pop;
+    pop = h("div", { class: "dl-pop", role: "tooltip" }, h("b", {}, t), txt ? h("div", {}, txt) : null);
+    document.body.append(pop);
+    const r = el.getBoundingClientRect(), w = pop.offsetWidth, ph = pop.offsetHeight;
+    const left = Math.max(8, Math.min(r.left, innerWidth - w - 8));
+    pop.style.left = `${left}px`;
+    pop.style.top = `${r.bottom + ph + 8 > innerHeight && r.top > ph + 8 ? r.top - ph - 6 : r.bottom + 6}px`;
+  };
+  root.addEventListener("mouseover", e => { const el = e.target.closest?.("[data-pop-t]"); if (el) show(el); else if (!e.target.closest?.(".dl-pop")) hide(); });
+  root.addEventListener("mouseleave", hide);
+  root.addEventListener("focusin", e => { const el = e.target.closest?.("[data-pop-t]"); if (el) show(el); });
+  root.addEventListener("focusout", hide);
+  addEventListener("hashchange", hide, { once: true });
+  addEventListener("scroll", hide, { passive: true });
 }
 
 export async function render(view) {
@@ -62,25 +84,28 @@ export async function render(view) {
 
   // Ét samlet, kompakt skema (som DOFbasens gamle liste): ingen kolonnetitler, faste kolonnebredder hele vejen ned,
   // noteikonerne forrest – billede, lyd, nål og tid står efter antal/alder/adfærd.
-  const note = (cls, title, text) => text || text === true ? h("span", { class: `dl-ic ${cls}`, title: typeof text === "string" ? `${title}: ${text}` : title, html: icon("chat") }) : null;
-  const notes = (r) => h("td", { class: "dl-notes" },
-    note("dl-tur", "Turnote", r.turnote || r.turkommentar),
-    note("dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
-    note("dl-obs", "Observationsnote", r.obsnote || r.kommentar),
-    r.medobser ? h("span", { class: "dl-ic dl-med", title: "Medobservatører", html: icon("users") }) : null);
-  const extra = (r) => h("td", { class: "dl-extra" },
-    r.foto ? h("span", { class: "dl-ic", title: "Foto", html: icon("camera") }) : null,
-    r.lyd ? h("span", { class: "dl-ic", title: "Lydoptagelse", html: icon("sound") }) : null,
-    r.position ? h("span", { class: "dl-ic", title: "Fuglens position", html: icon("pin") }) : null,
-    r.tid ? h("span", { class: "dl-ic", title: "Tidspunkt angivet", html: icon("now") }) : null);
+  // Ikonerne er links til observationen; ved hover vises indholdet (noten) i en boks, ved klik åbnes observationen.
+  const icoLink = (r, dato, cls, ic, title, text) => h("a", { class: `dl-ic ${cls}`, href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, "data-pop-t": title, "data-pop": typeof text === "string" ? text : "",
+    "aria-label": typeof text === "string" ? `${title}: ${text}` : title, html: icon(ic) });
+  const note = (r, dato, cls, title, text) => text || text === true ? icoLink(r, dato, cls, "chat", title, text) : null;
+  const notes = (r, dato) => h("td", { class: "dl-notes" },
+    note(r, dato, "dl-tur", "Turnote", r.turnote || r.turkommentar),
+    note(r, dato, "dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
+    note(r, dato, "dl-obs", "Observationsnote", r.obsnote || r.kommentar),
+    r.medobser ? icoLink(r, dato, "dl-med", "users", "Medobservatører", true) : null);
+  const extra = (r, dato) => h("td", { class: "dl-extra" },
+    r.foto ? icoLink(r, dato, "", "camera", "Foto", true) : null,
+    r.lyd ? icoLink(r, dato, "", "sound", "Lydoptagelse", true) : null,
+    r.position ? icoLink(r, dato, "", "pin", "Fuglens position", true) : null,
+    r.tid ? icoLink(r, dato, "", "now", "Tidspunkt angivet", true) : null);
   const ald = (r) => [r.alder, sexSign(r.koen).trim(), r.dragt].filter(Boolean).join(" ");
 
   const row = (r, dato, byLoc) => h("tr", {},
-    notes(r),
+    notes(r, dato),
     h("td", { class: "num" }, h("a", { href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)),
       r.n_obs > 1 ? h("span", { class: "muted", title: `Summeret af ${r.n_obs} observationer` }, ` Σ${r.n_obs}`) : null),
-    h("td", {}, ald(r)), h("td", {}, r.adfkode || ""), extra(r),
-    h("td", {}, byLoc ? [h("a", { href: `#/art/${r.artnr}` }, r.art), r.kat && r.kat !== "alm" ? [" ", tag(r.kat)] : null]
+    h("td", {}, ald(r)), h("td", {}, r.adfkode || ""), extra(r, dato),
+    h("td", {}, byLoc ? h("a", { href: `#/art/${r.artnr}` }, r.art)
       : h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr)),
       h("span", { class: "dl-obs-m" }, obsLink(r))),  // på smalle skærme står observatøren under lokaliteten
     h("td", { class: "dl-obs" }, obsLink(r)));
@@ -99,7 +124,7 @@ export async function render(view) {
       const f = g[0];
       out.push(st.sort === "art"
         ? head([h("a", { href: `#/art/${f.artnr}` }, h("b", {}, f.art)), " ", h("span", { class: "muted" }, "(", h("i", {}, f.latin || ""), ")"),
-          f.kat && f.kat !== "alm" ? [" ", tag(f.kat)] : null, ":"])
+          ":"])
         : head([h("a", { href: `#/lok/${f.loknr}` }, h("b", {}, f.lokalitet || String(f.loknr))), ":"]));
       out.push(...g.map(r => row(r, dato, st.sort !== "art")));
     }
@@ -132,5 +157,6 @@ export async function render(view) {
 
   view.append(h("h1", {}, "Dagsliste"), h("p", { class: "muted" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
   drawFilters();
+  initPopup(out);
   load();
 }
