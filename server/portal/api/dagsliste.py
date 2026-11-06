@@ -37,3 +37,28 @@ async def dagsliste(dato: date | None = None, visning: str = Query("fugle", patt
     if d > dk_today():
         raise HTTPException(422, "Datoen ligger i fremtiden")
     return await svc.day_observations(db, user.obserkode, d, visning, lok, lokalitet, summering)
+
+
+@router.get("/obs/{obsid}")
+async def observation(obsid: int, user: User = Depends(need_dagsliste), db: AsyncSession = Depends(get_session)):
+    """Én observation med alle DOFbasens felter (som popobs.php) og resten af turlistens indtastninger."""
+    o = (await db.execute(text(f"""
+        SELECT {svc.ROW_COLS}, cd.text AS dragt, o.first_seen
+        FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
+        LEFT JOIN trips t ON t.turid = o.turid {svc.ROW_JOINS}
+        LEFT JOIN code_texts cd ON cd.kind = 'dragt' AND cd.code = o.dragtkode
+        WHERE o.obsid = :id AND (o.hemmelig = 0 OR o.obserkode = :me)"""), {"id": obsid, "me": user.obserkode, "sub_as_species": False})).mappings().first()
+    if o is None:
+        raise HTTPException(404, "Observationen findes ikke")
+    o = dict(o)
+    tur = []
+    if o["turid"]:
+        tur = [dict(r) for r in (await db.execute(text("""
+            SELECT o.obsid, o.artnr, s.navn AS art, s.latin, o.antal, o.koen, o.alderkode, o.dragtkode, cd.text AS dragt,
+                   o.adfkode, ca.text AS adfaerd, o.obstidfra, o.obstidtil, o.fuglnoter, o.kategori, o.loknr
+            FROM observations o JOIN species s ON s.artnr = o.artnr
+            LEFT JOIN code_texts ca ON ca.kind = 'adf' AND ca.code = o.adfkode
+            LEFT JOIN code_texts cd ON cd.kind = 'dragt' AND cd.code = o.dragtkode
+            WHERE o.turid = :t AND (o.hemmelig = 0 OR o.obserkode = :me)
+            ORDER BY s.sortering, o.obsid"""), {"t": o["turid"], "me": user.obserkode})).mappings().all()]
+    return {"obs": o, "tur": tur}

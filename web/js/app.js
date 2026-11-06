@@ -55,6 +55,7 @@ function activeHref(path, hrefs) {
 const ROUTES = [
   [/^\/?$/, () => import("./views/feed.js")],
   [/^\/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)$/, () => import("./views/thread.js")],
+  [/^\/obs\/(\d+)$/, () => import("./views/obs.js")],  // én observation, åbnet fra Observationer
   [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
   [/^\/matrikel$/, () => import("./views/matrikel.js")],
   [/^\/traek$/, () => import("./views/pheno.js")],

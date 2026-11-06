@@ -2811,6 +2811,20 @@ false,
 "params": []
 }
 },
+"/api/dagsliste/obs/{obsid}": {
+"get": {
+"body": false,
+"op": "observation_api_dagsliste_obs__obsid__get",
+"params": [
+[
+"obsid",
+"path",
+true,
+"{\"title\": \"Obsid\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/daymap": {
 "get": {
 "body": false,

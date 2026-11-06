@@ -44,3 +44,22 @@ async def test_dagsliste_flag_filtre_og_hemmelige(web, db):  # noqa: F811
     assert (await web["a1"].get("/api/dagsliste?visning=ugyldig")).status_code == 422
     assert (await web["a1"].get("/api/dagsliste?dato=2999-01-01")).status_code == 422
     assert (await web["a1"].get("/api/dagsliste/afdelinger")).status_code == 200
+
+
+async def test_enkelt_observation_med_turliste(web, db):  # noqa: F811
+    from portal.models.reference import Kommune
+
+    await seed(db)
+    async with db() as s:
+        await (await s.connection()).run_sync(lambda c: Kommune.__table__.create(c, checkfirst=True))
+        await s.execute(text("INSERT INTO trips (turid, dato, loknr, obserkode, medobser) VALUES (7100, :d, 100, 'LB', 'HO') "
+                             "ON CONFLICT (turid) DO NOTHING"), {"d": date.today()})
+        await s.execute(text("UPDATE observations SET turid = 7100, alderkode = '1K' WHERE obsid IN (7001, 7003, 7004)"))
+        await s.commit()
+    await flags(db, dagsliste="on")
+    r = (await web["a1"].get("/api/dagsliste/obs/7001")).json()
+    assert r["obs"]["alderkode"] == "1K" and r["obs"]["medobser"] == "HO" and r["obs"]["art"] == "Gråand"
+    assert [t["obsid"] for t in r["tur"]] == [7001, 7003]  # resten af turen, uden andres hemmelige
+    assert (await web["a1"].get("/api/dagsliste/obs/7004")).status_code == 404
+    await flags(db, dagsliste="off")
+    assert (await web["a1"].get("/api/dagsliste/obs/7001")).status_code == 404

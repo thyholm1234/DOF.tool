@@ -105,7 +105,7 @@ export async function render(view) {
   // Ét samlet, kompakt skema (som DOFbasens gamle liste): ingen kolonnetitler, faste kolonnebredder hele vejen ned,
   // noteikonerne forrest – billede, lyd, nål og tid står efter antal/alder/adfærd.
   // Ikonerne er links til observationen; ved hover vises indholdet (noten) i en boks, ved klik åbnes observationen.
-  const icoLink = (r, dato, cls, ic, title, text) => h("a", { class: `dl-ic ${cls}`, href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, "data-pop-t": title, "data-pop": typeof text === "string" ? text : "",
+  const icoLink = (r, dato, cls, ic, title, text) => h("a", { class: `dl-ic ${cls}`, href: `#/obs/${r.obsid}`, "data-pop-t": title, "data-pop": typeof text === "string" ? text : "",
     "aria-label": typeof text === "string" ? `${title}: ${text}` : title, html: icon(ic) });
   const note = (r, dato, cls, title, text) => text || text === true ? icoLink(r, dato, cls, "chat", title, text) : null;
   // Fem faste pladser, så hver slags kommentar står i sin egen kolonne hele vejen ned (tom plads, når den mangler)
@@ -125,7 +125,7 @@ export async function render(view) {
 
   const row = (r, dato, byLoc) => h("tr", {},
     notes(r, dato),
-    h("td", { class: "num" }, h("a", { href: `#/traad/${dato}/${r.artnr}/${r.loknr}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)),
+    h("td", { class: "num" }, h("a", { href: `#/obs/${r.obsid}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)),
       ),
     h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r, dato),
     h("td", {}, byLoc ? artName(r.artnr, r.art, r.kat)
@@ -178,7 +178,7 @@ export async function render(view) {
       d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...groups(rows, st.dato)])) : null);
   }
 
-  view.append(h("h1", {}, "Observationer"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og dens tråd."), filters, out);
+  view.append(h("h1", {}, "Observationer"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og resten af turlisten."), filters, out);
   drawFilters();
   initPopup(out);
   load();

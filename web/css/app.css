@@ -1087,3 +1087,9 @@ a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brig
 /* Trådens observationer: alle DOFbasens felter i en kompakt to-kolonne-liste */
 .obs-facts { display: grid; grid-template-columns: max-content 1fr; gap: 1px 12px; margin: 6px 0 0; font-size: .84rem; }
 .obs-facts dt { color: var(--text-3); } .obs-facts dd { margin: 0; overflow-wrap: anywhere; }
+/* Én observation (#/obs): turlisten */
+.obs-trip-wrap { overflow-x: auto; }
+.obs-trip { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.obs-trip td { padding: 3px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+.obs-trip td.num { text-align: right; white-space: nowrap; }
+.obs-trip tr.cur td { background: var(--brand-soft); }
