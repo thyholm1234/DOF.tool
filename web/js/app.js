@@ -294,8 +294,28 @@ async function route() {
   try { await show(y); } finally { routing = false; }
 }
 
+/** Hvor kom man fra? Gemmes i det nye historikpunkt (history.state.from), første gang det vises, så tilbage-linket
+ *  øverst på fx en tråd kan vise og føre til forrige side – også når man vender tilbage til punktet senere. */
+let lastHash = null;
+function rememberFrom() {
+  const prev = lastHash;
+  lastHash = location.hash || "#/";
+  if (history.state && "from" in history.state) return;  // besøgt før (tilbage/frem/genindlæs): behold
+  let from = null;
+  if (prev && prev !== lastHash) {
+    const p = prev.split("?")[0] || "#/";
+    const exact = navItem(p);
+    const h1 = $("#view h1")?.textContent.trim();
+    const near = navItem(activeHref(p, NAV.map(n => n[0])) || "");
+    const label = p === "#/" || p === "#" ? "Feed" : exact ? exact[2] : h1 && h1.length <= 40 ? h1 : near ? near[2] : "Tilbage";
+    from = { hash: prev, label: label.replace(/<[^>]*>/g, "").trim() };
+  }
+  history.replaceState({ ...history.state, from }, "");
+}
+
 async function show(y) {
   const [path] = (location.hash.slice(1) || "/").split("?");
+  rememberFrom();
   document.querySelector(".more-sheet")?.remove();
   // Hele portalen kræver login – uden login vises kun forsiden med login
   if (!state.user && path !== "/login") {

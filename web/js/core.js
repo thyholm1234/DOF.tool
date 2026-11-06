@@ -106,6 +106,14 @@ export function toast(msg, kind = "") {
 const layers = [];   // [{ el, close }], det øverste sidst
 export function backLayer(el, close) { layers.push({ el, close }); }
 
+/** «← Forrige side»-link: fører tilbage til siden man kom fra (gemt af routeren i history.state.from), ellers til
+ *  fallback. Tilbage sker via historikken, så rullepositionen på forrige side genskabes. */
+export function backLink(fallbackHref = "#/", fallbackLabel = "Feed") {
+  const from = history.state?.from;
+  return h("a", { href: from?.hash || fallbackHref, onclick: (e) => { if (from) { e.preventDefault(); history.back(); } } },
+    `← ${from?.label || fallbackLabel}`);
+}
+
 /** Kaldes af appen (MainActivity) ved tilbagetryk. false: intet at gå tilbage til – appen lægges i baggrunden. */
 window.dofBack = (canGoBack) => {
   while (layers.length) {

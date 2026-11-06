@@ -1,5 +1,5 @@
 import { obsPhotoStrip } from "../fotos/obsfotos.js";
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can, observerLink } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can, observerLink, backLink } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor } from "../maps.js";
 import { reportCard, statusBadge, threadStatusCard } from "../reportui.js";
@@ -58,7 +58,7 @@ export async function render(view, [date, artnr, loknr]) {
   };
 
   view.replaceChildren(
-    h("p", {}, h("a", { href: "#/" }, "← Feed")),
+    h("p", {}, backLink("#/", "Feed")),
     h("div", { class: "page-head" },
       h("div", {},
         h("div", { class: "row" }, tag(best, KAT[best]), badgeEl, h("span", { class: "muted" }, fmtDate(date))),
