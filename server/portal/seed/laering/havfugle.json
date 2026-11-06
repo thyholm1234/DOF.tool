@@ -1,0 +1,3977 @@
+{
+ "format": "laering-v2",
+ "exported": "2026-11-05T12:00:00+00:00",
+ "courses": [
+  {
+   "kind": "kursus",
+   "slug": "havfugle",
+   "title": "Havfugle og havobs: alle danske havfugle fra Søkonge til Sortbrynet Albatros",
+   "summary": "Et grundigt kursus i at finde og bestemme havfugle fra kysten: havobs-metoden, gruppenøglen, vind og vejr, steder og kalender og så arterne gruppe for gruppe.",
+   "card": "Først at se på havet og sætte fuglen i en gruppe med syv billeder, så vejret og stederne, og til sidst arterne: stormfugle, stormsvaler, suler, kjover, alkefugle, lommer, havænder og havmåger.",
+   "intro": "Kurset bygger på, at havfugle bestemmes på flugt og form før farver. Først lærer du at se på et oprørt hav og at sætte enhver havfugl i den rigtige gruppe, derefter hvorfor og hvornår fuglene kommer ind, og til sidst arterne med huskeregler for de svære par. Kun arter på Den Danske Liste, kategori A.\n\n**Kilder:** Howell & Zufelt: *Oceanic Birds of the World. A Photo Guide* (2019) · Malling Olsen: *Gulls of the World* (2018) · Adriaens, Muusse, Dubois & Jiguet:\n*Gulls of Europe, North Africa, and the Middle East* (2022) · DOFbasen: *Danmarks Fugle* og observationer · Olsen & Sjældenhedsudvalget: *The Danish List* (DOFT 2025) ·\nPandion og Fugle i felten under Artikler (Haaning, Malling Olsen, Bunch, Ortvad m.fl.). Fotos: DOF.tools fotobibliotek. Lyde: xeno-canto.",
+   "topic": "id",
+   "level": "øvet",
+   "number": 10,
+   "stage": "Artsgrupper i dybden",
+   "hours": "11–14 timer",
+   "hue": "hav",
+   "sil": "maage",
+   "skills": [
+    "Bemærk",
+    "Sammenlign",
+    "Lyt",
+    "Vurdér",
+    "Forbered"
+   ],
+   "featured": true,
+   "audience": "For let øvede fuglekiggere, der har stået på en havobs og vil kunne bestemme det, der flyver forbi, også langt ude og i dårligt lys.",
+   "learn": [
+    {
+     "title": "Se fugle på havet",
+     "text": "Skan rigtigt, brug pejlemærker og læs flugten: dynamisk svæveflugt, summende alkefugle og lommernes pukkelryg."
+    },
+    {
+     "title": "Sæt den i en gruppe",
+     "text": "Syv billeder (bølgetegneren, flagermusen, korset, piraten, humlebien, pukkelryggen og perlesnoren) giver gruppen på få sekunder."
+    },
+    {
+     "title": "Vælg dag og sted",
+     "text": "Pålandsvind, fronter og havets tragt: hvilken vind passer til hvilket havobspunkt, og hvornår de forskellige grupper topper."
+    },
+    {
+     "title": "Skil arterne ad",
+     "text": "Huskeregler for de svære par: Mallemuk/skråpe, Stor/Lille Stormsvale, de unge kjover, Lomvie/Alk og Sortstrubet Lom/Stillehavslom."
+    },
+    {
+     "title": "Dokumentér og beslut ærligt",
+     "text": "Tæl, fotografér og film det, der afgør sagen, og brug DOFbasens kategorier som «kjove sp.» og «Lomvie/Alk»."
+    }
+   ],
+   "units": [
+    {
+     "title": "Velkommen til havet",
+     "lesson_md": "Havobs er noget helt for sig. Du står i klitten i kuling med teleskopet i læ, og så kommer de: suler, der kaster sig i bølgerne, mallemukker, der tegner\nbuer over vandet, og en kjove, der jager en terne. De fleste havfugle tilbringer næsten hele livet langt fra land. Kun når vind og vejr presser dem ind,\nkan vi se dem fra kysten. Det gør havobs til en af de mest spændende, men også mest krævende former for fuglekiggeri.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Hvad du lærer\n\nKurset handler om de havfugle, der er set i Danmark (Den Danske Liste, kategori A): lommer, stormfugle, stormsvaler, suler, svømmesnepper, kjover, alkefugle,\nhavænder og de måger, der hører til på havet.\n\nVi følger samme opbygning som i de andre kurser:\n\n1. **At se**: hvordan man overhovedet ser fugle på et oprørt hav, og hvad flugten fortæller.\n2. **Grupperne**: syv billeder, der sætter enhver havfugl i den rigtige gruppe på få sekunder.\n3. **Hvorfor og hvornår**: vejret, vinden og havets geografi, steder og kalender.\n4. **Arterne**: gruppe for gruppe, med huskeregler for de svære par.\n5. **Ærlighed**: tælling, dokumentation og hvornår «kjove sp.» er det rigtige svar.\n\n### Det vigtigste først\n\nHenrik Haaning skriver om unge kjover, at det handler om erfaring, om at læse op og om at «have respekt for bestemmelsesproblematikkerne». Selv meget\nerfarne havfugleobservatører må af og til lade en fugl gå som ubestemt (Pandion 2016). Det gælder for hele kurset. En god havobser er ikke en, der bestemmer\nalt, men en, der ved, hvad der kan bestemmes."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 710,
+         "nf": 118992
+        },
+        {
+         "artnr": 220,
+         "nf": 120896
+        },
+        {
+         "artnr": 5690,
+         "nf": 117591
+        },
+        {
+         "artnr": 6360,
+         "nf": 122466
+        }
+       ],
+       "labels": [
+        "Sule",
+        "Mallemuk",
+        "Storkjove",
+        "Alk"
+       ],
+       "tekst": "Fire klassiske havfugle fra en dansk havobs."
+      },
+      {
+       "type": "tip",
+       "titel": "Sådan bruger du kurset",
+       "md": "- Læs et trin, og tag quizzen. Kom tilbage til quizzerne efter et par dage; det er gentagelsen, der får det til at sidde.\n- Tag kurset med på havobs. Sig gruppebilledet højt, når en fugl dukker op.\n- Lær de almindelige arter, især Mallemuk, Sule og Almindelig Kjove, så godt, at alt andet skiller sig ud."
+      }
+     ],
+     "acts": [
+      {
+       "type": "refleksion",
+       "prompt": "Hvad gør du i dag, når en mørk fugl flyver forbi langt ude over havet? Skriv det ned, så du kan sammenligne efter kurset.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 40,
+        "example": "Fx: «Jeg prøver at se farver og ender tit med at skrive ‹havfugl sp.› eller gætter på skråpe, fordi den er mørk.»"
+       },
+       "accept": [],
+       "ask_confidence": false
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor ser vi mest havfugle fra land i blæsevejr?",
+       "choices": [
+        {
+         "text": "Pålandsvind presser fuglene ind mod kysten, så de passerer tæt på",
+         "correct": true
+        },
+        {
+         "text": "Havfuglene trækker kun, når det blæser",
+         "correct": false
+        },
+        {
+         "text": "Det er kun i blæsevejr, at havfuglene er sultne",
+         "correct": false
+        },
+        {
+         "text": "Fuglene søger ly inde over land",
+         "correct": false
+        }
+       ],
+       "explanation": "De fleste havfugle holder sig langt fra land. En kraftig vind mod kysten skubber dem ind, og fremspring som Skagen og Hanstholm samler dem.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er det vigtigste kendetegn hos havfugle på afstand?",
+       "choices": [
+        {
+         "text": "Flugten og silhuetten",
+         "correct": true
+        },
+        {
+         "text": "Øjenfarven",
+         "correct": false
+        },
+        {
+         "text": "Benfarven",
+         "correct": false
+        },
+        {
+         "text": "Næbbets spids",
+         "correct": false
+        }
+       ],
+       "explanation": "På et oprørt hav ser du sjældent detaljer. Flugtmåde og form, også kaldet GISS eller jizz, er det, du har mest af.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken havfugl kender du allerede?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         220,
+         710,
+         5670,
+         5690,
+         6020,
+         6340,
+         6360,
+         20
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 20,
+     "min_score_pct": null
+    },
+    {
+     "title": "Havobs: udstyr, metode og at se fugle på havet",
+     "lesson_md": "Det første, man lærer på havobs, er at se. Havet er stort, bølgerne skjuler fuglene, og lyset skifter hele tiden. Erfarne havobsere har ikke bedre øjne,\nmen de har en metode: de ved, hvor de skal kigge, og hvad de skal kigge efter.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Udstyr\n\n- **Teleskop** med 20–30x og et stabilt stativ, der kan stå i blæst. Højere forstørrelse giver mest varmeflimmer og rystelser.\n- **Kikkert** til de nære fugle og til at følge en fugl, der kommer hurtigt.\n- **Tøj til at stå stille**. Du står i timevis i kulingen. Læ bag klitten, en skærm eller en bil kan være guld værd.\n- **Notesbog eller app** til at tælle. På gode dage kommer der hundredvis af fugle i timen.\n\n### At skanne havet\n\n1. **Find en fast linje.** Skan lavt over vandet, lige over bølgetoppene. De fleste havfugle flyver lavt. Skan derefter et bælte længere ude.\n2. **Brug pejlemærker.** En bøje, en vindmølle eller et skib gør det let at fortælle de andre, hvor fuglen er: «Lige over den røde bøje, på vej til højre.»\n3. **Lad fuglene komme til dig.** På en trækdag følger fuglene samme bane. Find den, og vent der.\n4. **Kig op ind imellem.** Suler og kjover kan flyve højt, og lommer trækker ofte højt om foråret.\n\n### At se en havfugl: GISS på havet\n\nGISS står for *general impression of size and shape*, også kaldet jizz. På havet er det vigtigere end nogen andre steder, fordi du kun ser fuglen i korte\nglimt mellem bølgerne (Haaning, Fugle i felten 2004).\n\n| Spørg dig selv | Hvad det kan fortælle |\n|---|---|\n| **Hvordan flyver den?** | Stive vinger og buer over bølgerne = stormfugl. Summende vinger lavt over vandet = alkefugl. Stive, dybe slag og pukkelryg = lom. |\n| **Hvordan holder den vingerne?** | Lige og stive (Mallemuk), knækkede og spidse (kjove, skråpe), korte og hurtige (alkefugle) |\n| **Hvor ligger tyngdepunktet?** | Fremme (lom med tungt hoved), midt på (alk), bagpå (Mellemkjovens «ølmave») |\n| **Hvor stor er den i forhold til de andre?** | Sammenlign altid med en kendt fugl i nærheden: Sølvmåge, Ride, Sule |\n| **Hvad er der af lyst og mørkt?** | Lys overgump, hvide håndfelter, hvide vingebånd. Farver kommer sidst |\n\n### Dynamisk svæveflugt\n\nStormfuglene, altså mallemukker, skråper og albatrosser, bruger vinden og bølgerne til at flyve næsten uden vingeslag. De kaster sig op i vinden, vender\nog glider ned langs bølgen med fart, og så op igen. Det giver de karakteristiske buer over vandet. Jo mere det blæser, jo højere og stejlere buer.\nHowell & Zufelt (2019) beskriver Sodfarvet Skråpe som en fugl med hurtige, kraftige slag og lange, lave glid i stille vejr, men høje, stejle buer i blæst.\nFlugten ændrer sig altså med vinden. Sammenlign altid med de andre fugle i samme vejr.\n\n### Lyset snyder\n\nEn Mallemuk i modlys eller i skyggen af en bølge kan se helt mørk ud, og en Stor Stormsvale kan se helt sort ud, indtil solen rammer den (Haaning 2003, 2004).\nBedøm aldrig en havfugl på farven i et enkelt glimt."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Størrelse på havet",
+       "md": "Størrelse er svær at bedømme på åbent hav uden noget at sammenligne med. En Storskråpe har næsten samme vingefang som en Mallemuk (Haaning 2021). Brug proportioner og flugt, ikke kun størrelse."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 220,
+         "nf": 120896
+        },
+        {
+         "artnr": 430,
+         "nf": 109952
+        }
+       ],
+       "labels": [
+        "Mallemuk",
+        "Sodfarvet Skråpe"
+       ],
+       "tekst": "To stormfugle med stive vinger. Mallemukkens vinge er lige og bred; skråpens er smal, knækket og spids."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvor skal du først skanne på en havobs?",
+       "choices": [
+        {
+         "text": "Lavt, lige over bølgetoppene",
+         "correct": true
+        },
+        {
+         "text": "Højt oppe på himlen",
+         "correct": false
+        },
+        {
+         "text": "Langs stranden",
+         "correct": false
+        },
+        {
+         "text": "Ved horisonten",
+         "correct": false
+        }
+       ],
+       "explanation": "De fleste havfugle flyver lavt over vandet. Skan først der og derefter bælter længere ude. Kig op ind imellem efter lommer, suler og kjover.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er dynamisk svæveflugt?",
+       "choices": [
+        {
+         "text": "Fuglen bruger vind og bølger til at flyve i buer næsten uden vingeslag",
+         "correct": true
+        },
+        {
+         "text": "Fuglen flyver højt i termik",
+         "correct": false
+        },
+        {
+         "text": "Fuglen står stille i luften som en Tårnfalk",
+         "correct": false
+        },
+        {
+         "text": "Fuglen flyver med hurtige, summende vingeslag",
+         "correct": false
+        }
+       ],
+       "explanation": "Stormfuglene kaster sig op i vinden og glider ned langs bølgen. Jo mere det blæser, jo højere buer.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor kan du ikke stole på en havfugls farve i et enkelt glimt?",
+       "choices": [
+        {
+         "text": "Lys, skygger fra bølger og modlys kan få lyse fugle til at se mørke ud",
+         "correct": true
+        },
+        {
+         "text": "Havfugle skifter farve, når de flyver",
+         "correct": false
+        },
+        {
+         "text": "Saltvand farver fjerene",
+         "correct": false
+        },
+        {
+         "text": "Teleskoper ændrer farverne",
+         "correct": false
+        }
+       ],
+       "explanation": "En Mallemuk i skyggen af en bølge kan se mørk ud og en Stor Stormsvale helt sort. Følg fuglen, til lyset viser de rigtige farver.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En fugl flyver lavt over havet med summende, hurtige vingeslag og uden at glide. Hvilken gruppe?",
+       "choices": [
+        {
+         "text": "Alkefugle",
+         "correct": true
+        },
+        {
+         "text": "Stormfugle",
+         "correct": false
+        },
+        {
+         "text": "Kjover",
+         "correct": false
+        },
+        {
+         "text": "Suler",
+         "correct": false
+        }
+       ],
+       "explanation": "Alkefugle har korte vinger og må slå hele tiden. Stormfugle glider på stive vinger, og suler glider længe mellem slagene.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er pejlemærker som bøjer og vindmøller nyttige?",
+       "choices": [
+        {
+         "text": "Så du hurtigt kan fortælle andre, hvor fuglen er",
+         "correct": true
+        },
+        {
+         "text": "Fordi fuglene sætter sig på dem",
+         "correct": false
+        },
+        {
+         "text": "Fordi de viser vindretningen",
+         "correct": false
+        },
+        {
+         "text": "Fordi de skræmmer fuglene ind",
+         "correct": false
+        }
+       ],
+       "explanation": "På havobs er der sjældent tid. «Lige over den røde bøje, på vej mod højre» får alle på fuglen.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sæt GISS-spørgsmålene i den rækkefølge, du bør stille dem på en fjern havfugl.",
+       "choices": [],
+       "explanation": "Flugt og form ser du først og længst væk. Store lyse felter kommer derefter, og farver til sidst.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Flugt",
+         "Vingestilling og form",
+         "Størrelse i forhold til andre fugle",
+         "Lyse og mørke felter",
+         "Farver"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 50,
+     "min_score_pct": null
+    },
+    {
+     "title": "Gruppenøglen på havet: syv grupper og syv billeder",
+     "lesson_md": "Første skridt er altid gruppen. Står du med en fugl, der kun er en prik over bølgerne, kan du næsten altid sige, om det er en stormfugl, en alkefugl eller\nen kjove, ud fra flugten alene. Her får du syv billeder, der gør det let at huske.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### De syv billeder\n\n| Gruppe | Billede | Det du ser |\n|---|---|---|\n| **Stormfugle** (Mallemuk, skråper, albatros) | **Bølgetegneren** | Stive, lige vinger; buer op og ned over bølgerne med få, stive slag |\n| **Stormsvaler** | **Flagermusen** | Små, mørke med hvid overgump; flagrende eller hoppende flugt tæt over vandet |\n| **Suler** | **Korset med fire spidser** | Spidst næb, spids hale og lange, spidse vinger; glider længe og styrtdykker |\n| **Kjover** | **Piraten** | Mørk «måge» med falkens vinger og hvide felter i hånden; jager andre fugle |\n| **Alkefugle** | **Humlebien** | Lille, sort og hvid cigar med summende vinger lavt over vandet; slår hele tiden |\n| **Lommer** | **Pukkelryggen** | Lang krop med hængende hals og store fødder bagud; dybe, stive slag |\n| **Havænder** | **Perlesnoren** | Flokke i lange, bølgende linjer lavt over havet |\n\nHertil kommer de havmåger (Ride, Sabinemåge, Dværgmåge) og svømmesnepperne (Thors- og Odinshane), som vi ser på i deres egne trin.\n\n### Forvekslinger mellem grupperne\n\n- **Mallemuk eller måge?** Mallemukken holder vingerne helt lige og stive og glider i buer. Mågen bøjer vingen i albuen og slår løst og blødt.\n- **Sodfarvet Skråpe eller kjove?** Begge er mørke og glider i buer. Skråpen holder vingerne vinkelret ud fra kroppen, «et kors», og har kortere bagkrop.\n  Kjoven vinkler vingerne og har længere hale (Malling Olsen, Pandion 2011).\n- **Ung Sule eller skråpe?** Den unge Sule er brun, men det lange, spidse hoved og den spidse hale giver fire spidser. Flugten er tung og rolig.\n- **Lom eller skarv?** Skarven flyver med hovedet løftet og lang hale; lommen har hængende hoved, pukkelryg og store fødder i stedet for hale.\n- **Alkefugl eller and?** Ænder har længere hals og flyver i flokke med lidt længere vingeslag. Alkefuglene er korte og har summende vinger."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 220,
+         "nf": 120896
+        },
+        {
+         "artnr": 710,
+         "nf": 118992
+        },
+        {
+         "artnr": 5660,
+         "nf": 121423
+        },
+        {
+         "artnr": 20,
+         "nf": 118237
+        }
+       ],
+       "labels": [
+        "Bølgetegneren",
+        "Korset",
+        "Piraten",
+        "Pukkelryggen"
+       ],
+       "tekst": "Fire af de syv billeder: Mallemuk, Sule, Mellemkjove og Rødstrubet Lom."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeremse",
+       "md": "Bølgetegneren, flagermusen, korset, piraten, humlebien, pukkelryggen og perlesnoren. Sig dem højt for dig selv, når du står på havobs."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilket billede hører til alkefuglene?",
+       "choices": [
+        {
+         "text": "Humlebien: lille, sort og hvid med summende vinger lavt over vandet",
+         "correct": true
+        },
+        {
+         "text": "Bølgetegneren",
+         "correct": false
+        },
+        {
+         "text": "Korset med fire spidser",
+         "correct": false
+        },
+        {
+         "text": "Pukkelryggen",
+         "correct": false
+        }
+       ],
+       "explanation": "Alkefugle har korte vinger og slår hurtigt og hele tiden, lavt over vandet.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket billede hører til stormfuglene?",
+       "choices": [
+        {
+         "text": "Bølgetegneren: stive vinger og buer over bølgerne",
+         "correct": true
+        },
+        {
+         "text": "Perlesnoren",
+         "correct": false
+        },
+        {
+         "text": "Piraten",
+         "correct": false
+        },
+        {
+         "text": "Flagermusen",
+         "correct": false
+        }
+       ],
+       "explanation": "Stormfuglene bruger vind og bølger til at glide i buer med få, stive vingeslag.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En mørk fugl med hvide felter i hånden jager en terne. Hvilken gruppe?",
+       "choices": [
+        {
+         "text": "Kjover",
+         "correct": true
+        },
+        {
+         "text": "Skråper",
+         "correct": false
+        },
+        {
+         "text": "Lommer",
+         "correct": false
+        },
+        {
+         "text": "Suler",
+         "correct": false
+        }
+       ],
+       "explanation": "Kjoverne lever af at stjæle føde fra andre havfugle. De hvide håndfelter er fælles for gruppen.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan skelner du Mallemuk fra en måge på afstand?",
+       "choices": [
+        {
+         "text": "Mallemukken holder vingerne lige og stive og glider i buer; mågen bøjer vingen og slår blødt",
+         "correct": true
+        },
+        {
+         "text": "Mallemukken er altid hvidere",
+         "correct": false
+        },
+        {
+         "text": "Mågen har kortere hale",
+         "correct": false
+        },
+        {
+         "text": "Mallemukken flyver altid højt",
+         "correct": false
+        }
+       ],
+       "explanation": "Vingestilling og flugt er nøglen. Farven kan snyde i dårligt lys.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad adskiller en flyvende lom fra en skarv?",
+       "choices": [
+        {
+         "text": "Lommen har hængende hoved, pukkelryg og store fødder bagud; skarven har løftet hoved og lang hale",
+         "correct": true
+        },
+        {
+         "text": "Lommen flyver i V-formation",
+         "correct": false
+        },
+        {
+         "text": "Skarven er altid mindre",
+         "correct": false
+        },
+        {
+         "text": "Lommen glider i buer",
+         "correct": false
+        }
+       ],
+       "explanation": "Lommens fødder stikker ud bag kroppen i stedet for en hale, og hovedet hænger lidt. Det giver pukkelryggen.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor kan en ung Sule forveksles med en skråpe?",
+       "choices": [
+        {
+         "text": "Den er brun og mørk og glider over havet",
+         "correct": true
+        },
+        {
+         "text": "Den har samme størrelse som en stormsvale",
+         "correct": false
+        },
+        {
+         "text": "Den har hvid overgump",
+         "correct": false
+        },
+        {
+         "text": "Den flyver med summende vinger",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Sule er mørkebrun, men det lange spidse hoved og den spidse hale, de fire spidser, afslører den.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken gruppe? Vælg arten.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         220,
+         710,
+         5670,
+         6360,
+         20,
+         2130,
+         520,
+         6020
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Hvorfor havfuglene kommer: vind, vejr og havets geografi",
+     "lesson_md": "De fleste havfugle vil slet ikke være i nærheden af Danmark. Mallemukker, suler og kjover kommer kun tæt på kysten, når vinden presser dem ind, og\nNordsøens og Kattegats form samler dem. Forstår du vejret og geografien, ved du, hvornår du skal tage ud, og hvor du skal stå.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Pålandsvind\n\nDen vigtigste regel er pålandsvind: vind, der blæser fra havet mod den kyst, du står på. Den skubber fuglene ind, og jo hårdere den blæser, jo flere fugle\nog jo tættere på.\n\n- **Vestvendte kyster** (Blåvandshuk, Vejers, Hvide Sande, Thyborøn): vind fra sydvest, vest eller nordvest.\n- **Nordvendte kyster** (Roshage ved Hanstholm, Lild Strand, Hirtshals, Nordsjælland): vind fra nordvest og nord.\n- **Skagen** har kyst mod både Skagerrak og Kattegat og kan give fugle i de fleste vindretninger.\n\nDa stormen Knud ramte 21. september 2018, kom vinden fra nordvest. De bedste dage var derfor i Nord- og Nordvestjylland og på Nord- og Vestsjælland, mens\nSydvest- og Vestjylland lå forkert. Ved Roshage blev der talt 13.075 Mallemukker på en dag og 788 Storkjover, Danmarksrekord (Haaning, Pandion 2018).\n\n### Efter fronten\n\nEt lavtryk, der passerer, giver først sydlig vind og regn, og så drejer vinden i vest og nordvest, når fronten er gået over. Det er ofte i dagene efter, i\nden kraftige nordvestenvind, at havfuglene for alvor kommer ind. Stormen Knud gav gode havfugledage i over en uge.\n\n### Havets geografi: tragten\n\nNordsøen åbner sig mod Atlanterhavet mod nord. Skagerrak og Kattegat er en blindgyde. Havfugle, der blæses ind i Skagerrak og Kattegat, må ud igen samme vej,\nog det gør dem synlige ved fremspringene: Skagen, Hirtshals og Nordsjællands kyst fra Gilleleje til Rørvig. Derfor kan der i nordvestlig storm komme\nstore stormsvaler og sabinemåger til Nordsjælland og sågar til Fyns Hoved.\n\nMange af de fugle, vi ser i Kattegat, er formentlig fugle, der er drevet ind og nu søger mod nord og vest igen.\n\n### Hvor kommer de fra?\n\n| Fugl | Hvor den kommer fra (DOFbasen) |\n|---|---|\n| Mallemuk | Kolonier på Færøerne, De Britiske Øer og Norge; ca. 300.000 i den danske Nordsø om sommeren |\n| Sule | Især de skotske kolonier; op til 80.000 i danske farvande |\n| Sodfarvet Skråpe | Yngler på den sydlige halvkugle og følger et sløjfetræk med uret gennem Nordatlanten |\n| Almindelig Kjove | Skotland, Norge og Sverige; trækker mod Vestafrika med ternerne |\n| Søkonge | Formentlig Svalbard og Franz Josef Land; op til 250.000 i Skagerrak om vinteren |\n| Alk | Især Skotland; 200.000–400.000 trækker ind i Kattegat i oktober–november |\n\n### Invasioner og gode år\n\nNogle år giver meget mere end andre. I efteråret 1997 blev der set 428 Sabinemåger i Danmark på en måned, næsten lige så mange som alle tidligere fund\ntilsammen, efter en række kraftige lavtryk i Nordatlanten (Bunch, DOF Nyt 1997). Mellemkjoven kommer i stort tal efter gode lemmingår på den russiske\ntundra (Malling Olsen, Pandion 2011)."
+      },
+      {
+       "type": "advarsel",
+       "titel": "Ikke alle storme er gode",
+       "md": "Vind fra land (fralandsvind) skubber fuglene væk fra kysten. Selv en storm giver ingenting, hvis den blæser forkert i forhold til din kyst. Tjek vindretningen før du tager af sted."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvilken vind er bedst for en havobs på Roshage ved Hanstholm?",
+       "choices": [
+        {
+         "text": "Nordvest til nord",
+         "correct": true
+        },
+        {
+         "text": "Sydøst",
+         "correct": false
+        },
+        {
+         "text": "Øst",
+         "correct": false
+        },
+        {
+         "text": "Ingen vind",
+         "correct": false
+        }
+       ],
+       "explanation": "Roshage vender mod nord. Nordvest- og nordenvind er pålandsvind og presser fuglene ind.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken vind er bedst for en havobs på Blåvandshuk?",
+       "choices": [
+        {
+         "text": "Sydvest til nordvest",
+         "correct": true
+        },
+        {
+         "text": "Øst",
+         "correct": false
+        },
+        {
+         "text": "Sydøst",
+         "correct": false
+        },
+        {
+         "text": "Nordøst",
+         "correct": false
+        }
+       ],
+       "explanation": "Blåvandshuk vender mod vest. Vind fra vestlige retninger er pålandsvind.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor kan Nordsjælland få havfugle som Stor Stormsvale og Sabinemåge?",
+       "choices": [
+        {
+         "text": "Fugle blæst ind i Kattegat skal ud igen og passerer kysten",
+         "correct": true
+        },
+        {
+         "text": "De yngler i Nordsjælland",
+         "correct": false
+        },
+        {
+         "text": "De trækker fra Østersøen til Middelhavet",
+         "correct": false
+        },
+        {
+         "text": "De følger færgerne",
+         "correct": false
+        }
+       ],
+       "explanation": "Kattegat er en blindgyde. Fugle, der er drevet ind i nordvestlig storm, søger ud igen langs kysterne.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår kommer havfuglene ofte bedst efter et lavtryk?",
+       "choices": [
+        {
+         "text": "Når fronten er passeret, og vinden er drejet i vest og nordvest",
+         "correct": true
+        },
+        {
+         "text": "Før lavtrykket kommer",
+         "correct": false
+        },
+        {
+         "text": "Når vinden går i øst",
+         "correct": false
+        },
+        {
+         "text": "Midt i stille vejr",
+         "correct": false
+        }
+       ],
+       "explanation": "Den kraftige vind bag fronten er den, der skubber fuglene ind.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad var Danmarksrekorden for Storkjove på en dag ved Roshage i 2018?",
+       "choices": [
+        {
+         "text": "788",
+         "correct": true
+        },
+        {
+         "text": "78",
+         "correct": false
+        },
+        {
+         "text": "7.880",
+         "correct": false
+        },
+        {
+         "text": "28",
+         "correct": false
+        }
+       ],
+       "explanation": "788 Storkjover passerede Roshage 28. september 2018 i stormen Knuds efterspil (Haaning, Pandion 2018).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken fugl kom i invasion i Danmark i efteråret 1997 med 428 fugle på en måned?",
+       "choices": [
+        {
+         "text": "Sabinemåge",
+         "correct": true
+        },
+        {
+         "text": "Mallemuk",
+         "correct": false
+        },
+        {
+         "text": "Lunde",
+         "correct": false
+        },
+        {
+         "text": "Islom",
+         "correct": false
+        }
+       ],
+       "explanation": "En række usædvanligt kraftige lavtryk i Nordatlanten gav rekordmange Sabinemåger i hele Nordvesteuropa.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 50,
+     "min_score_pct": null
+    },
+    {
+     "title": "Steder og kalender: hvor og hvornår",
+     "lesson_md": "Nu ved du, hvilken vind der er god. Her får du de klassiske steder, og hvornår på året de forskellige grupper topper. Tag kalenderen frem, når du planlægger.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### De klassiske havobspunkter\n\n| Sted | Bedst i | Specialiteter |\n|---|---|---|\n| **Skagen, Grenen** | De fleste vinde | Lommer om foråret (Islom og Hvidnæbbet Lom i maj), kjover, alt i storm |\n| **Hirtshals** | NV–N | Kjover, stormfugle, alkefugle; havnen giver rastende fugle |\n| **Roshage, Hanstholm** | NV–N | Mallemuk, Sule, Storkjove, Sabinemåge; rekorddage i storm |\n| **Lild Strand, Bulbjerg** | NV–N | Ride og Mallemuk har ynglet på Bulbjerg |\n| **Thyborøn, Hvide Sande** | V–NV | Suler og mallemukker |\n| **Blåvandshuk, Vejers** | SV–NV | Stormsvaler (op til 240 Store Stormsvaler på en dag), sortænder, lommer |\n| **Gilleleje, Rågeleje, Korshage** | NV–N | Fugle drevet ind i Kattegat: stormsvaler, skråper, Sabinemåge, kjover |\n| **Fornæs, Djursland** | Efterår | Alke i oktober–november; op til 120.000 på få timer |\n| **Gedser Odde** | Efterår | Ederfugletræk; op til 86.000 på en dag |\n\n### Kalenderen\n\n| Måned | Det sker |\n|---|---|\n| **Marts–maj** | Lommer trækker nordpå (Skagen: Islom i snit 20 om foråret, Hvidnæbbet Lom over 15). Almindelig Kjove om foråret i Nordjylland |\n| **Juni–juli** | Unge, ikke-ynglende Rider langs Vestkysten. Mallemuk og Sule ude på havet |\n| **August** | Almindelig Kjove tiltager, Sodfarvet Skråpe og Storkjove dukker op, de første skråper |\n| **September** | Toppen: alle kjovearter, stormsvaler, Sabinemåge, skråper, Thorshane. En dag med fire kjovearter er ikke utopi |\n| **Oktober–november** | Mellemkjove (især unge, fra sidst i september), Stor Stormsvale til midt i november, alke ind i Kattegat, Lille Kjove-ungfugle |\n| **December–februar** | Søkonge og Lomvie, lommer og havænder; en lille kjove om vinteren er normalt Mellemkjove. Døde lunder skyller op i februar |\n\n### Tid på dagen\n\nMorgenen er ofte bedst, især for kjover og stormsvaler, men i storm kan der komme fugle hele dagen. Det kan betale sig at blive, mens vinden står ind."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Forår = lommer, september = alt, oktober–november = Mellemkjove og stormsvaler, vinter = søkonger og alke."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvor er det bedste sted at se Islom og Hvidnæbbet Lom trække om foråret?",
+       "choices": [
+        {
+         "text": "Skagen",
+         "correct": true
+        },
+        {
+         "text": "Gedser Odde",
+         "correct": false
+        },
+        {
+         "text": "Fornæs",
+         "correct": false
+        },
+        {
+         "text": "Blåvandshuk om vinteren",
+         "correct": false
+        }
+       ],
+       "explanation": "Skagen er landets bedste forårstræksted for de store lommer, især i maj (DOFbasen; Haaning, Pandion 2016).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken måned giver flest havfuglearter på en god havobs?",
+       "choices": [
+        {
+         "text": "September",
+         "correct": true
+        },
+        {
+         "text": "Januar",
+         "correct": false
+        },
+        {
+         "text": "Juni",
+         "correct": false
+        },
+        {
+         "text": "April",
+         "correct": false
+        }
+       ],
+       "explanation": "I september trækker alle kjovearter, stormsvaler, Sabinemåger og skråper. Med god pålandsvind kan alt ske.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Du ser en af de tre små kjovearter i januar. Hvilken er det normalt?",
+       "choices": [
+        {
+         "text": "Mellemkjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Lille Kjove",
+         "correct": false
+        },
+        {
+         "text": "Det kan ikke vides",
+         "correct": false
+        }
+       ],
+       "explanation": "Mellemkjoven overvintrer nordligere end de to andre, og efter gode yngleår bliver enkelte unge i danske farvande (DOFbasen; Malling Olsen 2011).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor kan du opleve op til 120.000 alke på få timer?",
+       "choices": [
+        {
+         "text": "Fornæs på Djursland",
+         "correct": true
+        },
+        {
+         "text": "Blåvandshuk",
+         "correct": false
+        },
+        {
+         "text": "Gedser Odde",
+         "correct": false
+        },
+        {
+         "text": "Bulbjerg",
+         "correct": false
+        }
+       ],
+       "explanation": "Alkene trækker ind i Kattegat i oktober–november, og Fornæs ligger i deres bane (DOFbasen).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sorter efter, hvornår de topper i Danmark, tidligst først.",
+       "choices": [],
+       "explanation": "Lommerne trækker nordpå om foråret, Almindelig Kjove topper i september, Mellemkjoven kommer senere, og Søkongen er vintergæst.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {
+        "items": [
+         "Islom på Skagen (maj)",
+         "Almindelig Kjove (september)",
+         "Mellemkjove (oktober–november)",
+         "Søkonge (vinter)"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Bølgetegnerne: Mallemuk og skråperne",
+     "lesson_md": "Stormfuglene er havobsens hovedpersoner. Mallemukken er den almindelige; den ser du i hundredvis, og den skal du kende så godt, at en skråpe springer i\nøjnene. Haaning beskriver det som «skråpeforløsningen»: efter hundredvis af mallemukker er der pludselig et andet jizz derude (Feltbestemmelse af storskråpe, 2021).",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Mallemuk: grundfiguren\n\nMallemukken er kompakt og minder om en lille albatros (DOFbasen): tyk hals, kort hale og lige, stive vinger, hvor armen er bred og hånden kortere end armen. Den flyver\nmed hurtige, stive slag og lange glid i buer. Ryggen er grålig med lyse pletter ved håndroden; hovedet er hvidt som en snebold.\n\nFaldgruberne (Haaning, Fugle i felten 2003):\n- I modlys og i bølgedale kan det hvide hoved forsvinde, og så ligner fuglen en mørk stormfugl med lys underside.\n- Sent på efteråret og om vinteren kommer der flere halvmørke mallemukker med gråt hoved og grumset bug. De kan forskrække.\n- Under skæve lysforhold kan halen se lang ud.\n\nLøsningen er vingens form: Mallemukken har lige vinger med bred arm og kort hånd. Skråperne har et tydeligt knæk mellem arm og hånd, og hånden er lang og spids.\n\n### De store skråper\n\n| | **Atlantisk / Scopolis Skråpe** | **Storskråpe** | **Sodfarvet Skråpe** |\n|---|---|---|---|\n| Indtryk | Stor, langvinget, **løs og blød** flugt; vingerne bøjet nedad «som en lille albatros» | Spidsvinget og **sort-hvid**; stiv, kraftig flugt | Mørk, kraftig krop og **smalle vinger** |\n| Overside | Varm gråbrun, uden skarpe kontraster | **Mørk hætte, hvid kind og hvid hestesko** på overgumpen | Sodbrun |\n| Underside | Hvid med lyse undervinger | Hvid med mørk plet på bugen | Mørk krop, **sølvglimt** i undervingen |\n| Næb | **Gult** med mørk spids | Mørkt | Mørkt og slankt |\n| I Danmark | Sjælden (SU-art) | 10 fund til 2021 | Årlig, især august–oktober i vestenstorm |\n\nAtlantisk og Scopolis Skråpe var tidligere én art, Kuhls Skråpe. De kan kun skilles på gode fotos af håndens underside, hvor Scopolis har mere hvidt ind\ni de inderste håndsvingfjer. De fleste danske fund må stå som Atlantisk/Scopolis Skråpe.\n\n### De små sort-hvide skråper\n\n| | **Almindelig Skråpe** | **Balearisk Skråpe** |\n|---|---|---|\n| Indtryk | Lille, kraftig, korthalet; **vipper sort-hvid** fra side til side | Lidt større og tungere, brunlig |\n| Overside | Sort, skarpt afgrænset | Mørkebrun, glider over i den beskidte underside |\n| Underside | Ren hvid | Snavset hvid, nogle næsten helt brune |\n| Flugt | Hurtige, stive slag og korte glid; i blæst høje buer | Lidt mere flagrende og mindre kraftfuld |\n| I Danmark | Fåtallig, især i vestenstorm om efteråret | Sjælden (SU-art) |\n\nBalearisk Skråpe yngler på Balearerne og spreder sig i juli–oktober ud i Atlanten (Howell & Zufelt 2019). Den mørke Balearisk Skråpe kan forveksles med en\nlille Sodfarvet Skråpe; se på størrelse, den lysere bug og flugten.\n\n### Danmark\n\n- **Mallemuk**: ca. 300.000 i den danske Nordsø om sommeren. Op til 13.075 på en dag ved Roshage (2018). Har ynglet på Bulbjerg (2000).\n- **Sodfarvet Skråpe**: første fund 1920, regelmæssig fra ca. 1970 ved Vestkysten og fra ca. 1980 i Kattegat.\n- **Storskråpe**: 15 millioner fugle trækker til Nordatlanten, men de følger ikke Nordsøen. Derfor er den så sjælden her (Haaning 2021)."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 220,
+         "nf": 120896
+        },
+        {
+         "artnr": 430,
+         "nf": 109952
+        },
+        {
+         "artnr": 400,
+         "nf": 75309
+        },
+        {
+         "artnr": 362,
+         "nf": 47645
+        }
+       ],
+       "labels": [
+        "Mallemuk",
+        "Sodfarvet Skråpe",
+        "Storskråpe",
+        "Atlantisk Skråpe"
+       ],
+       "tekst": "Mallemukkens lige vinger mod skråpernes knækkede og spidse."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 460,
+         "nf": 68327
+        },
+        {
+         "artnr": 455,
+         "nf": 58869
+        },
+        {
+         "artnr": 361,
+         "nf": 104606
+        }
+       ],
+       "labels": [
+        "Almindelig Skråpe",
+        "Balearisk Skråpe",
+        "Scopolis Skråpe"
+       ],
+       "tekst": "De små sort-hvide og en Scopolis Skråpe."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Mallemukken har lige vinger og kort hånd.** Ser du et knæk og en lang, spids hånd, så tænk skråpe.\n- **Storskråpen har hætte og hestesko.** Atlantisk Skråpe har gult næb og flyver som en lille albatros.\n- **Almindelig Skråpe blinker sort-hvid; Balearisk Skråpe er en beskidt udgave.**\n- **Sodfarvet Skråpe er et sort kors med sølv under vingen.**"
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "Hvad er det bedste kendetegn for at skelne en Mallemuk fra en skråpe i dårligt lys?",
+       "choices": [
+        {
+         "text": "Vingens form: Mallemukken har lige vinger med bred arm og kort hånd",
+         "correct": true
+        },
+        {
+         "text": "Det hvide hoved",
+         "correct": false
+        },
+        {
+         "text": "Halens længde",
+         "correct": false
+        },
+        {
+         "text": "Benfarven",
+         "correct": false
+        }
+       ],
+       "explanation": "Det hvide hoved kan forsvinde i modlys, og halen kan se lang ud. Vingens form ændrer sig ikke (Haaning 2003).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor, sort-hvid skråpe med mørk hætte, hvid kind og hvid hestesko på overgumpen. Art?",
+       "choices": [
+        {
+         "text": "Storskråpe",
+         "correct": true
+        },
+        {
+         "text": "Atlantisk Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Almindelig Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Mallemuk",
+         "correct": false
+        }
+       ],
+       "explanation": "Hætten mod den hvide kind og den hvide hestesko er Storskråpens kendetegn.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor skråpe med gult næb, varm gråbrun overside og løs, blød flugt på nedadbøjede vinger. Bedste bestemmelse?",
+       "choices": [
+        {
+         "text": "Atlantisk/Scopolis Skråpe",
+         "correct": true
+        },
+        {
+         "text": "Storskråpe",
+         "correct": false
+        },
+        {
+         "text": "Sodfarvet Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Balearisk Skråpe",
+         "correct": false
+        }
+       ],
+       "explanation": "Uden gode fotos af håndens underside må fuglen stå som Atlantisk/Scopolis Skråpe.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En mørk skråpe med smalle vinger og sølvglimt i undervingen. Art?",
+       "choices": [
+        {
+         "text": "Sodfarvet Skråpe",
+         "correct": true
+        },
+        {
+         "text": "Balearisk Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Mallemuk, mørk",
+         "correct": false
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Sodfarvet Skråpe er sodbrun med lyse felter i undervingen og holder vingerne som et kors.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan skelner du Almindelig Skråpe fra Balearisk Skråpe?",
+       "choices": [
+        {
+         "text": "Almindelig er skarpt sort og hvid; Balearisk er brunlig med beskidt underside",
+         "correct": true
+        },
+        {
+         "text": "Balearisk har gult næb",
+         "correct": false
+        },
+        {
+         "text": "Almindelig Skråpe er størst",
+         "correct": false
+        },
+        {
+         "text": "Balearisk har hvid hestesko på overgumpen",
+         "correct": false
+        }
+       ],
+       "explanation": "Kontrasten er nøglen. Almindelig Skråpe blinker sort og hvid, når den vipper; Balearisk er mudret.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor ses Storskråpe så sjældent i Danmark, selv om hele bestanden trækker til Nordatlanten?",
+       "choices": [
+        {
+         "text": "Den følger ikke Nordsøen på sit træk",
+         "correct": true
+        },
+        {
+         "text": "Den trækker om natten",
+         "correct": false
+        },
+        {
+         "text": "Den er meget fåtallig",
+         "correct": false
+        },
+        {
+         "text": "Den undgår blæsevejr",
+         "correct": false
+        }
+       ],
+       "explanation": "Sodfarvet Skråpe tager Nordsøen med på sit sydtræk; det gør Storskråpen ikke (Haaning 2021).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Mallemuk eller skråpe? Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         220,
+         430,
+         460,
+         400,
+         362
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 60,
+     "min_score_pct": null
+    },
+    {
+     "title": "De små: stormsvaler og svømmesnepper",
+     "lesson_md": "Stormsvaler er de mindste havfugle, ikke større end en svale eller en stær. De er svære at se og endnu sværere at bestemme. Haaning kalder bestemmelsen\n«en disciplin, der stiller store krav til observatørens selvkritik» (Fugle i felten 2004). Svømmesnepperne er vadefugle, der lever på havet om vinteren.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Stor og Lille Stormsvale\n\nNøglen er flugten, fortæller Haaning. Har du set mange Store Stormsvaler, vil en Lille Stormsvale være en «aha-oplevelse».\n\n| | **Stor Stormsvale** | **Lille Stormsvale** |\n|---|---|---|\n| Størrelse | Som en stær | Som en bysvale |\n| Vinge | **Lang og spids med tydeligt knæk**, terneagtig | **Kort og rund**, svagt knæk |\n| Flugt | 3–4 hurtige, dybe slag og så skråpeagtige glid med små kast; **som en Sortterne eller Natravn** | Lav, direkte og meget hurtig i bølgedalene; **som en flagermus** |\n| Overside | Brunlig med **lyst skråbånd** over armen | Næsten sort uden kontrast |\n| Overgump | Smal, **V- eller hesteskoformet** | Bred, hvid og buet |\n| Underside | Mørk | **Hvidt bånd under vingen** (diagnostisk, men ses kun i glimt) |\n| Hale | Kløftet | Lige afskåret |\n\nWilsons Stormsvale er lidt større end Lille Stormsvale, har lyst bånd på overvingen, lige hale og lange ben, der stikker ud bag halen. Den «hopper»\npå vandet med løftede vinger. Danmarks første blev fotograferet i Nordsøen 21. maj 2022 under miljøundersøgelser (Ortvad, Pandion 2022).\n\n### Danmark\n\n- **Stor Stormsvale** ses hvert år i vestenstorm, primært september til midt i november. Blåvandshuk er bedst: op til 240 på en dag. Ses også i\n  Kattegat, især langs Sjællands nordkyst.\n- **Lille Stormsvale** er langt sjældnere. Dagsrekorden er 22 ved Blåvandshuk 21. september 1990. Skagen Fuglestation fanger den om natten ved at afspille\n  dens kald.\n\n### Svømmesnepperne\n\n| | **Thorshane** | **Odinshane** |\n|---|---|---|\n| Vinterdragt | **Ensfarvet blågrå ryg**, ligner en lille Dværgmåge på vandet | Mørk ryg med **lyse striber** |\n| Næb | Kraftigere, ofte med gullig rod | **Tyndt som en nål** |\n| I Danmark | Sjælden, især ungfugle **september–december i vestenstorm** | Knap 100 om året, **juli–september**, mest i søer og ved kysten |\n\nBegge svømmer højt i vandet som en kork, snurrer rundt og har hvidt vingebånd i flugten."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 520,
+         "nf": 96909
+        },
+        {
+         "latin": "Oceanites oceanicus",
+         "nf": 73152
+        },
+        {
+         "artnr": 5650,
+         "nf": 118080
+        },
+        {
+         "artnr": 5640,
+         "nf": 117938
+        }
+       ],
+       "labels": [
+        "Lille Stormsvale",
+        "Wilsons Stormsvale",
+        "Thorshane",
+        "Odinshane"
+       ],
+       "tekst": "Lille Stormsvale, Wilsons Stormsvale og svømmesnepperne i flugt."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5650,
+         "nf": 119960
+        },
+        {
+         "artnr": 5640,
+         "nf": 122465
+        }
+       ],
+       "labels": [
+        "Thorshane, vinter",
+        "Odinshane, sommer"
+       ],
+       "tekst": "Thorshanens ensfarvede grå ryg og Odinshanens striber."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Stor Stormsvale er en lille terne; Lille Stormsvale er en flagermus.**\n- **Lille Stormsvale gemmer sit kendetegn under vingen** (det hvide bånd).\n- **Thorshanen er grå som en Dværgmåge; Odinshanen har striber og en nål til næb.**"
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En lille, sortagtig stormsvale flyver lavt, hurtigt og direkte gennem bølgedalene uden glid. Art?",
+       "choices": [
+        {
+         "text": "Lille Stormsvale",
+         "correct": true
+        },
+        {
+         "text": "Stor Stormsvale",
+         "correct": false
+        },
+        {
+         "text": "Wilsons Stormsvale",
+         "correct": false
+        },
+        {
+         "text": "Søkonge",
+         "correct": false
+        }
+       ],
+       "explanation": "Den direkte, flagermuseagtige flugt og det mørke indtryk er typisk for Lille Stormsvale (Haaning 2004).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilket kendetegn er diagnostisk for Lille Stormsvale, men ses kun i glimt?",
+       "choices": [
+        {
+         "text": "Det hvide bånd under vingen",
+         "correct": true
+        },
+        {
+         "text": "Den kløftede hale",
+         "correct": false
+        },
+        {
+         "text": "Det lyse skråbånd på overvingen",
+         "correct": false
+        },
+        {
+         "text": "De lange ben",
+         "correct": false
+        }
+       ],
+       "explanation": "De store undervingedækfjer er hvide hos Lille Stormsvale. Stor Stormsvale har mørk undervinge.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan flyver en Stor Stormsvale?",
+       "choices": [
+        {
+         "text": "3–4 hurtige, dybe slag og så glid med små kast til siden, som en Sortterne",
+         "correct": true
+        },
+        {
+         "text": "Lige og flagrende som en flagermus",
+         "correct": false
+        },
+        {
+         "text": "Med summende vinger",
+         "correct": false
+        },
+        {
+         "text": "Høje buer som en Mallemuk",
+         "correct": false
+        }
+       ],
+       "explanation": "Den lange, knækkede vinge giver en terneagtig flugt med skiftende retning.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor er dagsrekorden for Stor Stormsvale i Danmark sat (240 fugle)?",
+       "choices": [
+        {
+         "text": "Blåvandshuk",
+         "correct": true
+        },
+        {
+         "text": "Skagen",
+         "correct": false
+        },
+        {
+         "text": "Gilleleje",
+         "correct": false
+        },
+        {
+         "text": "Gedser",
+         "correct": false
+        }
+       ],
+       "explanation": "Blåvandshuk er landets bedste sted for stormsvaler i vestenstorm (DOFbasen).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille vadefugl med ensfarvet blågrå ryg svømmer på havet i oktober efter en vestenstorm. Art?",
+       "choices": [
+        {
+         "text": "Thorshane",
+         "correct": true
+        },
+        {
+         "text": "Odinshane",
+         "correct": false
+        },
+        {
+         "text": "Sandløber",
+         "correct": false
+        },
+        {
+         "text": "Dværgmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Thorshanen har ensfarvet grå ryg i vinterdragt og ses især i vestenstorm om efteråret (DOFbasen).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken stormsvale har lange ben, der stikker ud bag halen?",
+       "choices": [
+        {
+         "text": "Wilsons Stormsvale",
+         "correct": true
+        },
+        {
+         "text": "Stor Stormsvale",
+         "correct": false
+        },
+        {
+         "text": "Lille Stormsvale",
+         "correct": false
+        },
+        {
+         "text": "Ingen af dem",
+         "correct": false
+        }
+       ],
+       "explanation": "Wilsons Stormsvale har lange ben med gule svømmehud og hopper ofte på vandet.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "De store: Sule, Brun Sule og Sortbrynet Albatros",
+     "lesson_md": "Sulen er Danmarks største regelmæssige havfugl og en fryd at se, når den kaster sig i vandet fra 20 meters højde. Sortbrynet Albatros og Brun Sule er\ndrømmefund, men begge er set i Danmark flere gange de senere år.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Sule: fire spidser og fem dragter\n\nSulen er en lang, cigarformet fugl med spidst næb, spids hale og lange, spidse vinger. Den glider længe og flyver med rolige, kraftige slag. Den unge\nSule tager fire år eller mere om at blive hvid, og undervejs ser den meget forskellig ud:\n\n| Alder | Udseende |\n|---|---|\n| **1K (ungfugl)** | **Mørk gråbrun med fine hvide prikker**; kan forveksles med en skråpe, men har de fire spidser |\n| **2K** | Hvidt hoved og hvid underside kommer frem, ryg og vinger stadig mørke; «brugt» og plettet |\n| **3K–4K** | Mere og mere hvid; **ternet** overside med sorte og hvide fjer imellem |\n| **Voksen** | Hvid med **sorte vingespidser** og gult hoved |\n\nEn 3K Sule med hvide armsvingfjer og sorte i hånden kan ligne en ternet skakbræt-vinge. Brug den til at øve aldersbestemmelse.\n\n### Brun Sule\n\nBrun Sule er en tropisk sule, chokoladebrun med skarpt afgrænset hvid bug og hvidt under vingen. Danmarks første fund var fra Bornholm, det andet ved\nRømødæmningen i 2023, og i 2024 blev en set i Skagen (Pandion 2023, 2024).\n\n### Sortbrynet Albatros\n\nEn albatros er umiskendelig: enorme, lige og smalle vinger (2–2,3 m) med mørk overside og et mørkt bryn ved øjet. Den voksne har gult næb. En voksen\nSortbrynet Albatros har siden foråret 2014 besøgt Danmark flere gange, bl.a. Skagen, Hirtshals og Blåvand, og opholdt sig i sulekolonien på Helgoland. I\n2017 kom en ny fugl på «Kattegatturné» (Haaning, Pandion 2015, 2017). Den første kendte sydhavs-albatros i Nordatlanten levede 34 år i en sulekoloni på\nFærøerne, til den blev skudt i 1894.\n\n### Danmark\n\n- **Sule**: op til 80.000 i danske farvande, især fra de skotske kolonier. Dagsrekorden er over 5.000. I 2022 ramte fugleinfluenza kolonierne hårdt."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 710,
+         "nf": 118992
+        },
+        {
+         "artnr": 710,
+         "nf": 125014,
+         "n": 1
+        },
+        {
+         "artnr": 710,
+         "nf": 110665,
+         "n": 2
+        },
+        {
+         "artnr": 700,
+         "nf": 122815
+        }
+       ],
+       "labels": [
+        "Sule, voksen",
+        "Sule, 2K",
+        "Sule, 1K",
+        "Brun Sule"
+       ],
+       "tekst": "Sulens aldre og en Brun Sule."
+      },
+      {
+       "type": "foto",
+       "ref": {
+        "artnr": 140,
+        "nf": 119936
+       },
+       "tekst": "Sortbrynet Albatros. Det mørke bryn og det gule næb viser en voksen fugl."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregel",
+       "md": "Sulen har fire spidser: næb, hale og to vingespidser. Jo mere hvid, jo ældre."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En mørk gråbrun havfugl med fine hvide prikker, spidst næb og spids hale glider over havet. Hvad er det?",
+       "choices": [
+        {
+         "text": "Sule, 1K",
+         "correct": true
+        },
+        {
+         "text": "Sodfarvet Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        },
+        {
+         "text": "Mallemuk, mørk",
+         "correct": false
+        }
+       ],
+       "explanation": "Den unge Sule er mørk, men de fire spidser og den tunge, rolige flugt afslører den.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange år tager det en Sule at blive helt hvid?",
+       "choices": [
+        {
+         "text": "Fire år eller mere",
+         "correct": true
+        },
+        {
+         "text": "Et år",
+         "correct": false
+        },
+        {
+         "text": "To år",
+         "correct": false
+        },
+        {
+         "text": "Ti år",
+         "correct": false
+        }
+       ],
+       "explanation": "Sulen gennemgår en lang række dragter, før den er udfarvet (Howell & Zufelt 2019).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad kendetegner en voksen Sortbrynet Albatros?",
+       "choices": [
+        {
+         "text": "Enorme, lige vinger, mørk overside, mørkt bryn og gult næb",
+         "correct": true
+        },
+        {
+         "text": "Hvid med sorte vingespidser og gult hoved",
+         "correct": false
+        },
+        {
+         "text": "Sodbrun med sølvglimt i undervingen",
+         "correct": false
+        },
+        {
+         "text": "Hvid hestesko på overgumpen",
+         "correct": false
+        }
+       ],
+       "explanation": "Albatrossen har de længste og lige vinger af alle havfugle og et mørkt bryn ved øjet.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er Sulens dagsrekord i Danmark ifølge DOF?",
+       "choices": [
+        {
+         "text": "Over 5.000",
+         "correct": true
+        },
+        {
+         "text": "Omkring 50",
+         "correct": false
+        },
+        {
+         "text": "Omkring 500",
+         "correct": false
+        },
+        {
+         "text": "Over 50.000",
+         "correct": false
+        }
+       ],
+       "explanation": "Ved kraftig pålandsvind om efteråret kan der passere tusindvis langs Vestkysten (DOFbasen).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Sule eller ej? Hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         710,
+         700,
+         220,
+         5690
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 35,
+     "min_score_pct": null
+    },
+    {
+     "title": "Kjover 1: form, flugt og de voksne",
+     "lesson_md": "Kjoverne er havets pirater. De lever af at stjæle føde fra terner og måger og jager dem i lange, akrobatiske forfølgelser. Fire arter ses i Danmark, og\nde er en af havobsens store udfordringer. Klaus Malling Olsen skriver, at man bør indprente sig form og flugt hos Almindelig Kjove, der er den hyppigste.\nSå bliver forskellene til de andre åbenlyse (Pandion 2011).",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Størrelse og form\n\n| | **Lille Kjove** | **Almindelig Kjove** | **Mellemkjove** | **Storkjove** |\n|---|---|---|---|---|\n| Størrelse | Som en Hættemåge | Næsten som en Stormmåge | Næsten som en Sølvmåge | Som en Sølvmåge, men tungere |\n| Form | Slank, **lille rundt hoved**, smal arm og lang hånd, lang tynd hale | Slank og harmonisk, trekantet hoved, tyndt næb | **Kraftig, bredt bryst og «ølmave»**, bred arm, stort næb | **Tøndeformet**, brede vinger, kort hale |\n| Flugt | **Let og terneagtig**, legende, «muser» lavt over vandet | Hurtig, falkeagtig, glid i buer over bølgerne | **Langsommere og magtfuld** som en stor måge; lange serier af stive slag | Tung og kraftig; kan overfladisk ligne en ung Sølvmåge |\n| Hvide skafter i hånden | **2–3** (kun en smal lys forkant) | 3–7 | 3–7 | Store hvide felter på **begge** vingesider |\n\n### De voksne: ske, spyd og snor\n\nDe voksne kjover kendes på de forlængede midterste halefjer:\n\n- **Mellemkjove: skeen.** Brede halefjer, der er snoet om hinanden, så de ender i en klump: «en golfkølle stukket op bagi».\n- **Almindelig Kjove: spyddet.** Spidse, forlængede halefjer.\n- **Lille Kjove: snoren.** Ekstremt lange halefjer, dobbelt så lange som hos de andre: «en havterne i skygge».\n- **Storkjove:** ingen forlængede halefjer, men store hvide vingefelter.\n\nOm efteråret mangler mange voksne kjover de lange halefjer. Så må du bruge de andre kendetegn:\n\n- **Voksen Lille Kjove** kendes på helt mørk undervinge, hvidt bryst, der glider over i grå bug, ingen brystbånd, sort hætte og grå overside med sorte\n  svingfjer. Den forekommer kun i lys form.\n- **Voksen Almindelig Kjove** har lys «blis» over næbbet og ensfarvet gråt brystbånd. Den findes i lys og mørk form med mellemformer.\n- **Voksen Mellemkjove** har dybere sort hætte uden blis, grove mørke pletter i brystbåndet og meget mørk på flanker og undergump. 5–10 % er helt mørke:\n  «havets pantere».\n\n### Opførsel\n\nMalling Olsen beskriver Almindelig Kjove som en gentleman, der «går efter bolden, ikke manden». Den jager terner og små måger, indtil de giver slip på\nbyttet. Mellemkjoven går direkte efter fuglen og kan dræbe den. Storkjoven angriber suler og store måger. Lille Kjove virker som en sorgløs udgave, hvis\nangreb ligner leg og hurtigt opgives.\n\n### Danmark\n\n- **Almindelig Kjove** er den hyppigste. Topper i september; op til et par tusinde på en sæson på Vestkysten, 440 på en eftermiddag i august 2000.\n- **Storkjove** ses året rundt, flest om efteråret; stadig flere overvintrer i Nordsøen. Rekorden er 788 på en dag (Roshage 2018).\n- **Mellemkjove** kommer senere, især fra sidst i september til november, og i nogle år i store tal efter gode lemmingår.\n- **Lille Kjove** er sjældnest og mest uregelmæssig, flest ungfugle i august–september. I 1988 kom den i invasion med mange voksne."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5660,
+         "nf": 121423
+        },
+        {
+         "artnr": 5670,
+         "nf": 119431
+        },
+        {
+         "artnr": 5670,
+         "nf": 122479,
+         "n": 1
+        },
+        {
+         "artnr": 5680,
+         "nf": 119739
+        }
+       ],
+       "labels": [
+        "Mellemkjove, voksen",
+        "Almindelig Kjove, lys",
+        "Almindelig Kjove, mørk",
+        "Lille Kjove, voksen"
+       ],
+       "tekst": "Skeen, spyddet (to former) og snoren."
+      },
+      {
+       "type": "foto",
+       "ref": {
+        "artnr": 5690,
+        "nf": 117591
+       },
+       "tekst": "Storkjove: tøndeformet med store hvide felter på begge vingesider."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Ske, spyd og snor**: Mellemkjove, Almindelig Kjove og Lille Kjove.\n- **Lille Kjove er en havterne i skygge**; Mellemkjoven har ølmave og maskulin brutalitet.\n- **Storkjoven er en ung Sølvmåge med hvide vingefelter**, men tøndeformet og med kort hale."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En voksen kjove har forlængede midterste halefjer, der ender i en klump som en ske. Art?",
+       "choices": [
+        {
+         "text": "Mellemkjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Lille Kjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Mellemkjovens brede halefjer er snoet om hinanden i spidsen (Malling Olsen 2011).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En voksen kjove uden lange halefjer har helt mørk undervinge, hvidt bryst, grå bug og intet brystbånd. Art?",
+       "choices": [
+        {
+         "text": "Lille Kjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Den voksne Lille Kjove har helt mørk undervinge og grå bug. Den findes kun i lys form.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken kjove har kun 2–3 hvide skafter i hånden, så der kun ses en smal lys forkant?",
+       "choices": [
+        {
+         "text": "Lille Kjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Almindelig Kjove og Mellemkjove har normalt 3–7 lyse skafter og et tydeligere lyst felt.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan flyver en Mellemkjove sammenlignet med en Almindelig Kjove?",
+       "choices": [
+        {
+         "text": "Langsommere og mere magtfuldt med lange serier af stive slag",
+         "correct": true
+        },
+        {
+         "text": "Lettere og mere terneagtigt",
+         "correct": false
+        },
+        {
+         "text": "Med summende vinger",
+         "correct": false
+        },
+        {
+         "text": "I høje buer som en Mallemuk",
+         "correct": false
+        }
+       ],
+       "explanation": "Mellemkjoven flyver som en stor måge og kan minde om en knortegås eller en stor falk (Malling Olsen 2011).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken kjove er tøndeformet med kort hale og store hvide felter på begge vingesider?",
+       "choices": [
+        {
+         "text": "Storkjove",
+         "correct": true
+        },
+        {
+         "text": "Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Lille Kjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Storkjoven er den største og tungeste, og de hvide felter ses på både over- og underside.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår topper Almindelig Kjove i Danmark?",
+       "choices": [
+        {
+         "text": "September",
+         "correct": true
+        },
+        {
+         "text": "Januar",
+         "correct": false
+        },
+        {
+         "text": "Maj",
+         "correct": false
+        },
+        {
+         "text": "November",
+         "correct": false
+        }
+       ],
+       "explanation": "Trækket tiltager i august, kulminerer i september og aftager i oktober (Malling Olsen 2011).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken kjove?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5670,
+         5660,
+         5680,
+         5690
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 55,
+     "min_score_pct": null
+    },
+    {
+     "title": "Kjover 2: de unge kjover",
+     "lesson_md": "Unge kjover er havobsens sværeste disciplin. De varierer fra næsten hvide til helt sorte, og lyset kan ændre alt. Haaning peger på, at der i praksis kun\ner to spørgsmål: Almindelig Kjove eller Lille Kjove, og Almindelig Kjove eller Mellemkjove. En ung Mellemkjove og en ung Lille Kjove forveksles sjældent\n(Pandion 2016).",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### At den er ung\n\nEn ung kjove kendes på tværbåndede undervingedækfjer og armhuler, båndet over- og undergump og lyst næb med sort spids. De midterste halefjer\nstikker kun lidt ud.\n\n### Nøglen\n\n| | **Ung Lille Kjove** | **Ung Almindelig Kjove** | **Ung Mellemkjove** |\n|---|---|---|---|\n| Form | Slank, **lille rundt hoved** trykket ind mod skuldrene, langt bagparti | Harmonisk, ret langt hoved | **Kraftig, ølmave**, bred arm, stort hoved |\n| Farvetone | **Altid kølig grå** til gråbrun; aldrig varme toner | Ofte **varm**: gyldenbrun, orange, rustrød | Ret ensartet gråbrun til mellembrun |\n| Nakke og overgump | Lys nakke og **tæt, skarpt stribet** overgump | **Lys nakke sammen med lys** (plettet) overgump | **Overgumpen står alene**: lys og stribet, men ingen lys nakke |\n| Hvidt i hånden, oversiden | **2** hvide yderfaner | 3–4 hvide yderfaner | 3–4 hvide yderfaner |\n| Undervingen | Lille, svag hvid håndrodsplet | Én tydelig hvid plet | **Dobbeltplet**: hvidt også i hånddækfjerene |\n| Næb | Kort med **op mod halvdelen sort** | Mellemlangt, lille sort spids | **Kraftigt og lyst**, «lyser op»; sort spids som hos en ung Gråmåge |\n| Håndsvingfjer | Svage lyse kanter | **Tydelige lyse spidser** | Svage eller ingen |\n| Midterste halefjer | **Længst, stumpe** («to lillefingre») | Korte og spidse | Korte og stumpe; halen virker trekantet |\n\n### Tidspunktet hjælper\n\nMange unge Almindelige Kjover er fejlbestemt til Mellemkjove i august og først i september, fordi nyligt udfløjne ungfugle kan virke tunge og tykmavede.\nDe første «ægte» unge Mellemkjover kommer tidligst sidst i september (Malling Olsen 2011).\n\n### Pas på\n\nHaaning viser en kjove med kølige farver og lange, runde halefjer, der pegede på Lille Kjove. Men hovedet var for langt, de hvide håndpletter for store og\nnæbbets sorte spids for lille. Det var en Almindelig Kjove (Grenen, oktober 2011). Ét kendetegn er aldrig nok."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 5680,
+         "nf": 117867
+        },
+        {
+         "artnr": 5670,
+         "nf": 125083
+        },
+        {
+         "artnr": 5660,
+         "nf": 117865
+        }
+       ],
+       "labels": [
+        "Lille Kjove, 1K",
+        "Almindelig Kjove",
+        "Mellemkjove"
+       ],
+       "tekst": "Sammenlign formen: lille hoved, harmonisk og kraftig."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Lille Kjove er kold, Almindelig er varm.** Varme gyldne farver findes aldrig hos en ung Lille Kjove.\n- **Almindelig Kjove har lys nakke og lys gump; Mellemkjovens lyse gump står alene.**\n- **Mellemkjoven har dobbeltplet under hånden og et næb, der lyser.**\n- **En ung Lille Kjove har et næb, der er halvt sort.**"
+      },
+      {
+       "type": "advarsel",
+       "titel": "Lad den gå",
+       "md": "Selv meget erfarne havobsere lader unge kjover gå som «kjove sp.» eller «Almindelig/Lille Kjove». DOFbasen har netop de kategorier. Det er bedre end et forkert artsnavn."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En ung kjove har varme gyldenbrune farver, lys nakke og lys plettet overgump. Art?",
+       "choices": [
+        {
+         "text": "Almindelig Kjove",
+         "correct": true
+        },
+        {
+         "text": "Lille Kjove",
+         "correct": false
+        },
+        {
+         "text": "Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Varme toner ses aldrig hos ung Lille Kjove, og Mellemkjoven har ikke lys nakke sammen med den lyse overgump (Haaning 2016).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En kraftig ung kjove med ølmave har lys, stribet overgump, men ingen lys nakke, og en hvid dobbeltplet under hånden. Art?",
+       "choices": [
+        {
+         "text": "Mellemkjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Lille Kjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Dobbeltpletten og den lyse overgump, der «står alene», er Mellemkjovens kendetegn.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En kølig grå ung kjove med lille rundt hoved, kort næb med næsten halvdelen sort og lange, stumpe midterste halefjer. Art?",
+       "choices": [
+        {
+         "text": "Lille Kjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Kolde farver, det lille hoved og det halvt sorte næb peger på Lille Kjove (Malling Olsen 2011; Haaning 2016).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En tung ung kjove i midten af august ligner en Mellemkjove. Hvad bør du overveje?",
+       "choices": [
+        {
+         "text": "At nyligt udfløjne unge Almindelige Kjover kan virke tunge; ægte unge Mellemkjover kommer først sidst i september",
+         "correct": true
+        },
+        {
+         "text": "At Mellemkjover altid kommer i august",
+         "correct": false
+        },
+        {
+         "text": "At det må være en Storkjove",
+         "correct": false
+        },
+        {
+         "text": "At unge kjover ikke kan bestemmes",
+         "correct": false
+        }
+       ],
+       "explanation": "Malling Olsen (2011) advarer om netop denne fejl.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilke to forvekslinger er de reelle ved unge kjover?",
+       "choices": [
+        {
+         "text": "Almindelig/Lille Kjove og Almindelig Kjove/Mellemkjove",
+         "correct": true
+        },
+        {
+         "text": "Mellemkjove/Lille Kjove og Storkjove/Lille Kjove",
+         "correct": false
+        },
+        {
+         "text": "Kun Storkjove/Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Alle fire arter forveksles lige ofte",
+         "correct": false
+        }
+       ],
+       "explanation": "En ung Mellemkjove og en ung Lille Kjove forveksles sjældent (Haaning 2016).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En ung kjove ses kun kort mellem bølgerne. Du når at se, at den er mørk med hvide håndfelter. Bedste registrering?",
+       "choices": [
+        {
+         "text": "Kjove sp.",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove, fordi den er hyppigst",
+         "correct": false
+        },
+        {
+         "text": "Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Lille Kjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Uden form, farvetone og detaljer er gruppen det ærlige niveau.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5670,
+         5680
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 55,
+     "min_score_pct": null
+    },
+    {
+     "title": "Humlebierne: alkefuglene",
+     "lesson_md": "Om vinteren er der hundredtusindvis af alkefugle i danske farvande. De flyver lavt over vandet med summende vinger, og på afstand er det sværeste\nspørgsmål næsten altid det samme: Lomvie eller Alk?",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Lomvie og Alk\n\n| | **Lomvie** | **Alk** |\n|---|---|---|\n| Farve | **Brunsort** overside (brunere i godt lys) | **Kulsort** |\n| Næb | **Langt og spidst** | **Højt og stumpt**, sammentrykt, med hvid linje |\n| Hale | Kort; **fødderne stikker ud** bag halen, så bagkroppen virker «rodet» | **Længere, spids** hale |\n| Overgump | **Bred mørk** midte med smalle hvide sider | **Smal mørk** midte med brede hvide sider |\n| Flanker og armhuler | Ofte **mørkt stribede** | Rent hvide |\n| Vinterhoved | Mørk streg bag øjet ned over den hvide kind | Mere hvidt på hovedet, men sort isse ned til øjet |\n\nHuskeregel: *Lomvien er brun og spids, Alken er sort og stump.* På lang afstand hjælper overgumpen: Alken viser mere hvidt på siderne af gumpen.\n\n### Polarlomvie\n\nPolarlomvien ligner Lomvie, men har kortere og tykkere næb med en hvid linje langs mundvigen, sortere overside og ingen striber på flankerne. Om\nsommeren går det hvide på brystet op i en skarp spids i forhalsen. Om vinteren er kinden helt mørk uden den hvide plet bag øjet. Den er sjælden\n(SU-art); i efteråret 2018 blev der set tre på fire dage i Skagen (Haaning, Pandion 2018).\n\n### De andre alkefugle\n\n| | **Tejst** | **Søkonge** | **Lunde** |\n|---|---|---|---|\n| Størrelse | Mellem | **Som en stær** | Som en tamdue, kompakt |\n| Kendetegn | **Stort hvidt vingefelt** og røde ben; om vinteren hvidlig med grå ryg, men stadig med vingefeltet | **Næsten uden næb**, klumpet profil, **meget hurtige** vingeslag | **Mørk undervinge**, ingen hvid bagkant på vingen, stort hoved, helt mørk overgump |\n| I Danmark | Yngler i Kattegat, bl.a. i lerklinter, havnemoler og under fiskekasser | Talrig vintergæst i Nordsøen, Skagerrak og Kattegat; op mod 250.000 i Skagerrak | **Sjælden**, under 50 om året |\n\n### Er det nu en Lunde?\n\nHaaning stillede i 2016 spørgsmålet, om vi er kritiske nok med lunder. Lokale havobsere på Vestkysten ser næsten aldrig Lunde, og selv på Skagen er der\nmange år kun 1–2. Lunden er en fugl, der skal dokumenteres og ikke tages for givet. Lunden har mørk undervinge og mangler den hvide bagkant, som\nLomvie og Alk har. En ung Lunde har et lille, mørkt næb og kan forveksles med en Søkonge eller en ung Alk.\n\n### Danmark\n\n- **Lomvie**: mindst 200.000 fra slutningen af juli til februar. Yngler kun på Græsholmen ved Christiansø (2–3.000 par) og Nordbornholm.\n- **Alk**: 200.000–400.000 trækker ind i Kattegat i oktober–november; op mod 120.000 er set på få timer fra Fornæs. Yngler på Græsholmen og ved Hammeren."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 6340,
+         "nf": 118623
+        },
+        {
+         "artnr": 6360,
+         "nf": 122466
+        },
+        {
+         "artnr": 6350,
+         "nf": 118081
+        },
+        {
+         "artnr": 6380,
+         "nf": 120960
+        }
+       ],
+       "labels": [
+        "Lomvie",
+        "Alk",
+        "Polarlomvie",
+        "Tejst"
+       ],
+       "tekst": "Brun og spids, sort og stump."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 6470,
+         "nf": 118384
+        },
+        {
+         "artnr": 6540,
+         "nf": 124078
+        },
+        {
+         "artnr": 6380,
+         "nf": 119512
+        }
+       ],
+       "labels": [
+        "Søkonge",
+        "Lunde",
+        "Tejst, vinter"
+       ],
+       "tekst": "Søkongen uden næb, Lunden med den mørke undervinge, og Tejst i vinterdragt."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En alkefugl med brunlig overside, langt spidst næb og fødder, der stikker ud bag halen. Art?",
+       "choices": [
+        {
+         "text": "Lomvie",
+         "correct": true
+        },
+        {
+         "text": "Alk",
+         "correct": false
+        },
+        {
+         "text": "Polarlomvie",
+         "correct": false
+        },
+        {
+         "text": "Lunde",
+         "correct": false
+        }
+       ],
+       "explanation": "Lomvien er brun og spids. Alken er sort med højt, stumpt næb og længere hale.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan ser overgumpen ud hos en flyvende Alk?",
+       "choices": [
+        {
+         "text": "Smal mørk midte med brede hvide sider",
+         "correct": true
+        },
+        {
+         "text": "Bred mørk midte med smalle hvide sider",
+         "correct": false
+        },
+        {
+         "text": "Helt hvid",
+         "correct": false
+        },
+        {
+         "text": "Helt mørk",
+         "correct": false
+        }
+       ],
+       "explanation": "Alken viser mere hvidt på gumpsiderne end Lomvien. Det er et af de bedste kendetegn på afstand.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad adskiller Polarlomvie fra Lomvie?",
+       "choices": [
+        {
+         "text": "Kortere, tykkere næb med hvid linje langs mundvigen og ingen stribede flanker",
+         "correct": true
+        },
+        {
+         "text": "Længere hale",
+         "correct": false
+        },
+        {
+         "text": "Hvidt vingefelt",
+         "correct": false
+        },
+        {
+         "text": "Røde ben",
+         "correct": false
+        }
+       ],
+       "explanation": "Den hvide linje langs mundvigen er Polarlomviens bedste kendetegn.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille, klumpet alkefugl på størrelse med en stær, næsten uden næb, med meget hurtige vingeslag. Art?",
+       "choices": [
+        {
+         "text": "Søkonge",
+         "correct": true
+        },
+        {
+         "text": "Lunde",
+         "correct": false
+        },
+        {
+         "text": "Tejst",
+         "correct": false
+        },
+        {
+         "text": "Alk",
+         "correct": false
+        }
+       ],
+       "explanation": "Søkongen er den mindste alkefugl i Danmark og kendes på den næbløse profil og de hurtige vingeslag.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken alkefugl har mørk undervinge og mangler hvid bagkant på vingen?",
+       "choices": [
+        {
+         "text": "Lunde",
+         "correct": true
+        },
+        {
+         "text": "Lomvie",
+         "correct": false
+        },
+        {
+         "text": "Alk",
+         "correct": false
+        },
+        {
+         "text": "Polarlomvie",
+         "correct": false
+        }
+       ],
+       "explanation": "Lomvie og Alk har hvid bagkant på armen og lys undervinge. Lunden har ingen af delene.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange lunder ses typisk i Danmark om året ifølge DOF?",
+       "choices": [
+        {
+         "text": "Under 50",
+         "correct": true
+        },
+        {
+         "text": "Flere tusinde",
+         "correct": false
+        },
+        {
+         "text": "Omkring 500",
+         "correct": false
+        },
+        {
+         "text": "Ingen",
+         "correct": false
+        }
+       ],
+       "explanation": "Lunden er sjælden her og bør dokumenteres (DOFbasen; Haaning 2016).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken alkefugl?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         6340,
+         6360,
+         6380,
+         6470,
+         6540
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 45,
+     "min_score_pct": null
+    },
+    {
+     "title": "Pukkelryggene: lommerne",
+     "lesson_md": "Den 19. maj 2023 blev alle verdens fem lomarter set i Skagen samme dag, inden for et område på 200 × 200 meter (Pandion 2023). Lommer er et af de store\nforårstræk på Skagen og en af de mest givende grupper at lære, fordi de ses både flyvende og rastende.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### I flugt\n\nLommer flyver med hurtige, stive slag og pukkelryg; hovedet hænger lidt, og fødderne stikker ud bagtil i stedet for en hale.\n\n| | **Rødstrubet Lom** | **Sortstrubet Lom** | **Islom** |\n|---|---|---|---|\n| Størrelse | Mindst og slankest | Større, kraftigere | **Enorm**, som en skarv eller gås |\n| Flugt | **Hurtige, høje slag**; hovedet hænger og «nikker» | Roligere, stabile slag; hovedet holdes lige | **Langsomme, kraftige slag**; store fødder stikker langt ud |\n| Vinterdragt | **Lys, prikket ryg**; meget hvidt i ansigtet | **Mørk ryg** og **hvid plet på bagflanken** | Mørk ryg, **mørk halsplet med lyst hak** |\n\n### På vandet\n\n| | **Rødstrubet Lom** | **Sortstrubet Lom** | **Stillehavslom** | **Islom** | **Hvidnæbbet Lom** |\n|---|---|---|---|---|---|\n| Hoved og næb | Lille hoved; **tyndt næb, der holdes skråt opad** | Stort, rundt hoved; lige, dolkformet næb | **Lille hoved**, fint næb | Stort, kantet hoved; **kraftigt** næb holdt vandret | **Gulhvidt næb**, holdt opad |\n| Det afgørende | Lys, prikket ryg og hvidt ansigt | **Hvid plet på bagflanken** | **Ingen hvid flankeplet; «hagerem»** | Mørk halsplet med **lyst hak** øverst | Næbfarven; lysere hals end Islom |\n\n### Stillehavslom\n\nStillehavslommen ligner Sortstrubet Lom næsten fuldstændig. Det sikre kendetegn er den ensartet mørke flanke uden hvid plet (Haaning, Pandion 2016). Men\npas på: en Sortstrubet Lom, der ligger lavt i vandet, kan skjule pletten. Brug flere minutter. Støttekarakterer er det lille hoved, det fine næb og den\nmørke «hagerem». Danmark har to fund, begge fra Skagen: 2018 og 19. maj 2023.\n\n### Aldersbestemmelse af Islom\n\nHaaning (Pandion 2016) giver tre ting at se på: næb, hoved og ryg.\n\n- **1. vinter**: brunligt hoved, gråt næb uden sort spids, lysskællet ryg, ingen hvide pletter.\n- **2. vinter**: meget mørk, sortbrun ryg uden lyse bræmmer.\n- **Voksen**: kontrastrigt hoved, næb med sort spids (forsvinder fra februar), små hvide pletter i dækfjerene.\n\n### Danmark\n\n- **Rødstrubet Lom**: den talrigeste; Nordsøen ud for Vadehavet og Vestkysten er af global betydning. På trækstederne er 99 % af smålommerne rødstrubede.\n- **Sortstrubet Lom**: talrigere i det sydlige og sydøstlige Danmark; på Bornholm den almindeligste.\n- **Islom**: var SU-art til 1990; nu godt 80 om året; i snit 20 på Skagen om foråret, især i maj.\n- **Hvidnæbbet Lom**: fåtallig; over 15 om året på Skagen om foråret."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 20,
+         "nf": 118237
+        },
+        {
+         "artnr": 30,
+         "nf": 124132
+        },
+        {
+         "artnr": 40,
+         "nf": 123031
+        },
+        {
+         "artnr": 50,
+         "nf": 68869
+        }
+       ],
+       "labels": [
+        "Rødstrubet Lom",
+        "Sortstrubet Lom",
+        "Islom",
+        "Hvidnæbbet Lom"
+       ],
+       "tekst": "Fire lommer i flugt."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 30,
+         "nf": 119547
+        },
+        {
+         "artnr": 33,
+         "nf": 121601
+        },
+        {
+         "artnr": 40,
+         "nf": 123628
+        },
+        {
+         "artnr": 50,
+         "nf": 55631
+        }
+       ],
+       "labels": [
+        "Sortstrubet Lom",
+        "Stillehavslom",
+        "Islom",
+        "Hvidnæbbet Lom"
+       ],
+       "tekst": "Lommer på vandet."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 20,
+        "latin": "Gavia stellata",
+        "type": "kald"
+       },
+       "tekst": "Rødstrubet Lom. Den kalder ofte i flugt, også på træk."
+      },
+      {
+       "type": "tip",
+       "titel": "Huskeregler",
+       "md": "- **Rødstrubet Lom kigger op og har prikket ryg; Sortstrubet Lom har hvid plet bagpå.**\n- **Stillehavslommen mangler pletten og har hagerem.**\n- **Islommen er en gås med pagajer; dens halsplet har et hak.**\n- **Hvidnæbbet Lom kigger op med et hvidt næb.**"
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En lom i vinterdragt har mørk ryg og en tydelig hvid plet på bagflanken. Art?",
+       "choices": [
+        {
+         "text": "Sortstrubet Lom",
+         "correct": true
+        },
+        {
+         "text": "Rødstrubet Lom",
+         "correct": false
+        },
+        {
+         "text": "Stillehavslom",
+         "correct": false
+        },
+        {
+         "text": "Islom",
+         "correct": false
+        }
+       ],
+       "explanation": "Den hvide flankeplet er Sortstrubet Loms kendetegn og ses på stor afstand. Stillehavslommen mangler den.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille lom med lys, prikket ryg, hvidt ansigt og tyndt næb holdt skråt opad. Art?",
+       "choices": [
+        {
+         "text": "Rødstrubet Lom",
+         "correct": true
+        },
+        {
+         "text": "Sortstrubet Lom",
+         "correct": false
+        },
+        {
+         "text": "Islom",
+         "correct": false
+        },
+        {
+         "text": "Hvidnæbbet Lom",
+         "correct": false
+        }
+       ],
+       "explanation": "Rødstrubet Lom er den mindste og lyseste. Næbbet holdes ofte opad.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad er det sikre kendetegn for Stillehavslom i forhold til Sortstrubet Lom?",
+       "choices": [
+        {
+         "text": "Ensartet mørk flanke uden hvid plet",
+         "correct": true
+        },
+        {
+         "text": "Hvidt næb",
+         "correct": false
+        },
+        {
+         "text": "Lys, prikket ryg",
+         "correct": false
+        },
+        {
+         "text": "Hvide pletter i dækfjerene",
+         "correct": false
+        }
+       ],
+       "explanation": "Pas på, at en Sortstrubet Lom ikke blot skjuler pletten. Brug flere minutter (Haaning 2016).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En kæmpe lom flyver forbi med langsomme slag og store fødder, der stikker langt ud. Halsen har en mørk plet med et lyst hak. Art?",
+       "choices": [
+        {
+         "text": "Islom",
+         "correct": true
+        },
+        {
+         "text": "Sortstrubet Lom",
+         "correct": false
+        },
+        {
+         "text": "Rødstrubet Lom",
+         "correct": false
+        },
+        {
+         "text": "Skarv",
+         "correct": false
+        }
+       ],
+       "explanation": "Islommen er på størrelse med en skarv; halspletten med hakket er typisk.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan aldersbestemmer du en Islom i vinterdragt?",
+       "choices": [
+        {
+         "text": "Se på næb, hoved og ryg: lysskællet ryg og næb uden sort spids hos ungfugle; hvide pletter i dækfjerene hos voksne",
+         "correct": true
+        },
+        {
+         "text": "På øjenfarven",
+         "correct": false
+        },
+        {
+         "text": "På halens længde",
+         "correct": false
+        },
+        {
+         "text": "Det kan ikke lade sig gøre",
+         "correct": false
+        }
+       ],
+       "explanation": "Haaning (2016) giver netop de tre karakterer.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvor mange arter lom blev set i Skagen 19. maj 2023?",
+       "choices": [
+        {
+         "text": "Fem, alle verdens arter",
+         "correct": true
+        },
+        {
+         "text": "To",
+         "correct": false
+        },
+        {
+         "text": "Tre",
+         "correct": false
+        },
+        {
+         "text": "Fire",
+         "correct": false
+        }
+       ],
+       "explanation": "Rødstrubet, Sortstrubet, Stillehavs-, Is- og Hvidnæbbet Lom blev set inden for 200 × 200 meter (Pandion 2023).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken lom?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         20,
+         30,
+         40,
+         50
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 50,
+     "min_score_pct": null
+    },
+    {
+     "title": "Perlesnorene: havænderne",
+     "lesson_md": "Havænderne er havobsens baggrundstæppe. Sortænder i lange snore lavt over havet, ederfugle i flokke på tusinder og havlitter, der kalder «au-li». Mellem\ndem gemmer sig de sjældne: Brilleand, Amerikansk Sortand, Kongeederfugl og Stellersand.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### Sortand og Fløjlsand\n\n| | **Sortand** | **Fløjlsand** |\n|---|---|---|\n| Han | Helt sort med **gul plet på næbbet** | Sort med **hvid «komma» under øjet** |\n| Hun | Brun med **stor lys kind** | Brun med **to lyse pletter** på hovedet |\n| I flugt | Helt mørke vinger; lyse svingfjer i undersiden | **Hvidt vingespejl**, ses langt væk |\n\nHuskeregel: *Fløjlsanden blinker hvidt; Sortanden er sort hele vejen.*\n\n### De sjældne sortænder\n\n- **Amerikansk Sortand**: hannen har en stor, gul næbknop i stedet for Sortandens flade gule plet. Hunnerne er næsten umulige at skelne. Den ses mellem\n  sortænderne; i 2014 sås tre hanner på én dag ved Blåvand (SU).\n- **Brilleand**: hannen har hvid pande og nakke og et orange og hvidt næb. Hunnen ligner en hun Fløjlsand, men mangler det hvide vingespejl. Under 10\n  om året, fx Blåvandshuk, Fanø, Hirtshals, Skagen og Nordsjælland.\n- **Sibirisk og Amerikansk Fløjlsand** var tidligere én art med Fløjlsand. De kræver gode fotos af næb og hoved og er SU-arter.\n\n### Ederfugle\n\n- **Ederfugl**: stor med trekantet hovedprofil uden overgang mellem pande og næb. Hannerne er udfarvede efter tre år, så flokkene er spraglede. Op mod\n  86.000 er set trække forbi Gedser Odde på en dag; omkring 30 % af den nordvesteuropæiske bestand overvintrer i Danmark.\n- **Kongeederfugl**: hannen har rødt næb med stor orange næbknop, lyseblå isse og mere sort på kroppen; i hvile ses sorte «sejl» på ryggen. Hunnen har\n  mindre næb og et lille «smil». Omkring 10 om året, mest langs de østdanske kyster.\n- **Stellersand**: lille dykand; hannen hvid og sort med orangegul underside og grøn nakkeplet. Meget sjælden, mest ved Bornholm og Sjælland i januar–februar.\n\n### Havlit\n\nLille dykand med lys krop og mørke vinger; hannen har lange halefjer. Kaldet «au-LI» har givet arten navn. Den vigtigste danske lokalitet er Rønne Banke.\nBestanden er gået stærkt tilbage, og arten blev jagtfredet i 2020."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2130,
+         "nf": 113958
+        },
+        {
+         "artnr": 2150,
+         "nf": 104660
+        },
+        {
+         "artnr": 2132,
+         "nf": 123178
+        },
+        {
+         "artnr": 2140,
+         "nf": 122896
+        }
+       ],
+       "labels": [
+        "Sortand",
+        "Fløjlsand",
+        "Amerikansk Sortand",
+        "Brilleand"
+       ],
+       "tekst": "Sortænderne."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 2060,
+         "nf": 123845
+        },
+        {
+         "artnr": 2070,
+         "nf": 121737
+        },
+        {
+         "artnr": 2090,
+         "nf": 119638
+        },
+        {
+         "artnr": 2120,
+         "nf": 121847
+        }
+       ],
+       "labels": [
+        "Ederfugl",
+        "Kongeederfugl",
+        "Stellersand",
+        "Havlit"
+       ],
+       "tekst": "Ederfugle og Havlit."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 2120,
+        "latin": "Clangula hyemalis",
+        "type": "kald"
+       },
+       "tekst": "Havlittens «au-li», der har givet arten navn."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En flok sorte dykænder flyver forbi; nogle har tydeligt hvidt vingespejl. Hvilken art har spejlet?",
+       "choices": [
+        {
+         "text": "Fløjlsand",
+         "correct": true
+        },
+        {
+         "text": "Sortand",
+         "correct": false
+        },
+        {
+         "text": "Amerikansk Sortand",
+         "correct": false
+        },
+        {
+         "text": "Brilleand",
+         "correct": false
+        }
+       ],
+       "explanation": "Fløjlsanden er den eneste af dem med hvidt vingespejl.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En sortand-han har en stor, gul næbknop. Art?",
+       "choices": [
+        {
+         "text": "Amerikansk Sortand",
+         "correct": true
+        },
+        {
+         "text": "Sortand",
+         "correct": false
+        },
+        {
+         "text": "Fløjlsand",
+         "correct": false
+        },
+        {
+         "text": "Brilleand",
+         "correct": false
+        }
+       ],
+       "explanation": "Sortandens gule tegning er flad og når ikke op på knoppen (DOFbasen).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan skelner du en hun Brilleand fra en hun Fløjlsand?",
+       "choices": [
+        {
+         "text": "Brilleanden mangler det hvide vingespejl",
+         "correct": true
+        },
+        {
+         "text": "Brilleanden har gult næb",
+         "correct": false
+        },
+        {
+         "text": "Brilleanden er hvid på brystet",
+         "correct": false
+        },
+        {
+         "text": "Fløjlsanden har lange halefjer",
+         "correct": false
+        }
+       ],
+       "explanation": "Begge hunner har lyse pletter på hovedet, men kun Fløjlsanden har hvidt vingespejl (DOFbasen).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken dykand har kaldet «au-li» og hannen lange halefjer?",
+       "choices": [
+        {
+         "text": "Havlit",
+         "correct": true
+        },
+        {
+         "text": "Ederfugl",
+         "correct": false
+        },
+        {
+         "text": "Sortand",
+         "correct": false
+        },
+        {
+         "text": "Stellersand",
+         "correct": false
+        }
+       ],
+       "explanation": "Havlittens kald har givet arten navn. Den blev jagtfredet i 2020 efter stor tilbagegang.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad kendetegner en hun Kongeederfugl i forhold til en hun Ederfugl?",
+       "choices": [
+        {
+         "text": "Mindre, mørkere næb med et lille «smil»",
+         "correct": true
+        },
+        {
+         "text": "Hvidt vingespejl",
+         "correct": false
+        },
+        {
+         "text": "Lange halefjer",
+         "correct": false
+        },
+        {
+         "text": "Gul næbplet",
+         "correct": false
+        }
+       ],
+       "explanation": "Kongeederfuglens hun har kortere næb og et karakteristisk smil i mundvigen (DOFbasen).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken havand?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         2130,
+         2150,
+         2060,
+         2120,
+         2070
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    },
+    {
+     "title": "Mågerne på havet: Ride, Sabinemåge og Dværgmåge",
+     "lesson_md": "Tre små måger, der hører til på havet, især om efteråret. De unge er nemme at forveksle, fordi alle tre har et mørkt mønster på vingen. Vil du gå i\ndybden med måger, så tag kurset «Mågernes verden»; her ser vi på, hvordan du kender dem på havobs.",
+     "blocks": [
+      {
+       "type": "tekst",
+       "md": "### De tre vingemønstre\n\n| | **Ride, ung** | **Dværgmåge, ung** | **Sabinemåge, alle aldre** |\n|---|---|---|---|\n| Vingemønster | Sort **M** over vingerne | Mørkt **M** over vingerne | **Tre trekanter**: sort hånd, hvid bagkant, brun (ung) eller grå (voksen) forvinge |\n| Hoved og nakke | **Sort nakkebånd** | **Mørk kasket** og mørk øreplet | Ung: brunt hoved og bryst |\n| Hale | Sort halespids, let kløftet | Sort halespids | **Kløftet** hale |\n| Størrelse | Næsten som Stormmåge | **Mindst**, let flugt | Mellem Dværgmåge og Hættemåge |\n\nHuskeregel: *Ridens M har et halsbånd, Dværgmågens M har en kasket, og Sabinemågen har ingen M, men trekanter.*\n\n### De voksne\n\n- **Ride**: grå vinger, der bliver lysere mod de sorte spidser, «som var de dyppet i blæk»; gult næb og sorte ben. Tåler mere vind end andre måger.\n- **Dværgmåge**: mørk, gråsort undervinge og hvid, afrundet vingespids; om sommeren sort hætte helt ned i nakken.\n- **Sabinemåge**: de tre trekanter og kløftet hale; om sommeren mørkegrå hætte.\n\n### Danmark\n\n- **Ride** yngler på Bulbjerg og i Hanstholm og Hirtshals havne. Store flokke passerer fremspringene i storm; om sommeren unge Rider langs Vestkysten.\n- **Sabinemåge** ses især september–oktober på Vestkysten i vestenstorm og senere, oktober–november, i Kattegat. Mest ungfugle.\n- **Dværgmåge** er verdens mindste måge. Ynglede i Vejlerne til 2004; nu en ret almindelig trækgæst gennem de sydlige farvande, og nogle overvintrer i Nordsøen."
+      },
+      {
+       "type": "fotoraekke",
+       "refs": [
+        {
+         "artnr": 6020,
+         "nf": 120327
+        },
+        {
+         "artnr": 5780,
+         "nf": 120324
+        },
+        {
+         "artnr": 5790,
+         "nf": 121421
+        },
+        {
+         "artnr": 6020,
+         "nf": 121779,
+         "n": 1
+        }
+       ],
+       "labels": [
+        "Ride, ung",
+        "Dværgmåge, ung",
+        "Sabinemåge, ung",
+        "Ride, voksen"
+       ],
+       "tekst": "M med halsbånd, M med kasket og trekanter."
+      },
+      {
+       "type": "lyd",
+       "ref": {
+        "artnr": 6020,
+        "latin": "Rissa tridactyla",
+        "type": "kald"
+       },
+       "tekst": "Riden siger sit navn: «kitti-wejk», som også er artens engelske navn."
+      }
+     ],
+     "acts": [
+      {
+       "type": "valg",
+       "prompt": "En lille ung måge har sort M over vingerne og sort nakkebånd. Art?",
+       "choices": [
+        {
+         "text": "Ride",
+         "correct": true
+        },
+        {
+         "text": "Dværgmåge",
+         "correct": false
+        },
+        {
+         "text": "Sabinemåge",
+         "correct": false
+        },
+        {
+         "text": "Hættemåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Ridens M har et halsbånd; Dværgmågens M har en mørk kasket.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille måge har vinger delt i tre trekanter, sort, hvid og brun, og kløftet hale. Art?",
+       "choices": [
+        {
+         "text": "Sabinemåge, ung",
+         "correct": true
+        },
+        {
+         "text": "Ride, ung",
+         "correct": false
+        },
+        {
+         "text": "Dværgmåge, ung",
+         "correct": false
+        },
+        {
+         "text": "Thorshane",
+         "correct": false
+        }
+       ],
+       "explanation": "Den tredelte vinge er Sabinemågens kendetegn i alle aldre (DOFbasen).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken måge har mørk, gråsort undervinge som voksen?",
+       "choices": [
+        {
+         "text": "Dværgmåge",
+         "correct": true
+        },
+        {
+         "text": "Ride",
+         "correct": false
+        },
+        {
+         "text": "Sabinemåge",
+         "correct": false
+        },
+        {
+         "text": "Stormmåge",
+         "correct": false
+        }
+       ],
+       "explanation": "Den mørke undervinge er et af de bedste kendetegn for voksne Dværgmåger året rundt (DOFbasen).",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvordan beskrives Ridens vingespidser?",
+       "choices": [
+        {
+         "text": "Som var de dyppet i blæk",
+         "correct": true
+        },
+        {
+         "text": "Hvide og afrundede",
+         "correct": false
+        },
+        {
+         "text": "Med store hvide pletter",
+         "correct": false
+        },
+        {
+         "text": "Brune",
+         "correct": false
+        }
+       ],
+       "explanation": "Riden har grå vinger, der bliver lysere ud mod de helt sorte spidser (DOFbasen).",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvornår ses Sabinemåger typisk i Kattegat sammenlignet med Vestkysten?",
+       "choices": [
+        {
+         "text": "Senere, i oktober–november",
+         "correct": true
+        },
+        {
+         "text": "Tidligere, i juli",
+         "correct": false
+        },
+        {
+         "text": "Samtidig, i august",
+         "correct": false
+        },
+        {
+         "text": "Kun om foråret",
+         "correct": false
+        }
+       ],
+       "explanation": "Fuglene i Kattegat kan være fugle, der trækker fra Ishavet gennem Østersøen (DOFbasen).",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken havmåge?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         6020,
+         5790,
+         5780
+        ],
+        "metode": "valg",
+        "antal": 6
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ],
+     "est_minutes": 35,
+     "min_score_pct": null
+    },
+    {
+     "title": "Tælling, dokumentation og ærlige bestemmelser",
+     "lesson_md": "På en god havobsdag passerer der tusindvis af fugle. At tælle dem og at vide, hvornår man skal stoppe ved gruppen, er lige så vigtigt som at kende arterne.",
+     "blocks": [
+      {
+       "type": "metode",
+       "trin": 4
+      },
+      {
+       "type": "tekst",
+       "md": "### Metoden på havet\n\n1. **Forudsig**: Hvad kan komme i dag? Vind, sted og årstid.\n2. **Opdag**: Skan lavt over bølgerne; hold øje med bevægelse.\n3. **Tolk**: Hvilken gruppe? Bølgetegneren, flagermusen, korset, piraten, humlebien, pukkelryggen eller perlesnoren.\n4. **Adskil**: Gå artsnøglen igennem for gruppen.\n5. **Beslut**: Art, gruppe eller par.\n\n### Ærlige niveauer i DOFbasen\n\nDOFbasen har kategorier for netop de fugle, man ikke kan bestemme til art. Brug dem:\n\n| Kategori | Brug den, når … |\n|---|---|\n| **Rødstrubet/Sortstrubet Lom** | du ser en lille lom på afstand |\n| **Lomvie/Alk** | alkefuglen er for langt væk til at se næb, farve og gump |\n| **Almindelig Kjove/Lille Kjove** og **Mellemkjove/Almindelig Kjove** | en ung kjove har kendetegn for begge |\n| **Kjove sp.** | du kun ser en mørk fugl med hvide håndfelter |\n| **Atlantisk/Scopolis Skråpe** | du ikke har fotos af håndens underside |\n| **Almindelig Skråpe/Middelhavsskråpe**, **Skråpe sp.** og **Stormsvale sp.** | detaljerne mangler |\n| **Odinshane/Thorshane** | svømmesneppen passerer for hurtigt |\n\n### At tælle\n\n- Tæl i grupper af 10 eller 50, når flokke passerer, og noter tiden for hver time.\n- Noter trækretningen. Mange fugle i Kattegat og Skagerrak flyver frem og tilbage; tæl kun dem, der passerer i hovedretningen, eller noter begge.\n- Hold øje med gengangere, især rastende fugle, der flyver lidt og lander igen. På Skagen i maj 2023 var det svært at tælle Sortstrubede Lommer, fordi de\n  fløj et stykke, landede og drev tilbage (Pandion 2023).\n\n### Dokumentation af en sjælden havfugl\n\n- **Skriv flugten ned med det samme.** Flugt og jizz kan ikke ses på et foto, men det er dem, der afgør en skråpe eller en stormsvale.\n- **Fotografér, selv om fuglen er langt væk.** Selv et dårligt foto kan vise vingeform, hætte og gump.\n- **Video** er ofte bedre end fotos til havfugle, fordi den viser flugten.\n- **Vær kritisk over for dig selv.** Mange beskrivelser af Kuhls Skråpe til SU har lagt for meget vægt på farven. Mallemukker i dårligt lys er en klassisk faldgrube (Haaning 2003)."
+      }
+     ],
+     "acts": [
+      {
+       "type": "raekkefoelge",
+       "prompt": "Sæt Metodens fem trin i rækkefølge.",
+       "choices": [],
+       "explanation": "Forudsig hvad der kan komme, opdag fuglen, tolk gruppen, adskil arterne og beslut til sidst niveauet.",
+       "skills": [
+        "Genkald"
+       ],
+       "config": {
+        "items": [
+         "Forudsig",
+         "Opdag",
+         "Tolk",
+         "Adskil",
+         "Beslut"
+        ]
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En alkefugl flyver forbi langt ude. Du kan ikke se næb, farve eller gump. Bedste registrering?",
+       "choices": [
+        {
+         "text": "Lomvie/Alk",
+         "correct": true
+        },
+        {
+         "text": "Lomvie",
+         "correct": false
+        },
+        {
+         "text": "Alk",
+         "correct": false
+        },
+        {
+         "text": "Lunde",
+         "correct": false
+        }
+       ],
+       "explanation": "DOFbasen har kategorien Lomvie/Alk netop til de fjerne alkefugle.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En stor skråpe med gult næb passerer. Du har ingen fotos af håndens underside. Bedste registrering?",
+       "choices": [
+        {
+         "text": "Atlantisk/Scopolis Skråpe",
+         "correct": true
+        },
+        {
+         "text": "Atlantisk Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Scopolis Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Storskråpe",
+         "correct": false
+        }
+       ],
+       "explanation": "De to arter kan kun skilles på håndens underside.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "niveau": true
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvorfor er video ofte bedre end fotos til dokumentation af havfugle?",
+       "choices": [
+        {
+         "text": "Den viser flugten, som ofte er afgørende",
+         "correct": true
+        },
+        {
+         "text": "Den viser farverne bedre",
+         "correct": false
+        },
+        {
+         "text": "Den er lettere at tage",
+         "correct": false
+        },
+        {
+         "text": "SU accepterer kun video",
+         "correct": false
+        }
+       ],
+       "explanation": "Flugtmåde og jizz er afgørende for skråper og stormsvaler og kan ikke ses på et stillbillede.",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvad var problemet i mange beskrivelser af Kuhls Skråpe til SU?",
+       "choices": [
+        {
+         "text": "De lagde for meget vægt på farve og for lidt på form og flugt",
+         "correct": true
+        },
+        {
+         "text": "De var for lange",
+         "correct": false
+        },
+        {
+         "text": "De manglede dato",
+         "correct": false
+        },
+        {
+         "text": "De beskrev fuglen for detaljeret",
+         "correct": false
+        }
+       ],
+       "explanation": "Mallemukker i dårligt lys kan virke mørke på oversiden og lyse under, og så ligner de på farven en Kuhls Skråpe (Haaning 2003).",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Beskriv en ung Mellemkjove, du forestiller dig at se trække forbi Roshage i oktober i nordvestenstorm, som du ville skrive den i DOFbasen.",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 150,
+        "example": "Kraftig kjove, næsten Sølvmåge-stor, med bredt bryst, ølmave og bred arm. Langsomme, magtfulde slag i lange serier. Ensfarvet gråbrun med mørkt hoved og ingen lys nakke, men lys, tæt stribet overgump, der står alene. Hvid dobbeltplet under hånden og kraftigt, lyst næb med sort spids. Korte, stumpe midterste halefjer. Set 10.12 trækkende mod vest i NV 14 m/s, ca. 400 m ude. Video vedlagt."
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 35,
+     "min_score_pct": null
+    },
+    {
+     "title": "Afsluttende prøve: alle havfugle blandet",
+     "lesson_md": "Nu blander vi alle grupperne. Gå frem på samme måde hver gang: gruppen først, så arten. Vær ærlig om, hvor sikker du er, og tag prøven igen om en uge.",
+     "blocks": [
+      {
+       "type": "tip",
+       "titel": "Før du starter",
+       "md": "Sig gruppebilledet for dig selv, før du vælger art: bølgetegneren, flagermusen, korset, piraten, humlebien, pukkelryggen eller perlesnoren."
+      }
+     ],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken havfugl?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         20,
+         30,
+         40,
+         50,
+         220,
+         430,
+         460,
+         400,
+         520,
+         710,
+         5650,
+         5640,
+         5670,
+         5660,
+         5680,
+         5690,
+         6020,
+         5790,
+         5780,
+         6340,
+         6360,
+         6380,
+         6470,
+         6540,
+         2060,
+         2070,
+         2120,
+         2130,
+         2150
+        ],
+        "metode": "valg",
+        "antal": 20
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "September, Roshage, NV-kuling: en stormfugl med lige, stive vinger, bred arm og kort hånd. Hovedet ses ikke i modlyset. Art?",
+       "choices": [
+        {
+         "text": "Mallemuk",
+         "correct": true
+        },
+        {
+         "text": "Atlantisk Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Sodfarvet Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Storskråpe",
+         "correct": false
+        }
+       ],
+       "explanation": "Vingens form afgør det. Det hvide hoved forsvinder ofte i modlys (Haaning 2003).",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En mørk stormfugl med smalle, knækkede vinger holdt som et kors og sølvglimt under vingen. Art?",
+       "choices": [
+        {
+         "text": "Sodfarvet Skråpe",
+         "correct": true
+        },
+        {
+         "text": "Mallemuk, mørk",
+         "correct": false
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Balearisk Skråpe",
+         "correct": false
+        }
+       ],
+       "explanation": "Korset og sølvglimtet er Sodfarvet Skråpe.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille sort stormsvale med kort, rund vinge, bred hvid overgump og lav, direkte flugt. Art?",
+       "choices": [
+        {
+         "text": "Lille Stormsvale",
+         "correct": true
+        },
+        {
+         "text": "Stor Stormsvale",
+         "correct": false
+        },
+        {
+         "text": "Wilsons Stormsvale",
+         "correct": false
+        },
+        {
+         "text": "Odinshane",
+         "correct": false
+        }
+       ],
+       "explanation": "Flagermusen er Lille Stormsvale.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En kraftig ung kjove med ølmave, hvid dobbeltplet under hånden og lys overgump uden lys nakke. Art?",
+       "choices": [
+        {
+         "text": "Mellemkjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Lille Kjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Mellemkjovens lyse overgump står alene.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En voksen kjove med meget lange, tynde halefjer, grå overside og helt mørk undervinge. Art?",
+       "choices": [
+        {
+         "text": "Lille Kjove",
+         "correct": true
+        },
+        {
+         "text": "Almindelig Kjove",
+         "correct": false
+        },
+        {
+         "text": "Mellemkjove",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        }
+       ],
+       "explanation": "Snoren og den mørke undervinge er Lille Kjove.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En alkefugl med kulsort overside, højt stumpt næb og brede hvide sider på overgumpen. Art?",
+       "choices": [
+        {
+         "text": "Alk",
+         "correct": true
+        },
+        {
+         "text": "Lomvie",
+         "correct": false
+        },
+        {
+         "text": "Polarlomvie",
+         "correct": false
+        },
+        {
+         "text": "Lunde",
+         "correct": false
+        }
+       ],
+       "explanation": "Sort og stump er Alk.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lom i vinterdragt med mørk ryg, uden hvid flankeplet, med lille hoved og hagerem. Art?",
+       "choices": [
+        {
+         "text": "Stillehavslom",
+         "correct": true
+        },
+        {
+         "text": "Sortstrubet Lom",
+         "correct": false
+        },
+        {
+         "text": "Rødstrubet Lom",
+         "correct": false
+        },
+        {
+         "text": "Islom",
+         "correct": false
+        }
+       ],
+       "explanation": "Den manglende flankeplet er Stillehavslommens sikre kendetegn, men brug tid på at udelukke en lavtliggende Sortstrubet Lom.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En lille ung måge med sort M over vingerne og sort nakkebånd. Art?",
+       "choices": [
+        {
+         "text": "Ride",
+         "correct": true
+        },
+        {
+         "text": "Dværgmåge",
+         "correct": false
+        },
+        {
+         "text": "Sabinemåge",
+         "correct": false
+        },
+        {
+         "text": "Thorshane",
+         "correct": false
+        }
+       ],
+       "explanation": "M med halsbånd er Ride.",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "En brun havfugl med spidst næb, spids hale, lange spidse vinger og fine hvide prikker. Art?",
+       "choices": [
+        {
+         "text": "Sule, ung",
+         "correct": true
+        },
+        {
+         "text": "Sodfarvet Skråpe",
+         "correct": false
+        },
+        {
+         "text": "Storkjove",
+         "correct": false
+        },
+        {
+         "text": "Brun Sule",
+         "correct": false
+        }
+       ],
+       "explanation": "De fire spidser og prikkerne er den unge Sule.",
+       "skills": [
+        "Bemærk"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "valg",
+       "prompt": "Hvilken vind er bedst for havobs ved Gilleleje og Rørvig?",
+       "choices": [
+        {
+         "text": "Nordvest til nord",
+         "correct": true
+        },
+        {
+         "text": "Syd",
+         "correct": false
+        },
+        {
+         "text": "Øst",
+         "correct": false
+        },
+        {
+         "text": "Sydøst",
+         "correct": false
+        }
+       ],
+       "explanation": "Nordsjællands kyst vender mod nord, og fugle drevet ind i Kattegat søger ud igen langs den.",
+       "skills": [
+        "Forbered"
+       ],
+       "config": {},
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "refleksion",
+       "prompt": "Gå tilbage til dit svar i første trin. Hvad gør du nu, når en mørk fugl flyver forbi langt ude over havet?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Vurdér"
+       ],
+       "config": {
+        "min_chars": 60,
+        "example": "Fx: «Først flugten: glider den på stive vinger i buer, er det en stormfugl; vinkler den vingerne og jager, er det en kjove. Så form og lyse felter. Farverne kommer til sidst, og jeg skriver gerne skråpe sp. eller kjove sp.»"
+       },
+       "accept": [],
+       "ask_confidence": false
+      }
+     ],
+     "est_minutes": 40,
+     "min_score_pct": null
+    }
+   ],
+   "loose": false,
+   "cover_ref": {
+    "artnr": 710,
+    "nf": 118992
+   }
+  },
+  {
+   "kind": "ovelse",
+   "slug": "havfugle-traening",
+   "title": "Havfugle-træning: fotos og svære par",
+   "summary": "Blandet fototræning i de danske havfugle med nye fotos hver gang.",
+   "card": "Alle grupper og de svære par: træn, til du kan se forskel uden at tøve.",
+   "category": "Artsgrupper",
+   "skills": [
+    "Bemærk",
+    "Sammenlign"
+   ],
+   "hue": "hav",
+   "sil": "maage",
+   "featured": true,
+   "units": [
+    {
+     "title": "",
+     "lesson_md": "",
+     "blocks": [],
+     "acts": [
+      {
+       "type": "foto_art",
+       "prompt": "Hvilken havfugl?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         20,
+         30,
+         40,
+         50,
+         220,
+         430,
+         460,
+         400,
+         520,
+         710,
+         5650,
+         5640,
+         5670,
+         5660,
+         5680,
+         5690,
+         6020,
+         5790,
+         5780,
+         6340,
+         6360,
+         6380,
+         6470,
+         6540,
+         2060,
+         2070,
+         2120,
+         2130,
+         2150
+        ],
+        "metode": "valg",
+        "antal": 10
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Kjover: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         5670,
+         5660,
+         5680,
+         5690
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Alkefugle: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         6340,
+         6360,
+         6380,
+         6470,
+         6540
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_art",
+       "prompt": "Lommer: hvilken art?",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Bemærk",
+        "Sammenlign"
+       ],
+       "config": {
+        "arter": [
+         20,
+         30,
+         40,
+         50
+        ],
+        "metode": "valg",
+        "antal": 8
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         220,
+         430
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         6340,
+         6360
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         5670,
+         5680
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         2130,
+         2150
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      },
+      {
+       "type": "foto_sammenlign",
+       "prompt": "",
+       "choices": [],
+       "explanation": "",
+       "skills": [
+        "Sammenlign"
+       ],
+       "config": {
+        "par": [
+         20,
+         30
+        ],
+        "antal": 3
+       },
+       "accept": [],
+       "ask_confidence": true
+      }
+     ]
+    }
+   ],
+   "loose": true,
+   "cover_ref": {
+    "artnr": 220,
+    "nf": 120896
+   }
+  }
+ ]
+}

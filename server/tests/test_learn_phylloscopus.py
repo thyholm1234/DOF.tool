@@ -12,7 +12,7 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
     from portal.services import learning
 
     async with db() as s:
-        assert await learning.seed_packs(s) == 6  # Phylloscopus-, måge- og rovfuglekurset, hver med en øvelse
+        assert await learning.seed_packs(s) == 8  # Phylloscopus-, måge-, rovfugle- og havfuglekurset, hver med en øvelse
         assert await learning.seed_packs(s) == 0  # kun én gang
         c = (await s.execute(text("SELECT id, published, kind FROM courses WHERE slug = 'phylloscopus'"))).mappings().one()
         assert not c["published"] and c["kind"] == "kursus"
@@ -27,13 +27,14 @@ async def test_phylloscopus_importeres_som_kladde_en_gang(web, db):  # noqa: F81
         assert (await s.execute(text("SELECT kind FROM courses WHERE slug = 'phylloscopus-traening'"))).scalar() == "ovelse"
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'maager'"))).scalar() == 14
         assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'rovfugle'"))).scalar() == 19
+        assert (await s.execute(text("SELECT count(*) FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'havfugle'"))).scalar() == 16
         # rovfuglekurset beder om flugtfotos – filteret overlever importens rensning
         rb = (await s.execute(text("SELECT blocks FROM lr_units u JOIN courses c ON c.id = u.course_id WHERE c.slug = 'rovfugle' ORDER BY position"))).scalars().all()
         assert any(r.get("adfaerd") == "Flyvende" for bl in rb for b in bl for r in [b.get("ref") or {}] + (b.get("refs") or []))
     # kladden har ingen blokerende fejl (der er ingen fotos i testbasen at tjekke rettigheder på)
     await flags(db, laering_portal="on", laering_byg="on")
     ov = {c["slug"]: c for c in (await web["ad"].get("/api/learn/byg/oversigt")).json()}
-    assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0 and ov["rovfugle"]["fejl"] == 0
+    assert ov["phylloscopus"]["fejl"] == 0 and ov["maager"]["fejl"] == 0 and ov["rovfugle"]["fejl"] == 0 and ov["havfugle"]["fejl"] == 0
     # lektionerne kan vises (redaktørens forhåndsvisning): blokke med referencer løses – uden fotos/lyd i basen bliver de blot tomme
     r = await web["ad"].get("/api/learn/courses/phylloscopus/units?preview=true")
     assert r.status_code == 200, r.text

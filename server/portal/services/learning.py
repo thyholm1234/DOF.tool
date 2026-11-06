@@ -310,7 +310,7 @@ async def seed_traekrute(session: AsyncSession) -> int:
 # Kursuspakker i DOF.tool-formatet (``learn_build.export_courses``, "laering-v2"): importeres én gang som KLADDER, så en redaktør
 # kan gennemlæse, skifte fotos/lyde og publicere. Nøglen er markøren i indstillingerne; ny version af en pakke = ny nøgle.
 SEED_PACKS = {"phylloscopus.json": "laering_seed_phylloscopus_v1", "maager.json": "laering_seed_maager_v1",
-              "rovfugle.json": "laering_seed_rovfugle_v1"}
+              "rovfugle.json": "laering_seed_rovfugle_v1", "havfugle.json": "laering_seed_havfugle_v1"}
 
 
 async def seed_packs(session: AsyncSession) -> int:
