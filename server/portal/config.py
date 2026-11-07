@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Databaseregistret (db-admin-containeren). Tomt = ingen opdeling: POSTGRES_DSN bruges til både brugere og observationer.
     dbadmin_url: str = ""
     dbadmin_service_token: str = ""
+    # DOF.tool-gruppen (observationer indtastet i DOF.tool): uden en registreret node i db-admin bruges en egen database
+    # med dette navn på observationsgruppens primary – adskilt fra DOFbasens data (se dbgroups.DOFTOOL).
+    doftool_dbname: str = "doftool"
 
     # Superadmin er denne obserkode (sættes ved opstart). Den logger ind med sin DOFbasen-adgangskode som alle andre.
     superadmin_obserkode: str = ""

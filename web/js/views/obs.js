@@ -17,6 +17,7 @@ export async function render(view, [obsid]) {
   const o = d.obs;
   const thread = `#/traad/${o.dato}/${o.artnr}/${o.loknr}`;
 
+  const tool = o.indtastning === "doftool";
   const facts = [
     ["Art", h("span", {}, h("a", { href: `#/art/${o.artnr}` }, o.art), o.latin ? h("i", { class: "muted" }, ` (${o.latin})`) : null)],
     ["Dato", fmtDate(o.dato)],
@@ -35,6 +36,7 @@ export async function render(view, [obsid]) {
     ["Medobs.", o.medobser],
     ["Position", o.lat != null ? `${Number(o.lat).toFixed(5)}, ${Number(o.lon).toFixed(5)}${o.praecis ? "" : " (lokaliteten)"}` : null],
     ["DKU", o.dku_status || (o.media_pending ? "henter fra DOFbasen …" : null)],
+    ["Indtastet", o.indtastning_tekst],
     ["Obsid", String(o.obsid)],
   ].filter(([, v]) => v != null && v !== "");
 
@@ -52,9 +54,10 @@ export async function render(view, [obsid]) {
       h("span", { class: "spacer" }),
       h("div", { class: "row" },
         h("a", { class: "btn", href: thread }, "Se tråden"),
-        h("a", { class: "btn ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
+        // Indtastet i DOF.tool: der er ingen side hos DOFbasen, og en DKU-sag handler om indtastningen i portalen
+        tool ? null : h("a", { class: "btn ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
         // DKU-sag / tip DKU – som på tråden (ikke på egne observationer)
-        tipButton("dofbasen", o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
+        tipButton(tool ? "portal" : "dofbasen", tool ? o.report_id : o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
           label: `${fmtN(o.antal)} ${o.art} · ${o.observator || o.obserkode || ""} · ${o.dato}` }))),
     h("div", { class: "grid-2" },
       h("div", { class: "stack" },
@@ -64,7 +67,7 @@ export async function render(view, [obsid]) {
           o.turnoter ? h("p", { class: "muted", style: { margin: "6px 0 0", fontSize: ".86rem", whiteSpace: "pre-wrap" } }, "Tur: ", o.turnoter) : null)),
       h("div", { class: "stack" },
         o.lat != null ? h("div", { class: "card", style: { padding: "8px" } }, mapEl) : null,
-        mediaCard(o.media))),
+        mediaCard(o.media, tool))),
     tripCard(d.tur, o));
 
   if (o.lat != null) {
@@ -73,10 +76,10 @@ export async function render(view, [obsid]) {
   }
 }
 
-/** Fotos og lyd fra DOFbasen (medie-scannerens cache, som på tråden). */
-function mediaCard(m) {
+/** Fotos og lyd fra DOFbasen (medie-scannerens cache, som på tråden) – eller fra indtastningen i DOF.tool. */
+function mediaCard(m, tool = false) {
   if (!m || !(m.images?.length || m.sounds?.length)) return null;
-  return h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "Fotos og lyd fra DOFbasen"),
+  return h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, tool ? "Fotos og lyd" : "Fotos og lyd fra DOFbasen"),
     ...(m.images || []).map(src => h("a", { href: src, target: "_blank", rel: "noopener" }, h("img", { src, loading: "lazy", alt: "Foto fra DOFbasen", style: { maxWidth: "100%", borderRadius: "10px" } }))),
     ...(m.sounds || []).map(src => h("audio", { controls: true, src, preload: "none", style: { width: "100%" } })));
 }

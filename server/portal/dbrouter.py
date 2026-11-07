@@ -35,7 +35,7 @@ from sqlalchemy.sql.selectable import Select
 from sqlalchemy.sql.util import find_tables
 
 from portal.config import get_settings
-from portal.dbgroups import GROUPS, OBSERVATIONS, USERS, group_of_sql, group_of_table
+from portal.dbgroups import DOFTOOL, GROUPS, OBSERVATIONS, USERS, group_of_sql, group_of_table
 
 log = logging.getLogger("portal.dbrouter")
 
@@ -69,7 +69,7 @@ class Node:
 class Router:
     def __init__(self) -> None:
         self.nodes: list[Node] = []
-        self.read_replicas: dict[str, bool] = {USERS: False, OBSERVATIONS: True}
+        self.read_replicas: dict[str, bool] = {USERS: False, OBSERVATIONS: True, DOFTOOL: False}
         self.version = 0
         self.engines: dict[str, AsyncEngine] = {}
         self._down: dict[str, float] = {}
@@ -133,7 +133,7 @@ class Router:
             if not any(n.group == g and n.role == "primary" for n in nodes):
                 raise RuntimeError(f"Ingen primary i gruppen '{g}' – opret en under Admin → databaser")
         self.legacy = False
-        self.read_replicas = {g: bool(data.get("read_replicas", {}).get(g, g == OBSERVATIONS)) for g in GROUPS}
+        self.read_replicas = {g: bool(data.get("read_replicas", {}).get(g, g == OBSERVATIONS)) for g in (*GROUPS, DOFTOOL)}
         if nodes != self.nodes:
             log.info("Databasetopologi opdateret: %s", ", ".join(f"{n.group}/{n.role}:{n.name}@{n.host}:{n.port}" for n in nodes))
         self.nodes, self.version = nodes, data.get("version", 0)
@@ -192,7 +192,23 @@ class Router:
         return node.healthy and self._down.get(node.key, 0) < time.monotonic()
 
     def primary_node(self, group: str) -> Node:
+        if group == DOFTOOL:
+            return self.tool_node()
         return next(n for n in self.nodes if n.group == group and n.role == "primary")
+
+    def tool_node(self) -> Node:
+        """DOF.tool-gruppens primary: en node registreret i db-admin (gruppe 'doftool') – ellers en egen database
+        (DOFTOOL_DBNAME) på observationsgruppens primary. Indholdet kan altid bygges op igen fra indtastningerne
+        (services/doftool_obs.py), så et skift til en dedikeret node kræver ingen flytning af data."""
+        own = next((n for n in self.nodes if n.group == DOFTOOL and n.role == "primary"), None)
+        if own is not None:
+            return own
+        obs = next(n for n in self.nodes if n.group == OBSERVATIONS and n.role == "primary")
+        return Node(-1, f"doftool@{obs.name}", DOFTOOL, "primary", obs.host, obs.port, get_settings().doftool_dbname, obs.user,
+                    obs.token, obs.healthy, obs.purpose)
+
+    def tool_is_derived(self) -> bool:
+        return not any(n.group == DOFTOOL and n.role == "primary" for n in self.nodes)
 
     def primary(self, group: str) -> AsyncEngine:
         return self.engine_for(self.primary_node(group))
@@ -256,6 +272,10 @@ class RoutingSession(Session):
         return group_of_sql(sql) or self._home(), not is_read_sql(sql)
 
     def get_bind(self, mapper=None, clause: ClauseElement | None = None, **kw):
+        if (forced := self.info.get("force")) is not None:
+            # Bundet til én gruppe (DOF.tool-gruppen har samme tabelnavne som observationsgruppen)
+            self._written.add(forced)
+            return router.primary(forced).sync_engine
         group, write = self._classify(mapper, clause)
         if write:
             self._written.add(group)
@@ -308,3 +328,5 @@ def _factory(**info) -> async_sessionmaker[AsyncSession]:
 SessionLocal = _factory(home=USERS)
 # Til kode der skriver observationer/referencedata (indlæsning fra DOFbasen): læser også kun fra primary (ingen replika-forsinkelse)
 ObsSession = _factory(home=OBSERVATIONS, primary_only=True)
+# DOF.tool-gruppen: alt i sessionen går dertil (læsning og skrivning på dens primary)
+ToolSession = _factory(home=DOFTOOL, force=DOFTOOL)

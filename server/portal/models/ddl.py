@@ -157,4 +157,10 @@ EXTRA_DDL = [
     "UPDATE dku_messages SET visibility = 'tipper' WHERE visibility = 'alle' AND role = 'tipper'",
     "UPDATE dku_messages m SET visibility = CASE WHEN c.observer_involved THEN 'observer' ELSE 'tipper' END"
     " FROM dku_cases c WHERE m.case_id = c.id AND m.visibility = 'alle'",
+    # Indtastningsmetode på observationer og ture (services/portal_obs.py): DOF.tool-indtastninger står i datasættet på
+    # ligefod med DOFbasens, men mærket. Konstant standardværdi = ingen omskrivning af tabellen.
+    "ALTER TABLE observations ADD COLUMN IF NOT EXISTS indtastning varchar(12) NOT NULL DEFAULT 'dofbasen'",
+    "ALTER TABLE trips ADD COLUMN IF NOT EXISTS indtastning varchar(12) NOT NULL DEFAULT 'dofbasen'",
+    # (intet indeks: DOF.tool-rækkerne har obsid < -1e9 og findes via primærnøglen)
+    "UPDATE observations SET indtastning = 'manuel' WHERE obsid < 0 AND obsid > -1000000000 AND indtastning = 'dofbasen'",
 ]

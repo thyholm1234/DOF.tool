@@ -100,7 +100,7 @@ async def ingest(
 
     await apg.execute("""
         CREATE TEMP TABLE IF NOT EXISTS tmp_obs (LIKE observations INCLUDING DEFAULTS) ON COMMIT DELETE ROWS;
-        CREATE TEMP TABLE IF NOT EXISTS tmp_trips (LIKE trips) ON COMMIT DELETE ROWS;
+        CREATE TEMP TABLE IF NOT EXISTS tmp_trips (LIKE trips INCLUDING DEFAULTS) ON COMMIT DELETE ROWS;
         CREATE TEMP TABLE IF NOT EXISTS tmp_observers (LIKE observers) ON COMMIT DELETE ROWS;
         CREATE TEMP TABLE IF NOT EXISTS tmp_locs (loknr int, navn text, afdeling_id smallint, lat float8, lon float8) ON COMMIT DELETE ROWS;
     """)

@@ -14,7 +14,7 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import kv
+from portal.cache import kv, worker_command
 from portal.config import get_settings
 from portal.db import Base
 from portal.dbgroups import USER_TABLES
@@ -92,6 +92,7 @@ async def delete(db: AsyncSession, user: User) -> None:
         if p and p.is_file():
             p.unlink()
     await destroy_sessions(user.id)
+    await worker_command("doftool_sync")  # brugerens fund forsvinder også fra DOF.tool-datasættet
 
 
 async def destroy_sessions(user_id: int) -> None:

@@ -14,7 +14,8 @@ from sqlalchemy.exc import DBAPIError
 
 from portal import models
 from portal.db import Base
-from portal.dbgroups import GROUPS, OBS_TABLES, OBSERVATIONS, REFERENCE_TABLES, USER_TABLES, USERS, group_of_table, tables_in
+from portal.dbgroups import (DOFTOOL, DOFTOOL_TABLES, GROUPS, OBS_TABLES, OBSERVATIONS, REFERENCE_TABLES, USER_TABLES, USERS,
+                             group_of_table, tables_in)
 from portal.dbrouter import router
 
 log = logging.getLogger("portal.dbops")
@@ -24,7 +25,36 @@ REFERENCE_ORDER = ("afdelinger", "kommuner", "locations", "species", "bemaerk_th
 
 
 def tables_for(group: str) -> set[str]:
+    if group == DOFTOOL:
+        return REFERENCE_TABLES | DOFTOOL_TABLES
     return REFERENCE_TABLES | (OBS_TABLES if group == OBSERVATIONS else USER_TABLES)
+
+
+def _tool_ddl(ddl: str) -> bool:
+    """Skal EXTRA_DDL-sætningen også køres i DOF.tool-gruppen? Kun dem på dens egne tabeller (og udvidelser)."""
+    t = tables_in(ddl)
+    return (bool(t) and t <= tables_for(DOFTOOL)) or ddl.lstrip().upper().startswith("CREATE EXTENSION")
+
+
+async def ensure_tool_database() -> None:
+    """Opret DOF.tool-gruppens database, når den bor på observationsgruppens server (ingen node i db-admin)."""
+    if not router.tool_is_derived():
+        return
+    from sqlalchemy.ext.asyncio import create_async_engine
+    node = router.primary_node(OBSERVATIONS)
+    eng = create_async_engine(node.dsn, isolation_level="AUTOCOMMIT")
+    try:
+        async with eng.connect() as conn:
+            name = router.tool_node().dbname
+            if not (await conn.execute(text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": name})).first():
+                try:
+                    await conn.execute(text(f'CREATE DATABASE "{name}"'))
+                    log.info("DOF.tool-databasen %s er oprettet på %s", name, node.name)
+                except DBAPIError as exc:  # en anden proces nåede det først
+                    if getattr(exc.orig, "sqlstate", None) != "42P04" and "already exists" not in str(exc):
+                        raise
+    finally:
+        await eng.dispose()
 
 
 def ddl_groups(ddl: str) -> tuple[str, ...]:
@@ -62,7 +92,8 @@ async def _column_exists(conn, table: str, column: str) -> bool:
 
 async def create_schema() -> None:
     """Opret/ret tabeller på hver gruppes primary (idempotent; advisory lock mod samtidige processer)."""
-    for group in GROUPS:
+    await ensure_tool_database()
+    for group in (*GROUPS, DOFTOOL):
         tables = [t for t in Base.metadata.sorted_tables if t.name in tables_for(group)]
         async with router.primary(group).connect() as conn:
             conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
@@ -72,7 +103,7 @@ async def create_schema() -> None:
                 await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
                 await _with_lock_retry(conn, "create_all", lambda: conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables)))
                 for ddl in models.EXTRA_DDL:
-                    if group not in ddl_groups(ddl):
+                    if (group == DOFTOOL and not _tool_ddl(ddl)) or (group != DOFTOOL and group not in ddl_groups(ddl)):
                         continue
                     if (m := _ADD_COLUMN.match(ddl)) and await _column_exists(conn, m[1], m[2]):
                         continue
@@ -278,11 +309,19 @@ async def _reset_sequences(dst, tables) -> None:
 
 
 async def sync_reference(tables: tuple[str, ...] = REFERENCE_ORDER) -> dict[str, int]:
-    """Kopiér referencedata fra observationsgruppen (hvor DOFbasen-indlæsningen skriver dem) til brugergruppen.
-    Tabeller der allerede er ens springes over. Gør ingenting når grupperne deler database."""
-    if not router.separate():
-        return {}
-    src_engine, dst_engine = router.primary(OBSERVATIONS), router.primary(USERS)
+    """Kopiér referencedata fra observationsgruppen (hvor DOFbasen-indlæsningen skriver dem) til brugergruppen og
+    DOF.tool-gruppen. Tabeller der allerede er ens springes over; en gruppe, der deler database med kilden, springes over."""
+    copied: dict[str, int] = {}
+    for group in (USERS, DOFTOOL):
+        if router.primary_node(group).key == router.primary_node(OBSERVATIONS).key:
+            continue
+        for t, n in (await _sync_reference_to(group, tables)).items():
+            copied[f"{group}.{t}"] = n
+    return copied
+
+
+async def _sync_reference_to(group: str, tables: tuple[str, ...]) -> dict[str, int]:
+    src_engine, dst_engine = router.primary(OBSERVATIONS), router.primary(group)
     copied: dict[str, int] = {}
     s_raw, d_raw = await src_engine.raw_connection(), await dst_engine.raw_connection()
     try:
@@ -298,7 +337,7 @@ async def sync_reference(tables: tuple[str, ...] = REFERENCE_ORDER) -> dict[str,
         s_raw.close()
         d_raw.close()
     if copied:
-        log.info("Referencedata synkroniseret til brugergruppen: %s", copied)
+        log.info("Referencedata synkroniseret til %s: %s", group, copied)
     return copied
 
 

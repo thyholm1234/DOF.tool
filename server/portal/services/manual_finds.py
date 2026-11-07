@@ -22,10 +22,10 @@ async def mirror(session: AsyncSession, f: ManualFind) -> None:
     if f.removed_at is None:
         sted = f"Manuelt fund{': ' + f.sted if f.sted else ''}."
         await session.execute(text("""
-            INSERT INTO observations (obsid, dato, artnr, antal, loknr, afdelinger, fuglnoter, kategori, hemmelig)
+            INSERT INTO observations (obsid, dato, artnr, antal, loknr, afdelinger, fuglnoter, kategori, hemmelig, indtastning)
             SELECT :o, :d, :a, :n, :l,
                    coalesce((SELECT ARRAY[afdeling_id]::smallint[] FROM locations WHERE loknr = :l AND afdeling_id IS NOT NULL), '{}'),
-                   :noter, coalesce((SELECT CASE klass WHEN 'SU' THEN 'SU' WHEN 'SUB' THEN 'SUB' END FROM species WHERE artnr = :a), 'alm'), 0
+                   :noter, coalesce((SELECT CASE klass WHEN 'SU' THEN 'SU' WHEN 'SUB' THEN 'SUB' END FROM species WHERE artnr = :a), 'alm'), 0, 'manuel'
         """), {"o": -f.id, "d": f.dato, "a": f.artnr, "n": f.antal, "l": f.loknr,
                "noter": f"{sted} {f.note}".strip() if f.note else sted})
 

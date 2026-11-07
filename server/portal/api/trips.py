@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.api.reports import TIME, ReportIn, _check_guidelines, _hhmm, _in_background, _location_exists, _remove_files, _validate_codes
-from portal.cache import cached, publish, version
+from portal.cache import cached, publish, version, worker_command
 from portal.db import get_session
 from portal.models import FieldBreedingPair, FieldDisturbance, FieldReport, FieldTrip, ThreadFollow, User
 from portal.services import activity, dku, dmi, features, position_privacy, pulse, reports
@@ -400,6 +400,7 @@ async def _after(db: AsyncSession, tasks: BackgroundTasks, user: User, trip: Fie
             await pulse.record_report(db, r)
     tasks.add_task(activity.track, user.id, "trip", None, {"loknr": trip.loknr, "n_obs": len(created)})
     await publish("feed", {"type": "feed", "portal": True, "new": len(created)})
+    await worker_command("doftool_sync")  # DOF.tool-datasættet (søgning, Observationer, lister) bygges om
 
 
 @router.post("")
@@ -438,4 +439,5 @@ async def delete_trip(trip_id: int, user: User = Depends(require_user), db: Asyn
     for _, media in rows:
         await _remove_files(media)
     await publish("feed", {"type": "feed", "portal": True})
+    await worker_command("doftool_sync")  # DOF.tool-datasættet (søgning, Observationer, lister) bygges om
     return {"ok": True}

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.types import UserDefinedType
 
-from portal.dbrouter import ObsSession, SessionLocal, router  # noqa: F401 – genudstilles til resten af koden
+from portal.dbrouter import ObsSession, SessionLocal, ToolSession, router  # noqa: F401 – genudstilles til resten af koden
 
 
 class Base(DeclarativeBase):

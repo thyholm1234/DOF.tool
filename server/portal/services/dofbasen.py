@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.config import SEED_DIR
 from portal.models import DofbArea, DofbAudit, DofbFocus, DofbList, DofbNews, DofbPage, DofbRole, DofbUserRole, User
-from portal.services import features
+from portal.services import dataset, features
 from portal.services.auth import SUPERADMIN, can
 from portal.timeutil import dk_today
 
@@ -407,6 +407,10 @@ FROM = """
     LEFT JOIN trips t ON t.turid = o.turid
     {interval}
 """
+
+
+def _from(where: str) -> str:
+    return FROM.format(interval=INTERVAL_JOIN if "fa.sortering" in where else "")
 INTERVAL_JOIN = "JOIN species fa ON fa.artnr = :fra_art JOIN species ta ON ta.artnr = :til_art"
 
 ROW_COLS = """
@@ -414,7 +418,7 @@ ROW_COLS = """
     ct.text AS adfaerd, o.alderkode, o.dragtkode, o.obstidfra, o.obstidtil, o.fuglnoter, o.metode, o.kvalitet,
     o.loknr, l.navn AS lokalitet, l.afdeling_id, af.navn AS afdeling, l.kommune_kode, k.navn AS kommune,
     o.obserkode, trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS observator, ob.by AS obser_by,
-    t.turtidfra, t.turtidtil, t.turnoter, t.medobser,
+    t.turtidfra, t.turtidtil, t.turnoter, t.medobser, o.indtastning,
     coalesce(o.obs_lat, l.lat) AS lat, coalesce(o.obs_lon, l.lon) AS lon, (o.obs_lat IS NOT NULL) AS praecis,
     st.status AS dku
 """
@@ -440,7 +444,7 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
     where, args, notes = search_sql(p, viewer)
     await resolve_area(session, args)
     args["sub_as_species"] = p.vis_underarter_som_arter
-    frm = FROM.format(interval=INTERVAL_JOIN if "fa.sortering" in where else "")
+    frm = _from(where)
     await session.execute(text("SET LOCAL statement_timeout = '25s'"))
     # Postgres-containerens /dev/shm er lille (Dockers standard 64 MB); parallelle scanninger kan løbe tør for den
     await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
@@ -468,13 +472,23 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
         # Underforespørgslen trækkes op af planlæggeren, så sortering og LIMIT stadig kan bruge indekserne
         inner = f"SELECT {ROW_COLS} {frm} {ROW_JOINS} WHERE {where}"
         count_sql = f"SELECT count(*) FROM (SELECT 1 {frm} WHERE {where} LIMIT 50001) c"
-    sql = f"SELECT * FROM ({inner}) x ORDER BY {order} LIMIT :lim OFFSET :off"
-    rows = (await session.execute(text(sql), {**args, "lim": limit, "off": offset})).mappings().all()
+    # Hele datasættet: DOF.tool-gruppens træffere (samme SQL der) flettes ind i DOFbasen-forespørgslens yderste lag,
+    # så sortering og sideinddeling gælder begge kilder under ét (services/dataset.py)
+    tool, cols = await dataset.tool_fetch(f"SELECT * FROM ({inner}) x ORDER BY {order} LIMIT :tool_lim",
+                                          {**args, "tool_lim": dataset.MAX_ROWS})
+    params = {**args, "lim": limit, "off": offset}
+    if tool:
+        part, extra = dataset.union_part(tool, cols)
+        params.update(extra)
+        sql = f"SELECT * FROM (({inner}) UNION ALL ({part})) x ORDER BY {order} LIMIT :lim OFFSET :off"
+    else:
+        sql = f"SELECT * FROM ({inner}) x ORDER BY {order} LIMIT :lim OFFSET :off"
+    rows = (await session.execute(text(sql), params)).mappings().all()
     out = [_row(r, p.summering) for r in rows]
     if csv:
         return {"rows": out, "notes": notes}
     await attach_media(out, session, su_badge)  # DKU-status, fotos og lyd som i Observationer
-    total = (await session.execute(text(count_sql), {k: v for k, v in args.items() if k != "sub_as_species"})).scalar() or 0
+    total = ((await session.execute(text(count_sql), {k: v for k, v in args.items() if k != "sub_as_species"})).scalar() or 0) + len(tool)
     if p.biggestobs:
         total = min(total, p.biggestobs)
     d1, d2 = args.get("d1"), args.get("d2")
@@ -489,10 +503,10 @@ async def search_points(session: AsyncSession, p: SearchIn, viewer: str | None) 
     """Alle søgningens observationer til et kort: én prik pr. position (fuglens eller lokalitetens) med antal observationer."""
     where, args, notes = search_sql(p, viewer)
     await resolve_area(session, args)
-    frm = FROM.format(interval=INTERVAL_JOIN if "fa.sortering" in where else "")
+    frm = _from(where)
     await session.execute(text("SET LOCAL statement_timeout = '25s'"))
     await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
-    rows = (await session.execute(text(f"""
+    sql = f"""
         SELECT coalesce(o.obs_lat, l.lat) AS lat, coalesce(o.obs_lon, l.lon) AS lon, bool_or(o.obs_lat IS NOT NULL) AS praecis,
                min(o.loknr) AS loknr, min(l.navn) AS lokalitet, count(*) AS n,
                CASE WHEN bool_or(o.kategori = 'SU') THEN 'SU' WHEN bool_or(o.kategori = 'SUB') THEN 'SUB'
@@ -500,8 +514,11 @@ async def search_points(session: AsyncSession, p: SearchIn, viewer: str | None) 
                (array_agg(DISTINCT s.navn))[1:6] AS arter
         {frm} WHERE {where} AND coalesce(o.obs_lat, l.lat) IS NOT NULL
         GROUP BY 1, 2 ORDER BY n DESC LIMIT :lim
-    """), {**args, "lim": MAX_POINTS + 1})).mappings().all()
-    return {"points": [dict(r) for r in rows[:MAX_POINTS]], "capped": len(rows) > MAX_POINTS, "notes": notes}
+    """
+    rows = [dict(r) for r in (await session.execute(text(sql), {**args, "lim": MAX_POINTS + 1})).mappings().all()]
+    tool, _ = await dataset.tool_fetch(sql, {**args, "lim": MAX_POINTS + 1})  # DOF.tool's prikker (services/dataset.py)
+    rows = sorted(rows + tool, key=lambda r: -r["n"])
+    return {"points": rows[:MAX_POINTS], "capped": len(rows) > MAX_POINTS, "notes": notes}
 
 
 def _row(r, summed: bool) -> dict:
@@ -515,17 +532,20 @@ def _row(r, summed: bool) -> dict:
     return d
 
 
+# Indtastningsmetoden som tekst (CSV og observationens side)
+INDTASTNING = {"dofbasen": "DOFbasen", "doftool": "DOF.tool", "manuel": "Manuelt fund"}
+
 CSV_COLUMNS = ["Dato", "Turtidfra", "Turtidtil", "Loknr", "Loknavn", "Artnr", "Artnavn", "Latin", "Antal", "Koen",
                "Adfkode", "Adfbeskrivelse", "Alderkode", "Dragtkode", "Obserkode", "Navn", "Obser_by", "Medobser", "Turnoter",
                "Fuglnoter", "Metode", "Obstidfra", "Obstidtil", "Kvalitet", "Turid", "Obsid", "DOF_afdeling", "Kommune",
-               "breddegrad", "laengdegrad"]
+               "breddegrad", "laengdegrad", "Indtastning"]
 
 
 def csv_line(r: dict) -> list:
     return [r["dato"], r["turtidfra"], r["turtidtil"], r["loknr"], r["lokalitet"], f"{r['artnr']:05d}", r["art"], r["latin"],
             r["antal"], r["koen"], r["adfkode"], r["adfaerd"], r["alderkode"], r["dragtkode"], r["obserkode"], r["observator"],
             r["obser_by"], r["medobser"], r["turnoter"], r["fuglnoter"], r["metode"], r["obstidfra"], r["obstidtil"], r["kvalitet"],
-            r["turid"], r["obsid"], r["afdeling"], r["kommune"], r["lat"], r["lon"]]
+            r["turid"], r["obsid"], r["afdeling"], r["kommune"], r["lat"], r["lon"], INDTASTNING.get(r.get("indtastning") or "dofbasen", r.get("indtastning"))]
 
 
 
@@ -550,7 +570,7 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
         where.append("o.loknr = :loknr")
         args["loknr"] = lokalitet
     group = {"tur": "o.turid, o.artnr", "dato": "o.obserkode, o.loknr, o.artnr", "ingen": "o.obsid"}[summering]
-    rows = [dict(r) for r in (await db.execute(text(f"""
+    sql = f"""
         SELECT min(o.obsid) AS obsid, array_agg(o.obsid) AS obsids, count(*) AS n_obs, sum(o.antal) AS antal, o.artnr, s.navn AS art, s.latin, s.sortering,
                min(o.kategori) FILTER (WHERE o.kategori <> 'alm') AS kat, o.loknr, l.navn AS lokalitet, l.afdeling_id,
                o.obserkode, max(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, ''))) AS observator,
@@ -563,14 +583,19 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
                min(o.obstidfra) AS obstidfra, max(coalesce(o.obstidtil, o.obstidfra)) AS obstidtil,
                min(t.turtidfra) AS turtidfra, max(coalesce(t.turtidtil, t.turtidfra)) AS turtidtil,
                bool_or(o.obstidfra IS NOT NULL OR o.obstidtil IS NOT NULL OR t.turtidfra IS NOT NULL) AS tid,  -- DOFbasen-modulets ur
-               max(st.status) AS dku
+               max(st.status) AS dku, min(o.indtastning) AS indtastning
         FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
         LEFT JOIN trips t ON t.turid = o.turid LEFT JOIN observers ob ON ob.obserkode = o.obserkode
         LEFT JOIN dofb_obs_status st ON st.obsid = o.obsid
         WHERE {' AND '.join(where)}
         GROUP BY {group}, s.navn, s.latin, s.sortering, o.loknr, l.navn, l.afdeling_id, o.obserkode, o.artnr
         ORDER BY l.afdeling_id, s.sortering, l.navn LIMIT 10000
-    """), args)).mappings().all()]
+    """
+    rows = [dict(r) for r in (await db.execute(text(sql), args)).mappings().all()]
+    # DOF.tool-gruppens observationer samme dag (samme forespørgsel der) – grupperne går aldrig på tværs af kilderne
+    tool, _ = await dataset.tool_fetch(sql, args)
+    if tool:
+        rows = sorted(rows + tool, key=lambda r: (r["afdeling_id"] is None, r["afdeling_id"] or 0, r["sortering"] or 0, r["lokalitet"] or ""))
     await attach_media(rows, db, su_badge, d)
     return {"dato": d.isoformat(), "rows": rows, "summering": summering}
 

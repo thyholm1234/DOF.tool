@@ -87,7 +87,7 @@
       <div class="head"><h2>Tilføj node</h2><button id="discover" title="Finder database-containere i Docker, lægger dem i panelets netværk og føjer ukendte til registret">Find og tilslut containere</button></div>
       <form class="add" id="add">
         <label>Navn<input name="name" required placeholder="obs-2" pattern="[a-z0-9][a-z0-9_-]*"></label>
-        <label>Gruppe<select name="group"><option value="users">Brugerdata</option><option value="observations">Observationer</option></select></label>
+        <label>Gruppe<select name="group"><option value="users">Brugerdata</option><option value="observations">Observationer</option><option value="doftool">DOF.tool-observationer</option></select></label>
         <label>Rolle<select name="role"><option value="primary">Primary</option><option value="replica">Replika (backup)</option></select></label>
         <label>Primary (for replika)<select name="primary_id"></select></label>
         <label>Replika bruges til<select name="purpose"><option value="read">Aflaste læsning</option><option value="backup">Kun backup</option></select></label>
@@ -104,7 +104,7 @@
 <dialog id="dlg"><div id="dlgbody"></div><p style="text-align:right"><button onclick="dlg.close()">Luk</button></p></dialog>
 <script>
 const $ = s => document.querySelector(s);
-const NAMES = {users: 'Brugerdata', observations: 'Observationer'};
+const NAMES = {users: 'Brugerdata', observations: 'Observationer (DOFbasen)', doftool: 'DOF.tool-observationer'};
 let state = null, editing = false;
 
 async function api(path, opts = {}) {
@@ -123,8 +123,10 @@ function render() {
   if (editing) return;
   $('#login').hidden = true; $('#app').hidden = false;
   const byId = Object.fromEntries(state.nodes.map(n => [n.id, n]));
-  $('#groups').innerHTML = ['users', 'observations'].map(g => {
+  $('#groups').innerHTML = ['users', 'observations', 'doftool'].map(g => {
     const nodes = state.nodes.filter(n => n.group === g);
+    // DOF.tool-gruppen er valgfri: uden en node bor den som en egen database på observationsgruppens primary
+    const empty = g === 'doftool' ? 'Ingen egen node – bor som databasen «doftool» på observationsgruppens primary. Indholdet bygges op fra indtastningerne, så en ny node kræver ingen flytning.' : 'Ingen noder endnu';
     const rows = nodes.map(n => `<tr data-id="${n.id}">
       <td><span class="dot ${n.status}" title="${esc(n.detail)}"></span><b>${esc(n.name)}</b><br><span class="mute">${esc(n.note)}</span></td>
       <td><span class="tag ${n.role}">${n.role === 'primary' ? 'primary' : 'replika af ' + esc(byId[n.primary_id]?.name || '?')}</span>
@@ -137,7 +139,7 @@ function render() {
         <button data-a="toggle">${n.enabled ? 'Slå fra' : 'Slå til'}</button><button class="danger" data-a="delete">Slet</button></div></td></tr>`).join('');
     return `<div class="card"><div class="head"><h2>${NAMES[g]} <span class="mute">${nodes.filter(n => n.role === 'primary' && n.enabled).length} primary, ${nodes.filter(n => n.role === 'replica' && n.enabled).length} replika(er)</span></h2>
       <label class="mute"><input type="checkbox" data-rr="${g}" ${state.read_replicas[g] ? 'checked' : ''}> Læs fra replikaer</label></div>
-      <div class="table-wrap"><table><tr><th>Node</th><th>Rolle</th><th>Adresse</th><th>Status</th><th></th></tr>${rows || '<tr><td colspan="5" class="mute">Ingen noder endnu</td></tr>'}</table></div></div>`;
+      <div class="table-wrap"><table><tr><th>Node</th><th>Rolle</th><th>Adresse</th><th>Status</th><th></th></tr>${rows || `<tr><td colspan="5" class="mute">${empty}</td></tr>`}</table></div></div>`;
   }).join('');
   const sel = document.querySelector('#add [name=primary_id]'), g = document.querySelector('#add [name=group]').value;
   sel.innerHTML = state.nodes.filter(n => n.role === 'primary' && n.group === g).map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join('');

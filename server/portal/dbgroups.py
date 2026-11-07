@@ -45,6 +45,13 @@ ALL_TABLES = OBS_TABLES | REFERENCE_TABLES | USER_TABLES
 USERS, OBSERVATIONS = "users", "observations"
 GROUPS = (USERS, OBSERVATIONS)
 
+# DOF.tool-gruppen: observationer og ture indtastet i DOF.tool, i samme skema som DOFbasens (samme tabelnavne), men i
+# sin egen database – DOFbasens data og de løbende synkroniseringer derfra bliver urørt i observationsgruppen. Fordi
+# tabelnavnene er de samme, routes intet hertil efter navn: kun sessioner, der er bundet til gruppen (dbrouter.ToolSession),
+# skriver og læser her. Læsning på tværs af de to grupper: services/dataset.py.
+DOFTOOL = "doftool"
+DOFTOOL_TABLES = frozenset({"observations", "trips", "observers", "dofb_obs_status"})
+
 _WORD = re.compile(r"[a-z_][a-z0-9_]*")
 
 

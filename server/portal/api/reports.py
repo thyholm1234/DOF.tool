@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.api.learn import MEDIA_TYPES
-from portal.cache import publish
+from portal.cache import publish, worker_command
 from portal.db import SessionLocal, get_session
 from portal.models import FieldReport, ThreadFollow, User
 from portal.services import activity, content_media, dku, pulse, reports, storage
@@ -196,6 +196,7 @@ async def create_report(body: ReportIn, tasks: BackgroundTasks, user: User = Dep
         tasks.add_task(_in_background, reports.notify_new, [r.id])
         await pulse.record_report(db, r)
         await publish("feed", {"type": "feed", "portal": True, "new": 1})
+    await worker_command("doftool_sync")  # DOF.tool-datasættet (søgning, Observationer, lister) bygges om
     return await _one(db, r, user)
 
 
@@ -232,6 +233,7 @@ async def patch_report(report_id: int, body: dict, tasks: BackgroundTasks, user:
             await pulse.record_report(db, r)
     await publish("feed", {"type": "feed", "portal": True})
     tasks.add_task(dku.report_changed, report_id)  # åbne DKU-sager om meldingen får ændringerne
+    await worker_command("doftool_sync")  # DOF.tool-datasættet (søgning, Observationer, lister) bygges om
     return await _one(db, r, user)
 
 
@@ -244,6 +246,7 @@ async def delete_report(report_id: int, user: User = Depends(require_user), db: 
     await pulse.record_deleted([-report_id])
     await _remove_files(media)
     await publish("feed", {"type": "feed", "portal": True})
+    await worker_command("doftool_sync")  # DOF.tool-datasættet (søgning, Observationer, lister) bygges om
     return {"ok": True}
 
 

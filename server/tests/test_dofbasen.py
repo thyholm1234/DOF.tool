@@ -118,6 +118,7 @@ def test_csv_line_matches_columns():
     line = svc.csv_line(r)
     assert len(line) == len(svc.CSV_COLUMNS)
     assert line[5] == "00720"
+    assert line[-1] == "DOFbasen" and svc.csv_line({**r, "indtastning": "doftool"})[-1] == "DOF.tool"
 
 
 def test_seed_content_is_complete_and_has_no_contact_details():

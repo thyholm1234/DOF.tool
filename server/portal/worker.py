@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -35,6 +36,7 @@ from portal.services import (
     dku_candidates,
     dmi,
     dof_events,
+    doftool_obs,
     features,
     imagemeta,
     kl_admin,
@@ -61,8 +63,12 @@ AGG_MARK = "agg:last"
 
 
 async def _aggregate_since(s) -> date:
-    """Seneste 14 dage + alle måneder hentet fra DOFbasen siden sidste aggregering (første gang: alt)."""
+    """Seneste 14 dage + alle måneder hentet fra DOFbasen siden sidste aggregering (første gang: alt) + den tidligste
+    dato, der er ændret i DOF.tool-datasættet (services/doftool_obs.py)."""
     since = dk_today() - timedelta(days=14)
+    dirty = await kv().get(doftool_obs.DIRTY)
+    if dirty:
+        since = min(since, date.fromisoformat(dirty))
     last = await kv().get(AGG_MARK)
     if last:
         q = text("SELECT min(make_date(year, month, 1)) FROM month_sync WHERE fetched_at > :t")
@@ -76,6 +82,7 @@ async def nightly_compute() -> None:
     async with SessionLocal() as s:
         mark = dk_now().isoformat()
         since = await _aggregate_since(s)
+        await kv().delete(doftool_obs.DIRTY)
         await jobstatus.step(f"Dagsaggregater fra {since}", 0, 5)
         await phenology.refresh_aggregates(s, since)
     await kv().set(AGG_MARK, mark)
@@ -142,8 +149,19 @@ async def _move_media_to_s3() -> None:
     log.info("Flyttede %s filer fra disken til objektlageret", await storage.migrate_local())
 
 
+DOFTOOL_SYNC_MARK = "doftool:last_sync"
+DOFTOOL_SYNC_EVERY = 600  # sekunder: fanger fx fugle, der siden er kommet i DOFbasen (dubletter)
+
+
+async def doftool_sync(force: bool = False) -> None:
+    """DOF.tool-gruppens datasæt bygges op fra indtastningerne (kun skrevet, når noget er ændret)."""
+    await kv().set(DOFTOOL_SYNC_MARK, str(time.time()))
+    await doftool_obs.reconcile(force=force)
+
+
 async def startup_tasks() -> None:
     """Efter opstart: udfyld huller og sæt de beregninger i gang, der mangler."""
+    await run_safely("doftool_sync", doftool_sync())
     await jobs.enqueue_gap_fill()
     async with SessionLocal() as s:
         has_climate = await _exists(s, "SELECT 1 FROM climate_month")
@@ -196,6 +214,8 @@ async def scheduler() -> None:
             for name in due:
                 await run_scheduled(name, flags)
             await locfinds_schedule()
+            if time.time() - float(await kv().get(DOFTOOL_SYNC_MARK) or 0) > DOFTOOL_SYNC_EVERY:
+                await doftool_sync()
         except Exception:  # noqa: BLE001
             log.exception("Planlægger-fejl")
         await asyncio.sleep(30)
@@ -462,7 +482,9 @@ async def command_listener() -> None:
             cmd = json.loads(item[1])
             name = cmd.get("cmd")
             await r.hset("worker:last_command", mapping={"cmd": name, "at": dk_now().isoformat()})
-            if name == "archive_import":
+            if name == "doftool_sync":
+                await doftool_sync(force=bool(cmd.get("force")))
+            elif name == "archive_import":
                 await run_safely("archive_import", archive.run_import())
             elif name == "compute":
                 await run_safely("compute", nightly_compute())

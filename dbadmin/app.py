@@ -34,7 +34,7 @@ COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 SESSION_HOURS = 12
 DB_PATH = Path(os.environ.get("DBADMIN_DATA", "/data")) / "registry.db"
 CHECK_SECONDS = 10
-GROUPS = ("users", "observations")
+GROUPS = ("users", "observations", "doftool")  # doftool: observationer indtastet i DOF.tool (valgfri – se portal/dbgroups.py)
 ROLES = ("primary", "replica")
 PURPOSES = ("read", "backup")  # replika: aflaster læsninger, eller kun backup (bruges aldrig til læsning)
 NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,38}$")
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, expires REAL NOT NULL);
 """
-DEFAULT_SETTINGS = {"read_replicas": {"users": False, "observations": True}, "version": 1}
+DEFAULT_SETTINGS = {"read_replicas": {"users": False, "observations": True, "doftool": False}, "version": 1}
 LEGACY_DSN = os.environ.get("LEGACY_POSTGRES_DSN", "")
 
 
@@ -556,7 +556,8 @@ def sync_containers() -> list[str]:
         except Exception as exc:  # noqa: BLE001
             log.warning("Kunne ikke tilslutte %s til %s: %s", c.name, network, exc)
         env = dockerops.env_of(c)
-        group = "users" if name.startswith(("users", "bruger")) else "observations" if name.startswith("obs") else None
+        group = ("users" if name.startswith(("users", "bruger")) else "observations" if name.startswith("obs")
+                 else "doftool" if name.startswith(("tool", "doftool")) else None)
         with closing(db()) as con:
             if con.execute("SELECT 1 FROM nodes WHERE name = ? OR host = ?", (name, c.name)).fetchone():
                 continue

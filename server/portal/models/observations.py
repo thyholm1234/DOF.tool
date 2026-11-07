@@ -42,6 +42,8 @@ class Trip(Base):
     turtidtil: Mapped[str | None] = mapped_column(String(5))
     turnoter: Mapped[str | None] = mapped_column(Text)
     medobser: Mapped[str | None] = mapped_column(Text)
+    # Hvor turen er indtastet: dofbasen / doftool (spejlet fra field_trips, turid < 0) – se services/portal_obs.py
+    indtastning: Mapped[str] = mapped_column(String(12), default="dofbasen", server_default="dofbasen")
 
 
 class Observation(Base):
@@ -74,6 +76,9 @@ class Observation(Base):
     obs_lat: Mapped[float | None] = mapped_column(Float)
     obs_lon: Mapped[float | None] = mapped_column(Float)
     kategori: Mapped[str] = mapped_column(String(8), default="alm")
+    # Indtastningsmetode: dofbasen (hentet fra DOFbasen), doftool (indtastet i DOF.tool, obsid < -1e9) eller manuel
+    # (manuelt fund lagt ind af en administrator, obsid < 0) – se services/portal_obs.py og services/manual_finds.py
+    indtastning: Mapped[str] = mapped_column(String(12), default="dofbasen", server_default="dofbasen")
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
