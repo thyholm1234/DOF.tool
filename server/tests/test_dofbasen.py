@@ -82,6 +82,13 @@ def test_search_sql_iba_is_a_level_from_the_locations():
     assert group_of_sql(svc.IBA_SQL) == OBSERVATIONS
 
 
+def test_search_sql_iba_known_only_from_area_data_uses_its_locations():
+    ertholmene = next(i for i, a in svc.iba_extra().items() if a["navn"] == "Ertholmene")
+    where, args, _ = svc.search_sql(svc.SearchIn(omraade="iba", iba=ertholmene), None)
+    assert "o.loknr = ANY(:iba_loks)" in where and 402001 in args["iba_loks"] and 411000 in args["iba_loks"]
+    assert ertholmene >= svc.IBA_EXTRA_BASE
+
+
 def test_search_without_period_falls_back_to_a_week():
     where, args, notes = svc.search_sql(svc.SearchIn(periode="none"), None)
     assert args["d2"] - args["d1"] == timedelta(days=6)

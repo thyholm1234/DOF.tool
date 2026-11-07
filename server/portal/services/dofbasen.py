@@ -278,6 +278,29 @@ def period(p: SearchIn) -> tuple[date | None, date | None]:
 IBA_SQL = """SELECT d.iba_id AS id, min(d.iba_navn) AS navn, count(*) AS lokaliteter FROM location_details d
              WHERE d.iba_id IS NOT NULL GROUP BY d.iba_id ORDER BY min(d.iba_navn)"""
 
+# Importen kender ikke alle IBA-områder (fx Ertholmene): de resterende hentes fra DOFbasens områdedata (content.json) og
+# får id = IBA_EXTRA_BASE + DOFbasens id, så de ikke støder ind i importens id'er. Et IBA, importen kender, vinder altid.
+IBA_EXTRA_BASE = 1000
+_iba_extra: dict[int, dict] | None = None
+
+
+def iba_extra() -> dict[int, dict]:
+    """{søge-id: {navn, loknr}} for DOFbasens IBA-områder fra områdedata (uden om lokalitetsimporten)."""
+    global _iba_extra
+    if _iba_extra is None:
+        data = json.loads(CONTENT.read_text(encoding="utf-8")) if CONTENT.is_file() else {}
+        _iba_extra = {IBA_EXTRA_BASE + a["id"]: {"navn": a["navn"], "loknr": list(a["loknr"])}
+                      for a in data.get("areas", {}).get("iba", []) if a.get("loknr")}
+    return _iba_extra
+
+
+async def iba_options(session: AsyncSession) -> list[dict]:
+    """IBA-områder til søgeformularen: lokalitetsimportens plus de af DOFbasens områder, importen ikke har."""
+    rows = [dict(r) for r in (await session.execute(text(IBA_SQL))).mappings()]
+    have = {r["navn"] for r in rows}
+    rows += [{"id": i, "navn": a["navn"], "lokaliteter": len(a["loknr"])} for i, a in iba_extra().items() if a["navn"] not in have]
+    return sorted(rows, key=lambda r: r["navn"])
+
 
 def search_sql(p: SearchIn, viewer: str | None) -> tuple[str, dict[str, Any], list[str]]:
     """WHERE-delen af en søgning, parametre og forklarende noter (fx når perioden er indsnævret)."""
@@ -315,6 +338,9 @@ def search_sql(p: SearchIn, viewer: str | None) -> tuple[str, dict[str, Any], li
     elif p.omraade == "kommune" and p.kommune:
         where.append("l.kommune_kode = :kommune")
         args["kommune"] = p.kommune
+    elif p.omraade == "iba" and p.iba in iba_extra():
+        where.append("o.loknr = ANY(:iba_loks)")  # IBA kun kendt fra områdedata: dets lokaliteter sendes med som array
+        args["iba_loks"] = iba_extra()[p.iba]["loknr"]
     elif p.omraade == "iba" and p.iba:
         # IBA er et niveau som kommune og lokalafdeling: lokaliteternes IBA fra lokalitetsimporten (location_details,
         # samme databasegruppe som observationerne)

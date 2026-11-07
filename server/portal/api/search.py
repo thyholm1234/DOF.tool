@@ -41,7 +41,7 @@ async def valg(user: User = Depends(need_search), db: AsyncSession = Depends(get
         "kommuner": await _rows(db, "SELECT kode, navn FROM kommuner ORDER BY navn"),
         "afdelinger": await _rows(db, "SELECT id, navn FROM afdelinger ORDER BY navn"),
         "omraader": await _rows(db, "SELECT id, kind, navn FROM dofb_areas WHERE kind = 'stor' ORDER BY navn"),
-        "iba": await _rows(db, svc.IBA_SQL),
+        "iba": await svc.iba_options(db),
     }
 
 

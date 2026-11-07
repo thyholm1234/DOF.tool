@@ -150,7 +150,7 @@ async def areas(c: Client = Depends(client), db: AsyncSession = Depends(get_sess
 @router.get("/ibas", summary="IBA-områder",
             description="DOFbasens IBA-områder (id og navn) ud fra lokaliteterne – id'et bruges som iba i /observations.")
 async def ibas(c: Client = Depends(client), db: AsyncSession = Depends(get_session)):
-    return await _rows(db, svc.IBA_SQL)
+    return await svc.iba_options(db)
 
 
 @router.get("/news", summary="Nyt på DOFbasen")
