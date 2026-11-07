@@ -201,3 +201,14 @@ async def test_su_godkendelse_af_fund(web, db, sent):  # noqa: F811
         await s.execute(text("DELETE FROM dku_cases WHERE obsid = 7001"))
         await s.execute(text("DELETE FROM observations WHERE obsid = 7005"))
         await s.commit()
+
+
+async def test_su_medlem_som_indsender_faar_ikke_evigt_ulaest(web, db, sent):  # noqa: F811
+    """Et SU-medlem, der selv har indsendt, skal kunne læse sin afgjorte sag væk fra badget."""
+    await flags(db, su="on")
+    su = web["ad"]
+    cid = (await su.post("/api/su/cases", json={**CASE, "beskrivelse": "Tekst"})).json()["id"]
+    await su.post(f"/api/su/cases/{cid}/submit")
+    await su.post(f"/api/su/cases/{cid}/actions", json={"action": "close", "outcome": "godkendt"})
+    await su.get(f"/api/su/cases/{cid}")
+    assert (await su.get("/api/su/status")).json()["unread"] == 0

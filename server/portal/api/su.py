@@ -49,9 +49,9 @@ def _touch(case: SuCase) -> None:
 
 async def _mark_read(db: AsyncSession, case: SuCase, user: User, role: str) -> None:
     now = datetime.now(timezone.utc)
-    if role == "owner":
+    if case.user_id == user.id:  # også når indsenderen selv er SU-medlem (rollen er så «su»)
         case.read_by_owner_at = now
-    elif role == "su":
+    if role == "su":
         await db.execute(insert(SuMemberRead).values(case_id=case.id, user_id=user.id, read_at=now)
                          .on_conflict_do_update(index_elements=["case_id", "user_id"], set_={"read_at": now}))
 
