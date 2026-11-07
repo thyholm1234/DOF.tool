@@ -21,7 +21,7 @@ from portal.api.reports import TIME, ReportIn, _check_guidelines, _hhmm, _in_bac
 from portal.cache import cached, publish, version
 from portal.db import get_session
 from portal.models import FieldBreedingPair, FieldDisturbance, FieldReport, FieldTrip, ThreadFollow, User
-from portal.services import activity, dku, dmi, features, pulse, reports
+from portal.services import activity, dku, dmi, features, position_privacy, pulse, reports
 from portal.services.auth import SUPERADMIN
 from portal.timeutil import TZ, dk_now, dk_today
 
@@ -211,7 +211,8 @@ async def _own_trip(db: AsyncSession, trip_id: int, user: User) -> FieldTrip:
     return t
 
 
-async def trip_out(db: AsyncSession, t: FieldTrip, user: User) -> dict:
+async def trip_out(db: AsyncSession, t: FieldTrip, user: User, hide_route: bool = False) -> dict:
+    """hide_route: «se som bruger» – GPS-ruten er en positionshistorik og vises kun for brugeren selv."""
     loc = (await db.execute(text("""
         SELECT l.navn, l.lat, l.lon, k.navn AS kommune FROM locations l LEFT JOIN kommuner k ON k.kode = l.kommune_kode
         WHERE l.loknr = :l"""), {"l": t.loknr})).mappings().first()
@@ -226,6 +227,8 @@ async def trip_out(db: AsyncSession, t: FieldTrip, user: User) -> dict:
                                         "spontan", "medobser", "turnoter", "lat", "lon", "temperatur", "skydaekke",
                                         "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv",
                                         "gps_track")}
+    if hide_route:
+        head["gps_track"] = []
     return {**head, "kilde": "portal", "dato": t.dato.isoformat(), "created_at": t.created_at.isoformat(),
             "lok": loc["navn"] if loc else None, "kommune": loc["kommune"] if loc else None,
             "lok_lat": loc["lat"] if loc else None, "lok_lon": loc["lon"] if loc else None,
@@ -258,16 +261,18 @@ async def offline_locations(request: Request, user: User = Depends(require_user)
 
 
 @router.get("/recent")
-async def recent_trips(days: int = Query(14, ge=1, le=31), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+async def recent_trips(request: Request, days: int = Query(14, ge=1, le=31), user: User = Depends(require_user),
+                       db: AsyncSession = Depends(get_session)):
     """Egne ture fra de seneste dage i fuld form – telefonen gemmer dem, så de kan åbnes og rettes uden net."""
     trips = (await db.execute(select(FieldTrip).where(FieldTrip.user_id == user.id, FieldTrip.dato >= dk_today() - timedelta(days=days))
                               .order_by(FieldTrip.dato.desc(), FieldTrip.id.desc()).limit(100))).scalars().all()
-    return [await trip_out(db, t, user) for t in trips]
+    hide = position_privacy.viewing_as(request)
+    return [await trip_out(db, t, user, hide) for t in trips]
 
 
 @router.get("/{trip_id:int}")
-async def get_trip(trip_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    return await trip_out(db, await _own_trip(db, trip_id, user), user)
+async def get_trip(trip_id: int, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    return await trip_out(db, await _own_trip(db, trip_id, user), user, position_privacy.viewing_as(request))
 
 
 # ---------------------------------------------------------------- gem

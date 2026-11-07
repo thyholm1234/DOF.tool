@@ -1,6 +1,6 @@
 // Fælles byggeklodser til tur-siderne: faner, bund-ark (popup), felter med "Udfyldt"-mærke, artsvælger og kortvalg.
 import { h, icon, tag, toast, searchSpecies, modal, state, backLayer } from "./core.js";
-import { baseMap } from "./maps.js";
+import { baseMap, cssVar } from "./maps.js";
 import { tracker, trackStart, trackPause, trackStop, trackLength } from "./tur-data.js";
 import { isApp } from "./native.js";
 
@@ -119,12 +119,67 @@ export function pickPosition(current, center, done) {
   mp.on("click", (e) => set([e.latlng.lat, e.latlng.lng]));
 }
 
-/** GPS-rute: én linje med længde og Start/Pause/Stop/Slet. onChange() kaldes efter hver ændring af turen (fx for at gemme).
- *  Ruten optages videre, når man forlader siden; destroy() fjerner kun visningens lytter. */
+const GAP_S = 300;  // mere end 5 minutter mellem to punkter (fx en pause): ruten tegnes som to stykker
+
+/** Ruten delt i sammenhængende stykker [[lat, lon], ...] – en pause tegnes ikke som en lige streg. */
+const segments = (pts) => {
+  const out = [];
+  pts.forEach((p, i) => {
+    if (!i || p[2] - pts[i - 1][2] > GAP_S) out.push([]);
+    out.at(-1).push([p[0], p[1]]);
+  });
+  return out;
+};
+
+/** Kort med turens GPS-rute: start (grøn), seneste punkt og linjen imellem. Følger med, mens ruten optages, indtil
+ *  brugeren selv flytter eller zoomer kortet. Vises først, når brugeren trykker «Se på kort» (open) – så hentes
+ *  kortfliserne heller ikke før. */
+function routeMap(T) {
+  const box = h("div", { class: "map small route-map" });
+  const fitBtn = h("button", { class: "btn sm ghost hide", type: "button", onclick: () => { follow = true; fit(); } }, "Vis hele ruten");
+  const el = h("div", { class: "stack hide", style: { gap: "4px" } }, box, h("div", { class: "row", style: { justifyContent: "flex-end" } }, fitBtn));
+  let map = null, line = null, start = null, last = null, follow = true, fitting = false, ro = null;
+  const ctl = { open: false };
+  const fit = () => {
+    if (!line || !map.getSize().x) return;  // endnu ikke synligt (fx skjult fane) – ResizeObserver tilpasser senere
+    fitting = true;
+    const b = line.getBounds();
+    if (b.isValid()) map.fitBounds(b, { padding: [20, 20], maxZoom: 17, animate: false });
+    fitting = false;
+    fitBtn.classList.add("hide");
+  };
+  const userMoved = () => { if (!fitting) { follow = false; fitBtn.classList.remove("hide"); } };
+  const draw = (active) => {
+    const pts = T.gps_track || [];
+    el.classList.toggle("hide", !ctl.open || !pts.length);
+    if (!ctl.open || !pts.length) return;
+    if (!map) {
+      map = baseMap(box, { center: [pts[0][0], pts[0][1]], zoom: 15 });
+      map.on("dragstart", userMoved).on("zoomstart", userMoved);
+      // Fanerne skjuler panelet: når kortet bliver synligt igen (eller ændrer størrelse), tegnes det om
+      ro = new ResizeObserver(() => { map.invalidateSize(); if (follow) fit(); });
+      ro.observe(box);
+      line = L.polyline([], { color: cssVar("--brand"), weight: 4, opacity: .85 }).addTo(map);
+      start = L.circleMarker([0, 0], { radius: 6, color: "#fff", weight: 2, fillColor: cssVar("--ok"), fillOpacity: 1 }).bindTooltip("Start").addTo(map);
+      last = L.circleMarker([0, 0], { radius: 6, color: "#fff", weight: 2, fillOpacity: 1 }).addTo(map);
+    }
+    line.setLatLngs(segments(pts));
+    start.setLatLng([pts[0][0], pts[0][1]]);
+    const p = pts.at(-1);
+    last.setLatLng([p[0], p[1]]).setStyle({ fillColor: cssVar(active ? "--brand" : "--err") }).unbindTooltip().bindTooltip(active ? "Her er du nu" : "Slut");
+    if (follow) fit();
+  };
+  return Object.assign(ctl, { el, draw, destroy: () => { ro?.disconnect(); map?.remove(); } });
+}
+
+/** GPS-rute: én linje med længde og Start/Pause/Stop/Se på kort/Slet; kortet med ruten foldes ud under linjen. onChange() kaldes efter hver ændring af
+ *  turen (fx for at gemme). Ruten optages videre, når man forlader siden; destroy() fjerner kun visningens lytter. */
 export function gpsControl(T, onChange = () => {}) {
   const info = h("span", {});
   const btns = h("div", { class: "row", style: { gap: "6px" } });
-  const el = h("div", { class: "gps-row" }, h("span", { class: "gps-info", html: icon("pin") }, info), btns);
+  const row = h("div", { class: "gps-row" }, h("span", { class: "gps-info", html: icon("pin") }, info), btns);
+  const rmap = routeMap(T);
+  const el = h("div", { class: "stack", style: { gap: "8px" } }, row, rmap.el);
   const changed = () => { onChange(); draw(); };
   const start = () => {
     if (!navigator.geolocation) return toast("Enheden understøtter ikke positionsbestemmelse", "err");
@@ -136,15 +191,18 @@ export function gpsControl(T, onChange = () => {}) {
   function draw() {
     const n = T.gps_track.length, active = tracker.cid === T.client_id && tracker.watch != null;
     info.textContent = n ? `Rute: ${(trackLength(T.gps_track) / 1000).toFixed(2).replace(".", ",")} km · ${n} punkter${active ? " · optager" : ""}` : "Ingen GPS-rute";
-    el.classList.toggle("on", active);
+    row.classList.toggle("on", active);
+    rmap.draw(active);
     btns.replaceChildren(
       active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); changed(); } }, "Pause")
         : h("button", { class: "btn sm", type: "button", html: `${icon("pin")} ${n ? "Fortsæt rute" : "Start rute"}`, onclick: start }),
       n || active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); T.gps_aktiv = n > 0; changed(); } }, "Stop") : null,
-      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { if (confirm("Slet den optagede rute?")) { trackStop(); T.gps_track = []; T.gps_aktiv = false; changed(); } } }, "Slet rute") : null);
+      n ? h("button", { class: `btn sm${rmap.open ? " accent" : ""}`, type: "button", "aria-expanded": String(rmap.open), html: `${icon("map")} ${rmap.open ? "Skjul kort" : "Se på kort"}`,
+        onclick: () => { rmap.open = !rmap.open; draw(); } }) : null,
+      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { if (confirm("Slet den optagede rute?")) { trackStop(); T.gps_track = []; T.gps_aktiv = false; rmap.open = false; changed(); } } }, "Slet rute") : null);
   }
   if (tracker.cid === T.client_id) T.gps_track = tracker.points;
   tracker.listeners.add(draw);
   draw();
-  return { el, destroy: () => tracker.listeners.delete(draw) };
+  return { el, destroy: () => { tracker.listeners.delete(draw); rmap.destroy(); } };
 }
