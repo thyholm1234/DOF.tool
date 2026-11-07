@@ -1,7 +1,8 @@
 // Søg i observationerne: samme felter som DOFbasen-modulets søgning (services/dofbasen.py). Resultatet vises med et kort
-// over alle fund øverst og en tabel efter dato, der kan sorteres på alle kolonner (på serveren, så det gælder hele
-// resultatet), og kan hentes som CSV, ODS eller XLSX.
-import { api, state, h, fmtN, fmtDate, tag, toast, errorBox, empty, busyBlock, params, setParams } from "../core.js";
+// over alle fund øverst og en liste i samme stil som Observationer (sorteret efter dato grupperes den pr. dag). Listen kan
+// sorteres på alle felter (på serveren, så det gælder hele resultatet) og hentes som CSV, ODS eller XLSX.
+import { api, state, h, fmtN, fmtDate, toast, errorBox, empty, busyBlock, params, setParams } from "../core.js";
+import { obsRow, head, sheet, initPopup } from "../obslist.js";
 import { baseMap, katColor } from "../maps.js";
 
 const DEFAULTS = { periode: "antaldage", dage: 7, species: "alle", omraade: "none", artdata: "keine", antalregl: "", sort: "dato", desc: true };
@@ -9,9 +10,18 @@ const BOOLS = ["medobser", "koordinat", "kommentar", "udelad_burfugle", "udelad_
 const NUMS = ["dage", "aar", "maaned", "dag", "lok", "lokal", "iba", "stor", "art", "fra_art", "til_art", "antal", "adf", "metode", "biggestobs"];
 const MONTHS = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"];
 const PAGE = 100;
-// [sorteringsnøgle, overskrift]
+// [sorteringsnøgle, navn]
 const COLS = [["dato", "Dato"], ["art", "Art"], ["antal", "Antal"], ["koen", "Køn"], ["adf", "Adfærd"], ["alder", "Alder"], ["dragt", "Dragt"],
   ["lokalitet", "Lokalitet"], ["afdeling", "Afdeling"], ["observator", "Observatør"], ["tid", "Tid"], ["kommentar", "Kommentar"]];
+const WEEKDAY = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
+
+/** Søgeresultatets række i Observationer-listens form (obslist.js). */
+const asListRow = (o, sum) => ({
+  obsid: o.obsid, dato: o.dato, artnr: o.artnr, art: o.art, kat: o.kategori, loknr: o.loknr, lokalitet: o.lokalitet,
+  antal: o.antal, n_obs: sum ? o.n_obs : 1, koen: o.koen, alder: o.alderkode, dragt: o.dragtkode, adfkode: o.adfkode,
+  obsnote: o.fuglnoter, turnote: o.turnoter, medobser: !!o.medobser, medobsnote: o.medobser,
+  position: !!o.praecis, tid: !!(o.obstidfra || o.turtidfra), obserkode: o.obserkode, observator: o.observator,
+});
 
 function fromQuery(q) {
   const f = { ...DEFAULTS };
@@ -164,27 +174,33 @@ export async function render(view) {
       h("button", { class: "btn sm", disabled: st.page <= 1, onclick: () => run(st.page - 1, { map: false }) }, "‹ Forrige"),
       h("span", { class: "muted" }, `Side ${fmtN(st.page)} af ${fmtN(pages)}`),
       h("button", { class: "btn sm", disabled: st.page >= pages, onclick: () => run(st.page + 1, { map: false }) }, "Næste ›")) : null;
-    const th = ([key, label]) => h("th", { style: { cursor: "pointer", userSelect: "none" }, title: "Sortér", "aria-sort": f.sort === key ? (f.desc ? "descending" : "ascending") : null,
-      onclick: () => sortBy(key) }, label, f.sort === key ? (f.desc ? " ▼" : " ▲") : "");
+    const sortSel = h("select", { "aria-label": "Sortering", style: { width: "auto", padding: "3px 28px 3px 8px", minHeight: 0, fontSize: ".85rem" }, onchange: () => sortBy(sortSel.value) },
+      ...COLS.map(([k, t]) => h("option", { value: k, selected: f.sort === k }, t)));
+    const dirBtn = h("button", { class: "btn sm", type: "button", title: f.desc ? "Faldende – klik for stigende" : "Stigende – klik for faldende",
+      onclick: () => sortBy(f.sort) }, f.desc ? "▼" : "▲");
+    // Sorteret efter dato: én overskrift pr. dag (som Observationer). Ellers står datoen foran hver række.
+    const byDate = f.sort === "dato";
+    const body = [];
+    let last = null;
+    for (const o of r.rows) {
+      const lr = asListRow(o, st.body.summering);
+      if (byDate && o.dato !== last) {
+        last = o.dato;
+        const wd = WEEKDAY[new Date(o.dato + "T12:00:00").getDay()];
+        body.push(head([h("b", {}, `${wd[0].toUpperCase()}${wd.slice(1)} ${fmtDate(o.dato)}`), ":"]));
+      }
+      body.push(obsRow(lr, "begge", byDate ? null : fmtDate(o.dato)));
+    }
+    const list = r.rows.length ? h("div", { class: "card mt" }, sheet(body)) : empty("Ingen observationer matcher søgningen");
+    if (r.rows.length) initPopup(list);
     resBox.replaceChildren(
       ...r.notes.map(n => h("div", { class: "notice" }, n)),
       h("div", { class: "row between mt" },
         h("p", { style: { margin: 0 } }, h("b", {}, r.capped ? "Over 50.000" : fmtN(r.total)), ` ${st.body.summering ? "summerede rækker" : "observationer"} · ${period}`),
-        h("span", { class: "row", style: { gap: "6px" } }, h("small", { class: "muted" }, "Hent:"),
+        h("span", { class: "row", style: { gap: "6px" } }, h("small", { class: "muted" }, "Sortér:"), sortSel, dirBtn,
+          h("small", { class: "muted", style: { marginLeft: "8px" } }, "Hent:"),
           ...["csv", "ods", "xlsx"].map(x => h("button", { class: "btn sm", type: "button", onclick: () => download(x), title: "Hele resultatet (højst 50.000 rækker) i den viste sortering" }, x.toUpperCase())))),
-      r.rows.length ? h("div", { class: "card table-wrap mt" }, h("table", { class: "data" },
-        h("thead", {}, h("tr", {}, ...COLS.map(th))),
-        h("tbody", {}, ...r.rows.map(o => h("tr", {},
-          h("td", { class: "nowrap" }, fmtDate(o.dato)),
-          h("td", {}, h("a", { href: `#/art/${o.artnr}` }, o.art), o.kategori && o.kategori !== "alm" ? [" ", tag(o.kategori)] : null),
-          h("td", { class: "num right" }, fmtN(o.antal), st.body.summering ? h("small", { class: "muted" }, ` (${o.n_obs} obs.)`) : null),
-          h("td", {}, o.koen || ""), h("td", { title: o.adfaerd || "" }, o.adfkode || ""), h("td", {}, o.alderkode || ""), h("td", {}, o.dragtkode || ""),
-          h("td", {}, o.loknr ? h("a", { href: `#/lok/${o.loknr}` }, o.lokalitet || String(o.loknr)) : ""),
-          h("td", { class: "muted" }, (o.afdeling || "").replace("DOF ", "")),
-          h("td", {}, o.observator || o.obserkode),
-          h("td", { class: "muted nowrap" }, o.obstidfra || o.turtidfra || ""),
-          h("td", { class: "muted", style: { fontSize: ".85rem" } }, (o.fuglnoter || "").slice(0, 140))))))) : empty("Ingen observationer matcher søgningen"),
-      pager);
+      list, pager);
   };
 
   let map;

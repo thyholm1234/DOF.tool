@@ -1,10 +1,7 @@
 // Dagslisten: dagens observationer som en traditionel liste, med de samme filtre som DOFbasens observationsside –
 // visning, dato (med dag frem/tilbage), sortering på art eller lokalitet, summering (tur/dato/ingen) og lokalafdeling.
-import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, store, toast, icon } from "../core.js";
-
-/** Artsnavn som link; for SU/SUB-arter er selve navnet et mærkat (hvid fed skrift på kategoriens farve).
- *  Bemærk-kategorien vises ikke. */
-const artName = (artnr, navn, kat) => h("a", { href: `#/art/${artnr}`, class: kat === "SU" || kat === "SUB" ? `dl-rare ${kat}` : null, title: kat === "SU" || kat === "SUB" ? kat : null }, navn);
+import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, store, toast } from "../core.js";
+import { artName, obsRow, head, sheet, initPopup } from "../obslist.js";
 
 const VISNING = [["fugle", "Fugle – bemærkelsesværdige"], ["allfugle", "Fugle – alle"], ["sufugle", "Fugle – sjældne"], ["trkfugle", "Fugle – trækkende"],
   ["patdyr", "Pattedyr"], ["somfugle", "Sommerfugle"], ["krybdyr", "Padder/krybdyr"]];
@@ -14,42 +11,12 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const pick = (v, list, def) => list.some(x => x[0] === v) ? v : def;
-const sexSign = (k) => !k ? "" : k.includes("M") && k.includes("F") ? " ♂♀" : k.includes("M") ? " ♂" : k.includes("F") ? " ♀" : "";
-// Trækkende: flere retninger (N, S, SØ …) på samme linje samles til ét «T»; øvrige adfærdskoder bevares
-const DIR = /^(T|TF|TI|TU|N|NNØ|NØ|ØNØ|Ø|ØSØ|SØ|SSØ|S|SSV|SV|VSV|V|VNV|NV|NNV)( |$)/;
-function adf(code) {
-  const codes = String(code || "").split(", ").filter(Boolean);
-  const dirs = codes.filter(c => DIR.test(c));
-  return dirs.length > 1 ? ["T", ...codes.filter(c => !DIR.test(c))].join(", ") : codes.join(", ");
-}
 const WEEKDAY = ["søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"];
 
 function select(label, options, value, onChange) {
   const sel = h("select", { "aria-label": label, onchange: () => onChange(sel.value) },
     ...options.map(([v, t]) => h("option", { value: v, selected: String(v) === String(value) }, t)));
   return h("label", { class: "dl-field" }, h("span", { class: "muted small" }, label), sel);
-}
-
-/** Boks ved hover over et ikon: viser noten/forklaringen ved siden af ikonet (data-pop-t = overskrift, data-pop = indhold). */
-let pop = null;
-function initPopup(root) {
-  const hide = () => { pop?.remove(); pop = null; };
-  const show = (el) => {
-    hide();
-    const t = el.dataset.popT, txt = el.dataset.pop;
-    pop = h("div", { class: "dl-pop", role: "tooltip" }, h("b", {}, t), txt ? h("div", {}, txt) : null);
-    document.body.append(pop);
-    const r = el.getBoundingClientRect(), w = pop.offsetWidth, ph = pop.offsetHeight;
-    const left = Math.max(8, Math.min(r.left, innerWidth - w - 8));
-    pop.style.left = `${left}px`;
-    pop.style.top = `${r.bottom + ph + 8 > innerHeight && r.top > ph + 8 ? r.top - ph - 6 : r.bottom + 6}px`;
-  };
-  root.addEventListener("mouseover", e => { const el = e.target.closest?.("[data-pop-t]"); if (el) show(el); else if (!e.target.closest?.(".dl-pop")) hide(); });
-  root.addEventListener("mouseleave", hide);
-  root.addEventListener("focusin", e => { const el = e.target.closest?.("[data-pop-t]"); if (el) show(el); });
-  root.addEventListener("focusout", hide);
-  addEventListener("hashchange", hide, { once: true });
-  addEventListener("scroll", hide, { passive: true });
 }
 
 export async function render(view) {
@@ -102,40 +69,6 @@ export async function render(view) {
         h("button", { class: "btn sm", type: "button", onclick: () => go({ lokalitet: "" }) }, "Kun én lokalitet ✕")) : null);
   }
 
-  // Ét samlet, kompakt skema (som DOFbasens gamle liste): ingen kolonnetitler, faste kolonnebredder hele vejen ned,
-  // noteikonerne forrest – billede, lyd, nål og tid står efter antal/alder/adfærd.
-  // Ikonerne er links til observationen; ved hover vises indholdet (noten) i en boks, ved klik åbnes observationen.
-  const icoLink = (r, dato, cls, ic, title, text) => h("a", { class: `dl-ic ${cls}`, href: `#/obs/${r.obsid}`, "data-pop-t": title, "data-pop": typeof text === "string" ? text : "",
-    "aria-label": typeof text === "string" ? `${title}: ${text}` : title, html: icon(ic) });
-  const note = (r, dato, cls, title, text) => text || text === true ? icoLink(r, dato, cls, "chat", title, text) : null;
-  // Fem faste pladser, så hver slags kommentar står i sin egen kolonne hele vejen ned (tom plads, når den mangler)
-  const notes = (r, dato) => h("td", { class: "dl-notes" }, h("span", { class: "dl-slots" },
-    ...[r.n_obs > 1 ? icoLink(r, dato, "dl-sum", "chat", "Sammensat observation", `Summeret af ${r.n_obs} observationer`) : null,
-      note(r, dato, "dl-tur", "Turnote", r.turnote || r.turkommentar),
-      note(r, dato, "dl-vejr", "Vejrnote", r.vejrnote || r.vejrkommentar),
-      note(r, dato, "dl-obs", "Observationsnote", r.obsnote || r.kommentar),
-      r.medobser ? icoLink(r, dato, "dl-med", "chat", r.medobsnote || "Medobservatører", true) : null,  // feltets indhold (fx «MV») vises i stedet for en generisk tekst
-    ].map(el => el || h("span", {}))));
-  const extra = (r, dato) => h("td", { class: "dl-extra" },
-    r.foto ? icoLink(r, dato, "", "camera", "Foto", true) : null,
-    r.lyd ? icoLink(r, dato, "", "sound", "Lydoptagelse", true) : null,
-    r.position ? icoLink(r, dato, "", "pin", "Fuglens position", true) : null,
-    r.tid ? icoLink(r, dato, "", "now", "Tidspunkt angivet", true) : null);
-  const ald = (r) => [r.alder, sexSign(r.koen).trim(), r.dragt].filter(Boolean).join(" ");
-
-  const row = (r, dato, byLoc) => h("tr", {},
-    notes(r, dato),
-    h("td", { class: "num" }, h("a", { href: `#/obs/${r.obsid}`, title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)),
-      ),
-    h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r, dato),
-    h("td", {}, byLoc ? artName(r.artnr, r.art, r.kat)
-      : h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr)),
-      h("span", { class: "dl-obs-m" }, obsLink(r))),  // på smalle skærme står observatøren under lokaliteten
-    h("td", { class: "dl-obs" }, obsLink(r)));
-  const obsLink = (r) => h("a", { href: `#/observator/${r.obserkode}` }, r.observator || r.obserkode);
-
-  const head = (content, cls = "dl-head") => h("tr", { class: cls }, h("td", { colspan: 7 }, ...content));
-
   function groups(rows, dato) {
     const out = [];
     const by = new Map();
@@ -149,15 +82,10 @@ export async function render(view) {
         ? head([h("b", {}, artName(f.artnr, f.art, ["SU", "SUB"].find(k => g.some(r => r.kat === k)))), " ", h("span", { class: "muted" }, "(", h("i", {}, f.latin || ""), ")"),
           ":"])
         : head([h("a", { href: `#/lok/${f.loknr}` }, h("b", {}, f.lokalitet || String(f.loknr))), ":"]));
-      out.push(...g.map(r => row(r, dato, st.sort !== "art")));
+      out.push(...g.map(r => obsRow(r, st.sort !== "art" ? "art" : "lok")));
     }
     return out;
   }
-
-  const sheet = (bodyRows) => h("div", { class: "table-wrap" }, h("table", { class: "dl-table" },
-    h("colgroup", {}, h("col", { class: "c-notes" }), h("col", { class: "c-num" }), h("col", { class: "c-ald" }), h("col", { class: "c-adf" }),
-      h("col", { class: "c-extra" }), h("col", { class: "c-lok" }), h("col", { class: "c-obs" })),
-    h("tbody", {}, ...bodyRows)));
 
   async function load() {
     const my = ++seq;

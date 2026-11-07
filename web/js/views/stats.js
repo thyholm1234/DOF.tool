@@ -149,6 +149,12 @@ export async function regionsTab(body, tab = "arter") {
     const sortSt = { key: store("rgsort") || "sortering", dir: 1 };
     const bar = sortBar([["sortering", "Systematisk"], ["navn", "Navn"], ["first_date", "Første dato"], ["n_obs", "Obs."], ...(all ? [["n_years", "Antal år"]] : [])], sortSt, () => { store("rgsort", sortSt.key); drawList(); });
     const tbody = h("tbody");
+    // Antal obs. linker til Søg, udfyldt med arten, regionen og året (når søgesiden er slået til)
+    const [kind, ref] = st.r.split(":");
+    const area = kind === "kom" ? { omraade: "kommune", kommune: ref } : kind === "afd" ? { omraade: "lokal", lokal: ref } : {};
+    const searchHref = (s) => `#/soeg?${new URLSearchParams({ ...(st.y ? { periode: "maanedaar", aar: st.y } : { periode: "none" }), ...area,
+      artdata: "art", art: s.artnr, art_navn: s.navn, vis_underarter_som_arter: "1", soeg: "1" })}`;
+    const nObs = (s) => state.user?.search ? h("a", { href: searchHref(s), title: `Se observationerne af ${s.navn} i ${d.label}${st.y ? ` i ${st.y}` : ""}` }, fmtN(s.n_obs)) : fmtN(s.n_obs);
     const drawList = () => {
       const k = sortSt.key;
       const rows = [...d.species].sort((a, b) => sortSt.dir * (k === "navn" ? a.navn.localeCompare(b.navn, "da") : k === "first_date" ? a.first_date.localeCompare(b.first_date)
@@ -156,7 +162,7 @@ export async function regionsTab(body, tab = "arter") {
       tbody.replaceChildren(...rows.map((s, i) => h("tr", {},
         h("td", { class: "muted num" }, i + 1),
         h("td", {}, h("a", { href: `#/art/${s.artnr}` }, s.navn), " ", s.klass !== "Alm" ? tag(s.klass) : null, s.new ? h("span", { class: "tag local", title: "Første gang registreret i regionen" }, "ny") : null),
-        h("td", { class: "right num" }, fmtN(s.n_obs)),
+        h("td", { class: "right num" }, nObs(s)),
         all ? h("td", { class: "right num", title: `Senest set ${s.last_year}` }, fmtN(s.n_years)) : null,
         h("td", { class: "nowrap" }, fmtDate(s.first_date, false)),
         h("td", { class: "nowrap muted" }, fmtDate(s.last_date, false)))));
