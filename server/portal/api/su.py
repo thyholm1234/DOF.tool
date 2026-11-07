@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel, Field, field_validator
@@ -245,10 +245,10 @@ class CaseIn(BaseModel):
     up_email: str = Field(min_length=3, max_length=200)
     up_telefon: str = Field("", max_length=30)
     artnr: int | None = None
-    art: str = Field(min_length=1, max_length=120)
+    art: str = Field("", max_length=120)  # sættes fra artslisten ud fra artnr
     dato_fra: date
     dato_til: date | None = None
-    lokalitet: str = Field(min_length=1, max_length=200)
+    lokalitet: str = Field("", max_length=200)  # i Danmark: navnet sættes fra DOFbasens lokalitet (loknr)
     loknr: int | None = None
     region: str = Field(min_length=1, max_length=8)
     land: str = Field("Danmark", max_length=40)
@@ -278,10 +278,43 @@ class CaseIn(BaseModel):
             raise HTTPException(400, "Observationsdatoen ligger i fremtiden")
 
 
+@router.get("/species")
+async def su_species(c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
+    """SU-arterne (artslistens klasse SU) med danske navne – kun dem kan vælges i SU-formularen."""
+    rows = (await db.execute(text("""SELECT artnr, navn FROM species WHERE klass = 'SU' AND NOT coalesce(excluded, false)
+        ORDER BY navn"""))).mappings().all()
+    return [dict(r) for r in rows]
+
+
+async def _place(db: AsyncSession, body: "CaseIn") -> None:
+    """I Danmark vælges lokaliteten blandt DOFbasens lokaliteter (loknr, navnet sættes derfra); på Færøerne og i Grønland
+    skrives den som fri tekst."""
+    if body.land == "Danmark":
+        navn = (await db.execute(text("SELECT navn FROM locations WHERE loknr = :l"), {"l": body.loknr})).scalar() if body.loknr else None
+        if not navn:
+            raise HTTPException(400, "Vælg lokaliteten fra DOFbasens lokaliteter")
+        body.lokalitet = navn
+    else:
+        body.loknr = None
+        if not body.lokalitet.strip():
+            raise HTTPException(400, "Skriv lokaliteten")
+
+
+async def _su_species(db: AsyncSession, body: "CaseIn") -> None:
+    """Arten skal være en SU-art; navnet sættes fra artslisten (dansk)."""
+    navn = (await db.execute(text("SELECT navn FROM species WHERE artnr = :a AND klass = 'SU' AND NOT coalesce(excluded, false)"),
+                             {"a": body.artnr})).scalar() if body.artnr else None
+    if not navn:
+        raise HTTPException(400, "Vælg en SU-art fra listen")
+    body.art = navn
+
+
 @router.post("/cases")
 async def create_case(body: CaseIn, c: dict = Depends(ctx), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     """Trin 1–2: uploader og beskrivelsesinfo gemmes som kladde, som dokumentationen derefter lægges på."""
     body.check()
+    await _su_species(db, body)
+    await _place(db, body)
     if (await db.execute(text("SELECT count(*) FROM su_cases WHERE user_id = :u AND status = 'kladde'"), {"u": user.id})).scalar() >= 20:
         raise HTTPException(429, "Du har allerede mange kladder – indsend eller slet nogle af dem")
     case = SuCase(user_id=user.id, status="kladde", **{**body.model_dump(), "dato_til": body.dato_til or body.dato_fra})
@@ -296,6 +329,8 @@ async def update_case(case_id: int, body: CaseIn, c: dict = Depends(ctx), user: 
     if role != "owner" or case.status != "kladde":
         raise HTTPException(400, "Beskrivelsen kan ikke ændres efter indsendelse – skriv til SU i sagen")
     body.check()
+    await _su_species(db, body)
+    await _place(db, body)
     for k, v in {**body.model_dump(), "dato_til": body.dato_til or body.dato_fra}.items():
         setattr(case, k, v)
     _touch(case)
@@ -529,7 +564,7 @@ async def action(case_id: int, body: ActionIn, tasks: BackgroundTasks, c: dict =
 
 @router.get("/obs")
 async def su_observations(aar: int | None = Query(None, ge=1990, le=2100), state: str = Query("afventer", pattern="^(afventer|godkendt|ikke_godkendt|alle)$"),
-                          c: dict = Depends(ctx), db: AsyncSession = Depends(get_session)):
+                          c: dict = Depends(ctx), user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     """Fund af SU-arter i DOFbasen i et år – samlet pr. art × lokalitet × dag (som trådene), så 75 indtastninger af den samme
     fugl er ét fund. Kun for SU. Afventende har intet mærke; godkendte får det gyldne SU-mærke på alle fundets observationer.
     Observationerne og afgørelserne hentes hver for sig (hver sin databasegruppe)."""
@@ -550,8 +585,10 @@ async def su_observations(aar: int | None = Query(None, ge=1990, le=2100), state
         dec = {(a.dato, a.artnr, a.loknr): a for a in (await db.execute(select(SuObsApproval).where(
             SuObsApproval.dato.between(date(year, 1, 1), date(year, 12, 31))))).scalars()}
     names = await _names(db, {a.decided_by for a in dec.values() if a.decided_by})
+    reports = await _reports_for(db, rows, user)
     out, counts = [], {"afventer": 0, "godkendt": 0, "ikke_godkendt": 0}
     for r in rows:
+        r["reports"] = reports(r)
         a = dec.get((r["dato"], r["artnr"], r["loknr"]))
         r["key"] = f"{r['dato'].isoformat()}/{r['artnr']}/{r['loknr']}"
         r["dato"] = r["dato"].isoformat()
@@ -562,6 +599,42 @@ async def su_observations(aar: int | None = Query(None, ge=1990, le=2100), state
         if state in ("alle", r["decision"]):
             out.append(r)
     return {"aar": year, "rows": out, "counts": counts}
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9æøå]+", " ", (s or "").lower()).strip()
+
+
+async def _reports_for(db: AsyncSession, rows: list[dict], user: User):
+    """Indsendte SU-beskrivelser (ikke kladder), der kan høre til et fund: samme art og en datoperiode, der rammer fundets dag
+    (± 1 dag). Formularens lokalitet er fri tekst, så «samme lokalitet» afgøres ud fra navnet (det ene indeholder det andet)
+    – andre beskrivelser af arten på datoen vises som mulige. Returnerer en funktion: række → liste af beskrivelser."""
+    artnrs = sorted({r["artnr"] for r in rows})
+    if not artnrs:
+        return lambda r: []
+    cases = (await db.execute(select(SuCase).where(SuCase.status != "kladde", SuCase.artnr.in_(artnrs)))).scalars().all()
+    if not cases:
+        return lambda r: []
+    reads = dict((await db.execute(select(SuMemberRead.case_id, SuMemberRead.read_at)
+                                    .where(SuMemberRead.user_id == user.id, SuMemberRead.case_id.in_([c.id for c in cases])))).all())
+    by_art: dict[int, list[SuCase]] = {}
+    for c in cases:
+        by_art.setdefault(c.artnr, []).append(c)
+    one = timedelta(days=1)
+
+    def match(r: dict) -> list[dict]:
+        d, lok = r["dato"], _norm(r.get("lokalitet") or "")
+        out = []
+        for c in by_art.get(r["artnr"], []):
+            if not c.dato_fra or not (c.dato_fra - one <= d <= (c.dato_til or c.dato_fra) + one):
+                continue
+            name = _norm(c.lokalitet)
+            same = c.loknr == r["loknr"] or (bool(name) and bool(lok) and (name in lok or lok in name))
+            out.append({"id": c.id, "sagsnr": c.sagsnr, "status": c.status, "status_label": svc.STATUSES[c.status], "outcome": c.outcome,
+                        "outcome_label": svc.OUTCOMES.get(c.outcome or ""), "lokalitet": c.lokalitet, "same_place": same,
+                        "uploader": c.up_navn, "unread": c.status in svc.OPEN and (c.id not in reads or c.updated_at > reads[c.id])})
+        return sorted(out, key=lambda x: not x["same_place"])
+    return match
 
 
 KEY = re.compile(r"^(\d{4}-\d{2}-\d{2})/(\d+)/(\d+)$")

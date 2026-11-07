@@ -1141,3 +1141,8 @@ tr.click { cursor: pointer; }
 .su-find-row .su-find-check { margin-left: 0; }
 .su-find-bar { position: sticky; top: var(--topbar-h, 56px); z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; margin-bottom: 8px; background: var(--bg); }
 .su-find-bar input { max-width: 300px; }
+/* SU's oversigt: indsendte SU-beskrivelser ved fundet */
+.su-find-reps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.su-rep { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; background: var(--brand-soft); font-size: .84rem; font-weight: 600; text-decoration: none; }
+.su-rep .ic { width: 14px; height: 14px; }
+.su-rep.maybe { background: transparent; border: 1px dashed var(--line-strong, var(--line)); font-weight: 500; }

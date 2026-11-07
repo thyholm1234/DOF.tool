@@ -7,8 +7,8 @@ from test_learn_play import DSN, db, flags, web  # noqa: F401 – web og db er f
 
 pytestmark = pytest.mark.skipif(not DSN, reason="ARTICLES_TEST_DSN er ikke sat")
 
-CASE = {"up_navn": "Leif Bolding", "up_email": "leif@example.dk", "art": "Kattedrossel", "artnr": 1, "dato_fra": "2026-01-03",
-        "lokalitet": "Sorring", "region": "NJ", "land": "Danmark", "antal": 2, "observatorer": "*Leif Bolding", "beskrivelse": ""}
+CASE = {"up_navn": "Leif Bolding", "up_email": "leif@example.dk", "art": "Kattedrossel", "artnr": 901, "dato_fra": "2026-01-03",
+        "loknr": 777, "lokalitet": "", "region": "NJ", "land": "Danmark", "antal": 2, "observatorer": "*Leif Bolding", "beskrivelse": ""}
 
 
 async def unthrottle():
@@ -20,7 +20,20 @@ async def unthrottle():
 
 
 @pytest.fixture
-def sent(monkeypatch):
+async def su_art(db):  # noqa: F811
+    """En SU-art (Kattedrossel) og en almindelig art i artslisten."""
+    from sqlalchemy import text
+
+    async with db() as s:
+        await s.execute(text("""INSERT INTO species (artnr, navn, latin, sortering, art_type, list_artnr, klass, excluded) VALUES
+            (901, 'Kattedrossel', 'Dumetella carolinensis', 901, 'art', 901, 'SU', false),
+            (902, 'Solsort', 'Turdus merula', 902, 'art', 902, 'Alm', false) ON CONFLICT (artnr) DO UPDATE SET klass = EXCLUDED.klass"""))
+        await s.execute(text("INSERT INTO locations (loknr, navn, origin) VALUES (777, 'Sorring', 'dofbasen') ON CONFLICT (loknr) DO NOTHING"))
+        await s.commit()
+
+
+@pytest.fixture
+def sent(monkeypatch, su_art):
     from portal.services import su
 
     out = []
@@ -41,10 +54,16 @@ async def test_su_sagsgang_arkiv_og_rapporter(web, db, sent):  # noqa: F811
     assert st["member"] is False and "NJ" in st["regions"]
     assert (await su.get("/api/su/status")).json()["member"] is True
 
-    # trin 1–2: kladde; ugyldige felter afvises
+    # trin 1–2: kladde; kun SU-arter (dansk navn fra artslisten); ugyldige felter afvises
+    assert [(a["artnr"], a["navn"]) for a in (await a1.get("/api/su/species")).json()] == [(901, "Kattedrossel")]
+    assert (await a1.post("/api/su/cases", json={**CASE, "artnr": 902})).status_code == 400
+    assert (await a1.post("/api/su/cases", json={**CASE, "artnr": None})).status_code == 400
+    assert (await a1.post("/api/su/cases", json={**CASE, "loknr": None, "lokalitet": "Et sted"})).status_code == 400  # i DK: DOFbasens lokaliteter
+    assert (await a1.post("/api/su/cases", json={**CASE, "loknr": 999999})).status_code == 400
     assert (await a1.post("/api/su/cases", json={**CASE, "region": "XX"})).status_code == 400
     assert (await a1.post("/api/su/cases", json={**CASE, "up_email": "ikke-en-mail"})).status_code == 422
     cid = (await a1.post("/api/su/cases", json=CASE)).json()["id"]
+    assert (await a1.get(f"/api/su/cases/{cid}")).json()["lokalitet"] == "Sorring"  # navnet fra lokaliteten
     assert (await su.get(f"/api/su/cases/{cid}")).status_code == 404  # SU ser ikke kladder
     assert (await a1.post(f"/api/su/cases/{cid}/submit")).status_code == 400  # hverken beskrivelse eller dokument
 
@@ -153,6 +172,15 @@ async def test_su_godkendelse_af_fund(web, db, sent):  # noqa: F811
 
     liste = lambda: a1.get("/api/dagsliste?visning=allfugle&summering=ingen")  # noqa: E731
     assert not any(r["su_ok"] for r in rows((await liste()).json(), 7003, 7005))  # intet mærke før godkendelse
+    # en indsendt SU-beskrivelse af arten på dagen vises ved fundet (lokaliteten er fri tekst i formularen)
+    async with db() as s_:
+        await s_.execute(text("""INSERT INTO su_cases (sagsnr, user_id, artnr, art, dato_fra, dato_til, lokalitet, region, land, status, up_navn,
+            up_adresse, up_postnr, up_by, up_email, up_telefon, dragt, adfaerd, observatorer, bemaerkninger, beskrivelse, created_at, updated_at)
+            VALUES ('T-1', 1, 5, 'Sølvmåge', :d, :d, 'Et andet sted', 'NJ', 'Danmark', 'indsendt', 'Leif', '', '', '', 'l@x.dk', '', '', '', '', '', 'x', now(), now())"""),
+                         {"d": date.today()})
+        await s_.commit()
+    rep = [r for r in (await su.get("/api/su/obs")).json()["rows"] if r["key"] == key][0]["reports"]
+    assert len(rep) == 1 and rep[0]["sagsnr"] == "T-1" and rep[0]["same_place"] is False and rep[0]["unread"] is True
     assert (await su.post("/api/su/obs/decide", json={"keys": [key, f"{today}/3/100"], "decision": "godkendt"})).json()["n"] == 1  # gråand er ikke en SU-art
     assert all(r["su_ok"] for r in rows((await liste()).json(), 7003, 7005))  # mærket på alle fundets observationer
     assert not any(r["su_ok"] for r in rows((await liste()).json(), 7001))

@@ -18,6 +18,7 @@ const statusTag = (c) => c.status === "afgjort" && c.outcome
 const UPLOADER_KEY = "su:uploader";
 
 let META = null;  // regioner, lande, filkategorier … fra /api/su/status
+let SU_SPECIES = null;  // SU-arterne (danske navne) til artsvælgeren
 async function meta() { return META ||= await api("/api/su/status"); }
 
 export async function render(view, [sub, id]) {
@@ -200,15 +201,25 @@ function findsTab(out) {
       const allBox = h("input", { type: "checkbox", title: "Vælg alle datoer i kassen", onchange: () => { boxes.forEach(c => { c.checked = allBox.checked; }); count(); } });
       const sync = () => { allBox.checked = boxes.every(c => c.checked); allBox.indeterminate = !allBox.checked && boxes.some(c => c.checked); };
       const n = rows.reduce((a, r) => a + r.n_obs, 0);
+      // Indsendte SU-beskrivelser, der kan høre til fundene i kassen (samme art og dato) – link til sagen og samtalen
+      const reps = [...new Map(rows.flatMap(r => r.reports || []).map(x => [x.id, x])).values()].sort((a, b) => b.same_place - a.same_place);
       return h("div", { class: "card su-find" },
         h("div", { class: "su-find-head" },
           h("div", { class: "grow" }, h("b", {}, h("a", { href: `#/art/${f.artnr}` }, f.art)), " · ", h("a", { href: `#/lok/${f.loknr}` }, f.lokalitet || f.loknr),
-            h("div", { class: "muted small" }, `${rows.length} ${rows.length === 1 ? "dag" : "dage"} · ${fmtN(n)} indtastninger`)),
+            h("div", { class: "muted small" }, `${rows.length} ${rows.length === 1 ? "dag" : "dage"} · ${fmtN(n)} indtastninger`),
+            reps.length ? h("div", { class: "su-find-reps" }, ...reps.map(x => h("a", { class: `su-rep${x.same_place ? "" : " maybe"}`, href: `#/su/sag/${x.id}`,
+              title: x.same_place ? "SU-beskrivelse af fundet – åbn sagen og samtalen med indsenderen" : `Mulig SU-beskrivelse: samme art og dato, lokalitet «${x.lokalitet}»` },
+              x.unread ? h("span", { class: "dot-unread" }) : null, h("span", { html: icon("chat") }),
+              `${x.same_place ? "Rapport" : "Mulig rapport"} ${x.sagsnr || ""}`, h("span", { class: "muted" }, ` · ${x.outcome_label || x.status_label} · ${x.uploader}`),
+              x.same_place ? null : h("span", { class: "muted" }, ` · ${x.lokalitet}`))))
+              : h("div", { class: "muted small" }, "Ingen SU-beskrivelse indsendt")),
           h("label", { class: "su-find-check", title: "Vælg alle datoer i kassen" }, allBox)),
         ...rows.map((r, idx) => {
           const [label, cls] = DECISION[r.decision];
+          const own = (r.reports || []).find(x => x.same_place);
           return h("div", { class: "su-find-row" },
             h("a", { class: "su-find-date", href: `#/traad/${r.key}`, title: "Se fundet (tråden)" }, fmtDate(r.dato)),
+            own ? h("a", { class: "tag plain", href: `#/su/sag/${own.id}`, title: "Der er skrevet en SU-beskrivelse af fundet" }, `Rapport ${own.sagsnr || ""}`) : null,
             h("span", { class: "num" }, `${fmtN(r.max_antal)} ex.`),
             h("span", { class: "muted small" }, `${fmtN(r.n_obs)} indt.${r.n_observers > 1 ? ` · ${r.n_observers} obs.` : ""}`),
             h("span", { class: "muted small grow su-find-names", title: [r.observatorer, r.fuglnoter].filter(Boolean).join("\n") }, r.observatorer || ""),
@@ -237,12 +248,12 @@ async function wizard(view, draftId) {
   let step = 1, caseId = draftId, files = [];
   const saved = JSON.parse(localStorage.getItem(UPLOADER_KEY) || "{}");
   const f = { up_navn: state.user.navn || "", up_email: "", up_telefon: state.user.prefs?.phone || "", up_adresse: "", up_postnr: "", up_by: "", ...saved,
-    art: "", artnr: null, dato_fra: "", dato_til: "", lokalitet: "", region: "", land: "Danmark", antal: "", dragt: "", adfaerd: "", observatorer: "", bemaerkninger: "", beskrivelse: "" };
+    art: "", artnr: null, loknr: null, dato_fra: "", dato_til: "", lokalitet: "", region: "", land: "Danmark", antal: "", dragt: "", adfaerd: "", observatorer: "", bemaerkninger: "", beskrivelse: "" };
   if (draftId) {
     try {
       const c = await api(`/api/su/cases/${draftId}`);
       if (c.status !== "kladde") { location.replace(`#/su/sag/${draftId}`); return; }
-      Object.assign(f, c.uploader_info, { art: c.art, artnr: c.artnr, dato_fra: c.dato_fra, dato_til: c.dato_til, lokalitet: c.lokalitet, region: c.region,
+      Object.assign(f, c.uploader_info, { art: c.art, artnr: c.artnr, dato_fra: c.dato_fra, dato_til: c.dato_til, lokalitet: c.lokalitet, loknr: c.loknr, region: c.region,
         land: c.land, antal: c.antal, dragt: c.dragt, adfaerd: c.adfaerd, observatorer: c.observatorer, bemaerkninger: c.bemaerkninger, beskrivelse: c.beskrivelse });
       files = c.files;
       step = +params().trin || 3;
@@ -287,27 +298,46 @@ async function wizard(view, draftId) {
   }
 
   function step2() {
-    // Artsvælger med forslag fra artslisten; et frit navn accepteres også (fx underarter eller nye arter)
-    const dl = h("datalist", { id: "su-arter" });
-    const found = new Map();
-    let timer;
-    const art = h("input", { value: f.art, required: true, list: "su-arter", autocomplete: "off", maxlength: 120, placeholder: "Begynd at skrive …",
-      oninput: () => {
-        f.art = art.value.trim(); f.artnr = found.get(art.value)?.artnr ?? null;
-        clearTimeout(timer);
-        if (art.value.trim().length < 2) return;
-        timer = setTimeout(async () => {
-          try {
-            const rows = await api(`/api/species?q=${encodeURIComponent(art.value.trim())}&limit=15`);
-            found.clear(); dl.replaceChildren(...rows.map(r => { found.set(r.navn, r); return h("option", { value: r.navn }, r.latin || ""); }));
-          } catch { /* forslag er en hjælp */ }
-        }, 200);
-      } });
+    // Artsvælger: kun SU-arter, valgt på dansk navn fra artslisten (søg i navnet, vælg i listen)
+    const suggest = h("div", { class: "suggest dropdown" });
+    const art = h("input", { type: "search", value: f.art, autocomplete: "off", spellcheck: "false", maxlength: 120, placeholder: "Skriv det danske navn …",
+      oninput: () => { f.artnr = null; showSuggest(); }, onfocus: () => showSuggest(),
+      onblur: () => setTimeout(() => { suggest.replaceChildren(); if (!f.artnr) art.value = f.art = ""; }, 150),
+      onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape") suggest.replaceChildren(); } });
+    const pickArt = (sp) => { f.artnr = sp.artnr; f.art = art.value = sp.navn; art.setCustomValidity(""); suggest.replaceChildren(); };
+    const showSuggest = () => {
+      const q = art.value.trim().toLowerCase();
+      const hits = (SU_SPECIES || []).filter(sp => !q || sp.navn.toLowerCase().includes(q))
+        .sort((a, b) => (b.navn.toLowerCase().startsWith(q) - a.navn.toLowerCase().startsWith(q)) || a.navn.localeCompare(b.navn, "da")).slice(0, 30);
+      suggest.replaceChildren(...(hits.length ? hits.map(sp => h("button", { type: "button", onmousedown: (e) => e.preventDefault(), onclick: () => pickArt(sp) }, sp.navn))
+        : [h("small", { class: "muted dd-head" }, "Ingen SU-art med det navn")]));
+    };
+    if (!SU_SPECIES) api("/api/su/species").then(rows => { SU_SPECIES = rows; }).catch(() => { SU_SPECIES = []; });
+    // Lokalitet: i Danmark én af DOFbasens lokaliteter (søg på navnet, vælg i listen); på Færøerne og i Grønland fri tekst
+    const lokSuggest = h("div", { class: "suggest dropdown" });
+    let lokTimer, lokHits = [];
+    const lok = h("input", { type: "search", value: f.lokalitet, autocomplete: "off", spellcheck: "false", maxlength: 200,
+      oninput: () => { f.lokalitet = lok.value.trim(); if (f.land !== "Danmark") return; f.loknr = null; clearTimeout(lokTimer); lokTimer = setTimeout(findLok, 200); },
+      onblur: () => setTimeout(() => { lokSuggest.replaceChildren(); if (f.land === "Danmark" && !f.loknr) lok.value = f.lokalitet = ""; }, 150),
+      onkeydown: (e) => { if (e.key === "Enter" && f.land === "Danmark") { e.preventDefault(); lokSuggest.querySelector("button")?.click(); } if (e.key === "Escape") lokSuggest.replaceChildren(); } });
+    const lokPlaceholder = () => { lok.placeholder = f.land === "Danmark" ? "Søg blandt DOFbasens lokaliteter …" : "Skriv lokaliteten"; };
+    lokPlaceholder();
+    const findLok = async () => {
+      const q = lok.value.trim();
+      if (q.length < 2) { lokSuggest.replaceChildren(); return; }
+      try { lokHits = await api(`/api/locations?q=${encodeURIComponent(q)}`); } catch { lokHits = []; }
+      lokSuggest.replaceChildren(...(lokHits.length ? lokHits.map(l => h("button", { type: "button", onmousedown: (e) => e.preventDefault(),
+        onclick: () => { f.loknr = l.loknr; f.lokalitet = lok.value = l.navn; lok.setCustomValidity(""); lokSuggest.replaceChildren(); } },
+        h("span", {}, l.navn), l.kommune ? h("span", { class: "muted" }, ` · ${l.kommune}`) : null))
+        : [h("small", { class: "muted dd-head" }, "Ingen lokalitet med det navn")]));
+    };
     const sel = (k, opts) => h("select", { required: true, onchange: (e) => { f[k] = e.target.value; } },
       ...opts.map(([v, t]) => h("option", { value: v, selected: String(f[k] ?? "") === String(v) }, t)));
     const btn = h("button", { class: "btn primary" }, "Gem og fortsæt til dokumentation ›");
     return h("form", { class: "card stack", onsubmit: async (e) => {
       e.preventDefault();
+      if (!f.artnr) { art.setCustomValidity("Vælg en SU-art fra listen"); art.reportValidity(); return; }
+      if (f.land === "Danmark" ? !f.loknr : !f.lokalitet) { lok.setCustomValidity(f.land === "Danmark" ? "Vælg en lokalitet fra listen" : "Skriv lokaliteten"); lok.reportValidity(); lok.setCustomValidity(""); return; }
       const payload = { ...f, artnr: f.artnr, antal: +f.antal, dato_til: f.dato_til || null };
       btn.disabled = true;
       try {
@@ -316,15 +346,16 @@ async function wizard(view, draftId) {
         go(3);
       } catch (err) { toast(err.message, "err"); btn.disabled = false; }
     } },
-      h("h3", { style: { margin: 0 } }, "Beskrivelsesinfo"), dl,
+      h("h3", { style: { margin: 0 } }, "Beskrivelsesinfo"),
       h("div", { class: "grid-2" },
-        field("Fugleart", art, null, true),
+        field("Fugleart", h("div", { class: "dd-wrap" }, art, suggest), "Kun SU-arter", true),
         field("Antal", inp("antal", { type: "number", min: 1, max: 100000, required: true, style: { maxWidth: "120px" } }), null, true),
         field("Obsdato (start)", inp("dato_fra", { type: "date", required: true, max: new Date().toISOString().slice(0, 10) }), null, true),
         field("Obsdato (slut)", inp("dato_til", { type: "date", max: new Date().toISOString().slice(0, 10) }), "Tom = samme dag"),
-        field("Lokalitet", inp("lokalitet", { required: true, maxlength: 200 }), null, true),
+        field("Lokalitet", h("div", { class: "dd-wrap" }, lok, lokSuggest), "I Danmark: vælg blandt DOFbasens lokaliteter", true),
         field("Region", sel("region", [["", "Vælg …"], ...Object.entries(META.regions)]), null, true),
-        field("Land", sel("land", META.lande.map(l => [l, l])), null, true),
+        field("Land", h("select", { required: true, onchange: (e) => { f.land = e.target.value; f.loknr = null; lok.value = f.lokalitet = ""; lokPlaceholder(); } },
+          ...META.lande.map(l => h("option", { value: l, selected: f.land === l }, l))), null, true),
         field("Dragt", inp("dragt", { maxlength: 200 })),
         field("Adfærd", inp("adfaerd", { maxlength: 200 })),
         field("Observatører", inp("observatorer", { maxlength: 500 }), "Finder(e) angives med en stjerne (*) foran navnet."),
@@ -441,7 +472,7 @@ async function caseView(view, id) {
     h("div", { class: "grid-2" },
       h("div", { class: "stack" },
         h("div", { class: "card" }, h("h3", { style: { marginTop: 0 } }, "Beskrivelsesinfo"),
-          h("dl", { class: "obs-facts" }, ...fact("Fugleart", c.art), ...fact("Antal", c.antal), ...fact("Dato", dates(c)), ...fact("Lokalitet", c.lokalitet),
+          h("dl", { class: "obs-facts" }, ...fact("Fugleart", c.art), ...fact("Antal", c.antal), ...fact("Dato", dates(c)), ...fact("Lokalitet", c.loknr ? h("a", { href: `#/lok/${c.loknr}` }, c.lokalitet) : c.lokalitet),
             ...fact("Region", c.region_label), ...fact("Land", c.land), ...fact("Dragt", c.dragt), ...fact("Adfærd", c.adfaerd),
             ...fact("Observatører", c.observatorer), ...fact("Bemærkninger", c.bemaerkninger),
             ...(c.role !== "public" ? fact("Indsendt", c.submitted_at ? fmtDate(c.submitted_at) : "") : []), ...(c.assignee ? fact("Behandles af", c.assignee) : []))),

@@ -8904,6 +8904,13 @@ true,
 ]
 }
 },
+"/api/su/species": {
+"get": {
+"body": false,
+"op": "su_species_api_su_species_get",
+"params": []
+}
+},
 "/api/su/status": {
 "get": {
 "body": false,
