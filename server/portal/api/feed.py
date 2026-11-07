@@ -17,7 +17,7 @@ from portal.db import SessionLocal, get_session
 from portal.dof import gateway
 from portal.dof.jobs import ensure_media_obs, media_for, media_many
 from portal.models import AlertRule, Area, ThreadComment, ThreadFollow, ThreadStatus, User
-from portal.services import activity, daymap, features, feed, finds, moderation, pulse, reports
+from portal.services import activity, daymap, features, feed, finds, moderation, position_privacy, pulse, reports
 from portal.services.alerts import Crossed
 from portal.services.areas import Scope, parse_scope, scope_for_area
 from portal.services.auth import can, modules
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api", tags=["feed"])
 log = logging.getLogger("portal.feed")
 
 
-async def resolve_scope(db: AsyncSession, scope: str | None, user: User | None) -> Scope:
+async def resolve_scope(db: AsyncSession, scope: str | None, user: User | None, request: Request | None = None) -> Scope:
     try:
         sc = parse_scope(scope)
     except ValueError as exc:
@@ -37,6 +37,8 @@ async def resolve_scope(db: AsyncSession, scope: str | None, user: User | None) 
         area = await db.get(Area, int(sc.ref))
         if area is None or user is None or area.user_id != user.id:
             raise HTTPException(404, "Område findes ikke")
+        if area.ref == position_privacy.ME and position_privacy.viewing_as(request):
+            raise HTTPException(403, "Nær mig-området følger brugerens position og vises ikke i «se som bruger»")
         if area.kind not in ("polygon", "radius"):
             return Scope(area.kind, area.ref)
     return sc
@@ -44,6 +46,7 @@ async def resolve_scope(db: AsyncSession, scope: str | None, user: User | None) 
 
 @router.get("/feed")
 async def get_feed(
+    request: Request,
     day: date | None = Query(None, alias="date"),
     scope: str | None = None,
     level: str = Query("bemaerk", pattern="^(SU|SUB|bemaerk|local|pheno|all)$"),
@@ -55,7 +58,7 @@ async def get_feed(
     if scope == "mine":
         if user is None:
             raise HTTPException(401, "Log ind for at bruge dine filtre")
-        threads = await _my_filter_threads(db, day, user)
+        threads = await _my_filter_threads(db, day, user, hide_position=position_privacy.viewing_as(request))
         await _attach_media(db, day, threads)
         await _attach_comments(db, day, threads)
         await _attach_status(db, day, threads)
@@ -64,7 +67,7 @@ async def get_feed(
             t["likes"] = likes.get(t["id"], {}).get("count", 0)
         return {"date": day.isoformat(), "scope": "mine", "level": "mine", "threads": threads,
                 "n_rules": await _n_rules(db, user)}
-    sc = await resolve_scope(db, scope, user)
+    sc = await resolve_scope(db, scope, user, request)
     if level == "all" and sc.kind == "dk":
         raise HTTPException(400, "'Alle' kræver et afgrænset område")
     threads = [dict(t) for t in await feed.threads(db, day, scope=sc, level=level, local_max=local_max)]
@@ -117,9 +120,13 @@ async def _n_rules(db: AsyncSession, user: User) -> int:
                              .where(AlertRule.user_id == user.id, AlertRule.enabled))).scalar() or 0
 
 
-async def _my_filter_threads(db: AsyncSession, day: date, user: User) -> list[dict]:
-    """Dagens tråde der matcher mindst én af brugerens aktive alarmregler (samme regler som notifikationerne)."""
+async def _my_filter_threads(db: AsyncSession, day: date, user: User, hide_position: bool = False) -> list[dict]:
+    """Dagens tråde der matcher mindst én af brugerens aktive alarmregler (samme regler som notifikationerne).
+    hide_position: «se som bruger» – regler på Nær mig-området springes over, for de afslører, hvor brugeren er."""
     rules = (await db.execute(select(AlertRule).where(AlertRule.user_id == user.id, AlertRule.enabled))).scalars().all()
+    if hide_position:
+        hidden = await position_privacy.near_me_rule_ids(db, user.id)
+        rules = [r for r in rules if r.id not in hidden]
     fetched: dict[tuple, list[dict]] = {}
 
     async def fetch(sc: Scope, level: str, local_max: int, basis: str) -> list[dict]:

@@ -11,25 +11,27 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import require_user
+from portal.api.deps import client_ip, require_user
 from portal.api.geo import area_out
 from portal.cache import kv, worker_command
 from portal.db import get_session
 from portal.models import Area, User, UserLocation
-from portal.services import features
+from portal.services import features, position_privacy
 from portal.services.areas import scope_for_area, set_geometry
 from portal.services.auth import SUPERADMIN
 
 router = APIRouter(prefix="/api", tags=["position"])
-ME = "me"
+ME = position_privacy.ME
 MOVE_M = 150  # mindre flytning end dette opdaterer ikke områdets geometri
 TOKEN_TTL = 180 * 86400  # positionstokenet fornyes, hver gang appen starter delingen
 DEVICE_ID = r"^[A-Za-z0-9_-]{8,64}$"
+MIN_INTERVAL_S = 15  # højst én gemt position pr. bruger så ofte (appen sender højst hvert minut)
+BAD_TOKENS_PER_IP = 20  # ugyldige positionstokens pr. IP pr. 10 minutter, før IP'en afvises
 
 
 def device_of(user: User) -> dict | None:
@@ -37,7 +39,10 @@ def device_of(user: User) -> dict | None:
     return (user.prefs or {}).get("position_device")
 
 
-async def require_position(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> User:
+async def require_position(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> User:
+    # Positionen er kun brugerens egen – heller ikke en superadmin i «se som bruger» må se den
+    if position_privacy.viewing_as(request):
+        raise HTTPException(403, "Positionen vises ikke, når du ser appen som en anden bruger")
     flags = await features.load(db)
     if not features.visible(flags, "position", superadmin=user.role == SUPERADMIN, insider=False):
         raise HTTPException(404, "Funktionen er ikke slået til")
@@ -66,7 +71,10 @@ async def get_location(user: User = Depends(require_position), db: AsyncSession 
 
 
 async def store_location(db: AsyncSession, user_id: int, lat: float, lon: float, accuracy: float | None, source: str) -> bool:
-    """Gem seneste position og flyt brugerens 'Nær mig'-områder med. Returnerer om områderne blev flyttet."""
+    """Gem seneste position (afrundet til ca. 100 m) og flyt brugerens 'Nær mig'-områder med. Returnerer om områderne
+    blev flyttet."""
+    lat, lon = position_privacy.coarse(lat, lon)
+    accuracy = None if accuracy is None else round(accuracy)
     loc = await db.get(UserLocation, user_id)
     moved = True
     if loc is None:
@@ -91,21 +99,48 @@ async def put_location(body: LocationIn, user: User = Depends(require_position),
     device = device_of(user)
     if device and body.device_id != device["id"]:
         return {"ok": True, "moved": False, "skipped": "anden enhed"}
+    if not await _throttle(user.id):
+        return {"ok": True, "moved": False, "skipped": "for hyppigt"}
     return {"ok": True, "moved": await store_location(db, user.id, body.lat, body.lon, body.accuracy_m, body.source)}
+
+
+async def _throttle(user_id: int) -> bool:
+    """Højst én gemt position pr. MIN_INTERVAL_S pr. bruger – også hvis et token skulle slippe ud."""
+    return bool(await kv().set(f"loc:rl:{user_id}", "1", nx=True, ex=MIN_INTERVAL_S))
 
 
 async def _revoke_token(user_id: int) -> None:
     old = await kv().get(f"loctok:user:{user_id}")
     if old:
-        await kv().delete(f"loctok:{old}", f"loctok:user:{user_id}")
+        # loctok:user:<id> peger på hashens nøgle; ældre versioner gemte selve tokenet (loctok:<token>)
+        await kv().delete(old if old.startswith("loctok:h:") else f"loctok:{old}", f"loctok:user:{user_id}")
 
 
 async def _new_token(user_id: int, device_id: str) -> str:
     await _revoke_token(user_id)
     token = secrets.token_urlsafe(32)
-    await kv().set(f"loctok:{token}", f"{user_id}:{device_id}", ex=TOKEN_TTL)
-    await kv().set(f"loctok:user:{user_id}", token, ex=TOKEN_TTL)
+    key = position_privacy.token_key(token)  # kun hashen gemmes – en kopi af Valkey giver ikke brugbare tokens
+    await kv().set(key, f"{user_id}:{device_id}", ex=TOKEN_TTL)
+    await kv().set(f"loctok:user:{user_id}", key, ex=TOKEN_TTL)
     return token
+
+
+async def _token_owner(token: str) -> str | None:
+    if not token or len(token) > 100:
+        return None
+    key = position_privacy.token_key(token)
+    owner = await kv().get(key)
+    if owner is None and await kv().exists(f"loctok:{token}"):
+        # Token fra før hashingen: flyt det over, så telefoner, der allerede deler, ikke mister forbindelsen
+        owner = await kv().get(f"loctok:{token}")
+        ttl = await kv().ttl(f"loctok:{token}")
+        if owner:
+            await kv().set(key, owner, ex=ttl if ttl and ttl > 0 else TOKEN_TTL)
+            user_id = str(owner).partition(":")[0]
+            if user_id.isdigit() and await kv().get(f"loctok:user:{user_id}") == token:
+                await kv().set(f"loctok:user:{user_id}", key, ex=ttl if ttl and ttl > 0 else TOKEN_TTL)
+        await kv().delete(f"loctok:{token}")
+    return owner
 
 
 class DeviceIn(BaseModel):
@@ -141,25 +176,43 @@ class NativeLocationIn(BaseModel):
     time: int | None = None
 
 
+async def _bad_token(ip: str, status: int, detail: str) -> HTTPException:
+    key = f"loc:bad:{ip}"
+    if await kv().incr(key) == 1:
+        await kv().expire(key, 600)
+    return HTTPException(status, detail)
+
+
 @router.post("/location/native")
-async def native_location(body: NativeLocationIn, authorization: str = Header(""), db: AsyncSession = Depends(get_session)):
-    token = authorization.removeprefix("Bearer ").strip()
-    owner = await kv().get(f"loctok:{token}") if token else None
+async def native_location(body: NativeLocationIn, request: Request, authorization: str = Header(""),
+                          db: AsyncSession = Depends(get_session)):
+    ip = client_ip(request)
+    if int(await kv().get(f"loc:bad:{ip}") or 0) >= BAD_TOKENS_PER_IP:
+        raise HTTPException(429, "For mange forsøg med ugyldigt positionstoken")
+    owner = await _token_owner(authorization.removeprefix("Bearer ").strip())
     user_id, _, device_id = str(owner or "").partition(":")
-    user = await db.get(User, int(user_id)) if user_id else None
+    user = await db.get(User, int(user_id)) if user_id.isdigit() else None
     if user is None or user.blocked or not user.approved or not (user.prefs or {}).get("share_location"):
-        raise HTTPException(401, "Ugyldigt positionstoken")
+        raise await _bad_token(ip, 401, "Ugyldigt positionstoken")
     device = device_of(user)
     if (device or {}).get("id", "") != device_id:
         raise HTTPException(401, "Positionen følges af en anden enhed")
     if body.accuracy is not None and body.accuracy > 500:
         return {"ok": True, "moved": False, "skipped": "unøjagtig"}
+    if not await _throttle(user.id):
+        return {"ok": True, "moved": False, "skipped": "for hyppigt"}
     return {"ok": True, "moved": await store_location(db, user.id, body.latitude, body.longitude, body.accuracy, "app")}
 
 
 @router.delete("/me/location")
 async def delete_location(user: User = Depends(require_position), db: AsyncSession = Depends(get_session)):
     """Stop med at gemme positionen. 'Nær mig'-området bliver stående, men flyttes ikke mere."""
+    await stop_sharing(db, user)
+    return {"ok": True}
+
+
+async def stop_sharing(db: AsyncSession, user: User) -> None:
+    """Slå positionsdelingen fra: slet den gemte position, glem enheden og gør positionstokenet ugyldigt."""
     loc = await db.get(UserLocation, user.id)
     if loc is not None:
         await db.delete(loc)
@@ -168,7 +221,6 @@ async def delete_location(user: User = Depends(require_position), db: AsyncSessi
     user.prefs = prefs
     await db.commit()
     await _revoke_token(user.id)
-    return {"ok": True}
 
 
 class NearMeIn(BaseModel):
@@ -182,7 +234,7 @@ async def near_me(body: NearMeIn, user: User = Depends(require_position), db: As
     """Opret eller ret brugerens 'Nær mig'-område: en radius om den seneste position, som flytter sig med brugeren."""
     loc = await db.get(UserLocation, user.id)
     if body.lat is not None and body.lon is not None:
-        center = (body.lat, body.lon)
+        center = position_privacy.coarse(body.lat, body.lon)
     elif loc is not None:
         center = (loc.lat, loc.lon)
     else:

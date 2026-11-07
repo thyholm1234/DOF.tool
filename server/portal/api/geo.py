@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import cached, worker_command
 from portal.db import get_session
 from portal.models import Area, User
-from portal.services import areas, dofext, locspecies, migration, places, species_info
+from portal.services import areas, dofext, locspecies, migration, places, position_privacy, species_info
 from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geometry
 
 router = APIRouter(prefix="/api", tags=["geo"])
@@ -152,14 +152,18 @@ class AreaIn(BaseModel):
     use_for_lists: bool = True
 
 
-async def area_out(db: AsyncSession, a: Area) -> dict:
+async def area_out(db: AsyncSession, a: Area, hide_position: bool = False) -> dict:
+    # Nær mig-områdets geometri er en cirkel om brugerens position – den vises ikke i «se som bruger»
+    hidden = hide_position and a.ref == position_privacy.ME
     return {"id": a.id, "name": a.name, "kind": a.kind, "ref": a.ref, "radius_m": a.radius_m,
-            "use_for_lists": a.use_for_lists, "scope": scope_for_area(a).key, "geojson": await area_geojson(db, a.id)}
+            "use_for_lists": a.use_for_lists, "scope": scope_for_area(a).key,
+            "geojson": None if hidden else await area_geojson(db, a.id)}
 
 
 @router.get("/areas")
-async def list_areas(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    return [await area_out(db, a) for a in await areas.user_areas(db, user.id)]
+async def list_areas(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    hide = position_privacy.viewing_as(request)
+    return [await area_out(db, a, hide) for a in await areas.user_areas(db, user.id)]
 
 
 @router.post("/areas")

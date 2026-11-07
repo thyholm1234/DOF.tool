@@ -5,7 +5,7 @@ from __future__ import annotations
 import secrets
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,14 +14,15 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import bump
 from portal.db import get_session
 from portal.models import Area, ListGroup, ListGroupMember, Matrikel, MatrikelPeriode, User
-from portal.services import lists, regions
+from portal.services import lists, position_privacy, regions
 from portal.services.areas import scope_for_area
 from portal.services.auth import normalize
 
 router = APIRouter(prefix="/api/lists", tags=["lists"])
 
 
-async def _spec(db: AsyncSession, scope: str | None, year: str | None, matrikel: int | None, user: User | None):
+async def _spec(db: AsyncSession, scope: str | None, year: str | None, matrikel: int | None, user: User | None,
+                request: Request | None = None):
     try:
         spec = lists.parse_list_spec(scope, year, matrikel)
     except ValueError as exc:
@@ -30,6 +31,8 @@ async def _spec(db: AsyncSession, scope: str | None, year: str | None, matrikel:
         area = await db.get(Area, int(spec.scope.ref))
         if area is None or user is None or area.user_id != user.id:
             raise HTTPException(404, "Område findes ikke")
+        if area.ref == position_privacy.ME and position_privacy.viewing_as(request):
+            raise HTTPException(403, "Nær mig-området følger brugerens position og vises ikke i «se som bruger»")
     return spec
 
 
@@ -51,7 +54,7 @@ async def meta(user: User = Depends(require_user), db: AsyncSession = Depends(ge
 
 
 @router.get("/user/{obserkode}")
-async def user_list(obserkode: str, scope: str | None = None, year: str | None = None, matrikel: int | None = None,
+async def user_list(request: Request, obserkode: str, scope: str | None = None, year: str | None = None, matrikel: int | None = None,
                     user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session),
                     periode: str | None = None):
     kode = normalize(obserkode)
@@ -70,7 +73,7 @@ async def user_list(obserkode: str, scope: str | None = None, year: str | None =
         if matrikel and matrikel > 1:
             raise HTTPException(403, "Matrikel 2 og op er private")
         periode = None  # andre ser altid den aktive periode
-    spec = await _spec(db, scope, year, matrikel, user)
+    spec = await _spec(db, scope, year, matrikel, user, request)
     windows, period_info = await lists.matrikel_windows(db, kode, spec, periode)
     items = await lists.year_list(db, kode, spec, windows)
     navn = (await db.execute(text("SELECT navn FROM users WHERE obserkode = :k"), {"k": kode})).scalar()
@@ -134,10 +137,10 @@ async def matrikel_scoreboard(scope: str = "dk", year: str | None = None, group:
 
 
 @router.get("/gaps")
-async def gaps(scope: str | None = None, year: str | None = None, user: User = Depends(require_user),
+async def gaps(request: Request, scope: str | None = None, year: str | None = None, user: User = Depends(require_user),
                db: AsyncSession = Depends(get_session)):
     """Mine huller: arter andre har indtastet i området (og året), men jeg ikke har. Sorteres på klienten."""
-    spec = await _spec(db, scope, year, None, user)
+    spec = await _spec(db, scope, year, None, user, request)
     mine = {i["artnr"] for i in await lists.year_list(db, user.obserkode, spec)}
     return {**await regions.gaps(db, spec.scope, spec.year, mine), "mine": len(mine)}
 

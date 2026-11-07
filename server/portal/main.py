@@ -60,13 +60,14 @@ from portal.cache import kv
 from portal.config import get_settings
 from portal.db import router
 from portal.dbgroups import GROUPS
-from portal.services import article_settings, storage, view_as
+from portal.services import article_settings, position_privacy, storage, view_as
 from portal.services.auth import AuthError
 
 # Containerens mimetypes kender ikke woff2 – skrifterne i web/vendor skal have deres rigtige type
 mimetypes.add_type("font/woff2", ".woff2")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+position_privacy.install_log_filter()  # ingen koordinater (scope=near:…) i access-loggen
 WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).resolve().parents[2] / "web"))
 
 

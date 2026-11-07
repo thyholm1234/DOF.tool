@@ -42,7 +42,7 @@ async def privacy() -> HTMLResponse:
             <li><b>DKU-sager:</b> tip om en observation, beskeder og DKU's afgørelse. Et tip går kun til DKU: observatøren kan
             ikke se, om en sag startede med et tip eller hos DKU selv, og slet ikke hvem der har tippet. Observatøren inddrages
             kun, hvis DKU finder grund til det.</li>
-            <li><b>Position</b> – kun hvis du slår deling til: din seneste position (ikke en historik).</li>
+            <li><b>Position</b> – kun hvis du slår deling til: din seneste position, afrundet til ca. 100 m (ikke en historik). Portalen viser den kun for dig selv – heller ikke for administratorer.</li>
             <li><b>Push:</b> adressen på din enheds push-abonnement, hvis du slår notifikationer til.</li>
             <li><b>Teknisk:</b> en login-cookie, en aktivitetslog (sidevisninger og handlinger) og serverlogs med IP-adresse.</li>
             <li><b>Observationer fra DOFbasen:</b> art, sted, tid og antal med observatørens navn og obserkode – også for

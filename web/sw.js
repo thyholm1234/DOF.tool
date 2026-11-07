@@ -1,7 +1,10 @@
 // DOF.tool service worker: app-shell offline, netværk-først for API, push-notifikationer.
-const VERSION = "doftool-v12";
+const VERSION = "doftool-v13";
 // App-filerne ligger under /v/<build>/ og caches løbende af fetch-handleren nedenfor
 const SHELL = ["/", "/vendor/leaflet/leaflet.js", "/vendor/leaflet/leaflet.css", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png"];
+// Svar, der viser brugerens position (eller Nær mig-områdets cirkel om den), gemmes aldrig på enheden
+const revealsPosition = (url) => url.pathname.startsWith("/api/me/location") || url.pathname === "/api/areas"
+  || (url.searchParams.get("scope") || "").startsWith("near:");
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
@@ -9,6 +12,8 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "doftool-api").map((k) => caches.delete(k))))
+    // ryd positioner, som ældre versioner nåede at gemme
+    .then(() => caches.open("doftool-api")).then((c) => c.keys().then((reqs) => Promise.all(reqs.filter((r) => revealsPosition(new URL(r.url))).map((r) => c.delete(r)))))
     .then(() => self.clients.claim()));
 });
 
@@ -16,6 +21,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
   if (url.pathname === "/api/stream" || url.pathname === "/api/me/export") return;  // udtrækket må aldrig ligge i cachen
+  if (revealsPosition(url)) return;
   // Ture og deres opslag caches af siden selv i IndexedDB (offline.js) – en forældet kopi her ville skjule, at vi er offline
   if (url.pathname.startsWith("/api/trips/")) return;
   if (url.origin !== location.origin) {

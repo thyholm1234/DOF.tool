@@ -20,6 +20,11 @@ data/
 .env.*
 !.env.example
 
+# Backups (Valkey-dumps indeholder sessioner og positionstokens) må aldrig i repoet
+*.tgz
+*.rdb
+*.aof
+
 # Personlige Claude Code-indstillinger
 .claude/settings.local.json
 

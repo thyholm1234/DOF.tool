@@ -28,9 +28,12 @@ class LoginIn(BaseModel):
     password: str = Field(max_length=200)
 
 
-def user_out(user: User) -> dict:
+def user_out(user: User, view_as: bool = False) -> dict:
+    prefs = user.prefs or {}
+    if view_as:  # hvilken enhed brugerens position følger, er brugerens egen sag (services/position_privacy.py)
+        prefs = {k: v for k, v in prefs.items() if k != "position_device"}
     return {"id": user.id, "obserkode": user.obserkode, "navn": user.navn, "role": user.role,
-            "modules": sorted(auth.modules(user)), "prefs": user.prefs or {}, "history_synced_at": user.history_synced_at}
+            "modules": sorted(auth.modules(user)), "prefs": prefs, "history_synced_at": user.history_synced_at}
 
 
 @router.post("/auth/login")
@@ -75,7 +78,7 @@ async def me(request: Request, user: User | None = Depends(optional_user), db: A
     va = getattr(request.state, "view_as", None)
     # DOFbasen-modulet: hvilke funktioner brugeren ser, og hvad brugeren må (styrer menuen)
     flags = await features.load(db)
-    return {"user": {**user_out(user), "is_test": user.is_test,
+    return {"user": {**user_out(user, view_as=va is not None), "is_test": user.is_test,
                      "view_as": {"until": va["until"], "by": va["real_navn"], "grund": va["grund"]} if va else None, "dofbasen": (await dofbasen.context(db, user)).out(),
                      "netfugl": (await netfugl.context(db, user)).out(), "artikler": (await article_access.context(db, user)).out(),
                      "fotos": (await photo_access.context(db, user)).out(await photo_privileges.level(db, user.id)),
@@ -93,7 +96,9 @@ async def me(request: Request, user: User | None = Depends(optional_user), db: A
 
 
 ALLOWED_PREFS = {"afdelinger", "kommuner", "lists_public", "profile_public", "push_enabled", "quiet_hours", "theme", "home",
-                 "feed_level", "feed_scope", "local_max", "phone", "share_location", "trip_gps"}
+                 "feed_level", "feed_scope", "local_max", "phone", "trip_gps"}
+# share_location og position_device styres kun af /api/me/location* (api/position.py), der også udsteder og
+# tilbagekalder positionstokenet – de kan ikke sættes her.
 
 
 @router.patch("/me")

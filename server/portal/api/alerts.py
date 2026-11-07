@@ -15,7 +15,7 @@ from portal.api.deps import require_user
 from portal.cache import kv
 from portal.db import get_session
 from portal.models import Afdeling, AlertRule, Area, Kommune, Notification, PushSubscription, User
-from portal.services import fcm
+from portal.services import fcm, position_privacy
 from portal.services.push import ensure_vapid, send_to_user
 from portal.timeutil import dk_now
 
@@ -126,9 +126,14 @@ async def delete_rule(rule_id: int, user: User = Depends(require_user), db: Asyn
 
 
 @router.get("/notifications")
-async def notifications(limit: int = 50, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    rows = (await db.execute(select(Notification).where(Notification.user_id == user.id)
-                             .order_by(Notification.created_at.desc()).limit(min(limit, 200)))).scalars().all()
+async def notifications(request: Request, limit: int = 50, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    q = select(Notification).where(Notification.user_id == user.id)
+    if position_privacy.viewing_as(request):
+        # Fund fra Nær mig-reglen viser, hvor brugeren har været – de vises ikke i «se som bruger»
+        hidden = await position_privacy.near_me_rule_ids(db, user.id)
+        if hidden:
+            q = q.where(Notification.rule_id.is_(None) | Notification.rule_id.not_in(hidden))
+    rows = (await db.execute(q.order_by(Notification.created_at.desc()).limit(min(limit, 200)))).scalars().all()
     unread = (await db.execute(text("SELECT count(*) FROM notifications WHERE user_id = :u AND NOT read"), {"u": user.id})).scalar()
     return {"unread": unread, "items": [
         {"id": n.id, "title": n.title, "body": n.body, "url": n.url, "kategori": n.kategori, "read": n.read,
