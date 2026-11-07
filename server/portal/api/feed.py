@@ -205,8 +205,14 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
         data = await feed.thread_meta(db, day, artnr, loknr)
     data["reports"] = portal
     found = await media_many([o["obsid"] for o in data.get("observations", [])])
+    from portal.services import dofbasen as dofb, su
+
+    cases, su_ok = await dofb.obs_marks(db, [o["obsid"] for o in data.get("observations", [])], await su.badge_visible(db, user),
+                                        [dofb.find_key(day, artnr, loknr)])
+    data["su_ok"] = bool(su_ok)  # fundet (art × lokalitet × dag) er godkendt af SU: guld
     for o in data.get("observations", []):
         o["media"] = found.get(o["obsid"])
+        o["dku_case"], o["su_ok"] = o["obsid"] in cases, bool(su_ok)  # åben DKU-sag (lyseblåt) og SU-godkendt (guld)
     # Mangler billeder/lyd/DKU: ét opslag pr. observation (største antal først) lægges forrest i gatewayens kø.
     # Resultatet gemmes i 7 dage, og tråden får besked, når det er hentet.
     data["media_pending"], data["media_eta"] = False, None

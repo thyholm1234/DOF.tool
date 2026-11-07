@@ -389,7 +389,7 @@ ROW_JOINS = """
 """
 
 
-async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv: bool = False) -> dict:
+async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv: bool = False, su_badge: bool = False) -> dict:
     where, args, notes = search_sql(p, viewer)
     args["sub_as_species"] = p.vis_underarter_som_arter
     frm = FROM.format(interval=INTERVAL_JOIN if "fa.sortering" in where else "")
@@ -423,6 +423,7 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
     out = [_row(r, p.summering) for r in rows]
     if csv:
         return {"rows": out, "notes": notes}
+    await attach_media(out, session, su_badge)  # DKU-status, fotos og lyd som i Observationer
     total = (await session.execute(text(count_sql), {k: v for k, v in args.items() if k != "sub_as_species"})).scalar() or 0
     if p.biggestobs:
         total = min(total, p.biggestobs)
@@ -482,7 +483,8 @@ VISNING_RE = "^(fugle|allfugle|sufugle|trkfugle|patdyr|somfugle|krybdyr)$"
 VISNING = {"fugle": "o.kategori <> 'alm'", "allfugle": "TRUE", "sufugle": "o.kategori IN ('SU', 'SUB')", "trkfugle": ADF[2][1]}
 
 
-async def day_observations(db: AsyncSession, me: str | None, d: date, visning: str, lok: int | None, lokalitet: int | None, summering: str) -> dict:
+async def day_observations(db: AsyncSession, me: str | None, d: date, visning: str, lok: int | None, lokalitet: int | None, summering: str,
+                           su_badge: bool = False) -> dict:
     """Observationer på en dag: visning, afdeling (lok), én lokalitet og summering (tur/dato/ingen). Hemmelige vises kun for observatøren selv."""
     if visning in ("patdyr", "somfugle", "krybdyr"):
         return {"dato": d.isoformat(), "rows": [], "note": "Portalen henter kun fugle fra DOFbasen – andre dyr findes ikke i data."}
@@ -496,7 +498,7 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
         args["loknr"] = lokalitet
     group = {"tur": "o.turid, o.artnr", "dato": "o.obserkode, o.loknr, o.artnr", "ingen": "o.obsid"}[summering]
     rows = [dict(r) for r in (await db.execute(text(f"""
-        SELECT min(o.obsid) AS obsid, count(*) AS n_obs, sum(o.antal) AS antal, o.artnr, s.navn AS art, s.latin, s.sortering,
+        SELECT min(o.obsid) AS obsid, array_agg(o.obsid) AS obsids, count(*) AS n_obs, sum(o.antal) AS antal, o.artnr, s.navn AS art, s.latin, s.sortering,
                min(o.kategori) FILTER (WHERE o.kategori <> 'alm') AS kat, o.loknr, l.navn AS lokalitet, l.afdeling_id,
                o.obserkode, max(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, ''))) AS observator,
                string_agg(DISTINCT o.adfkode, ', ') AS adfkode, string_agg(DISTINCT o.alderkode, ', ') AS alder,
@@ -512,4 +514,63 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
         GROUP BY {group}, s.navn, s.latin, s.sortering, o.loknr, l.navn, l.afdeling_id, o.obserkode, o.artnr
         ORDER BY l.afdeling_id, s.sortering, l.navn LIMIT 10000
     """), args)).mappings().all()]
+    await attach_media(rows, db, su_badge, d)
     return {"dato": d.isoformat(), "rows": rows, "summering": summering}
+
+
+def dku_kind(text: str) -> str:
+    """DOFbasens DKU-statustekst → behandling / dku / su (farven på mærket)."""
+    t = (text or "").lower()
+    return "behandling" if "behandling" in t else "su" if "su" in t.split() or "sjældenhedsudvalg" in t else "dku"
+
+
+async def obs_marks(db: AsyncSession, obsids: list[int], su_badge: bool, keys: list[tuple] = ()) -> tuple[set[int], set[tuple]]:
+    """(observationer med en åben DKU-sag i portalen, fund SU har godkendt som (dato, artnr, loknr)). To opslag i
+    brugergruppen – adskilt fra observationsopslagene, så der aldrig joines på tværs af grupperne."""
+    if db is None:
+        return set(), set()
+    cases = set((await db.execute(text("""SELECT obsid FROM dku_cases WHERE source = 'dofbasen' AND status <> 'afgjort'
+        AND obsid = ANY(CAST(:ids AS bigint[]))"""), {"ids": obsids})).scalars()) if obsids else set()
+    su_ok: set[tuple] = set()
+    keys = [k for k in dict.fromkeys(keys) if k[0] and k[1] and k[2]]
+    if su_badge and keys:
+        rows = (await db.execute(text("""SELECT a.dato, a.artnr, a.loknr FROM su_obs_approvals a
+            JOIN unnest(CAST(:d AS date[]), CAST(:a AS int[]), CAST(:l AS int[])) AS k(dato, artnr, loknr)
+              ON k.dato = a.dato AND k.artnr = a.artnr AND k.loknr = a.loknr
+            WHERE a.decision = 'godkendt'"""), {"d": [_as_date(k[0]) for k in keys], "a": [k[1] for k in keys], "l": [k[2] for k in keys]})).all()
+        su_ok = {(r[0].isoformat(), r[1], r[2]) for r in rows}
+    return cases, su_ok
+
+
+def _as_date(v) -> date:
+    return v if isinstance(v, date) else date.fromisoformat(str(v))
+
+
+def find_key(dato, artnr, loknr) -> tuple:
+    """Fundets nøgle (dato som ISO-tekst, artnr, loknr) – som portalens tråde."""
+    return (dato.isoformat() if isinstance(dato, date) else str(dato) if dato else None, artnr, loknr)
+
+
+async def attach_media(rows: list[dict], db: AsyncSession | None = None, su_badge: bool = False, dato: date | None = None) -> None:
+    """DOFbasens DKU-status, fotos og lyd fra medie-scannerens cache (som på tråden). Rækkens obsids fjernes bagefter.
+    Mangler cachen, bruges portalens egen DKU-status (dofb_obs_status) som tekst. Med db markeres også åbne DKU-sager
+    i portalen (dku_kind «behandling» = lyseblåt mærke) og SU's godkendelser (su_ok = gyldent SU-mærke)."""
+    from portal.dof.jobs import media_many
+
+    ids = {id(r): r.pop("obsids", None) or [r["obsid"]] for r in rows}
+    every = [o for v in ids.values() for o in v]
+    found = await media_many(every)
+    key = {id(r): find_key(r.get("dato") or dato, r.get("artnr"), r.get("loknr")) for r in rows}
+    cases, su_ok = await obs_marks(db, every, su_badge, list(key.values()))
+    own = {"behandling": "Til behandling hos DKU", "dku": "Behandlet af DKU", "su": "Godkendt af SU"}
+    for r in rows:
+        mine = ids[id(r)]
+        media = [found[o] for o in mine if o in found]
+        text_ = next((m["dku"] for m in media if m.get("dku")), "") or own.get(r.get("dku") or "", "")
+        if any(o in cases for o in mine) and not text_:
+            text_ = "DKU-sag i portalen"
+        r["dku_status"] = text_
+        r["dku_kind"] = "behandling" if any(o in cases for o in mine) else (dku_kind(text_) if text_ else None)
+        r["foto"] = any(m.get("images") for m in media)
+        r["lyd"] = any(m.get("sounds") for m in media)
+        r["su_ok"] = key[id(r)] in su_ok

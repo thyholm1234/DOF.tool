@@ -47,6 +47,7 @@ MODULES = {
     "fotos": "Fotos: moderation, privilegier, import, fotografer og bannere",
     "krydslister": "Krydslister: listetyper, artslister, World Bird List og godkendelse af kryds",
     "dku": "DKU: udpege DKU-ansvarlige pr. lokalafdeling og se alle DKU-sager",
+    "su": "SU (Sjældenhedsudvalget): behandle SU-sager, afgøre dem og uploade årsrapporter",
     "lokaliteter": "Lokaliteter: importér grænser og detaljer fra DOFbasen",
 }
 _MOD = {"moderation", "ture", "kategorier"}

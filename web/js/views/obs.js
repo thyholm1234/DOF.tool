@@ -8,7 +8,6 @@ const SEX = { M: "han", F: "hun", MF: "han og hun", FM: "han og hun" };
 const sexText = (k) => !k || k === "-" ? null : SEX[k.replace(/[^MF]/g, "")] || k;
 const withCode = (txt, code) => txt && code && txt !== code ? `${txt} (${code})` : txt || code || null;
 const span = (a, b) => [a, b].filter(Boolean).join("–");
-const DKU = { behandling: "Til behandling hos DKU", dku: "Behandlet af DKU", su: "Godkendt af SU" };
 
 export async function render(view, [obsid]) {
   view.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } }));
@@ -35,7 +34,7 @@ export async function render(view, [obsid]) {
     ["Observatør", o.obserkode ? observerLink(o.obserkode, o.observator) : o.observator],
     ["Medobs.", o.medobser],
     ["Position", o.lat != null ? `${Number(o.lat).toFixed(5)}, ${Number(o.lon).toFixed(5)}${o.praecis ? "" : " (lokaliteten)"}` : null],
-    ["DKU", o.dku ? DKU[o.dku] || o.dku : null],
+    ["DKU", o.dku_status || (o.media_pending ? "henter fra DOFbasen …" : null)],
     ["Obsid", String(o.obsid)],
   ].filter(([, v]) => v != null && v !== "");
 
@@ -44,7 +43,10 @@ export async function render(view, [obsid]) {
     h("p", {}, backLink("#/dagsliste", "Observationer")),
     h("div", { class: "page-head" },
       h("div", {},
-        h("div", { class: "row" }, o.kategori && o.kategori !== "alm" ? tag(o.kategori, KAT[o.kategori]) : null, h("span", { class: "muted" }, fmtDate(o.dato))),
+        h("div", { class: "row" }, o.kategori && o.kategori !== "alm" ? tag(o.kategori, KAT[o.kategori]) : null,
+          o.su_ok ? h("span", { class: "tag su-ok", title: "Godkendt af SU (Sjældenhedsudvalget)" }, "SU-godkendt") : null,
+          o.dku_status ? h("span", { class: `tag dku-status ${o.dku_kind || "dku"}`, title: "Status hos DKU (DOFbasen)" }, `DKU: ${o.dku_status}`) : null,
+          h("span", { class: "muted" }, fmtDate(o.dato))),
         h("h1", { style: { marginTop: "6px" } }, `${fmtN(o.antal)} ${o.art}`),
         h("p", { class: "lead" }, o.lokalitet || "", o.kommune ? ` · ${o.kommune} Kommune` : "")),
       h("span", { class: "spacer" }),
@@ -60,13 +62,23 @@ export async function render(view, [obsid]) {
           h("dl", { class: "obs-facts" }, ...facts.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)])),
           o.fuglnoter ? h("p", { style: { margin: "10px 0 0", whiteSpace: "pre-wrap" } }, o.fuglnoter) : null,
           o.turnoter ? h("p", { class: "muted", style: { margin: "6px 0 0", fontSize: ".86rem", whiteSpace: "pre-wrap" } }, "Tur: ", o.turnoter) : null)),
-      o.lat != null ? h("div", { class: "card", style: { padding: "8px" } }, mapEl) : null),
+      h("div", { class: "stack" },
+        o.lat != null ? h("div", { class: "card", style: { padding: "8px" } }, mapEl) : null,
+        mediaCard(o.media))),
     tripCard(d.tur, o));
 
   if (o.lat != null) {
     const map = baseMap(mapEl, { center: [o.lat, o.lon], zoom: o.praecis ? 13 : 11 });
     L.circleMarker([o.lat, o.lon], { radius: 8, color: katColor(o.kategori), weight: 3, fillOpacity: .4 }).addTo(map);
   }
+}
+
+/** Fotos og lyd fra DOFbasen (medie-scannerens cache, som på tråden). */
+function mediaCard(m) {
+  if (!m || !(m.images?.length || m.sounds?.length)) return null;
+  return h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "Fotos og lyd fra DOFbasen"),
+    ...(m.images || []).map(src => h("a", { href: src, target: "_blank", rel: "noopener" }, h("img", { src, loading: "lazy", alt: "Foto fra DOFbasen", style: { maxWidth: "100%", borderRadius: "10px" } }))),
+    ...(m.sounds || []).map(src => h("audio", { controls: true, src, preload: "none", style: { width: "100%" } })));
 }
 
 /** Resten af turlisten: alle (ikke-hemmelige) indtastninger på samme tur, den åbne markeret. */

@@ -21,6 +21,7 @@ const asListRow = (o, sum) => ({
   antal: o.antal, n_obs: sum ? o.n_obs : 1, koen: o.koen, alder: o.alderkode, dragt: o.dragtkode, adfkode: o.adfkode,
   obsnote: o.fuglnoter, turnote: o.turnoter, medobser: !!o.medobser, medobsnote: o.medobser,
   position: !!o.praecis, tid: !!(o.obstidfra || o.turtidfra), obserkode: o.obserkode, observator: o.observator,
+  dku_status: o.dku_status, dku_kind: o.dku_kind, foto: o.foto, lyd: o.lyd, su_ok: o.su_ok,
 });
 
 function fromQuery(q) {

@@ -47,7 +47,9 @@ async def valg(user: User = Depends(need_search), db: AsyncSession = Depends(get
 @router.post("")
 async def search(body: svc.SearchIn, user: User = Depends(need_search), db: AsyncSession = Depends(get_session)):
     try:
-        return await svc.search(db, body, user.obserkode)
+        from portal.services import su
+
+        return await svc.search(db, body, user.obserkode, su_badge=await su.badge_visible(db, user))
     except Exception as exc:  # noqa: BLE001 – typisk statement_timeout
         _timeout(exc)
         raise

@@ -36,7 +36,9 @@ async def dagsliste(dato: date | None = None, visning: str = Query("fugle", patt
     d = dato or dk_today()
     if d > dk_today():
         raise HTTPException(422, "Datoen ligger i fremtiden")
-    return await svc.day_observations(db, user.obserkode, d, visning, lok, lokalitet, summering)
+    from portal.services import su
+
+    return await svc.day_observations(db, user.obserkode, d, visning, lok, lokalitet, summering, su_badge=await su.badge_visible(db, user))
 
 
 @router.get("/obs/{obsid}")
@@ -61,4 +63,17 @@ async def observation(obsid: int, user: User = Depends(need_dagsliste), db: Asyn
             LEFT JOIN code_texts cd ON cd.kind = 'dragt' AND cd.code = o.dragtkode
             WHERE o.turid = :t AND (o.hemmelig = 0 OR o.obserkode = :me)
             ORDER BY s.sortering, o.obsid"""), {"t": o["turid"], "me": user.obserkode})).mappings().all()]
+    # DKU-status, fotos og lyd fra DOFbasen (medie-scannerens cache); mangler den, slås observationen op i baggrunden
+    from portal.dof.jobs import ensure_media_obs, media_for
+    from portal.services import su
+
+    media = await media_for(obsid)
+    o["media"] = media
+    o["dku_status"] = (media or {}).get("dku") or {"behandling": "Til behandling hos DKU", "dku": "Behandlet af DKU", "su": "Godkendt af SU"}.get(o.get("dku") or "", "")
+    o["dku_kind"] = svc.dku_kind(o["dku_status"]) if o["dku_status"] else None
+    case, su_ok = await svc.obs_marks(db, [obsid], await su.badge_visible(db, user), [svc.find_key(o["dato"], o["artnr"], o["loknr"])])
+    if case:  # åben DKU-sag i portalen: lyseblåt
+        o["dku_status"], o["dku_kind"] = o["dku_status"] or "DKU-sag i portalen", "behandling"
+    o["su_ok"] = bool(su_ok)
+    o["media_pending"] = media is None and bool((await ensure_media_obs([obsid]))["obsids"])
     return {"obs": o, "tur": tur}

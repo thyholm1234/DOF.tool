@@ -188,14 +188,16 @@ function obsRow(o, ms, mediaRows) {
   // Billeder, lyd og DKU-status hentes automatisk af serverens medie-scanner og følger med tråden
   const show = (r, ms) => {
     if (!r) {
-      dkuEl.replaceChildren();
+      dkuEl.replaceChildren(o.dku_case ? h("span", { class: "tag dku-status behandling", title: "Der er en DKU-sag på observationen" }, "DKU-sag") : "");
       media.replaceChildren(ms.pending ? h("small", { class: "muted" }, h("span", { class: "spinner" }),
         ms.eta > 5 ? ` Henter billeder og lyd fra DOFbasen – ca. ${ms.eta < 90 ? `${ms.eta} sek.` : `${Math.round(ms.eta / 60)} min.`}` : " Henter billeder og lyd fra DOFbasen…") : "");
       if (!ms.pending) mediaRows.delete(o.obsid);
       return;
     }
     mediaRows.delete(o.obsid);
-    dkuEl.replaceChildren(r.dku ? h("span", { class: "tag plain", title: "Status hos DKU (Danmarks Fugles Sjældenhedskomité)" }, `DKU: ${r.dku}`) : "");
+    // Åben DKU-sag i portalen eller «til behandling» i DOFbasen: lyseblåt
+    const kind = o.dku_case || /behandling/i.test(r.dku || "") ? "behandling" : /\bSU\b/.test(r.dku || "") ? "su" : "dku";
+    dkuEl.replaceChildren(r.dku || o.dku_case ? h("span", { class: `tag dku-status ${kind}`, title: "Status hos DKU (Danmarks Fugles Sjældenhedskomité)" }, r.dku ? `DKU: ${r.dku}` : "DKU-sag") : "");
     media.replaceChildren(
       ...(r.images || []).map(src => h("a", { href: src, target: "_blank", rel: "noopener" }, h("img", { src, loading: "lazy", style: { maxWidth: "100%", borderRadius: "10px", marginTop: "6px" }, alt: "Foto fra DOFbasen" }))),
       ...(r.sounds || []).map(src => h("audio", { controls: true, src, preload: "none", style: { width: "100%", marginTop: "6px" } })));
@@ -205,7 +207,8 @@ function obsRow(o, ms, mediaRows) {
   return h("div", { style: { borderBottom: "1px dashed var(--line)", paddingBottom: "10px" } },
     h("div", { class: "row between" },
       h("div", {}, h("b", { class: "num" }, `${fmtN(o.antal)} `), [o.adf || o.adfkode, o.alderkode, sexText(o.koen), dragtText(o)].filter(Boolean).join(", ")),
-      h("span", { class: "row", style: { gap: "5px" } }, dkuEl, tag(o.kategori, KAT[o.kategori]))),
+      h("span", { class: "row", style: { gap: "5px" } }, o.su_ok ? h("span", { class: "tag su-ok", title: "Godkendt af SU (Sjældenhedsudvalget)" }, "SU-godkendt") : null,
+        dkuEl, tag(o.kategori, KAT[o.kategori]))),
     h("div", { class: "muted", style: { fontSize: ".86rem" } },
       o.obserkode && state.user?.profiler ? observerLink(o.obserkode, o.observer)
         : o.obserkode ? h("a", { href: `https://dofbasen.dk/popobser.php?obserkode=${encodeURIComponent(o.obserkode)}`, target: "_blank", rel: "noopener", title: "Observatøren i DOFbasen" }, o.observer || o.obserkode) : o.observer,

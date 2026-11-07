@@ -31,6 +31,10 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "dku": ("DKU: tip om tvivlsomme observationer", "Brugere kan tippe DKU om observationer, der mangler dokumentation eller "
             "virker forkerte. DKU-ansvarlige pr. lokalafdeling behandler sagen, kan inddrage observatøren og skrive frem og "
             "tilbage. Forhåndsvisning ses af superadmin, DKU-ansvarlige og dem med admin-modulet DKU.", None, "preview"),
+    "su": ("SU: Sjældenhedsudvalget", "Menupunktet SU: SU's årsrapporter (forrest), åbent arkiv over godkendte SU-beskrivelser, "
+           "indsendelse af egne SU-beskrivelser med dokumentation (tekst, foto, video, lyd) og sagsbehandling, hvor SU og "
+           "indsenderen skriver frem og tilbage. SU-medlemmer er brugere med admin-modulet SU, og de uploader også årsrapporterne. "
+           "Forhåndsvisning ses af superadmin og SU-medlemmer.", None, "preview"),
     "search": ("Søg i observationer", "Søgeside (menuen Statistik → Søg) med samme felter som DOFbasens søgning: resultatet "
                "listes efter dato og kan sorteres på alle kolonner, et kort viser alle fundene, og resultatet kan hentes som CSV, "
                "ODS eller XLSX.", None, "preview"),

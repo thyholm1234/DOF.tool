@@ -26,21 +26,27 @@ const DAGSLISTE = ["#/dagsliste", "list", "Observationer"];
 const SEARCH = ["#/soeg", "search", "Søg"];
 const STATS = ["#/statistik", "chart", "Statistik"];
 const OBSERVERS = ["#/observator", "user", "Observatører"];
+const SU = ["#/su", "flag", "SU"];
 /** Showcases (DOFbasen og Netfugl) står nederst, efter Admin – kun når superadmin har slået modulerne til (eller forhåndsvisning). */
 const showcases = () => [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null].filter(Boolean);
 /** Menuens grupper for den indloggede: modulerne bag funktionsflag vises kun, når de er slået til (eller forhåndsvisning). */
 function sections() {
   const extra = [state.user?.artikler?.features?.artikler ? ARTIKLER : null, state.user?.fotos?.features?.fotos ? FOTOS : null, state.user?.krydslister?.features?.krydslister ? KRYDS : null].filter(Boolean);
-  // DKU under "Mit" (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
+  // DKU (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
   // Statistik-modulet og Søg under Statistik, når funktionerne er synlige for brugeren
   const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler ? OBSERVERS : null].filter(Boolean);
   const dl = state.user?.dagsliste ? DAGSLISTE : null;  // Observationer (dagslisten) står lige under Mit overblik
-  if (!extra.length && !dku && !stat.length && !dl) return SECTIONS;
-  return SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Værktøjer" ? [...items, ...extra] : t === "Mit" && dku ? [...items, dku]
+  // SU (med antal ulæste sager) og DKU samles under overskriften Kvalitetssikring, når modulerne er synlige for brugeren
+  const su = state.user?.su?.visible ? ["#/su", "flag", `SU${state.user.su.unread ? ` <span class="badge-inline">${+state.user.su.unread}</span>` : ""}`] : null;
+  const qa = [dku, su].filter(Boolean);
+  if (!extra.length && !qa.length && !stat.length && !dl) return SECTIONS;
+  const out = SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Værktøjer" ? [...items, ...extra]
     : t === "Statistik" ? [...items, ...stat] : items]);
+  if (qa.length) out.splice(out.findIndex(([t]) => t === "Mit"), 0, ["Kvalitetssikring", qa]);  // lige før Mit
+  return out;
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, KRYDS, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"]];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, KRYDS, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"], SU];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -55,7 +61,8 @@ function activeHref(path, hrefs) {
 const ROUTES = [
   [/^\/?$/, () => import("./views/feed.js")],
   [/^\/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)$/, () => import("./views/thread.js")],
-  [/^\/obs\/(\d+)$/, () => import("./views/obs.js")],  // én observation, åbnet fra Observationer
+  [/^\/obs\/(\d+)$/, () => import("./views/obs.js")],
+  [/^\/su(?:\/(sag|ny)(?:\/(\d+))?)?$/, () => import("./views/su.js")],  // SU: årsrapporter, arkiv, sager  // én observation, åbnet fra Observationer
   [/^\/lister(?:\/(.+))?$/, () => import("./views/lists.js")],
   [/^\/matrikel$/, () => import("./views/matrikel.js")],
   [/^\/traek$/, () => import("./views/pheno.js")],

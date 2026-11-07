@@ -61,11 +61,16 @@ const ald = (r) => [r.alder, sexSign(r.koen).trim(), r.dragt].filter(Boolean).jo
 const obsLink = (r) => r.obserkode ? h("a", { href: `#/observator/${r.obserkode}` }, r.observator || r.obserkode) : (r.observator || "");
 const lokLink = (r) => r.loknr ? h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr)) : (r.lokalitet || "");
 
+/** DOFbasens DKU-status som lille mærke efter antallet (farve: til behandling / behandlet af DKU / godkendt af SU). */
+export const dkuBadge = (r) => r.dku_status ? h("span", { class: `dl-dku ${r.dku_kind || "dku"}`, title: r.dku_status }, "DKU") : null;
+/** Gyldent SU-mærke: observationen af en SU-art er godkendt af SU (ingen mærke, før den er godkendt). */
+export const suBadge = (r) => r.su_ok ? h("span", { class: "dl-dku su-ok", title: "Godkendt af SU (Sjældenhedsudvalget)" }, "SU") : null;
+
 /** Én række. what: "art" (gruppen er en lokalitet), "lok" (gruppen er en art) eller "begge" (art · lokalitet);
  *  pre: tekst foran (fx datoen, når listen ikke er grupperet efter dato). */
 export const obsRow = (r, what, pre = null) => h("tr", {},
   notes(r),
-  h("td", { class: "num" }, h("a", { href: obsHref(r), title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal))),
+  h("td", { class: "num" }, h("a", { href: obsHref(r), title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)), suBadge(r), dkuBadge(r)),
   h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r),
   h("td", {}, pre ? h("span", { class: "muted" }, pre, " · ") : null,
     what === "art" ? artName(r.artnr, r.art, r.kat) : what === "lok" ? lokLink(r) : [artName(r.artnr, r.art, r.kat), h("span", { class: "muted" }, " · "), lokLink(r)],

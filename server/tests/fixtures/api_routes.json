@@ -8674,6 +8674,243 @@ true,
 "params": []
 }
 },
+"/api/su/archive": {
+"get": {
+"body": false,
+"op": "archive_api_su_archive_get",
+"params": [
+[
+"aar",
+"query",
+false,
+"{\"anyOf\": [{\"maximum\": 2100, \"minimum\": 1900, \"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Aar\"}"
+],
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 100, \"title\": \"Q\", \"type\": \"string\"}"
+],
+[
+"region",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 8, \"title\": \"Region\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/su/cases": {
+"get": {
+"body": false,
+"op": "cases_api_su_cases_get",
+"params": [
+[
+"state",
+"query",
+false,
+"{\"default\": \"open\", \"pattern\": \"^(open|closed|all)$\", \"title\": \"State\", \"type\": \"string\"}"
+],
+[
+"view",
+"query",
+false,
+"{\"default\": \"mine\", \"pattern\": \"^(mine|su)$\", \"title\": \"View\", \"type\": \"string\"}"
+]
+]
+},
+"post": {
+"body": true,
+"op": "create_case_api_su_cases_post",
+"params": []
+}
+},
+"/api/su/cases/{case_id}": {
+"delete": {
+"body": false,
+"op": "delete_case_api_su_cases__case_id__delete",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "get_case_api_su_cases__case_id__get",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "update_case_api_su_cases__case_id__put",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/su/cases/{case_id}/actions": {
+"post": {
+"body": true,
+"op": "action_api_su_cases__case_id__actions_post",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/su/cases/{case_id}/files": {
+"post": {
+"body": true,
+"op": "upload_file_api_su_cases__case_id__files_post",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/su/cases/{case_id}/files/{fid}": {
+"delete": {
+"body": false,
+"op": "delete_file_api_su_cases__case_id__files__fid__delete",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+],
+[
+"fid",
+"path",
+true,
+"{\"title\": \"Fid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/su/cases/{case_id}/messages": {
+"post": {
+"body": true,
+"op": "post_message_api_su_cases__case_id__messages_post",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/su/cases/{case_id}/submit": {
+"post": {
+"body": false,
+"op": "submit_api_su_cases__case_id__submit_post",
+"params": [
+[
+"case_id",
+"path",
+true,
+"{\"title\": \"Case Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/su/obs": {
+"get": {
+"body": false,
+"op": "su_observations_api_su_obs_get",
+"params": [
+[
+"aar",
+"query",
+false,
+"{\"anyOf\": [{\"maximum\": 2100, \"minimum\": 1990, \"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Aar\"}"
+],
+[
+"state",
+"query",
+false,
+"{\"default\": \"afventer\", \"pattern\": \"^(afventer|godkendt|ikke_godkendt|alle)$\", \"title\": \"State\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/su/obs/decide": {
+"post": {
+"body": true,
+"op": "decide_api_su_obs_decide_post",
+"params": []
+}
+},
+"/api/su/reports": {
+"get": {
+"body": false,
+"op": "reports_api_su_reports_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "upload_report_api_su_reports_post",
+"params": []
+}
+},
+"/api/su/reports/{rid}": {
+"delete": {
+"body": false,
+"op": "delete_report_api_su_reports__rid__delete",
+"params": [
+[
+"rid",
+"path",
+true,
+"{\"title\": \"Rid\", \"type\": \"integer\"}"
+]
+]
+},
+"patch": {
+"body": true,
+"op": "patch_report_api_su_reports__rid__patch",
+"params": [
+[
+"rid",
+"path",
+true,
+"{\"title\": \"Rid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/su/status": {
+"get": {
+"body": false,
+"op": "status_api_su_status_get",
+"params": []
+}
+},
 "/api/support": {
 "get": {
 "body": false,

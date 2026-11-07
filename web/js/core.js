@@ -192,7 +192,7 @@ export function setParams(obj) {
   const [path] = location.hash.split("?");
   const q = new URLSearchParams({ ...params(), ...obj });
   for (const [k, v] of [...q]) if (v === "" || v === "null" || v === "undefined") q.delete(k);
-  history.replaceState(null, "", `${path}?${q}`);
+  history.replaceState(history.state, "", `${path}?${q}`);  // bevar fx tilbage-linkets «from»
 }
 
 export async function loadRef() {

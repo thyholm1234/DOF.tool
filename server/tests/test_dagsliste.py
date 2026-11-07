@@ -57,6 +57,16 @@ async def test_enkelt_observation_med_turliste(web, db):  # noqa: F811
         await s.execute(text("UPDATE observations SET turid = 7100, alderkode = '1K' WHERE obsid IN (7001, 7003, 7004)"))
         await s.commit()
     await flags(db, dagsliste="on")
+    from portal.cache import kv
+    import json
+
+    await kv().set("media:7003", json.dumps({"obsid": 7003, "dku": "Til behandling hos DKU", "images": ["https://x/1.jpg"], "sounds": []}))
+    rows = (await web["a1"].get("/api/dagsliste?visning=allfugle&summering=ingen")).json()["rows"]
+    row = next(x for x in rows if x["obsid"] == 7003)
+    assert row["dku_status"] == "Til behandling hos DKU" and row["dku_kind"] == "behandling" and row["foto"] and not row["lyd"]
+    assert "obsids" not in row
+    assert (await web["a1"].get("/api/dagsliste/obs/7003")).json()["obs"]["dku_kind"] == "behandling"
+    await kv().delete("media:7003")
     r = (await web["a1"].get("/api/dagsliste/obs/7001")).json()
     assert r["obs"]["alderkode"] == "1K" and r["obs"]["medobser"] == "HO" and r["obs"]["art"] == "Gråand"
     assert [t["obsid"] for t in r["tur"]] == [7001, 7003]  # resten af turen, uden andres hemmelige

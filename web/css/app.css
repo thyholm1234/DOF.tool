@@ -1042,7 +1042,7 @@ body.is-viewas .topbar { top: 34px; }
 .dl-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .86rem; line-height: 1.25; }
 .dl-table td { padding: 1px 6px; vertical-align: top; overflow-wrap: anywhere; border: 0; }
 .dl-table td.num { text-align: right; white-space: nowrap; }
-.dl-table col.c-notes { width: 90px; } .dl-table col.c-num { width: 72px; } .dl-table col.c-ald { width: 64px; }
+.dl-table col.c-notes { width: 90px; } .dl-table col.c-num { width: 100px; } .dl-table col.c-ald { width: 64px; }
 .dl-table col.c-adf { width: 44px; } .dl-table col.c-extra { width: 74px; } .dl-table col.c-obs { width: 30%; }
 .dl-table tr.dl-head td { padding: 4px 4px 1px; }
 .dl-table tr.dl-afd td { padding: 14px 4px 3px; font-weight: 700; font-size: .95rem; border-bottom: 2px solid var(--line); }
@@ -1061,7 +1061,7 @@ body.is-viewas .topbar { top: 34px; }
 .dl-extra .dl-ic { color: var(--muted, #667); }
 .dl-obs-m { display: none; }
 @media (max-width: 640px) {
-  .dl-table col.c-notes { width: 62px; } .dl-notes .dl-ic .ic { width: 11px; height: 11px; } .dl-table col.c-num { width: 60px; } .dl-table col.c-ald { width: 44px; } .dl-table col.c-adf { width: 30px; }
+  .dl-table col.c-notes { width: 62px; } .dl-notes .dl-ic .ic { width: 11px; height: 11px; } .dl-table col.c-num { width: 84px; } .dl-table col.c-ald { width: 44px; } .dl-table col.c-adf { width: 30px; }
   .dl-table col.c-extra { width: 36px; } .dl-table col.c-obs { width: 0; } .dl-table td.dl-obs { display: none; }
   .dl-table td { padding: 1px 3px; } .dl-notes .dl-ic, .dl-extra .dl-ic { margin-right: 0; }
   .dl-obs-m { display: block; font-size: .8rem; color: var(--muted, #667); }
@@ -1099,3 +1099,45 @@ a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brig
 .obs-trip tr.cur td { background: var(--brand-soft); }
 /* Bedste antal i tabeller (fx lokalafdelinger/kommuner): standardgrønt mærkat med hvid fed skrift i begge temaer */
 .best-badge { display: inline-block; padding: 0 6px; border-radius: 5px; background: #1f5a44; color: #fff; font-weight: 700; }
+/* SU-modulet */
+.su-steps { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: .9rem; color: var(--text-3); }
+.su-steps .on { color: var(--brand); font-weight: 700; } .su-steps a { color: var(--text-2); }
+.su-report { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+.su-report.draft { border-style: dashed; opacity: .85; }
+.su-report-year { flex: none; min-width: 92px; text-align: center; font-size: 1.25rem; font-weight: 800; color: var(--brand); text-decoration: none; }
+.su-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.su-file { gap: 10px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.su-upload { background: var(--surface-2, rgba(0, 0, 0, .03)); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.su-files { display: grid; gap: 12px; }
+.su-fileblock { display: grid; gap: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.su-fileblock .row { gap: 10px; align-items: baseline; }
+.su-thumb img { max-width: 100%; max-height: 420px; border-radius: 8px; display: block; }
+.su-msgs { display: grid; gap: 8px; max-height: 60vh; overflow-y: auto; }
+.su-msg { border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; background: var(--surface); }
+.su-msg.su { border-left: 3px solid var(--brand); } .su-msg.uploader { border-left: 3px solid var(--accent); }
+.su-msg.system { background: transparent; border-style: dashed; font-size: .86rem; color: var(--text-2); }
+.su-msg.internal { background: var(--warn-soft); }
+.su-msg-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+.dot-unread { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--brand); }
+tr.click { cursor: pointer; }
+/* DOFbasens DKU-status: lille mærke i observationslisterne og mærkat på observationssiden */
+.dl-dku { display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 4px; font-size: .68rem; font-weight: 800; line-height: 1.5; color: #fff; vertical-align: 1px; cursor: help; }
+/* lyseblåt: der er en sag på observationen (åben DKU-sag i portalen eller «til behandling» i DOFbasen) */
+.dl-dku.behandling, .tag.dku-status.behandling { background: #8fd0f5; color: #0b3a5c; }
+.dl-dku.dku, .tag.dku-status.dku { background: #1e7fc4; color: #fff; }
+.dl-dku.su, .tag.dku-status.su { background: #2e7d32; color: #fff; }
+/* guld: observationen af en SU-art er godkendt af SU */
+.dl-dku.su-ok, .tag.su-ok { background: linear-gradient(135deg, #f3d36b, #c9971c); color: #3d2a00; border: 1px solid #b8860b; }
+/* SU: fund samlet i kasser pr. art × lokalitet, datoerne som linjer med flueben til højre */
+.su-finds { display: grid; gap: 10px; }
+.su-find { padding: 10px 14px; }
+.su-find-head { display: flex; gap: 10px; align-items: flex-start; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.su-find-row { display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
+.su-find-row:last-child { border-bottom: 0; }
+.su-find-date { min-width: 100px; font-weight: 600; }
+.su-find-names { flex: 1 1 120px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.su-find-check { margin-left: auto; display: inline-flex; align-items: center; padding: 2px 4px; cursor: pointer; }
+.su-find-check input { width: 18px; height: 18px; margin: 0; }
+.su-find-row .su-find-check { margin-left: 0; }
+.su-find-bar { position: sticky; top: var(--topbar-h, 56px); z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; margin-bottom: 8px; background: var(--bg); }
+.su-find-bar input { max-width: 300px; }
