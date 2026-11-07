@@ -100,6 +100,12 @@ async def nightly_compute() -> None:
         await s.execute(text("DELETE FROM lr_answers WHERE created_at < now() - interval '3 years'"))  # Læring: svarloggen opbevares højst tre år
         # En position, appen ikke har opdateret i 30 dage (fx afinstalleret), gemmes ikke længere
         await s.execute(text("DELETE FROM user_locations WHERE updated_at < now() - interval '30 days'"))
+        # Nær mig-cirklen om den sidste position glemmes, når brugeren ikke længere deler (services/position_privacy.py)
+        await s.execute(text("""
+            UPDATE areas a SET geom = NULL FROM users u
+            WHERE a.user_id = u.id AND a.kind = 'radius' AND a.ref = 'me' AND a.geom IS NOT NULL
+              AND coalesce((u.prefs->>'share_location')::boolean, false) = false
+        """))
         await s.commit()
     await bump("lists")
 

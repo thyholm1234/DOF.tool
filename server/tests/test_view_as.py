@@ -78,15 +78,16 @@ async def test_se_som_er_kun_laesning_og_logges(web, db):  # noqa: F811
 async def test_tilstanden_udloeber(web):
     from portal.api.deps import COOKIE
     from portal.cache import kv
+    from portal.services import view_as
 
     await web["su"].post("/api/admin/se-som", json={"user_id": 1, "grund": "udløb"})
     token = web["su"].cookies.get(COOKIE)
     assert (await web["su"].get("/api/me")).json()["user"]["id"] == 1
     import json
 
-    raw = json.loads(await kv().get(f"viewas:{token}"))
+    raw = json.loads(await kv().get(view_as.key_for(token)))
     raw["until"] -= 3600  # udløbet (i tilfælde af at Valkey-nøglen ikke er væk endnu)
-    await kv().set(f"viewas:{token}", json.dumps(raw), ex=60)
+    await kv().set(view_as.key_for(token), json.dumps(raw), ex=60)
     assert (await web["su"].get("/api/me")).json()["user"]["id"] == 5
     # udløbet: skrivning er tilladt igen (fotomodulet er slået fra → 404 i stedet for 403)
     assert (await web["su"].put("/api/fotos/mine/indstillinger", json={"standard_rettighed": 1, "dof_samtykke": False})).status_code != 403

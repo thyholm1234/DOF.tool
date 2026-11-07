@@ -61,7 +61,7 @@ from portal.config import get_settings
 from portal.db import router
 from portal.dbgroups import GROUPS
 from portal.services import article_settings, position_privacy, storage, view_as
-from portal.services.auth import AuthError
+from portal.services.auth import AuthError, session_user_id
 
 # Containerens mimetypes kender ikke woff2 – skrifterne i web/vendor skal have deres rigtige type
 mimetypes.add_type("font/woff2", ".woff2")
@@ -113,20 +113,20 @@ async def guard(request: Request, call_next):
     # sundhedstjek, /api/me (svarer user=null) og ICS-feeds (personligt token i adressen).
     path = request.url.path
     if path.startswith("/api/") and not path.startswith(PUBLIC_API):
-        token = request.cookies.get(COOKIE)
-        if not token or not await kv().exists(f"sess:{token}"):
+        if not await session_user_id(request.cookies.get(COOKIE)):
             return JSONResponse({"detail": "Log ind for at bruge portalen"}, status_code=401)
     # Uploads fra feltmeldinger og læring er kun for indloggede; Netfugl-fotos er offentlige (vises også via showcase-API'et)
     private_media = path.startswith("/media/") and not path.startswith("/media/netfugl/")
-    if private_media and not await kv().exists(f"sess:{request.cookies.get(COOKIE) or '-'}"):
+    if private_media and not await session_user_id(request.cookies.get(COOKIE)):
         return JSONResponse({"detail": "Log ind for at se filen"}, status_code=401)
-    if path.startswith("/api/") and await kv().exists(f"viewas:{request.cookies.get(COOKIE) or '-'}") and view_as.blocked(request.method, path):
+    if path.startswith("/api/") and request.cookies.get(COOKIE) and await kv().exists(view_as.key_for(request.cookies[COOKIE])) \
+            and view_as.blocked(request.method, path):
         if await view_as.current(request.cookies.get(COOKIE)):
             return JSONResponse({"detail": "Du ser appen som en anden bruger – kun læsning"}, status_code=403)
     mob_audio = bool(MOB_AUDIO.match(path))
     if mob_audio:
         # Mobgang-lyde: kun indloggede med bestået etiktest og uden for ynglesæsonen
-        user_id = await kv().get(f"sess:{request.cookies.get(COOKIE) or '-'}")
+        user_id = await session_user_id(request.cookies.get(COOKIE))
         if not user_id or not await mobgang.audio_allowed(int(user_id), path):
             return JSONResponse({"detail": "Arten er lukket i ynglesæsonen, eller Mobgang kræver bestået etiktest"}, status_code=403)
     response = await call_next(request)

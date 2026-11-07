@@ -8,7 +8,6 @@ Brugeren skifter enhed fra appen på den nye enhed; den gamle enheds positionsto
 
 from __future__ import annotations
 
-import secrets
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -16,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import client_ip, require_user
+from portal.api.deps import COOKIE, client_ip, require_user
 from portal.api.geo import area_out
 from portal.cache import kv, worker_command
 from portal.db import get_session
@@ -28,7 +27,6 @@ from portal.services.auth import SUPERADMIN
 router = APIRouter(prefix="/api", tags=["position"])
 ME = position_privacy.ME
 MOVE_M = 150  # mindre flytning end dette opdaterer ikke områdets geometri
-TOKEN_TTL = 180 * 86400  # positionstokenet fornyes, hver gang appen starter delingen
 DEVICE_ID = r"^[A-Za-z0-9_-]{8,64}$"
 MIN_INTERVAL_S = 15  # højst én gemt position pr. bruger så ofte (appen sender højst hvert minut)
 BAD_TOKENS_PER_IP = 20  # ugyldige positionstokens pr. IP pr. 10 minutter, før IP'en afvises
@@ -109,62 +107,28 @@ async def _throttle(user_id: int) -> bool:
     return bool(await kv().set(f"loc:rl:{user_id}", "1", nx=True, ex=MIN_INTERVAL_S))
 
 
-async def _revoke_token(user_id: int) -> None:
-    old = await kv().get(f"loctok:user:{user_id}")
-    if old:
-        # loctok:user:<id> peger på hashens nøgle; ældre versioner gemte selve tokenet (loctok:<token>)
-        await kv().delete(old if old.startswith("loctok:h:") else f"loctok:{old}", f"loctok:user:{user_id}")
-
-
-async def _new_token(user_id: int, device_id: str) -> str:
-    await _revoke_token(user_id)
-    token = secrets.token_urlsafe(32)
-    key = position_privacy.token_key(token)  # kun hashen gemmes – en kopi af Valkey giver ikke brugbare tokens
-    await kv().set(key, f"{user_id}:{device_id}", ex=TOKEN_TTL)
-    await kv().set(f"loctok:user:{user_id}", key, ex=TOKEN_TTL)
-    return token
-
-
-async def _token_owner(token: str) -> str | None:
-    if not token or len(token) > 100:
-        return None
-    key = position_privacy.token_key(token)
-    owner = await kv().get(key)
-    if owner is None and await kv().exists(f"loctok:{token}"):
-        # Token fra før hashingen: flyt det over, så telefoner, der allerede deler, ikke mister forbindelsen
-        owner = await kv().get(f"loctok:{token}")
-        ttl = await kv().ttl(f"loctok:{token}")
-        if owner:
-            await kv().set(key, owner, ex=ttl if ttl and ttl > 0 else TOKEN_TTL)
-            user_id = str(owner).partition(":")[0]
-            if user_id.isdigit() and await kv().get(f"loctok:user:{user_id}") == token:
-                await kv().set(f"loctok:user:{user_id}", key, ex=ttl if ttl and ttl > 0 else TOKEN_TTL)
-        await kv().delete(f"loctok:{token}")
-    return owner
-
-
 class DeviceIn(BaseModel):
     device_id: str = Field(pattern=DEVICE_ID)
     name: str = Field("", max_length=60)
 
 
 @router.post("/me/location/device")
-async def take_over(body: DeviceIn, user: User = Depends(require_position), db: AsyncSession = Depends(get_session)):
+async def take_over(body: DeviceIn, request: Request, user: User = Depends(require_position), db: AsyncSession = Depends(get_session)):
     """Lad denne enhed følge brugerens position (og slå delingen til). En anden enhed, der fulgte, mister sit token."""
     device = {"id": body.device_id, "name": body.name.strip() or "App", "since": datetime.now(timezone.utc).isoformat()}
     user.prefs = {**(user.prefs or {}), "share_location": True, "position_device": device}
     await db.commit()
-    return {"token": await _new_token(user.id, body.device_id), "device": device}
+    return {"token": await position_privacy.new_token(user.id, body.device_id, request.cookies.get(COOKIE)), "device": device}
 
 
 @router.post("/me/location/token")
-async def location_token(body: DeviceIn, user: User = Depends(require_position)):
+async def location_token(body: DeviceIn, request: Request, user: User = Depends(require_position)):
     """Token til appens positionstjeneste, der sender positionen direkte fra Android – også når appen er lukket, hvor
     login-cookien ikke er tilgængelig. Tokenet kan kun bruges til at melde en position, og kun fra den valgte enhed."""
     device = device_of(user)
     if not device or device["id"] != body.device_id:
         raise HTTPException(409, "Din position følges af en anden enhed")
-    return {"token": await _new_token(user.id, body.device_id)}
+    return {"token": await position_privacy.new_token(user.id, body.device_id, request.cookies.get(COOKIE))}
 
 
 class NativeLocationIn(BaseModel):
@@ -189,7 +153,7 @@ async def native_location(body: NativeLocationIn, request: Request, authorizatio
     ip = client_ip(request)
     if int(await kv().get(f"loc:bad:{ip}") or 0) >= BAD_TOKENS_PER_IP:
         raise HTTPException(429, "For mange forsøg med ugyldigt positionstoken")
-    owner = await _token_owner(authorization.removeprefix("Bearer ").strip())
+    owner = await position_privacy.token_owner(authorization.removeprefix("Bearer ").strip())
     user_id, _, device_id = str(owner or "").partition(":")
     user = await db.get(User, int(user_id)) if user_id.isdigit() else None
     if user is None or user.blocked or not user.approved or not (user.prefs or {}).get("share_location"):
@@ -206,21 +170,24 @@ async def native_location(body: NativeLocationIn, request: Request, authorizatio
 
 @router.delete("/me/location")
 async def delete_location(user: User = Depends(require_position), db: AsyncSession = Depends(get_session)):
-    """Stop med at gemme positionen. 'Nær mig'-området bliver stående, men flyttes ikke mere."""
+    """Stop med at gemme positionen. 'Nær mig'-området og dets regel bliver stående, men cirklen om den sidste position
+    fjernes – de matcher intet, før delingen slås til igen."""
     await stop_sharing(db, user)
     return {"ok": True}
 
 
 async def stop_sharing(db: AsyncSession, user: User) -> None:
-    """Slå positionsdelingen fra: slet den gemte position, glem enheden og gør positionstokenet ugyldigt."""
+    """Slå positionsdelingen fra: slet den gemte position og Nær mig-cirklen om den, glem enheden og gør
+    positionstokenet ugyldigt."""
     loc = await db.get(UserLocation, user.id)
     if loc is not None:
         await db.delete(loc)
+    await position_privacy.forget_near_me(db, user.id)
     prefs = {**(user.prefs or {}), "share_location": False}
     prefs.pop("position_device", None)
     user.prefs = prefs
     await db.commit()
-    await _revoke_token(user.id)
+    await position_privacy.revoke_token(user.id)
 
 
 class NearMeIn(BaseModel):

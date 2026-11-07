@@ -96,8 +96,9 @@ async def delete(db: AsyncSession, user: User) -> None:
 
 async def destroy_sessions(user_id: int) -> None:
     key = f"usess:{user_id}"
-    tokens = await kv().smembers(key)
-    if tokens:
-        await kv().delete(*[f"sess:{t.decode() if isinstance(t, bytes) else t}" for t in tokens])
+    members = [t.decode() if isinstance(t, bytes) else t for t in await kv().smembers(key)]
+    if members:
+        # Nyere sessioner står som deres nøgle (sess:h:<hash>), ældre som selve tokenet
+        await kv().delete(*[t if t.startswith("sess:") else f"sess:{t}" for t in members])
     await kv().delete(key)
 

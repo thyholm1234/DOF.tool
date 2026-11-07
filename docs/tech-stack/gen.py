@@ -150,7 +150,7 @@ EDGES = [
     ("modelup", "modelvol", "Fil", "fil", "Lægger den uploadede model på plads efter kontrol af indhold og SHA-256", True),
     ("models", "modelvol", "Fil", "fil", "Læser modelfilerne fra volumen models (read-only)", True),
     # Valkey
-    ("mw", "vsess", "RESP", "RESP", "Slår sessionstoken op (sess:<token> → bruger-id)", True),
+    ("mw", "vsess", "RESP", "RESP", "Slår sessionen op under hashen af cookien (sess:h:<sha256> → bruger-id)", True),
     ("rest", "vq", "RESP", "RESP", "ZADD gateway-job (fx login – adgangskoden ligger højst 3 min), RPUSH worker-kommandoer", True),
     ("rest", "vcache", "RESP", "RESP", "GET/SET JSON-cache, versionsnumre, admin-målinger", True),
     ("rest", "vlim", "RESP", "RESP", "Tællere for login-forsøg og andre grænser", True),

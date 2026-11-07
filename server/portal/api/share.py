@@ -18,11 +18,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import COOKIE
-from portal.cache import cached, kv
+from portal.cache import cached
 from portal.config import get_settings
 from portal.db import get_session
 from portal.dof.jobs import media_many
-from portal.services import feed
+from portal.services import auth as auth_service, feed
 
 router = APIRouter(include_in_schema=False)
 MONTHS = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"]
@@ -66,7 +66,7 @@ async def _thread(db: AsyncSession, day: date, artnr: int, loknr: int) -> dict |
 async def share_thread(day: date, artnr: int, loknr: int, request: Request, db: AsyncSession = Depends(get_session)):
     app_url = f"/#/traad/{day.isoformat()}/{artnr}/{loknr}"
     token = request.cookies.get(COOKIE)
-    if token and await kv().exists(f"sess:{token}"):
+    if await auth_service.session_user_id(token):
         return RedirectResponse(app_url, status_code=302)
     t = await _thread(db, day, artnr, loknr)
     login_url = escape(f"/#/login?next={quote('#' + app_url[2:], safe='')}")

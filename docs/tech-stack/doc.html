@@ -182,7 +182,7 @@
 <div class="cols">
 <ul>
   <li><b>Login</b> kontrolleres hos DOFbasen ved hvert login; adgangskoden gemmes ikke. Grænse for forsøg pr. obserkode og IP.</li>
-  <li><b>Sessioner</b> i Valkey (<code>sess:&lt;token&gt;</code>), cookie <code>HttpOnly</code>, <code>SameSite=Lax</code>, altid
+  <li><b>Sessioner</b> i Valkey (<code>sess:h:&lt;sha256 af cookien&gt;</code> – kun hashen gemmes), cookie <code>HttpOnly</code>, <code>SameSite=Lax</code>, altid
     <code>Secure</code> når <code>PUBLIC_URL</code> er https. Alle en brugers sessioner kan lukkes på én gang.</li>
   <li><b>CSRF</b>: ændrende kald kræver <code>X-Requested-With</code> eller <code>Sec-Fetch-Site: same-origin</code>.</li>
   <li><b>Headers</b>: streng CSP (scripts kun egne + hash), HSTS over https, <code>X-Frame-Options: DENY</code>,

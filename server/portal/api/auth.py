@@ -17,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
-from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges
+from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -66,6 +66,7 @@ async def enqueue_history(obserkode: str) -> None:
 
 @router.post("/auth/logout")
 async def logout(request: Request, response: Response):
+    await position_privacy.revoke_for_session(request.cookies.get(COOKIE))  # telefonen, der delte, holder op
     await auth.destroy_session(request.cookies.get(COOKIE))
     response.delete_cookie(COOKIE, path="/")
     return {"ok": True}

@@ -248,20 +248,48 @@ async def _notify_pending(session: AsyncSession, user: User) -> None:
                       "/#/admin?tab=brugere", f"pending:{user.id}")
 
 
+def token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def session_key(token: str) -> str:
+    """Valkey-nøglen for en session. Kun hashen af cookien gemmes, så en kopi af Valkey (backup, dump) ikke giver
+    sessioner, man kan logge ind med."""
+    return "sess:h:" + token_hash(token)
+
+
 async def create_session(user: User) -> str:
     token = secrets.token_urlsafe(32)
     ttl = get_settings().session_days * 86400
-    await kv().set(f"sess:{token}", user.id, ex=ttl)
-    # Brugerens sessioner samlet, så de alle kan lukkes, når kontoen slettes eller blokeres
-    await kv().sadd(f"usess:{user.id}", token)
+    key = session_key(token)
+    await kv().set(key, user.id, ex=ttl)
+    # Brugerens sessioner samlet (som nøgler), så de alle kan lukkes, når kontoen slettes eller blokeres
+    await kv().sadd(f"usess:{user.id}", key)
     await kv().expire(f"usess:{user.id}", ttl)
     return token
 
 
-async def user_from_token(session: AsyncSession, token: str | None) -> User | None:
-    if not token:
+async def session_user_id(token: str | None) -> str | None:
+    """Bruger-id for en sessionscookie (eller None). Sessioner fra før hashingen (sess:<token>) flyttes over ved første
+    brug, så ingen bliver logget ud."""
+    if not token or len(token) > 100:
         return None
-    user_id = await kv().get(f"sess:{token}")
+    key = session_key(token)
+    user_id = await kv().get(key)
+    if user_id is None:
+        legacy = f"sess:{token}"
+        user_id = await kv().get(legacy)
+        if user_id is not None:
+            ttl = await kv().ttl(legacy)
+            await kv().set(key, user_id, ex=ttl if ttl and ttl > 0 else get_settings().session_days * 86400)
+            await kv().delete(legacy)
+            await kv().srem(f"usess:{user_id}", token)
+            await kv().sadd(f"usess:{user_id}", key)
+    return user_id
+
+
+async def user_from_token(session: AsyncSession, token: str | None) -> User | None:
+    user_id = await session_user_id(token)
     if not user_id:
         return None
     user = await session.get(User, int(user_id))
@@ -271,11 +299,15 @@ async def user_from_token(session: AsyncSession, token: str | None) -> User | No
     return user
 
 
-async def destroy_session(token: str | None) -> None:
-    if token:
-        user_id = await kv().getdel(f"sess:{token}")
-        if user_id:
-            await kv().srem(f"usess:{user_id}", token)
+async def destroy_session(token: str | None) -> str | None:
+    """Log sessionen ud. Returnerer bruger-id'et, hvis sessionen fandtes."""
+    if not token:
+        return None
+    user_id = await session_user_id(token)
+    if user_id:
+        await kv().delete(session_key(token))
+        await kv().srem(f"usess:{user_id}", session_key(token))
+    return user_id
 
 
 def role_at_least(user: User | None, role: str) -> bool:

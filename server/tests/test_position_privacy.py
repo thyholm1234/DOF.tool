@@ -1,5 +1,6 @@
-"""Baggrundspositionen: afrunding, hashede positionstokens (også gamle tokens flyttes over), rate limit, ingen
-koordinater i loggen, og share_location kan ikke sættes uden om positions-endpointene."""
+"""Baggrundspositionen: afrunding, hashede positions- og sessionstokens (også gamle tokens flyttes over), tokenet
+tilbagekaldes ved logout på telefonen, rate limit, ingen koordinater i loggen, og share_location kan ikke sættes uden
+om positions-endpointene."""
 
 import logging
 from types import SimpleNamespace
@@ -8,7 +9,9 @@ import pytest
 
 from portal.api import auth as auth_api
 from portal.api import position
+from portal.services import auth as auth_service
 from portal.services import position_privacy as pp
+from portal.services import view_as
 
 
 class FakeKV:
@@ -41,11 +44,18 @@ class FakeKV:
     async def expire(self, k, s):
         self.ttls[k] = s
 
+    async def sadd(self, k, v):
+        self.d.setdefault(k, set()).add(v)
+
+    async def srem(self, k, v):
+        self.d.get(k, set()).discard(v)
+
 
 @pytest.fixture
 def kv(monkeypatch):
     r = FakeKV()
-    monkeypatch.setattr(position, "kv", lambda: r)
+    for mod in (position, pp, auth_service):
+        monkeypatch.setattr(mod, "kv", lambda: r)
     return r
 
 
@@ -54,36 +64,74 @@ def test_position_is_coarsened():
 
 
 async def test_token_is_stored_only_as_hash(kv):
-    token = await position._new_token(7, "device-abc")
+    token = await pp.new_token(7, "device-abc", None)
     assert all(token not in k and token not in v for k, v in kv.d.items())
     assert kv.d[pp.token_key(token)] == "7:device-abc"
-    assert await position._token_owner(token) == "7:device-abc"
-    assert await position._token_owner("forkert") is None
+    assert await pp.token_owner(token) == "7:device-abc"
+    assert await pp.token_owner("forkert") is None
 
 
 async def test_new_token_revokes_old(kv):
-    old = await position._new_token(7, "device-abc")
-    new = await position._new_token(7, "device-xyz")
-    assert await position._token_owner(old) is None
-    assert await position._token_owner(new) == "7:device-xyz"
-    await position._revoke_token(7)
-    assert await position._token_owner(new) is None and not kv.d
+    old = await pp.new_token(7, "device-abc", None)
+    new = await pp.new_token(7, "device-xyz", None)
+    assert await pp.token_owner(old) is None
+    assert await pp.token_owner(new) == "7:device-xyz"
+    await pp.revoke_token(7)
+    assert await pp.token_owner(new) is None and not kv.d
 
 
 async def test_legacy_plain_token_is_migrated(kv):
     kv.d["loctok:gammelt"] = "7:device-abc"
     kv.d["loctok:user:7"] = "gammelt"
-    assert await position._token_owner("gammelt") == "7:device-abc"
+    assert await pp.token_owner("gammelt") == "7:device-abc"
     assert "loctok:gammelt" not in kv.d and kv.d["loctok:user:7"] == pp.token_key("gammelt")
-    await position._revoke_token(7)
+    await pp.revoke_token(7)
     assert not kv.d
 
 
 async def test_legacy_pointer_is_revoked(kv):
     kv.d["loctok:gammelt"] = "7:device-abc"
     kv.d["loctok:user:7"] = "gammelt"
-    await position._revoke_token(7)
+    await pp.revoke_token(7)
     assert not kv.d
+
+
+async def test_logout_on_the_sharing_phone_revokes_token(kv):
+    token = await pp.new_token(7, "device-abc", "telefonens-session")
+    await pp.revoke_for_session("browserens-session")  # logout et andet sted: telefonen deler stadig
+    assert await pp.token_owner(token) == "7:device-abc"
+    assert all("telefonens-session" not in k for k in kv.d)
+    await pp.revoke_for_session("telefonens-session")
+    assert await pp.token_owner(token) is None and not kv.d
+
+
+async def test_old_session_cannot_revoke_newer_token(kv):
+    await pp.new_token(7, "device-abc", "gammel-session")
+    token = await pp.new_token(7, "device-abc", "ny-session")
+    await pp.revoke_for_session("gammel-session")
+    assert await pp.token_owner(token) == "7:device-abc"
+
+
+async def test_session_is_stored_only_as_hash(kv, monkeypatch):
+    monkeypatch.setattr(auth_service, "get_settings", lambda: SimpleNamespace(session_days=30))
+    token = await auth_service.create_session(SimpleNamespace(id=7))
+    assert all(token not in k and token not in str(v) for k, v in kv.d.items())
+    assert await auth_service.session_user_id(token) == "7"
+    assert await auth_service.destroy_session(token) == "7"
+    assert await auth_service.session_user_id(token) is None
+
+
+async def test_legacy_session_is_migrated(kv, monkeypatch):
+    monkeypatch.setattr(auth_service, "get_settings", lambda: SimpleNamespace(session_days=30))
+    kv.d["sess:gammel"], kv.ttls["sess:gammel"] = "7", 1000
+    kv.d["usess:7"] = {"gammel"}
+    assert await auth_service.session_user_id("gammel") == "7"
+    assert "sess:gammel" not in kv.d and kv.d["usess:7"] == {auth_service.session_key("gammel")}
+    assert kv.ttls[auth_service.session_key("gammel")] == 1000
+
+
+def test_view_as_state_key_is_hashed():
+    assert "hemmelig" not in view_as.key_for("hemmelig")
 
 
 async def test_throttle(kv):
