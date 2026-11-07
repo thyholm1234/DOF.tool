@@ -1,7 +1,7 @@
 // Dagslisten: dagens observationer som en traditionel liste, med de samme filtre som DOFbasens observationsside –
 // visning, dato (med dag frem/tilbage), sortering på art eller lokalitet, summering (tur/dato/ingen) og lokalafdeling.
 import { api, state, h, fmtN, fmtDate, todayISO, errorBox, empty, busyBlock, params, setParams, store, toast } from "../core.js";
-import { artName, obsRow, head, sheet, initPopup } from "../obslist.js";
+import { artName, obsRow, head, sheet, initPopup, timeLegend } from "../obslist.js";
 
 const VISNING = [["fugle", "Fugle – bemærkelsesværdige"], ["allfugle", "Fugle – alle"], ["sufugle", "Fugle – sjældne"], ["trkfugle", "Fugle – trækkende"],
   ["patdyr", "Pattedyr"], ["somfugle", "Sommerfugle"], ["krybdyr", "Padder/krybdyr"]];
@@ -103,6 +103,7 @@ export async function render(view) {
     out.replaceChildren(h("p", { class: "muted" }, `${wd[0].toUpperCase()}${wd.slice(1)} ${fmtDate(st.dato)} · ${fmtN(n)} observationer${d.rows.length >= 10000 ? " (første 10.000 poster)" : ""}`),
       d.note ? h("div", { class: "notice" }, d.note) : null,
       !d.rows.length && !d.note ? empty("Ingen observationer", "Prøv en anden visning, dato eller afdeling") : null,
+      d.rows.length ? timeLegend() : null,
       d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...groups(rows, st.dato)])) : null);
   }
 

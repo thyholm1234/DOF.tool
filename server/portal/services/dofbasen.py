@@ -458,7 +458,9 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
         inner = f"""
             SELECT DISTINCT ON (o.turid, ds.artnr) {ROW_COLS},
                    sum(o.antal) OVER (PARTITION BY o.turid, ds.artnr) AS sum_antal,
-                   count(*) OVER (PARTITION BY o.turid, ds.artnr) AS n_obs
+                   count(*) OVER (PARTITION BY o.turid, ds.artnr) AS n_obs,
+                   min(o.obstidfra) OVER (PARTITION BY o.turid, ds.artnr) AS g_obstidfra,
+                   max(coalesce(o.obstidtil, o.obstidfra)) OVER (PARTITION BY o.turid, ds.artnr) AS g_obstidtil
             {frm} {ROW_JOINS} WHERE {where} ORDER BY o.turid, ds.artnr, o.obsid
         """
         count_sql = f"SELECT count(*) FROM (SELECT 1 {frm} WHERE {where} GROUP BY o.turid, o.artnr LIMIT 50001) c"
@@ -508,6 +510,8 @@ def _row(r, summed: bool) -> dict:
     if summed:
         d["antal"] = d.pop("sum_antal")
         d["n_obs"] = d.pop("n_obs")
+        # den summerede række viser hele tidsrummet for observationerne, ikke kun den første
+        d["obstidfra"], d["obstidtil"] = d.pop("g_obstidfra"), d.pop("g_obstidtil")
     return d
 
 
@@ -555,7 +559,11 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
                bool_or(coalesce(o.fuglnoter, '') <> '') AS kommentar, bool_or(coalesce(t.turnoter, '') <> '') AS turkommentar,
                left(string_agg(DISTINCT nullif(o.fuglnoter, ''), ' · '), 600) AS obsnote, left(max(nullif(t.turnoter, '')), 600) AS turnote,
                bool_or(coalesce(t.medobser, '') <> '') AS medobser, left(max(nullif(t.medobser, '')), 300) AS medobsnote, bool_or(o.obs_lat IS NOT NULL) AS position,
-               bool_or(o.obstidfra IS NOT NULL OR t.turtidfra IS NOT NULL) AS tid, max(st.status) AS dku
+               -- tidsrummet: observationens eget (fra første start til sidste tidspunkt) og turens – se obslist.js
+               min(o.obstidfra) AS obstidfra, max(coalesce(o.obstidtil, o.obstidfra)) AS obstidtil,
+               min(t.turtidfra) AS turtidfra, max(coalesce(t.turtidtil, t.turtidfra)) AS turtidtil,
+               bool_or(o.obstidfra IS NOT NULL OR o.obstidtil IS NOT NULL OR t.turtidfra IS NOT NULL) AS tid,  -- DOFbasen-modulets ur
+               max(st.status) AS dku
         FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
         LEFT JOIN trips t ON t.turid = o.turid LEFT JOIN observers ob ON ob.obserkode = o.obserkode
         LEFT JOIN dofb_obs_status st ON st.obsid = o.obsid

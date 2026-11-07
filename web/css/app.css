@@ -1047,12 +1047,14 @@ body.is-viewas .topbar { top: 34px; }
 .dl-table td { padding: 1px 6px; vertical-align: top; overflow-wrap: anywhere; border: 0; }
 .dl-table td.num { text-align: right; white-space: nowrap; }
 .dl-table col.c-notes { width: 90px; } .dl-table col.c-num { width: 100px; } .dl-table col.c-ald { width: 64px; }
-.dl-table col.c-adf { width: 44px; } .dl-table col.c-extra { width: 74px; } .dl-table col.c-obs { width: 30%; }
+.dl-table col.c-adf { width: 44px; } .dl-table col.c-extra { width: 40px; } .dl-table col.c-pos, .dl-table col.c-tid { width: 22px; }
+.dl-table col.c-obs { width: 30%; }
 .dl-table tr.dl-head td { padding: 4px 4px 1px; }
 .dl-table tr.dl-afd td { padding: 14px 4px 3px; font-weight: 700; font-size: .95rem; border-bottom: 2px solid var(--line); }
 .dl-table tr.dl-afd + tr.dl-head td { padding-top: 10px; }  /* luft mellem afdelingens streg og første art */
 .dl-table tbody tr:not(.dl-head):not(.dl-afd):hover td { background: var(--hover, rgba(0, 0, 0, .04)); }
-.dl-notes, .dl-extra { white-space: nowrap; }
+.dl-notes, .dl-extra, .dl-pos, .dl-tid { white-space: nowrap; }
+.dl-table td.dl-pos, .dl-table td.dl-tid { padding-left: 2px; padding-right: 2px; text-align: center; }
 .dl-slots { display: grid; grid-template-columns: repeat(5, 1fr); justify-items: start; }
 .dl-notes .dl-slots .dl-ic { margin-right: 0; }
 .dl-ic { display: inline-flex; vertical-align: -2px; margin-right: 2px; }
@@ -1062,12 +1064,16 @@ body.is-viewas .topbar { top: 34px; }
 /* Mørkt tema: hvid boble uden sort kant (kanten i hvidt, så den har samme størrelse som de andre) */
 :root[data-theme="dark"] .dl-obs { color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dl-obs { color: #fff; } }
-.dl-extra .dl-ic { color: var(--muted, #667); }
+.dl-extra .dl-ic, .dl-pos .dl-ic { color: var(--muted, #667); }
+/* Uret: udfyldt i temafarven = observationens eget tidspunkt; tyndt omrids = kun turens tidsrum */
+.dl-tid-obs { color: var(--brand); } .dl-tid-obs .ic circle { fill: currentColor; } .dl-tid-obs .ic path { stroke: var(--surface); stroke-width: 2.4; }
+.dl-tid-tur { color: var(--muted, #667); opacity: .75; }
+.dl-legend { font-size: .8rem; margin: 0 0 6px; } .dl-legend .dl-ic { vertical-align: -2px; } .dl-legend .ic { width: 14px; height: 14px; }
 .dl-obs-m { display: none; }
 @media (max-width: 640px) {
   .dl-table col.c-notes { width: 62px; } .dl-notes .dl-ic .ic { width: 11px; height: 11px; } .dl-table col.c-num { width: 84px; } .dl-table col.c-ald { width: 44px; } .dl-table col.c-adf { width: 30px; }
-  .dl-table col.c-extra { width: 36px; } .dl-table col.c-obs { width: 0; } .dl-table td.dl-obs { display: none; }
-  .dl-table td { padding: 1px 3px; } .dl-notes .dl-ic, .dl-extra .dl-ic { margin-right: 0; }
+  .dl-table col.c-extra { width: 30px; } .dl-table col.c-pos, .dl-table col.c-tid { width: 17px; } .dl-table col.c-obs { width: 0; } .dl-table td.dl-obs { display: none; }
+  .dl-table td { padding: 1px 3px; } .dl-notes .dl-ic, .dl-extra .dl-ic, .dl-pos .dl-ic, .dl-tid .dl-ic { margin-right: 0; }
   .dl-obs-m { display: block; font-size: .8rem; color: var(--muted, #667); }
 }
 /* SU/SUB-arter: artsnavnet er selv mærkatet – hvid fed skrift på kategoriens farve */

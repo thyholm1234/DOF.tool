@@ -2,7 +2,7 @@
 // over alle fund øverst og en liste i samme stil som Observationer (sorteret efter dato grupperes den pr. dag). Listen kan
 // sorteres på alle felter (på serveren, så det gælder hele resultatet) og hentes som CSV, ODS eller XLSX.
 import { api, state, h, fmtN, fmtDate, toast, errorBox, empty, busyBlock, params, setParams } from "../core.js";
-import { obsRow, head, sheet, initPopup } from "../obslist.js";
+import { obsRow, head, sheet, initPopup, timeLegend } from "../obslist.js";
 import { baseMap, katColor } from "../maps.js";
 
 const DEFAULTS = { periode: "antaldage", dage: 7, species: "alle", omraade: "none", artdata: "keine", antalregl: "", sort: "dato", desc: true };
@@ -20,7 +20,7 @@ const asListRow = (o, sum) => ({
   obsid: o.obsid, dato: o.dato, artnr: o.artnr, art: o.art, kat: o.kategori, loknr: o.loknr, lokalitet: o.lokalitet,
   antal: o.antal, n_obs: sum ? o.n_obs : 1, koen: o.koen, alder: o.alderkode, dragt: o.dragtkode, adfkode: o.adfkode,
   obsnote: o.fuglnoter, turnote: o.turnoter, medobser: !!o.medobser, medobsnote: o.medobser,
-  position: !!o.praecis, tid: !!(o.obstidfra || o.turtidfra), obserkode: o.obserkode, observator: o.observator,
+  position: !!o.praecis, obstidfra: o.obstidfra, obstidtil: o.obstidtil, turtidfra: o.turtidfra, turtidtil: o.turtidtil, obserkode: o.obserkode, observator: o.observator,
   dku_status: o.dku_status, dku_kind: o.dku_kind, foto: o.foto, lyd: o.lyd, su_ok: o.su_ok,
 });
 
@@ -194,7 +194,7 @@ export async function render(view) {
       }
       return body;
     };
-    const list = r.rows.length ? h("div", { class: "card mt" }, sheet(rowsFor(r.rows))) : empty("Ingen observationer matcher søgningen");
+    const list = r.rows.length ? h("div", { class: "card mt" }, timeLegend(), sheet(rowsFor(r.rows))) : empty("Ingen observationer matcher søgningen");
     if (r.rows.length) initPopup(list);
     // Som fotogalleriet: når bunden er i syne, hentes næste side og føjes til listen.
     const foot = h("div", { class: "more-foot", role: "status", "aria-live": "polite" });

@@ -1,6 +1,7 @@
 // Observationslisten i DOFbasens gamle, kompakte stil – fælles for Observationer (dagslisten) og Søg.
 // Ét skema uden kolonnetitler med faste kolonnebredder: noteikoner forrest, så antal, alder/køn/dragt, adfærd,
-// billede/lyd/nål/tid, art eller lokalitet og observatør. Ikonerne er links til observationen; ved hover vises noten.
+// billede/lyd, fuglens position, tidspunkt, art eller lokalitet og observatør. Ikonerne er links til observationen; ved
+// hover vises noten (og for uret tidsrummet). Nålen har ingen boks – den siger kun, at positionen er angivet.
 import { state, h, fmtN, icon } from "./core.js";
 
 /** Artsnavn som link; for SU/SUB-arter er selve navnet et mærkat (hvid fed skrift på kategoriens farve).
@@ -18,6 +19,11 @@ export function adf(code) {
 
 /** Den enkelte observation: egen side, når Observationer er slået til – ellers tråden. */
 const obsHref = (r) => state.user?.dagsliste ? `#/obs/${r.obsid}` : `#/traad/${r.dato}/${r.artnr}/${r.loknr}`;
+
+/** Forklaring af urene – vises over listen. */
+export const timeLegend = () => h("p", { class: "muted dl-legend" },
+  h("span", { class: "dl-ic dl-tid-obs", html: icon("now") }), " observationens eget tidspunkt  ",
+  h("span", { class: "dl-ic dl-tid-tur", html: icon("now") }), " kun turens tidsrum – peg på uret for at se tiden");
 
 /** Boks ved hover over et ikon: viser noten/forklaringen ved siden af ikonet (data-pop-t = overskrift, data-pop = indhold). */
 let pop = null;
@@ -54,9 +60,21 @@ const notes = (r) => h("td", { class: "dl-notes" }, h("span", { class: "dl-slots
   ].map(el => el || h("span", {}))));
 const extra = (r) => h("td", { class: "dl-extra" },
   r.foto ? icoLink(r, "", "camera", "Foto", true) : null,
-  r.lyd ? icoLink(r, "", "sound", "Lydoptagelse", true) : null,
-  r.position ? icoLink(r, "", "pin", "Fuglens position", true) : null,
-  r.tid ? icoLink(r, "", "now", "Tidspunkt angivet", true) : null);
+  r.lyd ? icoLink(r, "", "sound", "Lydoptagelse", true) : null);
+const posCell = (r) => h("td", { class: "dl-pos" }, r.position
+  ? h("a", { class: "dl-ic", href: obsHref(r), "aria-label": "Fuglens position er angivet", html: icon("pin") }) : null);
+
+/** Tidsrum som tekst: «07:42–07:50», «07:42» (kun ét tidspunkt) eller «til 08:00» (kun sluttid). */
+export const timeSpan = (fra, til) => fra && til && fra !== til ? `${fra}–${til}` : fra || (til ? `til ${til}` : "");
+/** Uret: udfyldt, når observationen har sit eget tidspunkt (og turens tidsrum står under i boksen); som omrids, når
+ *  kun turens tidsrum kendes. Boksens overskrift siger altid, hvilket tidspunkt det er. */
+const timeCell = (r) => {
+  const obs = timeSpan(r.obstidfra, r.obstidtil), tur = timeSpan(r.turtidfra, r.turtidtil);
+  const own = r.n_obs > 1 ? "Observationernes tidsrum" : "Observationens tidspunkt";
+  return h("td", { class: "dl-tid" },
+    obs ? icoLink(r, "dl-tid-obs", "now", own, tur ? `${obs}\nTuren: ${tur}` : obs)
+      : tur ? icoLink(r, "dl-tid-tur", "now", "Turens tidsrum", `${tur}\nObservationen har ikke sit eget tidspunkt`) : null);
+};
 const ald = (r) => [r.alder, sexSign(r.koen).trim(), r.dragt].filter(Boolean).join(" ");
 const obsLink = (r) => r.obserkode ? h("a", { href: `#/observator/${r.obserkode}` }, r.observator || r.obserkode) : (r.observator || "");
 const lokLink = (r) => r.loknr ? h("a", { href: `#/lok/${r.loknr}` }, r.lokalitet || String(r.loknr)) : (r.lokalitet || "");
@@ -71,16 +89,16 @@ export const suBadge = (r) => r.su_ok ? h("span", { class: "dl-dku su-ok", title
 export const obsRow = (r, what, pre = null) => h("tr", {},
   notes(r),
   h("td", { class: "num" }, h("a", { href: obsHref(r), title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)), suBadge(r), dkuBadge(r)),
-  h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r),
+  h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r), posCell(r), timeCell(r),
   h("td", {}, pre ? h("span", { class: "muted" }, pre, " · ") : null,
     what === "art" ? artName(r.artnr, r.art, r.kat) : what === "lok" ? lokLink(r) : [artName(r.artnr, r.art, r.kat), h("span", { class: "muted" }, " · "), lokLink(r)],
     h("span", { class: "dl-obs-m" }, obsLink(r))),  // på smalle skærme står observatøren under lokaliteten
   h("td", { class: "dl-obs" }, obsLink(r)));
 
 /** Overskriftslinje i skemaet (art, lokalitet, dato – eller lokalafdeling med cls "dl-afd"). */
-export const head = (content, cls = "dl-head") => h("tr", { class: cls }, h("td", { colspan: 7 }, ...content));
+export const head = (content, cls = "dl-head") => h("tr", { class: cls }, h("td", { colspan: 9 }, ...content));
 
 export const sheet = (bodyRows) => h("div", { class: "table-wrap" }, h("table", { class: "dl-table" },
   h("colgroup", {}, h("col", { class: "c-notes" }), h("col", { class: "c-num" }), h("col", { class: "c-ald" }), h("col", { class: "c-adf" }),
-    h("col", { class: "c-extra" }), h("col", { class: "c-lok" }), h("col", { class: "c-obs" })),
+    h("col", { class: "c-extra" }), h("col", { class: "c-pos" }), h("col", { class: "c-tid" }), h("col", { class: "c-lok" }), h("col", { class: "c-obs" })),
   h("tbody", {}, ...bodyRows)));
