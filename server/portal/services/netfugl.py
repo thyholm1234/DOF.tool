@@ -34,6 +34,7 @@ from portal.services.auth import SUPERADMIN, can
 from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
 from portal.services.setting_store import get_setting_dict
+from portal.services import dataset
 
 log = logging.getLogger("portal.netfugl")
 CONTENT = SEED_DIR / "netfugl" / "content.json"
@@ -250,12 +251,12 @@ async def refresh_active(session: AsyncSession) -> None:
     st = await settings(session)
     async with ObsSession() as obs:  # SET LOCAL skal ramme den database, der læser observationerne
         await obs.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
-        rows = (await obs.execute(text(f"""
+        rows = (await dataset.execute(obs, f"""
             SELECT o.obserkode, trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS navn
             FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN observers ob ON ob.obserkode = o.obserkode
             WHERE o.dato >= :d AND s.list_artnr IS NOT NULL AND o.antal > 0 AND o.hemmelig = 0
             GROUP BY o.obserkode, ob.fornavn, ob.efternavn ORDER BY count(DISTINCT s.list_artnr) DESC LIMIT {int(st['aktive_max'])}
-        """), {"d": dk_today() - timedelta(days=3 * 365)})).all()
+        """, {"d": dk_today() - timedelta(days=3 * 365)})).all()
     await kv().set("nf:aktive", json.dumps([[r[0], r[1] or r[0]] for r in rows]))
 
 
@@ -297,7 +298,7 @@ async def refresh_auto(session: AsyncSession) -> int:
         async with ObsSession() as obs:
             await obs.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
             for q in queries:
-                for kode, liste, artnr, dato, obsid, loknr in (await obs.execute(text(q), {"codes": batch, "y0": y0})).all():
+                for kode, liste, artnr, dato, obsid, loknr in (await dataset.execute(obs, q, {"codes": batch, "y0": y0}, obserkoder=batch)).all():
                     cols = lists.setdefault((kode, liste), [[], [], [], []])
                     for col, v in zip(cols, (artnr, dato, obsid, loknr)):
                         col.append(v)

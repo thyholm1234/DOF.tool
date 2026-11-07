@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 NFL_FROM = 1990
 
@@ -20,7 +21,7 @@ async def nfl(session: AsyncSession, first_year: int = NFL_FROM) -> dict:
     """Nye arter for landet pr. år fra first_year til i år: antal pr. år (også år uden nye) og arterne med første fund."""
 
     async def produce():
-        rows = (await session.execute(text("""
+        rows = (await dataset.execute(session, """
             SELECT f.artnr, s.navn, s.latin, s.klass, s.sortering, f.first_date, f.n_years, f.n_obs,
                    ob.antal, CASE WHEN ob.hemmelig = 0 THEN ob.loknr END AS loknr,
                    CASE WHEN ob.hemmelig = 0 THEN l.navn END AS lokalitet
@@ -34,7 +35,7 @@ async def nfl(session: AsyncSession, first_year: int = NFL_FROM) -> dict:
             ) ob ON true
             LEFT JOIN locations l ON l.loknr = ob.loknr
             ORDER BY f.first_date, s.sortering NULLS LAST
-        """), {"y": first_year})).mappings().all()
+        """, {"y": first_year})).mappings().all()
         species = [{**dict(r), "year": r["first_date"].year, "first_date": r["first_date"].isoformat()} for r in rows]
         counts = {y: 0 for y in range(first_year, dk_today().year + 1)}
         for s in species:

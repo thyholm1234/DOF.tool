@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import cached
 from portal.services import krydslister
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 
 async def species_lists(session: AsyncSession) -> list[dict]:
@@ -66,18 +67,18 @@ async def dofbasen_stats(session: AsyncSession, artnr: int) -> dict:
     """Artssidens fund fra DOFbasen: antal, pr. måned og lokalafdeling, og alle fund for sjældne arter (≤ 400). Observationerne ligger i sin egen databasegruppe."""
     async def produce():
         ids = [r[0] for r in (await session.execute(text("SELECT artnr FROM species WHERE artnr = :a OR list_artnr = :a"), {"a": artnr})).all()]
-        stat = (await session.execute(text("""SELECT count(*), count(DISTINCT (dato, loknr)), min(dato), max(dato) FROM observations WHERE artnr = ANY(:ids) AND hemmelig = 0"""), {"ids": ids})).first()
-        months = [dict(r) for r in (await session.execute(text("""SELECT extract(month FROM dato)::int AS m, count(DISTINCT (dato, loknr)) AS n FROM observations
-            WHERE artnr = ANY(:ids) AND hemmelig = 0 GROUP BY 1 ORDER BY 1"""), {"ids": ids})).mappings()]
-        afd = [dict(r) for r in (await session.execute(text("""SELECT a.navn, count(DISTINCT (o.dato, o.loknr)) AS n FROM observations o JOIN locations l ON l.loknr = o.loknr
-            JOIN afdelinger a ON a.id = l.afdeling_id WHERE o.artnr = ANY(:ids) AND o.hemmelig = 0 GROUP BY a.navn ORDER BY n DESC"""), {"ids": ids})).mappings()]
+        stat = (await dataset.execute(session, """SELECT count(*), count(DISTINCT (dato, loknr)), min(dato), max(dato) FROM observations WHERE artnr = ANY(:ids) AND hemmelig = 0""", {"ids": ids})).first()
+        months = [dict(r) for r in (await dataset.execute(session, """SELECT extract(month FROM dato)::int AS m, count(DISTINCT (dato, loknr)) AS n FROM observations
+            WHERE artnr = ANY(:ids) AND hemmelig = 0 GROUP BY 1 ORDER BY 1""", {"ids": ids})).mappings()]
+        afd = [dict(r) for r in (await dataset.execute(session, """SELECT a.navn, count(DISTINCT (o.dato, o.loknr)) AS n FROM observations o JOIN locations l ON l.loknr = o.loknr
+            JOIN afdelinger a ON a.id = l.afdeling_id WHERE o.artnr = ANY(:ids) AND o.hemmelig = 0 GROUP BY a.navn ORDER BY n DESC""", {"ids": ids})).mappings()]
         fund = []
         if stat[1] and stat[1] <= 400:
-            fund = [{**dict(r), "dato": r["dato"].isoformat()} for r in (await session.execute(text("""
+            fund = [{**dict(r), "dato": r["dato"].isoformat()} for r in (await dataset.execute(session, """
                 SELECT DISTINCT ON (o.dato, o.loknr) o.dato, o.loknr, l.navn AS lokalitet, o.antal, o.obsid,
                        trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')) AS observator
                 FROM observations o LEFT JOIN locations l ON l.loknr = o.loknr LEFT JOIN observers ob ON ob.obserkode = o.obserkode
-                WHERE o.artnr = ANY(:ids) AND o.hemmelig = 0 ORDER BY o.dato DESC, o.loknr, o.antal DESC"""), {"ids": ids})).mappings()]
+                WHERE o.artnr = ANY(:ids) AND o.hemmelig = 0 ORDER BY o.dato DESC, o.loknr, o.antal DESC""", {"ids": ids})).mappings()]
         return {"obs": stat[0], "fund": stat[1], "first": stat[2].isoformat() if stat[2] else None, "last": stat[3].isoformat() if stat[3] else None,
                 "months": months, "afdelinger": afd, "fundliste": fund}
     return await cached(f"kl:art:{artnr}:{dk_today()}", 6 * 3600, produce)

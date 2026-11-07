@@ -17,6 +17,7 @@ from portal.db import ObsSession
 from portal.models import Course, LrCohort, LrCohortMember, LrEnrollment, LrFieldDone, LrPath, LrPathItem, User
 from portal.services import learn_play
 from portal.services.auth import can
+from portal.services import dataset
 
 KINDS = ("kursus", "ovelse", "traening", "felt", "tekst")
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -223,9 +224,9 @@ async def field_matches(user: User, rule: dict, since: date, db: AsyncSession) -
         fra = date.fromisoformat(per["fra"]) if per.get("fra") else since
         til = date.fromisoformat(per["til"]) if per.get("til") else til
     async with ObsSession() as o:
-        rows = (await o.execute(text("""SELECT o.obsid, s.list_artnr AS art FROM observations o JOIN species s ON s.artnr = o.artnr AND s.art_type = 'art'
+        rows = (await dataset.execute(o, """SELECT o.obsid, s.list_artnr AS art FROM observations o JOIN species s ON s.artnr = o.artnr AND s.art_type = 'art'
             WHERE o.obserkode = :k AND o.dato >= :fra AND o.dato <= :til AND (cardinality(CAST(:a AS int[])) = 0 OR s.list_artnr = ANY(CAST(:a AS int[])))
-              AND (CAST(:l AS int) IS NULL OR o.loknr = :l) AND (CAST(:af AS int) IS NULL OR :af = ANY(o.afdelinger)) ORDER BY o.obsid LIMIT 500"""),
+              AND (CAST(:l AS int) IS NULL OR o.loknr = :l) AND (CAST(:af AS int) IS NULL OR :af = ANY(o.afdelinger)) ORDER BY o.obsid LIMIT 500""",
                                 {"k": user.obserkode, "fra": fra, "til": til, "a": sorted(set(arter)), "l": rule.get("loknr"), "af": rule.get("afdeling_id")})).all()
     return len({r[1] for r in rows}), [r[0] for r in rows], (rows[0][0] if rows else None)
 
@@ -393,7 +394,7 @@ async def pending_field(db: AsyncSession, cohort: LrCohort) -> list[dict]:
         d = dict(r)
         if r["obsid"]:
             async with ObsSession() as o:
-                obs = (await o.execute(text("SELECT o.dato, s.navn, l.navn AS sted FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr WHERE o.obsid = :i AND o.hemmelig = 0"), {"i": r["obsid"]})).mappings().first()
+                obs = (await dataset.execute(o, "SELECT o.dato, s.navn, l.navn AS sted FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr WHERE o.obsid = :i AND o.hemmelig = 0", {"i": r["obsid"]})).mappings().first()
             d["obs"] = dict(obs) if obs else {"skjult": True}  # hemmelige observationer vises ikke med sted for underviseren
         out.append(d)
     return out

@@ -19,6 +19,7 @@ from portal.db import get_session
 from portal.models import DofbApiGrant, DofbApiToken, DofbArea, DofbList, DofbNews, User
 from portal.services import dofbasen as svc
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 router = APIRouter(prefix="/api/dofbasen/v1", tags=["DOFbasen API v1"])
 
@@ -57,7 +58,7 @@ async def client(request: Request, db: AsyncSession = Depends(get_session)) -> C
 
 
 async def _rows(db: AsyncSession, sql: str, **args) -> list[dict]:
-    return [dict(r) for r in (await db.execute(text(sql), args)).mappings().all()]
+    return [dict(r) for r in (await dataset.execute(db, sql, args)).mappings().all()]  # hele datasættet: DOFbasen + DOF.tool (services/dataset.py)
 
 
 @router.get("/me", summary="Hvem er jeg")

@@ -20,6 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, version
+from portal.services import dataset
 from portal.services.areas import Scope, parse_scope
 from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
@@ -177,7 +178,7 @@ async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
         WHERE o.obserkode = :kode AND {where}
         ORDER BY s.list_artnr, o.dato, o.obsid
     """
-    rows = (await session.execute(text(sql), {"kode": obserkode, **params})).mappings().all()
+    rows = (await dataset.execute(session, sql, {"kode": obserkode, **params}, obserkode=obserkode)).mappings().all()
     out = [{**dict(r), "dato": r["dato"].isoformat()} for r in rows]
     out.sort(key=lambda r: (r["dato"], r["obsid"]))
     return out
@@ -230,13 +231,13 @@ async def matrikel_home(session: AsyncSession, year: int | None) -> dict[str, st
         if not codes:
             return {}
         where, params, window_join = await _list_filter(session, spec, codes)
-        rows = (await session.execute(text(f"""
+        rows = (await dataset.execute(session, f"""
             SELECT o.obserkode, l.kommune_kode, count(*) AS n
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
             JOIN locations l ON l.loknr = o.loknr LEFT JOIN trips t ON t.turid = o.turid {window_join}
             WHERE o.obserkode = ANY(:codes) AND l.kommune_kode IS NOT NULL AND {where}
             GROUP BY o.obserkode, l.kommune_kode
-        """), {"codes": codes, **params})).all()
+        """, {"codes": codes, **params}, obserkoder=codes)).all()
         home: dict[str, tuple[str, int]] = {}
         for kode, kom, n in rows:
             if kode not in home or n > home[kode][1]:
@@ -263,13 +264,13 @@ async def scoreboard(session: AsyncSession, spec: ListSpec, group_id: int | None
         if not codes:
             return {"rows": [], "species": {}, "spec": spec.key}
         where, params, window_join = await _list_filter(session, spec, codes)
-        firsts = (await session.execute(text(f"""
+        firsts = (await dataset.execute(session, f"""
             SELECT o.obserkode, s.list_artnr AS artnr, min(o.dato) AS d
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
             LEFT JOIN trips t ON t.turid = o.turid {window_join}
             WHERE o.obserkode = ANY(:codes) AND {where}
             GROUP BY o.obserkode, s.list_artnr
-        """), {"codes": codes, **params})).all()
+        """, {"codes": codes, **params}, obserkoder=codes)).all()
         per: dict[str, list[tuple[int, str]]] = {c: [] for c in codes}
         for kode, artnr, d in firsts:
             per[kode].append((artnr, d.isoformat()))
@@ -311,20 +312,20 @@ async def _opted(session: AsyncSession, field: str, ref: str) -> set[str]:
 
 
 async def available_years(session: AsyncSession, obserkode: str) -> list[int]:
-    rows = (await session.execute(text("""
+    rows = (await dataset.execute(session, """
         SELECT DISTINCT extract(year FROM dato)::int FROM observations WHERE obserkode = :k ORDER BY 1 DESC
-    """), {"k": obserkode})).all()
+    """, {"k": obserkode}, obserkode=obserkode)).all()
     return [r[0] for r in rows]
 
 
 async def _tag_stats(session: AsyncSession, obserkode: str) -> dict[int, dict]:
     """Matrikelnumre fundet i brugerens turnoter (#BB26 / #BB26-1 = 1, #BB26-3 = 3) med antal ture og datoer."""
     prefix = await matrikel_prefix(session)
-    rows = (await session.execute(text("""
+    rows = (await dataset.execute(session, """
         SELECT coalesce(m[1], '1') AS n, count(DISTINCT t.turid), min(t.dato), max(t.dato)
         FROM trips t, regexp_matches(upper(coalesce(t.turnoter, '')), :rx, 'g') AS m
         WHERE t.obserkode = :k AND upper(t.turnoter) LIKE :like GROUP BY 1
-    """), {"k": obserkode, "rx": f"{prefix}[0-9]{{2}}(?:-([0-9]+))?(?![A-Z0-9])", "like": f"%{prefix}%"})).all()
+    """, {"k": obserkode, "rx": f"{prefix}[0-9]{{2}}(?:-([0-9]+))?(?![A-Z0-9])", "like": f"%{prefix}%"}, obserkode=obserkode)).all()
     return {int(n): {"n_trips": c, "first": a.isoformat(), "last": b.isoformat()} for n, c, a, b in rows if str(n).isdigit()}
 
 

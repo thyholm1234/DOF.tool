@@ -25,6 +25,7 @@ from portal.models import DofbApiGrant, DofbApiToken, DofbArea, DofbFocus, DofbL
 from portal.services import dofbasen as svc
 from portal.services import features
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 router = APIRouter(prefix="/api/dofbasen", tags=["dofbasen"])
 FORSIDE_TTL = 300  # forsidens kort og grafer opdateres hvert 5. minut (som på dofbasen.dk)
@@ -46,12 +47,12 @@ def need(feature: str = "dofbasen", perm: str | None = None, edit: bool = False)
 
 
 async def _row(db: AsyncSession, sql: str, **args) -> dict | None:
-    r = (await db.execute(text(sql), args)).mappings().first()
+    r = (await dataset.execute(db, sql, args)).mappings().first()  # hele datasættet: DOFbasen + DOF.tool (services/dataset.py)
     return dict(r) if r else None
 
 
 async def _rows(db: AsyncSession, sql: str, **args) -> list[dict]:
-    return [dict(r) for r in (await db.execute(text(sql), args)).mappings().all()]
+    return [dict(r) for r in (await dataset.execute(db, sql, args)).mappings().all()]
 
 
 # ---------------------------------------------------------------- fælles

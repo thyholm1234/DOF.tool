@@ -23,7 +23,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 
-from portal.cache import bump, kv
+from portal.cache import bump, kv, worker_command
 from portal.db import SessionLocal, ToolSession, router
 
 log = logging.getLogger("portal.doftool_obs")
@@ -170,6 +170,13 @@ async def reconcile(force: bool = False) -> dict:
     await kv().set(mark, fp)
     for v in (VERSION, "lists", "feed", "regions"):
         await bump(v)
+    # Afledte lister, der ellers først regnes om efter deres egen plan: krydslisternes automatiske kryds og årene på
+    # lokaliteterne. Fænologi, arter pr. år og lokale hits tager den natlige beregning fra DIRTY.
+    await worker_command("kryds_auto")
+    years = sorted({d.year for d in touched})
+    if years:
+        await worker_command("location_years", years=years)
+        await worker_command("regions", from_year=years[0])
     log.info("DOF.tool-datasættet er opdateret: %d observationer, %d ture (%d dubletter med DOFbasen udeladt)",
              len(kept), len(trips), len(obs) - len(kept))
     return {"changed": True, "observations": len(kept), "ture": len(trips), "dubletter": len(obs) - len(kept),

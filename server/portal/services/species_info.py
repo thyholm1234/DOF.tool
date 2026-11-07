@@ -11,6 +11,7 @@ from portal.cache import cached, version
 from portal.models import Species
 from portal.services import finds
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 
 async def search(session: AsyncSession, q: str, limit: int) -> list[dict]:
@@ -26,7 +27,7 @@ async def index(session: AsyncSession) -> list[dict]:
     """Artsindeks: alle taxa med årets tal (dagsaggregater + dagens observationer)."""
     async def produce():
         today = dk_today()
-        rows = (await session.execute(text("""
+        rows = (await dataset.execute(session, """
             WITH yr AS (
                 SELECT artnr, sum(n_obs) AS n_year, min(dato) AS first_year, max(dato) AS last_year,
                        sum(n_obs) FILTER (WHERE dato > :d30) AS n_30
@@ -39,7 +40,7 @@ async def index(session: AsyncSession) -> list[dict]:
                    CASE WHEN yr.first_year IS NOT NULL THEN yr.first_year WHEN td.n_today > 0 THEN :today END AS first_year
             FROM species s LEFT JOIN yr USING (artnr) LEFT JOIN td USING (artnr) LEFT JOIN ever USING (artnr)
             WHERE NOT s.excluded
-        """), {"y0": date(today.year, 1, 1), "today": today, "d30": today - timedelta(days=30)})).mappings().all()
+        """, {"y0": date(today.year, 1, 1), "today": today, "d30": today - timedelta(days=30)})).mappings().all()
         return [{**dict(r), "last_date": r["last_date"].isoformat() if r["last_date"] else None,
                  "first_year": r["first_year"].isoformat() if r["first_year"] else None} for r in rows]
 
@@ -53,12 +54,12 @@ async def detail(session: AsyncSession, artnr: int) -> dict | None:
         return None
 
     async def produce():
-        recent = (await session.execute(text("""
+        recent = (await dataset.execute(session, """
             SELECT o.dato, o.loknr, l.navn AS lok, l.lat, l.lon, max(o.antal) AS antal, max(o.kategori) AS kategori
             FROM observations o JOIN locations l ON l.loknr = o.loknr
             WHERE o.artnr = :a AND o.hemmelig = 0 AND o.dato > current_date - 30
             GROUP BY o.dato, o.loknr, l.navn, l.lat, l.lon ORDER BY o.dato DESC LIMIT 500
-        """), {"a": artnr})).mappings().all()
+        """, {"a": artnr})).mappings().all()
         counts = (await session.execute(text("""
             SELECT a.navn, c.n_obs FROM area_species_counts c JOIN afdelinger a ON 'afd:' || a.id = c.area_key
             WHERE c.artnr = :a ORDER BY c.n_obs DESC

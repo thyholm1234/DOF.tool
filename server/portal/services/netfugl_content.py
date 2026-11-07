@@ -12,10 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import cached
 from portal.models import NfApiGrant, NfApiToken, NfComment, NfKryds, NfLike, NfLink, NfPage, NfRole, User
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 
 async def rows(session: AsyncSession, sql: str, **args) -> list[dict]:
-    return [dict(r) for r in (await session.execute(text(sql), args)).mappings().all()]
+    return [dict(r) for r in (await dataset.execute(session, sql, args)).mappings().all()]  # hele datasættet: DOFbasen + DOF.tool (services/dataset.py)
 
 
 def iso(rs: list[dict]) -> list[dict]:
@@ -89,7 +90,7 @@ async def delete_photo_relations(session: AsyncSession, pid: int) -> None:
 
 
 async def owns_observation(session: AsyncSession, obsid: int, obserkode: str | None) -> bool:
-    return bool((await session.execute(text("SELECT 1 FROM observations WHERE obsid = :o AND obserkode = :k"),
+    return bool((await dataset.execute(session, "SELECT 1 FROM observations WHERE obsid = :o AND obserkode = :k",
                                        {"o": obsid, "k": obserkode})).scalar())
 
 
@@ -335,8 +336,8 @@ async def dofbasen_stats(session: AsyncSession, artnr: int) -> dict:
     """Artssidens DK-fund fra DOFbasen: antal, pr. måned og lokalafdeling, og alle fund for sjældne arter (≤ 400)."""
     async def produce():
         ids = [r[0] for r in (await session.execute(text("SELECT artnr FROM species WHERE artnr = :a OR list_artnr = :a"), {"a": artnr})).all()]
-        stat = (await session.execute(text("""SELECT count(*), count(DISTINCT (dato, loknr)), min(dato), max(dato)
-                FROM observations WHERE artnr = ANY(:ids) AND hemmelig = 0"""), {"ids": ids})).first()
+        stat = (await dataset.execute(session, """SELECT count(*), count(DISTINCT (dato, loknr)), min(dato), max(dato)
+                FROM observations WHERE artnr = ANY(:ids) AND hemmelig = 0""", {"ids": ids})).first()
         months = await rows(session, """SELECT extract(month FROM dato)::int AS m, count(DISTINCT (dato, loknr)) AS n FROM observations
                 WHERE artnr = ANY(:ids) AND hemmelig = 0 GROUP BY 1 ORDER BY 1""", ids=ids)
         afd = await rows(session, """SELECT a.navn, count(DISTINCT (o.dato, o.loknr)) AS n FROM observations o JOIN locations l ON l.loknr = o.loknr

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import get_json, kv
 from portal.db import ObsSession
 from portal.services import species_quiz
+from portal.services import dataset
 
 MIN_TRIPS_LOC = 30  # en lokalitet bruges kun til spørgsmål, når den har mindst så mange ture i perioden
 YEARS = 12
@@ -75,12 +76,12 @@ async def loc_frequency(loknr: int, doy: int, window: int) -> tuple[int, dict[in
     since = date(date.today().year - YEARS, 1, 1)
     params = {"l": loknr, "d": doy, "w": window, "since": since}
     async with ObsSession() as s:
-        trips = (await s.execute(text(f"SELECT count(*) FROM trips WHERE loknr = :l AND dato >= :since AND {_DOY.format(c='dato')}"), params)).scalar() or 0
-        rows = (await s.execute(text(f"""
+        trips = (await dataset.execute(s, f"SELECT count(*) FROM trips WHERE loknr = :l AND dato >= :since AND {_DOY.format(c='dato')}", params)).scalar() or 0
+        rows = (await dataset.execute(s, f"""
             SELECT sp.artnr, sp.navn, count(DISTINCT o.turid) AS n FROM observations o
             JOIN species sp ON sp.artnr = o.artnr AND sp.art_type = 'art' AND sp.list_artnr = sp.artnr AND NOT sp.excluded
             WHERE o.loknr = :l AND o.hemmelig = 0 AND o.turid IS NOT NULL AND o.dato >= :since AND {_DOY.format(c='o.dato')}
-            GROUP BY sp.artnr, sp.navn"""), params)).all()
+            GROUP BY sp.artnr, sp.navn""", params)).all()
     return trips, {a: (n, k) for a, n, k in rows}
 
 

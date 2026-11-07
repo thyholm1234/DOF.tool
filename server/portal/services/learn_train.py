@@ -14,6 +14,7 @@ from portal.cache import kv
 from portal.db import ObsSession
 from portal.models import Course, LrTraining, Question, User
 from portal.services import learn_gen, learn_play, sound_quiz, species_quiz
+from portal.services import dataset
 
 KILDER = ("gruppe", "arter", "mine", "afdeling", "lokalitet", "kursus", "svage")
 MAX_ARTER = 600
@@ -41,8 +42,8 @@ async def species_for(db: AsyncSession, user: User, cfg: dict) -> list[int]:
         if not user.obserkode:
             raise TrainError("Knyt din DOFbasen-profil for at bruge dine egne arter")
         async with ObsSession() as o:
-            rows = (await o.execute(text("""SELECT o.artnr FROM observations o JOIN species s ON s.artnr = o.artnr AND s.art_type = 'art' AND s.list_artnr = s.artnr
-                WHERE o.obserkode = :k GROUP BY o.artnr ORDER BY count(*) DESC LIMIT :n"""), {"k": user.obserkode, "n": MAX_ARTER})).scalars().all()
+            rows = (await dataset.execute(o, """SELECT o.artnr FROM observations o JOIN species s ON s.artnr = o.artnr AND s.art_type = 'art' AND s.list_artnr = s.artnr
+                WHERE o.obserkode = :k GROUP BY o.artnr ORDER BY count(*) DESC LIMIT :n""", {"k": user.obserkode, "n": MAX_ARTER})).scalars().all()
         return list(rows)
     if kilde == "afdeling":
         afd = int(cfg.get("afdeling_id") or 0)

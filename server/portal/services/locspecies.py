@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.services.sun import sun_times
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 WEEKS = 52
 BIN = 30          # minutter pr. søjle omkring solopgang/-nedgang
@@ -68,15 +69,15 @@ async def build(session: AsyncSession, loknr: int, artnr: int, year: int | None)
     sp = (await session.execute(text("SELECT artnr, navn, latin, klass FROM species WHERE artnr = :a"), {"a": artnr})).mappings().first()
     if not loc or not sp:
         return None
-    rows = (await session.execute(text("""
+    rows = (await dataset.execute(session, """
         SELECT o.dato, o.antal, o.adfkode, o.obstidfra, o.obstidtil, o.turid FROM observations o
         WHERE o.loknr = :l AND o.artnr = :a AND o.hemmelig = 0 AND o.antal > 0
-    """), {"l": loknr, "a": artnr})).all()
-    visit_days = (await session.execute(text("SELECT DISTINCT dato FROM observations WHERE loknr = :l AND hemmelig = 0"),
+    """, {"l": loknr, "a": artnr})).all()
+    visit_days = (await dataset.execute(session, "SELECT DISTINCT dato FROM observations WHERE loknr = :l AND hemmelig = 0",
                                         {"l": loknr})).scalars().all()
-    lists_by_year = dict((await session.execute(text("""
+    lists_by_year = dict((await dataset.execute(session, """
         SELECT extract(year FROM dato)::int, count(*) FROM trips WHERE loknr = :l GROUP BY 1
-    """), {"l": loknr})).all())
+    """, {"l": loknr})).all())
     codes = dict((await session.execute(text("SELECT code, text FROM code_texts WHERE kind = 'adf'"))).all())
     lat, lon = (loc["lat"], loc["lon"]) if loc["lat"] is not None else DK
 

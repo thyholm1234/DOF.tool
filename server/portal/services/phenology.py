@@ -26,6 +26,7 @@ from portal import jobstatus
 from portal.cache import get_json, kv, set_json
 from portal.domain import adfaerd
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 log = logging.getLogger("portal.pheno")
 
@@ -41,18 +42,18 @@ async def refresh_aggregates(session: AsyncSession, since: date, until: date | N
     """Dagsaggregater fra since til until (None = i dag)."""
     p = {"d": since, "u": until or date.today()}
     await session.execute(text("DELETE FROM species_day WHERE dato >= :d AND dato <= :u"), p)
-    await session.execute(text(f"""
+    await dataset.execute(session, f"""
         INSERT INTO species_day (artnr, dato, n_obs, n_ind, n_trips, n_migr)
         SELECT artnr, dato, count(*), sum(antal), count(DISTINCT turid),
                coalesce(sum(antal) FILTER (WHERE {adfaerd.first_migration_sql("adfkode")}), 0)
         FROM observations WHERE dato >= :d AND dato <= least(:u, current_date) GROUP BY artnr, dato
-    """), p)
+    """, p)
     await session.execute(text("DELETE FROM effort_day WHERE dato >= :d AND dato <= :u"), p)
-    await session.execute(text("""
+    await dataset.execute(session, """
         INSERT INTO effort_day (dato, n_trips, n_observers)
         SELECT dato, count(DISTINCT turid), count(DISTINCT obserkode)
         FROM observations WHERE dato >= :d AND dato <= least(:u, current_date) GROUP BY dato
-    """), p)
+    """, p)
     await session.commit()
 
 

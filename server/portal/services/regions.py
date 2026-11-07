@@ -17,6 +17,7 @@ from portal import jobstatus
 from portal.cache import bump, cached, version
 from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 log = logging.getLogger("portal.regions")
 
@@ -37,10 +38,10 @@ async def refresh(session: AsyncSession, first_year: int | None = None, last_yea
     år). År uden observationer springes over, og deres gamle tal fjernes. Returnerer antal beregnede år."""
     last = min(last_year or dk_today().year, dk_today().year)
     if first_year is None:
-        first_year = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar() or last
+        first_year = (await dataset.execute(session, "SELECT extract(year FROM min(dato))::int FROM observations")).scalar() or last
     years = []
     for y in range(first_year, last + 1):  # ét indeksopslag pr. år (fx 1900–1960 har huller)
-        if (await session.execute(text("SELECT EXISTS (SELECT 1 FROM observations WHERE dato >= :a AND dato < :b)"),
+        if (await dataset.execute(session, "SELECT EXISTS (SELECT 1 FROM observations WHERE dato >= :a AND dato < :b)",
                                   {"a": date(y, 1, 1), "b": date(y + 1, 1, 1)})).scalar():
             years.append(y)
     await session.execute(text("DELETE FROM region_year_species WHERE year BETWEEN :f AND :l AND NOT (year = ANY(:y))"),
@@ -50,11 +51,11 @@ async def refresh(session: AsyncSession, first_year: int | None = None, last_yea
         p = {"a": date(y, 1, 1), "b": date(y + 1, 1, 1), "y": y}
         await session.execute(text("DELETE FROM region_year_species WHERE year = :y"), {"y": y})
         for key, join, extra in _LEVELS.values():
-            await session.execute(text(f"""
+            await dataset.execute(session, f"""
                 INSERT INTO region_year_species (region, year, artnr, n_obs, first_date, last_date)
                 SELECT {key}, :y, ls.artnr, count(*), min(o.dato), max(o.dato) {_BASE.format(join=join)} {extra}
                 GROUP BY 1, ls.artnr
-            """), p)
+            """, p, d1=p["a"], d2=p["b"])
         await session.commit()
     await bump("regions")
     log.info("Arter pr. år genberegnet for %s–%s", first_year, last)
@@ -66,7 +67,7 @@ async def refresh_reach(session: AsyncSession, first_year: int | None = None) ->
     Genberegner fra first_year (None = alle år) til i år. Returnerer antal beregnede perioder."""
     last = dk_today().year
     if first_year is None:
-        first_year = (await session.execute(text("SELECT extract(year FROM min(dato))::int FROM observations"))).scalar() or last
+        first_year = (await dataset.execute(session, "SELECT extract(year FROM min(dato))::int FROM observations")).scalar() or last
     years = list(range(first_year, last + 1))
     for i, y in enumerate(years):
         await jobstatus.step(f"Huller: {y}", i, len(years) + 1)
@@ -75,16 +76,16 @@ async def refresh_reach(session: AsyncSession, first_year: int | None = None) ->
         await session.execute(text("DELETE FROM region_totals WHERE year = :y"), p)
         for key, join, extra in _LEVELS.values():
             base = _BASE.format(join=join)
-            await session.execute(text(f"""
+            await dataset.execute(session, f"""
                 INSERT INTO region_reach (region, year, artnr, n_observers, n_trips)
                 SELECT {key}, :y, ls.artnr, count(DISTINCT o.obserkode), count(DISTINCT o.turid) {base} {extra}
                 GROUP BY 1, ls.artnr
-            """), p)
-            await session.execute(text(f"""
+            """, p, d1=p["a"], d2=p["b"])
+            await dataset.execute(session, f"""
                 INSERT INTO region_totals (region, year, n_trips, n_observers)
                 SELECT {key}, :y, count(DISTINCT o.turid), count(DISTINCT o.obserkode) {base} {extra}
                 GROUP BY 1
-            """), p)
+            """, p, d1=p["a"], d2=p["b"])
         await session.commit()
     # Alle år (year = 0) lægges sammen fra årene uden at røre observationerne: ture ligger på én dato, og observatører
     # tælles som observatør-år – så andelen er et vægtet gennemsnit af årsandelene (vægt = aktive observatører i året).

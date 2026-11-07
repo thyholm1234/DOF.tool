@@ -19,6 +19,7 @@ from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
 from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -177,9 +178,9 @@ async def resync_status(user: User = Depends(require_user)):
 
 @router.get("/me/stats")
 async def my_stats(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
-    row = (await db.execute(text("""
+    row = (await dataset.execute(db, """
         SELECT count(*) AS n_obs, count(DISTINCT turid) AS n_trips, min(dato) AS first, max(dato) AS last,
                count(DISTINCT artnr) AS n_taxa
         FROM observations WHERE obserkode = :k
-    """), {"k": user.obserkode})).mappings().first()
+    """, {"k": user.obserkode})).mappings().first()
     return dict(row)

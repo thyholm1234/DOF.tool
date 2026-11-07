@@ -21,6 +21,7 @@ from portal.domain import adfaerd
 from portal.models import CalendarVisit, SiteCalendar, User
 from portal.services import dmi
 from portal.timeutil import TZ, dk_today
+from portal.services import dataset
 
 MAX_PER_USER = 5
 KINDS = {"traekpost": "Trækpost", "seawatch": "Seawatch", "ringmaerkning": "Ringmærkning", "optaelling": "Optælling", "andet": "Andet"}
@@ -83,7 +84,7 @@ async def typical_species(session: AsyncSession, loknr: int, around: date) -> di
     doy = around.timetuple().tm_yday
 
     async def produce():
-        rows = (await session.execute(text(f"""
+        rows = (await dataset.execute(session, f"""
             WITH o AS (
                 SELECT o.dato, o.antal, coalesce(s.list_artnr, s.artnr) AS artnr, o.adfkode
                 FROM observations o JOIN species s ON s.artnr = o.artnr
@@ -93,11 +94,11 @@ async def typical_species(session: AsyncSession, loknr: int, around: date) -> di
             SELECT s.navn, s.klass, count(DISTINCT o.dato) AS dage, sum(o.antal) AS ind, max(o.antal) AS maks,
                    bool_or({adfaerd.first_migration_sql("o.adfkode")}) AS traek
             FROM o JOIN species s ON s.artnr = o.artnr GROUP BY s.navn, s.klass ORDER BY dage DESC, ind DESC LIMIT 25
-        """), {"l": loknr, "doy": doy})).mappings().all()
-        days = (await session.execute(text("""
+        """, {"l": loknr, "doy": doy})).mappings().all()
+        days = (await dataset.execute(session, """
             SELECT count(DISTINCT dato) FROM observations WHERE loknr = :l AND dato >= current_date - interval '15 years'
               AND abs(extract(doy FROM dato)::int - :doy) <= 10
-        """), {"l": loknr, "doy": doy})).scalar() or 0
+        """, {"l": loknr, "doy": doy})).scalar() or 0
         return {"days_covered": days, "species": [dict(r) for r in rows]}
 
     return await cached(f"cal:typ:{loknr}:{doy // 7}", 86400, produce)

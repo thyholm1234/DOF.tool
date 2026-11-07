@@ -13,6 +13,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.models import Area
+from portal.services import dataset
 
 KINDS = ("afdeling", "kommune", "lokalitet", "polygon", "radius")
 
@@ -129,12 +130,12 @@ async def refresh_area_counts(session: AsyncSession, scope: Scope) -> int:
     """Historiske antal observationer pr. art i et område (grundlag for 'lokale hits')."""
     pred, params = (await scope.with_geom(session)).predicate("o")
     await session.execute(text("DELETE FROM area_species_counts WHERE area_key = :k"), {"k": scope.key})
-    res = await session.execute(text(f"""
+    res = await dataset.execute(session, f"""
         INSERT INTO area_species_counts (area_key, artnr, n_obs, n_days, last_date)
         SELECT :k, o.artnr, count(*), count(DISTINCT o.dato), max(o.dato)
         FROM observations o WHERE {pred} AND o.dato < current_date
         GROUP BY o.artnr
-    """), {"k": scope.key, **params})
+    """, {"k": scope.key, **params})
     await refresh_area_finds(session, scope)
     return res.rowcount or 0
 
@@ -179,21 +180,21 @@ async def refresh_region_finds(session: AsyncSession) -> None:
 async def refresh_all_area_counts(session: AsyncSession) -> None:
     """Natlig genberegning: hele DK, alle afdelinger og kommuner samt brugeroprettede områder."""
     await session.execute(text("DELETE FROM area_species_counts WHERE area_key = 'dk' OR area_key LIKE 'afd:%' OR area_key LIKE 'kom:%'"))
-    await session.execute(text("""
+    await dataset.execute(session, """
         INSERT INTO area_species_counts (area_key, artnr, n_obs, n_days, last_date)
         SELECT 'dk', artnr, count(*), count(DISTINCT dato), max(dato) FROM observations WHERE dato < current_date GROUP BY artnr
-    """))
-    await session.execute(text("""
+    """)
+    await dataset.execute(session, """
         INSERT INTO area_species_counts (area_key, artnr, n_obs, n_days, last_date)
         SELECT 'afd:' || a, artnr, count(*), count(DISTINCT dato), max(dato)
         FROM observations, unnest(afdelinger) a WHERE dato < current_date GROUP BY a, artnr
-    """))
-    await session.execute(text("""
+    """)
+    await dataset.execute(session, """
         INSERT INTO area_species_counts (area_key, artnr, n_obs, n_days, last_date)
         SELECT 'kom:' || l.kommune_kode, o.artnr, count(*), count(DISTINCT o.dato), max(o.dato)
         FROM observations o JOIN locations l USING (loknr)
         WHERE o.dato < current_date AND l.kommune_kode IS NOT NULL GROUP BY l.kommune_kode, o.artnr
-    """))
+    """)
     await refresh_region_finds(session)
     await session.commit()
     areas = (await session.execute(text("SELECT DISTINCT kind, ref, id FROM areas WHERE kind IN ('lokalitet','polygon','radius')"))).all()

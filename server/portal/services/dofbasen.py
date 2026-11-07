@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.config import SEED_DIR
 from portal.models import DofbArea, DofbAudit, DofbFocus, DofbList, DofbNews, DofbPage, DofbRole, DofbUserRole, User
-from portal.services import dataset, features
+from portal.services import dataset, doftool_obs, features
 from portal.services.auth import SUPERADMIN, can
 from portal.timeutil import dk_today
 
@@ -644,6 +644,13 @@ async def attach_media(rows: list[dict], db: AsyncSession | None = None, su_badg
     found = await media_many(every)
     key = {id(r): find_key(r.get("dato") or dato, r.get("artnr"), r.get("loknr")) for r in rows}
     cases, su_ok = await obs_marks(db, every, su_badge, list(key.values()))
+    # DOF.tool's fund: fotos og lyd ligger hos indtastningen (field_reports.media) – ikke i DOFbasens mediecache
+    tool_ids = [-o - doftool_obs.BASE for o in every if doftool_obs.is_doftool(o)]
+    if tool_ids and db is not None:
+        for rid, media in (await db.execute(text("SELECT id, media FROM field_reports WHERE id = ANY(:i)"), {"i": tool_ids})).all():
+            m = list(media or [])
+            found[doftool_obs.obsid_of(rid)] = {"images": [x["url"] for x in m if x.get("kind", "image") == "image"],
+                                                "sounds": [x["url"] for x in m if x.get("kind") == "audio"], "dku": ""}
     own = {"behandling": "Til behandling hos DKU", "dku": "Behandlet af DKU", "su": "Godkendt af SU"}
     for r in rows:
         mine = ids[id(r)]

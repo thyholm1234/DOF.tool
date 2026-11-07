@@ -26,6 +26,7 @@ from portal.domain.adfaerd import MIGRATING, last_migration_sql
 from portal.services.finds import SITE_GAP_DAYS
 from portal.timeutil import dk_now, dk_today
 from portal.services.setting_store import get_setting, put_setting
+from portal.services import dataset
 
 PLAN = "locfinds:plan"
 STATUS = "locfinds:status"
@@ -75,7 +76,7 @@ async def compute(session: AsyncSession, afd: int) -> int:
     where = f"o.loknr IN (SELECT loknr FROM locations WHERE {_loc_filter(afd)})"
     await session.execute(text(f"DELETE FROM loc_species_finds WHERE loknr IN (SELECT loknr FROM locations WHERE {_loc_filter(afd)})"),
                           params)
-    res = await session.execute(text(_finds_sql(where)), params)
+    res = await dataset.execute(session, _finds_sql(where), params)
     await session.commit()
     return res.rowcount or 0
 
@@ -89,8 +90,8 @@ async def refresh_recent(session: AsyncSession) -> int:
                WHERE n.dato >= :since AND n.dato < current_date AND n.antal > 0
                  AND NOT EXISTS (SELECT 1 FROM loc_species_finds x WHERE x.loknr = n.loknr AND x.artnr = n.artnr AND x.n_finds >= :skip)"""
     params = {"since": since, "mig": list(MIGRATING), "gap": SITE_GAP_DAYS, "skip": RECENT_SKIP}
-    await session.execute(text(f"DELETE FROM loc_species_finds WHERE (loknr, artnr) IN ({pairs})"), params)
-    res = await session.execute(text(_finds_sql(f"(o.loknr, o.artnr) IN ({pairs})")), params)
+    await dataset.execute(session, f"DELETE FROM loc_species_finds WHERE (loknr, artnr) IN ({pairs})", params)
+    res = await dataset.execute(session, _finds_sql(f"(o.loknr, o.artnr) IN ({pairs})"), params)
     await session.commit()
     await kv().set(RECENT, dk_today().isoformat())
     return res.rowcount or 0

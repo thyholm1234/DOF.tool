@@ -19,6 +19,7 @@ from portal.db import get_session
 from portal.models import SuCase, SuFile, SuMemberRead, SuMessage, SuObsApproval, SuReport, User
 from portal.services import storage
 from portal.services import su as svc
+from portal.services import dataset
 
 router = APIRouter(prefix="/api/su", tags=["su"])
 
@@ -570,7 +571,7 @@ async def su_observations(aar: int | None = Query(None, ge=1990, le=2100), state
     Observationerne og afgørelserne hentes hver for sig (hver sin databasegruppe)."""
     need_su(c)
     year = aar or date.today().year
-    rows = [dict(r) for r in (await db.execute(text("""
+    rows = [dict(r) for r in (await dataset.execute(db, """
         SELECT o.dato, o.artnr, s.navn AS art, o.loknr, l.navn AS lokalitet, count(*) AS n_obs, max(o.antal) AS max_antal,
                count(DISTINCT o.obserkode) AS n_observers, min(o.obsid) AS obsid,
                left(string_agg(DISTINCT trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')), ', '), 200) AS observatorer,
@@ -579,7 +580,7 @@ async def su_observations(aar: int | None = Query(None, ge=1990, le=2100), state
         LEFT JOIN observers ob ON ob.obserkode = o.obserkode
         WHERE o.kategori = 'SU' AND o.hemmelig = 0 AND o.loknr IS NOT NULL AND o.dato BETWEEN make_date(:y, 1, 1) AND make_date(:y, 12, 31)
         GROUP BY o.dato, o.artnr, s.navn, s.sortering, o.loknr, l.navn
-        ORDER BY o.dato DESC, s.sortering, l.navn LIMIT 3000"""), {"y": year})).mappings()]
+        ORDER BY o.dato DESC, s.sortering, l.navn LIMIT 3000""", {"y": year})).mappings()]
     dec = {}
     if rows:
         dec = {(a.dato, a.artnr, a.loknr): a for a in (await db.execute(select(SuObsApproval).where(
@@ -663,10 +664,10 @@ async def decide(body: DecideIn, c: dict = Depends(ctx), user: User = Depends(re
                                                                              SuObsApproval.loknr == l))).rowcount or 0
         await db.commit()
         return {"ok": True, "n": done}
-    valid = set((await db.execute(text("""SELECT DISTINCT o.dato, o.artnr, o.loknr FROM observations o
+    valid = set((await dataset.execute(db, """SELECT DISTINCT o.dato, o.artnr, o.loknr FROM observations o
         JOIN unnest(CAST(:d AS date[]), CAST(:a AS int[]), CAST(:l AS int[])) AS k(dato, artnr, loknr)
           ON k.dato = o.dato AND k.artnr = o.artnr AND k.loknr = o.loknr
-        WHERE o.kategori = 'SU' AND o.hemmelig = 0"""), {"d": [k[0] for k in keys], "a": [k[1] for k in keys], "l": [k[2] for k in keys]})).all())
+        WHERE o.kategori = 'SU' AND o.hemmelig = 0""", {"d": [k[0] for k in keys], "a": [k[1] for k in keys], "l": [k[2] for k in keys]})).all())
     for d, a, l in keys:
         if (d, a, l) not in valid:
             continue

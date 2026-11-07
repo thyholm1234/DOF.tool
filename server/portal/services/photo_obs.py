@@ -9,6 +9,7 @@ from datetime import date, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+from portal.services import dataset
 
 OBS = """
     SELECT o.obsid, o.dato, o.antal, o.artnr, o.loknr, l.navn AS lokalitet, l.lat, l.lon, o.koen, o.adfkode, o.alderkode, o.dragtkode,
@@ -19,7 +20,7 @@ OBS = """
 
 async def mine(session: AsyncSession, obserkode: str, artnr: int, dato: date) -> list[dict]:
     """Brugerens egne observationer af arten ±1 dag."""
-    rows = (await session.execute(text(OBS + " WHERE o.obserkode = :k AND o.artnr = :a AND o.dato BETWEEN :f AND :t ORDER BY o.dato, o.obsid"),
+    rows = (await dataset.execute(session, OBS + " WHERE o.obserkode = :k AND o.artnr = :a AND o.dato BETWEEN :f AND :t ORDER BY o.dato, o.obsid",
                                   {"k": obserkode, "a": artnr, "f": dato - timedelta(days=1), "t": dato + timedelta(days=1)})).mappings().all()
     return [_out(r) for r in rows]
 
@@ -32,7 +33,7 @@ def _out(r) -> dict:
 
 async def get_own(session: AsyncSession, obserkode: str, obsid: int) -> dict | None:
     """Observationen, hvis den tilhører obserkoden (ellers None)."""
-    r = (await session.execute(text(OBS + " WHERE o.obsid = :o AND o.obserkode = :k"), {"o": obsid, "k": obserkode})).mappings().first()
+    r = (await dataset.execute(session, OBS + " WHERE o.obsid = :o AND o.obserkode = :k", {"o": obsid, "k": obserkode}, obserkode=obserkode)).mappings().first()
     return _out(r) if r else None
 
 

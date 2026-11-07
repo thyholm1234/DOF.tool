@@ -11,6 +11,7 @@ from portal.cache import cached, kv, version, worker_command
 from portal.domain import geo, kategori
 from portal.services import locyear
 from portal.timeutil import dk_today
+from portal.services import dataset
 
 LOC_TTL = 3600  # lokalitetssiderne (lokalitet, artsliste, top 10, art på lokalitet) caches en time
 INDEX_SORTS = ("aktivitet", "aar", "arter", "senest", "navn", "afstand")
@@ -127,19 +128,19 @@ async def location(session: AsyncSession, loknr: int) -> dict | None:
         return None
 
     async def produce():
-        recent = (await session.execute(text(f"""
+        recent = (await dataset.execute(session, f"""
             SELECT o.dato, o.artnr, s.navn AS art, max(o.antal) AS antal, max({kategori.rank_sql("o.kategori")}) AS rank
             FROM observations o JOIN species s ON s.artnr = o.artnr
             WHERE o.loknr = :l AND o.hemmelig = 0 AND o.dato > current_date - 30
             GROUP BY o.dato, o.artnr, s.navn ORDER BY o.dato DESC, rank DESC, s.navn LIMIT 1500
-        """), {"l": loknr})).mappings().all()
+        """, {"l": loknr})).mappings().all()
         # n_taxa = krydsbare arter som på årslisterne (artslisten viser dog alle taxa)
-        stats = (await session.execute(text(f"""
+        stats = (await dataset.execute(session, f"""
             WITH d AS (SELECT loknr, artnr, dato, bool_or(antal > 0) AS pos FROM observations WHERE loknr = :l GROUP BY loknr, artnr, dato)
             SELECT count(*) AS n_obs, count(DISTINCT s.list_artnr) FILTER (WHERE d.pos AND {locyear.COUNTED_DAY}) AS n_taxa,
                    min(d.dato) AS first, max(d.dato) AS last
             FROM d JOIN species s ON s.artnr = d.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr
-        """), {"l": loknr})).mappings().first()
+        """, {"l": loknr})).mappings().first()
         return {"recent": [{**{k: r[k] for k in ("dato", "artnr", "art", "antal")}, "kategori": kategori.from_rank(r["rank"])}
                            for r in recent],
                 "stats": dict(stats)}
@@ -154,11 +155,11 @@ async def species_list(session: AsyncSession, loknr: int, year: int | None) -> d
 
 async def own_species(session: AsyncSession, loknr: int, obserkode: str, year: int | None) -> list[int]:
     """Arter observatøren selv har indtastet på lokaliteten (i det valgte år) – til filteret "Mangler hos mig"."""
-    rows = (await session.execute(text("""
+    rows = (await dataset.execute(session, """
         SELECT DISTINCT artnr FROM observations
         WHERE loknr = :l AND obserkode = :k AND antal > 0
           AND (CAST(:y AS int) IS NULL OR dato >= make_date(CAST(:y AS int), 1, 1) AND dato < make_date(CAST(:y AS int) + 1, 1, 1))
-    """), {"l": loknr, "k": obserkode, "y": year})).scalars().all()
+    """, {"l": loknr, "k": obserkode, "y": year})).scalars().all()
     return list(rows)
 
 
@@ -166,7 +167,7 @@ async def records(session: AsyncSession, loknr: int, artnr: int, year: int | Non
     """Top 10 unikke dage for arten på lokaliteten (evt. inden for ét år): dagens største enkeltobservation, med
     observatør og tråd."""
     async def produce():
-        rows = (await session.execute(text("""
+        rows = (await dataset.execute(session, """
             SELECT * FROM (
                 SELECT DISTINCT ON (o.dato) o.dato, o.antal, o.obsid, o.adfkode, o.obserkode,
                        coalesce(nullif(trim(coalesce(ob.fornavn, '') || ' ' || coalesce(ob.efternavn, '')), ''), o.obserkode) AS observer
@@ -175,7 +176,7 @@ async def records(session: AsyncSession, loknr: int, artnr: int, year: int | Non
                   AND (CAST(:y AS int) IS NULL OR o.dato >= make_date(CAST(:y AS int), 1, 1) AND o.dato < make_date(CAST(:y AS int) + 1, 1, 1))
                 ORDER BY o.dato, o.antal DESC, o.obsid
             ) d ORDER BY antal DESC, dato DESC LIMIT 10
-        """), {"l": loknr, "a": artnr, "y": year})).mappings().all()
+        """, {"l": loknr, "a": artnr, "y": year})).mappings().all()
         return [dict(r) for r in rows]
     return await cached(f"lok:rec:{loknr}:{artnr}:{year or 'alle'}", LOC_TTL, produce)
 

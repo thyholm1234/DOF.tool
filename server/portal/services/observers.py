@@ -11,11 +11,12 @@ from __future__ import annotations
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import cached
+from portal.cache import cached, version
 from portal.domain import kategori
 from portal.models import User
 from portal.services.locyear import COUNTED
 from portal.timeutil import dk_today
+from portal.services import dataset, doftool_obs
 
 TTL = 3600
 _FROM = """FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr
@@ -38,28 +39,28 @@ async def _portal_user(session: AsyncSession, kode: str) -> dict | None:
 async def _stats(session: AsyncSession, kode: str) -> dict:
     async def produce():
         a = {"k": kode}
-        tot = (await session.execute(text(f"""
+        tot = (await dataset.execute(session, f"""
             SELECT count(*) AS n_obs, count(DISTINCT o.turid) AS n_ture, count(DISTINCT o.dato) AS n_dage,
                    count(DISTINCT o.loknr) AS n_lok, min(o.dato) AS first, max(o.dato) AS last,
-                   count(DISTINCT s.list_artnr) FILTER (WHERE {COUNTED}) AS n_arter {_FROM}"""), a)).mappings().first()
-        years = (await session.execute(text(f"""
+                   count(DISTINCT s.list_artnr) FILTER (WHERE {COUNTED}) AS n_arter {_FROM}""", a, obserkode=kode)).mappings().first()
+        years = (await dataset.execute(session, f"""
             SELECT extract(year FROM o.dato)::int AS aar, count(*) AS n_obs, count(DISTINCT o.dato) AS n_dage,
-                   count(DISTINCT s.list_artnr) FILTER (WHERE {COUNTED}) AS n_arter {_FROM} GROUP BY 1 ORDER BY 1"""), a)).mappings().all()
-        places = (await session.execute(text("""
+                   count(DISTINCT s.list_artnr) FILTER (WHERE {COUNTED}) AS n_arter {_FROM} GROUP BY 1 ORDER BY 1""", a, obserkode=kode)).mappings().all()
+        places = (await dataset.execute(session, """
             SELECT o.loknr, l.navn, count(DISTINCT o.dato) AS dage, max(o.dato) AS senest
             FROM observations o JOIN locations l ON l.loknr = o.loknr WHERE o.obserkode = :k AND o.hemmelig = 0
-            GROUP BY o.loknr, l.navn ORDER BY dage DESC, senest DESC LIMIT 12"""), a)).mappings().all()
-        notable = (await session.execute(text(f"""
+            GROUP BY o.loknr, l.navn ORDER BY dage DESC, senest DESC LIMIT 12""", a, obserkode=kode)).mappings().all()
+        notable = (await dataset.execute(session, f"""
             SELECT o.dato, o.artnr, s.navn AS art, o.loknr, l.navn AS lok, max({kategori.rank_sql("o.kategori")}) AS rank, max(o.antal) AS antal
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
             WHERE o.obserkode = :k AND o.hemmelig = 0 AND o.kategori IN ('SU', 'SUB', 'bemaerk') AND o.dato > :since
-            GROUP BY o.dato, o.artnr, s.navn, o.loknr, l.navn ORDER BY o.dato DESC, rank DESC LIMIT 30"""),
-            {**a, "since": dk_today().replace(year=dk_today().year - 1)})).mappings().all()
-        trips = (await session.execute(text("""
+            GROUP BY o.dato, o.artnr, s.navn, o.loknr, l.navn ORDER BY o.dato DESC, rank DESC LIMIT 30""",
+            {**a, "since": dk_today().replace(year=dk_today().year - 1)}, obserkode=kode)).mappings().all()
+        trips = (await dataset.execute(session, """
             SELECT o.turid, o.dato, o.loknr, l.navn AS lok, count(DISTINCT o.artnr) AS arter, count(*) AS obs
             FROM observations o JOIN locations l ON l.loknr = o.loknr
             WHERE o.obserkode = :k AND o.hemmelig = 0 AND o.turid IS NOT NULL
-            GROUP BY o.turid, o.dato, o.loknr, l.navn ORDER BY o.dato DESC, o.turid DESC LIMIT 12"""), a)).mappings().all()
+            GROUP BY o.turid, o.dato, o.loknr, l.navn ORDER BY o.dato DESC, o.turid DESC LIMIT 12""", a, obserkode=kode)).mappings().all()
         iso = lambda v: v.isoformat() if v else None  # noqa: E731
         return {
             "tal": {**{k: tot[k] for k in ("n_obs", "n_ture", "n_dage", "n_lok", "n_arter")}, "first": iso(tot["first"]), "last": iso(tot["last"])},
@@ -70,7 +71,7 @@ async def _stats(session: AsyncSession, kode: str) -> dict:
             "ture": [{**dict(r), "dato": iso(r["dato"])} for r in trips],
         }
     # En time gammel er godt nok (feedets version skifter ved hver live-sync – så ville de store sider altid regnes forfra)
-    return await cached(f"obsprof:{kode}:{dk_today()}", TTL, produce)
+    return await cached(f"obsprof:{kode}:{dk_today()}:{await version(doftool_obs.VERSION)}", TTL, produce)
 
 
 async def profile(session: AsyncSession, kode: str, viewer: User | None) -> dict | None:

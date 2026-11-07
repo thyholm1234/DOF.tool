@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import cached, kv, version
 from portal.domain import adfaerd, geo
+from portal.services import dataset
 
 LINK_KM = 15.0
 LINK_DAYS = 1
@@ -144,12 +145,12 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
     list_artnr, klass = sp
 
     async def produce() -> dict:
-        obs = (await session.execute(text("""
+        obs = (await dataset.execute(session, """
             SELECT o.dato, o.loknr, o.turid, coalesce(o.adfkode, '') AS adf, coalesce(o.obs_lat, l.lat) AS lat,
                    coalesce(o.obs_lon, l.lon) AS lon, o.antal, o.hemmelig <> 0 AS secret
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
             WHERE s.list_artnr = :a AND o.antal > 0 AND o.dato <= current_date AND l.lat IS NOT NULL
-        """), {"a": list_artnr})).all()
+        """, {"a": list_artnr})).all()
         # Punkter: dag, lokalitet og adfærd (stationær / trækkende pr. retning, "T" = uden retning)
         acc: dict[tuple, dict] = {}
         for o in obs:
