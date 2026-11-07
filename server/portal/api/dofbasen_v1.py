@@ -147,6 +147,12 @@ async def areas(c: Client = Depends(client), db: AsyncSession = Depends(get_sess
     return [{"id": a.id, "kind": a.kind, "navn": a.navn, "loknr": a.loknrs} for a in (await db.execute(select(DofbArea).order_by(DofbArea.kind, DofbArea.navn))).scalars()]
 
 
+@router.get("/ibas", summary="IBA-områder",
+            description="DOFbasens IBA-områder (id og navn) ud fra lokaliteterne – id'et bruges som iba i /observations.")
+async def ibas(c: Client = Depends(client), db: AsyncSession = Depends(get_session)):
+    return await _rows(db, svc.IBA_SQL)
+
+
 @router.get("/news", summary="Nyt på DOFbasen")
 async def news(c: Client = Depends(client), db: AsyncSession = Depends(get_session)):
     q = select(DofbNews).where(DofbNews.published).order_by(DofbNews.dato.desc())

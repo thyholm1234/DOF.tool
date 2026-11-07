@@ -94,7 +94,8 @@ export async function page(parts, q) {
       initial: f.lok_navn || (f.lok ? String(f.lok) : ""), onPick: (r) => { f.lok = r?.loknr ?? null; f.lok_navn = r?.navn; } }));
     else if (o === "lokal") areaBox.replaceChildren(sel("lokal", [["", ""], ...(ctx.data.afdelinger || []).map(a => [a.id, a.navn])]));
     else if (o === "kommune") areaBox.replaceChildren(sel("kommune", [["", ""], ...valg.kommuner.map(k => [k.kode, k.navn])]));
-    else if (o === "iba" || o === "stor") areaBox.replaceChildren(sel(o, [["", ""], ...valg.omraader.filter(a => a.kind === o).map(a => [a.id, a.navn])]));
+    else if (o === "iba") areaBox.replaceChildren(sel("iba", [["", ""], ...valg.iba.map(a => [a.id, a.navn])]));
+    else if (o === "stor") areaBox.replaceChildren(sel("stor", [["", ""], ...valg.omraader.map(a => [a.id, a.navn])]));
     else areaBox.replaceChildren();
   };
   drawArea();

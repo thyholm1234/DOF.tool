@@ -13,6 +13,7 @@ const ENDPOINTS = [
   ["GET", "/species", "Artsliste"], ["GET", "/species/{artnr}", "Én art"],
   ["GET", "/locations?q=&afdeling=&kommune=", "Lokaliteter (højst 1000)"], ["GET", "/locations/{loknr}", "Én lokalitet"],
   ["GET", "/areas", "Storlokaliteter og IBA-områder med lokalitetsnumre"],
+  ["GET", "/ibas", "IBA-områder (DOFbasens IBA-id og navn fra lokaliteterne) – id'et bruges som iba i /observations"],
   ["GET", "/news", "Nyt på DOFbasen"], ["GET", "/lists", "Opslagslister"], ["GET", "/lists/{key}", "Én liste, fx su, sub, adfaerd, alder, dragt, vindstyrke"],
 ];
 

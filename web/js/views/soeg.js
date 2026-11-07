@@ -106,7 +106,8 @@ export async function render(view) {
         label: (r) => r.kommune ? `${r.navn} (${r.kommune})` : r.navn, onPick: (r) => { f.lok = r?.loknr ?? null; f.lok_navn = r?.navn; } })
       : o === "lokal" ? sel("lokal", [["", "Vælg …"], ...valg.afdelinger.map(a => [a.id, a.navn])])
       : o === "kommune" ? sel("kommune", [["", "Vælg …"], ...valg.kommuner.map(k => [k.kode, k.navn])])
-      : o === "iba" || o === "stor" ? sel(o, [["", "Vælg …"], ...valg.omraader.filter(a => a.kind === o).map(a => [a.id, a.navn])]) : "");
+      : o === "iba" ? sel("iba", [["", "Vælg …"], ...valg.iba.map(a => [a.id, a.navn])])
+      : o === "stor" ? sel("stor", [["", "Vælg …"], ...valg.omraader.map(a => [a.id, a.navn])]) : "");
   };
   drawArea();
 

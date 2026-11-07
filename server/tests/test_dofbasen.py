@@ -64,6 +64,24 @@ def test_search_sql_filters():
     assert notes == []
 
 
+def test_search_sql_area_does_not_mix_db_groups():
+    from portal.dbgroups import group_of_sql
+
+    where, args, _ = svc.search_sql(svc.SearchIn(omraade="stor", stor=7), None)
+    assert "o.loknr = ANY(:area_loks)" in where and args["area"] == 7
+    assert "dofb_areas" not in where  # brugertabellen må ikke indgå i observationssøgningen
+    group_of_sql(f"SELECT 1 FROM observations o WHERE {where}")  # ValueError, hvis grupperne blandes
+
+
+def test_search_sql_iba_is_a_level_from_the_locations():
+    from portal.dbgroups import OBSERVATIONS, group_of_sql
+
+    where, args, _ = svc.search_sql(svc.SearchIn(omraade="iba", iba=407), None)
+    assert "d.iba_id = :iba" in where and args["iba"] == 407 and "area" not in args
+    assert group_of_sql(f"SELECT 1 FROM observations o WHERE {where}") == OBSERVATIONS
+    assert group_of_sql(svc.IBA_SQL) == OBSERVATIONS
+
+
 def test_search_without_period_falls_back_to_a_week():
     where, args, notes = svc.search_sql(svc.SearchIn(periode="none"), None)
     assert args["d2"] - args["d1"] == timedelta(days=6)

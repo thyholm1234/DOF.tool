@@ -72,8 +72,9 @@ async def seed(session: AsyncSession) -> None:
     if (await session.execute(select(DofbFocus.id).limit(1))).first() is None:
         for i, f in enumerate(data["focus"]):
             session.add(DofbFocus(title=f["title"], body=f["body"], active=f.get("active", True), sort=i * 10))
-    if (await session.execute(select(DofbArea.id).limit(1))).first() is None:
-        for kind, areas in data.get("areas", {}).items():
+    have = set((await session.execute(select(DofbArea.kind).distinct())).scalars())
+    for kind, areas in data.get("areas", {}).items():
+        if kind not in have:  # pr. slags: findes der storlokaliteter, skal IBA-områderne stadig lægges ind (og omvendt)
             for a in areas:
                 session.add(DofbArea(kind=kind, dof_id=a["id"], navn=a["navn"], loknrs=a["loknr"]))
     await session.commit()
@@ -273,6 +274,11 @@ def period(p: SearchIn) -> tuple[date | None, date | None]:
     return None, None
 
 
+# IBA-områderne i søgeformularen: DOFbasens IBA-id og -navn på lokaliteterne (fra zip-importen i Admin → Lokaliteter)
+IBA_SQL = """SELECT d.iba_id AS id, min(d.iba_navn) AS navn, count(*) AS lokaliteter FROM location_details d
+             WHERE d.iba_id IS NOT NULL GROUP BY d.iba_id ORDER BY min(d.iba_navn)"""
+
+
 def search_sql(p: SearchIn, viewer: str | None) -> tuple[str, dict[str, Any], list[str]]:
     """WHERE-delen af en søgning, parametre og forklarende noter (fx når perioden er indsnævret)."""
     where, args, notes = ["(o.hemmelig = 0 OR o.obserkode = :viewer)"], {"viewer": viewer or "-"}, []
@@ -309,9 +315,16 @@ def search_sql(p: SearchIn, viewer: str | None) -> tuple[str, dict[str, Any], li
     elif p.omraade == "kommune" and p.kommune:
         where.append("l.kommune_kode = :kommune")
         args["kommune"] = p.kommune
-    elif p.omraade in ("iba", "stor") and (p.iba if p.omraade == "iba" else p.stor):
-        where.append("o.loknr = ANY(SELECT unnest(loknrs) FROM dofb_areas WHERE id = :area)")
-        args["area"] = p.iba if p.omraade == "iba" else p.stor
+    elif p.omraade == "iba" and p.iba:
+        # IBA er et niveau som kommune og lokalafdeling: lokaliteternes IBA fra lokalitetsimporten (location_details,
+        # samme databasegruppe som observationerne)
+        where.append("o.loknr IN (SELECT d.loknr FROM location_details d WHERE d.iba_id = :iba)")
+        args["iba"] = p.iba
+    elif p.omraade == "stor" and p.stor:
+        # dofb_areas ligger i brugergruppen og observationerne i observationsgruppen: lokaliteterne slås op for sig
+        # (resolve_area) og sendes med som et array – én sætning må ikke blande grupperne (se dbgroups)
+        where.append("o.loknr = ANY(:area_loks)")
+        args["area"] = p.stor
 
     if p.artdata == "art" and p.art:
         if p.vis_underarter_som_arter:
@@ -389,8 +402,17 @@ ROW_JOINS = """
 """
 
 
+async def resolve_area(session: AsyncSession, args: dict[str, Any]) -> None:
+    """Erstat områdets id (args['area']) med dets lokalitetsnumre (args['area_loks']), slået op i brugergruppen."""
+    if "area" not in args:
+        return
+    loks = (await session.execute(text("SELECT loknrs FROM dofb_areas WHERE id = :area"), {"area": args.pop("area")})).scalar()
+    args["area_loks"] = list(loks or [])
+
+
 async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv: bool = False, su_badge: bool = False) -> dict:
     where, args, notes = search_sql(p, viewer)
+    await resolve_area(session, args)
     args["sub_as_species"] = p.vis_underarter_som_arter
     frm = FROM.format(interval=INTERVAL_JOIN if "fa.sortering" in where else "")
     await session.execute(text("SET LOCAL statement_timeout = '25s'"))
@@ -438,6 +460,7 @@ MAX_POINTS = 5000
 async def search_points(session: AsyncSession, p: SearchIn, viewer: str | None) -> dict:
     """Alle søgningens observationer til et kort: én prik pr. position (fuglens eller lokalitetens) med antal observationer."""
     where, args, notes = search_sql(p, viewer)
+    await resolve_area(session, args)
     frm = FROM.format(interval=INTERVAL_JOIN if "fa.sortering" in where else "")
     await session.execute(text("SET LOCAL statement_timeout = '25s'"))
     await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))

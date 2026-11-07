@@ -385,7 +385,8 @@ async def soeg_valg(ctx: svc.Ctx = Depends(need("dofbasen_search")), db: AsyncSe
     return {
         "species": svc.SPECIES_GROUPS, "adf": {k: v[0] for k, v in svc.ADF.items()}, "alder": svc.ALDER, "dragt": svc.DRAGT,
         "metode": svc.METODER, "kommuner": await _rows(db, "SELECT kode, navn FROM kommuner ORDER BY navn"),
-        "omraader": await _rows(db, "SELECT id, kind, navn FROM dofb_areas ORDER BY kind, navn"),
+        "omraader": await _rows(db, "SELECT id, kind, navn FROM dofb_areas WHERE kind = 'stor' ORDER BY navn"),
+        "iba": await _rows(db, svc.IBA_SQL),
     }
 
 
