@@ -1,6 +1,7 @@
 // Én observation (#/obs/<obsid>), åbnet fra Observationer (dagslisten): alle DOFbasens felter som popobs.php
 // og resten af turlistens indtastninger. Trådene på Mit overblik bevarer deres samlede format.
-import { api, h, fmtN, fmtDate, errorBox, tag, KAT, observerLink, backLink, icon } from "../core.js";
+import { api, state, h, fmtN, fmtDate, errorBox, tag, KAT, observerLink, backLink, icon } from "../core.js";
+import { tipButton } from "./dku.js";
 import { baseMap, katColor } from "../maps.js";
 
 const SEX = { M: "han", F: "hun", MF: "han og hun", FM: "han og hun" };
@@ -49,7 +50,10 @@ export async function render(view, [obsid]) {
       h("span", { class: "spacer" }),
       h("div", { class: "row" },
         h("a", { class: "btn", href: thread }, "Se tråden"),
-        h("a", { class: "btn ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }))),
+        h("a", { class: "btn ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
+        // DKU-sag / tip DKU – som på tråden (ikke på egne observationer)
+        tipButton("dofbasen", o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
+          label: `${fmtN(o.antal)} ${o.art} · ${o.observator || o.obserkode || ""} · ${o.dato}` }))),
     h("div", { class: "grid-2" },
       h("div", { class: "stack" },
         h("div", { class: "card" }, h("h3", { style: { marginTop: 0 } }, "Observationen"),
