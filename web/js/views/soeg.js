@@ -75,7 +75,7 @@ export async function render(view) {
   const f = fromQuery(q);
   let valg;
   try { valg = await api("/api/search/valg"); } catch (err) { view.append(errorBox(err)); return; }
-  const st = { page: +q.side || 1, body: null };
+  const st = { page: 1, body: null };
   const mapBox = h("div", {}), resBox = h("div", {});
 
   // ---- felter
@@ -106,7 +106,7 @@ export async function render(view) {
         label: (r) => r.kommune ? `${r.navn} (${r.kommune})` : r.navn, onPick: (r) => { f.lok = r?.loknr ?? null; f.lok_navn = r?.navn; } })
       : o === "lokal" ? sel("lokal", [["", "Vælg …"], ...valg.afdelinger.map(a => [a.id, a.navn])])
       : o === "kommune" ? sel("kommune", [["", "Vælg …"], ...valg.kommuner.map(k => [k.kode, k.navn])])
-      : o === "iba" ? sel("iba", [["", "Vælg …"], ...valg.iba.map(a => [a.id, a.navn])])
+      : o === "iba" ? sel("iba", [["", "Vælg …"], ...(valg.iba || []).map(a => [a.id, a.navn])])
       : o === "stor" ? sel("stor", [["", "Vælg …"], ...valg.omraader.map(a => [a.id, a.navn])]) : "");
   };
   drawArea();
@@ -143,14 +143,17 @@ export async function render(view) {
 
   const payload = () => Object.fromEntries(Object.entries(f).filter(([k, v]) => v !== null && v !== undefined && v !== "" && !k.endsWith("_navn")));
 
-  const run = async (page = 1, { map = true } = {}) => {
-    st.page = page;
+  let gen = 0, observer = null;  // gen: et nyt søg gør et igangværende "hent mere" ugyldigt
+  const run = async (_page = 1, { map = true } = {}) => {
+    const my = ++gen;
+    observer?.disconnect();
+    st.page = 1;
     st.body = payload();
-    setParams({ ...Object.fromEntries(Object.keys(params()).map(k => [k, ""])), ...toQuery(st.body), soeg: "1", side: page > 1 ? page : "" });
+    setParams({ ...Object.fromEntries(Object.keys(params()).map(k => [k, ""])), ...toQuery(st.body), soeg: "1" });
     resBox.replaceChildren(busyBlock("Søger …"));
     if (map) drawMap(st.body);
-    try { drawResult(await api("/api/search", { method: "POST", body: { ...st.body, page, limit: PAGE } })); }
-    catch (err) { resBox.replaceChildren(errorBox(err)); }
+    try { const r = await api("/api/search", { method: "POST", body: { ...st.body, page: 1, limit: PAGE } }); if (my === gen) drawResult(r, my); }
+    catch (err) { if (my === gen) resBox.replaceChildren(errorBox(err)); }
   };
 
   const sortBy = (key) => {
@@ -169,32 +172,56 @@ export async function render(view) {
     } catch (err) { toast(err.message, "err"); }
   };
 
-  const drawResult = (r) => {
-    const pages = Math.max(1, Math.ceil(r.total / r.limit));
+  const drawResult = (r, my) => {
     const period = r.period[0] ? `${fmtDate(r.period[0])} – ${fmtDate(r.period[1])}` : "alle år";
-    const pager = pages > 1 ? h("div", { class: "row", style: { justifyContent: "center" } },
-      h("button", { class: "btn sm", disabled: st.page <= 1, onclick: () => run(st.page - 1, { map: false }) }, "‹ Forrige"),
-      h("span", { class: "muted" }, `Side ${fmtN(st.page)} af ${fmtN(pages)}`),
-      h("button", { class: "btn sm", disabled: st.page >= pages, onclick: () => run(st.page + 1, { map: false }) }, "Næste ›")) : null;
     const sortSel = h("select", { "aria-label": "Sortering", style: { width: "auto", padding: "3px 28px 3px 8px", minHeight: 0, fontSize: ".85rem" }, onchange: () => sortBy(sortSel.value) },
       ...COLS.map(([k, t]) => h("option", { value: k, selected: f.sort === k }, t)));
     const dirBtn = h("button", { class: "btn sm", type: "button", title: f.desc ? "Faldende – klik for stigende" : "Stigende – klik for faldende",
       onclick: () => sortBy(f.sort) }, f.desc ? "▼" : "▲");
     // Sorteret efter dato: én overskrift pr. dag (som Observationer). Ellers står datoen foran hver række.
     const byDate = f.sort === "dato";
-    const body = [];
     let last = null;
-    for (const o of r.rows) {
-      const lr = asListRow(o, st.body.summering);
-      if (byDate && o.dato !== last) {
-        last = o.dato;
-        const wd = WEEKDAY[new Date(o.dato + "T12:00:00").getDay()];
-        body.push(head([h("b", {}, `${wd[0].toUpperCase()}${wd.slice(1)} ${fmtDate(o.dato)}`), ":"]));
+    const rowsFor = (rows) => {
+      const body = [];
+      for (const o of rows) {
+        const lr = asListRow(o, st.body.summering);
+        if (byDate && o.dato !== last) {
+          last = o.dato;
+          const wd = WEEKDAY[new Date(o.dato + "T12:00:00").getDay()];
+          body.push(head([h("b", {}, `${wd[0].toUpperCase()}${wd.slice(1)} ${fmtDate(o.dato)}`), ":"]));
+        }
+        body.push(obsRow(lr, "begge", byDate ? null : fmtDate(o.dato)));
       }
-      body.push(obsRow(lr, "begge", byDate ? null : fmtDate(o.dato)));
-    }
-    const list = r.rows.length ? h("div", { class: "card mt" }, sheet(body)) : empty("Ingen observationer matcher søgningen");
+      return body;
+    };
+    const list = r.rows.length ? h("div", { class: "card mt" }, sheet(rowsFor(r.rows))) : empty("Ingen observationer matcher søgningen");
     if (r.rows.length) initPopup(list);
+    // Som fotogalleriet: når bunden er i syne, hentes næste side og føjes til listen.
+    const foot = h("div", { class: "more-foot", role: "status", "aria-live": "polite" });
+    let shown = r.rows.length, busy = false;
+    const done = () => { observer.disconnect(); foot.className = "more-foot done"; foot.replaceChildren(`Du har set alle ${fmtN(shown)}${r.capped ? "+" : ""} ${st.body.summering ? "rækker" : "observationer"}`); };
+    const more = async () => {
+      if (busy) return;
+      busy = true;
+      foot.className = "more-foot loading";
+      foot.replaceChildren(h("span", { class: "more-spin", "aria-hidden": "true" }), "Henter flere …");
+      try {
+        const n = await api("/api/search", { method: "POST", body: { ...st.body, page: st.page + 1, limit: PAGE } });
+        if (my !== gen) return;
+        st.page++;
+        list.querySelector("tbody").append(...rowsFor(n.rows));
+        shown += n.rows.length;
+        busy = false;
+        if (!n.rows.length || shown >= n.total) return done();
+        foot.className = "more-foot"; foot.replaceChildren();
+        observer.unobserve(foot); observer.observe(foot);  // ny måling, hvis bunden stadig er i syne
+      } catch (err) {
+        if (my !== gen) return;
+        busy = false;
+        foot.className = "more-foot err";
+        foot.replaceChildren("Kunne ikke hente flere. ", h("button", { type: "button", class: "btn sm", onclick: more }, "Prøv igen"));
+      }
+    };
     resBox.replaceChildren(
       ...r.notes.map(n => h("div", { class: "notice" }, n)),
       h("div", { class: "row between mt" },
@@ -202,7 +229,11 @@ export async function render(view) {
         h("span", { class: "row", style: { gap: "6px" } }, h("small", { class: "muted" }, "Sortér:"), sortSel, dirBtn,
           h("small", { class: "muted", style: { marginLeft: "8px" } }, "Hent:"),
           ...["csv", "ods", "xlsx"].map(x => h("button", { class: "btn sm", type: "button", onclick: () => download(x), title: "Hele resultatet (højst 50.000 rækker) i den viste sortering" }, x.toUpperCase())))),
-      list, pager);
+      list, r.rows.length ? foot : null);
+    if (r.rows.length) {
+      observer = new IntersectionObserver((es) => { if (es.some(e => e.isIntersecting)) more(); }, { rootMargin: "300px 0px" });
+      if (shown >= r.total) done(); else observer.observe(foot);
+    }
   };
 
   let map;
@@ -231,6 +262,6 @@ export async function render(view) {
   view.append(
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Søg"), h("p", { class: "lead" }, "Søg i alle observationer – som DOFbasens søgning, med kort og regneark."))),
     form, mapBox, resBox);
-  if (q.soeg) run(st.page);
-  return () => map?.remove();
+  if (q.soeg) run();
+  return () => { gen++; observer?.disconnect(); map?.remove(); };
 }

@@ -10,14 +10,15 @@ export async function render(view) {
   if (requireLogin(view)) return;
   if (!state.user?.statistik) { view.append(empty("Statistik er ikke slået til", "Modulet slås til under Admin → Funktioner.")); return; }
   const p = params();
-  const tab = p.tab === "nfl" ? "nfl" : "arter";
+  const obs = !!state.user?.profiler;  // Observatører er en fane her, når profilfunktionen er slået til
+  const tab = p.tab === "nfl" ? "nfl" : p.tab === "observatorer" && obs ? "observatorer" : "arter";
   const body = h("div", {});
   view.append(h("div", { class: "page-head" },
-    h("div", {}, h("h1", {}, "Statistik"), h("p", { class: "lead" }, "Arter pr. år og nye arter for landet – beregnet fra DOFbasen-data.")),
+    h("div", {}, h("h1", {}, "Statistik"), h("p", { class: "lead" }, "Arter pr. år, nye arter for landet og observatører – beregnet fra DOFbasen-data.")),
     h("span", { class: "spacer" }),
     // Ny fane: kun tab bevares i adressen
-    seg([["arter", "Arter pr. år"], ["nfl", "NFL"]], tab, (v) => { history.replaceState(null, "", `#/statistik?tab=${v}`); body.replaceChildren(); draw(v); })), body);
-  const draw = (t) => t === "nfl" ? nflTab(body) : regionsTab(body, "arter");
+    seg([["arter", "Arter pr. år"], ["nfl", "NFL"], ...(obs ? [["observatorer", "Observatører"]] : [])], tab, (v) => { history.replaceState(null, "", `#/statistik?tab=${v}`); body.replaceChildren(); draw(v); })), body);
+  const draw = async (t) => t === "nfl" ? nflTab(body) : t === "observatorer" ? (await import("./observer.js")).searchTab(body) : regionsTab(body, "arter");
   await draw(tab);
 }
 

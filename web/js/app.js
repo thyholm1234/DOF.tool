@@ -14,7 +14,8 @@ const SECTIONS = [
   ["Ud i felten", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
   ["Statistik", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
-  ["Værktøjer", [["#/laer", "learn", "Læring"], ["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
+  ["Viden", [["#/laer", "learn", "Læring"]]],
+  ["Værktøjer", [["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
   ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
 const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
@@ -31,18 +32,23 @@ const SU = ["#/su", "flag", "SU"];
 const showcases = () => [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null].filter(Boolean);
 /** Menuens grupper for den indloggede: modulerne bag funktionsflag vises kun, når de er slået til (eller forhåndsvisning). */
 function sections() {
-  const extra = [state.user?.artikler?.features?.artikler ? ARTIKLER : null, state.user?.fotos?.features?.fotos ? FOTOS : null, state.user?.krydslister?.features?.krydslister ? KRYDS : null].filter(Boolean);
+  const extra = [state.user?.artikler?.features?.artikler ? ARTIKLER : null, state.user?.fotos?.features?.fotos ? FOTOS : null].filter(Boolean);
+  const kryds = state.user?.krydslister?.features?.krydslister ? KRYDS : null;  // Krydslister står under Lister, sammen med Lister og Matrikel
   // DKU (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
   // Statistik-modulet og Søg under Statistik, når funktionerne er synlige for brugeren
-  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler ? OBSERVERS : null].filter(Boolean);
+  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler && !state.user?.statistik ? OBSERVERS : null].filter(Boolean);  // Observatører er en fane under Statistik
   const dl = state.user?.dagsliste ? DAGSLISTE : null;  // Observationer (dagslisten) står lige under Mit overblik
   // SU (med antal ulæste sager) og DKU samles under overskriften Kvalitetssikring, når modulerne er synlige for brugeren
   const su = state.user?.su?.visible ? ["#/su", "flag", `SU${state.user.su.unread ? ` <span class="badge-inline">${+state.user.su.unread}</span>` : ""}`] : null;
-  const qa = [dku, su].filter(Boolean);
-  if (!extra.length && !qa.length && !stat.length && !dl) return SECTIONS;
-  const out = SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Værktøjer" ? [...items, ...extra]
-    : t === "Statistik" ? [...items, ...stat] : items]);
+  // Moderation øverst i Kvalitetssikring; ulæste support-samtaler vises her, medmindre brugeren har dem på Admin
+  const modl = moderationLink();
+  const modUnread = adminLink() && hasTab("support") ? 0 : state.adminSupportUnread;
+  const mod = modl ? [modl.href, "check", `${modl.label}${modUnread ? ` <span class="badge-inline">${+modUnread}</span>` : ""}`] : null;
+  const qa = [mod, dku, su].filter(Boolean);
+  if (!extra.length && !kryds && !qa.length && !stat.length && !dl) return SECTIONS;
+  const out = SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Viden" ? [...items, ...extra]
+    : t === "Statistik" ? [...items, ...stat] : t === "Lister" && kryds ? [...items, kryds] : items]);
   if (qa.length) out.splice(out.findIndex(([t]) => t === "Mit"), 0, ["Kvalitetssikring", qa]);  // lige før Mit
   return out;
 }
@@ -53,7 +59,8 @@ const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus
 /** Det mest specifikke menupunkt der matcher stien (så #/kalender/mine ikke også markerer Kalender). */
 function activeHref(path, hrefs) {
   // en arts side hører under Arter, en lokalitets side under Lokaliteter
-  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter" : path;
+  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter"
+    : path.startsWith("#/observator") && state.user?.statistik ? "#/statistik" : path;
   return hrefs.filter(href => href === "#/" ? p === "#/" : p === href || p.startsWith(href + "/") || p.startsWith(href + "?"))
     .sort((a, b) => b.length - a.length)[0];
 }
@@ -118,10 +125,9 @@ function renderNav() {
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: current === "#/profil" ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
-    // Ulæste samtaler vises på Admin for dem med support-modulet, ellers på Moderation
-    const adm = adminLink(), mod = moderationLink(), unread = state.adminSupportUnread, onAdmin = adm && hasTab("support");
+    // Ulæste samtaler vises på Admin for dem med support-modulet, ellers på Moderation (under Kvalitetssikring)
+    const adm = adminLink(), unread = state.adminSupportUnread, onAdmin = adm && hasTab("support");
     const badge = (n) => n ? ` <span class="badge-inline">${n}</span>` : "";
-    if (mod) side.push(h("a", { href: mod.href, class: current === "#/moderation" ? "active" : "", html: `${icon("check")}<span>${mod.label}${badge(onAdmin ? 0 : unread)}</span>` }));
     if (adm) side.push(h("a", { href: adm.href, class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>${adm.label}${badge(onAdmin ? unread : 0)}</span>` }));
   }
   const demo = showcases();
@@ -143,7 +149,6 @@ function openMore() {
       h("div", { class: "more-h" }, "Konto"),
       h("div", { class: "more-grid" },
         tile("#/profil", "user", "Profil"), tile("#/support", "chat", "Support", state.supportUnread),
-        u && moderationLink() ? tile(moderationLink().href, "check", moderationLink().label, hasTab("support") ? 0 : state.adminSupportUnread) : null,
         u && adminLink() ? tile(adminLink().href, "shield", adminLink().label, hasTab("support") ? state.adminSupportUnread : 0) : null),
       // Showcases nederst
       ...(showcases().length ? [h("div", { class: "more-h" }, "Showcases"), h("div", { class: "more-grid" }, ...showcases().map(([href, ic, label]) => tile(href, ic, label)))] : []),

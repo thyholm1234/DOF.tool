@@ -71,7 +71,11 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+/* body må vokse med indholdet (min-height): en fast højde gør body til kun én skærm høj, og så ruller den sticky topbar ud
+   af syne, når siden er længere. */
+html, body { margin: 0; }
+html { height: 100%; }
+body { min-height: 100%; }
 body {
   font-family: var(--font); font-size: 15px; line-height: 1.45; color: var(--text); background: var(--bg);
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
@@ -212,8 +216,8 @@ select:not([multiple]) { appearance: none; -webkit-appearance: none; padding-rig
 /* Egen menu til select i Android-appen (js/select-menu.js) */
 .sel-back { position: fixed; inset: 0; z-index: 1000; }
 .sel-menu { position: fixed; z-index: 1001; overflow-y: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px;
-  box-shadow: var(--shadow-lg); padding: 4px; display: grid; gap: 1px; align-content: start; max-width: calc(100vw - 16px); }
-.sel-menu button { text-align: left; border: 0; background: none; color: var(--text); font: inherit; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+  box-shadow: var(--shadow-lg); padding: 4px; display: grid; gap: 1px; align-content: start; max-width: calc(100vw - 16px); overscroll-behavior: contain; }
+.sel-menu button { text-align: left; overflow-wrap: anywhere; border: 0; background: none; color: var(--text); font: inherit; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
 .sel-menu button:active, .sel-menu button:hover { background: var(--bg-2); }
 .sel-menu button.on { background: var(--brand-soft); color: var(--brand); font-weight: 650; }
 .sel-menu button:disabled { opacity: .45; }
@@ -1146,3 +1150,13 @@ tr.click { cursor: pointer; }
 .su-rep { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; background: var(--brand-soft); font-size: .84rem; font-weight: 600; text-decoration: none; }
 .su-rep .ic { width: 14px; height: 14px; }
 .su-rep.maybe { background: transparent; border: 1px dashed var(--line-strong, var(--line)); font-weight: 500; }
+
+/* Søgeresultat: bunden henter næste side (som fotogalleriet) */
+.more-foot { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px; margin: 18px 0 8px; color: var(--text-3); font-size: .92rem; }
+.more-foot.loading { color: var(--text-2); font-weight: 600; } .more-foot.err { color: var(--danger, #b3261e); }
+.more-spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--brand); animation: more-spin .8s linear infinite; }
+@keyframes more-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .more-spin { animation-duration: 2.4s; } }
+/* Valgfelter i en række (fx Område → IBA) skal kunne skrumpe, så hele feltet er inden for skærmen på mobil */
+.field .row > select, .row.grow > select { flex: 1 1 0; min-width: 0; max-width: 100%; }
+.row.grow { min-width: 0; }

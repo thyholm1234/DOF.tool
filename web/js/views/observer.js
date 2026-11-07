@@ -8,13 +8,16 @@ const YEAR = new Date().getFullYear();
 export async function render(view, [kode]) {
   if (requireLogin(view)) return;
   if (!state.user?.profiler) { view.append(empty("Observatørsider er ikke slået til", "Funktionen slås til under Admin → Funktioner.")); return; }
-  if (!kode) return searchPage(view);
+  if (!kode) {  // søgningen er en fane under Statistik (hvis modulet er synligt), ellers en side for sig
+    if (state.user?.statistik) { location.replace("#/statistik?tab=observatorer"); return; }
+    return searchPage(view);
+  }
   kode = decodeURIComponent(kode);
   view.replaceChildren(busyBlock("Henter observatøren…", 5));
   let d;
   try { d = await api(`/api/observers/${encodeURIComponent(kode)}`); } catch (err) { view.replaceChildren(errorBox(err)); return; }
   view.replaceChildren(
-    h("p", {}, h("a", { href: "#/observator" }, "← Søg observatør")),
+    h("p", {}, h("a", { href: state.user?.statistik ? "#/statistik?tab=observatorer" : "#/observator" }, "← Søg observatør")),
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn),
       h("p", { class: "lead" }, d.obserkode, d.portalbruger ? " · bruger DOF.tool" : "", d.portal?.siden ? ` siden ${fmtDate(d.portal.siden)}` : "",
         d.portal?.afdelinger?.length ? ` · ${d.portal.afdelinger.join(", ")}` : ""))));
@@ -50,10 +53,11 @@ export async function render(view, [kode]) {
     h("p", { class: "muted", style: { fontSize: ".82rem" } }, "Tallene kommer fra DOFbasen og opdateres løbende. Hemmelige observationer indgår ikke."));
 }
 
-function searchPage(view) {
+/** Søgefeltet og træffene (fanen Observatører under Statistik og den selvstændige side). */
+export function searchTab(body) {
   const out = h("div", { class: "stack mt" });
   let timer = null, seq = 0;
-  const input = h("input", { type: "search", placeholder: "Navn eller obserkode …", autofocus: true, style: { maxWidth: "420px" }, oninput: () => {
+  const input = h("input", { type: "search", placeholder: "Navn eller obserkode …", style: { maxWidth: "420px" }, oninput: () => {
     clearTimeout(timer);
     const q = input.value.trim();
     if (q.length < 2) { out.replaceChildren(); return; }
@@ -66,8 +70,13 @@ function searchPage(view) {
         h("a", { href: `#/observator/${encodeURIComponent(r.obserkode)}` }, r.navn), h("span", { class: "muted" }, r.obserkode)))) : empty("Ingen observatører fundet", ""));
     }, 200);
   } });
-  view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Observatører"),
-    h("p", { class: "lead" }, "Find en observatør og se tal, fund og foretrukne lokaliteter fra DOFbasen."))),
-    h("div", { class: "card" }, input), out,
+  body.append(h("div", { class: "card" }, input), out,
     state.user?.obserkode ? h("p", { class: "mt" }, h("a", { href: `#/observator/${encodeURIComponent(state.user.obserkode)}` }, "Se din egen side →")) : null);
+}
+
+function searchPage(view) {
+  const body = h("div", {});
+  searchTab(body);
+  view.append(h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Observatører"),
+    h("p", { class: "lead" }, "Find en observatør og se tal, fund og foretrukne lokaliteter fra DOFbasen."))), body);
 }
