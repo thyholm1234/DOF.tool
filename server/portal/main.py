@@ -98,6 +98,14 @@ def public_api(path: str) -> bool:
     return path in PUBLIC_EXACT or path.startswith(PUBLIC_PREFIX)
 
 
+def canonical(path: str) -> bool:
+    """Er stien på normalform (ingen tomme, '.'- eller '..'-segmenter)? Vagten nedenfor afgør adgang ud fra stiens tekst
+    (/audio/mobgang/, /media/netfugl/ …), men StaticFiles normaliserer stien, før filen findes. Uden dette tjek ville
+    /audio//mobgang/x.mp3 eller /media/netfugl/../xc/1.wav levere filen uden om vagtens krav. Starlette har allerede
+    afkodet %2e og %2f, så de fanges også."""
+    return "//" not in path and not any(seg in (".", "..") for seg in path.split("/"))
+
+
 TOKEN_APIS = ("/api/dofbasen/v1/", "/api/netfugl/v1/")
 CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Max-Age": "86400"}
@@ -105,6 +113,8 @@ CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET
 
 @app.middleware("http")
 async def guard(request: Request, call_next):
+    if not canonical(request.url.path):  # skal stå først: alle tjek herunder matcher på stiens tekst
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
     # Showcase-API'erne bruges fra andres apps (også i browseren): åben CORS, kun læsning, token i stedet for cookie
     if request.url.path.startswith(TOKEN_APIS):
         if request.method == "OPTIONS":

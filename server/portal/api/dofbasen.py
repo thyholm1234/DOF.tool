@@ -24,6 +24,7 @@ from portal.db import get_session
 from portal.models import DofbApiGrant, DofbApiToken, DofbArea, DofbFocus, DofbList, DofbNews, DofbObsStatus, DofbPage, DofbRole, User
 from portal.services import dofbasen as svc
 from portal.services import features
+from portal.services import sheets
 from portal.timeutil import dk_today
 from portal.services import dataset
 
@@ -376,7 +377,7 @@ async def soeg_csv(body: svc.SearchIn, user: User = Depends(require_user), ctx: 
     w = csv.writer(buf, delimiter=";")
     w.writerow(svc.CSV_COLUMNS)
     for r in res["rows"]:
-        w.writerow(["" if v is None else v for v in svc.csv_line(r)])
+        w.writerow([sheets.csv_cell(v) for v in svc.csv_line(r)])  # noter er skrevet af andre brugere (CSV injection)
     name = f"dofbasen-soegning-{dk_today().isoformat()}.csv"
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv; charset=utf-8",
                              headers={"Content-Disposition": f'attachment; filename="{name}"'})

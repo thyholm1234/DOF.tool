@@ -364,11 +364,14 @@ def csv_matrix(m: dict) -> str:
     import csv
     import io
 
+    from portal.services.sheets import csv_cell
+
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
-    w.writerow(["Deltager"] + [p["title"] for p in m["punkter"]])
+    w.writerow(["Deltager"] + [csv_cell(p["title"]) for p in m["punkter"]])
     for r in m["deltagere"]:
-        w.writerow([r["navn"]] + [("ja" if r["punkter"][str(p["id"])]["done"] else ("venter" if r["punkter"][str(p["id"])]["venter"] else "")) + (f" ({r['punkter'][str(p['id'])]['pct']} %)" if r["punkter"][str(p["id"])]["pct"] is not None else "") for p in m["punkter"]])
+        # Navnet vælger deltageren selv (PATCH /api/me): csv_cell mod CSV injection
+        w.writerow([csv_cell(r["navn"])] + [("ja" if r["punkter"][str(p["id"])]["done"] else ("venter" if r["punkter"][str(p["id"])]["venter"] else "")) + (f" ({r['punkter'][str(p['id'])]['pct']} %)" if r["punkter"][str(p["id"])]["pct"] is not None else "") for p in m["punkter"]])
     return buf.getvalue()
 
 

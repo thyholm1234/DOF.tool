@@ -22,6 +22,22 @@ def _num(v) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
+# Tekst, som Excel/LibreOffice læser som en formel, når en CSV åbnes (fx =HYPERLINK(…) eller =WEBSERVICE(…) i en note,
+# som en anden bruger har skrevet). Rene tal som "-12,5" er ikke farlige og røres ikke.
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+_PLAIN_NUMBER = re.compile(r"[+-]?\d+([.,]\d+)?")
+
+
+def csv_cell(v):
+    """Værdi til en CSV-celle: None bliver tom, og tekst, der ville blive en formel, får et ' foran (OWASP: CSV injection).
+    Brug den for hver celle med indhold fra brugere (navne, noter, lokaliteter)."""
+    if v is None:
+        return ""
+    if isinstance(v, str) and len(v) > 1 and v.startswith(_FORMULA_START) and not _PLAIN_NUMBER.fullmatch(v):
+        return "'" + v
+    return v
+
+
 def write(fmt: str, columns: Sequence[str], rows: Iterable[Sequence], sheet: str = "Data") -> bytes:
     return {"csv": to_csv, "ods": to_ods, "xlsx": to_xlsx}[fmt](columns, rows, sheet)
 
@@ -32,8 +48,20 @@ def to_csv(columns: Sequence[str], rows: Iterable[Sequence], sheet: str = "") ->
     w = csv.writer(buf, delimiter=";")
     w.writerow(columns)
     for r in rows:
-        w.writerow(["" if v is None else v for v in r])
+        w.writerow([csv_cell(v) for v in r])
     return buf.getvalue().encode()
+
+
+def _text_cell(ws, s: str):
+    """openpyxl gemmer tekst, der starter med '=', som en formel – en note som '=WEBSERVICE(…)' ville køre, når filen
+    åbnes. Cellen tvinges derfor til tekst; indholdet bevares uændret (i modsætning til CSV, se csv_cell)."""
+    if not s.startswith("="):
+        return s
+    from openpyxl.cell import WriteOnlyCell
+
+    cell = WriteOnlyCell(ws, value=s)
+    cell.data_type = "s"
+    return cell
 
 
 def to_xlsx(columns: Sequence[str], rows: Iterable[Sequence], sheet: str = "Data") -> bytes:
@@ -52,7 +80,7 @@ def to_xlsx(columns: Sequence[str], rows: Iterable[Sequence], sheet: str = "Data
         head.append(cell)
     ws.append(head)
     for r in rows:
-        ws.append([v if v is None or _num(v) else _CTRL.sub("", str(v)) for v in r])
+        ws.append([v if v is None or _num(v) else _text_cell(ws, _CTRL.sub("", str(v))) for v in r])
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

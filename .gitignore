@@ -37,3 +37,6 @@ data/
 /Fotos/
 /Fotos-webp/
 /Fotos-*.zip
+
+# Sikkerhedsgennemgange med åbne punkter og interne adresser – kun på serveren (repoet er offentligt)
+docs/sikkerhed/

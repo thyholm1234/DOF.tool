@@ -171,10 +171,9 @@ den nye version i api-containeren, kør testene, og skriv låsen igen med
 `docker compose exec api pip freeze --exclude-editable` (behold kommentaren øverst og linjen `docker==…`, som kun dbadmin
 bruger). Appens npm-pakker er låst i `app/package-lock.json`.
 
-**Sikkerhed.** Seneste gennemgang, kendte risici og hvad der skal tjekkes før release:
-[docs/sikkerhed/gennemgang-2026-11-08.md](docs/sikkerhed/gennemgang-2026-11-08.md) og
-[runde 2](docs/sikkerhed/gennemgang-2026-11-08-runde2.md) (hemmelige observationer i det samlede datasæt, SSRF).
-Sikkerhedsregressionerne ligger i `server/tests/test_security.py` og `server/tests/test_security_hemmelig.py` (kør også
+**Sikkerhed.** Sikkerhedsgennemgangene med kendte risici ligger kun på serveren (`docs/sikkerhed/`, holdt uden for git,
+fordi repoet er offentligt). Sikkerhedsregressionerne ligger i `server/tests/test_security.py`, `server/tests/test_security_hemmelig.py` og
+`server/tests/test_security_runde3.py` (kør også
 med `-v ./dbadmin:/app/dbadmin`, så dbadmin-loginnet testes). Hemmelige DOF.tool-observationer udelades af det samlede
 datasæt i `services/dataset.py` – læs `include()`, før du skriver forespørgsler over hele datasættet.
 

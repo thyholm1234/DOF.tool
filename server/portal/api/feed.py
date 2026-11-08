@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import time
 import logging
+from contextlib import aclosing
 from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
@@ -412,36 +413,73 @@ async def day_map(day: date | None = Query(None, alias="date"), local_max: int =
 
 
 PING_EVERY = 40  # sekunder
+# Hver åben strøm holder sin egen forbindelse til Valkey (pub/sub). Uden loft kan én konto åbne tusinder og opbruge
+# Valkeys forbindelser for alle (api, worker, sessioner). Faner, telefon og tablet giver sjældent mere end 3–4.
+STREAMS_PER_USER = 8
+_open_streams: dict[int, int] = {}
+
+
+class _StreamSlot:
+    """Én plads i loftet. Frigives, når strømmen slutter – også hvis klienten går, før generatoren er startet
+    (så kører dens finally aldrig; pladsen frigives i stedet, når generatoren og dermed pladsen ryddes op)."""
+
+    def __init__(self, uid: int):
+        self.uid, self.held = uid, True
+        _open_streams[uid] = _open_streams.get(uid, 0) + 1
+
+    def release(self) -> None:
+        if self.held:
+            self.held = False
+            if (n := _open_streams.get(self.uid, 1) - 1) > 0:
+                _open_streams[self.uid] = n
+            else:
+                _open_streams.pop(self.uid, None)
+
+    __del__ = release
 
 
 @router.get("/stream")
 async def stream(request: Request, user: User | None = Depends(optional_user)):
     """Server-sent events: nye observationer, kommentarer og personlige notifikationer."""
     channels = ["feed"] + ([f"user:{user.id}"] if user else [])
+    uid = user.id if user else 0  # anonyme stoppes af vagten i main.py; 0 er kun et værn
+    if _open_streams.get(uid, 0) >= STREAMS_PER_USER:
+        raise HTTPException(429, "For mange åbne forbindelser – luk nogle faner")
+    slot = _StreamSlot(uid)
 
     async def gen():
-        pubsub = kv().pubsub()
-        await pubsub.subscribe(*channels)
         try:
-            yield "retry: 5000\n\n"
-            last = time.monotonic()
-            while True:
-                if await request.is_disconnected():
-                    break
-                msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=15)
-                if msg is None:
-                    # Ping kun efter 40 s stilhed (under proxyens typiske 60 s): hvert ping vækker telefonens radio
-                    if time.monotonic() - last >= PING_EVERY:
-                        last = time.monotonic()
-                        yield ": ping\n\n"
-                    continue
-                last = time.monotonic()
-                data = msg["data"]
-                event = json.loads(data).get("type", "message")
-                yield f"event: {event}\ndata: {data}\n\n"
+            async with aclosing(_events(request, channels)) as events:  # lukker pub/sub straks, når klienten går
+                async for chunk in events:
+                    yield chunk
         finally:
-            await pubsub.unsubscribe(*channels)
-            await pubsub.aclose()
+            slot.release()
 
     return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+async def _events(request: Request, channels: list[str]):
+    """Strømmens indhold: beskeder fra Valkey-kanalerne og et ping efter stilhed."""
+    pubsub = kv().pubsub()
+    await pubsub.subscribe(*channels)
+    try:
+        yield "retry: 5000\n\n"
+        last = time.monotonic()
+        while True:
+            if await request.is_disconnected():
+                break
+            msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=15)
+            if msg is None:
+                # Ping kun efter 40 s stilhed (under proxyens typiske 60 s): hvert ping vækker telefonens radio
+                if time.monotonic() - last >= PING_EVERY:
+                    last = time.monotonic()
+                    yield ": ping\n\n"
+                continue
+            last = time.monotonic()
+            data = msg["data"]
+            event = json.loads(data).get("type", "message")
+            yield f"event: {event}\ndata: {data}\n\n"
+    finally:
+        await pubsub.unsubscribe(*channels)
+        await pubsub.aclose()
