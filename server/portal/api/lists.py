@@ -220,6 +220,11 @@ async def add_member(group_id: int, body: dict, user: User = Depends(require_use
     if g is None or g.owner_id != user.id:
         raise HTTPException(403, "Kun gruppens ejer kan tilføje medlemmer")
     kode = normalize(str(body.get("obserkode", "")))
+    # Gruppens liste viser medlemmernes lister. En portalbruger, der har skjult sine lister, kan derfor ikke sættes på af
+    # andre – vedkommende kan selv melde sig ind med invitationskoden (join_group).
+    member = (await db.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
+    if member is not None and member.id != user.id and not (member.prefs or {}).get("lists_public", True):
+        raise HTTPException(403, "Brugeren har skjult sine lister – send invitationskoden, så kan vedkommende selv melde sig ind")
     if not await db.get(ListGroupMember, (group_id, kode)):
         db.add(ListGroupMember(group_id=group_id, obserkode=kode))
         await db.commit()

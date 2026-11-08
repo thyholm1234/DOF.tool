@@ -159,6 +159,10 @@ async def artikel(aid: int, tasks: BackgroundTasks, user: User = Depends(require
 @router.get("/{aid:int}/kommentarer")
 async def kommentarer(aid: int, user: User = Depends(require_user), acc: article_access.Access = Depends(need("artikler_kommentarer")),
                       db: AsyncSession = Depends(get_session)):
+    try:  # samme synlighed som artiklen: kommentarer til en kladde eller en trukket artikel ses kun af redaktører
+        await article_comments.article_visible(db, aid, acc.can_edit)
+    except article_comments.CommentError as exc:
+        raise _comment_error(exc) from exc
     return await article_comments.list_comments(db, aid, user.id, acc.can_moderate)
 
 

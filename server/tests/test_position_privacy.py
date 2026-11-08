@@ -80,13 +80,12 @@ async def test_new_token_revokes_old(kv):
     assert await pp.token_owner(new) is None and not kv.d
 
 
-async def test_legacy_plain_token_is_migrated(kv):
-    kv.d["loctok:gammelt"] = "7:device-abc"
-    kv.d["loctok:user:7"] = "gammelt"
-    assert await pp.token_owner("gammelt") == "7:device-abc"
-    assert "loctok:gammelt" not in kv.d and kv.d["loctok:user:7"] == pp.token_key("gammelt")
-    await pp.revoke_token(7)
-    assert not kv.d
+async def test_legacy_plain_token_is_not_accepted(kv):
+    """Overgangsreglen for tokens fra før hashingen er fjernet (runde 4, U-07): der findes ingen, og reglen slog brugerens
+    input op som en rå Valkey-nøgle."""
+    kv.d["loctok:gammelt-token-fra-foer-hashingen"] = "7:device-abc"
+    assert await pp.token_owner("gammelt-token-fra-foer-hashingen") is None
+    assert "loctok:gammelt-token-fra-foer-hashingen" in kv.d  # opslaget rører ikke nøglen
 
 
 async def test_legacy_pointer_is_revoked(kv):

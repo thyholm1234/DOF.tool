@@ -28,6 +28,7 @@ from portal.cache import kv
 ME = "me"
 DECIMALS = 3  # ca. 111 m nord-syd, 65 m øst-vest i Danmark
 TOKEN_TTL = 180 * 86400  # positionstokenet fornyes, hver gang appen starter delingen
+TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{20,100}")  # secrets.token_urlsafe(32) giver 43 tegn
 
 
 def coarse(lat: float, lon: float) -> tuple[float, float]:
@@ -70,22 +71,12 @@ async def new_token(user_id: int, device_id: str, session_token: str | None) -> 
 
 async def token_owner(token: str) -> str | None:
     """'<bruger-id>:<enheds-id>' for et gyldigt positionstoken, ellers None."""
-    if not token or len(token) > 100:
+    # Kun tegn fra secrets.token_urlsafe. Tokenet må aldrig indgå råt i en Valkey-nøgle: før slog en overgangsregel
+    # «loctok:<token>» op, så «h:<hash>» ramte den hashede nøgle direkte (en kopi af Valkey gav brugbare tokens), og
+    # «user:<id>» slettede pegeren, så tokenet ikke længere kunne tilbagekaldes. Der findes ingen tokens fra før hashingen.
+    if not token or len(token) > 100 or not TOKEN_RE.fullmatch(token):
         return None
-    key = token_key(token)
-    owner = await kv().get(key)
-    if owner is None and await kv().exists(f"loctok:{token}"):
-        # Token fra før hashingen: flyt det over, så telefoner, der allerede deler, ikke mister forbindelsen
-        owner = await kv().get(f"loctok:{token}")
-        ttl = await kv().ttl(f"loctok:{token}")
-        ttl = ttl if ttl and ttl > 0 else TOKEN_TTL
-        if owner:
-            await kv().set(key, owner, ex=ttl)
-            user_id = str(owner).partition(":")[0]
-            if user_id.isdigit() and await kv().get(f"loctok:user:{user_id}") == token:
-                await kv().set(f"loctok:user:{user_id}", key, ex=ttl)
-        await kv().delete(f"loctok:{token}")
-    return owner
+    return await kv().get(token_key(token))
 
 
 async def revoke_for_session(session_token: str | None) -> None:

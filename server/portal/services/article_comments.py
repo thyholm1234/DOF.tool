@@ -67,6 +67,11 @@ async def list_comments(session: AsyncSession, article_id: int, viewer_id: int, 
     return out
 
 
+async def article_visible(session: AsyncSession, article_id: int, can_edit: bool) -> dict:
+    """Artiklen, hvis brugeren må se den (publiceret, eller brugeren er redaktør); ellers CommentError 404."""
+    return await _article_open(session, article_id, can_edit)
+
+
 async def _article_open(session: AsyncSession, article_id: int, can_edit: bool) -> dict:
     a = (await session.execute(text("SELECT id, status, comments_open, title FROM art_articles WHERE id = :i"), {"i": article_id})).mappings().first()
     if a is None or (a["status"] != "publiceret" and not can_edit):

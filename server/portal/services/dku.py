@@ -82,7 +82,7 @@ async def observation(db: AsyncSession, source: str, ident: int) -> dict | None:
         r = (await db.execute(text("""
             SELECT r.id, r.user_id, r.dato, r.artnr, s.navn AS art, r.antal, r.koen, r.alderkode, r.dragtkode, ca.text AS adf,
                    r.adfkode, r.obstidfra, r.obstidtil, r.loknr, l.navn AS lok, k.navn AS kommune, r.obs_lat, r.obs_lon,
-                   r.fuglnoter, r.obserkode, r.hemmelig, r.afdelinger, r.kategori, r.sikkerhed, r.grundlag, r.media, r.trip_id,
+                   r.fuglnoter, r.obserkode, r.hemmelig, r.skjul_position, r.afdelinger, r.kategori, r.sikkerhed, r.grundlag, r.media, r.trip_id,
                    coalesce(u.navn, u.obserkode) AS observer
             FROM field_reports r JOIN species s ON s.artnr = r.artnr JOIN users u ON u.id = r.user_id
             LEFT JOIN locations l ON l.loknr = r.loknr LEFT JOIN kommuner k ON k.kode = l.kommune_kode
@@ -101,11 +101,22 @@ async def observation(db: AsyncSession, source: str, ident: int) -> dict | None:
                   if media else ""}
         meta = {"source": source, "obsid": None, "report_id": r["id"], "artnr": r["artnr"], "dato": r["dato"].isoformat(),
                 "loknr": r["loknr"], "afdelinger": list(r["afdelinger"] or []), "obserkode": r["obserkode"],
-                "observer": r["observer"], "hemmelig": bool(r["hemmelig"]), "kategori": r["kategori"], "url": None,
+                "observer": r["observer"], "hemmelig": bool(r["hemmelig"]), "skjul_position": bool(r["skjul_position"]),
+                "kategori": r["kategori"], "url": None,
                 "thread": f"/#/traad/{r['dato'].isoformat()}/{r['artnr']}/{r['loknr']}",
                 "edit": f"/#/indtast/tur/{r['trip_id']}" if r["trip_id"] else f"/#/indtast/obs/{r['id']}",
                 "owner_user_id": r["user_id"], "media": media}
     return {"fields": {k: _s(v) for k, v in fields.items()}, **meta}
+
+
+def hides_position(role: str, source: str, obs: dict) -> bool:
+    """Skal positionen skjules for denne rolle? Indtasteren af en portalmelding kan vælge «skjul position»; så ser en, der
+    har tippet DKU, den ikke (DKU og observatøren selv gør). Øjebliksbilleder fra før feltet fandtes, regnes som skjulte."""
+    return role == "tipper" and source == "portal" and bool(obs.get("skjul_position", True))
+
+
+def without_position(fields: dict) -> dict:
+    return {k: v for k, v in fields.items() if k != "position"}
 
 
 def changes(before: dict, after: dict) -> list[dict]:

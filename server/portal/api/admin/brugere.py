@@ -103,6 +103,7 @@ async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(p
         raise HTTPException(404)
     if target.role == SUPERADMIN:
         raise HTTPException(400, "Superadmin styres fra .env og kan ikke ændres her")
+    events: list[tuple[str, dict]] = []  # logges først efter commit, så en afvist ændring ikke står i loggen
     if "role" in body:
         role = body["role"]
         if role == SUPERADMIN:
@@ -113,10 +114,12 @@ async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(p
             raise HTTPException(403, "Kun superadmin kan ændre administratorer")
         if target.id == user.id and role != user.role:
             raise HTTPException(400, "Du kan ikke ændre din egen rolle")
-        before = modules(target)
+        before, old_role = modules(target), target.role
         target.role = role
         if user.role != "superadmin" and (before ^ modules(target)) - modules(user):
             raise HTTPException(403, "Rollen giver eller fjerner moduler, du ikke selv har adgang til")
+        if old_role != role:  # rettighedsændringer logges (Admin → Aktivitet), så de kan spores bagefter
+            events.append(("role", {"user": target.id, "from": old_role, "to": role}))
     if "approved" in body:
         if target.id == user.id:
             raise HTTPException(400, "Du kan ikke ændre din egen godkendelse")
@@ -131,18 +134,26 @@ async def update_user(user_id: int, body: dict[str, Any], user: User = Depends(p
         if was != target.approved:
             await activity.track(user.id, "approval", None, {"user": target.id, "approved": target.approved})
     if "permissions" in body:
+        before_perms = target.permissions
         _set_permissions(user, target, body["permissions"])
+        if before_perms != target.permissions:
+            events.append(("permissions", {"user": target.id, "from": before_perms, "to": target.permissions}))
     if "blocked" in body:
         if target.role == "superadmin":
             raise HTTPException(400)
         if target.role == "admin" and user.role != "superadmin":
             raise HTTPException(403, "Kun superadmin kan spærre administratorer")
+        was_blocked = target.blocked
         target.blocked = bool(body["blocked"])
+        if was_blocked != target.blocked:
+            events.append(("blocked", {"user": target.id, "blocked": target.blocked}))
         if target.blocked:
             async for key in kv().scan_iter("sess:*"):
                 if await kv().get(key) == str(target.id):
                     await kv().delete(key)
     await db.commit()
+    for kind, detail in events:
+        await activity.track(user.id, kind, None, detail)
     await bump("lists")
     return {"ok": True}
 
@@ -178,6 +189,8 @@ async def delete_user(user_id: int, user: User = Depends(perm_brugere), db: Asyn
     # Sletning af eksisterende brugere kræver superadmin; en afventende (afvist) ansøgning kan fjernes af dem, der styrer brugere
     if target.approved and not target.is_test and user.role != "superadmin":
         raise HTTPException(403, "Kun superadmin kan slette godkendte brugere")
+    tid, kode = target.id, target.obserkode
     await account.delete(db, target)
+    await activity.track(user.id, "user_delete", None, {"user": tid, "obserkode": kode})
     await bump("lists")
     return {"ok": True}

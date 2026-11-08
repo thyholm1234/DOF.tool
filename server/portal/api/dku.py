@@ -300,6 +300,9 @@ async def get_case(case_id: int, c: dict = Depends(ctx), user: User = Depends(re
     is_owner = user.id == case.observer_id or (snap.get("obserkode") and snap.get("obserkode") == user.obserkode)
     closed = case.status == "afgjort"
     afd = await dku_cases.afdeling_names(db)
+    if dku.hides_position(role, case.source, current or snap):  # «skjul position»: tipperen ser ikke koordinaterne
+        snap = {**snap, "fields": dku.without_position(snap["fields"])}
+        current = {**current, "fields": dku.without_position(current["fields"])} if current else None
     out = {
         "id": case.id, "source": case.source, "role": role, "status": case.status, "status_label": dku.STATUSES[case.status],
         "outcome": case.outcome, "outcome_label": dku.OUTCOMES.get(case.outcome or ""), "outcome_note": case.outcome_note,

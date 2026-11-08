@@ -843,6 +843,8 @@ async def ny_rolle(body: RoleIn, ctx: svc.Ctx = Depends(need(perm="roller")), db
     base, i = key, 2
     while await db.get(DofbRole, key):
         key, i = f"{base[:28]}_{i}", i + 1
+    if extra := await svc.ungrantable(db, ctx.perms, perms=body.perms):
+        raise HTTPException(403, "Du kan kun give og fjerne rettigheder, du selv har: " + ", ".join(sorted(extra)))
     db.add(DofbRole(key=key, name=body.name, perms=[p for p in body.perms if p in svc.PERMS]))
     await svc.audit(db, ctx.user, "ny rolle", body.name)
     await db.commit()
@@ -854,6 +856,8 @@ async def ret_rolle(key: str, body: RoleIn, ctx: svc.Ctx = Depends(need(perm="ro
     r = await db.get(DofbRole, key)
     if r is None:
         raise HTTPException(404)
+    if extra := await svc.ungrantable(db, ctx.perms, perms=body.perms, role_key=key):
+        raise HTTPException(403, "Du kan kun give og fjerne rettigheder, du selv har: " + ", ".join(sorted(extra)))
     r.name, r.perms = body.name, [p for p in body.perms if p in svc.PERMS]
     await svc.audit(db, ctx.user, "rolle", f"{body.name}: {', '.join(r.perms) or 'ingen'}")
     await db.commit()
@@ -864,6 +868,8 @@ async def ret_rolle(key: str, body: RoleIn, ctx: svc.Ctx = Depends(need(perm="ro
 async def slet_rolle(key: str, ctx: svc.Ctx = Depends(need(perm="roller")), db: AsyncSession = Depends(get_session)):
     if key == "admin":
         raise HTTPException(400, "Administratorrollen kan ikke slettes")
+    if extra := await svc.ungrantable(db, ctx.perms, role_key=key):
+        raise HTTPException(403, "Du kan kun give og fjerne rettigheder, du selv har: " + ", ".join(sorted(extra)))
     await db.execute(delete(DofbRole).where(DofbRole.key == key))
     await svc.audit(db, ctx.user, "slet rolle", key)
     await db.commit()
@@ -891,6 +897,8 @@ async def saet_roller(user_id: int, body: UserRolesIn, ctx: svc.Ctx = Depends(ne
     target = await db.get(User, user_id)
     if target is None:
         raise HTTPException(404)
+    if extra := await svc.ungrantable(db, ctx.perms, user_id=user_id, roles=body.roles):
+        raise HTTPException(403, "Du kan kun give og fjerne rettigheder, du selv har: " + ", ".join(sorted(extra)))
     await svc.set_user_roles(db, user_id, body.roles, ctx.user)
     await svc.audit(db, ctx.user, "roller", f"{target.obserkode}: {', '.join(body.roles) or 'ingen'}")
     await db.commit()

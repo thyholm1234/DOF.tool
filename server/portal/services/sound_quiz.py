@@ -123,7 +123,7 @@ def _parse(data: dict, latin: str | None, max_length: int) -> list[dict]:
         length = _secs(r.get("length"))
         if latin and (str(r.get("gen", "")).lower() != gen or str(r.get("sp", "")).lower() != sp or (rest and str(r.get("ssp", "")).lower() != rest[0])):
             continue
-        if not r.get("file") or length is None or length > max_length:
+        if not r.get("file") or length is None or length > max_length or not str(r.get("id", "")).isdigit():
             continue
         lic = r.get("lic") or ""
         out.append({"ext_id": str(r["id"]), "recordist": r.get("rec"), "license_url": ("https:" + lic if lic.startswith("//") else lic) or None,
@@ -257,6 +257,9 @@ def _dir() -> Path:
 
 async def audio_file(source: str, ext_id: str, url: str) -> Path:
     """Lydfilen – hentes første gang og genbruges derefter (lås mod samtidige hentninger)."""
+    if source not in ("xc", "ml") or not re.fullmatch(r"[0-9]{1,12}", str(ext_id)):
+        # ext_id kommer fra xeno-canto's API (eller et ML-nummer) og bliver til et filnavn: kun tal, aldrig en sti
+        raise SoundError("Ugyldig optagelse")
     d, base = _dir(), f"{source}-{ext_id}"
     if hit := next(d.glob(base + ".*"), None):
         if hit.suffix != ".part":

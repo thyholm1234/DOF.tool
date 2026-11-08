@@ -172,10 +172,11 @@ den nye version i api-containeren, kør testene, og skriv låsen igen med
 bruger). Appens npm-pakker er låst i `app/package-lock.json`.
 
 **Sikkerhed.** Sikkerhedsgennemgangene med kendte risici ligger kun på serveren (`docs/sikkerhed/`, holdt uden for git,
-fordi repoet er offentligt). Sikkerhedsregressionerne ligger i `server/tests/test_security.py`, `server/tests/test_security_hemmelig.py` og
-`server/tests/test_security_runde3.py` (kør også
+fordi repoet er offentligt). Sikkerhedsregressionerne ligger i `server/tests/test_security*.py` (kør også
 med `-v ./dbadmin:/app/dbadmin`, så dbadmin-loginnet testes). Hemmelige DOF.tool-observationer udelades af det samlede
-datasæt i `services/dataset.py` – læs `include()`, før du skriver forespørgsler over hele datasættet.
+datasæt i `services/dataset.py` – læs `include()`, før du skriver forespørgsler over hele datasættet. «Skjul position»
+håndhæves af hver læser (fx `services/dku.hides_position`), og roller i DOFbasen- og Netfugl-modulerne gives kun via
+`ungrantable()`: man kan ikke give rettigheder, man ikke selv har.
 
 ```
 server/portal/

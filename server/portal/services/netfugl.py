@@ -172,6 +172,27 @@ async def audit(session: AsyncSession, user: User | None, action: str, target: s
     session.add(NfAudit(user_id=user.id if user else None, action=action, target=(target or "")[:200]))
 
 
+async def ungrantable(session: AsyncSession, own: set[str], *, user_id: int | None = None, roles: list[str] | None = None,
+                      perms: list[str] | None = None, role_key: str | None = None) -> set[str]:
+    """Rettigheder, den der handler, ikke selv har, men som handlingen ville give eller fjerne (tom mængde = i orden).
+
+    Rettigheden «roller» må kun bruges til at give og fjerne roller, hvis rettigheder man selv har – ellers kunne en med
+    «roller» give sig selv Netfugl-administratorrollen (samme regel som modulerne under Admin → Brugere). Dækker: roller til
+    en bruger (user_id + roles: både nye og fjernede tæller), en ny eller rettet rolle (perms) og den rolle, der rettes eller
+    slettes (role_key: dens nuværende rettigheder)."""
+    wanted: set[str] = set(perms or [])
+    keys: set[str] = set()
+    if user_id is not None:
+        current = set((await session.execute(select(NfUserRole.role_key).where(NfUserRole.user_id == user_id))).scalars())
+        keys |= set(roles or []) ^ current
+    if role_key is not None:
+        keys.add(role_key)
+    if keys:
+        for p in (await session.execute(select(NfRole.perms).where(NfRole.key.in_(keys)))).scalars():
+            wanted |= set(p or [])
+    return wanted - own
+
+
 async def set_user_roles(session: AsyncSession, user_id: int, roles: list[str], by: User) -> None:
     valid = set((await session.execute(select(NfRole.key))).scalars())
     await session.execute(delete(NfUserRole).where(NfUserRole.user_id == user_id))

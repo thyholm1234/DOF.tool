@@ -315,6 +315,8 @@ async def medforfatter(slug: str, body: EditorIn, user: User = Depends(builder),
 @router.delete("/kurser/{slug}/medforfattere/{uid}")
 async def fjern_medforfatter(slug: str, uid: int, user: User = Depends(builder), db: AsyncSession = Depends(get_session)):
     c = await _course(db, user, slug)
+    if uid != user.id and c.created_by != user.id and not can(user, "laering"):  # samme regel som at tilføje
+        raise HTTPException(403, "Kun ejeren kan fjerne andre medforfattere")
     await db.execute(text("DELETE FROM lr_course_editors WHERE course_id = :c AND user_id = :u"), {"c": c.id, "u": uid})
     await db.commit()
     return {"ok": True}
