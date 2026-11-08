@@ -3916,6 +3916,13 @@ false,
 ]
 }
 },
+"/api/dofbasen/v1/ibas": {
+"get": {
+"body": false,
+"op": "ibas_api_dofbasen_v1_ibas_get",
+"params": []
+}
+},
 "/api/dofbasen/v1/lists": {
 "get": {
 "body": false,
@@ -6821,6 +6828,26 @@ false,
 "query",
 false,
 "{\"default\": \"\", \"pattern\": \"^(|alle|\\\\d{4})$\", \"title\": \"Year\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/locations/shapes": {
+"get": {
+"body": false,
+"op": "location_shapes_api_locations_shapes_get",
+"params": [
+[
+"bbox",
+"query",
+true,
+"{\"pattern\": \"^-?[\\\\d.]+,-?[\\\\d.]+,-?[\\\\d.]+,-?[\\\\d.]+$\", \"title\": \"Bbox\", \"type\": \"string\"}"
+],
+[
+"zoom",
+"query",
+true,
+"{\"maximum\": 22, \"minimum\": 0, \"title\": \"Zoom\", \"type\": \"integer\"}"
 ]
 ]
 }

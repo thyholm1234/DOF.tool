@@ -15,7 +15,7 @@ from portal.models import User
 from portal.services import content_media, photo_access, photos, storage
 
 router = APIRouter(include_in_schema=False)
-RANGE = re.compile(r"bytes=(\d*)-(\d*)$")
+RANGE = storage.RANGE
 
 
 @router.api_route("/media/obs/{name}", methods=["GET", "HEAD"])

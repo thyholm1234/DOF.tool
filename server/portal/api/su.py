@@ -152,7 +152,7 @@ async def report_file(rid: int, request: Request, c: dict = Depends(ctx), db: As
 
 
 async def _serve(request: Request, key: str, name: str) -> Response:
-    from portal.api.media import RANGE
+    RANGE = storage.RANGE
 
     start = end = None
     m = RANGE.match(request.headers.get("range", "").strip())

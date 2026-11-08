@@ -304,6 +304,9 @@ async def my_visits(start: date = Query(alias="from"), end: date = Query(alias="
 
 @router.get("/me/ics")
 async def my_ics(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    if getattr(request.state, "view_as", None) is not None:
+        # «Se som bruger» er kun læsning, og tokenet er brugerens egen adgang til kalenderen
+        raise HTTPException(403, "Kalenderlinket vises ikke, når du ser appen som en anden bruger")
     token = calendars.ensure_token(user)
     await db.commit()
     base = _base_url(request)

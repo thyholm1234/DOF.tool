@@ -165,6 +165,16 @@ docker compose run --rm --no-deps -v ./server:/app/server -w /app/server api \
 `web/` er mountet ind i api-containeren, så frontend-ændringer kræver ikke rebuild.
 Backend-ændringer: `docker compose up -d --build api worker`.
 
+**Afhængigheder.** `server/pyproject.toml` angiver de tilladte intervaller; `server/constraints.txt` låser de præcise
+versioner, som api-, worker- og dbadmin-images bygges med, så samme commit giver samme image. Opdatér bevidst: installér
+den nye version i api-containeren, kør testene, og skriv låsen igen med
+`docker compose exec api pip freeze --exclude-editable` (behold kommentaren øverst og linjen `docker==…`, som kun dbadmin
+bruger). Appens npm-pakker er låst i `app/package-lock.json`.
+
+**Sikkerhed.** Seneste gennemgang, kendte risici og hvad der skal tjekkes før release:
+[docs/sikkerhed/gennemgang-2026-11-08.md](docs/sikkerhed/gennemgang-2026-11-08.md). Sikkerhedsregressionerne ligger i
+`server/tests/test_security.py` (kør også med `-v ./dbadmin:/app/dbadmin`, så dbadmin-loginnet testes).
+
 ```
 server/portal/
   dof/        gateway (rate limit), jobs (ét kald hver), parse, classify, ingest (COPY), archive, reference

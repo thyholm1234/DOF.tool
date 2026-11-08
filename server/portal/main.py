@@ -61,7 +61,7 @@ from portal.config import get_settings
 from portal.db import router
 from portal.dbgroups import GROUPS
 from portal.services import article_settings, position_privacy, storage, view_as
-from portal.services.auth import AuthError, session_user_id
+from portal.services.auth import AuthError, purge_legacy_sessions, session_user_id
 
 # Containerens mimetypes kender ikke woff2 – skrifterne i web/vendor skal have deres rigtige type
 mimetypes.add_type("font/woff2", ".woff2")
@@ -75,6 +75,8 @@ WEB_DIR = Path(os.environ.get("WEB_DIR", Path(__file__).resolve().parents[2] / "
 async def lifespan(_: FastAPI):
     await init_db()
     await storage.init()
+    if n := await purge_legacy_sessions():
+        logging.getLogger("portal.auth").info("Slettede %s sessioner fra før hashingen (klartekst-tokens)", n)
     yield
     await router.stop()
 
@@ -83,9 +85,19 @@ app = FastAPI(title=get_settings().app_name, lifespan=lifespan, docs_url="/api/d
 
 
 MOB_AUDIO = re.compile(r"^(/v/[^/]+)?/audio/mobgang/")
-PUBLIC_API = ("/api/auth/", "/api/health", "/api/me", "/api/settings/public", "/api/ics/", "/api/docs", "/api/openapi.json",
-              "/api/dofbasen/v1/", "/api/netfugl/v1/",  # showcase-API'erne har deres egen token-godkendelse
-              "/api/location/native")  # appens positionstjeneste sender selv med et positionstoken
+# Undtagelser fra kravet om login i vagten nedenfor. Præcise stier og præfikser holdes adskilt: et præfiks som "/api/me"
+# ville også åbne /api/me/export, /api/me/location/token osv. (og enhver fremtidig /api/me…-rute) for vagten.
+PUBLIC_EXACT = {"/api/health", "/api/me", "/api/settings/public", "/api/openapi.json",
+                "/api/location/native"}  # appens positionstjeneste sender selv med et positionstoken
+PUBLIC_PREFIX = ("/api/auth/", "/api/ics/", "/api/docs",
+                 "/api/dofbasen/v1/", "/api/netfugl/v1/")  # showcase-API'erne har deres egen token-godkendelse
+
+
+def public_api(path: str) -> bool:
+    """Må stien kaldes uden login (vagten)? Ruterne selv kræver stadig login via deres dependencies."""
+    return path in PUBLIC_EXACT or path.startswith(PUBLIC_PREFIX)
+
+
 TOKEN_APIS = ("/api/dofbasen/v1/", "/api/netfugl/v1/")
 CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS",
         "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Max-Age": "86400"}
@@ -112,7 +124,7 @@ async def guard(request: Request, call_next):
     # Portalen er kun for indloggede brugere: alt under /api kræver en gyldig session, undtagen login,
     # sundhedstjek, /api/me (svarer user=null) og ICS-feeds (personligt token i adressen).
     path = request.url.path
-    if path.startswith("/api/") and not path.startswith(PUBLIC_API):
+    if path.startswith("/api/") and not public_api(path):
         if not await session_user_id(request.cookies.get(COOKIE)):
             return JSONResponse({"detail": "Log ind for at bruge portalen"}, status_code=401)
     # Uploads fra feltmeldinger og læring er kun for indloggede; Netfugl-fotos er offentlige (vises også via showcase-API'et)

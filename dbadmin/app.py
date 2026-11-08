@@ -100,6 +100,13 @@ def bump(con: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------- login med eget kodeord (DBADMIN_PASSWORD)
 
 _fails: dict[str, list[float]] = {}
+# Loft over fejlede forsøg i alt (alle IP'er): IP'en kommer fra X-Forwarded-For, når forespørgslen kommer fra en betroet
+# proxy-adresse (FORWARDED_ALLOW_IPS = alle private net), så en maskine på LAN'et kan skifte "IP" ved hvert forsøg.
+# Panelet styrer Docker på værten, så gætteri skal være begrænset uanset hvad.
+FAIL_WINDOW = 300
+FAILS_PER_IP = 5
+FAILS_TOTAL = 20
+_fails_all: list[float] = []
 
 
 class LoginIn(BaseModel):
@@ -207,11 +214,16 @@ async def login(body: LoginIn, request: Request, response: Response):
     if not PASSWORD:
         raise HTTPException(503, "DBADMIN_PASSWORD er ikke sat på serveren")
     ip = request.client.host if request.client else "?"
-    recent = [t for t in _fails.get(ip, []) if t > time.time() - 300]
-    if len(recent) >= 5:
+    now = time.time()
+    recent = [t for t in _fails.get(ip, []) if t > now - FAIL_WINDOW]
+    _fails_all[:] = [t for t in _fails_all if t > now - FAIL_WINDOW]
+    if len(recent) >= FAILS_PER_IP or len(_fails_all) >= FAILS_TOTAL:
         raise HTTPException(429, "For mange forsøg – prøv igen om lidt")
     if not secrets.compare_digest(body.password.encode(), PASSWORD.encode()):
-        _fails[ip] = [*recent, time.time()]
+        _fails[ip] = [*recent, now]
+        _fails_all.append(now)
+        for k in [k for k, v in _fails.items() if not v or v[-1] <= now - FAIL_WINDOW]:
+            del _fails[k]  # glemte IP'er fylder ikke i hukommelsen
         raise HTTPException(401, "Forkert kodeord")
     _fails.pop(ip, None)
     token = secrets.token_urlsafe(32)

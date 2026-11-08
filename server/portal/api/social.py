@@ -278,8 +278,10 @@ async def _visible_thread(db: AsyncSession, thread_id: int, user: User) -> Suppo
 
 
 @router.get("/support/{thread_id}")
-async def get_thread(thread_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+async def get_thread(thread_id: int, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     t = await _visible_thread(db, thread_id, user)
+    if getattr(request.state, "view_as", None) is not None:
+        return await _thread_json(db, t, user)  # «se som bruger»: kun læsning – markér ikke som læst
     if t.user_id == user.id and t.unread_user:
         t.unread_user = False
     elif _staff(t, user) and t.user_id != user.id and t.unread_admin:

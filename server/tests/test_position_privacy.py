@@ -121,13 +121,13 @@ async def test_session_is_stored_only_as_hash(kv, monkeypatch):
     assert await auth_service.session_user_id(token) is None
 
 
-async def test_legacy_session_is_migrated(kv, monkeypatch):
-    monkeypatch.setattr(auth_service, "get_settings", lambda: SimpleNamespace(session_days=30))
+async def test_legacy_session_is_not_accepted(kv):
+    # Sessioner fra før hashingen lå i klartekst (også i Valkey-kopier) – de godtages ikke længere, men slettes ved
+    # opstart af auth.purge_legacy_sessions (sikkerhedsgennemgangen 2026-11-08, S-01; se også test_security.py)
     kv.d["sess:gammel"], kv.ttls["sess:gammel"] = "7", 1000
     kv.d["usess:7"] = {"gammel"}
-    assert await auth_service.session_user_id("gammel") == "7"
-    assert "sess:gammel" not in kv.d and kv.d["usess:7"] == {auth_service.session_key("gammel")}
-    assert kv.ttls[auth_service.session_key("gammel")] == 1000
+    assert await auth_service.session_user_id("gammel") is None
+    assert auth_service.session_key("gammel") not in kv.d
 
 
 def test_view_as_state_key_is_hashed():

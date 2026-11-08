@@ -29,10 +29,14 @@ class LoginIn(BaseModel):
     password: str = Field(max_length=200)
 
 
+# Indstillinger, superadmin ikke ser i «se som bruger»: positionsenheden og ICS-tokenet (giver adgang til kalenderen)
+VIEW_AS_HIDDEN_PREFS = {"position_device", "ics_token"}
+
+
 def user_out(user: User, view_as: bool = False) -> dict:
     prefs = user.prefs or {}
-    if view_as:  # hvilken enhed brugerens position følger, er brugerens egen sag (services/position_privacy.py)
-        prefs = {k: v for k, v in prefs.items() if k != "position_device"}
+    if view_as:  # brugerens egen sag: hvilken enhed positionen følger (services/position_privacy.py) og kalendertokenet
+        prefs = {k: v for k, v in prefs.items() if k not in VIEW_AS_HIDDEN_PREFS}
     return {"id": user.id, "obserkode": user.obserkode, "navn": user.navn, "role": user.role,
             "modules": sorted(auth.modules(user)), "prefs": prefs, "history_synced_at": user.history_synced_at}
 

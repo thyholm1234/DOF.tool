@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -17,6 +18,8 @@ from pathlib import Path
 from portal.config import get_settings
 
 log = logging.getLogger("portal.storage")
+# Range-headeren (bytes=a-b, bytes=a- eller bytes=-n) ved levering af filer (api/media.py, api/su.py)
+RANGE = re.compile(r"bytes=(\d*)-(\d*)$")
 PREFIX = "obs/"  # nøgle i bucket'en = PREFIX + filnavn; adressen = /media/obs/<filnavn>
 ART_PREFIX = "art/"  # artikelmodulets medier: nøgle = art/<xx>/<sha256>.<ext>; adressen = /media/art/<xx>/<sha256>.<ext>
 # Typer Python 3.12's mimetypes ikke kender (bruges uden S3 og ved migrering)

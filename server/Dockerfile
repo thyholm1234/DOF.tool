@@ -8,8 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends postgresql-comm
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/server
 
-COPY server/pyproject.toml ./
-RUN mkdir portal && touch portal/__init__.py && pip install . && pip uninstall -y dof-portal
+COPY server/pyproject.toml server/constraints.txt ./
+# Afhængighederne installeres med de låste versioner (constraints.txt), så samme commit giver samme image
+RUN mkdir portal && touch portal/__init__.py && pip install -c constraints.txt . && pip uninstall -y dof-portal
 
 COPY server/ ./
 RUN pip install --no-deps -e .

@@ -23,6 +23,9 @@ from portal.models import Role, User
 from portal.services.setting_store import get_setting
 
 LOGIN_PER_MIN = 5
+# Loft pr. obserkode pr. time, uafhængigt af IP: IP-grænsen kan omgås fra en betroet proxy-adresse (FORWARDED_ALLOW_IPS)
+# eller med mange adresser, så gætteri på én konto er begrænset til 30 forsøg i timen (ikke 7.200 i døgnet).
+LOGIN_PER_HOUR = 30
 OBSERKODE_RE = re.compile(r"^[A-Z0-9]{2,16}$")
 # Admin-moduler. Rollen giver et standardsæt; en bruger kan i stedet få en individuel liste (users.permissions).
 MODULES = {
@@ -123,14 +126,17 @@ async def ensure_superadmin(session: AsyncSession) -> None:
 
 
 async def _rate_limit(kode: str, ip: str) -> None:
-    """Hvert forsøg tæller (det giver et kald til DOFbasen): højst LOGIN_PER_MIN i minuttet pr. obserkode og pr. IP."""
+    """Hvert forsøg tæller (det giver et kald til DOFbasen): højst LOGIN_PER_MIN i minuttet pr. obserkode og pr. IP og
+    højst LOGIN_PER_HOUR i timen pr. obserkode."""
     r = kv()
-    for key in (f"login:try:{kode}", f"login:try:ip:{ip}"):
+    for key, limit, ttl, msg in ((f"login:try:{kode}", LOGIN_PER_MIN, 60, "Prøv igen om et minut."),
+                                 (f"login:try:ip:{ip}", LOGIN_PER_MIN, 60, "Prøv igen om et minut."),
+                                 (f"login:try:h:{kode}", LOGIN_PER_HOUR, 3600, "Prøv igen om en time.")):
         n = await r.incr(key)
         if n == 1:
-            await r.expire(key, 60)
-        if n > LOGIN_PER_MIN:
-            raise AuthError("For mange forsøg. Prøv igen om et minut.", 429)
+            await r.expire(key, ttl)
+        if n > limit:
+            raise AuthError(f"For mange forsøg. {msg}", 429)
 
 
 def hash_test_password(password: str) -> str:
@@ -270,22 +276,28 @@ async def create_session(user: User) -> str:
 
 
 async def session_user_id(token: str | None) -> str | None:
-    """Bruger-id for en sessionscookie (eller None). Sessioner fra før hashingen (sess:<token>) flyttes over ved første
-    brug, så ingen bliver logget ud."""
+    """Bruger-id for en sessionscookie (eller None). Kun hashede sessioner (sess:h:<sha256>) gælder – se
+    purge_legacy_sessions."""
     if not token or len(token) > 100:
         return None
-    key = session_key(token)
-    user_id = await kv().get(key)
-    if user_id is None:
-        legacy = f"sess:{token}"
-        user_id = await kv().get(legacy)
-        if user_id is not None:
-            ttl = await kv().ttl(legacy)
-            await kv().set(key, user_id, ex=ttl if ttl and ttl > 0 else get_settings().session_days * 86400)
-            await kv().delete(legacy)
-            await kv().srem(f"usess:{user_id}", token)
-            await kv().sadd(f"usess:{user_id}", key)
-    return user_id
+    return await kv().get(session_key(token))
+
+
+async def purge_legacy_sessions() -> int:
+    """Slet sessioner fra før hashingen, hvor selve tokenet stod i nøglen (sess:<token>) og i usess:<id>. De lå i klartekst
+    i Valkey og dermed i alle kopier af den (dumps, backups) – en sådan kopi må ikke kunne bruges til at logge ind.
+    Brugerne med en gammel session logges ud én gang. Kaldes ved opstart; gør intet, når der ikke er flere."""
+    r = kv()
+    n = 0
+    async for key in r.scan_iter("sess:*"):
+        k = key.decode() if isinstance(key, bytes) else key
+        if not k.startswith("sess:h:"):
+            n += await r.delete(k)
+    async for key in r.scan_iter("usess:*"):
+        raw = [m for m in await r.smembers(key) if not (m.decode() if isinstance(m, bytes) else m).startswith("sess:h:")]
+        if raw:
+            await r.srem(key, *raw)
+    return n
 
 
 async def user_from_token(session: AsyncSession, token: str | None) -> User | None:
