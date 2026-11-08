@@ -164,7 +164,9 @@ async def matrikel_windows(session: AsyncSession, obserkode: str, spec: ListSpec
 
 
 async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
-                    windows: list[tuple[date, date]] | None = None) -> list[dict]:
+                    windows: list[tuple[date, date]] | None = None, own: bool = False) -> list[dict]:
+    """Observatørens liste. own=True kun når observatøren selv ser listen: så tæller egne hemmelige DOF.tool-observationer
+    med. Andre (offentlige lister, grupper) og ranglister ser listen uden dem (services/dataset.visible)."""
     prefix = await matrikel_prefix(session)
     where, params = await _where(session, spec, prefix, windows)
     sql = f"""
@@ -178,7 +180,8 @@ async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
         WHERE o.obserkode = :kode AND {where}
         ORDER BY s.list_artnr, o.dato, o.obsid
     """
-    rows = (await dataset.execute(session, sql, {"kode": obserkode, **params}, obserkode=obserkode)).mappings().all()
+    rows = (await dataset.execute(session, sql, {"kode": obserkode, **params}, obserkode=obserkode,
+                                  secret_for=obserkode if own else None)).mappings().all()
     out = [{**dict(r), "dato": r["dato"].isoformat()} for r in rows]
     out.sort(key=lambda r: (r["dato"], r["obsid"]))
     return out

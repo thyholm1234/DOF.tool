@@ -159,7 +159,7 @@ async def own_species(session: AsyncSession, loknr: int, obserkode: str, year: i
         SELECT DISTINCT artnr FROM observations
         WHERE loknr = :l AND obserkode = :k AND antal > 0
           AND (CAST(:y AS int) IS NULL OR dato >= make_date(CAST(:y AS int), 1, 1) AND dato < make_date(CAST(:y AS int) + 1, 1, 1))
-    """, {"l": loknr, "k": obserkode, "y": year})).scalars().all()
+    """, {"l": loknr, "k": obserkode, "y": year}, secret_for=obserkode)).scalars().all()
     return list(rows)
 
 

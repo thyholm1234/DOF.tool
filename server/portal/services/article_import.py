@@ -30,7 +30,7 @@ from portal.cache import bump
 from portal.config import get_settings
 from portal.db import SessionLocal
 from portal.models import ArtArticle, ArtArticleTag, ArtComment, ArtImport, ArtTag, ContentMedia
-from portal.services import article_authors, article_settings, article_species, content_media, content_render
+from portal.services import article_authors, article_settings, article_species, content_media, content_render, egress
 from portal.timeutil import TZ
 
 log = logging.getLogger("portal.articles.import")
@@ -440,7 +440,7 @@ async def _fetch_external(session: AsyncSession, run: Run, art: ArtArticle, md: 
                                                 owner_id=art.id, user_id=user_id, original_url=url, sort=n)
             got[url] = m.id
             run.stats["hentede_billeder"] += 1
-        except (content_media.MediaError, httpx.HTTPError) as exc:
+        except (content_media.MediaError, httpx.HTTPError, ValueError) as exc:  # ValueError: ikke-offentlig adresse (egress)
             errors.append(f"Kunne ikke hente {url}: {exc}")
             transient = True
         await asyncio.sleep(0.2)  # høflig over for netfugl.dk
@@ -612,7 +612,9 @@ async def _run(s: AsyncSession, imp: ArtImport, run: Run, path: Path) -> None:
             pass
     hosts = set((await article_settings.get(s))["embed_hosts"])
     matcher = await article_species.load_matcher(s, fresh=True)
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers={"User-Agent": "DOF.tool/1.0 (artikelimport)"}) as http:
+    # Billedadresserne kommer fra zip'ens indhold (kun netfugl.dk), men omdirigeringer kontrolleres også (SSRF, services/egress.py)
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, max_redirects=5, headers={"User-Agent": "DOF.tool/1.0 (artikelimport)"},
+                                 event_hooks={"request": [egress.check_request]}) as http:
         run.http = http
         await _loop(s, imp, run, arc, nos, matcher, hosts)
 

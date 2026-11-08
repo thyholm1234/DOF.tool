@@ -186,5 +186,5 @@ async def my_stats(user: User = Depends(require_user), db: AsyncSession = Depend
         SELECT count(*) AS n_obs, count(DISTINCT turid) AS n_trips, min(dato) AS first, max(dato) AS last,
                count(DISTINCT artnr) AS n_taxa
         FROM observations WHERE obserkode = :k
-    """, {"k": user.obserkode})).mappings().first()
+    """, {"k": user.obserkode}, secret_for=user.obserkode)).mappings().first()
     return dict(row)

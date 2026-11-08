@@ -57,8 +57,8 @@ async def client(request: Request, db: AsyncSession = Depends(get_session)) -> C
     return Client(user, tok, grant)
 
 
-async def _rows(db: AsyncSession, sql: str, **args) -> list[dict]:
-    return [dict(r) for r in (await dataset.execute(db, sql, args)).mappings().all()]  # hele datasættet: DOFbasen + DOF.tool (services/dataset.py)
+async def _rows(db: AsyncSession, sql: str, *, secret_for: str | None = None, **args) -> list[dict]:
+    return [dict(r) for r in (await dataset.execute(db, sql, args, secret_for=secret_for)).mappings().all()]  # hele datasættet: DOFbasen + DOF.tool (services/dataset.py)
 
 
 @router.get("/me", summary="Hvem er jeg")
@@ -77,7 +77,8 @@ async def observations(p: Annotated[svc.SearchIn, Query()], c: Client = Depends(
 async def observation(obsid: int, c: Client = Depends(client), db: AsyncSession = Depends(get_session)):
     rows = await _rows(db, f"""SELECT {svc.ROW_COLS} FROM observations o JOIN species s ON s.artnr = o.artnr
         LEFT JOIN locations l ON l.loknr = o.loknr LEFT JOIN trips t ON t.turid = o.turid {svc.ROW_JOINS}
-        WHERE o.obsid = :id AND (o.hemmelig = 0 OR o.obserkode = :me)""", id=obsid, me=c.user.obserkode, sub_as_species=False)
+        WHERE o.obsid = :id AND (o.hemmelig = 0 OR o.obserkode = :me)""", id=obsid, me=c.user.obserkode, sub_as_species=False,
+        secret_for=c.user.obserkode)
     if not rows:
         raise HTTPException(404, "Observationen findes ikke")
     return rows[0]
@@ -93,7 +94,7 @@ async def day(dato: date, visning: str = Query("fugle", pattern="^(fugle|allfugl
                l.afdeling_id, o.obserkode, coalesce(o.obs_lat, l.lat) AS lat, coalesce(o.obs_lon, l.lon) AS lon
         FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
         WHERE o.dato = :d AND {cond} AND (o.hemmelig = 0 OR o.obserkode = :me) AND (CAST(:a AS integer) IS NULL OR l.afdeling_id = :a)
-        ORDER BY s.sortering, l.navn LIMIT 10000""", d=dato, me=c.user.obserkode, a=afdeling)
+        ORDER BY s.sortering, l.navn LIMIT 10000""", d=dato, me=c.user.obserkode, a=afdeling, secret_for=c.user.obserkode)
     return {"dato": dato.isoformat(), "count": len(rows), "rows": rows}
 
 

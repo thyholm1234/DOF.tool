@@ -46,13 +46,14 @@ def need(feature: str = "dofbasen", perm: str | None = None, edit: bool = False)
     return dep
 
 
-async def _row(db: AsyncSession, sql: str, **args) -> dict | None:
-    r = (await dataset.execute(db, sql, args)).mappings().first()  # hele datasættet: DOFbasen + DOF.tool (services/dataset.py)
+async def _row(db: AsyncSession, sql: str, *, secret_for: str | None = None, **args) -> dict | None:
+    r = (await dataset.execute(db, sql, args, secret_for=secret_for)).mappings().first()  # hele datasættet: DOFbasen + DOF.tool (services/dataset.py)
     return dict(r) if r else None
 
 
-async def _rows(db: AsyncSession, sql: str, **args) -> list[dict]:
-    return [dict(r) for r in (await dataset.execute(db, sql, args)).mappings().all()]
+async def _rows(db: AsyncSession, sql: str, *, secret_for: str | None = None, **args) -> list[dict]:
+    """secret_for: ejerens obserkode, når forespørgslen selv viser ejerens hemmelige observationer (services/dataset.visible)."""
+    return [dict(r) for r in (await dataset.execute(db, sql, args, secret_for=secret_for)).mappings().all()]
 
 
 # ---------------------------------------------------------------- fælles
@@ -265,14 +266,15 @@ async def observation(obsid: int, user: User = Depends(require_user), ctx: svc.C
     o = await _row(db, f"""SELECT {svc.ROW_COLS}, o.first_seen, st.note AS dku_note, st.set_at AS dku_at
         FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
         LEFT JOIN trips t ON t.turid = o.turid {svc.ROW_JOINS}
-        WHERE o.obsid = :id AND (o.hemmelig = 0 OR o.obserkode = :me)""", id=obsid, me=user.obserkode, sub_as_species=False)
+        WHERE o.obsid = :id AND (o.hemmelig = 0 OR o.obserkode = :me)""", id=obsid, me=user.obserkode, sub_as_species=False,
+        secret_for=user.obserkode)
     if o is None:
         raise HTTPException(404, "Observationen findes ikke")
     tur = await _rows(db, """
         SELECT o.obsid, o.artnr, s.navn AS art, o.antal, o.adfkode, ct.text AS adfaerd, o.kategori
         FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN code_texts ct ON ct.kind = 'adf' AND ct.code = o.adfkode
         WHERE o.turid = :t AND (o.hemmelig = 0 OR o.obserkode = :me) ORDER BY s.sortering, o.obsid
-    """, t=o["turid"], me=user.obserkode) if o["turid"] else []
+    """, t=o["turid"], me=user.obserkode, secret_for=user.obserkode) if o["turid"] else []
     o["can_dku"] = ctx.can("dku") and ctx.on("dofbasen_dku")
     return {"obs": o, "tur": tur, "netfugl": await netfugl_photos(db, user, "p.obsid = :o", o=obsid)}
 

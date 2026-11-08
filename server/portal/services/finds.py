@@ -150,7 +150,7 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
                    coalesce(o.obs_lon, l.lon) AS lon, o.antal, o.hemmelig <> 0 AS secret
             FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
             WHERE s.list_artnr = :a AND o.antal > 0 AND o.dato <= current_date AND l.lat IS NOT NULL
-        """, {"a": list_artnr})).all()
+        """, {"a": list_artnr}, secret_all=True)).all()  # hemmelige tæller med, men stedet vises ikke (nedenfor)
         # Punkter: dag, lokalitet og adfærd (stationær / trækkende pr. retning, "T" = uden retning)
         acc: dict[tuple, dict] = {}
         for o in obs:
@@ -201,6 +201,8 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
         members: dict[str, int] = {}
         best: dict[str, tuple] = {}
         for r, root in zip(rows, roots):
+            if r["secret"]:
+                continue  # nøglen er dato|lokalitet: en hemmelig observations sted må ikke kunne aflæses her
             m = f"{r['dato'].isoformat()}|{r['loknr']}"
             rank = (not r["mig"], r["antal"])
             if m not in best or rank > best[m]:

@@ -9,6 +9,10 @@ on:
     branches: [main]
     paths: ["app/**", ".github/workflows/ios.yml"]
 
+# GITHUB_TOKEN må kun læse repoet (byggeriet skriver intet tilbage til GitHub)
+permissions:
+  contents: read
+
 env:
   DOF_SERVER_URL: ${{ vars.DOF_SERVER_URL || 'https://doftool.chfotofilm.dk' }}
 

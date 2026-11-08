@@ -79,20 +79,32 @@ async def tool_data() -> dict[str, list[dict]]:
     return data
 
 
+def visible(o: dict, secret_for: str | None = None, secret_all: bool = False) -> bool:
+    """Må DOF.tool-rækken indgå? Hemmelige observationer («kun synlig for dig» i indtastningen) er som standard udeladt –
+    også af aggregater, lister og forudberegnede tal, som andre ser. Kun ejeren (secret_for = egen obserkode) eller en
+    kalder, der selv skjuler stedet (secret_all, fx fundberegningen), får dem med."""
+    return not o.get("hemmelig") or secret_all or (secret_for is not None and o.get("obserkode") == secret_for)
+
+
 async def include(sql: str, params: dict[str, Any], *, d1: date | None = None, d2: date | None = None,
                   obserkode: str | None = None, obserkoder: list[str] | None = None, loknr: int | None = None,
-                  artnr: int | None = None, artnrs: list[int] | None = None) -> tuple[str, dict[str, Any]]:
+                  artnr: int | None = None, artnrs: list[int] | None = None,
+                  secret_for: str | None = None, secret_all: bool = False) -> tuple[str, dict[str, Any]]:
     """Skriv en læsende forespørgsel om, så `FROM/JOIN observations` og `trips` også rummer DOF.tool-gruppens rækker:
     `(SELECT * FROM observations UNION ALL SELECT * FROM jsonb_populate_recordset(NULL::observations, :rækker))`.
     Til aggregater og forudberegninger, hvor tallene skal være nøjagtige på tværs af de to kilder (antal forskellige
     dage, første fund, rangering …). Argumenterne er en grovsortering af DOF.tool-rækkerne; selve forespørgslen filtrerer
-    stadig præcist. Uden DOF.tool-rækker returneres forespørgslen uændret."""
+    stadig præcist. Uden DOF.tool-rækker returneres forespørgslen uændret.
+
+    SIKKERHED: hemmelige DOF.tool-observationer tages ikke med (se visible()), medmindre secret_for er ejerens obserkode.
+    Send aldrig secret_for fra en funktion, hvis resultat caches på tværs af brugere."""
     data = await tool_data()
     a, b = (d1.isoformat() if d1 else None), (d2.isoformat() if d2 else None)
     codes = set(obserkoder) if obserkoder is not None else None
     arts = set(artnrs) if artnrs is not None else None
     rows = [o for o in data["obs"]
-            if (a is None or o["dato"] >= a) and (b is None or o["dato"] <= b) and (obserkode is None or o["obserkode"] == obserkode)
+            if visible(o, secret_for, secret_all)
+            and (a is None or o["dato"] >= a) and (b is None or o["dato"] <= b) and (obserkode is None or o["obserkode"] == obserkode)
             and (codes is None or o["obserkode"] in codes) and (loknr is None or o["loknr"] == loknr)
             and (artnr is None or o["artnr"] == artnr) and (arts is None or o["artnr"] in arts)][:MAX_ROWS]
     if not rows:

@@ -34,7 +34,7 @@ from portal.services.auth import SUPERADMIN, can
 from portal.services.categories import countable_sql
 from portal.timeutil import dk_today
 from portal.services.setting_store import get_setting_dict
-from portal.services import dataset
+from portal.services import dataset, egress
 
 log = logging.getLogger("portal.netfugl")
 CONTENT = SEED_DIR / "netfugl" / "content.json"
@@ -527,23 +527,9 @@ def discover(page: str, base: str) -> str | None:
     return None
 
 
-def _public_host(url: str) -> None:
-    """Kun offentlige adresser: RSS-adresser indtastes af admins og følger omdirigeringer – de må aldrig ramme portalens
-    egne tjenester (postgres, valkey, api) eller andre interne adresser."""
-    import ipaddress
-    import socket
-
-    u = httpx.URL(url)
-    if u.scheme not in ("http", "https") or not u.host:
-        raise ValueError("Kun http(s)-adresser")
-    for info in socket.getaddrinfo(u.host, u.port or (443 if u.scheme == "https" else 80), proto=socket.IPPROTO_TCP):
-        ip = ipaddress.ip_address(info[4][0])
-        if not ip.is_global:
-            raise ValueError(f"Adressen {u.host} er ikke offentlig")
-
-
-async def _check_request(request: httpx.Request) -> None:
-    _public_host(str(request.url))
+# RSS-adresser indtastes af admins og følger omdirigeringer: kun offentlige adresser (SSRF-værnet bor i services/egress.py)
+_public_host = egress.public_host
+_check_request = egress.check_request
 
 
 async def _get(client: httpx.AsyncClient, url: str) -> bytes:

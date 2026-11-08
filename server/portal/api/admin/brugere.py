@@ -54,9 +54,14 @@ async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSessio
     return out
 
 
+# Testbrugere har forudsigelige obserkoder (TEST0001 …) og logger ind med en lokal adgangskode: gætteri begrænses kun af
+# loginloftet (30 i timen pr. obserkode), så adgangskoden skal være lang. Den genererede er 12 tegn (token_urlsafe(9)).
+TEST_PW_MIN = 12
+
+
 class TestUserIn(BaseModel):
     navn: str = Field(min_length=1, max_length=160)
-    password: str | None = Field(None, min_length=6, max_length=100)
+    password: str | None = Field(None, min_length=TEST_PW_MIN, max_length=100)
 
 
 @router.post("/admin/test-users")
@@ -73,8 +78,8 @@ async def reset_test_password(user_id: int, body: dict[str, Any], user: User = D
     if target is None or not target.is_test:
         raise HTTPException(404, "Ikke en testbruger")
     password = str(body.get("password") or "") or secrets.token_urlsafe(9)
-    if len(password) < 6:
-        raise HTTPException(400, "Adgangskoden skal have mindst 6 tegn")
+    if len(password) < TEST_PW_MIN:
+        raise HTTPException(400, f"Adgangskoden skal have mindst {TEST_PW_MIN} tegn")
     target.test_pw_hash = auth_service.hash_test_password(password)
     await db.commit()
     async for key in kv().scan_iter("sess:*"):

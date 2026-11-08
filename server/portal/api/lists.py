@@ -75,7 +75,7 @@ async def user_list(request: Request, obserkode: str, scope: str | None = None, 
         periode = None  # andre ser altid den aktive periode
     spec = await _spec(db, scope, year, matrikel, user, request)
     windows, period_info = await lists.matrikel_windows(db, kode, spec, periode)
-    items = await lists.year_list(db, kode, spec, windows)
+    items = await lists.year_list(db, kode, spec, windows, own=own)
     navn = (await db.execute(text("SELECT navn FROM users WHERE obserkode = :k"), {"k": kode})).scalar()
     if not navn:
         navn = (await db.execute(text("SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers "
@@ -141,7 +141,7 @@ async def gaps(request: Request, scope: str | None = None, year: str | None = No
                db: AsyncSession = Depends(get_session)):
     """Mine huller: arter andre har indtastet i området (og året), men jeg ikke har. Sorteres på klienten."""
     spec = await _spec(db, scope, year, None, user, request)
-    mine = {i["artnr"] for i in await lists.year_list(db, user.obserkode, spec)}
+    mine = {i["artnr"] for i in await lists.year_list(db, user.obserkode, spec, own=True)}
     return {**await regions.gaps(db, spec.scope, spec.year, mine), "mine": len(mine)}
 
 

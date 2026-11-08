@@ -43,7 +43,7 @@ async def species_for(db: AsyncSession, user: User, cfg: dict) -> list[int]:
             raise TrainError("Knyt din DOFbasen-profil for at bruge dine egne arter")
         async with ObsSession() as o:
             rows = (await dataset.execute(o, """SELECT o.artnr FROM observations o JOIN species s ON s.artnr = o.artnr AND s.art_type = 'art' AND s.list_artnr = s.artnr
-                WHERE o.obserkode = :k GROUP BY o.artnr ORDER BY count(*) DESC LIMIT :n""", {"k": user.obserkode, "n": MAX_ARTER})).scalars().all()
+                WHERE o.obserkode = :k GROUP BY o.artnr ORDER BY count(*) DESC LIMIT :n""", {"k": user.obserkode, "n": MAX_ARTER}, secret_for=user.obserkode)).scalars().all()
         return list(rows)
     if kilde == "afdeling":
         afd = int(cfg.get("afdeling_id") or 0)

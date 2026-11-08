@@ -72,7 +72,7 @@ export async function users(body) {
 /** Opret en testbruger (u = null) eller giv en ny adgangskode. Adgangskoden vises kun her, så den kan gives videre. */
 function testUserModal(u, done) {
   const navn = h("input", { type: "text", placeholder: "Fx Testbruger Anna", maxlength: 160, value: u?.navn || "" });
-  const pw = h("input", { type: "text", placeholder: "Tom = tilfældig adgangskode", minlength: 6, maxlength: 100, autocomplete: "off" });
+  const pw = h("input", { type: "text", placeholder: "Tom = tilfældig adgangskode", minlength: 12, maxlength: 100, autocomplete: "off" });
   const out = h("div", {});
   const go = h("button", { class: "btn primary", type: "button" }, u ? "Giv ny adgangskode" : "Opret");
   const body = h("div", { class: "stack" }, u ? h("p", { class: "muted", style: { margin: 0 } }, `${u.navn || u.obserkode} (${u.obserkode}) bliver logget ud overalt.`)
