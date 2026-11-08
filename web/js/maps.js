@@ -1,7 +1,7 @@
 // Leaflet-hjælpere: grundkort, farver og tegneværktøj (polygon og radius).
 // Leaflet (JS + CSS fra /vendor) hentes først, når et modul med kort importerer denne fil – forsiden og de fleste andre
 // sider indlæser det aldrig. Top-level await: når importen er færdig, er det globale L klar til brug.
-import { h } from "./core.js";
+import { h, api } from "./core.js";
 
 let loading = null;
 /** Hent Leaflet én gang (genbruges af alle kort). */
@@ -88,3 +88,69 @@ export const arrowSvg = (deg, size, color) =>
 
 /** Farver for trækgrupperne (trækkort og kort over fund). */
 export const GROUP_COLORS = { rov_svaev: "#c0392b", rov_aktiv: "#e67e22", vade: "#16a085", gaes: "#8e5a2b", hav: "#2a6fb0", spurv: "#7b4bb7", drossel: "#d35485" };
+
+// ---------------------------------------------------------------- lokaliteternes omrids (lokalitetsvalg på kort)
+
+const ringHas = (ring, x, y) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+};
+const ringArea = (ring) => Math.abs(ring.reduce((a, [x, y], i) => { const [x2, y2] = ring[(i + 1) % ring.length]; return a + x * y2 - x2 * y; }, 0)) / 2;
+const polys = (g) => g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+const polyHas = (g, x, y) => polys(g).some(([outer, ...holes]) => ringHas(outer, x, y) && !holes.some(r => ringHas(r, x, y)));
+
+/** Lokaliteternes grænser på kortet (fra zoom 10; hentes for kortudsnittet, når kortet flyttes). Lokaliteter uden grænse
+ *  vises som små prikker. Grænserne tager ikke imod klik, så et tryk sætter stadig positionen.
+ *  at(lat, lon) = den inderste lokalitet med grænse, punktet ligger i ({ loknr, navn }) eller null; select(loknr)
+ *  fremhæver en lokalitet. onChange() kaldes, når nye grænser er hentet. */
+export function locationOutlines(map, { onChange } = {}) {
+  const feats = new Map();  // loknr → feature
+  const color = cssVar("--brand"), hi = cssVar("--accent") || color;
+  const layer = L.geoJSON(null, {
+    interactive: false,
+    style: () => ({ color, weight: 1.5, opacity: .8, fillColor: color, fillOpacity: .06 }),
+    pointToLayer: (_f, ll) => L.circleMarker(ll, { radius: 3, color, weight: 1, fillOpacity: .6, interactive: false }),
+  }).addTo(map);
+  const hint = L.control({ position: "bottomleft" });
+  hint.onAdd = () => h("div", { class: "map-hint" }, "Zoom ind for at se lokaliteternes grænser");
+  let selected = null, seq = 0, timer = null, hintOn = false;
+  const restyle = () => layer.eachLayer((l) => {
+    const on = l.feature?.properties.loknr === selected;
+    if (l.setStyle && l.feature?.geometry.type !== "Point") l.setStyle(on ? { color: hi, weight: 3, opacity: 1, fillColor: hi, fillOpacity: .18 } : { color, weight: 1.5, opacity: .8, fillColor: color, fillOpacity: .06 });
+    if (on && l.bringToFront) l.bringToFront();
+  });
+  const load = async () => {
+    const z = map.getZoom();
+    if (z < 10) { if (!hintOn) { hint.addTo(map); hintOn = true; } return; }
+    if (hintOn) { hint.remove(); hintOn = false; }
+    const b = map.getBounds(), me = ++seq;
+    const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(v => v.toFixed(4)).join(",");
+    try {
+      const fc = await api(`/api/locations/shapes?bbox=${bbox}&zoom=${Math.round(z)}`);
+      if (me !== seq) return;
+      const fresh = fc.features.filter(f => !feats.has(f.properties.loknr));
+      fresh.forEach(f => feats.set(f.properties.loknr, f));
+      if (fresh.length) { layer.addData(fresh); restyle(); onChange?.(); }
+    } catch { /* uden net: ingen grænser – positionen kan stadig sættes */ }
+  };
+  const later = () => { clearTimeout(timer); timer = setTimeout(load, 250); };
+  map.on("moveend", later);
+  load();
+  return {
+    at(lat, lon) {
+      let best = null, bestA = Infinity;
+      for (const f of feats.values()) {
+        if (!polyHas(f.geometry, lon, lat)) continue;
+        const a = polys(f.geometry).reduce((s, p) => s + ringArea(p[0]), 0);
+        if (a < bestA) { best = f.properties; bestA = a; }
+      }
+      return best;
+    },
+    select(loknr) { selected = loknr || null; restyle(); },
+    remove() { clearTimeout(timer); map.off("moveend", later); layer.remove(); hint.remove(); },
+  };
+}

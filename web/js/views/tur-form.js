@@ -21,7 +21,7 @@ export function form(page, ref, store_, recent, isNew) {
     rows.forEach(l => { known.set(l.loknr, l.navn); if (l.lat != null) { T.__coords ||= {}; T.__coords[l.loknr] = [l.lat, l.lon]; } });
     const opts = !T.loknr || rows.some(l => l.loknr === T.loknr) ? rows : [{ loknr: T.loknr, navn: known.get(T.loknr) }, ...rows];
     lokSel.replaceChildren(h("option", { value: "" }, head || "Vælg lokalitet …"), ...opts.map(l => h("option", { value: l.loknr },
-      [l.navn, l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune].filter(Boolean).join(" · "))));
+      [l.navn, l.inde ? "her" : l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune].filter(Boolean).join(" · "))));
     lokSel.value = T.loknr ? String(T.loknr) : "";
   };
   const setLok = (loknr) => {
@@ -50,7 +50,7 @@ export function form(page, ref, store_, recent, isNew) {
   const near = () => navigator.geolocation?.getCurrentPosition((p) => {
     T.lat = Math.round(p.coords.latitude * 1e6) / 1e6; T.lon = Math.round(p.coords.longitude * 1e6) / 1e6; nearTo(T.lat, T.lon);
   }, (err) => toast("Position ikke tilgængelig: " + err.message, "err"), { enableHighAccuracy: true, timeout: 15000 });
-  const onMap = () => pickPosition(T.lat ? [T.lat, T.lon] : null, T.lok_lat ? [T.lok_lat, T.lok_lon] : null, (p) => { if (p) { [T.lat, T.lon] = p; nearTo(p[0], p[1]); } });
+  const onMap = () => pickPosition(T.lat ? [T.lat, T.lon] : null, T.lok_lat ? [T.lok_lat, T.lok_lon] : null, (p) => { if (p) { [T.lat, T.lon] = p; nearTo(p[0], p[1]); } }, { locations: true });
   fillLocs(recent.locations.length && !T.loknr ? recent.locations : [], recent.locations.length && !T.loknr ? "Dine seneste lokaliteter …" : null);
   const lokF = reqField("Lokalitet", h("div", { class: "stack", style: { gap: "8px" } }, lokSel, lokQ,
     h("div", { class: "row", style: { gap: "8px" } }, h("button", { class: "btn primary grow", type: "button", onclick: near }, "Nærmeste lokaliteter"),

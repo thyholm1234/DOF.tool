@@ -1,6 +1,6 @@
 // Fælles byggeklodser til tur-siderne: faner, bund-ark (popup), felter med "Udfyldt"-mærke, artsvælger og kortvalg.
 import { h, icon, tag, toast, searchSpecies, modal, state, backLayer } from "./core.js";
-import { baseMap, cssVar } from "./maps.js";
+import { baseMap, cssVar, locationOutlines } from "./maps.js";
 import { tracker, trackStart, trackPause, trackStop, trackLength } from "./tur-data.js";
 import { isApp } from "./native.js";
 
@@ -101,8 +101,9 @@ export function adfPicker(ref, recent, value, { only, onChange } = {}) {
 export const codeSelect = (opts, value) => { const s = h("select", {}, h("option", { value: "" }, "–"), ...opts.map(o => h("option", { value: o.code }, o.text))); s.value = value || ""; return s; };
 export const fail = (msg, el) => { toast(msg, "err"); el?.classList.add("invalid"); el?.scrollIntoView?.({ block: "center", behavior: "smooth" }); el?.focus?.(); return false; };
 
-/** Vælg en position på kortet. done(null) fjerner positionen. */
-export function pickPosition(current, center, done) {
+/** Vælg en position på kortet. done(null) fjerner positionen. locations: vis lokaliteternes grænser og hvilken
+ *  lokalitet positionen ligger i (lokalitetsvalget på turen). */
+export function pickPosition(current, center, done, { locations = false } = {}) {
   let pos = current ? [...current] : null, marker = null;
   const el = h("div", { class: "map", style: { height: "min(60vh, 420px)" } });
   const info = h("small", { class: "muted" }, pos ? `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}` : "Tryk på kortet");
@@ -114,7 +115,15 @@ export function pickPosition(current, center, done) {
       h("button", { class: "btn sm primary", type: "button", onclick: () => { if (pos) { done(pos.map(v => Math.round(v * 1e6) / 1e6)); m.close(); } else toast("Tryk på kortet først", "err"); } }, "Brug position"))), { wide: true });
   m.el.style.zIndex = 400;
   const mp = baseMap(el, { center: pos || center || [56, 10.5], zoom: pos || center ? 15 : 7 });
-  const set = (p, fly) => { pos = p; marker?.remove(); marker = L.marker(p).addTo(mp); info.textContent = `${p[0].toFixed(5)}, ${p[1].toFixed(5)}`; if (fly) mp.setView(p, 16); };
+  const outlines = locations ? locationOutlines(mp, { onChange: () => pos && describe() }) : null;
+  const describe = () => {
+    const where = `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}`;
+    if (!outlines) { info.textContent = where; return; }
+    const lok = outlines.at(pos[0], pos[1]);
+    outlines.select(lok?.loknr);
+    info.replaceChildren(lok ? h("b", {}, lok.navn) : h("span", {}, mp.getZoom() < 10 ? "Zoom ind for at se lokaliteterne" : "Uden for lokaliteternes grænser – den nærmeste foreslås"), ` · ${where}`);
+  };
+  const set = (p, fly) => { pos = p; marker?.remove(); marker = L.marker(p).addTo(mp); if (fly) mp.setView(p, 16); describe(); };
   if (pos) set(pos);
   mp.on("click", (e) => set([e.latlng.lat, e.latlng.lng]));
 }

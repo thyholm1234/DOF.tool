@@ -13,7 +13,7 @@ from portal.api.deps import optional_user, require_user
 from portal.cache import cached, worker_command
 from portal.db import get_session
 from portal.models import Area, User
-from portal.services import areas, dofext, locspecies, migration, places, position_privacy, species_info
+from portal.services import areas, dofext, location_edit, locspecies, migration, places, position_privacy, species_info
 from portal.services.areas import KINDS, area_geojson, scope_for_area, set_geometry
 
 router = APIRouter(prefix="/api", tags=["geo"])
@@ -55,6 +55,21 @@ async def locations_index(q: str = Query("", max_length=60), kommune: str = Quer
                                             kat=kat, active=active, sort=sort, lat=lat, lon=lon)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/locations/shapes")
+async def location_shapes(bbox: str = Query(pattern=r"^-?[\d.]+,-?[\d.]+,-?[\d.]+,-?[\d.]+$"), zoom: int = Query(ge=0, le=22),
+                          user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Lokaliteternes grænser (forenklet til zoom) og lokaliteter uden grænse (punkter) i kortudsnittet – til
+    lokalitetsvalget på kortet i indtastningen. Kun fra zoom 10 (ellers zoom_ind)."""
+    w, s, e, n = (float(x) for x in bbox.split(","))
+    if not (w < e and s < n and e - w <= 2 and n - s <= 2):
+        raise HTTPException(400, "Ugyldigt kortudsnit")
+    fc = await location_edit.map_features(db, (round(w, 3), round(s, 3), round(e, 3), round(n, 3)), zoom)
+    for f in fc["features"]:
+        p = f["properties"]
+        f["properties"] = {"loknr": p["loknr"], "navn": p["navn"], **({"uden_graense": True} if p.get("uden_graense") else {})}
+    return fc
 
 
 @router.get("/locations/{loknr}")

@@ -1,7 +1,7 @@
 // Indtastning: én fugl ad gangen med dato, koordinat og DOFbasens felter + status (under observation) og sikkerhed.
 // Lokaliteten foreslås ud fra fuglens position (nærmeste i DOFbasen) og kan skiftes.
 import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
-import { baseMap } from "../maps.js";
+import { baseMap, locationOutlines } from "../maps.js";
 import { statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
 import { listLocal, syncAll, cachedApi } from "../offline.js";
 
@@ -234,18 +234,19 @@ function reportForm({ recent, initial = null, submitLabel, onSaved }) {
   const known = new Map(initial ? [[initial.loknr, initial.lok]] : []);
   const drawSummary = () => { summary.textContent = [known.get(v.loknr), dato.value ? fmtDate(dato.value, false) : ""].filter(Boolean).join(" · "); };
   const lokSel = h("select", { "aria-label": "Lokalitet", onchange: () => {
-    v.loknr = Number(lokSel.value) || null; locTouched = true; lokSel.classList.remove("invalid"); drawSummary();
+    v.loknr = Number(lokSel.value) || null; locTouched = true; lokSel.classList.remove("invalid"); outlines?.select(v.loknr); drawSummary();
   } });
   const fillLocs = (rows) => {
     rows.forEach(l => known.set(l.loknr, l.navn));
     const opts = !v.loknr || rows.some(l => l.loknr === v.loknr) ? rows : [{ loknr: v.loknr, navn: known.get(v.loknr) }, ...rows];
     lokSel.replaceChildren(...(opts.length
-      ? opts.map(l => h("option", { value: l.loknr }, [l.navn, l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune].filter(Boolean).join(" · ")))
+      ? opts.map(l => h("option", { value: l.loknr }, [l.navn, l.inde ? "her" : l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune].filter(Boolean).join(" · ")))
       : [h("option", { value: "" }, "Sæt fuglens position først")]));
     lokSel.value = v.loknr ? String(v.loknr) : "";
+    outlines?.select(v.loknr);
     drawSummary();
   };
-  let map = null, marker = null, locTouched = !!initial, nearSeq = 0;
+  let map = null, marker = null, outlines = null, locTouched = !!initial, nearSeq = 0;
   const suggestLoc = async () => {
     if (!v.obs_lat) return;
     const me = ++nearSeq;
@@ -285,6 +286,7 @@ function reportForm({ recent, initial = null, submitLabel, onSaved }) {
     const center = v.obs_lat ? [v.obs_lat, v.obs_lon] : initial?.lok_lat ? [initial.lok_lat, initial.lok_lon] : null;
     map = baseMap(mapEl, { center: center || [56, 10.5], zoom: center ? 14 : 7 });
     map.on("click", (e) => setPos(e.latlng.lat, e.latlng.lng));
+    outlines = locationOutlines(map, { onChange: () => outlines?.select(v.loknr) });
     if (v.obs_lat) marker = L.marker([v.obs_lat, v.obs_lon]).addTo(map);
     if (!initial && !v.obs_lat) locate();  // ny observation: start ved din position
   }, 80);

@@ -1166,3 +1166,6 @@ tr.click { cursor: pointer; }
 /* Valgfelter i en række (fx Område → IBA) skal kunne skrumpe, så hele feltet er inden for skærmen på mobil */
 .field .row > select, .row.grow > select { flex: 1 1 0; min-width: 0; max-width: 100%; }
 .row.grow { min-width: 0; }
+
+/* Kort: lille besked i hjørnet (fx «zoom ind for at se lokaliteternes grænser») */
+.map-hint { background: var(--surface, #fff); color: var(--text-2, #444); padding: 3px 8px; border-radius: 6px; font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }

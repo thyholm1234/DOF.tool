@@ -41,8 +41,12 @@ export async function findLocations(q) {
   return locs.filter(l => l.navn.toLowerCase().includes(ql))
     .sort((a, b) => b.navn.toLowerCase().startsWith(ql) - a.navn.toLowerCase().startsWith(ql) || a.navn.length - b.navn.length).slice(0, 25);
 }
-/** Nærmeste lokaliteter med afstand i km – som /api/reports/near. */
+/** Lokaliteterne ved et punkt – fra serveren efter grænserne (dem, punktet ligger i, først; ellers afstand til grænsen).
+ *  Uden net: de nærmeste lokalitetspunkter fra enheden. */
 export async function nearestLocations(lat, lon, n = 20) {
+  if (navigator.onLine !== false) {
+    try { return (await api(`/api/reports/near?lat=${lat}&lon=${lon}`)).slice(0, n); } catch { /* falder tilbage til enheden */ }
+  }
   const locs = await locIndex();
   if (!locs) return api(`/api/reports/near?lat=${lat}&lon=${lon}`);
   return locs.filter(l => l.lat != null).map(l => ({ ...l, km: Math.round(meters([lat, lon], [l.lat, l.lon]) / 10) / 100 }))

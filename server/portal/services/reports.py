@@ -104,15 +104,32 @@ async def species_list(session: AsyncSession) -> list[dict]:
 
 
 async def nearest_locations(session: AsyncSession, lat: float, lon: float, n: int = 20) -> list[dict]:
-    rows = (await session.execute(text("""
+    """Lokaliteterne ved et punkt, efter grænserne – ikke efter lokalitetens midterpunkt:
+
+    * først dem, punktet ligger inden i (inde=True), den mindste (inderste) først – fx en sø inden i en skov;
+    * så de øvrige efter afstanden til grænsen (km = 0 på grænsen), og for lokaliteter uden grænse til punktet.
+    """
+    rows = (await session.execute(text(f"""
+        WITH p AS (SELECT ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS g),
+        cand AS (
+            (SELECT x.loknr FROM location_shapes x, p WHERE {CUR_SHAPE} ORDER BY x.geom <-> p.g LIMIT :n * 3)
+            UNION
+            (SELECT l.loknr FROM locations l, p WHERE l.geom IS NOT NULL ORDER BY l.geom <-> p.g LIMIT :n * 3))
         SELECT l.loknr, l.navn, l.lat, l.lon, k.navn AS kommune,
-               round((ST_Distance(l.geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000)::numeric, 2) AS km
-        FROM (SELECT * FROM locations WHERE geom IS NOT NULL
-              ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) LIMIT :n * 3) l
+               coalesce(ST_Intersects(x.geom, p.g), false) AS inde,
+               round((ST_Distance(coalesce(x.geom, l.geom)::geography, p.g::geography) / 1000)::numeric, 2) AS km,
+               ST_Area(x.geom) AS areal
+        FROM cand JOIN locations l USING (loknr) CROSS JOIN p
+        LEFT JOIN location_shapes x ON x.loknr = l.loknr AND {CUR_SHAPE}
         LEFT JOIN kommuner k ON k.kode = l.kommune_kode
-        ORDER BY km LIMIT :n
+        WHERE l.geom IS NOT NULL AND l.merged_into IS NULL
+        ORDER BY inde DESC, CASE WHEN coalesce(ST_Intersects(x.geom, p.g), false) THEN ST_Area(x.geom) END, km, l.navn
+        LIMIT :n
     """), {"lat": lat, "lon": lon, "n": n})).mappings().all()
-    return [{**dict(r), "km": float(r["km"])} for r in rows]
+    return [{k: (float(r[k]) if k == "km" else r[k]) for k in ("loknr", "navn", "lat", "lon", "kommune", "inde", "km")} for r in rows]
+
+
+CUR_SHAPE = "x.valid_to IS NULL AND x.status = 'aktiv'"
 
 
 async def recent(session: AsyncSession, user: User) -> dict:
