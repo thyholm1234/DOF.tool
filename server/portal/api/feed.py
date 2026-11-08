@@ -441,7 +441,9 @@ class _StreamSlot:
 @router.get("/stream")
 async def stream(request: Request, user: User | None = Depends(optional_user)):
     """Server-sent events: nye observationer, kommentarer og personlige notifikationer."""
-    channels = ["feed"] + ([f"user:{user.id}"] if user else [])
+    # «Se som bruger»: superadmin får kun det fælles feed – ikke målbrugerens personlige notifikationer (runde 4, U-12)
+    personal = user is not None and getattr(request.state, "view_as", None) is None
+    channels = ["feed"] + ([f"user:{user.id}"] if personal else [])
     uid = user.id if user else 0  # anonyme stoppes af vagten i main.py; 0 er kun et værn
     if _open_streams.get(uid, 0) >= STREAMS_PER_USER:
         raise HTTPException(429, "For mange åbne forbindelser – luk nogle faner")

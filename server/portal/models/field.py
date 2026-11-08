@@ -28,8 +28,9 @@ from portal.db import Base
 class FieldTrip(Base):
     """En tur i portalen, som i DOFbasens indtastning: dato, lokalitet, tider, metode, vejr, GPS-rute og observationer.
 
-    obserkode er observatøren (kan være en anden end brugeren, når der indtastes på vegne af); user_id er den, der
-    har indtastet. client_id gør upload fra offline-kø idempotent."""
+    obserkode er observatøren: brugeren selv. Kun ture indtastet på vegne af en anden, før den funktion blev fjernet,
+    har en anden obserkode (se api/trips._observer_code). user_id er den, der har indtastet. client_id gør upload fra
+    offline-kø idempotent."""
 
     __tablename__ = "field_trips"
 

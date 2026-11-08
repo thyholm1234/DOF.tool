@@ -125,6 +125,8 @@ def test_soegning_csv_bruger_csv_cell():
 
 # ---------------------------------------------------------------- T-03: loft over åbne SSE-strømme
 
+_REQ = type("Req", (), {"state": type("State", (), {})()})()
+
 
 async def test_stream_loft_pr_bruger(monkeypatch):
     from fastapi import HTTPException
@@ -133,13 +135,13 @@ async def test_stream_loft_pr_bruger(monkeypatch):
 
     monkeypatch.setattr(feed, "_open_streams", {})
     user = type("U", (), {"id": 42})()
-    responses = [await feed.stream(request=None, user=user) for _ in range(feed.STREAMS_PER_USER)]
+    responses = [await feed.stream(request=_REQ, user=user) for _ in range(feed.STREAMS_PER_USER)]
     assert feed._open_streams[42] == feed.STREAMS_PER_USER
     with pytest.raises(HTTPException) as exc:
-        await feed.stream(request=None, user=user)
+        await feed.stream(request=_REQ, user=user)
     assert exc.value.status_code == 429
     # En anden bruger rammes ikke
-    other = await feed.stream(request=None, user=type("U", (), {"id": 43})())
+    other = await feed.stream(request=_REQ, user=type("U", (), {"id": 43})())
     assert feed._open_streams[43] == 1
     del other
     # Strømme, der aldrig blev startet (klienten gik med det samme), frigiver pladsen, når de ryddes op

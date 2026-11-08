@@ -70,9 +70,6 @@ export function form(page, ref, store_, recent, isNew) {
   const spontan = h("input", { type: "checkbox", checked: !!T.spontan, onchange: (e) => { T.spontan = e.target.checked; } });
   const medobs = bind(h("input", { type: "text", maxlength: 300, placeholder: "Navne på dem, du var sammen med" }), "medobser");
   const noter = bind(h("textarea", { maxlength: 4000, placeholder: "Noter om turen …" }), "turnoter");
-  const behalf = bind(h("input", { type: "text", maxlength: 16, placeholder: "Obserkode, fx 8220CVH", style: { textTransform: "uppercase" } }), "on_behalf_of", (v) => v.trim().toUpperCase());
-  const behalfBox = h("details", { class: "more", open: !!T.on_behalf_of }, h("summary", {}, "Indtast på vegne af en anden observatør"),
-    h("div", { class: "mt stack" }, field("Observatørens obserkode", behalf), h("small", { class: "muted" }, "Observationerne registreres på den obserkode, men vises som indtastet af dig.")));
 
   // GPS-ruten styres her under turens data; den gemmes med turen
   const gps = gpsControl(T);
@@ -139,7 +136,7 @@ export function form(page, ref, store_, recent, isNew) {
       h("div", { class: "field" }, h("span", { class: "label" }, "GPS-rute"), gps.el),
       field("Metode", metode), field("Komplet artsliste?", komplet),
       h("label", { class: "check" }, spontan, h("span", {}, "Spontan observation (ikke planlagt tur)")),
-      field("Medobservatører", medobs), field("Turnoter", noter), behalfBox]],
+      field("Medobservatører", medobs), field("Turnoter", noter)]],
     ["vejr", "Vejret", [dmiOn ? h("div", { class: "stack", style: { gap: "6px" } }, h("div", {}, wxBtn), wxNote) : null, h("div", { class: "form-grid two" },
       field("Temperatur (°C)", numIn("temperatur", "fx 8", -60, 60)), field("Skydække (ottendedele)", sel("skydaekke", [...Array(9).keys()].map(i => [i, String(i)]), "–")),
       field("Vindretning", sel("vindretning", ref.vindretninger.map(v => [v, v]), "–")), field("Vindstyrke (m/s)", numIn("vindstyrke", "hele tal", 0, 50)),

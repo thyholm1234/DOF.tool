@@ -83,6 +83,7 @@ class TripIn(BaseModel):
     spontan: bool = False
     medobser: str | None = Field(None, max_length=300)
     turnoter: str | None = Field(None, max_length=4000)
+    # Kun til ture indtastet på vegne af en anden før funktionen blev fjernet (se _observer_code); nye ture afvises
     on_behalf_of: str | None = Field(None, pattern=r"^[A-Za-z0-9]{2,16}$")
     lat: float | None = Field(None, ge=54.4, le=57.9)
     lon: float | None = Field(None, ge=7.8, le=15.4)
@@ -278,22 +279,22 @@ async def get_trip(trip_id: int, request: Request, user: User = Depends(require_
 # ---------------------------------------------------------------- gem
 
 
-async def _observer_code(db: AsyncSession, user: User, code: str | None) -> str:
-    """Observatøren: brugeren selv, eller en kendt obserkode, når der indtastes på vegne af en anden."""
-    if not code or code.upper() == user.obserkode.upper():
-        return user.obserkode
-    code = code.upper()
-    known = (await db.execute(text("SELECT 1 FROM users WHERE upper(obserkode) = :c LIMIT 1"), {"c": code})).scalar() or \
-        (await db.execute(text("SELECT 1 FROM observations WHERE obserkode = :c LIMIT 1"), {"c": code})).scalar()
-    if not known:
-        raise HTTPException(400, f"Obserkoden {code} er ikke kendt")
-    return code
+async def _observer_code(user: User, trip: FieldTrip, code: str | None) -> str:
+    """Observatøren er altid brugeren selv. Indtastning på vegne af andre er fjernet (sikkerhedsgennemgang runde 4, U-02):
+    meldingerne kom med på den andens lister og ranglister uden samtykke, og vedkommende kunne ikke slette dem.
+    En tur, der blev indtastet på vegne af en anden før fjernelsen, beholder sin obserkode, når den rettes."""
+    code = (code or "").upper()
+    if trip.obserkode and code == trip.obserkode.upper():
+        return trip.obserkode
+    if code and code != user.obserkode.upper():
+        raise HTTPException(400, "Indtastning på vegne af en anden observatør er ikke længere muligt")
+    return trip.obserkode or user.obserkode
 
 
 async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> tuple[list[int], list[int], list[int]]:
     """Skriver turen og dens børn. Returnerer id'er på nye, ændrede og slettede observationer."""
     await _location_exists(db, body.loknr)
-    trip.obserkode = await _observer_code(db, user, body.on_behalf_of)
+    trip.obserkode = await _observer_code(user, trip, body.on_behalf_of)
     for k in ("dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "medobser", "turnoter", "lat", "lon",
               "temperatur", "skydaekke", "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv"):
         setattr(trip, k, _hhmm(getattr(body, k)) if k in ("turtidfra", "turtidtil") else getattr(body, k))

@@ -349,3 +349,51 @@ def test_xeno_canto_svar_med_ugyldigt_id_springes_over():
     rec = {"gen": "Parus", "sp": "major", "file": "https://xeno-canto.org/1/download", "length": "0:30"}
     out = sound_quiz._parse({"recordings": [{**rec, "id": "../x"}, {**rec, "id": "123"}]}, "Parus major", 120)
     assert [r["ext_id"] for r in out] == ["123"]
+
+
+# ---------------------------------------------------------------- U-02: indtastning på vegne af andre er fjernet
+
+
+@pytest.mark.parametrize("existing,code,expected", [
+    (None, None, "MIN1"),          # ny tur: brugerens egen kode
+    (None, "min1", "MIN1"),        # egen kode angivet
+    ("ANDEN", "ANDEN", "ANDEN"),   # tur fra før fjernelsen: beholder sin obserkode, når den rettes
+    ("ANDEN", None, "ANDEN"),
+    ("MIN1", None, "MIN1"),
+])
+async def test_observatoer_er_brugeren_selv(existing, code, expected):
+    from portal.api import trips
+
+    user = SimpleNamespace(obserkode="MIN1")
+    assert await trips._observer_code(user, SimpleNamespace(obserkode=existing), code) == expected
+
+
+@pytest.mark.parametrize("existing", [None, "MIN1", "ANDEN"])
+async def test_ny_anden_obserkode_afvises(existing):
+    from portal.api import trips
+
+    with pytest.raises(HTTPException) as exc:
+        await trips._observer_code(SimpleNamespace(obserkode="MIN1"), SimpleNamespace(obserkode=existing), "OFFER1")
+    assert exc.value.status_code == 400
+
+
+# ---------------------------------------------------------------- U-12: se som bruger får ikke personlige notifikationer
+
+
+async def test_se_som_abonnerer_ikke_paa_maalbrugerens_kanal(monkeypatch):
+    from portal.api import feed
+
+    seen = []
+
+    async def events(request, channels):
+        seen.append(channels)
+        yield ""
+
+    monkeypatch.setattr(feed, "_open_streams", {})
+    monkeypatch.setattr(feed, "_events", events)
+    target = SimpleNamespace(id=42)
+    for state, expected in ((SimpleNamespace(view_as={"user_id": 42}), ["feed"]), (SimpleNamespace(), ["feed", "user:42"])):
+        resp = await feed.stream(request=SimpleNamespace(state=state), user=target)
+        async for _ in resp.body_iterator:
+            pass
+        assert seen.pop() == expected
