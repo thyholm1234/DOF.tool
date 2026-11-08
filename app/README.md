@@ -1,14 +1,19 @@
 # DOF.tool som Android-app (Capacitor)
 
 Appen er en indpakning om portalen: den åbner portalens adresse i en WebView (login-cookien er førsteparts, og siderne
-opdateres med serveren), men position kommer fra Android selv via pluginnet
-[`@capgo/background-geolocation`](https://github.com/Cap-go/capacitor-background-geolocation) (Google Play-lokation +
-forgrundstjeneste med synlig notifikation), så den virker med slukket skærm.
+opdateres med serveren), men position kommer fra Android selv via appens eget plugin `DofPosition`
+(`DofPositionService.java`: Googles fused-positionstjeneste i en forgrundstjeneste med synlig notifikation), så den virker
+med slukket skærm. iOS og ældre APK'er bruger [`@capgo/background-geolocation`](https://github.com/Cap-go/capacitor-background-geolocation).
 
-* **Ruteoptagelse** (Indtast → tur → Start rute) bruger den native tjeneste i appen og `navigator.geolocation` i browseren.
-* **Nær mig**: slår man *Del min position i baggrunden* til under Profil, sender appen sin position (højst hvert minut,
-  og kun når man har flyttet sig >100 m eller efter 10 min.). Serveren flytter brugerens *Nær mig*-område med, så feed og
-  alarmregler gælder en radius om, hvor man er. Positionen kan slettes ved at slå delingen fra.
+* **Ruteoptagelse** (Indtast → tur → Start rute): GPS, et punkt hvert 5. sekund ved flytning ≥ 5 m. Med appen i
+  baggrunden samles punkterne og leveres højst hvert minut, så processoren kan sove. I browseren `navigator.geolocation`.
+* **Nær mig**: slår man *Del min position i baggrunden* til under Profil, sender appen sin position direkte fra Android –
+  uden GPS (Wi-Fi/mobilmaster, ~100 m), højst hvert 3. minut og kun ved flytning ≥ 150 m, leveret samlet højst hvert
+  10. minut; til serveren højst hvert minut og kun ved flytning ≥ 100 m (eller hvert 10. minut). Står man stille, bruges
+  der næsten ingen strøm. Afviser serveren tokenet (delingen slået fra), stopper tjenesten af sig selv.
+* **Strøm i øvrigt**: ingen wakelock; livestrømmen (SSE) lukkes, når appen har ligget i baggrunden et halvt minut (alarmer
+  kommer som push), og timere hviler, mens siden er skjult (`web/js/lifecycle.js`). Talemodellen kører uden aktiv venten i
+  ONNX Runtime og bliver i hukommelsen, så den altid er klar (det koster ikke strøm).
 * Kode: `web/js/native.js` (bro), `server/portal/api/position.py` (API).
 
 ## Byg APK

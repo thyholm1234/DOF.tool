@@ -193,6 +193,7 @@ export function view(page, ref, store_, recent) {
       : [h("p", { class: "muted", style: { margin: 0 } }, "Ingen indtalte poster endnu – hold knappen nede og sig fx «2 bomlærker syd».")]));
   };
   const fadeTimer = setInterval(() => {
+    if (document.hidden) return;
     for (const r of speechList.children) if (r.dataset.ts != null) r.classList.toggle("speech-old", Date.now() - Number(r.dataset.ts) > OLD_MS);
   }, 10000);
 

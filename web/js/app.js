@@ -369,6 +369,7 @@ async function boot() {
   if (state.user && !state.user.view_as) live.start();  // «se som bruger» opretter ikke SSE-strømmen
   live.on("notification", (d) => { state.unread += 1; renderUser(); toast(`🔔 ${d.title}`); });
   live.onStatus((on) => $("#live").classList.toggle("on", on));
+  live.on("resume", () => { if (state.user && !state.user.view_as) refreshUnread(); });  // tilbage fra baggrunden
   await route();
   const splash = $("#splash");
   if (splash) { splash.classList.add("out"); setTimeout(() => splash.remove(), 300); }

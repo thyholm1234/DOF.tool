@@ -59,7 +59,7 @@ export async function warmOffline() {
 
 // ---------------------------------------------------------------- GPS-rute (lever videre, når man forlader siden)
 
-export const tracker = { cid: null, watch: null, points: [], paused: false, lock: null, listeners: new Set(), saver: null };
+export const tracker = { cid: null, watch: null, points: [], paused: false, lock: null, listeners: new Set(), saver: null, savedN: -1 };
 export const meters = (a, b) => {
   const R = 6371000, rad = Math.PI / 180, dLat = (b[0] - a[0]) * rad, dLon = (b[1] - a[1]) * rad;
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLon / 2) ** 2;
@@ -84,9 +84,12 @@ export function trackStart(cid, points) {
   });
   if (!isApp()) navigator.wakeLock?.request("screen").then(l => { tracker.lock = l; }).catch(() => {});
   // Ruten gemmes i den lokale kopi hvert 20. sekund, så den overlever, at appen lukkes
+  // (kun når der er kommet nye punkter – ellers skrives den samme rute igen og igen)
   tracker.saver ||= setInterval(async () => {
-    const rec = tracker.cid && await getLocal(tracker.cid);
-    if (rec?.draft) await putLocal({ ...rec, draft: { ...rec.draft, gps_track: tracker.points } });
+    const n = tracker.points.length;
+    if (!tracker.cid || n === tracker.savedN) return;
+    const rec = await getLocal(tracker.cid);
+    if (rec?.draft) { await putLocal({ ...rec, draft: { ...rec.draft, gps_track: tracker.points } }); tracker.savedN = n; }
   }, 20000);
 }
 export function trackPause() {
@@ -98,7 +101,7 @@ export function trackPause() {
 export function trackStop() {
   trackPause();
   clearInterval(tracker.saver); tracker.saver = null;
-  tracker.cid = null; tracker.points = []; tracker.paused = false;
+  tracker.cid = null; tracker.points = []; tracker.paused = false; tracker.savedN = -1;
 }
 
 /** Beskærer ruten til turens start- og sluttidspunkt (punkternes tidsstempel er sekunder; turens tider er lokale).

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import logging
 from datetime import date, timedelta
 
@@ -410,6 +411,9 @@ async def day_map(day: date | None = Query(None, alias="date"), local_max: int =
     return await daymap.day_map(db, day, local_max)
 
 
+PING_EVERY = 40  # sekunder
+
+
 @router.get("/stream")
 async def stream(request: Request, user: User | None = Depends(optional_user)):
     """Server-sent events: nye observationer, kommentarer og personlige notifikationer."""
@@ -420,13 +424,18 @@ async def stream(request: Request, user: User | None = Depends(optional_user)):
         await pubsub.subscribe(*channels)
         try:
             yield "retry: 5000\n\n"
+            last = time.monotonic()
             while True:
                 if await request.is_disconnected():
                     break
                 msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=15)
                 if msg is None:
-                    yield ": ping\n\n"
+                    # Ping kun efter 40 s stilhed (under proxyens typiske 60 s): hvert ping vækker telefonens radio
+                    if time.monotonic() - last >= PING_EVERY:
+                        last = time.monotonic()
+                        yield ": ping\n\n"
                     continue
+                last = time.monotonic()
                 data = msg["data"]
                 event = json.loads(data).get("type", "message")
                 yield f"event: {event}\ndata: {data}\n\n"

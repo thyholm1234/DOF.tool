@@ -5,13 +5,18 @@ import { api, state, toast } from "./core.js";
 const cap = () => window.Capacitor;
 export const isApp = () => !!cap()?.isNativePlatform?.();
 
-/** Pluginnet BackgroundGeolocation (@capgo/background-geolocation). Portalen indlæses fra serveren i stedet for at ligge i
- *  appen, så der er ingen plugin-pakke her: vi kalder broens egne funktioner, som appen injicerer på portalens adresse. */
-const PLUGIN = "BackgroundGeolocation";
+/** Positionspluginnet. Portalen indlæses fra serveren i stedet for at ligge i appen, så der er ingen plugin-pakke her: vi
+ *  kalder broens egne funktioner, som appen injicerer på portalens adresse.
+ *  - DofPosition (Android, appens eget): Googles fused-positionstjeneste uden wakelock – GPS kun under ruteoptagelse,
+ *    Nær mig alene bruger Wi-Fi/mobilmaster og leverer samlet. Se app/android/…/DofPositionService.java.
+ *  - BackgroundGeolocation (@capgo/background-geolocation): iOS og ældre Android-apps uden DofPosition. */
+const POS = "DofPosition", LEGACY = "BackgroundGeolocation";
+const own = () => !!cap()?.isPluginAvailable?.(POS);
+const plugin = () => own() ? POS : LEGACY;
 const bg = {
   available: () => isApp() && typeof cap().nativeCallback === "function",
-  start: (options, callback) => cap().nativeCallback(PLUGIN, "start", options, callback),
-  stop: () => cap().nativePromise(PLUGIN, "stop"),
+  start: (options, callback) => cap().nativeCallback(plugin(), "start", options, callback),
+  stop: () => cap().nativePromise(plugin(), "stop"),
 };
 
 // Android viser kun én tilladelsesdialog ad gangen: en samtidig anmodning (fx position og notifikationer ved opstart)
@@ -52,16 +57,19 @@ const dispatch = (fn) => { for (const s of [...subs.values()]) { try { fn(s); } 
 
 function reconcile() {
   chain = chain.then(() => serial(async () => {
-    const opts = subs.size ? {
-      backgroundTitle: "DOF.tool bruger din position",
-      backgroundMessage: subs.has("route") ? "Optager din rute" : "Opdaterer Nær mig – dine alarmer følger dig",
-      requestPermissions: true, stale: false, distanceFilter: Math.min(...[...subs.values()].map((s) => s.distance)),
-      // Positionsdeling: Android sender selv positionen til serveren (højst hvert minut) – også når appen er lukket
-      ...(nativeDelivery ? { url: nativeDelivery.url, headers: nativeDelivery.headers, minIntervalMs: 60_000, networkFallback: true } : {}),
-    } : null;
+    const title = "DOF.tool bruger din position", message = subs.has("route") ? "Optager din rute" : "Opdaterer Nær mig – dine alarmer følger dig";
+    // Positionsdeling: Android sender selv positionen til serveren – også når appen er lukket
+    const delivery = nativeDelivery ? { url: nativeDelivery.url, headers: nativeDelivery.headers } : {};
+    const opts = !subs.size ? null : own()
+      ? { title, message, route: subs.has("route"), share: subs.has("share"), requestPermissions: true, ...delivery }
+      : { backgroundTitle: title, backgroundMessage: message, requestPermissions: true, stale: false,
+          distanceFilter: Math.min(...[...subs.values()].map((s) => s.distance)),
+          ...(nativeDelivery ? { ...delivery, minIntervalMs: 60_000, networkFallback: true } : {}) };
     const key = opts && JSON.stringify(opts);
     if (key === running) return;
-    if (running !== null) { try { await bg.stop(); } catch { /* ignore */ } running = null; }
+    // DofPosition omstilles af et nyt start-kald uden at tjenesten stoppes; det gamle plugin skal stoppes først
+    if (running !== null && (!opts || !own())) { try { await bg.stop(); } catch { /* ignore */ } }
+    running = null;
     if (!opts) return;
     running = key;
     try {
@@ -76,7 +84,7 @@ function reconcile() {
             dispatch((s) => s.onError?.({ code: err.code === "NOT_AUTHORIZED" ? 1 : 2, message: err.message || String(err.code) }));
             return;
           }
-          if (loc) dispatch((s) => s.onPoint(fromNative(loc)));
+          if (loc?.latitude != null) dispatch((s) => s.onPoint(fromNative(loc)));
         });
         setTimeout(resolve, 15000);  // tilladelsesdialogen er besvaret, eller tjenesten kører
       });

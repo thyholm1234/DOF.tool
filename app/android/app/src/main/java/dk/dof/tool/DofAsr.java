@@ -174,9 +174,23 @@ public class DofAsr extends Plugin {
         if (env == null) env = OrtEnvironment.getEnvironment();
         OrtSession.SessionOptions opts = new OrtSession.SessionOptions();
         opts.setIntraOpNumThreads(Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() - 1)));
+        opts.setInterOpNumThreads(1);
+        opts.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL);
+        // Strøm: trådene må ikke spinde (aktiv venten) mellem og efter kørslerne – de sover, til der er arbejde
+        opts.addConfigEntry("session.intra_op.allow_spinning", "0");
+        opts.addConfigEntry("session.inter_op.allow_spinning", "0");
         opts.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
         session = env.createSession(model().getAbsolutePath(), opts);
         sessionVersion = v;
+    }
+
+    // ---------------------------------------------------------------- livscyklus
+
+    // Modellen bliver i hukommelsen, også når appen ligger i baggrunden: det koster ikke strøm, og den skal være klar.
+    @Override
+    protected void handleOnDestroy() {
+        stopRecording();
+        worker.execute(this::closeSession);
     }
 
     private void closeSession() {

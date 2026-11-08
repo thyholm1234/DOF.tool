@@ -4,6 +4,7 @@
 import { api, h, fmtN, fmtTime, esc, KAT, KAT_RANK, tag, seg, store, todayISO, errorBox } from "../core.js";
 import { baseMap } from "../maps.js";
 import { live } from "../live.js";
+import { visibleInterval } from "../lifecycle.js";
 
 const RANK = KAT_RANK;
 const ACTIVE_MS = 15 * 60 * 1000;
@@ -166,7 +167,7 @@ export async function renderLive(view) {
   drawSort();
   await refresh();
   const off = live.on("feed", (d) => { if (d.new || d.changed || d.portal) refresh(); });
-  const poll = setInterval(refresh, 60000);       // hvis SSE er nede
-  const fade = setInterval(drawBirders, 20000);
-  return () => { off(); clearInterval(poll); clearInterval(fade); clearTimeout(timer); map.remove(); };
+  const poll = visibleInterval(refresh, 60000);       // hvis SSE er nede (kun mens siden er synlig)
+  const fade = visibleInterval(drawBirders, 20000);
+  return () => { off(); poll(); fade(); clearTimeout(timer); map.remove(); };
 }
