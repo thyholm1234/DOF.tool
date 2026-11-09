@@ -62,8 +62,12 @@ bekræftes med ét DOFbasen-login, der giver et engangsbevis (20 min, kun som ha
 beviset byttes til en ventende oprettelse (30 min, kun i Valkey, adgangskoden som scrypt-hash), og en sekscifret kode mailes
 til adressen (`services/mail.py`, SMTP_* i .env); (3) koden tastes, eller linket i mailen åbnes – først da oprettes kontoen og
 bindes til obserkoden, og findes brugeren i forvejen, beholdes rækken med alle data; (4) tilbud om passkey. Fem forkerte koder
-kasserer oprettelsen; der kan sendes tre nye koder. *Glemt adgangskode* er samme vej: den, der kan logge ind på DOFbasen med
-obserkoden, kan vælge en ny adgangskode (vælges samtidig en ny e-mail, skal den bekræftes først). En ny eller skiftet
+kasserer oprettelsen; der kan sendes tre nye koder. *Glemt adgangskode* klares som standard med den bekræftede e-mail
+(`POST /api/auth/konto/glemt` → `/api/auth/konto/nulstil`): en sekscifret kode (30 min, fem forsøg, højst fem mails i
+timen pr. konto) mailes, og med koden – eller linket `#/login?nulstil=…&kode=…` – vælges en ny adgangskode. Svaret er det
+samme, uanset om kontoen eller adressen findes. Uden adgang til e-mailen er DOFbasen-vejen der stadig: den, der kan logge
+ind på DOFbasen med obserkoden, kan vælge en ny adgangskode (vælges samtidig en ny e-mail, skal den bekræftes først).
+Begge veje kræver bagefter koden fra authenticator-appen, hvis totrinslogin er slået til. En ny eller skiftet
 adgangskode logger alle brugerens andre enheder ud. Brugere uden konto (fra før kontiene) får 409 ved login og sendes til
 oprettelsen; overgangen loggede alle ud én gang (markøren `accounts_logout_done` i settings). Profil → *Konto og login*
 skifter adgangskode og e-mail: en ny e-mail gemmes først, når koden sendt til den er tastet (eller linket åbnet), og den
@@ -78,8 +82,12 @@ samme Zitadel kan bruge den samme opsætning senere; `users.totp_at` spejler blo
 med adgangskode – også efter *Glemt adgangskode* – ikke en session, men et bevis (`{"totp": …}`, 5 min), der byttes til en
 session med koden (`POST /api/auth/totp`). Højst fem forkerte koder pr. bevis, og forsøg tæller også pr. bruger og IP;
 Zitadel afviser en kode, der allerede er brugt. Svarer Zitadel ikke, afvises login for brugere med TOTP (fail closed).
-Login med passkey kræver ikke koden. Slå fra kræver adgangskoden; mistet telefon: log ind med passkey og slå fra, eller
-Admin → Brugere → *Fjern 2FA* (mærket *2FA*).
+Login med passkey kræver ikke koden. Når TOTP slås til, laver Zitadel ti **genoprettelseskoder** (`ab12c-3de45`), som
+vises én gang (kopiér, hent som fil, udskriv); hver kan bruges én gang i login-trinnet i stedet for koden fra appen, og
+brugeren får besked om at lave nye. Nye koder (`POST /api/me/totp/recovery`) kræver adgangskoden, og de gamle holder op
+med at virke. Zitadel hasher koderne enkeltvis: det tager ~11 s at lave dem og op til ~10 s at afvise en forkert. Slå fra
+kræver adgangskoden og fjerner også koderne; mistet telefon uden koder: log ind med passkey og slå fra, eller Admin →
+Brugere → *Fjern 2FA* (mærket *2FA*).
 
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og

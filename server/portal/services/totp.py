@@ -9,7 +9,11 @@ Flow:
 * Login med adgangskode – og efter «Glemt adgangskode» – giver ikke en session, men et kortlivet bevis
   ({"totp": …}); sessionen kommer først med en gyldig kode (/api/auth/totp).
 * Login med passkey kræver ikke koden: en passkey med brugerbekræftelse er allerede to faktorer (enhed + biometri/pin).
-* Slå fra: kræver adgangskoden. Mistet telefon: log ind med en passkey og slå det fra, eller bed en administrator.
+* Genoprettelseskoder: når TOTP slås til, laver Zitadel ti engangskoder («ab12c-3de45»), som vises én gang. Hver kan
+  bruges én gang i stedet for koden fra appen (mistet telefon). Nye koder (de gamle holder op med at virke) kræver
+  adgangskoden.
+* Slå fra: kræver adgangskoden (koderne fjernes også). Mistet telefon uden koder: log ind med en passkey og slå det fra,
+  eller bed en administrator.
 
 SIKKERHED:
 * users.totp_at spejler, at brugeren har TOTP. Svarer Zitadel ikke, afvises login for de brugere (fail closed); brugere
@@ -36,7 +40,19 @@ from portal.services.auth import AuthError
 LOGIN_TTL = 5 * 60
 TRIES = 5
 DOWN = "Totrinslogin kan ikke kontrolleres lige nu. Prøv igen om lidt – eller log ind med en passkey."
-BAD_CODE = "Forkert kode. Brug den kode, appen viser lige nu."
+BAD_CODE = "Forkert kode. Brug den kode, appen viser lige nu – eller en ubrugt genoprettelseskode."
+RECOVERY_RE = re.compile(r"^([a-z0-9]{5})-?([a-z0-9]{5})$")
+
+
+def parse(code: str | None) -> tuple[str, str]:
+    """→ ("totp", seks cifre) eller ("recovery", «ab12c-3de45»)."""
+    c = re.sub(r"\s", "", code or "").lower()
+    if re.fullmatch(r"\d{6}", c):
+        return "totp", c
+    m = RECOVERY_RE.match(c)
+    if m:
+        return "recovery", f"{m.group(1)}-{m.group(2)}"
+    raise AuthError("Skriv de seks cifre fra appen – eller en genoprettelseskode (fx ab12c-3de45)", 400)
 
 
 def clean(code: str | None) -> str:
@@ -90,16 +106,20 @@ async def challenge(user: User) -> dict:
     return {"totp": token, "expires_in": LOGIN_TTL}
 
 
-async def login(db: AsyncSession, token: str, code: str, ip: str) -> User:
+async def login(db: AsyncSession, token: str, code: str, ip: str) -> tuple[User, str]:
+    """→ (bruger, "totp" eller "recovery")."""
     key = f"totp:login:{token}"
     raw = await kv().get(key)
     if not raw:
         raise AuthError("Login er udløbet. Log ind igen.", 400)
     st = json.loads(raw)
     await auth.rate_limit(f"totp:{st['uid']}", ip, prefix="totp")
-    code = clean(code)
+    kind, code = parse(code)
     try:
-        factors = await zitadel.check_totp(st["zid"], code)
+        if kind == "recovery":
+            factors = await zitadel.check_recovery_code(st["zid"], code)
+        else:
+            factors = await zitadel.check_totp(st["zid"], code)
     except zitadel.ZitadelError as exc:
         if exc.status == 503 or exc.status >= 500:
             raise AuthError(DOWN, 503) from exc
@@ -109,7 +129,8 @@ async def login(db: AsyncSession, token: str, code: str, ip: str) -> User:
             await kv().delete(key, key + ":n")
             raise AuthError("For mange forkerte koder. Log ind igen.", 401) from exc
         raise AuthError(BAD_CODE, 401) from exc
-    if not (factors.get("totp") or {}).get("verifiedAt") or (factors.get("user") or {}).get("id") != st["zid"]:
+    factor = "recoveryCode" if kind == "recovery" else "totp"
+    if not (factors.get(factor) or {}).get("verifiedAt") or (factors.get("user") or {}).get("id") != st["zid"]:
         raise AuthError(BAD_CODE, 401)
     if not await kv().getdel(key):  # beviset bruges kun én gang (to samtidige forsøg)
         raise AuthError("Login er udløbet. Log ind igen.", 400)
@@ -121,7 +142,7 @@ async def login(db: AsyncSession, token: str, code: str, ip: str) -> User:
         raise AuthError("Brugeren er spærret", 403)
     if not user.approved:
         raise AuthError(auth.PENDING_MSG, 403)
-    return user
+    return user, kind
 
 
 # ---------------------------------------------------------------- brugerens egen opsætning
@@ -135,13 +156,13 @@ async def status(db: AsyncSession, user: User) -> dict:
     if not zitadel.enabled():
         return {"enabled": False, "active": False}
     if not user.zitadel_id:
-        return {"enabled": True, "active": False}
+        return {"enabled": True, "active": False, "recovery": False}
     try:
-        on = await zitadel.has_totp(user.zitadel_id)
+        methods = await zitadel.auth_methods(user.zitadel_id)
     except zitadel.ZitadelError as exc:
         raise _zerr(exc) from exc
-    await _set_flag(db, user, on)
-    return {"enabled": True, "active": on}
+    await _set_flag(db, user, "TOTP" in methods)
+    return {"enabled": True, "active": "TOTP" in methods, "recovery": "RECOVERY_CODE" in methods}
 
 
 async def setup_start(db: AsyncSession, user: User, session_token: str | None) -> dict:
@@ -160,7 +181,9 @@ async def setup_start(db: AsyncSession, user: User, session_token: str | None) -
     return {"secret": secret, "uri": uri, "qr": qr_svg(uri), "issuer": get_settings().totp_issuer, "account": user.obserkode}
 
 
-async def setup_finish(db: AsyncSession, user: User, code: str, ip: str) -> None:
+async def setup_finish(db: AsyncSession, user: User, code: str, ip: str) -> dict:
+    """Aktivér TOTP og lav genoprettelseskoderne (vises kun nu). Fejler koderne, er TOTP stadig slået til, og brugeren
+    kan lave dem fra profilen."""
     await auth.rate_limit(f"totp-setup:{user.id}", ip, prefix="totp")
     code = clean(code)
     if not user.zitadel_id:
@@ -172,13 +195,33 @@ async def setup_finish(db: AsyncSession, user: User, code: str, ip: str) -> None
             raise AuthError("Koden passer ikke. Tjek, at telefonens ur går rigtigt, og prøv med den næste kode.", 400) from exc
         raise _zerr(exc) from exc
     await _set_flag(db, user, True)
+    try:
+        return {"recovery_codes": await zitadel.generate_recovery_codes(user.zitadel_id)}
+    except zitadel.ZitadelError:
+        return {"recovery_codes": [], "recovery_error": "Genoprettelseskoderne kunne ikke laves. Lav dem under Profil."}
+
+
+async def new_recovery_codes(db: AsyncSession, user: User, password: str, ip: str) -> dict:
+    """Nye genoprettelseskoder (de gamle holder op med at virke). Kræver adgangskoden og at TOTP er slået til."""
+    await auth.rate_limit(f"totp-rc:{user.id}", ip, prefix="totp")
+    _check_pw(user, password)
+    try:
+        if not user.zitadel_id or not await zitadel.has_totp(user.zitadel_id):
+            raise AuthError("Slå totrinslogin til først", 400)
+        return {"recovery_codes": await zitadel.generate_recovery_codes(user.zitadel_id)}
+    except zitadel.ZitadelError as exc:
+        raise _zerr(exc) from exc
+
+
+def _check_pw(user: User, password: str) -> None:
+    stored = user.pw_hash or (user.test_pw_hash if user.is_test else None)
+    if not stored or not auth.check_password(stored, password or ""):
+        raise AuthError("Forkert adgangskode", 401)
 
 
 async def disable(db: AsyncSession, user: User, password: str, ip: str) -> None:
     await auth.rate_limit(f"totp-off:{user.id}", ip, prefix="totp")
-    stored = user.pw_hash or (user.test_pw_hash if user.is_test else None)
-    if not stored or not auth.check_password(stored, password or ""):
-        raise AuthError("Forkert adgangskode", 401)
+    _check_pw(user, password)
     await remove(db, user)
 
 
@@ -187,6 +230,7 @@ async def remove(db: AsyncSession, user: User) -> None:
     if user.zitadel_id:
         try:
             await zitadel.remove_totp(user.zitadel_id)
+            await zitadel.remove_recovery_codes(user.zitadel_id)
         except zitadel.ZitadelError as exc:
             raise _zerr(exc) from exc
     await _set_flag(db, user, False)

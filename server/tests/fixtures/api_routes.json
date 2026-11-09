@@ -2479,6 +2479,20 @@ true,
 "params": []
 }
 },
+"/api/auth/konto/glemt": {
+"post": {
+"body": true,
+"op": "reset_request_api_auth_konto_glemt_post",
+"params": []
+}
+},
+"/api/auth/konto/nulstil": {
+"post": {
+"body": true,
+"op": "reset_confirm_api_auth_konto_nulstil_post",
+"params": []
+}
+},
 "/api/auth/konto/opret": {
 "post": {
 "body": true,
@@ -7204,6 +7218,13 @@ true,
 "post": {
 "body": true,
 "op": "my_totp_off_api_me_totp_off_post",
+"params": []
+}
+},
+"/api/me/totp/recovery": {
+"post": {
+"body": true,
+"op": "my_totp_recovery_api_me_totp_recovery_post",
 "params": []
 }
 },

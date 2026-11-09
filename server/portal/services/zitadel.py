@@ -33,10 +33,10 @@ def _token() -> str:
     return Path(get_settings().zitadel_pat_file).read_text().strip()
 
 
-async def call(method: str, path: str, body: dict | None = None) -> dict[str, Any]:
+async def call(method: str, path: str, body: dict | None = None, timeout: float | None = None) -> dict[str, Any]:
     if not enabled():
         raise ZitadelError(503, "Passkeys og totrinslogin er ikke slået til på serveren")
-    async with httpx.AsyncClient(base_url=get_settings().zitadel_url, timeout=TIMEOUT, follow_redirects=False) as client:
+    async with httpx.AsyncClient(base_url=get_settings().zitadel_url, timeout=timeout or TIMEOUT, follow_redirects=False) as client:
         try:
             r = await client.request(method, path, json=body, headers={"Authorization": f"Bearer {_token()}"})
         except httpx.HTTPError as exc:
@@ -111,9 +111,13 @@ async def remove_passkey(user_id: str, passkey_id: str) -> None:
 # ---------------------------------------------------------------- TOTP (services/totp.py)
 
 
-async def has_totp(user_id: str) -> bool:
+async def auth_methods(user_id: str) -> set[str]:
     res = await call("GET", f"/v2/users/{user_id}/authentication_methods")
-    return "AUTHENTICATION_METHOD_TYPE_TOTP" in (res.get("authMethodTypes") or [])
+    return {m.removeprefix("AUTHENTICATION_METHOD_TYPE_") for m in res.get("authMethodTypes") or []}
+
+
+async def has_totp(user_id: str) -> bool:
+    return "TOTP" in await auth_methods(user_id)
 
 
 async def start_totp(user_id: str) -> str:
@@ -138,6 +142,37 @@ async def check_totp(user_id: str, code: str) -> dict:
     """Kontrollér en kode i en kortlivet session og returnér sessionens faktorer. Zitadel afviser en kode, der allerede
     er brugt (400), så en opsnappet kode ikke kan bruges igen."""
     s = await call("POST", "/v2/sessions", {"checks": {"user": {"userId": user_id}, "totp": {"code": code}}})
+    try:
+        return ((await call("GET", f"/v2/sessions/{s['sessionId']}")).get("session") or {}).get("factors") or {}
+    finally:
+        await end_session(s["sessionId"])
+
+
+# Genoprettelseskoder: engangskoder («ab12c-3de45»), der kan bruges i stedet for TOTP-koden. Zitadel hasher dem enkeltvis,
+# så det tager ~11 sekunder at lave ti og op til ~10 sekunder at afvise en forkert kode (afprøvet mod v4.20.2) – derfor
+# den lange timeout.
+RECOVERY_TIMEOUT = 60
+
+
+async def generate_recovery_codes(user_id: str, count: int = 10) -> list[str]:
+    """Nye koder (de gamle fjernes først, så kun de nye virker)."""
+    await remove_recovery_codes(user_id)
+    res = await call("POST", f"/v2/users/{user_id}/recovery_codes", {"count": count}, timeout=RECOVERY_TIMEOUT)
+    return list(res.get("recoveryCodes") or [])
+
+
+async def remove_recovery_codes(user_id: str) -> None:
+    try:
+        await call("DELETE", f"/v2/users/{user_id}/recovery_codes")
+    except ZitadelError as exc:
+        if exc.status != 404:
+            raise
+
+
+async def check_recovery_code(user_id: str, code: str) -> dict:
+    """Som check_totp, men med en genoprettelseskode (som kun virker én gang)."""
+    s = await call("POST", "/v2/sessions", {"checks": {"user": {"userId": user_id}, "recoveryCode": {"code": code}}},
+                   timeout=RECOVERY_TIMEOUT)
     try:
         return ((await call("GET", f"/v2/sessions/{s['sessionId']}")).get("session") or {}).get("factors") or {}
     finally:

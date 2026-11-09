@@ -7,6 +7,7 @@
 //   2. Vælg e-mail og egen adgangskode – kontoen bindes til obserkoden
 //   3. Bekræft e-mailen med koden, der sendes til den (eller linket i mailen: #/login?bekraeft=…&kode=…)
 //   4. Klar (tilbud om passkey på enheden)
+// Glemt adgangskode: en kode til den bekræftede e-mail (#/login?nulstil=…&kode=…) – eller DOFbasen-vejen ovenfor.
 import { api, state, h, icon, params, toast } from "../core.js";
 import { refreshUser } from "../app.js";
 import { live } from "../live.js";
@@ -25,7 +26,7 @@ const PENDING = /afventer/;
 
 export async function render(view) {
   const link = params();
-  if (state.user && !link.bekraeft) { location.hash = link.next || "#/"; return; }
+  if (state.user && !link.bekraeft && !link.nulstil) { location.hash = link.next || "#/"; return; }
   const card = h("div", { class: "card stack landing-login auth-card" });
   view.append(h("div", { class: "landing" },
     h("section", { class: "landing-hero" },
@@ -45,11 +46,14 @@ export async function render(view) {
     mail: (r, code) => showMail(card, go, flow, r, code),
     done: (r) => showDone(card, r),
     totp: (r) => showTotp(card, go, r),
+    forgot: (prefill) => showForgot(card, go, flow, prefill),
+    reset: (r, code) => showReset(card, go, r, code),
   };
   const mode = link.konto;
   if (link.bekraeft) go.mail({ pending: link.bekraeft, email: "", link: true }, link.kode);
+  else if (link.nulstil) go.reset({ token: link.nulstil, link: true }, link.kode);
   else if (mode === "opret") go.verify("opret");
-  else if (mode === "glemt") go.verify("glemt");
+  else if (mode === "glemt") go.forgot();
   else go.login();
 }
 
@@ -121,7 +125,7 @@ function showLogin(card, go, flow, prefill) {
     } catch (err) { handle(err); pw.select(); } finally { done(); }
   } },
     field("E-mail eller obserkode", ident),
-    field("Adgangskode", pw, h("button", { type: "button", class: "linkbtn", onclick: () => go.verify("glemt", identValue().includes("@") ? "" : identValue()) }, "Glemt adgangskode?")),
+    field("Adgangskode", pw, h("button", { type: "button", class: "linkbtn", onclick: () => go.forgot(identValue()) }, "Glemt adgangskode?")),
     btn);
 
   card.replaceChildren(
@@ -289,6 +293,73 @@ function showMail(card, go, flow, r, prefill) {
   if (prefill) submit(); else code.focus();
 }
 
+// ---------------------------------------------------------------- glemt adgangskode: kode til den bekræftede e-mail
+
+function showForgot(card, go, flow, prefill) {
+  const ident = h("input", { autocomplete: "username", placeholder: "navn@eksempel.dk eller 8000ABC", required: true, maxlength: 254,
+    value: prefill || "", autocapitalize: "none", spellcheck: "false" });
+  const btn = big("primary", "Send kode");
+  const msg = h("div", {});
+  const value = () => { const v = ident.value.trim(); return v.includes("@") ? v : v.toUpperCase(); };
+  card.replaceChildren(
+    h("h2", { style: { margin: 0 } }, "Glemt adgangskode"),
+    h("p", { class: "muted", style: { margin: 0 } }, "Vi sender en kode til den e-mail, du har bekræftet på din konto. Med koden vælger du en ny adgangskode."),
+    h("form", { class: "stack", onsubmit: async (e) => {
+      e.preventDefault();
+      const done = busy(btn, "Sender…");
+      try {
+        const r = await api("/api/auth/konto/glemt", { method: "POST", body: { login: value() } });
+        go.reset(r);
+      } catch (err) { msg.replaceChildren(notice(err.message)); } finally { done(); }
+    } }, field("E-mail eller obserkode", ident), btn),
+    msg,
+    h("div", { class: "auth-new stack" },
+      h("div", {}, h("b", {}, "Ingen adgang til e-mailen – eller ikke bekræftet?"),
+        h("p", { class: "muted", style: { margin: "2px 0 0" } }, "Bekræft i stedet, at obserkoden er din, med din DOFbasen-adgangskode.")),
+      big("", "Brug DOFbasen-login", { type: "button", onclick: () => go.verify("glemt", value().includes("@") ? "" : value()) })),
+    back(go));
+  ident.focus();
+}
+
+function showReset(card, go, r, prefill) {
+  const code = h("input", { inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]*", maxlength: 7, required: true,
+    placeholder: "123456", value: prefill || "", style: { fontSize: "1.4rem", letterSpacing: ".3em", textAlign: "center" } });
+  const pw = h("input", { type: "password", autocomplete: "new-password", required: true, minlength: PW_MIN, maxlength: 200 });
+  const pw2 = h("input", { type: "password", autocomplete: "new-password", required: true, maxlength: 200 });
+  const btn = big("primary", "Gem ny adgangskode");
+  const msg = h("div", {});
+  const again = (text) => h("div", { class: "notice err stack", style: { gap: "8px" } }, h("span", {}, text),
+    h("button", { type: "button", class: "btn sm", onclick: () => go.forgot() }, "Bed om en ny kode"));
+  card.replaceChildren(
+    h("h2", { style: { margin: 0 } }, "Vælg ny adgangskode"),
+    r.link ? h("p", { class: "muted", style: { margin: 0 } }, "Koden fra mailen er udfyldt. Vælg en ny adgangskode.")
+      : notice([r.message || "Vi har sendt en kode, hvis kontoen har en bekræftet e-mail.", " Kig også i spam-mappen."], ""),
+    h("form", { class: "stack", onsubmit: async (e) => {
+      e.preventDefault();
+      if (pw.value.length < PW_MIN) { msg.replaceChildren(notice(`Adgangskoden skal være mindst ${PW_MIN} tegn.`)); return; }
+      if (pw.value !== pw2.value) { msg.replaceChildren(notice("De to adgangskoder er ikke ens.")); return; }
+      const done = busy(btn, "Gemmer…");
+      try {
+        const res = await api("/api/auth/konto/nulstil", { method: "POST", body: { token: r.token, code: code.value, password: pw.value } });
+        history.replaceState(null, "", location.pathname + "#/login");  // linket virker kun én gang
+        if (res.totp) { go.totp({ ...res, reset: true }); return; }
+        passkey.rememberLogin(res.user.email || res.user.obserkode);
+        await finish({ ...res, reset: true }, go);
+      } catch (err) {
+        if (err.status === 403 && PENDING.test(err.message)) { showDone(card, null, err.message); return; }
+        msg.replaceChildren(/udløbet|for mange/i.test(err.message) ? again(err.message) : notice(err.message));
+      } finally { done(); }
+    } },
+      field("Kode fra mailen", code),
+      field("Ny adgangskode", pw),
+      field("Gentag adgangskoden", pw2),
+      h("small", { class: "muted" }, `Mindst ${PW_MIN} tegn. Når du gemmer, logges alle dine enheder ud.`),
+      btn),
+    msg,
+    back(go, "Annullér"));
+  (code.value ? pw : code).focus();
+}
+
 // ---------------------------------------------------------------- totrinslogin: kode fra authenticator-appen
 
 function showTotp(card, go, r) {
@@ -298,6 +369,27 @@ function showTotp(card, go, r) {
   const msg = h("div", {});
   const again = (text) => h("div", { class: "notice err stack", style: { gap: "8px" } }, h("span", {}, text),
     h("button", { type: "button", class: "btn sm", onclick: () => go.login() }, "Log ind igen"));
+  let recovery = false;
+  const label = h("span", {}, "Kode");
+  const lead = h("p", { style: { margin: 0 } });
+  const toggle = h("button", { type: "button", class: "linkbtn" });
+  const mode = (rc) => {  // genoprettelseskode («ab12c-3de45») i stedet for koden fra appen
+    recovery = rc;
+    code.value = "";
+    Object.assign(code, rc ? { inputMode: "text", maxLength: 12, placeholder: "ab12c-3de45", autocomplete: "off" }
+      : { inputMode: "numeric", maxLength: 7, placeholder: "123456", autocomplete: "one-time-code" });
+    code.removeAttribute("pattern");
+    if (!rc) code.setAttribute("pattern", "[0-9 ]*");
+    code.style.letterSpacing = rc ? ".12em" : ".3em";
+    code.autocapitalize = "none";
+    label.textContent = rc ? "Genoprettelseskode" : "Kode";
+    lead.replaceChildren(...(rc ? ["Skriv en af de genoprettelseskoder, du fik, da du slog totrinslogin til. Hver kode virker kun én gang."]
+      : ["Åbn din authenticator-app, og skriv den kode med seks cifre, der står ved ", h("b", {}, "DOF"), "."]));
+    toggle.textContent = rc ? "Brug koden fra appen i stedet" : "Mistet telefonen? Brug en genoprettelseskode";
+    msg.replaceChildren();
+    code.focus();
+  };
+  toggle.onclick = () => mode(!recovery);
   const submit = async () => {
     if (btn.disabled) return;
     const done = busy(btn, "Bekræfter…");
@@ -305,23 +397,25 @@ function showTotp(card, go, r) {
       const res = await api("/api/auth/totp", { method: "POST", body: { token: r.totp, code: code.value } });
       passkey.rememberLogin(res.user.email || res.user.obserkode);
       await finish({ ...res, reset: r.reset, flow: r.flow }, go);
+      if (res.recovery_used) setTimeout(() => toast("Du har brugt en genoprettelseskode. Lav nye koder under Profil → Konto og sikkerhed – og slå totrinslogin til igen på en ny telefon, hvis du har mistet den gamle.", "err"), 400);
     } catch (err) {
       if (err.status === 403 && PENDING.test(err.message)) { showDone(card, null, err.message); return; }
       msg.replaceChildren(/udløbet|for mange forkerte/i.test(err.message) ? again(err.message) : notice(err.message));
       code.value = ""; code.focus();
     } finally { done(); }
   };
-  code.addEventListener("input", () => { if (/^\d{6}$/.test(code.value.replace(/\s/g, ""))) submit(); });
+  code.addEventListener("input", () => { if (!recovery && /^\d{6}$/.test(code.value.replace(/\s/g, ""))) submit(); });
   card.replaceChildren(
     h("h2", { style: { margin: 0 } }, "Totrinslogin"),
     r.reset ? notice("Den nye adgangskode er gemt. Skriv koden fra din authenticator-app for at logge ind.", "") : null,
-    h("p", { style: { margin: 0 } }, "Åbn din authenticator-app, og skriv den kode med seks cifre, der står ved ", h("b", {}, "DOF"), "."),
-    h("form", { class: "stack", onsubmit: (e) => { e.preventDefault(); submit(); } }, field("Kode", code), btn),
+    lead,
+    h("form", { class: "stack", onsubmit: (e) => { e.preventDefault(); submit(); } }, h("label", { class: "field" }, label, code), btn),
     msg,
+    toggle,
     h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } },
-      "Mistet telefonen? Log ind med en passkey, hvis du har en, og slå totrinslogin fra under Profil – eller kontakt en administrator."),
+      "Ingen genoprettelseskoder? Log ind med en passkey, hvis du har en, og slå totrinslogin fra under Profil – eller kontakt en administrator."),
     back(go, "Annullér"));
-  code.focus();
+  mode(false);
 }
 
 // ---------------------------------------------------------------- trin 4: klar

@@ -15,6 +15,9 @@ Forløbet:
    positionstokens for brugeren tilbagekaldes, og api'et starter en ny session.
 4. Derefter: login(e-mail eller obserkode, adgangskode) eller passkey (services/passkeys.py).
 
+«Glemt adgangskode» kan også klares med den bekræftede e-mail (request_reset → confirm_reset): en kode sendes til
+adressen, og med koden vælges en ny adgangskode. Svaret afslører ikke, om kontoen eller adressen findes.
+
 Skift af e-mail (request_email_change → confirm_email_change) gemmer først den nye adresse, når koden, der er sendt til
 den, er tastet; den gamle adresse får besked bagefter.
 
@@ -277,6 +280,91 @@ async def _apply(db: AsyncSession, kode: str, pw_hash: str, email: str | None, n
     return user, new
 
 
+# ---------------------------------------------------------------- ny adgangskode via den bekræftede e-mail
+
+RESET_MAILS_PER_HOUR = 5
+RESET_SENT = "Hvis der findes en konto med en bekræftet e-mail, har vi sendt en kode til den."
+
+
+def _reset_key(token: str) -> str:
+    return "konto:reset:" + hashlib.sha256(token.encode()).hexdigest()
+
+
+async def request_reset(db: AsyncSession, ident: str, ip: str) -> dict:
+    """Trin 1: send en kode til kontoens bekræftede e-mail. Svaret er det samme, uanset om kontoen findes, så det ikke kan
+    bruges til at finde ud af, hvem der har en konto (et bevis gemmes altid; uden konto passer ingen kode)."""
+    ident = (ident or "").strip()[:254]
+    if not ident:
+        raise AuthError("Skriv din e-mail eller obserkode", 400)
+    await auth.rate_limit(ident.lower(), ip, prefix="pwreset")
+    user = await find_user(db, ident)
+    ok = (user is not None and user.pw_hash and user.email and user.email_verified_at and not user.blocked)
+    token = secrets.token_urlsafe(24)
+    code = _new_code()
+    rec = {"uid": user.id if ok else None, "code": _code_hash(token, code)}
+    if ok:
+        n = await kv().incr(f"konto:reset:n:{user.id}")
+        if n == 1:
+            await kv().expire(f"konto:reset:n:{user.id}", 3600)
+        if n > RESET_MAILS_PER_HOUR:
+            raise AuthError("Der er sendt for mange koder. Prøv igen om en time.", 429)
+    await kv().set(_reset_key(token), json.dumps(rec), ex=MAIL_TTL)
+    if ok:
+        try:
+            await _send_reset_code(user, token, code)
+        except mail.MailError as exc:
+            await kv().delete(_reset_key(token))
+            raise AuthError("E-mailen kunne ikke sendes. Prøv igen om lidt.", 502) from exc
+    return {"token": token, "message": RESET_SENT, "expires_in": MAIL_TTL}
+
+
+async def confirm_reset(db: AsyncSession, token: str, code: str, password: str, ip: str) -> User:
+    """Trin 2: koden fra mailen + ny adgangskode. Alle enheder logges ud; api'et kræver derefter totrinslogin, hvis det er
+    slået til (api/auth.py: _account_ready)."""
+    key = _reset_key(token or "x")
+    await auth.rate_limit(key, ip, prefix="mailcode")
+    raw = await kv().get(key)
+    if raw is None:
+        raise AuthError("Koden er udløbet. Bed om en ny.", 400)
+    rec = json.loads(raw)
+    user = await db.get(User, rec["uid"]) if rec["uid"] else None
+    if user is not None:  # kontrolleres før koden, så en for svag adgangskode ikke bruger et forsøg
+        check_new_password(password, user.obserkode, user.email)
+    elif len(password or "") < PW_MIN:
+        raise AuthError(f"Adgangskoden skal være mindst {PW_MIN} tegn", 400)
+    await _check_code(key, rec["code"], _code_hash(token, _clean_code(code)))
+    if user is None or await kv().getdel(key) is None:
+        raise AuthError("Koden er udløbet. Bed om en ny.", 400)
+    await kv().delete(key + ":tries")
+    if user.blocked:
+        raise AuthError("Brugeren er spærret", 403)
+    user.pw_hash = auth.hash_password(password)
+    user.email_verified_at = datetime.now(timezone.utc)  # koden kom frem: adressen virker stadig
+    await db.commit()
+    await logout_user(user.id)
+    if not user.approved:
+        raise AuthError(auth.PENDING_MSG, 403)
+    return user
+
+
+async def _send_reset_code(user: User, token: str, code: str) -> None:
+    app, navn = get_settings().app_name, user.navn or user.obserkode
+    link = _url(f"/#/login?nulstil={token}&kode={code}")
+    html_body = mail.layout(
+        title="Vælg en ny adgangskode", preheader=f"Din kode er {code}. Den gælder i {MAIL_TTL // 60} minutter.",
+        greeting=f"Hej {navn}",
+        paragraphs=[f"Nogen – forhåbentlig dig – har bedt om at nulstille adgangskoden til din {app}-konto "
+                    f"(**{user.obserkode}**). Brug koden herunder, eller tryk på knappen, og vælg en ny adgangskode."],
+        code=code, button=("Vælg ny adgangskode", link),
+        notes=[f"Koden gælder i {MAIL_TTL // 60} minutter. Når du gemmer den nye adgangskode, logges alle dine enheder ud.",
+               "Har du ikke bedt om det, kan du se bort fra denne mail – din adgangskode er uændret."])
+    await mail.send(user.email, f"{code} er din kode til ny adgangskode i {app}",
+                    f"Hej {navn}\n\nNogen har bedt om at nulstille adgangskoden til din {app}-konto ({user.obserkode}).\n\n"
+                    f"Din kode:\n\n    {code}\n\nEller åbn linket:\n{link}\n\n"
+                    f"Koden gælder i {MAIL_TTL // 60} minutter. Har du ikke bedt om det, kan du se bort fra denne mail – "
+                    f"din adgangskode er uændret.\n\nVenlig hilsen\n{app}\n", html_body)
+
+
 # ---------------------------------------------------------------- e-mailkoder
 
 
@@ -447,7 +535,7 @@ async def logout_user(user_id: int) -> None:
     await position_privacy.revoke_token(user_id)
 
 
-LOGOUT_PATTERNS = ("sess:*", "usess:*", "loctok:*", "pk:login:*", "pk:reg:*", "totp:login:*")
+LOGOUT_PATTERNS = ("sess:*", "usess:*", "loctok:*", "pk:login:*", "pk:reg:*", "totp:login:*", "konto:reset:*")
 
 
 async def logout_everyone_once(db: AsyncSession) -> int:

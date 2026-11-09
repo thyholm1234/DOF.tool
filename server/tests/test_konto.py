@@ -116,6 +116,9 @@ class DB:
     async def refresh(self, obj):
         pass
 
+    async def get(self, model, key):
+        return self.user if self.user is not None and self.user.id == key else None
+
 
 def user(**kw):
     from portal.services import auth
@@ -503,3 +506,66 @@ def test_mail_layout_escaper_og_viser_kode_og_knap():
     assert ">ABC</strong>" in out and "&amp; co" in out
     assert 'href="https://x.dk/#/login?a=1&amp;b=2"' in out
     assert "/icons/icon-192.png" in out
+
+
+# ---------------------------------------------------------------- glemt adgangskode via den bekræftede e-mail
+
+
+async def test_nulstil_via_email(kv, mails):
+    from datetime import datetime, timezone
+
+    from portal.services import auth, konto
+
+    u = user(email_verified_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    r = await konto.request_reset(DB(u), "8000abc", "1.1.1.1")
+    assert r["message"] == konto.RESET_SENT and mails[-1][0] == "anna@example.dk"
+    code = last_code(mails)
+    with pytest.raises(auth.AuthError):  # for svag: bruger ikke et forsøg
+        await konto.confirm_reset(DB(u), r["token"], code, "kort", "1.1.1.1")
+    assert await konto.confirm_reset(DB(u), r["token"], code, "helt-ny-kode-42", "1.1.1.1") is u
+    assert auth.check_password(u.pw_hash, "helt-ny-kode-42")
+    with pytest.raises(auth.AuthError):  # koden virker kun én gang
+        await konto.confirm_reset(DB(u), r["token"], code, "endnu-en-kode-43", "1.1.1.1")
+
+
+@pytest.mark.parametrize("kw", [dict(email_verified_at=None), dict(email=None), dict(blocked=True), dict(pw_hash=None)])
+async def test_nulstil_uden_bekraeftet_email_sender_intet_men_svarer_ens(kv, mails, kw):
+    from datetime import datetime, timezone
+
+    from portal.services import auth, konto
+
+    u = user(**{"email_verified_at": datetime(2026, 1, 1, tzinfo=timezone.utc), **kw})
+    r = await konto.request_reset(DB(u), "8000ABC", "1.1.1.1")
+    assert r["message"] == konto.RESET_SENT and r["token"] and not mails
+    with pytest.raises(auth.AuthError):
+        await konto.confirm_reset(DB(u), r["token"], "123456", "helt-ny-kode-42", "1.1.1.1")
+
+
+async def test_nulstil_ukendt_bruger_svarer_ens(kv, mails):
+    from portal.services import konto
+
+    r = await konto.request_reset(DB(None), "ukendt@example.dk", "1.1.1.1")
+    assert r["message"] == konto.RESET_SENT and r["token"] and not mails
+
+
+async def test_nulstil_forkert_kode_kasserer(kv, mails):
+    from datetime import datetime, timezone
+
+    from portal.services import auth, konto
+
+    u = user(email_verified_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    r = await konto.request_reset(DB(u), "8000ABC", "1.1.1.1")
+    code = last_code(mails)
+    wrong = "000000" if code != "000000" else "111111"
+    for _ in range(konto.MAIL_TRIES):
+        with pytest.raises(auth.AuthError):
+            await konto.confirm_reset(DB(u), r["token"], wrong, "helt-ny-kode-42", f"1.1.1.{_}")
+    with pytest.raises(auth.AuthError):
+        await konto.confirm_reset(DB(u), r["token"], code, "helt-ny-kode-42", "1.1.2.1")
+    assert auth.check_password(u.pw_hash, "rigtig-kode-1")
+
+
+def test_vagten_nulstil():
+    from portal.main import public_api
+
+    assert public_api("/api/auth/konto/glemt") and public_api("/api/auth/konto/nulstil")

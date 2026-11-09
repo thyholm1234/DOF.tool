@@ -62,6 +62,16 @@ class CodeIn(BaseModel):
     code: str = Field(max_length=16)
 
 
+class ResetRequestIn(BaseModel):
+    login: str = Field(max_length=254)  # e-mail eller obserkode
+
+
+class ResetIn(BaseModel):
+    token: str = Field(max_length=64)
+    code: str = Field(max_length=16)
+    password: str = Field(max_length=konto.PW_MAX)
+
+
 class TotpLoginIn(BaseModel):
     token: str = Field(max_length=64)
     code: str = Field(max_length=16)
@@ -111,9 +121,12 @@ async def _password_login(user: User, response: Response, method: str) -> dict:
 async def totp_login(body: TotpLoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_session)):
     """Totrinslogin, trin 2: koden fra authenticator-appen byttes sammen med beviset fra /auth/login til en session."""
     try:
-        user = await totp.login(db, body.token, body.code, client_ip(request))
+        user, kind = await totp.login(db, body.token, body.code, client_ip(request))
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
+    if kind == "recovery":
+        await activity.track(user.id, "totp_recovery_used", None, {})
+        return {**await _password_login(user, response, "password+recovery"), "recovery_used": True}
     return await _password_login(user, response, "password+totp")
 
 
@@ -148,6 +161,27 @@ async def account_confirm(body: PendingIn, request: Request, response: Response,
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
     return await _account_ready(user, new, response, db)
+
+
+@router.post("/auth/konto/glemt")
+async def reset_request(body: ResetRequestIn, request: Request, db: AsyncSession = Depends(get_session)):
+    """Glemt adgangskode via e-mail, trin 1: en kode sendes til kontoens bekræftede e-mail. Samme svar, uanset om kontoen
+    findes."""
+    try:
+        return await konto.request_reset(db, body.login, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+
+
+@router.post("/auth/konto/nulstil")
+async def reset_confirm(body: ResetIn, request: Request, response: Response, db: AsyncSession = Depends(get_session)):
+    """Trin 2: koden fra mailen + ny adgangskode. Logger ind – eller kræver koden fra authenticator-appen ({"totp": …})."""
+    try:
+        user = await konto.confirm_reset(db, body.token, body.code, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    await activity.track(user.id, "password_reset", None, {"method": "email"})
+    return await _account_ready(user, False, response, db)
 
 
 @router.post("/auth/konto/email/igen")
@@ -339,7 +373,7 @@ async def my_passkey_delete(passkey_id: str = Path(pattern=r"^[0-9]{1,32}$"), us
 @router.get("/me/totp")
 async def my_totp(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     if getattr(request.state, "view_as", None):
-        return {"enabled": zitadel.enabled(), "active": False}
+        return {"enabled": zitadel.enabled(), "active": False, "recovery": False}
     try:
         return await totp.status(db, user)
     except auth.AuthError as exc:
@@ -357,12 +391,24 @@ async def my_totp_start(request: Request, user: User = Depends(require_user), db
 
 @router.post("/me/totp/finish")
 async def my_totp_finish(body: CodeIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Aktivér TOTP. Svaret har genoprettelseskoderne – de vises kun denne ene gang."""
     try:
-        await totp.setup_finish(db, user, body.code, client_ip(request))
+        r = await totp.setup_finish(db, user, body.code, client_ip(request))
     except auth.AuthError as exc:
         raise _auth_error(exc) from exc
     await activity.track(user.id, "totp_on", None, {})
-    return {"ok": True}
+    return {"ok": True, **r}
+
+
+@router.post("/me/totp/recovery")
+async def my_totp_recovery(body: TotpOffIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Nye genoprettelseskoder (de gamle holder op med at virke) – kræver adgangskoden."""
+    try:
+        r = await totp.new_recovery_codes(db, user, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await activity.track(user.id, "totp_recovery_new", None, {})
+    return r
 
 
 @router.post("/me/totp/off")

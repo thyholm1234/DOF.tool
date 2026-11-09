@@ -169,7 +169,7 @@ const SECTIONS = {
     const pkBox = h("div", { class: "card stack settings-card" });
     const totpBox = h("div", { class: "card stack settings-card" });
     panel.append(
-      card("Log ind", "Du logger ind med e-mail eller obserkode og din DOF.tool-adgangskode. Har du glemt den, kan du vælge en ny fra login-siden ved at bekræfte obserkoden hos DOFbasen igen.",
+      card("Log ind", "Du logger ind med e-mail eller obserkode og din DOF.tool-adgangskode. Har du glemt den, kan du vælge en ny fra login-siden – med en kode til din bekræftede e-mail eller ved at bekræfte obserkoden hos DOFbasen igen.",
         row("E-mail", mailVal, h("button", { type: "button", class: "btn sm ghost", onclick: () => { pwForm.classList.add("hide"); codeForm.classList.add("hide"); mailForm.classList.toggle("hide"); mail.focus(); } }, state.user.email && !state.user.email_verified ? "Bekræft / skift" : "Skift")),
         mailForm, codeForm,
         row("Adgangskode", h("span", { class: "muted" }, "••••••••••"), h("button", { type: "button", class: "btn sm ghost", onclick: () => { mailForm.classList.add("hide"); pwForm.classList.toggle("hide"); cur.focus(); } }, "Skift")),
@@ -357,6 +357,16 @@ async function totpCard(box) {
     "(fx Google Authenticator, Microsoft Authenticator, 1Password eller Bitwarden). Så kan en, der kender din adgangskode, ikke logge ind uden din telefon. ",
     "Login med passkey kræver ikke koden.");
   if (d.active) {
+    const rcPw = h("input", { type: "password", autocomplete: "current-password", required: true, maxlength: 200 });
+    const rcBtn = h("button", { class: "btn primary" }, "Lav nye koder");
+    const rc = h("form", { class: "stack hide", onsubmit: async (e) => {
+      e.preventDefault();
+      rcBtn.disabled = true; rcBtn.textContent = "Laver koder … (op til 15 sekunder)";
+      try { const r = await api("/api/me/totp/recovery", { method: "POST", body: { password: rcPw.value } }); showRecoveryCodes(box, r.recovery_codes, false); }
+      catch (err) { toast(err.message, "err"); rcPw.select(); rcBtn.disabled = false; rcBtn.textContent = "Lav nye koder"; }
+    } }, h("label", { class: "field" }, h("span", {}, "Din adgangskode"), rcPw),
+      h("small", { class: "muted", style: { marginTop: "-6px" } }, "De gamle genoprettelseskoder holder op med at virke."),
+      h("div", { class: "row" }, rcBtn, h("button", { type: "button", class: "btn ghost", onclick: () => rc.classList.add("hide") }, "Annullér")));
     const pw = h("input", { type: "password", autocomplete: "current-password", required: true, maxlength: 200 });
     const off = h("form", { class: "stack hide", onsubmit: async (e) => {
       e.preventDefault();
@@ -367,8 +377,12 @@ async function totpCard(box) {
         h("button", { type: "button", class: "btn ghost", onclick: () => off.classList.add("hide") }, "Annullér")));
     box.replaceChildren(title, intro,
       h("p", { style: { margin: 0 } }, h("span", { class: "tag plain" }, "Slået til"), " Du skal bruge koden fra appen, når du logger ind med adgangskode."),
-      h("div", { class: "row" }, h("button", { type: "button", class: "btn ghost", onclick: () => { off.classList.toggle("hide"); pw.focus(); } }, "Slå totrinslogin fra")),
-      off);
+      d.recovery ? h("p", { class: "muted", style: { margin: 0 } }, "Du har genoprettelseskoder. Hver kan bruges én gang i stedet for koden fra appen, hvis du mister telefonen.")
+        : h("p", { class: "notice warn", style: { margin: 0 } }, "Du har ingen genoprettelseskoder. Lav dem nu, så du kan komme ind, hvis du mister telefonen."),
+      h("div", { class: "row" },
+        h("button", { type: "button", class: d.recovery ? "btn ghost" : "btn primary", onclick: () => { off.classList.add("hide"); rc.classList.toggle("hide"); rcPw.focus(); } }, d.recovery ? "Lav nye genoprettelseskoder" : "Lav genoprettelseskoder"),
+        h("button", { type: "button", class: "btn ghost", onclick: () => { rc.classList.add("hide"); off.classList.toggle("hide"); pw.focus(); } }, "Slå totrinslogin fra")),
+      rc, off);
     return;
   }
   const start = h("button", { type: "button", class: "btn primary", onclick: async () => {
@@ -387,8 +401,15 @@ async function totpCard(box) {
       h("div", { class: "muted", style: { fontSize: ".85rem" } }, "Nøgle: ", h("code", { style: { userSelect: "all", wordBreak: "break-all" } }, secret)),
       h("form", { class: "stack", onsubmit: async (e) => {
         e.preventDefault();
-        try { await api("/api/me/totp/finish", { method: "POST", body: { code: code.value } }); toast("Totrinslogin er slået til"); totpCard(box); }
-        catch (err) { toast(err.message, "err"); code.select(); }
+        const b = e.submitter || box.querySelector("button.primary");
+        b.disabled = true; b.textContent = "Slår til og laver genoprettelseskoder …";
+        try {
+          const r = await api("/api/me/totp/finish", { method: "POST", body: { code: code.value } });
+          toast("Totrinslogin er slået til");
+          if (r.recovery_codes?.length) showRecoveryCodes(box, r.recovery_codes, true);
+          else { if (r.recovery_error) toast(r.recovery_error, "err"); totpCard(box); }
+        }
+        catch (err) { toast(err.message, "err"); code.select(); b.disabled = false; b.textContent = "Slå til"; }
       } }, h("label", { class: "field" }, h("span", {}, "Kode fra appen"), code),
         h("div", { class: "row" }, h("button", { class: "btn primary" }, "Slå til"),
           h("button", { type: "button", class: "btn ghost", onclick: () => totpCard(box) }, "Annullér"))));
@@ -399,6 +420,33 @@ async function totpCard(box) {
   box.replaceChildren(title, intro,
     h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } }, "Kan kun slås til inden for 15 minutter efter et login. Mister du telefonen, kan du logge ind med en passkey og slå det fra – eller bede en administrator om hjælp."),
     h("div", { class: "row" }, start));
+}
+
+/** Genoprettelseskoderne vises kun denne ene gang: kopiér, hent som fil eller udskriv, og bekræft, at de er gemt. */
+function showRecoveryCodes(box, codes, fresh) {
+  const text = `Genoprettelseskoder til ${state.user.obserkode} (DOF.tool, totrinslogin)\n` +
+    `Lavet ${new Date().toLocaleString("da-DK")}. Hver kode kan bruges én gang i stedet for koden fra appen.\n\n${codes.join("\n")}\n`;
+  const saved = h("input", { type: "checkbox" });
+  const done = h("button", { class: "btn primary", type: "button", disabled: true, onclick: () => totpCard(box) }, "Færdig");
+  saved.onchange = () => { done.disabled = !saved.checked; };
+  const file = () => {
+    const a = h("a", { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: `dof-genoprettelseskoder-${state.user.obserkode}.txt` });
+    document.body.append(a); a.click(); a.remove();
+  };
+  box.replaceChildren(
+    h("h3", { style: { margin: 0 } }, fresh ? "Gem dine genoprettelseskoder" : "Dine nye genoprettelseskoder"),
+    h("p", { class: "notice warn", style: { margin: 0 } }, h("b", {}, "Koderne vises kun nu. "),
+      "Mister du telefonen, er de din vej ind. Gem dem et sikkert sted – fx i din adgangskode-manager eller printet ud – og ikke på samme telefon som authenticator-appen.",
+      fresh ? "" : " De gamle koder virker ikke længere."),
+    h("ol", { style: { margin: 0, padding: "14px 14px 14px 2.4em", columns: 2, columnGap: "2em", background: "var(--surface-2)",
+      border: "1px solid var(--line)", borderRadius: "10px", fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: "1.02rem", lineHeight: 1.9, userSelect: "all" } },
+      ...codes.map(c => h("li", {}, c))),
+    h("div", { class: "row" },
+      h("button", { class: "btn", type: "button", onclick: async () => { try { await navigator.clipboard.writeText(text); toast("Kopieret"); } catch { toast("Kunne ikke kopiere – markér koderne og kopiér selv", "err"); } } }, "Kopiér"),
+      h("button", { class: "btn", type: "button", onclick: file }, "Hent som fil"),
+      h("button", { class: "btn ghost", type: "button", onclick: () => { const w = window.open("", "_blank"); if (!w) return; w.document.title = "Genoprettelseskoder"; const pre = w.document.createElement("pre"); pre.style.cssText = "font:16px/1.8 ui-monospace,monospace;padding:24px"; pre.textContent = text; w.document.body.append(pre); w.print(); } }, "Udskriv")),
+    h("label", { class: "check" }, saved, "Jeg har gemt koderne et sikkert sted"),
+    h("div", { class: "row" }, done));
 }
 
 /** API-nøgler til DOFbasen-API'et: en administrator giver adgang, brugeren laver og sletter selv sine nøgler. */

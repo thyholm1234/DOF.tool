@@ -126,7 +126,7 @@ async def test_login_med_kode_og_kun_en_gang(t, monkeypatch):
     zstub(monkeypatch, t)
     u = user()
     tok = (await t.challenge(u))["totp"]
-    assert await t.login(DB(u), tok, " 123 456 ", "1.2.3.4") is u
+    assert await t.login(DB(u), tok, " 123 456 ", "1.2.3.4") == (u, "totp")
     with pytest.raises(AuthError):
         await t.login(DB(u), tok, "123456", "1.2.3.4")
 
@@ -151,7 +151,7 @@ async def test_forkert_kode_og_graense(t, monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("code", ["", "12345", "1234567", "abcdef"])
+@pytest.mark.parametrize("code", ["", "12345", "1234567", "abcdef", "abcd-efghi", "ab!cd-efghi"])
 async def test_ugyldigt_format_kalder_ikke_zitadel(t, monkeypatch, code):
     from portal.services.auth import AuthError
 
@@ -225,14 +225,19 @@ async def test_opsaetning_hele_vejen(t, monkeypatch):
     async def verify_totp(zid, code):
         verified.append((zid, code))
 
+    async def generate(zid):
+        return ["aaaaa-bbbbb", "ccccc-ddddd"]
+
     monkeypatch.setattr(t.zitadel, "start_totp", start_totp)
     monkeypatch.setattr(t.zitadel, "verify_totp", verify_totp)
+    monkeypatch.setattr(t.zitadel, "generate_recovery_codes", generate)
     u = user()
     await passkeys.mark_fresh("tok")
     r = await t.setup_start(DB(u), u, "tok")
     assert r["secret"] == "SECRETX" and "secret=SECRETX" in r["uri"] and r["qr"].startswith("<svg")
-    await t.setup_finish(DB(u), u, "654321", "1.2.3.4")
+    r = await t.setup_finish(DB(u), u, "654321", "1.2.3.4")
     assert verified == [("z7", "654321")] and u.totp_at is not None
+    assert r["recovery_codes"] == ["aaaaa-bbbbb", "ccccc-ddddd"]
 
 
 @pytest.mark.asyncio
@@ -245,13 +250,17 @@ async def test_slaa_fra_kraever_adgangskode(t, monkeypatch):
     async def remove_totp(zid):
         removed.append(zid)
 
+    async def remove_rc(zid):
+        removed.append("rc:" + zid)
+
     monkeypatch.setattr(t.zitadel, "remove_totp", remove_totp)
+    monkeypatch.setattr(t.zitadel, "remove_recovery_codes", remove_rc)
     u = user(pw_hash=auth.hash_password("rigtig-adgangskode"), totp_at="2026-01-01")
     with pytest.raises(AuthError):
         await t.disable(DB(u), u, "forkert", "1.2.3.4")
     assert not removed
     await t.disable(DB(u), u, "rigtig-adgangskode", "1.2.3.4")
-    assert removed == ["z7"] and u.totp_at is None
+    assert removed == ["z7", "rc:z7"] and u.totp_at is None
 
 
 # ---------------------------------------------------------------- vagten og «se som bruger»
@@ -267,5 +276,79 @@ def test_vagten():
 def test_se_som_bruger_kan_ikke_aendre_totp():
     from portal.services import view_as
 
-    for path in ("/api/me/totp/start", "/api/me/totp/finish", "/api/me/totp/off", "/api/auth/totp"):
+    for path in ("/api/me/totp/start", "/api/me/totp/finish", "/api/me/totp/off", "/api/me/totp/recovery", "/api/auth/totp"):
         assert view_as.blocked("POST", path)
+
+
+# ---------------------------------------------------------------- genoprettelseskoder
+
+
+@pytest.mark.parametrize("given,kind,norm", [("123456", "totp", "123456"), ("12 34 56", "totp", "123456"),
+                                             ("ab12c-3de45", "recovery", "ab12c-3de45"), (" AB12C3DE45 ", "recovery", "ab12c-3de45")])
+def test_parse(t, given, kind, norm):
+    assert t.parse(given) == (kind, norm)
+
+
+@pytest.mark.asyncio
+async def test_login_med_genoprettelseskode(t, monkeypatch):
+    from portal.services.auth import AuthError
+
+    calls = zstub(monkeypatch, t)
+    used = []
+
+    async def check_rc(zid, code):
+        if code in used or code != "ab12c-3de45":
+            raise t.zitadel.ZitadelError(400, "Invalid recovery code provided")
+        used.append(code)
+        return {"user": {"id": zid}, "recoveryCode": {"verifiedAt": "x"}}
+
+    monkeypatch.setattr(t.zitadel, "check_recovery_code", check_rc)
+    u = user()
+    tok = (await t.challenge(u))["totp"]
+    assert await t.login(DB(u), tok, "AB12C3DE45", "1.2.3.4") == (u, "recovery")
+    assert not calls["checked"]  # ikke sendt som TOTP-kode
+    tok = (await t.challenge(u))["totp"]
+    with pytest.raises(AuthError) as e:  # koden virker kun én gang
+        await t.login(DB(u), tok, "ab12c-3de45", "1.2.3.4")
+    assert e.value.status == 401
+
+
+@pytest.mark.asyncio
+async def test_genoprettelseskode_kraever_rigtig_faktor(t, monkeypatch):
+    """Et svar med en TOTP-faktor tæller ikke som en kontrolleret genoprettelseskode (og omvendt)."""
+    from portal.services.auth import AuthError
+
+    zstub(monkeypatch, t)
+
+    async def check_rc(zid, code):
+        return {"user": {"id": zid}, "totp": {"verifiedAt": "x"}}
+
+    monkeypatch.setattr(t.zitadel, "check_recovery_code", check_rc)
+    u = user()
+    tok = (await t.challenge(u))["totp"]
+    with pytest.raises(AuthError):
+        await t.login(DB(u), tok, "ab12c-3de45", "1.2.3.4")
+
+
+@pytest.mark.asyncio
+async def test_nye_koder_kraever_adgangskode_og_totp(t, monkeypatch):
+    from portal.services import auth
+    from portal.services.auth import AuthError
+
+    state = {"has": False}
+
+    async def has_totp(zid):
+        return state["has"]
+
+    async def generate(zid):
+        return ["new01-codes"]
+
+    monkeypatch.setattr(t.zitadel, "has_totp", has_totp)
+    monkeypatch.setattr(t.zitadel, "generate_recovery_codes", generate)
+    u = user(pw_hash=auth.hash_password("rigtig-adgangskode"))
+    with pytest.raises(AuthError):
+        await t.new_recovery_codes(DB(u), u, "forkert", "1.2.3.4")
+    with pytest.raises(AuthError):
+        await t.new_recovery_codes(DB(u), u, "rigtig-adgangskode", "1.2.3.4")
+    state["has"] = True
+    assert (await t.new_recovery_codes(DB(u), u, "rigtig-adgangskode", "1.2.3.4"))["recovery_codes"] == ["new01-codes"]
