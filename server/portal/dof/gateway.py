@@ -8,8 +8,8 @@ Alle kald til DOFbasen går gennem gatewayen i worker-processen. Der er to baner
     håndhæves med et globalt tidsstempel + lås i Valkey, så den også holder hvis der ved en fejl kører flere workers.
     Undtagelse: en administrator kan bede om én live-hentning af dagen med det samme (request_live_now) – den
     springer ventetiden over én gang og kan højst bestilles hvert LIVE_NOW_COOLDOWN sekund.
-  * Opslag (LOOKUP_KINDS: login samt billeder, lyd og DKU-status for én observation): små kald der ikke trækker data
-    ud af DOFbasens database. De har deres egen kø og udføres med det samme, uden minimumsinterval, og de tæller ikke
+  * Opslag (LOOKUP_KINDS: login, billeder, lyd og DKU-status for én observation, og «new_species» – artsliste og SU/SUB-
+    status, når en ny art dukker op, se dof/newspecies.py): små kald der ikke trækker data ud af DOFbasens database. De har deres egen kø og udføres med det samme, uden minimumsinterval, og de tæller ikke
     med i udtrækkenes interval. Kun et teknisk loft på samtidige opslag (LOOKUP_CONCURRENCY) og på køens længde.
     Login begrænses i stedet pr. bruger og IP (services/auth.py).
 
@@ -54,7 +54,7 @@ MEDIA_AT = "media:scan_at"  # seneste medie-scanning (overlever genstart, så en
 # Opslagsbanen: små opslag pr. observation uden minimumsinterval
 LQ = "dof:lq"
 LOOKUP_RUNNING = "dof:lq:running"  # id'er på opslag der udføres lige nu
-LOOKUP_KINDS = {"media", "login"}
+LOOKUP_KINDS = {"media", "login", "new_species"}
 LOOKUP_CONCURRENCY = 4  # samtidige opslag (teknisk loft, ikke en hastighedsgrænse)
 MAX_LOOKUP_QUEUE = 200  # værn mod at køen vokser uendeligt
 

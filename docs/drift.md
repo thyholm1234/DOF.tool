@@ -108,6 +108,15 @@ Prioritering af udtrækkene pr. ledig plads (hver 120. sekund):
 3. øvrige job (i går hver time, sidste 7 dage om natten, referencedata kl. 3, huller i data).
    Er der ventende job, skiftes der mellem live og kø.
 
+Nye arter og underarter (`dof/newspecies.py`): har en observation et artsnummer, portalen ikke kender, oprettes arten
+straks med DOFbasens navn og latinske navn og en foreløbig type ud fra navnet (art, underart, hybrid, ubestemt). Samtidig
+lægges ét job `new_species` i **opslagsbanen**, så det udføres med det samme: det henter artslisten og SU/SUB-listerne og
+regner derefter kategorien igen for alle artens observationer. Dem fra i dag, der bliver SU, SUB eller bemærk, går gennem
+alarmerne som nye – en ny art for Danmark giver en SU-alarm sekunder efter, at den første gang dukker op i
+live-hentningen. Det sker kun, når der faktisk er en ny art. Samme genberegning (uden tidsgrænse) sker, hver gang
+artslisten eller SU/SUB-listerne ellers hentes, for de arter hvis klassifikation har ændret sig – fx en art, der er kommet
+på SU-listen. Appens offline-artsliste hentes igen ved næste start.
+
 Hvad sparer kald:
 * Én dagsliste dækker *alle* moduler: notifikationer, lister, scoreboards og fænologi læser samme data.
 * Historik kommer fra det lokale arkiv (`dofbasen_ÅÅÅÅ_MM.csv`), der importeres automatisk.

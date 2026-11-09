@@ -15,7 +15,7 @@ from sqlalchemy import select, text
 from portal.cache import bump, get_json, kv, publish, set_json
 from portal.config import get_settings
 from portal.db import ObsSession, SessionLocal
-from portal.dof import gateway, reference
+from portal.dof import gateway, newspecies, reference
 from portal.dof.ingest import IngestResult, ingest
 from portal.dof.parse import decode, parse_text
 from portal.models import DaySync
@@ -79,8 +79,11 @@ async def after_ingest(res: IngestResult, notify: bool) -> None:
                 await alerts.process(s, res.new_obsids, res.changed)
         except Exception:  # noqa: BLE001 – en notifikationsfejl må ikke vælte dataindlæsningen
             log.exception("Notifikationer fejlede")
-    if res.unknown_species:
-        await gateway.enqueue("artdata", {"list": "art"}, priority=gateway.NORMAL, dedupe="artdata:art")
+    if res.unknown_species:  # nye arter/underarter: bestil artsliste og SU/SUB-status nu (dof/newspecies.py)
+        try:
+            await newspecies.discovered(res.unknown_species)
+        except Exception:  # noqa: BLE001 – må ikke vælte dataindlæsningen
+            log.exception("Nye arter kunne ikke noteres")
     if notify and (res.new_obsids or res.changed):
         try:
             async with SessionLocal() as s:
@@ -326,22 +329,45 @@ async def media_scan(client: httpx.AsyncClient, p: dict) -> dict:
 # ---------------------------------------------------------------- referencedata
 
 
-async def job_artdata(client: httpx.AsyncClient, p: dict) -> dict:
-    kind = p.get("list", "art")
+async def _artdata(client: httpx.AsyncClient, kind: str) -> int:
     page = decode(await _get(client, "https://dofbasen.dk/opslag/artdata.php", {"list": kind}))
-    rows = reference.parse_artdata(page, kind)
     async with ObsSession() as s:
-        n = await reference.apply_artdata(s, rows)
-    return {"list": kind, "species": n}
+        return await reference.apply_artdata(s, reference.parse_artdata(page, kind))
 
 
-async def job_status(client: httpx.AsyncClient, p: dict) -> dict:
-    klass = p["klass"]
+async def _status(client: httpx.AsyncClient, klass: str) -> int:
     url = "https://dofbasen.dk/opslag/sudata.php" if klass == "SU" else "https://dofbasen.dk/opslag/subdata.php"
     ids = reference.parse_status_list(decode(await _get(client, url)))
     async with ObsSession() as s:
-        n = await reference.apply_status(s, klass, ids)
-    return {"klass": klass, "species": n}
+        return await reference.apply_status(s, klass, ids)
+
+
+async def job_artdata(client: httpx.AsyncClient, p: dict) -> dict:
+    """Artslisten (natkørslen). Arter, hvis klassifikation ændrer sig, får kategorien regnet igen (dof/newspecies.py)."""
+    kind = p.get("list", "art")
+    before = await newspecies.klass_snapshot()
+    n = await _artdata(client, kind)
+    return {"list": kind, "species": n, "reclassified": await newspecies.reclassify(await newspecies.changed_since(before))}
+
+
+async def job_status(client: httpx.AsyncClient, p: dict) -> dict:
+    """SU- eller SUB-listen. Arter, der er kommet på listen, får kategorien regnet igen for alle deres observationer."""
+    klass = p["klass"]
+    before = await newspecies.klass_snapshot()
+    n = await _status(client, klass)
+    return {"klass": klass, "species": n, "reclassified": await newspecies.reclassify(await newspecies.changed_since(before))}
+
+
+async def job_new_species(client: httpx.AsyncClient, p: dict) -> dict:
+    """Nye arter (opslagsbanen – udføres straks): artsliste og SU/SUB-status hentes, og arternes observationer får
+    kategorien regnet igen med det samme. Også andre arter, hvis klassifikation ændrede sig, regnes igen."""
+    before = await newspecies.klass_snapshot()
+    for kind in p.get("lists") or ["art"]:
+        await _artdata(client, kind)
+    for klass in ("SU", "SUB"):
+        await _status(client, klass)
+    artnrs = set(p["artnrs"]) | await newspecies.changed_since(before)
+    return await newspecies.reclassify(artnrs)
 
 
 async def job_bemaerk(client: httpx.AsyncClient, p: dict) -> dict:
@@ -370,6 +396,7 @@ HANDLERS = {
     "media_day": job_media_day,
     "artdata": job_artdata,
     "status": job_status,
+    "new_species": job_new_species,
     "bemaerk": job_bemaerk,
     "wsdata": job_wsdata,
 }

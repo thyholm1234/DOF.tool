@@ -5,6 +5,7 @@ Bruges af både live-hentning, månedshentning og arkivimport, så alle moduler 
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timezone
 
@@ -24,6 +25,17 @@ class IngestResult:
     deleted_obsids: list[int] = field(default_factory=list)
     unknown_species: set[int] = field(default_factory=set)
     observers: set[str] = field(default_factory=set)
+
+
+def guess_art_type(navn: str) -> str:
+    """Foreløbig type for en art, DOFbasen-artslisten endnu ikke har givet os (rettes, når artdata hentes):
+    hybrid («X x Y»), ubestemt («sp.», «X/Y»), underart («Art (ssp. …)») eller art."""
+    n = navn.lower()
+    if " x " in n or "hybrid" in n:
+        return "hybrid"
+    if re.search(r"\bsp\.", n) or "/" in n or "ubestemt" in n:
+        return "ub"
+    return "underart" if "(" in n else "art"
 
 
 async def _apg(session: AsyncSession):
@@ -87,7 +99,8 @@ async def ingest(
         if r.sortering is not None:
             sorting[r.artnr] = r.sortering
         if r.artnr not in clf.klass_by_artnr:
-            species[r.artnr] = (r.artnr, r.artnavn or f"Art {r.artnr}", r.latin, r.sortering)
+            navn = r.artnavn or f"Art {r.artnr}"
+            species[r.artnr] = (r.artnr, navn, r.latin, r.sortering, guess_art_type(navn))
         kategori = clf.kategori(r.artnr, r.artnavn, r.dato, r.antal, afd_ids)
         first_seen = datetime.combine(r.dato, time(12), tzinfo=timezone.utc) if mode in ("archive", "full") else now
         obs_records.append((
@@ -159,7 +172,7 @@ async def ingest(
     if species:
         await apg.executemany(
             """INSERT INTO species (artnr, navn, latin, sortering, klass, art_type, list_artnr, excluded)
-               VALUES ($1, $2, $3, $4, 'Alm', 'art', NULL, false) ON CONFLICT (artnr) DO NOTHING""",
+               VALUES ($1, $2, $3, $4, 'Alm', $5, NULL, false) ON CONFLICT (artnr) DO NOTHING""",
             list(species.values()),
         )
         result.unknown_species = set(species)
