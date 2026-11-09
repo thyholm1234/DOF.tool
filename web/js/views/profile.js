@@ -132,8 +132,10 @@ export async function render(view) {
           await forgetUser();
           location.hash = "#/"; location.reload();
         } }, "Slet min konto") : null)));
+  const acctBox = h("div", { class: "card mt2 stack" });
   const pkBox = h("div", { class: "card mt2 stack" });
-  view.append(pkBox);
+  view.append(acctBox, pkBox);
+  if (!state.user.view_as) accountCard(acctBox); else acctBox.remove();
   passkeys(pkBox);
   // API-nøgler til showcase-modulerne: en administrator giver adgang, brugeren laver selv sine nøgler
   for (const [mod, label] of [["dofbasen", "DOFbasen"], ["netfugl", "Netfugl"]]) {
@@ -145,7 +147,54 @@ export async function render(view) {
   if (location.hash.includes("matrikler")) location.hash = "#/matrikel?tab=matrikler";
 }
 
-/** Passkeys: log ind med Face ID, fingeraftryk eller skærmlås i stedet for DOFbasen-adgangskoden. */
+/** Konto og login: e-mail og adgangskode til DOF.tool-kontoen (server/portal/services/konto.py). */
+function accountCard(box) {
+  const u = state.user;
+  const pwField = (label, ac) => { const i = h("input", { type: "password", autocomplete: ac, maxlength: 200 }); return [i, h("label", { class: "field" }, h("span", {}, label), i)]; };
+  const msg = h("div", {});
+  const show = (text, ok) => msg.replaceChildren(h("div", { class: `notice${ok ? "" : " err"}` }, text));
+
+  const [cur, curL] = pwField("Nuværende adgangskode", "current-password");
+  const [nw, nwL] = pwField("Ny adgangskode (mindst 10 tegn)", "new-password");
+  const [nw2, nw2L] = pwField("Gentag ny adgangskode", "new-password");
+  const pwForm = h("form", { class: "stack hide", onsubmit: async (e) => {
+    e.preventDefault();
+    if (nw.value !== nw2.value) return show("De to nye adgangskoder er ikke ens.");
+    try {
+      await api("/api/me/password", { method: "POST", body: { current: cur.value, new: nw.value } });
+      pwForm.reset(); pwForm.classList.add("hide");
+      show("Adgangskoden er skiftet. Dine andre enheder er logget ud.", true);
+    } catch (err) { show(err.message); }
+  } }, curL, nwL, nw2L, h("div", { class: "row" }, h("button", { class: "btn primary" }, "Skift adgangskode"),
+    h("button", { type: "button", class: "btn ghost", onclick: () => pwForm.classList.add("hide") }, "Annullér")));
+
+  const mail = h("input", { type: "email", autocomplete: "email", maxlength: 254, value: u.email || "" });
+  const [mcur, mcurL] = pwField("Din adgangskode", "current-password");
+  const mailForm = h("form", { class: "stack hide", onsubmit: async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api("/api/me/email", { method: "POST", body: { current: mcur.value, email: mail.value.trim() } });
+      state.user.email = r.user.email; mailVal.textContent = r.user.email;
+      mcur.value = ""; mailForm.classList.add("hide");
+      show("E-mailadressen er ændret.", true);
+    } catch (err) { show(err.message); }
+  } }, h("label", { class: "field" }, h("span", {}, "Ny e-mailadresse"), mail), mcurL,
+    h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem e-mail"),
+      h("button", { type: "button", class: "btn ghost", onclick: () => mailForm.classList.add("hide") }, "Annullér")));
+
+  const mailVal = h("b", {}, u.email || "–");
+  box.replaceChildren(h("h3", { style: { margin: 0 } }, "Konto og login"),
+    h("dl", { class: "account-facts" },
+      h("dt", {}, "Obserkode"), h("dd", {}, h("b", {}, u.obserkode), h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Bekræftet hos DOFbasen, da kontoen blev oprettet" }, "bundet")),
+      h("dt", {}, "E-mail"), h("dd", {}, mailVal)),
+    h("p", { class: "muted", style: { margin: 0 } }, "Du logger ind med e-mail eller obserkode og din DOF.tool-adgangskode. Har du glemt den, kan du vælge en ny ved at bekræfte obserkoden hos DOFbasen igen."),
+    h("div", { class: "row" },
+      h("button", { type: "button", class: "btn", onclick: () => { mailForm.classList.add("hide"); pwForm.classList.toggle("hide"); cur.focus(); } }, "Skift adgangskode"),
+      h("button", { type: "button", class: "btn ghost", onclick: () => { pwForm.classList.add("hide"); mailForm.classList.toggle("hide"); mail.focus(); } }, "Skift e-mail")),
+    pwForm, mailForm, msg);
+}
+
+/** Passkeys: log ind med Face ID, fingeraftryk eller skærmlås i stedet for adgangskoden. */
 async function passkeys(box) {
   let d;
   try { d = await api("/api/me/passkeys"); } catch (err) { box.replaceChildren(h("h3", {}, "Passkeys"), h("p", { class: "muted" }, err.message)); return; }
@@ -156,14 +205,13 @@ async function passkeys(box) {
     catch (err) { toast(err.message, "err"); add.disabled = false; }
   } }, "Opret passkey på denne enhed");
   box.replaceChildren(h("h3", { style: { margin: 0 } }, "Passkeys"),
-    h("p", { class: "muted", style: { margin: 0 } }, "Med en passkey logger du ind med Face ID, fingeraftryk eller skærmlås – uden DOFbasen-adgangskoden. ",
-      "Nøglen bliver på din enhed; portalen gemmer kun den offentlige del. En passkey kan kun oprettes inden for 15 minutter efter et login, ",
-      "og hvert halve år skal du logge ind med DOFbasen-adgangskoden én gang, så vi ved, at obserkoden stadig er gyldig."),
+    h("p", { class: "muted", style: { margin: 0 } }, "Med en passkey logger du ind med Face ID, fingeraftryk eller skærmlås – uden adgangskode. ",
+      "Nøglen bliver på din enhed; portalen gemmer kun den offentlige del. En passkey kan kun oprettes inden for 15 minutter efter et login."),
     passkey.supported() ? null : h("p", { class: "notice" }, "Denne browser eller app understøtter ikke passkeys."),
     d.passkeys.length ? h("ul", { class: "stack", style: { margin: 0, paddingLeft: "1.1em" } }, ...d.passkeys.map(p => h("li", { class: "row between" },
       h("span", {}, p.name),
       h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => {
-        if (!confirm(`Slet passkeyen "${p.name}"? Du kan stadig logge ind med DOFbasen-adgangskoden.`)) return;
+        if (!confirm(`Slet passkeyen "${p.name}"? Du kan stadig logge ind med din adgangskode.`)) return;
         try { await api(`/api/me/passkeys/${p.id}`, { method: "DELETE" }); toast("Passkeyen er slettet"); passkeys(box); }
         catch (err) { toast(err.message, "err"); }
       } }, "Slet")))) : h("p", { style: { margin: 0 } }, "Du har ingen passkeys endnu."),

@@ -146,19 +146,33 @@
   Filerne flyttes over én gang med <code>tools/minio-to-rustfs.sh</code>. Appen taler almindelig S3, så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan overtage ved at ændre
   <code>S3_ENDPOINT</code>, <code>S3_ACCESS_KEY</code>, <code>S3_SECRET_KEY</code> og <code>S3_BUCKET</code>.</div>
 
-<h2>Login og passkeys</h2>
-<p>Første login sker med obserkode og DOFbasen-adgangskode (kontrolleret hos DOFbasen og ikke gemt). Det forbinder DOFbasen-brugeren
-  med kontoen. Derefter kan brugeren oprette en <b>passkey</b> (Face ID, fingeraftryk, skærmlås) og logge ind med obserkoden og
-  passkeyen alene. Alt går gennem api'ets egne endpoints (<code>/api/auth/passkey/*</code>, <code>/api/me/passkeys</code>); der åbnes
-  ingen fremmede vinduer, og browseren og appen ser aldrig Zitadel.</p>
+<h2>Konti, login og passkeys</h2>
+<p>Man logger ind med en <b>DOF.tool-konto</b>: e-mail eller obserkode og egen adgangskode (scrypt i <code>users.pw_hash</code>,
+  mindst 10 tegn) – eller en passkey. Kontoen bindes til obserkoden ved oprettelsen (<code>services/konto.py</code>):</p>
+<ol>
+  <li><code>POST /api/auth/konto/bekraeft</code>: obserkode + DOFbasen-adgangskode kontrolleres én gang hos DOFbasen gennem gatewayens
+    opslagsbane (adgangskoden ligger højst 3 min i køen og gemmes ikke – heller ikke som hash). Svaret er et engangsbevis, der kun
+    står som hash i Valkey (<code>konto:bind:&lt;sha256&gt;</code>, 20 min).</li>
+  <li><code>POST /api/auth/konto/opret</code>: navn, e-mail og adgangskode. Felterne kontrolleres, før beviset bruges (GETDEL).
+    Findes obserkoden i forvejen, beholdes brugerrækken med alle data. Alle brugerens tidligere sessioner og positionstokens
+    tilbagekaldes, og der startes en ny session.</li>
+  <li>Tilbud om passkey på enheden.</li>
+</ol>
+<p><i>Glemt adgangskode</i> er samme vej: den, der kan logge ind på DOFbasen med obserkoden, kan vælge en ny adgangskode. Portalen
+  sender ingen e-mails. Brugere fra før kontiene (kun obserkode, ingen <code>pw_hash</code>) får 409 ved login og sendes til
+  oprettelsen; ved overgangen blev alle sessioner, positionstokens og passkey-udfordringer slettet én gang (markøren
+  <code>accounts_logout_done</code> i <code>settings</code> tages atomisk). Profil → <i>Konto og login</i> skifter adgangskode
+  (<code>/api/me/password</code> – logger andre enheder ud) og e-mail (<code>/api/me/email</code>).</p>
+<p>En <b>passkey</b> (Face ID, fingeraftryk, skærmlås) kræver en konto. Alt går gennem api'ets egne endpoints
+  (<code>/api/auth/passkey/*</code>, <code>/api/me/passkeys</code>); der åbnes ingen fremmede vinduer, og browseren og appen ser
+  aldrig Zitadel.</p>
 <ul>
   <li><b>Zitadel</b> gemmer de offentlige nøgler og kontrollerer signatur, tæller og brugerbekræftelse. Api'et kalder den med
     servicekontoens token (<code>services/zitadel.py</code>). Brugeren oprettes i Zitadel ved første passkey med obserkoden som
     brugernavn; id'et står i <code>users.zitadel_id</code>.</li>
   <li><b>Api'ets egne kontroller</b> (<code>services/passkeys.py</code>): Zitadel kontrollerer ikke sidens oprindelse, så api'et
     kontrollerer selv <code>clientDataJSON</code> (type, origin = <code>PUBLIC_URL</code>, challenge), før svaret sendes videre.
-    Udfordringer ligger i Valkey i 3–5 minutter og bruges én gang. En passkey kan kun tilføjes inden for 15 minutter efter et login,
-    og login med passkey kræver en DOFbasen-bekræftelse inden for <code>PASSKEY_DOF_MAX_DAYS</code> (180 dage).</li>
+    Udfordringer ligger i Valkey i 3–5 minutter og bruges én gang. En passkey kan kun tilføjes inden for 15 minutter efter et login.</li>
   <li><b>Appen:</b> Android slår WebAuthn til i WebView'en (<code>androidx.webkit</code>), iOS har Associated Domains
     (<code>webcredentials:</code>). Serveren leverer <code>/.well-known/assetlinks.json</code> og
     <code>/.well-known/apple-app-site-association</code> ud fra <code>ANDROID_CERT_SHA256</code> og <code>IOS_TEAM_ID</code>.
@@ -216,9 +230,9 @@
 <h2>Sikkerhed</h2>
 <div class="cols">
 <ul>
-  <li><b>Login</b> kontrolleres hos DOFbasen ved hvert login med adgangskode; adgangskoden gemmes ikke. Passkeys: se
-    «Login og passkeys». Grænse for forsøg pr. IP og højst
-    30 pr. obserkode i timen.</li>
+  <li><b>Login</b> med DOF.tool-kontoens adgangskode (scrypt, eget salt; ukendt bruger koster samme tid). DOFbasen-adgangskoden
+    bruges kun til at binde kontoen og gemmes ikke. Se «Konti, login og passkeys». Højst 5 forsøg i minuttet pr. konto og pr. IP
+    og 30 pr. konto i timen; kontoen indgår kun som hash i tællernes nøgler.</li>
   <li><b>Sessioner</b> i Valkey (<code>sess:h:&lt;sha256 af cookien&gt;</code> – kun hashen gemmes), cookie <code>HttpOnly</code>, <code>SameSite=Lax</code>, altid
     <code>Secure</code> når <code>PUBLIC_URL</code> er https. Alle en brugers sessioner kan lukkes på én gang.
     Positionstokens gemmes også kun som hash.</li>

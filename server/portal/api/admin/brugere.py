@@ -41,10 +41,11 @@ router = APIRouter(prefix="/api", tags=["admin"])
 @router.get("/admin/users")
 async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
-        SELECT u.id, u.obserkode, u.navn, u.role, u.blocked, u.approved, u.is_test, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
+        SELECT u.id, u.obserkode, u.navn, u.email, (u.pw_hash IS NOT NULL OR u.is_test) AS account, u.role, u.blocked, u.approved,
+               u.is_test, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
                (SELECT count(*) FROM push_subscriptions p WHERE p.user_id = u.id) AS devices,
                (SELECT count(*) FROM alert_rules r WHERE r.user_id = u.id) AS rules
-        FROM users u WHERE (:q = '' OR u.obserkode ILIKE :like OR u.navn ILIKE :like)
+        FROM users u WHERE (:q = '' OR u.obserkode ILIKE :like OR u.navn ILIKE :like OR u.email ILIKE :like)
         ORDER BY u.approved, u.last_seen DESC NULLS LAST, u.created_at DESC LIMIT 300
     """), {"q": q, "like": f"%{q}%"})).mappings().all()
     out = []

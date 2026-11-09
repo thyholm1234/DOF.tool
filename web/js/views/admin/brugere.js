@@ -43,13 +43,14 @@ export async function users(body) {
         h("span", {}, h("b", {}, u.navn || u.obserkode), h("small", { class: "muted" }, ` ${u.obserkode} · oprettet ${ago(u.created_at)}`)),
         h("span", { class: "row", style: { gap: "6px" } },
           h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
-          h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Afvis og slet ${u.obserkode}? Personen kan søge igen ved at logge ind.`)) { try { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); toast("Afvist"); load(); } catch (err) { toast(err.message, "err"); } } } }, "Afvis"))))) : h("small", { class: "muted" }, "Ingen venter på godkendelse."));
+          h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Afvis og slet ${u.obserkode}? Personen kan søge igen ved at oprette en konto.`)) { try { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); toast("Afvist"); load(); } catch (err) { toast(err.message, "err"); } } } }, "Afvis"))))) : h("small", { class: "muted" }, "Ingen venter på godkendelse."));
     out.replaceChildren(h("table", { class: "data stack-sm", style: { "--cols": 3 } },
       h("thead", {}, h("tr", {}, h("th", {}, "Bruger"), h("th", {}, "Rolle"), h("th", {}, "Admin-moduler"), h("th", {}, "Sidst set"), h("th", { class: "right" }, "Enheder/regler"), h("th", {}))),
       h("tbody", {}, ...rows.map(u => h("tr", {},
         h("td", {}, h("b", {}, u.navn || u.obserkode), u.approved ? null : h("span", { class: "tag SUB", style: { marginLeft: "6px" } }, "afventer"),
           u.is_test ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Testbruger med lokal adgangskode" }, "test") : null,
-          h("div", { class: "muted" }, u.obserkode, u.blocked ? " · spærret" : "")),
+          u.account ? null : h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Har ikke oprettet en DOF.tool-konto endnu og kan ikke logge ind, før det sker" }, "ingen konto"),
+          h("div", { class: "muted" }, u.obserkode, u.email ? ` · ${u.email}` : "", u.blocked ? " · spærret" : "")),
         h("td", { class: "wide", "data-label": "Rolle" }, roleSelect(u, meta.role_names, load)),
         h("td", { "data-label": "Moduler" },
           h("span", { title: u.modules.map(m => meta.modules[m]).join("\n") || "Ingen" },

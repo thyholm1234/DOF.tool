@@ -24,7 +24,7 @@ from portal.services import storage
 
 log = logging.getLogger("portal.account")
 
-SECRET_COLUMNS = {"test_pw_hash", "token_hash"}
+SECRET_COLUMNS = {"test_pw_hash", "pw_hash", "token_hash"}
 SECRET_PREFS = {"ics_token"}
 
 

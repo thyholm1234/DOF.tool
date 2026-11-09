@@ -1,7 +1,7 @@
 """Login med passkey (Face ID, fingeraftryk, skærmlås) i stedet for DOFbasen-adgangskoden.
 
-Første gang logger brugeren ind med obserkode og DOFbasen-adgangskode – det forbinder DOFbasen-brugeren med kontoen. Derefter
-kan brugeren oprette en passkey og logge ind med den alene. Alt går gennem api'et; Zitadel (services/zitadel.py) gemmer de
+Brugeren opretter først en DOF.tool-konto (services/konto.py), der bindes til obserkoden med ét DOFbasen-login. Efter et
+login med kontoens adgangskode kan brugeren oprette en passkey og derefter logge ind med den alene. Alt går gennem api'et; Zitadel (services/zitadel.py) gemmer de
 offentlige nøgler og kontrollerer signaturerne, men ses aldrig af browseren eller appen.
 
 SIKKERHED:
@@ -9,26 +9,24 @@ SIKKERHED:
   kontrollerer api'et selv clientDataJSON (type, origin og challenge), før noget sendes videre (check_client_data).
 * En passkey kan kun tilføjes kort efter et login (FRESH_SECONDS), så en stjålet sessionscookie ikke kan omsættes til en
   varig adgang, der overlever «log ud overalt».
-* Login med passkey kræver, at obserkoden er bekræftet hos DOFbasen inden for passkey_dof_max_days; ellers ét DOFbasen-login,
-  så nedlagte DOFbasen-brugere ikke beholder adgangen for evigt.
+* Login med passkey kræver en DOF.tool-konto: brugere fra før kontiene (kun obserkode) skal oprette kontoen først.
 * Udfordringerne ligger i Valkey med kort levetid og bruges kun én gang (GETDEL)."""
 
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import secrets
-from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
 from portal.config import get_settings
 from portal.models import User
 from portal.services import zitadel
-from portal.services.auth import AuthError, normalize, session_key
+from portal.services.auth import AuthError, session_key
 
 LOGIN_TTL = 180
 REG_TTL = 300
@@ -97,22 +95,24 @@ async def is_fresh(token: str | None) -> bool:
 # ---------------------------------------------------------------- login
 
 
-NO_PASSKEY = "Der er ingen passkey for denne obserkode. Log ind med din DOFbasen-adgangskode, og opret en under Profil."
+NO_PASSKEY = "Der er ingen passkey for denne konto. Log ind med din adgangskode, og opret en under Profil."
 
 
-async def login_start(db: AsyncSession, obserkode: str, ip: str) -> dict:
-    kode = normalize(obserkode)
-    await _limit(f"pk:try:{kode}", f"pk:try:ip:{ip}")
-    user = (await db.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
+async def login_start(db: AsyncSession, ident: str, ip: str) -> dict:
+    from portal.services import konto
+
+    ident = (ident or "").strip()[:254]
+    if not ident:
+        raise AuthError("Skriv din e-mail eller obserkode", 400)
+    key = hashlib.sha256(ident.lower().encode()).hexdigest()[:32]
+    await _limit(f"pk:try:{key}", f"pk:try:ip:{ip}")
+    user = await konto.find_user(db, ident)
+    if user is not None and not konto.has_account(user) and not user.blocked:
+        raise AuthError(konto.NO_ACCOUNT, 409)
     if user is None or not user.zitadel_id:
         raise AuthError(NO_PASSKEY, 404)
     if user.blocked:
         raise AuthError("Brugeren er spærret", 403)
-    max_days = get_settings().passkey_dof_max_days
-    if not user.is_test and (user.dof_verified_at is None
-                             or datetime.now(timezone.utc) - user.dof_verified_at > timedelta(days=max_days)):
-        raise AuthError(f"Log ind med din DOFbasen-adgangskode én gang – det er over {max_days} dage siden, obserkoden sidst blev "
-                        "bekræftet hos DOFbasen. Derefter virker din passkey igen.", 403)
     try:
         s = await zitadel.start_session(user.zitadel_id, rp_id())
     except zitadel.ZitadelError as exc:

@@ -56,6 +56,15 @@ feedet (eller en alarmregel med området) gælder en radius, der følger brugere
 observationer, der ikke længere findes i DOFbasen, slettes – men kun når udtrækket rummer mindst 90 % af de kendte (ellers slettes intet).
 Højst én gang i timen; status og forventet ventetid vises på profilen (`GET/POST /api/me/sync`).
 
+**Konti og login** (`services/konto.py`, `views/login.js`). Man logger ind med en DOF.tool-konto: e-mail eller obserkode og
+egen adgangskode (scrypt i `users.pw_hash`, mindst 10 tegn) – eller en passkey. *Opret konto* er tre trin: (1) obserkoden
+bekræftes med ét DOFbasen-login, der giver et engangsbevis (20 min, kun som hash i Valkey); (2) navn, e-mail og adgangskode –
+kontoen bindes til obserkoden, og findes brugeren i forvejen, beholdes rækken med alle data; (3) tilbud om passkey. *Glemt
+adgangskode* er samme vej: den, der kan logge ind på DOFbasen med obserkoden, kan vælge en ny adgangskode. En ny eller skiftet
+adgangskode logger alle brugerens andre enheder ud. Portalen sender ingen e-mails. Brugere uden konto (fra før kontiene) får
+409 ved login og sendes til oprettelsen; overgangen loggede alle ud én gang (markøren `accounts_logout_done` i settings).
+Profil → *Konto og login* skifter adgangskode og e-mail; Admin → Brugere viser e-mail og mærket *ingen konto*.
+
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og
 adgangskoden vises kun ved oprettelse/nulstilling.

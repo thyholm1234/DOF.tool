@@ -17,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
-from portal.services import passkeys, zitadel
+from portal.services import konto, passkeys, zitadel
 from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
 from portal.services import dataset
@@ -26,8 +26,31 @@ router = APIRouter(prefix="/api", tags=["auth"])
 
 
 class LoginIn(BaseModel):
-    obserkode: str = Field(max_length=16)
+    login: str = Field("", max_length=254)  # e-mail eller obserkode
+    obserkode: str = Field("", max_length=16)  # ældre klienter (før kontiene) – de får besked om at oprette en konto
     password: str = Field(max_length=200)
+
+
+class VerifyIn(BaseModel):
+    obserkode: str = Field(max_length=16)
+    password: str = Field(max_length=200)  # DOFbasen-adgangskoden – sendes kun videre til DOFbasen
+
+
+class CompleteIn(BaseModel):
+    token: str = Field(max_length=64)
+    password: str = Field(max_length=konto.PW_MAX)
+    email: str | None = Field(None, max_length=254)
+    navn: str | None = Field(None, max_length=160)
+
+
+class PasswordIn(BaseModel):
+    current: str = Field(max_length=200)
+    new: str = Field(max_length=konto.PW_MAX)
+
+
+class EmailIn(BaseModel):
+    current: str = Field(max_length=200)
+    email: str = Field(max_length=254)
 
 
 # Indstillinger, superadmin ikke ser i «se som bruger»: positionsenheden og ICS-tokenet (giver adgang til kalenderen)
@@ -39,13 +62,39 @@ def user_out(user: User, view_as: bool = False) -> dict:
     if view_as:  # brugerens egen sag: hvilken enhed positionen følger (services/position_privacy.py) og kalendertokenet
         prefs = {k: v for k, v in prefs.items() if k not in VIEW_AS_HIDDEN_PREFS}
     return {"id": user.id, "obserkode": user.obserkode, "navn": user.navn, "role": user.role,
+            "email": None if view_as else user.email, "account": bool(user.pw_hash),
             "modules": sorted(auth.modules(user)), "prefs": prefs, "history_synced_at": user.history_synced_at}
 
 
 @router.post("/auth/login")
 async def login(body: LoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_session)):
+    """Login med DOF.tool-kontoen: e-mail eller obserkode + kontoens adgangskode (services/konto.py). 409 = obserkoden
+    har endnu ingen konto (brugeren sendes til oprettelsen)."""
     try:
-        user, new = await auth.login(db, body.obserkode, body.password, client_ip(request))
+        user = await konto.login(db, body.login or body.obserkode, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    await start_session(user, response)
+    if user.history_synced_at is None:
+        await enqueue_history(user.obserkode)
+    await activity.track(user.id, "login", None, {"new": False, "method": "password"})
+    return {"user": user_out(user), "new": False, "passkeys": passkeys_offer(user)}
+
+
+@router.post("/auth/konto/bekraeft")
+async def account_verify(body: VerifyIn, request: Request, db: AsyncSession = Depends(get_session)):
+    """Opret konto / glemt adgangskode, trin 1: obserkoden bekræftes med ét DOFbasen-login. Giver et engangsbevis til trin 2."""
+    try:
+        return await konto.verify(db, body.obserkode, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+
+
+@router.post("/auth/konto/opret")
+async def account_complete(body: CompleteIn, response: Response, db: AsyncSession = Depends(get_session)):
+    """Trin 2: kontoen oprettes (eller får ny adgangskode) og bindes til obserkoden fra trin 1. Tidligere sessioner logges ud."""
+    try:
+        user, new = await konto.complete(db, body.token, body.password, body.email, body.navn)
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
     await start_session(user, response)
@@ -53,8 +102,35 @@ async def login(body: LoginIn, request: Request, response: Response, db: AsyncSe
         await enqueue_history(user.obserkode)
     if new:
         await bump("lists")
-    await activity.track(user.id, "login", None, {"new": new})
+    await activity.track(user.id, "account", None, {"new": new})
     return {"user": user_out(user), "new": new, "passkeys": passkeys_offer(user)}
+
+
+@router.post("/me/password")
+async def change_password(body: PasswordIn, request: Request, response: Response, user: User = Depends(require_user),
+                          db: AsyncSession = Depends(get_session)):
+    """Skift adgangskode. Alle andre enheder logges ud; denne får en ny session."""
+    if getattr(request.state, "view_as", None):
+        raise HTTPException(403, "Ikke i «se som bruger»")
+    try:
+        await konto.change_password(db, user, body.current, body.new, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    await start_session(user, response)
+    await activity.track(user.id, "password_change", None, {})
+    return {"ok": True}
+
+
+@router.post("/me/email")
+async def change_email(body: EmailIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    if getattr(request.state, "view_as", None):
+        raise HTTPException(403, "Ikke i «se som bruger»")
+    try:
+        await konto.change_email(db, user, body.current, body.email, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    await activity.track(user.id, "email_change", None, {})
+    return {"user": user_out(user)}
 
 
 async def start_session(user: User, response: Response) -> None:
@@ -90,7 +166,8 @@ class Credential(BaseModel):
 
 
 class PasskeyStartIn(BaseModel):
-    obserkode: str = Field(max_length=16)
+    login: str = Field("", max_length=254)  # e-mail eller obserkode
+    obserkode: str = Field("", max_length=16)  # ældre klienter
 
 
 class PasskeyFinishIn(BaseModel):
@@ -110,7 +187,7 @@ def _auth_error(exc: auth.AuthError) -> HTTPException:
 @router.post("/auth/passkey/start")
 async def passkey_login_start(body: PasskeyStartIn, request: Request, db: AsyncSession = Depends(get_session)):
     try:
-        return await passkeys.login_start(db, body.obserkode, client_ip(request))
+        return await passkeys.login_start(db, body.login or body.obserkode, client_ip(request))
     except auth.AuthError as exc:
         raise _auth_error(exc) from exc
 

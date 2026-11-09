@@ -58,9 +58,9 @@ from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
 from portal.config import get_settings
-from portal.db import router
+from portal.db import SessionLocal, router
 from portal.dbgroups import GROUPS
-from portal.services import article_settings, position_privacy, storage, view_as
+from portal.services import article_settings, konto, position_privacy, storage, view_as
 from portal.services.auth import AuthError, purge_legacy_sessions, session_user_id
 
 # Containerens mimetypes kender ikke woff2 – skrifterne i web/vendor skal have deres rigtige type
@@ -77,6 +77,9 @@ async def lifespan(_: FastAPI):
     await storage.init()
     if n := await purge_legacy_sessions():
         logging.getLogger("portal.auth").info("Slettede %s sessioner fra før hashingen (klartekst-tokens)", n)
+    async with SessionLocal() as db:  # overgangen til DOF.tool-konti: alle med et obserkode-login logges ud én gang
+        if n := await konto.logout_everyone_once(db):
+            logging.getLogger("portal.auth").info("DOF.tool-konti: alle logget ud (%s nøgler slettet)", n)
     yield
     await router.stop()
 

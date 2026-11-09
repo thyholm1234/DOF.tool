@@ -72,7 +72,8 @@ class DB:
 
 
 def user(**kw):
-    base = dict(id=7, obserkode="ABC", navn="A B", zitadel_id="z7", blocked=False, approved=True, is_test=False,
+    base = dict(id=7, obserkode="ABC", navn="A B", zitadel_id="z7", blocked=False, approved=True, is_test=False, pw_hash="scrypt$x$y",
+                test_pw_hash=None, email="a@b.dk",
                 dof_verified_at=datetime.now(timezone.utc))
     return SimpleNamespace(**{**base, **kw})
 
@@ -119,13 +120,27 @@ async def test_login_start_kraever_forbundet_passkey(pk):
 
 
 @pytest.mark.asyncio
-async def test_login_start_kraever_nylig_dofbasen_bekraeftelse(pk):
+async def test_login_start_kraever_dof_tool_konto(pk):
+    """Brugere fra før kontiene (kun obserkode) kan ikke omgå oprettelsen med en passkey fra dengang."""
     from portal.services.auth import AuthError
 
-    old = user(dof_verified_at=datetime.now(timezone.utc) - timedelta(days=400))
     with pytest.raises(AuthError) as e:
-        await pk.login_start(DB(old), "abc", "1.2.3.4")
-    assert e.value.status == 403 and "DOFbasen" in str(e.value)
+        await pk.login_start(DB(user(pw_hash=None)), "abc", "1.2.3.4")
+    assert e.value.status == 409 and "konto" in str(e.value)
+
+
+@pytest.mark.asyncio
+async def test_login_start_kraever_ikke_ny_dofbasen_bekraeftelse(pk, monkeypatch):
+    """Kontoen afløser det halvårlige DOFbasen-login: en gammel bekræftelse stopper ikke længere en passkey."""
+    from portal.services import zitadel
+
+    async def start(zid, domain):
+        return {"sessionId": "s1", "challenges": {"webAuthN": {"publicKeyCredentialRequestOptions": {"publicKey": {
+            "challenge": "c", "allowCredentials": [{"id": "k", "type": "public-key"}]}}}}}
+
+    monkeypatch.setattr(zitadel, "start_session", start)
+    old = user(dof_verified_at=datetime.now(timezone.utc) - timedelta(days=400))
+    assert (await pk.login_start(DB(old), "abc", "1.2.3.4"))["token"]
 
 
 @pytest.mark.asyncio

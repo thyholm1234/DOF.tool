@@ -166,4 +166,9 @@ EXTRA_DDL = [
     # Passkeys: brugerens id i Zitadel (services/passkeys.py)
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS zitadel_id varchar(32)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_zitadel_id ON users (zitadel_id)",
+    # DOF.tool-konti (services/konto.py): e-mail (unik uden hensyn til store/små bogstaver) og egen adgangskode
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS email varchar(254)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS pw_hash varchar(200)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS account_at timestamptz",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email ON users (lower(email)) WHERE email IS NOT NULL",
 ]

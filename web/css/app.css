@@ -1169,3 +1169,40 @@ tr.click { cursor: pointer; }
 
 /* Kort: lille besked i hjørnet (fx «zoom ind for at se lokaliteternes grænser») */
 .map-hint { background: var(--surface, #fff); color: var(--text-2, #444); padding: 3px 8px; border-radius: 6px; font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+/* Login og oprettelse af konto (views/login.js) */
+.auth-card { gap: 14px; }
+.linkbtn { background: none; border: 0; padding: 0; font: inherit; font-size: .85rem; color: var(--brand); cursor: pointer; text-align: left; }
+.linkbtn:hover { text-decoration: underline; }
+.auth-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; counter-reset: none; }
+.auth-steps li { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: .74rem; color: var(--text-3); text-align: center; position: relative; }
+.auth-steps li + li::before { content: ""; position: absolute; top: 13px; right: calc(50% + 18px); width: calc(100% - 36px + 6px); height: 2px; background: var(--line, var(--bg-2)); }
+.auth-steps li.done + li::before { background: var(--brand-2); }
+.auth-steps li.on { color: var(--text); font-weight: 700; }
+.auth-steps li.done { color: var(--brand); }
+.auth-dot { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; flex: none; background: var(--bg-2); color: var(--text-2);
+  font-weight: 750; font-size: .82rem; }
+.auth-dot svg { width: 16px; height: 16px; stroke-width: 2.6; }
+.auth-steps li.on .auth-dot { background: var(--brand); color: var(--brand-ink); }
+.auth-dot.done, .auth-steps li.done .auth-dot { background: var(--brand-soft); color: var(--brand); }
+.auth-dot.big { width: 44px; height: 44px; }
+.auth-dot.big svg { width: 24px; height: 24px; }
+.auth-hello { display: flex; align-items: center; gap: 12px; }
+.auth-bound { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--brand-soft); }
+.auth-why { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--bg-2); }
+.auth-why > span { flex: none; color: var(--brand); }
+.auth-why svg { width: 20px; height: 20px; }
+.auth-why p { margin: 0; font-size: .84rem; color: var(--text-2); }
+.auth-or { display: flex; align-items: center; gap: 10px; color: var(--text-3); font-size: .8rem; }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--line, var(--bg-2)); }
+.auth-new { gap: 10px; padding-top: 14px; border-top: 1px solid var(--line, var(--bg-2)); }
+.auth-card .field > .auth-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.auth-card .field > .auth-label .linkbtn { font-weight: 600; }
+.auth-rules { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 4px; font-size: .82rem; color: var(--text-3); }
+.auth-rules li { display: flex; align-items: center; gap: 8px; }
+.auth-rules li.ok { color: var(--brand); }
+.auth-tick { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid currentColor; flex: none; }
+.auth-tick svg { width: 11px; height: 11px; stroke-width: 3; }
+.auth-rules li.ok .auth-tick { background: var(--brand-soft); border-color: transparent; }
+.account-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+.account-facts dt { color: var(--text-3); }
+.account-facts dd { margin: 0; display: flex; align-items: center; min-width: 0; overflow-wrap: anywhere; }

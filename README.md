@@ -38,8 +38,9 @@ Live-feed med tråde og alarmer · indtastning i felten med GPS, tale og offline
 ## Hvad er DOF.tool?
 
 DOF.tool samler de tidligere apps **DOF.not**, **Boligbirding/Fugleliga** og **Trækfugl** i én PWA med fælles login og
-fælles database – og bygger videre med indtastning i felten, alarmer, læring og planlægning. Login sker med
-DOFbasen-obserkoden; portalen gemmer aldrig adgangskoder.
+fælles database – og bygger videre med indtastning i felten, alarmer, læring og planlægning. Login sker med en
+DOF.tool-konto (e-mail eller obserkode + egen adgangskode, eller passkey), der ved oprettelsen bindes til obserkoden med ét
+DOFbasen-login. DOFbasen-adgangskoden gemmes aldrig.
 
 | Tidligere app | I DOF.tool |
 |---|---|
@@ -146,8 +147,8 @@ docker compose up -d --build
 ```
 
 Åbn `http://localhost:8090`. Første opstart indlæser referencedata, importerer DOFbasen-arkivet (≈ 30 mio. observationer,
-ca. en halv time) og starter live-hentningen. Superadmin sættes med `SUPERADMIN_OBSERKODE` og logger ind med sin
-DOFbasen-adgangskode.
+ca. en halv time) og starter live-hentningen. Superadmin sættes med `SUPERADMIN_OBSERKODE` og opretter sin konto
+under *Opret konto* på forsiden som alle andre.
 
 Opsætning af push, databaser og replikaer, objektlager og gatewayen til dofbasen.dk står i
 **[docs/drift.md](docs/drift.md)**. Appen bygges som beskrevet i [app/README.md](app/README.md).

@@ -15,7 +15,7 @@ from portal.api.share import _page
 from portal.config import get_settings
 
 router = APIRouter(include_in_schema=False)
-VERSION = "24. oktober 2026"
+VERSION = "9. november 2026"
 
 
 def _section(title: str, *paras: str) -> str:
@@ -34,7 +34,8 @@ async def privacy() -> HTMLResponse:
         <p>Dataansvarlig: {who}. Kontakt: {mail}. Gældende fra {VERSION}.</p></section>""",
         _section("Hvilke oplysninger",
             """<ul>
-            <li><b>Din konto:</b> obserkode og navn fra DOFbasen, rolle, dine indstillinger (afdelinger, kommuner, notifikationer,
+            <li><b>Din konto:</b> e-mailadresse, din DOF.tool-adgangskode (kun som en envejs-hash, scrypt – den kan ikke læses
+            tilbage), obserkode og navn fra DOFbasen, rolle, dine indstillinger (afdelinger, kommuner, notifikationer,
             tema) og – hvis du selv skriver det – et telefonnummer. Tidspunkt for oprettelse og seneste besøg.</li>
             <li><b>Det du laver i portalen:</b> feltmeldinger med fotos og lyd, ture, kommentarer, likes, statusmeldinger,
             kalenderbesøg, lister, grupper, matrikler, områder og alarmregler, Netfugl-fotos, -artikler og -kommentarer,
@@ -65,8 +66,9 @@ async def privacy() -> HTMLResponse:
             </ul><p>Der træffes ingen automatiske afgørelser om dig.</p>"""),
         _section("Hvem modtager oplysningerne",
             """<ul>
-            <li><b>DOF / DOFbasen:</b> dit login kontrolleres hos DOFbasen. Adgangskoden sendes videre og gemmes ikke i
-            DOF.tool.</li>
+            <li><b>DOF / DOFbasen:</b> når du opretter din konto eller vælger en ny adgangskode, bekræfter vi én gang hos
+            DOFbasen, at obserkoden er din. DOFbasen-adgangskoden sendes kun videre til DOFbasen og gemmes ikke i DOF.tool –
+            heller ikke som hash. DOF.tool sender ikke e-mails til dig.</li>
             <li><b>Andre brugere</b> ser det, du selv offentliggør (kommentarer, fotos, feltmeldinger og – medmindre du fravælger
             det – dine lister og placeringer samt din observatørside med tal og fund fra dine DOFbasen-observationer, uden
             hemmelige observationer).</li>

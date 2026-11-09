@@ -1,8 +1,8 @@
-"""Fælles login med DOFbasen-obserkode.
+"""Sessioner, roller og rettigheder – og bindingen til DOFbasen.
 
-Hvert login verificeres hos DOFbasen (gatewayens opslagsbane – uden minimumsinterval). Portalen gemmer intet om
-adgangskoden, heller ikke en hash; i gateway-køen ligger den højst 3 minutter. Højst LOGIN_PER_MIN forsøg i minuttet
-pr. obserkode og pr. IP.
+Login sker med en DOF.tool-konto (e-mail eller obserkode + egen adgangskode, se services/konto.py). Kontoen bindes til
+obserkoden ved oprettelsen med ét DOFbasen-login (verify_dofbasen); DOFbasen-adgangskoden gemmes aldrig, heller ikke som
+hash. Højst LOGIN_PER_MIN forsøg i minuttet pr. konto og pr. IP og LOGIN_PER_HOUR i timen pr. konto.
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ def normalize(kode: str) -> str:
 
 
 async def ensure_superadmin(session: AsyncSession) -> None:
-    """Superadmin er obserkoden fra .env. Den logger ind via DOFbasen som alle andre."""
+    """Superadmin er obserkoden fra .env. Den opretter sin DOF.tool-konto som alle andre (services/konto.py)."""
     s = get_settings()
     if not s.superadmin_obserkode:
         return
@@ -125,13 +125,14 @@ async def ensure_superadmin(session: AsyncSession) -> None:
     await session.commit()
 
 
-async def _rate_limit(kode: str, ip: str) -> None:
-    """Hvert forsøg tæller (det giver et kald til DOFbasen): højst LOGIN_PER_MIN i minuttet pr. obserkode og pr. IP og
-    højst LOGIN_PER_HOUR i timen pr. obserkode."""
+async def rate_limit(ident: str, ip: str, prefix: str = "login") -> None:
+    """Hvert forsøg tæller: højst LOGIN_PER_MIN i minuttet pr. konto og pr. IP og højst LOGIN_PER_HOUR i timen pr. konto.
+    ident indgår kun som hash i nøglen (det kan være en e-mailadresse)."""
     r = kv()
-    for key, limit, ttl, msg in ((f"login:try:{kode}", LOGIN_PER_MIN, 60, "Prøv igen om et minut."),
-                                 (f"login:try:ip:{ip}", LOGIN_PER_MIN, 60, "Prøv igen om et minut."),
-                                 (f"login:try:h:{kode}", LOGIN_PER_HOUR, 3600, "Prøv igen om en time.")):
+    ident = hashlib.sha256(ident.encode()).hexdigest()[:32]
+    for key, limit, ttl, msg in ((f"{prefix}:try:{ident}", LOGIN_PER_MIN, 60, "Prøv igen om et minut."),
+                                 (f"{prefix}:try:ip:{ip}", LOGIN_PER_MIN, 60, "Prøv igen om et minut."),
+                                 (f"{prefix}:try:h:{ident}", LOGIN_PER_HOUR, 3600, "Prøv igen om en time.")):
         n = await r.incr(key)
         if n == 1:
             await r.expire(key, ttl)
@@ -139,21 +140,26 @@ async def _rate_limit(kode: str, ip: str) -> None:
             raise AuthError(f"For mange forsøg. {msg}", 429)
 
 
-def hash_test_password(password: str) -> str:
-    """Testbrugeres lokale adgangskode (scrypt). Gælder kun brugere oprettet af en administrator – rigtige brugere har
-    aldrig en adgangskode i portalen."""
+def hash_password(password: str) -> str:
+    """DOF.tool-adgangskoder (konti og testbrugere) gemmes som scrypt med eget salt."""
     salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
     return f"scrypt${salt.hex()}${digest.hex()}"
 
 
-def check_test_password(stored: str | None, password: str) -> bool:
+hash_test_password = hash_password
+
+
+def check_password(stored: str | None, password: str) -> bool:
     try:
         _, salt, digest = (stored or "").split("$")
         probe = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1)
         return hmac.compare_digest(probe, bytes.fromhex(digest))
     except ValueError:
         return False
+
+
+check_test_password = check_password
 
 
 async def create_test_user(session: AsyncSession, navn: str, password: str | None = None) -> tuple[User, str]:
@@ -186,25 +192,11 @@ async def staff_ids(session: AsyncSession, module: str) -> list[int]:
     return [u.id for u in rows if module in modules(u)]
 
 
-async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -> tuple[User, bool]:
-    """Returnerer (bruger, ny_bruger). Er godkendelse slået til, oprettes en ny bruger som afventende, når koden er
-    gyldig hos DOFbasen – men får ingen session, før en administrator har godkendt kontoen."""
-    kode = normalize(obserkode)
-    if not password:
-        raise AuthError("Adgangskode mangler", 400)
-    await _rate_limit(kode, ip)
-    user = (await session.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
-    if user and user.blocked:
-        raise AuthError("Brugeren er spærret", 403)
-    if user and user.is_test:  # testbruger: lokal adgangskode, intet kald til DOFbasen
-        if not check_test_password(user.test_pw_hash, password):
-            raise AuthError("Forkert obserkode eller adgangskode")
-        user.dof_verified_at = datetime.now(timezone.utc)
-        await session.commit()
-        return user, False
-
-    # Verificér hos DOFbasen (opslagsbanen: med det samme, uden at vente på minimumsintervallet)
-    job_id = await gateway.enqueue("login", {"obserkode": kode}, priority=gateway.INTERACTIVE,
+async def verify_dofbasen(obserkode: str, password: str) -> None:
+    """Kontrollér obserkode og DOFbasen-adgangskode hos DOFbasen (gatewayens opslagsbane – med det samme, uden at vente på
+    minimumsintervallet). Bruges kun, når en DOF.tool-konto bindes til obserkoden (services/konto.py). Adgangskoden ligger
+    højst 3 minutter i gateway-køen og gemmes ingen steder."""
+    job_id = await gateway.enqueue("login", {"obserkode": obserkode}, priority=gateway.INTERACTIVE,
                                    secret={"password": password})
     result = await gateway.wait_result(job_id, timeout=60)
     if result is None:
@@ -213,44 +205,22 @@ async def login(session: AsyncSession, obserkode: str, password: str, ip: str) -
     if not result.get("ok"):
         raise AuthError("DOFbasen kunne ikke nås. Prøv igen om lidt.", 503)
     if not (result.get("result") or {}).get("valid"):
-        raise AuthError("Forkert obserkode eller adgangskode (tjekket hos DOFbasen)")
-
-    new = user is None
-    navn = None
-    if new or user.navn in (None, "", user.obserkode):
-        navn = (await session.execute(text(
-            "SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = :k"),
-            {"k": kode})).scalar()
-    if new:
-        user = User(obserkode=kode, navn=navn or kode, role="user", approved=not await approval_required(session),
-                    prefs={"lists_public": True, "push_enabled": True, "afdelinger": [], "kommuner": []})
-        session.add(user)
-    elif navn:
-        user.navn = navn
-    user.dof_verified_at = datetime.now(timezone.utc)
-    await session.commit()
-    await session.refresh(user)
-    try:  # fotografer matchet på obserkode kobles til brugeren (fotomodulet); må aldrig vælte et login
-        from portal.services import photo_photographers
-
-        await photo_photographers.claim_by_obserkode(session, user)
-        await session.commit()
-    except Exception:  # noqa: BLE001
-        await session.rollback()
-    if not user.approved:
-        if new:
-            await _notify_pending(session, user)
-        raise AuthError(PENDING_MSG, 403)
-    return user, new
+        raise AuthError("Forkert obserkode eller DOFbasen-adgangskode (tjekket hos DOFbasen)")
 
 
-async def _notify_pending(session: AsyncSession, user: User) -> None:
+async def observer_name(session: AsyncSession, kode: str) -> str | None:
+    return (await session.execute(text(
+        "SELECT trim(coalesce(fornavn,'') || ' ' || coalesce(efternavn,'')) FROM observers WHERE obserkode = :k"),
+        {"k": kode})).scalar() or None
+
+
+async def notify_pending(session: AsyncSession, user: User) -> None:
     """Giv dem, der styrer brugere, besked om en ny bruger der venter på godkendelse."""
     from portal.api.social import _notify  # her for at undgå cirkulær import
 
     ids = await staff_ids(session, "brugere")
     if ids:
-        await _notify(ids, "Ny bruger afventer godkendelse", f"{user.navn or user.obserkode} ({user.obserkode}) har logget ind med en gyldig DOFbasen-kode.",
+        await _notify(ids, "Ny bruger afventer godkendelse", f"{user.navn or user.obserkode} ({user.obserkode}) har oprettet en konto med en gyldig DOFbasen-kode.",
                       "/#/admin?tab=brugere", f"pending:{user.id}")
 
 

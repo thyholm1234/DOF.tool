@@ -120,9 +120,11 @@ async def test_destroy_sessions_sletter_hashede(fake_kv):
 async def test_loginloft_pr_time_gaelder_uanset_ip(fake_kv):
     from portal.services import auth
 
-    fake_kv.data["login:try:h:ABC1"] = auth.LOGIN_PER_HOUR
+    import hashlib
+
+    fake_kv.data["login:try:h:" + hashlib.sha256(b"ABC1").hexdigest()[:32]] = auth.LOGIN_PER_HOUR
     with pytest.raises(auth.AuthError) as exc:
-        await auth._rate_limit("ABC1", "10.9.8.7")  # ny IP og intet minuttal – timeloftet stopper alligevel
+        await auth.rate_limit("ABC1", "10.9.8.7")  # ny IP og intet minuttal – timeloftet stopper alligevel
     assert exc.value.status == 429
 
 
@@ -130,9 +132,9 @@ async def test_loginloft_pr_minut(fake_kv):
     from portal.services import auth
 
     for i in range(auth.LOGIN_PER_MIN):
-        await auth._rate_limit("ABC2", f"10.0.0.{i}")
+        await auth.rate_limit("ABC2", f"10.0.0.{i}")
     with pytest.raises(auth.AuthError):
-        await auth._rate_limit("ABC2", "10.0.0.99")
+        await auth.rate_limit("ABC2", "10.0.0.99")
 
 
 # ---------------------------------------------------------------- S-05: vagtens undtagelser er præcise

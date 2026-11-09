@@ -68,11 +68,9 @@ class Settings(BaseSettings):
     weather_dir: str = "/data/weather"  # midlertidige DMI-månedsfiler (≈0,5 GB, slettes efter parsing)
 
     # Passkeys (services/passkeys.py): Zitadel gemmer brugernes passkeys og kontrollerer signaturerne. Den er kun intern –
-    # browseren og appen taler alene med api'et. Tom ZITADEL_URL = passkeys slået fra (login kun med DOFbasen).
+    # browseren og appen taler alene med api'et. Tom ZITADEL_URL = passkeys slået fra (login kun med adgangskode).
     zitadel_url: str = ""  # fx http://zitadel:8080
     zitadel_pat_file: str = "/zitadel/pat.txt"  # servicekontoens token (skrives af Zitadel ved første start)
-    # Login med passkey kræver, at obserkoden er bekræftet hos DOFbasen inden for så mange dage (ellers ét DOFbasen-login)
-    passkey_dof_max_days: int = 180
     # Appens tilknytning til domænet (passkeys i appen): Androids signeringscertifikat (SHA-256, AA:BB:…) og Apples Team ID
     android_cert_sha256: str = ""
     ios_team_id: str = ""

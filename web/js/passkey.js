@@ -36,21 +36,22 @@ function friendly(err) {
   return err;
 }
 
-export function lastObserkode() {
+/** Det, brugeren sidst loggede ind med (e-mail eller obserkode) – udfyldes på login-siden. */
+export function lastLogin() {
   try { return localStorage.getItem(LAST) || ""; } catch { return ""; }
 }
 
-export function rememberObserkode(kode) {
-  try { localStorage.setItem(LAST, kode); } catch { /* privat vindue */ }
+export function rememberLogin(ident) {
+  try { localStorage.setItem(LAST, ident); } catch { /* privat vindue */ }
 }
 
-/** Log ind med passkey for obserkoden. Returnerer svaret fra /api/auth/passkey/finish ({ user }). */
-export async function login(obserkode) {
-  const { token, publicKey } = await api("/api/auth/passkey/start", { method: "POST", body: { obserkode } });
+/** Log ind med passkey for kontoen (e-mail eller obserkode). Returnerer svaret fra /api/auth/passkey/finish ({ user }). */
+export async function login(ident) {
+  const { token, publicKey } = await api("/api/auth/passkey/start", { method: "POST", body: { login: ident } });
   let cred;
   try { cred = await navigator.credentials.get({ publicKey: requestOptions(publicKey) }); } catch (err) { throw friendly(err); }
   const r = await api("/api/auth/passkey/finish", { method: "POST", body: { token, credential: credentialJSON(cred) } });
-  rememberObserkode(obserkode);
+  rememberLogin(ident);
   return r;
 }
 

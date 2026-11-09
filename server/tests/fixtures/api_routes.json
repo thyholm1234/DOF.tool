@@ -2444,6 +2444,20 @@ true,
 "params": []
 }
 },
+"/api/auth/konto/bekraeft": {
+"post": {
+"body": true,
+"op": "account_verify_api_auth_konto_bekraeft_post",
+"params": []
+}
+},
+"/api/auth/konto/opret": {
+"post": {
+"body": true,
+"op": "account_complete_api_auth_konto_opret_post",
+"params": []
+}
+},
 "/api/auth/login": {
 "post": {
 "body": true,
@@ -7003,6 +7017,13 @@ false,
 "params": []
 }
 },
+"/api/me/email": {
+"post": {
+"body": true,
+"op": "change_email_api_me_email_post",
+"params": []
+}
+},
 "/api/me/export": {
 "get": {
 "body": false,
@@ -7088,6 +7109,13 @@ true,
 "{\"pattern\": \"^[0-9]{1,32}$\", \"title\": \"Passkey Id\", \"type\": \"string\"}"
 ]
 ]
+}
+},
+"/api/me/password": {
+"post": {
+"body": true,
+"op": "change_password_api_me_password_post",
+"params": []
 }
 },
 "/api/me/stats": {

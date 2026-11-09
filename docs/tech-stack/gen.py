@@ -44,6 +44,7 @@ CLUSTERS = [
             ("models", "/models/*", "talemodel + speech.json (åben)"),
             ("modelup", "Modelupload", "Admin → Drift, bidder + SHA-256"),
             ("apisvc", "Tjenester", "push, imagemeta, konto, diskusage"),
+            ("kontosvc", "konto.py", "konti, scrypt, binding til obserkode"),
             ("pksvc", "passkeys.py", "origin/challenge-kontrol, zitadel.py"),
             ("storsvc", "storage.py", "S3-klient (minio-py)"),
             ("router1", "dbrouter", "gruppe + primary/replika"),
@@ -142,6 +143,8 @@ EDGES = [
     ("rest", "apisvc", "Kald", "", "Alarmer/push, metadata-rensning af uploads, udtræk og sletning af konto, lagerforbrug", True),
     ("rest", "storsvc", "Kald", "", "Gem/slet filer ved upload til feltmeldinger og ture", True),
     ("mediar", "storsvc", "Kald", "", "Hent fil (evt. et byte-interval) til afspilning/visning", True),
+    ("rest", "kontosvc", "Kald", "", "Login med e-mail/obserkode + adgangskode, opret konto, glemt/skift adgangskode (/api/auth/login, /api/auth/konto/*, /api/me/password)", True),
+    ("kontosvc", "vq", "RESP", "RESP", "Bind kontoen: ét DOFbasen-login som gateway-job; engangsbevis som hash (konto:bind:…, 20 min)", True),
     ("rest", "pksvc", "Kald", "", "Login med passkey og brugerens egne passkeys (/api/auth/passkey/*, /api/me/passkeys)", True),
     ("pksvc", "zuser", "HTTP", "HTTP :8080", "Opret bruger (obserkode), start/bekræft/slet passkey; Bearer-token fra zitadel_key", True),
     ("pksvc", "zsess", "HTTP", "HTTP", "Session med passkey-udfordring → telefonens signatur kontrolleres; sessionen slettes bagefter", True),
@@ -165,7 +168,7 @@ EDGES = [
     ("models", "modelvol", "Fil", "fil", "Læser modelfilerne fra volumen models (read-only)", True),
     # Valkey
     ("mw", "vsess", "RESP", "RESP", "Slår sessionen op under hashen af cookien (sess:h:<sha256> → bruger-id)", True),
-    ("rest", "vq", "RESP", "RESP", "ZADD gateway-job (fx login – adgangskoden ligger højst 3 min), RPUSH worker-kommandoer", True),
+    ("rest", "vq", "RESP", "RESP", "ZADD gateway-job (fx kontobinding – DOFbasen-adgangskoden ligger højst 3 min), RPUSH worker-kommandoer", True),
     ("rest", "vcache", "RESP", "RESP", "GET/SET JSON-cache, versionsnumre, admin-målinger", True),
     ("rest", "vlim", "RESP", "RESP", "Tællere for login-forsøg og andre grænser", True),
     ("sse", "vps", "RESP", "RESP", "SUBSCRIBE på live-kanaler; beskeder sendes videre som SSE", True),
@@ -175,7 +178,7 @@ EDGES = [
     ("wpush", "vps", "RESP", "RESP", "PUBLISH nye fund og ændringer til live-feedet", True),
     ("sched", "vcache", "RESP", "RESP", "Bump cache-versioner, jobstatus til Admin → Drift", True),
     # PostgreSQL
-    ("router1", "users1", "PostgreSQL", "SQL", "Læs/skriv brugerdata (konti, lister, feltmeldinger, kommentarer …) via asyncpg", True),
+    ("router1", "users1", "PostgreSQL", "SQL", "Læs/skriv brugerdata (konti med e-mail og scrypt-hash, lister, feltmeldinger, kommentarer …) via asyncpg", True),
     ("router1", "users2", "PostgreSQL", "SQL (læs)", "Læsninger af brugerdata, når «læs fra replikaer» er slået til", True),
     ("router1", "obs1", "PostgreSQL", "SQL", "Læs observationer, aggregater og referencedata", True),
     ("router1", "legacy", "PostgreSQL", "SQL", "Al data i legacy-tilstand (før opdelingen er slået til)", True),
@@ -199,7 +202,7 @@ EDGES = [
     ("arch", "archdir", "Fil", "fil", "Læs dofbasen_ÅÅÅÅ_MM.csv (read-only bind-mount)", True),
     # ud på internettet
     ("gw", "dofb", "HTTPS", "HTTPS", "GET observationer, ture, referencedata, medier – højst ét udtræk pr. minut", True),
-    ("gw", "dofl", "HTTPS", "HTTPS", "POST JSON obserkode + adgangskode; svaret afgør login (adgangskoden gemmes ikke)", True),
+    ("gw", "dofl", "HTTPS", "HTTPS", "POST JSON obserkode + adgangskode, kun når en konto oprettes eller får ny adgangskode (adgangskoden gemmes ikke)", True),
     ("sched", "dofdk", "HTTPS", "HTTPS", "GET HTML med DOF-ture og arrangementer (hver 6. time)", True),
     ("sched", "netfugl", "HTTPS", "HTTPS", "GET RSS/HTML (hver time) og Netfugl-lister", True),
     ("sched", "dmi", "HTTPS", "HTTPS", "GET klimadata og vejrarkiv (JSON/månedsfiler)", True),

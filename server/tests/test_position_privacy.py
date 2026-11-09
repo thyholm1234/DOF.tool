@@ -154,10 +154,12 @@ def test_share_location_cannot_be_patched():
 
 def test_view_as_hides_position_device(monkeypatch):
     user = SimpleNamespace(id=1, obserkode="X", navn="X", role="user", history_synced_at=None, permissions=None,
+                           email="x@example.dk", pw_hash="scrypt$a$b",
                            prefs={"share_location": True, "position_device": {"id": "d", "name": "Pixel"}})
     monkeypatch.setattr(auth_api.auth, "modules", lambda u: set())
     assert "position_device" in auth_api.user_out(user)["prefs"]
     assert "position_device" not in auth_api.user_out(user, view_as=True)["prefs"]
+    assert auth_api.user_out(user)["email"] == "x@example.dk" and auth_api.user_out(user, view_as=True)["email"] is None
 
 
 def test_viewing_as():
