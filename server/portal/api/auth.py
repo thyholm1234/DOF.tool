@@ -121,6 +121,17 @@ async def change_password(body: PasswordIn, request: Request, response: Response
     return {"ok": True}
 
 
+@router.post("/me/logout-all")
+async def logout_all(request: Request, response: Response, user: User = Depends(require_user)):
+    """Log ud på alle enheder (sessioner og telefonens positionstoken); denne enhed får en ny session."""
+    if getattr(request.state, "view_as", None):
+        raise HTTPException(403, "Ikke i «se som bruger»")
+    await konto.logout_user(user.id)
+    await start_session(user, response)
+    await activity.track(user.id, "logout_all", None, {})
+    return {"ok": True}
+
+
 @router.post("/me/email")
 async def change_email(body: EmailIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     if getattr(request.state, "view_as", None):

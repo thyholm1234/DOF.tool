@@ -1206,3 +1206,38 @@ tr.click { cursor: pointer; }
 .account-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
 .account-facts dt { color: var(--text-3); }
 .account-facts dd { margin: 0; display: flex; align-items: center; min-width: 0; overflow-wrap: anywhere; }
+/* Profil og indstillinger (views/profile.js): menu til venstre, vandret og rulbar på mobilen */
+.profile-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.profile-head h1 { margin: 0; overflow-wrap: anywhere; }
+.profile-head .lead { color: var(--text-2); margin: .15rem 0 0; overflow-wrap: anywhere; }
+.profile-avatar { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--brand); color: var(--brand-ink);
+  font-weight: 750; font-size: 1.25rem; letter-spacing: .02em; }
+.settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.settings-nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 2px; border-bottom: 1px solid var(--line); }
+.settings-nav::-webkit-scrollbar { display: none; }
+.settings-nav button { flex: none; display: flex; align-items: center; gap: 8px; border: 0; background: none; font: inherit; font-weight: 650; font-size: .9rem;
+  color: var(--text-2); padding: 10px 12px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+.settings-nav button svg { width: 18px; height: 18px; flex: none; }
+.settings-nav button.on { color: var(--brand); border-bottom-color: var(--brand); }
+.settings-panel { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.settings-panel > .card + .card { margin-top: 0; }
+.settings-title { margin: 0 0 2px; font-size: 1.25rem; }
+.settings-card { gap: 12px; }
+.settings-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.settings-row:first-of-type { border-top: 0; }
+.settings-row-label { color: var(--text-3); font-size: .88rem; }
+.settings-row-value { min-width: 0; overflow-wrap: anywhere; }
+.settings-tiles { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 640px) { .settings-tiles { grid-template-columns: 1fr 1fr; } }
+.settings-tile { display: flex; gap: 12px; align-items: center; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer; box-shadow: var(--shadow); }
+.settings-tile:hover { border-color: var(--brand-2); }
+.settings-tile small { display: block; color: var(--text-2); margin-top: 2px; }
+.danger-zone { border-color: color-mix(in srgb, var(--err) 45%, var(--line)); }
+@media (min-width: 900px) {
+  .settings { grid-template-columns: 230px minmax(0, 1fr); gap: 28px; }
+  .settings-nav { flex-direction: column; overflow: visible; margin: 0; padding: 0; border-bottom: 0; position: sticky; top: calc(var(--top-h) + 16px); }
+  .settings-nav button { border-bottom: 0; border-radius: 10px; padding: 9px 12px; white-space: normal; text-align: left; }
+  .settings-nav button:hover { background: var(--bg-2); }
+  .settings-nav button.on { background: var(--brand-soft); }
+}

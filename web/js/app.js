@@ -234,7 +234,7 @@ function openMenu() {
     h("div", { class: "who" }, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, `${u.obserkode} · ${u.role}`)),
     h("a", { href: "#/indtast", onclick: close, html: `${icon("list")} Mine indtastninger` }),
     h("a", { href: "#/alarmer", onclick: close, html: `${icon("bell")} Alarmer og områder` }),
-    h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil, matrikler og indstillinger` }),
+    h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     mod ? h("a", { href: mod.href, onclick: close, html: `${icon("check")} ${mod.long}` }) : null,

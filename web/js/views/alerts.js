@@ -353,7 +353,7 @@ async function devices(body) {
         toast(r.app_devices && !r.fcm_enabled ? "Serveren mangler Firebase-nøglen (FCM_SERVICE_ACCOUNT_B64)"
           : r.fcm_error ? "Firebase afviste beskeden: " + r.fcm_error : "Ingen enheder er registreret til push for din bruger", "err");
       } }, "Send testbesked")),
-    h("p", { class: "muted" }, "Stille timer og globalt push-til/fra findes under ", h("a", { href: "#/profil" }, "profil"), ".")),
+    h("p", { class: "muted" }, "Stille timer og globalt push-til/fra findes under ", h("a", { href: "#/profil?fane=notifikationer" }, "Profil → Notifikationer"), ".")),
     h("div", { class: "card mt" }, h("h3", {}, "Registrerede enheder"),
       list.length ? h("table", { class: "data" }, h("tbody", {}, ...list.map(d => h("tr", {},
         h("td", {}, d.user_agent?.match(/(iPhone|Android|Windows|Macintosh|Linux)/)?.[0] || "Enhed", h("div", { class: "muted", style: { fontSize: ".78rem" } }, d.endpoint_host)),

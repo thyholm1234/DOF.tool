@@ -74,7 +74,7 @@ async function finish(r, go) {  // r.flow: kom fra oprettelsen (trin 3 vises med
   live.restart();
   if (r.passkeys && passkey.supported()) { go.done(r); return; }
   toast(r.new ? `Velkommen, ${r.user.navn}! Vi henter dine ældre observationer i baggrunden.` : `Velkommen, ${r.user.navn}`);
-  location.hash = params().next || (r.new ? "#/profil" : "#/");
+  location.hash = params().next || (r.new ? "#/profil?fane=omraader" : "#/");
 }
 
 // ---------------------------------------------------------------- log ind
@@ -235,7 +235,7 @@ function showCreate(card, go, flow) {
 // ---------------------------------------------------------------- trin 3: klar
 
 function showDone(card, r, pendingMsg) {
-  const next = () => { location.hash = params().next || (r?.new ? "#/profil" : "#/"); };
+  const next = () => { location.hash = params().next || (r?.new ? "#/profil?fane=omraader" : "#/"); };
   if (pendingMsg) {
     card.replaceChildren(stepper(3),
       h("div", { class: "auth-hello" }, h("span", { class: "auth-dot done big", html: icon("check") }),

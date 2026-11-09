@@ -249,7 +249,7 @@ function visitForm(c, day, own, done) {
     h("label", { class: "field" }, h("span", {}, "Hvem kommer med?"), comp),
     h("label", { class: "field" }, h("span", {}, "Note"), note),
     pos.el,
-    h("label", { class: "check" }, showPhone, h("span", {}, phone ? `Vis mit telefonnummer (${phone})` : h("span", {}, "Vis telefonnummer – ", h("a", { href: "#/profil" }, "tilføj det under Profil")))),
+    h("label", { class: "check" }, showPhone, h("span", {}, phone ? `Vis mit telefonnummer (${phone})` : h("span", {}, "Vis telefonnummer – ", h("a", { href: "#/profil?fane=personligt" }, "tilføj det under Profil")))),
     h("div", { class: "row between" },
       own ? h("button", { type: "button", class: "btn ghost danger", onclick: async () => { await api(`/api/visits/${own.id}`, { method: "DELETE" }); toast("Afmeldt"); done(); } }, "Afmeld") : h("span"),
       h("button", { class: "btn primary" }, own ? "Gem" : "Meld mig til")));

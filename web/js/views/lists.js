@@ -45,7 +45,7 @@ async function mine(body) {
       h("button", { class: "btn sm", onclick: compare, html: `${icon("users")} Sammenlign` })),
     h("p", { class: "muted mt", style: { marginBottom: 0, fontSize: ".85rem" } },
       "Matrikellister finder du under ", h("a", { href: "#/matrikel" }, "Matrikel"), ". ",
-      "Afdelinger og kommuner vælges under ", h("a", { href: "#/profil" }, "profil"), ", egne områder (polygon/radius) under ", h("a", { href: "#/alarmer?tab=omraader" }, "Alarmer → Områder"), ".")),
+      "Afdelinger og kommuner vælges under ", h("a", { href: "#/profil?fane=omraader" }, "profil"), ", egne områder (polygon/radius) under ", h("a", { href: "#/alarmer?tab=omraader" }, "Alarmer → Områder"), ".")),
     out);
 
   const load = async () => {
