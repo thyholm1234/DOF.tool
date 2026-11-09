@@ -9,7 +9,6 @@ import { cachedApi } from "../offline.js";
 import { field, fail } from "../tur-ui.js";
 
 const POINT_NEAR_M = 25;  // FiNN-punkt «ved»: inden for 25 m (som i DOF's app)
-const TYPE = { management: "forvaltningspunkt", reference: "referencepunkt" };
 const SOURCE = { researcher: "foreslået af forskere", volunteer: "foreslået af frivillige" };
 
 function insideRing([y, x], ring) {
@@ -35,6 +34,8 @@ export async function render(page, [kind]) {
   if (isFinn) {
     try { finn = await cachedApi("finn", "/api/trips/finn"); } catch { toast("FiNN-områderne kunne ikke hentes – du kan stadig tælle", "err"); }
   }
+  const refPoints = finn.points.filter(p => p.type === "reference");
+  const refColor = (p) => p.source === "researcher" ? "#e53935" : "#1f7aaf";
   const S = { pos: null, acc: null, loknr: null, lok: null, site: null, point: null, paper: false, dato: todayISO(), fra: nowHM() };
 
   // --- kort: din position (sigtekorn + nøjagtighed) og FiNN-områder/-punkter
@@ -58,11 +59,11 @@ export async function render(page, [kind]) {
       mapEl.classList.toggle("finn-labels-off", z < 13);  // navnene først, når man er tæt på
     };
     map.on("zoomend", zoomed); zoomed();
-    for (const p of finn.points.filter(p => p.type !== "management")) {  // forvaltningspunkterne vises ikke
-      const color = p.source === "researcher" ? "#e53935" : "#1f7aaf";
-      const html = `<span style="color:${color};font:700 18px/1 system-ui;text-shadow:0 0 2px #fff,0 0 2px #fff">${p.type === "management" ? "×" : "o"}</span>`;
+    for (const p of refPoints) {  // kun referencepunkterne – forvaltningspunkterne vises ikke
+      const html = `<span style="color:${refColor(p)};font:700 18px/1 system-ui;text-shadow:0 0 2px #fff,0 0 2px #fff">o</span>`;
       L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html, iconSize: [14, 14], iconAnchor: [7, 9] }) })
-        .bindTooltip(`FiNN-${TYPE[p.type] || "punkt"}, ${SOURCE[p.source] || ""}`).addTo(map);
+        .bindTooltip(`FiNN-referencepunkt ${p.id}, ${SOURCE[p.source] || ""} – tryk for at vælge`)
+        .on("click", () => S.pos && pickPoint(p, true)).addTo(map);
     }
   }
   map.on("click", (e) => setPos([e.latlng.lat, e.latlng.lng], null, false));
@@ -71,14 +72,15 @@ export async function render(page, [kind]) {
   const placeEl = h("div", { class: "stack", style: { gap: "4px" } });
   const drawPlace = () => {
     if (!S.pos) { placeEl.replaceChildren(h("small", { class: "muted" }, "Finder din position … Du kan også trykke på kortet, hvor du står.")); return; }
-    const lines = [h("small", { class: "muted" }, `${S.pos[0].toFixed(5)}, ${S.pos[1].toFixed(5)}${S.acc ? ` · ±${Math.round(S.acc)} m` : ""}`)];
+    const lines = [h("small", { class: "muted", style: { display: "block" } }, `${S.pos[0].toFixed(5)}, ${S.pos[1].toFixed(5)}${S.acc ? ` · ±${Math.round(S.acc)} m` : ""}`)];
     if (isFinn) {
       const m = S.site ? siteDist(S.pos, S.site) : null;
       if (S.site && m === 0) lines.unshift(h("div", { class: "notice" }, h("b", {}, S.site.title), " – du står i FiNN-området."));
       else if (S.site) lines.unshift(h("div", { class: "notice warn" }, h("b", {}, S.site.title), ` er valgt, men du står uden for området (ca. ${fmtM(m)}).`));
       else lines.unshift(h("div", { class: "notice warn" }, "Du står uden for FiNN-områderne (orange på kortet). Vælg et område i listen."));
-      if (S.point) lines.push(h("small", {}, `${S.point.m <= POINT_NEAR_M ? "Ved" : "Nærmeste"} FiNN-${TYPE[S.point.p.type] || "punkt"}: ${fmtM(S.point.m)}`));
+      if (S.point && S.point.m > POINT_NEAR_M) lines.push(h("small", { style: { display: "block" } }, `Du står ${fmtM(S.point.m)} fra det valgte referencepunkt – gå gerne hen til det.`));
     }
+    if (isFinn && S.lok) lines.push(h("small", { class: "muted", style: { display: "block" } }, `Lokalitet i DOFbasen: ${S.lok}`));
     placeEl.replaceChildren(...lines);
   };
 
@@ -93,8 +95,11 @@ export async function render(page, [kind]) {
       const here = S.near[0]?.m === 0 ? S.near[0].s : null;
       if (here || !S.siteManual) { S.site = here; S.siteManual = false; }
       drawSites();
-      const pts = finn.points.filter(p => p.type !== "management").map(p => ({ p, m: meters(S.pos, [p.lat, p.lon]) })).sort((a, b) => a.m - b.m);
-      S.point = pts[0] && pts[0].m < 5000 ? pts[0] : null;
+      // De fem nærmeste referencepunkter; inden for 25 m vælges det nærmeste, medmindre du selv har valgt
+      S.pts = refPoints.map(p => ({ p, m: meters(S.pos, [p.lat, p.lon]) })).sort((a, b) => a.m - b.m).slice(0, 5);
+      if (S.point) S.point = { p: S.point.p, m: meters(S.pos, [S.point.p.lat, S.point.p.lon]) };
+      if (!S.pointManual) S.point = S.pts[0] && S.pts[0].m <= POINT_NEAR_M ? S.pts[0] : null;
+      drawPoints();
     }
     if (center) {
       map.invalidateSize();  // positionen kan komme, før kortet har fået sin størrelse – så bliver udsnittet forkert
@@ -128,6 +133,31 @@ export async function render(page, [kind]) {
       h("span", {}, s.title), h("small", { class: "muted" }, m === 0 ? "du står her" : fmtM(m)))));
   }
 
+  // --- FiNN-tælling: de fem nærmeste referencepunkter; vælg det, du tæller ved (eller tryk på det på kortet)
+  const pointList = h("div", { class: "lok-list", role: "radiogroup", "aria-label": "Referencepunkt" });
+  let ring = null;
+  function pickPoint(p, zoom) {
+    S.pointManual = true;
+    S.point = p && S.point?.p.id !== p.id ? { p, m: meters(S.pos, [p.lat, p.lon]) } : null;  // tryk igen fravælger
+    if (S.point && zoom) map.fitBounds(L.latLngBounds([S.pos, [p.lat, p.lon]]), { padding: [40, 40], maxZoom: 16 });
+    drawPoints(); drawPlace();
+  }
+  function drawPoints() {
+    if (!isFinn) return;
+    if (ring) { ring.remove(); ring = null; }
+    if (S.point) ring = L.circleMarker([S.point.p.lat, S.point.p.lon], { radius: 13, color: refColor(S.point.p), weight: 3, fill: false, interactive: false }).addTo(map);
+    const list = [...(S.pts || [])];
+    if (S.point && !list.some(x => x.p.id === S.point.p.id)) list.push(S.point);
+    if (!list.length) { pointList.replaceChildren(h("small", { class: "muted" }, S.pos ? "Ingen referencepunkter fundet." : "Finder din position …")); return; }
+    pointList.replaceChildren(...list.map(({ p, m }) => {
+      const on = S.point?.p.id === p.id, site = finn.sites.find(s => s.id === p.site);
+      return h("button", { type: "button", role: "radio", "aria-checked": String(on), class: `lok-opt${on ? " on" : ""}`, onclick: () => pickPoint(p, true) },
+        h("span", {}, h("b", { style: { color: refColor(p) } }, "o "), `Referencepunkt ${p.id}`,
+          h("small", { class: "muted", style: { display: "block", fontWeight: 400 } }, [site?.title, SOURCE[p.source]].filter(Boolean).join(" · "))),
+        h("small", { class: "muted" }, m <= POINT_NEAR_M ? "du står her" : fmtM(m)));
+    }));
+  }
+
   // --- lokalitet: en liste med de fem nærmeste (den første – den, du står i – vælges); søg, hvis ingen passer.
   // Lokaliteterne tegnes ikke på kortet – der er kun FiNN-områderne.
   const lokSel = h("div", { class: "lok-list", role: "radiogroup", "aria-label": "Lokalitet" });
@@ -149,8 +179,9 @@ export async function render(page, [kind]) {
       const rows = await nearestLocations(S.pos[0], S.pos[1], 12);
       if (n !== lokReq) return;
       if (!rows.length) return;  // behold listen, der står
-      fill(rows, isFinn ? "Nærmeste lokalitet – søg for at vælge en anden" : "De fem nærmeste lokaliteter", isFinn ? 1 : 5);
-      pick(rows[0]?.loknr);
+      fill(rows, "De fem nærmeste lokaliteter");
+      pick(rows[0]?.loknr);  // FiNN-tælling: ingen liste – lokaliteten, du står i, bruges
+      drawPlace();
     } catch (err) { toast(err.message, "err"); }
   }
   const lokQ = h("input", { type: "search", placeholder: "Søg lokalitet …", autocomplete: "off" });
@@ -173,7 +204,7 @@ export async function render(page, [kind]) {
   startBtn.innerHTML = `${icon("play")} Start tællingen (${COUNT_MIN} min.)`;
   startBtn.onclick = async () => {
     if (!S.pos) return fail("Find din position, eller tryk på kortet, hvor du står", mapEl);
-    if (!S.loknr) return fail("Vælg en lokalitet", lokSel);
+    if (!S.loknr) return fail(isFinn ? "Lokaliteten i DOFbasen er ikke fundet endnu – vent et øjeblik, eller tryk på kortet" : "Vælg en lokalitet", isFinn ? mapEl : lokSel);
     const start = S.paper ? S.fra : nowHM();
     const day = S.paper ? S.dato : todayISO();
     if (!day || !start) return fail("Angiv dato og præcist starttidspunkt", S.paper ? fra : null);
@@ -183,7 +214,7 @@ export async function render(page, [kind]) {
       dato: day, loknr: S.loknr, lok: S.lok, turtidfra: start, turtidtil: addMinutes(start, COUNT_MIN),
       metode_id: isFinn ? FINN : SPONTAN, komplet: true, spontan: !isFinn, lat: S.pos[0], lon: S.pos[1],
       finn_site_id: isFinn ? S.site?.id ?? null : null,
-      turnoter: isFinn && S.point && S.point.m <= POINT_NEAR_M ? `Ved FiNN-${TYPE[S.point.p.type] || "punkt"} (DOFbasen-id ${S.point.p.id}).` : "",
+      turnoter: isFinn && S.point ? `Ved FiNN-referencepunkt ${S.point.p.id} (DOFbasen-id).` : "",
     });
     startBtn.disabled = true;
     // Vejret fra DMI (hvis brugeren har slået det til) – højst et par sekunder, tællingen må ikke vente
@@ -208,7 +239,7 @@ export async function render(page, [kind]) {
       h("li", {}, `Stå stille i ${COUNT_MIN} minutter, og registrér alle fugle, du ser og hører og kan bestemme – det er en komplet artsliste.`),
       h("li", {}, "Tæl i godt vejr – undgå fx regn og tæt tåge."),
       h("li", {}, "Start ikke en tælling på grund af en sjælden eller særlig interessant fugl."),
-      isFinn ? h("li", {}, "Tæl inden for et FiNN-område (orange). Fordel gerne dine tællinger på FiNN-referencepunkterne (o): blå er foreslået af frivillige, røde af forskere.") : null,
+      isFinn ? h("li", {}, "Tæl inden for et FiNN-område (orange). Tæl gerne ved et FiNN-referencepunkt (o – blå er foreslået af frivillige, røde af forskere), og vælg det i listen eller på kortet.") : null,
       h("li", {}, "Talt på papir? Brug uret, og angiv dato og præcist starttidspunkt nedenfor.")),
     h("p", { class: "muted", style: { fontSize: ".85rem", margin: "8px 0 0" } }, "Læs mere hos DOF: ",
       h("a", { href: isFinn ? "https://www.dof.dk/finn" : "https://www.dof.dk/fakta-om-fugle/spontantaellinger", target: "_blank", rel: "noopener" }, isFinn ? "dof.dk/finn" : "spontantællinger")));
@@ -223,11 +254,12 @@ export async function render(page, [kind]) {
           h("button", { class: "btn sm", type: "button", html: `${icon("pin")} Min position`, onclick: locate })),
         mapEl, placeEl,
         isFinn ? group("FiNN-område – de fem nærmeste", siteList) : null,
-        group("Lokalitet i DOFbasen", h("div", { class: "stack", style: { gap: "8px" } }, lokHead, lokSel, lokQ))),
+        isFinn ? group("Referencepunkt – de fem nærmeste", pointList) : null,
+        isFinn ? null : group("Lokalitet i DOFbasen", h("div", { class: "stack", style: { gap: "8px" } }, lokHead, lokSel, lokQ))),
       h("div", { class: "card stack" },
         h("label", { class: "check" }, paper, h("span", {}, "Jeg har talt på papir og vil indtaste bagefter")), paperBox,
         startBtn)));
-  drawPlace(); drawSites();
+  drawPlace(); drawSites(); drawPoints();
   // Indtil positionen er fundet: dine seneste lokaliteter, så listen aldrig er tom
   loadRecent().then(r => { if (!S.pos && r.locations?.length) fill(r.locations, "Dine seneste lokaliteter"); }).catch(() => {});
   locate();
