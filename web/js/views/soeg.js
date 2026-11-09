@@ -10,6 +10,7 @@ const BOOLS = ["medobser", "koordinat", "kommentar", "udelad_burfugle", "udelad_
 const NUMS = ["dage", "aar", "maaned", "dag", "lok", "lokal", "iba", "stor", "art", "fra_art", "til_art", "antal", "adf", "metode", "biggestobs"];
 const MONTHS = ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"];
 const PAGE = 100;
+const MAX_PAGE = 500;  // serverens største side (services/dofbasen.py)
 // [sorteringsnøgle, navn]
 const COLS = [["dato", "Dato"], ["art", "Art"], ["antal", "Antal"], ["koen", "Køn"], ["adf", "Adfærd"], ["alder", "Alder"], ["dragt", "Dragt"],
   ["lokalitet", "Lokalitet"], ["afdeling", "Afdeling"], ["observator", "Observatør"], ["tid", "Tid"], ["kommentar", "Kommentar"]];
@@ -151,8 +152,12 @@ export async function render(view) {
     st.body = payload();
     setParams({ ...Object.fromEntries(Object.keys(params()).map(k => [k, ""])), ...toQuery(st.body), soeg: "1" });
     resBox.replaceChildren(busyBlock("Søger …"));
-    if (map) drawMap(st.body);
-    try { const r = await api("/api/search", { method: "POST", body: { ...st.body, page: 1, limit: PAGE } }); if (my === gen) drawResult(r, my); }
+    // «Kun de N største» (N ≤ 500): listen henter alle N på én gang, og kortet tegnes af de samme rækker –
+    // én forespørgsel i stedet for to, og kortet viser præcis det, der står i listen
+    const n = Number(st.body.biggestobs) || 0, fromList = n > 0 && n <= MAX_PAGE;
+    const listP = api("/api/search", { method: "POST", body: { ...st.body, page: 1, limit: fromList ? n : PAGE } });
+    if (map) drawMap(st.body, fromList ? listP.then(r => r.rows) : null);
+    try { const r = await listP; if (my === gen) drawResult(r, my); }
     catch (err) { if (my === gen) resBox.replaceChildren(errorBox(err)); }
   };
 
@@ -237,14 +242,31 @@ export async function render(view) {
   };
 
   let map;
-  const drawMap = async (body) => {
+  // Listens rækker samlet pr. position i samme form som /api/search/points
+  const KAT_RANK = { SU: 3, SUB: 2, bemaerk: 1 };
+  const rowsToPoints = (rows) => {
+    const pts = new Map();
+    for (const r of rows) {
+      if (r.lat == null || r.lon == null) continue;
+      const key = `${r.lat},${r.lon}`;
+      let p = pts.get(key);
+      if (!p) pts.set(key, p = { lat: r.lat, lon: r.lon, praecis: false, loknr: r.loknr, lokalitet: r.lokalitet, n: 0, kategori: null, arter: [] });
+      p.n++;
+      p.praecis ||= !!r.praecis;
+      if ((KAT_RANK[r.kategori] || 0) > (KAT_RANK[p.kategori] || 0)) p.kategori = r.kategori;
+      if (!p.arter.includes(r.art) && p.arter.length < 6) p.arter.push(r.art);
+    }
+    return { points: [...pts.values()].sort((a, b) => b.n - a.n), capped: false };
+  };
+
+  const drawMap = async (body, rowsP = null) => {
     const el = h("div", { style: { height: "380px", borderRadius: "12px", overflow: "hidden" } });
     const info = h("small", { class: "muted" }, "Henter kort …");
     mapBox.replaceChildren(h("div", { class: "card stack mt" }, el, info));
     map?.remove();
     map = baseMap(el, { zoom: 6 });
     try {
-      const r = await api("/api/search/points", { method: "POST", body });
+      const r = rowsP ? rowsToPoints(await rowsP) : await api("/api/search/points", { method: "POST", body });
       const bounds = [], total = r.points.reduce((s, p) => s + p.n, 0);
       for (const p of r.points.slice().reverse()) {  // de største øverst
         const color = katColor(p.kategori);

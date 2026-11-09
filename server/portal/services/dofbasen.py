@@ -22,6 +22,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.config import SEED_DIR
+from portal.dbgroups import OBSERVATIONS
 from portal.models import DofbArea, DofbAudit, DofbFocus, DofbList, DofbNews, DofbPage, DofbRole, DofbUserRole, User
 from portal.services import dataset, doftool_obs, features
 from portal.services.auth import SUPERADMIN, can
@@ -208,7 +209,7 @@ SPECIES_GROUPS = {"alle": "Fugle - alle", "weird": "Fugle - bemærkelsesværdige
                   "rare": "Fugle - sjældne", "su": "Fugle - SU-arter"}
 # Sortering på søgningens kolonner (ydre forespørgsel, se search)
 SORTS = {"dato": "dato DESC, sortering, obsid", "art": "sortering, dato DESC, obsid",
-         "lokalitet": "lokalitet, dato DESC, sortering", "observat": "observator, dato DESC, sortering"}
+         "lokalitet": "lokalitet, dato DESC, sortering, obsid", "observat": "observator, dato DESC, sortering, obsid"}
 # Sortering efter en vilkårlig kolonne (Søg-siden): kolonnens udtryk i den ydre forespørgsel
 SORT_COLUMNS = {"dato": "dato", "art": "sortering", "antal": "antal", "koen": "koen", "adf": "adfkode", "alder": "alderkode",
                 "dragt": "dragtkode", "lokalitet": "lokalitet", "afdeling": "afdeling", "kommune": "kommune",
@@ -453,6 +454,53 @@ ROW_JOINS = """
 """
 
 
+async def obs_settings(session: AsyncSession) -> None:
+    """Søgningens SET LOCAL i observationsgruppen. En sætning uden tabeller går ellers til sessionens hjemgruppe
+    (brugergruppen), og så gælder indstillingerne en anden forbindelse end den, der læser observationerne.
+    Når gruppen har skrevet (SET tæller som skrivning), læser resten af sessionen den fra samme forbindelse."""
+    home = session.info.get("home")
+    session.info["home"] = OBSERVATIONS
+    try:
+        # Før gik SET til den forkerte forbindelse, så søgningen reelt kørte uden grænse. «Kun de N største» på en
+        # almindelig art læser hele artens observationer fra disken (~30 s for 840.000); 60 s giver plads til det
+        await session.execute(text("SET LOCAL statement_timeout = '60s'"))
+        # Postgres-containerens /dev/shm er lille (Dockers standard 64 MB); parallelle scanninger kan løbe tør for den
+        await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+        # JIT-oversættelsen kostede ~1 s pr. stor søgning – mere end selve forespørgslen
+        await session.execute(text("SET LOCAL jit = off"))
+    finally:
+        if home is None:
+            session.info.pop("home", None)
+        else:
+            session.info["home"] = home
+
+
+MAX_TOP_IDS = 20_000  # mange lige store antal ved grænsen: så filtreres der på grænsen i stedet for på obsid
+
+
+async def _biggest_where(session: AsyncSession, frm: str, where: str, args: dict, n: int) -> tuple[str, str]:
+    """«Kun de N største» uden indeks på antal. Én let gennemgang (kun obsid og antal, ingen joins) finder de N største
+    – med alle lige store ved grænsen, så den endelige sortering vælger præcis de samme N som før. Resten af søgningen
+    (rækkerne med ture, observatører og status, optællingen) slår så kun dem op via primærnøglen i stedet for at læse
+    alle artens observationer igen (art 2870: 842.000 obs. spredt over 3,7 GB på disken; hver gennemgang ~30 s).
+    Returnerer (where til DOFbasen, where til DOF.tool-gruppen); den sidste begrænses til antal >= grænsen, for
+    DOF.tool-rækker under den kan ikke nå top N."""
+    rows = (await session.execute(text(f"""
+        SELECT obsid, antal FROM (
+            SELECT o.obsid, o.antal, rank() OVER (ORDER BY o.antal DESC NULLS LAST) AS r {frm} WHERE {where}
+        ) x WHERE r <= :n
+    """), {**args, "n": n})).all()
+    floor = min((a for _, a in rows), default=None) if len(rows) >= n and all(a is not None for _, a in rows) else None
+    tool_where = where
+    if floor is not None:
+        args["antal_floor"] = floor
+        tool_where = f"({where}) AND o.antal >= :antal_floor"
+    if len(rows) > MAX_TOP_IDS:
+        return tool_where, tool_where
+    args["top_ids"] = [i for i, _ in rows]
+    return f"({where}) AND o.obsid = ANY(:top_ids)", tool_where
+
+
 async def resolve_area(session: AsyncSession, args: dict[str, Any]) -> None:
     """Erstat områdets id (args['area']) med dets lokalitetsnumre (args['area_loks']), slået op i brugergruppen."""
     if "area" not in args:
@@ -466,9 +514,7 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
     await resolve_area(session, args)
     args["sub_as_species"] = p.vis_underarter_som_arter
     frm = _from(where)
-    await session.execute(text("SET LOCAL statement_timeout = '25s'"))
-    # Postgres-containerens /dev/shm er lille (Dockers standard 64 MB); parallelle scanninger kan løbe tør for den
-    await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+    await obs_settings(session)
     limit = MAX_CSV if csv else p.limit
     offset = 0 if csv else (p.page - 1) * p.limit
     order = SORTS[p.sortering]
@@ -476,8 +522,11 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
         col = "sum_antal" if p.sort == "antal" and p.summering else SORT_COLUMNS[p.sort]
         order = f"{col} {'DESC' if p.desc else 'ASC'} NULLS LAST, " + order
     if p.biggestobs:
-        order = ("sum_antal" if p.summering else "antal") + " DESC, " + order
+        order = ("sum_antal" if p.summering else "antal") + " DESC NULLS LAST, " + order
         limit = min(limit, max(0, p.biggestobs - offset))
+    tool_where = where
+    if p.biggestobs and not p.summering:
+        where, tool_where = await _biggest_where(session, frm, where, args, p.biggestobs)
     if p.summering:
         # Summering pr. tur og art: én række pr. (tur, art) med samlet antal; første observation repræsenterer rækken
         inner = f"""
@@ -489,14 +538,17 @@ async def search(session: AsyncSession, p: SearchIn, viewer: str | None, *, csv:
             {frm} {ROW_JOINS} WHERE {where} ORDER BY o.turid, ds.artnr, o.obsid
         """
         count_sql = f"SELECT count(*) FROM (SELECT 1 {frm} WHERE {where} GROUP BY o.turid, o.artnr LIMIT 50001) c"
+        tool_inner = inner
     else:
         # Underforespørgslen trækkes op af planlæggeren, så sortering og LIMIT stadig kan bruge indekserne
         inner = f"SELECT {ROW_COLS} {frm} {ROW_JOINS} WHERE {where}"
+        tool_inner = f"SELECT {ROW_COLS} {frm} {ROW_JOINS} WHERE {tool_where}"
         count_sql = f"SELECT count(*) FROM (SELECT 1 {frm} WHERE {where} LIMIT 50001) c"
     # Hele datasættet: DOF.tool-gruppens træffere (samme SQL der) flettes ind i DOFbasen-forespørgslens yderste lag,
     # så sortering og sideinddeling gælder begge kilder under ét (services/dataset.py)
-    tool, cols = await dataset.tool_fetch(f"SELECT * FROM ({inner}) x ORDER BY {order} LIMIT :tool_lim",
-                                          {**args, "tool_lim": dataset.MAX_ROWS})
+    tool_args = {k: v for k, v in args.items() if k != "top_ids"}
+    tool, cols = await dataset.tool_fetch(f"SELECT * FROM ({tool_inner}) x ORDER BY {order} LIMIT :tool_lim",
+                                          {**tool_args, "tool_lim": dataset.MAX_ROWS})
     params = {**args, "lim": limit, "off": offset}
     if tool:
         part, extra = dataset.union_part(tool, cols)
@@ -522,11 +574,13 @@ MAX_POINTS = 5000
 
 async def search_points(session: AsyncSession, p: SearchIn, viewer: str | None) -> dict:
     """Alle søgningens observationer til et kort: én prik pr. position (fuglens eller lokalitetens) med antal observationer."""
+    if p.biggestobs:
+        r = await search(session, p, viewer, csv=True)
+        return {"points": _rows_to_points(r["rows"]), "capped": False, "notes": r["notes"]}
     where, args, notes = search_sql(p, viewer)
     await resolve_area(session, args)
     frm = _from(where)
-    await session.execute(text("SET LOCAL statement_timeout = '25s'"))
-    await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+    await obs_settings(session)
     sql = f"""
         SELECT coalesce(o.obs_lat, l.lat) AS lat, coalesce(o.obs_lon, l.lon) AS lon, bool_or(o.obs_lat IS NOT NULL) AS praecis,
                min(o.loknr) AS loknr, min(l.navn) AS lokalitet, count(*) AS n,
@@ -540,6 +594,25 @@ async def search_points(session: AsyncSession, p: SearchIn, viewer: str | None) 
     tool, _ = await dataset.tool_fetch(sql, {**args, "lim": MAX_POINTS + 1})  # DOF.tool's prikker (services/dataset.py)
     rows = sorted(rows + tool, key=lambda r: -r["n"])
     return {"points": rows[:MAX_POINTS], "capped": len(rows) > MAX_POINTS, "notes": notes}
+
+
+def _rows_to_points(rows: list[dict]) -> list[dict]:
+    """«Kun de N største»: kortet bygges af præcis de rækker, listen viser (samme forespørgsel og sortering), samlet
+    pr. position. Frontenden tegner selv kortet af listen, når N ≤ MAX_PAGE (web/js/views/soeg.js); dette er til større N."""
+    rank = {"SU": 3, "SUB": 2, "bemaerk": 1}
+    pts: dict[tuple, dict] = {}
+    for r in rows:
+        if r["lat"] is None:
+            continue
+        pt = pts.setdefault((r["lat"], r["lon"]), {"lat": r["lat"], "lon": r["lon"], "praecis": False, "loknr": r["loknr"],
+                                                    "lokalitet": r["lokalitet"], "n": 0, "kategori": None, "arter": []})
+        pt["n"] += 1
+        pt["praecis"] |= bool(r["praecis"])
+        if rank.get(r["kategori"], 0) > rank.get(pt["kategori"], 0):
+            pt["kategori"] = r["kategori"]
+        if r["art"] not in pt["arter"] and len(pt["arter"]) < 6:
+            pt["arter"].append(r["art"])
+    return sorted(pts.values(), key=lambda x: -x["n"])
 
 
 def _row(r, summed: bool) -> dict:
