@@ -107,25 +107,28 @@ const polyHas = (g, x, y) => polys(g).some(([outer, ...holes]) => ringHas(outer,
  *  vises som små prikker. Grænserne tager ikke imod klik, så et tryk sætter stadig positionen.
  *  at(lat, lon) = den inderste lokalitet med grænse, punktet ligger i ({ loknr, navn }) eller null; select(loknr)
  *  fremhæver en lokalitet (i highlight-farven, standard --accent). onChange() kaldes, når nye grænser er hentet. */
-export function locationOutlines(map, { onChange, highlight } = {}) {
+export function locationOutlines(map, { onChange, highlight, selectedOnly = false } = {}) {
   const feats = new Map();  // loknr → feature
   const color = cssVar("--brand"), hi = highlight || cssVar("--accent") || color;
+  // selectedOnly: kun den valgte lokalitet tegnes – de øvrige hentes stadig (til at(), hvilken lokalitet man står i)
+  const base = selectedOnly ? { color, weight: 0, opacity: 0, fillOpacity: 0 } : { color, weight: 1.5, opacity: .8, fillColor: color, fillOpacity: .06 };
   const layer = L.geoJSON(null, {
     interactive: false,
-    style: () => ({ color, weight: 1.5, opacity: .8, fillColor: color, fillOpacity: .06 }),
-    pointToLayer: (_f, ll) => L.circleMarker(ll, { radius: 3, color, weight: 1, fillOpacity: .6, interactive: false }),
+    style: () => base,
+    pointToLayer: (_f, ll) => L.circleMarker(ll, selectedOnly ? { radius: 0, opacity: 0, fillOpacity: 0, interactive: false }
+      : { radius: 3, color, weight: 1, fillOpacity: .6, interactive: false }),
   }).addTo(map);
   const hint = L.control({ position: "bottomleft" });
   hint.onAdd = () => h("div", { class: "map-hint" }, "Zoom ind for at se lokaliteternes grænser");
   let selected = null, seq = 0, timer = null, hintOn = false;
   const restyle = () => layer.eachLayer((l) => {
     const on = l.feature?.properties.loknr === selected;
-    if (l.setStyle && l.feature?.geometry.type !== "Point") l.setStyle(on ? { color: hi, weight: 3, opacity: 1, fillColor: hi, fillOpacity: .18 } : { color, weight: 1.5, opacity: .8, fillColor: color, fillOpacity: .06 });
+    if (l.setStyle && l.feature?.geometry.type !== "Point") l.setStyle(on ? { color: hi, weight: 3, opacity: 1, fillColor: hi, fillOpacity: .18 } : base);
     if (on && l.bringToFront) l.bringToFront();
   });
   const load = async () => {
     const z = map.getZoom();
-    if (z < 10) { if (!hintOn) { hint.addTo(map); hintOn = true; } return; }
+    if (z < 10) { if (!hintOn && !selectedOnly) { hint.addTo(map); hintOn = true; } return; }
     if (hintOn) { hint.remove(); hintOn = false; }
     const b = map.getBounds(), me = ++seq;
     const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(v => v.toFixed(4)).join(",");

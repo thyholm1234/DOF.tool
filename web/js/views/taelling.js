@@ -54,16 +54,16 @@ export async function render(page, [kind]) {
       mapEl.classList.toggle("finn-labels-off", z < 13);  // navnene først, når man er tæt på
     };
     map.on("zoomend", zoomed); zoomed();
-    for (const p of finn.points) {
+    for (const p of finn.points.filter(p => p.type !== "management")) {  // forvaltningspunkterne vises ikke
       const color = p.source === "researcher" ? "#e53935" : "#1f7aaf";
       const html = `<span style="color:${color};font:700 18px/1 system-ui;text-shadow:0 0 2px #fff,0 0 2px #fff">${p.type === "management" ? "×" : "o"}</span>`;
       L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html, iconSize: [14, 14], iconAnchor: [7, 9] }) })
         .bindTooltip(`FiNN-${TYPE[p.type] || "punkt"}, ${SOURCE[p.source] || ""}`).addTo(map);
     }
   }
-  // DOFbasens lokaliteter (grænser fra zoom 10). Den lokalitet, du står i, vælges og fremhæves.
+  // DOFbasens lokaliteter: kun den valgte tegnes (blå). Den lokalitet, du står i, vælges.
   // Den valgte lokalitet fremhæves med blåt – orange er FiNN-områderne
-  const outlines = locationOutlines(map, { onChange: () => S.pos && markLok(), highlight: "#1a73e8" });
+  const outlines = locationOutlines(map, { onChange: () => S.pos && markLok(), highlight: "#1a73e8", selectedOnly: true });
   const markLok = () => {
     const hit = outlines.at(S.pos[0], S.pos[1]);
     if (hit && hit.loknr !== S.loknr) { known.set(hit.loknr, hit.navn); if (![...lokSel.options].some(o => Number(o.value) === hit.loknr)) lokSel.append(h("option", { value: hit.loknr }, `${hit.navn} · her`)); pick(hit.loknr); }
@@ -95,7 +95,7 @@ export async function render(page, [kind]) {
     else if (accC) { accC.remove(); accC = null; }
     if (isFinn) {
       S.site = finn.sites.find(s => insideRing(S.pos, s.ring)) || null;
-      const pts = finn.points.map(p => ({ p, m: meters(S.pos, [p.lat, p.lon]) })).sort((a, b) => a.m - b.m);
+      const pts = finn.points.filter(p => p.type !== "management").map(p => ({ p, m: meters(S.pos, [p.lat, p.lon]) })).sort((a, b) => a.m - b.m);
       S.point = pts[0] && pts[0].m < 5000 ? pts[0] : null;
     }
     if (center) {
@@ -195,7 +195,7 @@ export async function render(page, [kind]) {
       h("li", {}, `Stå stille i ${COUNT_MIN} minutter, og registrér alle fugle, du ser og hører og kan bestemme – det er en komplet artsliste.`),
       h("li", {}, "Tæl i godt vejr – undgå fx regn og tæt tåge."),
       h("li", {}, "Start ikke en tælling på grund af en sjælden eller særlig interessant fugl."),
-      isFinn ? h("li", {}, "Tæl inden for et FiNN-område (orange). Fordel gerne dine tællinger på FiNN-punkterne: × er forvaltningspunkter, o er referencepunkter; blå er foreslået af frivillige, røde af forskere.") : null,
+      isFinn ? h("li", {}, "Tæl inden for et FiNN-område (orange). Fordel gerne dine tællinger på FiNN-referencepunkterne (o): blå er foreslået af frivillige, røde af forskere.") : null,
       h("li", {}, "Talt på papir? Brug uret, og angiv dato og præcist starttidspunkt nedenfor.")),
     h("p", { class: "muted", style: { fontSize: ".85rem", margin: "8px 0 0" } }, "Læs mere hos DOF: ",
       h("a", { href: isFinn ? "https://www.dof.dk/finn" : "https://www.dof.dk/fakta-om-fugle/spontantaellinger", target: "_blank", rel: "noopener" }, isFinn ? "dof.dk/finn" : "spontantællinger")));
