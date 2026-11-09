@@ -53,7 +53,7 @@ async def _panel(db: AsyncSession, source: str) -> dict:
     if source == "dof":
         g = await gateway.status()
         extra = {"queue_length": g.get("queue_length"), "calls_today": g.get(f"calls:{date.today().isoformat()}", 0),
-                 "min_interval": g.get("min_interval")}
+                 "min_interval": g.get("min_interval"), "media_interval": g.get("media_interval")}
     return datasync.jsonable({**data, **extra, "plan": plan, "tiers": datasync.TIERS,
                               "last_runs": await datasync.last_runs(source),
                               "per_day": datasync.calls_per_day(source, plan["tiers"])})

@@ -3,7 +3,7 @@
 Planer (som i DML-Bird-Populations' datapanel, men kørende af sig selv): for hvert vindue – dagen i dag,
 de sidste 3 dage, den sidste uge, den sidste måned, det sidste år og alle data – vælges om og hvor ofte
 data skal hentes igen. Planlæggeren i workeren lægger jobs i kø; DOFbasen-jobs går gennem gatewayen
-(højst ét kald i minuttet), vejr-jobs gennem vejrarkivets egen kø (én månedsfil ad gangen).
+(højst ét udtræk pr. DOF_MIN_INTERVAL, mindst 120 s), vejr-jobs gennem vejrarkivets egen kø (én månedsfil ad gangen).
 
 DOFbasen: i dag = live-hentningens interval; 3 dage/uge = dagsudtræk; måned/år/alle = månedsudtræk.
 Vejr: DMI's 10 km-grid findes som månedsfiler, så alle vinduer oversættes til de måneder, de rører.
@@ -29,7 +29,7 @@ UNITS = {"min": 60, "hour": 3600, "day": 86400}
 
 DEFAULTS = {
     "dof": {
-        "today": {"on": True, "every": 1, "unit": "min"},
+        "today": {"on": True, "every": 2, "unit": "min"},
         "days3": {"on": True, "every": 1, "unit": "hour"},
         "week": {"on": True, "every": 1, "unit": "day"},
         "month": {"on": True, "every": 7, "unit": "day"},
@@ -157,7 +157,12 @@ def calls_per_day(source: str, plan: dict) -> dict:
             continue
         per_run = (1 if key == "today" else len(dof_tier_jobs(key))) if source == "dof" \
             else len(tier_months(key, WEATHER_FIRST_YEAR))
-        out[key] = round(per_run * 86400 / interval_s(t), 1)
+        every = interval_s(t)
+        if source == "dof":  # gatewayen kalder aldrig oftere end dof_min_interval
+            from portal.config import get_settings
+
+            every = max(every, get_settings().dof_min_interval)
+        out[key] = round(per_run * 86400 / every, 1)
     return out
 
 

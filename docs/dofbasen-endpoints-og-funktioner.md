@@ -285,6 +285,6 @@ FiNN random walk · Ilanddrevne døde fugle (SUPRE).
 ### 6.3 Hvad DOF.tool kan bruge direkte
 - Reference-data uden login via `api.dofbasen.dk/api/v1.0/public/*` (allerede brugt til `seed/trip_lookups.json`).
 - `include/autosuggest/jsonlok.php` til lokalitetssøgning (offentlig).
-- Søge-/Excel-endpoints begrænset til ét udtræk i minuttet via portalens gateway.
+- Søge-/Excel-endpoints og `observationer/index.php` begrænset til ét udtræk hvert andet minut (tilsammen) via portalens gateway.
 - Skrivning til DOFbasen er **ikke** implementeret i DOF.tool; hvis det ønskes, er de interessante endpoints `POST /collections/`, `/observations/`,
   `/breeding-pairs/`, `/disturbances/` (🔎, skal verificeres mod en testbruger før brug) og kræver, at brugerens DOFbasen-login holdes i browseren.

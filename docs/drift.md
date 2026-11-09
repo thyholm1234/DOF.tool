@@ -86,24 +86,27 @@ database*. Uden Docker-adgang oprettes noderne manuelt (*Tilføj node*), og pane
 Begrænsninger: skrivning går til gruppens primary (ingen automatisk failover), og skrivning på tværs af grupper i én
 forespørgsel er ikke atomisk (ingen 2PC). Data deles *mellem* grupperne, ikke endnu *inden for* en gruppe (sharding).
 
-### Hensyn til dofbasen.dk: højst ét udtræk i minuttet
+### Hensyn til dofbasen.dk: højst ét udtræk hvert andet minut
 
 **Alt**, der går til dofbasen.dk, går gennem gatewayen i worker-processen
 (`server/portal/dof/gateway.py`). Der er to baner:
 
-* **Udtræk** (live-hentning, referencedata, historik, måneder): én kø i Valkey, og der går
-  altid mindst 60 sekunder fra ét kald er færdigt til det næste starter. Grænsen kan ikke sættes lavere
-  end 60 sekunder (`DOF_MIN_INTERVAL`), og den håndhæves med et globalt tidsstempel og en lås, så den
+* **Udtræk** (live-hentning, medie-scanning, referencedata, historik, måneder): én kø i Valkey, og der går
+  altid mindst 120 sekunder fra ét kald er færdigt til det næste starter. Grænsen kan ikke sættes lavere
+  end 120 sekunder (`DOF_MIN_INTERVAL`), og den håndhæves med et globalt tidsstempel og en lås, så den
   også holder på tværs af genstarter. Eneste undtagelse er knappen *Hent nu* ved "Dagen i dag" under **Admin → Data**:
   den henter dagens liste med det samme én gang (højst hvert 15. sekund).
 * **Opslag** (login-tjek samt billeder, lyd og DKU-status for én observation): små kald, der ikke trækker data ud af
   DOFbasens database. De har deres egen kø og udføres med det samme, højst fire ad gangen, uden at vente på
-  minimumsintervallet og uden at påvirke det. Login er begrænset til fem forsøg i minuttet pr. obserkode og pr. IP.
+  minimumsintervallet og uden at påvirke det. Login og kontobinding er begrænset til fem forsøg i minuttet pr. konto og pr. IP.
 
-Prioritering af udtrækkene pr. ledigt minut:
-1. live-hentning af dagens observationer
-2. øvrige job (i går hver time, sidste 7 dage om natten, referencedata kl. 3, huller i data).
-   Er der ventende job, skiftes der mellem live og kø, så feedet opdateres mindst hvert 2. minut.
+Prioritering af udtrækkene pr. ledig plads (hver 120. sekund):
+1. live-hentning af dagens observationer, når opdateringsplanens interval for «dagen i dag» er gået
+2. medie-scanning af `observationer/index.php` (billeder, lyd og DKU-status for dagens observationer): følger
+   live-planen – højst én gang pr. live-interval og aldrig oftere end `DOF_MEDIA_INTERVAL` (600 s). Som regel kun de
+   sjældne (~200 kB); hver 3. gang alle fugle (`DOF_MEDIA_ALL_EVERY`). Slået fra sammen med live-hentningen.
+3. øvrige job (i går hver time, sidste 7 dage om natten, referencedata kl. 3, huller i data).
+   Er der ventende job, skiftes der mellem live og kø.
 
 Hvad sparer kald:
 * Én dagsliste dækker *alle* moduler: notifikationer, lister, scoreboards og fænologi læser samme data.

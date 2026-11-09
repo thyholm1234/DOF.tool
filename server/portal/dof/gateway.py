@@ -2,9 +2,9 @@
 
 Alle kald til DOFbasen går gennem gatewayen i worker-processen. Der er to baner:
 
-  * Udtræk (live-observationer, referencedata, historik, måneder): én kø og én løkke. Mellem afslutningen af
-    ét kald (svaret er hentet helt) og starten af det næste går der altid mindst `dof_min_interval` sekunder (standard
-    60). Efterbehandlingen (indlæsning, alarmer, push) ligger inden for ventetiden og forsinker ikke næste hentning. Grænsen
+  * Udtræk (live-observationer, medie-scanning af «dagens observationer», referencedata, historik, måneder): én kø og
+    én løkke. Mellem afslutningen af ét kald (svaret er hentet helt) og starten af det næste går der altid mindst
+    `dof_min_interval` sekunder (standard og mindst 120). Efterbehandlingen (indlæsning, alarmer, push) ligger inden for ventetiden og forsinker ikke næste hentning. Grænsen
     håndhæves med et globalt tidsstempel + lås i Valkey, så den også holder hvis der ved en fejl kører flere workers.
     Undtagelse: en administrator kan bede om én live-hentning af dagen med det samme (request_live_now) – den
     springer ventetiden over én gang og kan højst bestilles hvert LIVE_NOW_COOLDOWN sekund.
@@ -15,9 +15,10 @@ Alle kald til DOFbasen går gennem gatewayen i worker-processen. Der er to baner
 
 Planlægning pr. ledig plads:
   1. Interaktive job – en bruger venter.
-  2. Live-hentning af dagens observationer, hvis den er forfalden.
-  3. Øvrige job efter prioritet. Er der ventende job, skiftes der mellem live og kø, så
-     live-feedet opdateres mindst hvert andet minut.
+  2. Live-hentning af dagens observationer, hvis den er forfalden (planens interval for «dagen i dag»).
+  3. Medie-scanning, hvis den er forfalden: følger live-planen – højst én gang pr. live-interval og aldrig oftere end
+     dof_media_interval. Slået fra sammen med live-hentningen.
+  4. Øvrige job efter prioritet. Er der ventende job, skiftes der mellem live og kø.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ PRIO_STEP = 1e14  # skal være større end tidsstempler i ms (~1,8e12)
 LIVE_NOW = "dof:live_now"  # sat af en administrator: hent dagen nu, uden at vente på minimumsintervallet
 LIVE_NOW_COOLDOWN = 15
 LIVE_MAX_GAP = 150  # sekunder: så længe må interaktive job højst holde live-hentningen tilbage
+MEDIA_AT = "media:scan_at"  # seneste medie-scanning (overlever genstart, så en genstart ikke udløser en ekstra)
 # Opslagsbanen: små opslag pr. observation uden minimumsinterval
 LQ = "dof:lq"
 LOOKUP_RUNNING = "dof:lq:running"  # id'er på opslag der udføres lige nu
@@ -168,6 +170,13 @@ async def status() -> dict:
     raw = await r.get(f"dof:job:{running}") if running else None
     data["running"] = {k: v for k, v in json.loads(raw).items() if k in ("id", "kind", "params")} if raw else None
     data["min_interval"] = get_settings().dof_min_interval
+    planned = await r.get("dof:live_interval")
+    live = max(get_settings().dof_min_interval, float(planned or 0))
+    media_every = max(get_settings().dof_media_interval, live) if get_settings().dof_media_interval else 0
+    data["live_interval"] = live if planned is None or float(planned) > 0 else 0
+    data["media_interval"] = media_every if data["live_interval"] else 0
+    raw_media = await r.get("media:scan_last")
+    data["media_last"] = json.loads(raw_media) if raw_media else None
     last = await r.get(LAST_CALL)
     data["seconds_since_last_call"] = round(time.time() - float(last), 1) if last else None
     return data
@@ -205,10 +214,12 @@ async def clear() -> int:
 
 
 class Gateway:
-    def __init__(self, handlers: dict[str, Handler], live_handler: Handler, live_enabled: Callable[[], Awaitable[bool]]):
+    def __init__(self, handlers: dict[str, Handler], live_handler: Handler, live_enabled: Callable[[], Awaitable[bool]],
+                 media_handler: Handler | None = None):
         self.settings = get_settings()
         self.handlers = handlers
         self.live_handler = live_handler
+        self.media_handler = media_handler
         self.live_enabled = live_enabled
         self.last_was_live = False
         self.last_live = 0.0
@@ -245,6 +256,7 @@ class Gateway:
             live_on = False
         interval = max(self.settings.dof_min_interval, int(float(planned or 0)))
         live_due = live_on and time.time() - self.last_live >= interval - 1
+        media_due = live_on and await self._media_due(interval)
         # Interaktive job (login, billedopslag) går først – men en lang række af dem må ikke tage live-feedet:
         # er live forfalden med mere end LIVE_MAX_GAP sekunder, kommer den imellem
         if live_due and not self.last_was_live and time.time() - self.last_live > LIVE_MAX_GAP:
@@ -255,12 +267,26 @@ class Gateway:
         pending = await kv().zcard(Q) > 0
         if live_due and (not pending or not self.last_was_live or time.time() - self.last_live > 150):
             return "live", None
+        if media_due:
+            return "media", None
         job = await self._pop()
         if job:
             return "job", job
         if live_due:
             return "live", None
         return "idle", None
+
+    def media_interval(self, live_interval: float) -> float:
+        """Sekunder mellem medie-scanninger: live-intervallet, men aldrig under dof_media_interval (0 = slået fra)."""
+        if not self.media_handler or not self.settings.dof_media_interval:
+            return 0.0
+        return max(self.settings.dof_media_interval, live_interval, self.settings.dof_min_interval)
+
+    async def _media_due(self, live_interval: float) -> bool:
+        every = self.media_interval(live_interval)
+        if not every:
+            return False
+        return time.time() - float(await kv().get(MEDIA_AT) or 0) >= every - 1
 
     async def _wait_for_slot(self) -> None:
         r = kv()
@@ -456,7 +482,7 @@ class Gateway:
     async def _execute(self, client: httpx.AsyncClient, kind: str, job: dict | None) -> None:
         r = kv()
         started = time.time()
-        label = "live" if kind == "live" else job["kind"]
+        label = kind if kind in ("live", "media") else job["kind"]
         result: Any = None
         error: str | None = None
         try:
@@ -464,6 +490,10 @@ class Gateway:
                 self.last_live = started
                 self.last_was_live = True
                 result = await self.live_handler(client, {})
+            elif kind == "media":
+                self.last_was_live = False
+                await r.set(MEDIA_AT, started)  # også ved fejl: næste forsøg venter et helt interval
+                result = await self.media_handler(client, {})
             else:
                 self.last_was_live = False
                 handler = self.handlers.get(job["kind"])

@@ -51,7 +51,7 @@ CLUSTERS = [
         ]),
         ("worker", "worker · præcis én proces", [
             ("sched", "Planlægger", "beregning, prognose, ture, RSS"),
-            ("gw", "DOFbasen-gateway", "udtræk ≤ 1/min, opslag"),
+            ("gw", "DOFbasen-gateway", "udtræk ≤ 1/2 min (live, medier, kø), opslag"),
             ("cmds", "Kommando-forbruger", "worker:commands"),
             ("arch", "Arkivimport", "månedsfiler (CSV)"),
             ("wpush", "Alarmer → push", "ved nye observationer"),
@@ -201,7 +201,7 @@ EDGES = [
     ("once", "vols", "Fil", "fil", "Engang: fjern EXIF/GPS fra billeder uploadet før rensningen", True),
     ("arch", "archdir", "Fil", "fil", "Læs dofbasen_ÅÅÅÅ_MM.csv (read-only bind-mount)", True),
     # ud på internettet
-    ("gw", "dofb", "HTTPS", "HTTPS", "GET observationer, ture, referencedata, medier – højst ét udtræk pr. minut", True),
+    ("gw", "dofb", "HTTPS", "HTTPS", "GET observationer, ture, referencedata, medie-scanning – højst ét udtræk pr. 2 min (delt)", True),
     ("gw", "dofl", "HTTPS", "HTTPS", "POST JSON obserkode + adgangskode, kun når en konto oprettes eller får ny adgangskode (adgangskoden gemmes ikke)", True),
     ("sched", "dofdk", "HTTPS", "HTTPS", "GET HTML med DOF-ture og arrangementer (hver 6. time)", True),
     ("sched", "netfugl", "HTTPS", "HTTPS", "GET RSS/HTML (hver time) og Netfugl-lister", True),

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import calendar
 import html
 import json
@@ -239,9 +238,8 @@ async def media_many(obsids: list[int]) -> dict[int, dict]:
 
 # ---------------------------------------------------------------- medie-scanner
 # "Dagens observationer" (observationer/index.php) har pr. observation både billedlinks, lydlinks og DKU-status,
-# så ét opslag dækker mange observationer. Højst ét opslag pr. interval (standard 60 s): som regel de sjældne
-# (visning=sufugle, ~200 kB), hver N'te gang alle fugle (allfugle, flere MB sidst på dagen). Efter midnat får
-# gårsdagen én sidste fuld gennemgang. Kørslen deler låsen med gatewayen (aldrig to kald samtidig).
+# så ét opslag dækker mange observationer. Scanningen er et job i gatewayens udtræksbane (media_scan) og følger
+# live-planen: højst én gang pr. live-interval og aldrig oftere end dof_media_interval.
 
 OBS_PAGE = "https://dofbasen.dk/observationer/index.php"
 _ROW = re.compile(r"<tr>(.*?)</tr>", re.S | re.IGNORECASE)
@@ -304,44 +302,25 @@ async def ensure_media_obs(obsids: list[int]) -> dict:
     return {**await gateway.eta([j for j in jobs if j]), "obsids": [o for o, j in zip(ids, jobs) if j and j in waiting]}
 
 
-async def media_scanner() -> None:
-    settings = get_settings()
-    interval = settings.dof_media_interval
-    if not interval:
-        log.info("Medie-scanner slået fra")
-        return
+async def media_scan(client: httpx.AsyncClient, p: dict) -> dict:
+    """Én scanning af «dagens observationer». Udføres af gatewayen i udtræksbanen (dof/gateway.py), når den er forfalden –
+    den deler pladserne med live-hentningen og køen, så DOFbasen aldrig får mere end ét udtræk pr. dof_min_interval.
+    Som regel de sjældne (sufugle, ~200 kB); hver dof_media_all_every'te gang alle fugle. Efter midnat får gårsdagen én
+    sidste fuld gennemgang. Tælleren ligger i Valkey, så en genstart ikke udløser en fuld hentning."""
     r = kv()
-    every_all = max(1, int(settings.dof_media_all_every))
-    runs = 0
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120, connect=20), follow_redirects=True,
-                                 headers={"User-Agent": settings.dof_user_agent}) as client:
-        while True:
-            await asyncio.sleep(interval)
-            try:
-                # Følger live-hentningen: slået fra i admin eller af opdateringsplanen = ingen opslag
-                planned = await r.get("dof:live_interval")
-                if not settings.dof_enabled or not await live_enabled() or (planned is not None and int(float(planned)) == 0):
-                    continue
-                today = dk_today()
-                last_day = await r.get("media:scan_day")
-                if last_day and last_day < today.isoformat():
-                    day, visning = date.fromisoformat(last_day), "allfugle"  # gårsdagens sidste fulde gennemgang
-                else:
-                    day, visning = today, "allfugle" if runs % every_all == 0 else "sufugle"
-                while not await r.set(gateway.LOCK, "media", nx=True, ex=180):
-                    await asyncio.sleep(2)
-                try:
-                    runs += 1
-                    await r.set("media:scan_day", today.isoformat())  # også ved fejl: gårsdagen forsøges kun én gang
-                    n = await scan_media(client, day, visning)
-                    await r.set("media:scan_last", json.dumps({"at": datetime.now(timezone.utc).isoformat(), "day": day.isoformat(),
-                                                               "visning": visning, "changed": n}))
-                finally:
-                    await r.delete(gateway.LOCK)
-            except asyncio.CancelledError:
-                raise
-            except Exception:  # noqa: BLE001 – løkken må aldrig dø
-                log.exception("Medie-scanner fejlede")
+    every_all = max(1, int(get_settings().dof_media_all_every))
+    today = dk_today()
+    last_day = await r.get("media:scan_day")
+    if last_day and last_day < today.isoformat():
+        day, visning = date.fromisoformat(last_day), "allfugle"  # gårsdagens sidste fulde gennemgang
+    else:
+        runs = await r.incr("media:scan_runs")
+        day, visning = today, "allfugle" if runs % every_all == 0 else "sufugle"
+    await r.set("media:scan_day", today.isoformat())  # også ved fejl: gårsdagen forsøges kun én gang
+    n = await scan_media(client, day, visning)
+    await r.set("media:scan_last", json.dumps({"at": datetime.now(timezone.utc).isoformat(), "day": day.isoformat(),
+                                               "visning": visning, "changed": n}))
+    return {"day": day.isoformat(), "visning": visning, "changed": n}
 
 
 # ---------------------------------------------------------------- referencedata

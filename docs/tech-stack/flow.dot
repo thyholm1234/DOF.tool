@@ -41,7 +41,7 @@ digraph DOFtool {
     }
     subgraph cluster_worker { label=<<b>worker · præcis én proces</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
       sched [label=<<b>Planlægger</b><br/><font point-size="8" color="#555555">beregning, prognose, ture, RSS</font>>];
-      gw [label=<<b>DOFbasen-gateway</b><br/><font point-size="8" color="#555555">udtræk ≤ 1/min, opslag</font>>];
+      gw [label=<<b>DOFbasen-gateway</b><br/><font point-size="8" color="#555555">udtræk ≤ 1/2 min (live, medier, kø), opslag</font>>];
       cmds [label=<<b>Kommando-forbruger</b><br/><font point-size="8" color="#555555">worker:commands</font>>];
       arch [label=<<b>Arkivimport</b><br/><font point-size="8" color="#555555">månedsfiler (CSV)</font>>];
       wpush [label=<<b>Alarmer → push</b><br/><font point-size="8" color="#555555">ved nye observationer</font>>];

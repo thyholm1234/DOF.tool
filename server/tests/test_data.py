@@ -22,7 +22,7 @@ def test_tier_jobs_and_months():
 def test_calls_per_day_estimate():
     plan = {k: dict(v) for k, v in datasync.DEFAULTS["dof"].items()}
     est = datasync.calls_per_day("dof", plan)
-    assert est["today"] == 1440 and est["days3"] == 72 and est["week"] == 7 and est["all"] == 0
+    assert est["today"] == 720 and est["days3"] == 72 and est["week"] == 7 and est["all"] == 0
     plan["days3"]["on"] = False
     assert datasync.calls_per_day("dof", plan)["days3"] == 0
     assert datasync.interval_s({"every": 2, "unit": "hour"}) == 7200

@@ -550,13 +550,12 @@ async def main() -> None:
     # Kun én worker kører: låse fra en afbrudt proces er forældede
     await kv().delete("archive:lock", "dof:lock")
     await jobstatus.interrupted()
-    gw = gateway.Gateway(jobs.HANDLERS, jobs.live, jobs.live_enabled)
+    gw = gateway.Gateway(jobs.HANDLERS, jobs.live, jobs.live_enabled, media_handler=jobs.media_scan)
     tasks = [
         asyncio.create_task(gw.run(), name="gateway"),
         asyncio.create_task(scheduler(), name="scheduler"),
         asyncio.create_task(command_listener(), name="commands"),
         asyncio.create_task(weather_archive.loop(), name="weather"),
-        asyncio.create_task(jobs.media_scanner(), name="media"),
         asyncio.create_task(build_background_indexes(), name="indexes"),
         asyncio.create_task(dku_candidates.loop(), name="dku_candidates"),
     ]

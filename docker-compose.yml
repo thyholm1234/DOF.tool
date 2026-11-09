@@ -244,7 +244,7 @@ services:
       retries: 30
       start_period: 30s
 
-  # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 kald/minut)
+  # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 udtræk hvert andet minut)
   worker:
     <<: *app
     command: ["python", "-m", "portal.worker"]

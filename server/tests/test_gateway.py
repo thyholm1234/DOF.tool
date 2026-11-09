@@ -204,7 +204,10 @@ async def test_wait_for_slot_respects_minimum_interval(fake, monkeypatch):
 
 def test_min_interval_cannot_be_lowered():
     from portal.config import Settings
-    assert Settings(dof_min_interval=5).dof_min_interval == 60
+    assert Settings(dof_min_interval=5).dof_min_interval == 120
+    assert Settings(dof_min_interval=60).dof_min_interval == 120
+    assert Settings(dof_media_interval=60).dof_media_interval == 120
+    assert Settings(dof_media_interval=0).dof_media_interval == 0
 
 
 async def test_interactive_beats_old_bulk_jobs(fake):
@@ -249,3 +252,105 @@ async def test_interval_counts_from_end_when_no_response(fake):
     t0 = time.time()
     await gw._call(None, "live", None)
     assert float(await fake.get(gateway.LAST_CALL)) >= t0 + 0.05
+
+
+# ---------------------------------------------------------------- medie-scanningen deler udtræksbanen
+
+
+def _media_gw(monkeypatch, live_on=True):
+    async def enabled():
+        return live_on
+
+    async def media(client, _):
+        return {"changed": 0}
+
+    gw = gateway.Gateway({}, None, enabled, media_handler=media)
+    monkeypatch.setattr(gw.settings, "dof_min_interval", 120.0)
+    monkeypatch.setattr(gw.settings, "dof_media_interval", 600.0)
+    return gw
+
+
+async def test_medie_scanning_folger_live_planen(fake, monkeypatch):
+    """Live hvert 10. min: medie-scanningen kommer én gang ind imellem og venter så et helt live-interval."""
+    gw = _media_gw(monkeypatch)
+    await fake.set("dof:live_interval", "600")
+    assert (await gw._choose())[0] == "live"
+    gw.last_live, gw.last_was_live = time.time(), True
+    assert (await gw._choose())[0] == "media"
+    await fake.set(gateway.MEDIA_AT, time.time())
+    assert (await gw._choose())[0] == "idle"
+    await fake.set(gateway.MEDIA_AT, time.time() - 300)
+    assert (await gw._choose())[0] == "idle"  # 5 min er ikke nok
+    await fake.set(gateway.MEDIA_AT, time.time() - 600)
+    assert (await gw._choose())[0] == "media"
+
+
+async def test_medie_scanning_aldrig_oftere_end_hvert_tiende_minut(fake, monkeypatch):
+    gw = _media_gw(monkeypatch)
+    await fake.set("dof:live_interval", "120")  # live hvert andet minut
+    assert gw.media_interval(120) == 600
+    gw.last_live, gw.last_was_live = time.time(), True
+    await fake.set(gateway.MEDIA_AT, time.time() - 200)
+    assert (await gw._choose())[0] == "idle"
+
+
+async def test_medie_scanning_slaaet_fra_med_live(fake, monkeypatch):
+    gw = _media_gw(monkeypatch)
+    await fake.set("dof:live_interval", "0")
+    assert (await gw._choose())[0] == "idle"
+    gw = _media_gw(monkeypatch, live_on=False)
+    await fake.delete("dof:live_interval")
+    assert (await gw._choose())[0] == "idle"
+
+
+async def test_medie_scanning_tager_ikke_alle_pladser_fra_koen(fake, monkeypatch):
+    gw = _media_gw(monkeypatch)
+    await fake.set("dof:live_interval", "600")
+    await gateway.enqueue("day", {"date": "x"}, priority=gateway.BULK)
+    gw.last_live, gw.last_was_live = time.time(), True
+    assert (await gw._choose())[0] == "media"
+    await fake.set(gateway.MEDIA_AT, time.time())
+    gw.last_was_live = False
+    kind, job = await gw._choose()
+    assert kind == "job" and job["kind"] == "day"
+
+
+async def test_medie_kald_taeller_med_i_intervallet(fake, monkeypatch):
+    """Scanningen er et almindeligt udtræk: lås, tidsstempel for intervallet og tidspunktet for seneste scanning."""
+    gw = _media_gw(monkeypatch)
+    await fake.set(gateway.LOCK, "1")
+    t0 = time.time()
+    await gw._call(None, "media", None)
+    assert float(await fake.get(gateway.LAST_CALL)) >= t0 and float(await fake.get(gateway.MEDIA_AT)) >= t0
+    assert await fake.get(gateway.LOCK) is None
+
+
+async def test_media_scan_skifter_mellem_sjaeldne_og_alle(fake, monkeypatch):
+    """Hver 3. gang alle fugle; tælleren ligger i Valkey (en genstart giver ikke en fuld hentning); gårsdagen får én
+    sidste fuld gennemgang efter midnat."""
+    from datetime import date
+
+    from portal.dof import jobs
+
+    calls = []
+
+    async def scan(client, day, visning):
+        calls.append((day.isoformat(), visning))
+        return 1
+
+    async def incr(k):
+        fake.kv[k] = str(int(fake.kv.get(k, 0)) + 1)
+        return int(fake.kv[k])
+
+    monkeypatch.setattr(fake, "incr", incr, raising=False)
+    monkeypatch.setattr(jobs, "kv", lambda: fake)
+    monkeypatch.setattr(jobs, "scan_media", scan)
+    monkeypatch.setattr(jobs.get_settings(), "dof_media_all_every", 3)
+    monkeypatch.setattr(jobs, "dk_today", lambda: date(2026, 11, 9))
+    for _ in range(6):
+        await jobs.media_scan(None, {})
+    assert [v for _, v in calls] == ["sufugle", "sufugle", "allfugle"] * 2
+    monkeypatch.setattr(jobs, "dk_today", lambda: date(2026, 11, 10))
+    await jobs.media_scan(None, {})
+    await jobs.media_scan(None, {})
+    assert calls[-2] == ("2026-11-09", "allfugle") and calls[-1][0] == "2026-11-10"

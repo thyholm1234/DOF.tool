@@ -210,8 +210,12 @@
   <tbody>
     <tr><td>Live-hentning</td><td>løbende (efter plan i Admin → Data)</td><td>Dagens observationer fra DOFbasen via gatewayen;
       nye fund udløser alarmer, push og live-feed.</td></tr>
-    <tr><td>DOFbasen-gateway</td><td>altid</td><td>Højst ét udtræk pr. minut (globalt tidsstempel + lås i Valkey). Login og
-      medieopslag har en separat kø uden interval.</td></tr>
+    <tr><td>DOFbasen-gateway</td><td>altid</td><td>Højst ét udtræk hvert andet minut (globalt tidsstempel + lås i Valkey).
+      Live-hentning, medie-scanning og kø deler pladserne. Login/kontobinding og billedopslag for én observation har en
+      separat kø uden interval.</td></tr>
+    <tr><td>Medie-scanning</td><td>følger live-planen, højst hvert 10. min</td><td><code>observationer/index.php</code>:
+      billeder, lyd og DKU-status for dagens observationer – som regel de sjældne, hver 3. gang alle fugle. Et job i
+      gatewayens udtræksbane.</td></tr>
     <tr><td>Vejrprognose</td><td>hver time (efter :15)</td><td>Open-Meteo.</td></tr>
     <tr><td>Natlig beregning</td><td>kl. 02:30</td><td>Dagsaggregater, lokale tal, fænologi, sæsoner, arter pr. år, oprydning
       (notifikationer 90 d, aktivitet 180 d, positioner 30 d uden opdatering).</td></tr>
@@ -276,7 +280,7 @@
     <tr><td><code>PRIVACY_CONTROLLER</code>, <code>PRIVACY_EMAIL</code>, <code>PRIVACY_BACKUP_DAYS</code></td>
       <td>Oplysninger i privatlivspolitikken.</td></tr>
     <tr><td><code>DOF_ARCHIVE_DIR</code>, <code>DOF_MIN_INTERVAL</code>, <code>DOF_ENABLED</code></td>
-      <td>DOFbasen-arkivet og gatewayens interval (mindst 60 s).</td></tr>
+      <td>DOFbasen-arkivet og gatewayens interval (mindst 120 s).</td></tr>
     <tr><td><code>FCM_SERVICE_ACCOUNT_B64</code>, <code>VAPID_SUBJECT</code></td><td>Push.</td></tr>
     <tr><td><code>ZITADEL_MASTERKEY</code>, <code>ZITADEL_DB_PASSWORD</code></td><td>Passkeys: Zitadels hovednøgle (32 tegn – kopi uden
       for serveren) og databasens kodeord.</td></tr>

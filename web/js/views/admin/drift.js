@@ -22,9 +22,13 @@ export async function ops(body) {
     h("div", { class: "stats" }, st(fmtN(c.users), "brugere"), st(fmtN(c.devices), "push-enheder"), st(fmtN(c.observations_est), "observationer (ca.)"), st(fmtN(c.notifications_24h), "notifikationer 24 t")),
     h("div", { class: "grid-2 mt" },
       h("div", { class: "card stack" }, h("h3", {}, "DOFbasen-gateway"),
-        h("p", {}, `Højst ét kald pr. ${g.min_interval} s. Seneste: `, h("b", {}, g.last_kind || "–"), ` ${g.last_at ? ago(g.last_at) : ""} (${g.last_duration || "–"} s) `,
+        h("p", {}, `Højst ét udtræk pr. ${g.min_interval} s – live, medie-scanning og kø deler pladserne. Seneste: `, h("b", {}, g.last_kind || "–"), ` ${g.last_at ? ago(g.last_at) : ""} (${g.last_duration || "–"} s) `,
           g.last_ok === "0" ? h("span", { class: "tag SU" }, "fejl") : h("span", { class: "tag plain" }, "ok")),
         g.last_error ? h("div", { class: "notice err" }, g.last_error) : null,
+        h("p", { class: "muted", style: { margin: 0 } }, g.live_interval
+          ? `Live-hentning hvert ${Math.round(g.live_interval / 60)}. min · medie-scanning (billeder, lyd, DKU) hvert ${Math.round(g.media_interval / 60)}. min`
+            + (g.media_last ? ` – seneste ${ago(g.media_last.at)} (${g.media_last.visning === "allfugle" ? "alle fugle" : "sjældne"}, ${g.media_last.changed} ændret)` : "")
+          : "Live-hentning og medie-scanning er slået fra i opdateringsplanen."),
         h("div", { class: "row between" },
           h("p", { class: "muted", style: { margin: 0 } }, `Kald i dag: ${g[`calls:${today}`] || 0} · i kø: ${g.queue_length} · opslag i dag: ${g[`lookups:${today}`] || 0}${g.lookup_queue || g.lookups_running ? ` (${(g.lookup_queue || 0) + (g.lookups_running || 0)} i gang)` : ""}`, g.queue_length > d.queue.length ? ` (viser de første ${d.queue.length})` : ""),
           g.queue_length ? h("button", { class: "btn sm ghost danger", onclick: async () => {

@@ -36,13 +36,15 @@ class Settings(BaseSettings):
     privacy_email: str = ""
     privacy_backup_days: int = 30
 
-    # DOFbasen: højst ét kald pr. dof_min_interval sekunder, uanset hvem der beder om det.
-    dof_min_interval: float = 60.0
+    # DOFbasen: højst ét udtræk pr. dof_min_interval sekunder (mindst 120), uanset hvem der beder om det – live-hentning,
+    # medie-scanner, historik og referencedata deler pladserne (dof/gateway.py)
+    dof_min_interval: float = 120.0
     dof_enabled: bool = True
-    # Medie-scanner (dagens sjældne på observationer/index.php): sekunder mellem opslag, 0 = slået fra, ellers mindst 60
-    dof_media_interval: float = 60.0
-    dof_media_all_every: int = 10  # hvert N'te opslag henter alle fugle i stedet for kun de sjældne (1 = altid alle)
-    dof_user_agent: str = "DOF.tool/1.0 (feltornitolog-portal; 1 kald/min)"
+    # Medie-scanner (billeder, lyd og DKU-status fra observationer/index.php): et job i gatewayens udtræksbane, der følger
+    # live-planen – højst én gang pr. live-interval og aldrig oftere end dette antal sekunder. 0 = slået fra.
+    dof_media_interval: float = 600.0
+    dof_media_all_every: int = 3  # hver N'te scanning henter alle fugle i stedet for kun de sjældne (1 = altid alle)
+    dof_user_agent: str = "DOF.tool/1.0 (feltornitolog-portal; 1 kald/2 min)"
     dof_login_url: str = "https://krydslister.dofbasen.dk/api/v1/login"
 
     # Lokalt arkiv med månedsudtræk (dofbasen_ÅÅÅÅ_MM.csv)
@@ -84,14 +86,14 @@ class Settings(BaseSettings):
 
     @field_validator("dof_min_interval")
     @classmethod
-    def _at_least_one_minute(cls, v: float) -> float:
-        # Hård grænse: DOFbasen må højst få ét kald i minuttet
-        return max(60.0, v)
+    def _at_least_two_minutes(cls, v: float) -> float:
+        # Hård grænse: DOFbasen må højst få ét udtræk hvert andet minut
+        return max(120.0, v)
 
     @field_validator("dof_media_interval")
     @classmethod
     def _media_interval(cls, v: float) -> float:
-        return 0.0 if v <= 0 else max(60.0, v)
+        return 0.0 if v <= 0 else max(120.0, v)
 
 
 @lru_cache

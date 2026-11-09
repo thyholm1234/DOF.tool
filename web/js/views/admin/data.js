@@ -154,29 +154,32 @@ function planEditor(d, source, onDirty, onSaved) {
       h("td", {}, h("div", { class: "row", style: { gap: "6px", flexWrap: "nowrap" } }, "hver", every, unit)),
       h("td", { class: "muted" }, isDof && key === "today" ? "løbende" : last ? ago(last) : "aldrig"),
       h("td", { class: "right num muted" }, perDay ? (isDof ? `${fmtN(perDay)} kald/døgn` : `${String(perDay).replace(".", ",")} filer/døgn`) : "–"),
-      h("td", { class: "right" }, isDof && key === "today" ? h("button", { class: "btn sm", title: "Henter dagens liste med det samme – springer 60 sekunders-grænsen over én gang", onclick: async () => {
+      h("td", { class: "right" }, isDof && key === "today" ? h("button", { class: "btn sm", title: "Henter dagens liste med det samme – springer gatewayens ventetid over én gang", onclick: async () => {
         try { await api("/api/admin/data/dof/run/today", { method: "POST" }); toast("Dagen hentes nu – uden ventetid"); } catch (err) { toast(err.message, "err"); }
       } }, "Hent nu") : h("button", { class: "btn sm", onclick: async () => {
-        if (key === "all" && !confirm(isDof ? "Hent alle måneder fra DOFbasen igen? Det er ca. 790 kald og tager ca. 13 timer (ét kald i minuttet)." : "Hent alle manglende vejrmåneder? Hver er ca. 0,5 GB.")) return;
+        if (key === "all" && !confirm(isDof ? `Hent alle måneder fra DOFbasen igen? Det er ca. 790 kald og tager mindst ${Math.round(790 * (d.min_interval || 120) / 3600)} timer (ét kald pr. ${d.min_interval || 120} s).` : "Hent alle manglende vejrmåneder? Hver er ca. 0,5 GB.")) return;
         await api(`/api/admin/data/${source}/run/${key}`, { method: "POST" }); toast(`${label}: lagt i kø`);
       } }, "Kør nu")));
   });
-  // Kapacitet: ét kald i minuttet = 1.440/døgn. Live skiftes med køen, så køen får altid mindst halvdelen.
-  const live = isDof ? Math.min(d.per_day.today || 0, 1440) : 0;
+  // Kapacitet: ét udtræk pr. min_interval (120 s = 720/døgn). Live skiftes med køen, så køen får mindst halvdelen af
+  // resten; medie-scanningen følger live-planen og tager sine pladser først.
+  const cap = Math.floor(86400 / (d.min_interval || 120));
+  const live = isDof ? Math.min(d.per_day.today || 0, cap) : 0;
+  const media = isDof && live && d.media_interval ? Math.round(86400 / d.media_interval) : 0;
   const queueNeed = isDof ? Object.entries(d.per_day).filter(([k]) => k !== "today").reduce((a, [, v]) => a + v, 0) : 0;
-  const queueCap = 1440 - Math.min(live, 720);
+  const queueCap = Math.max(0, cap - media - Math.min(live, cap / 2));
   const extras = isDof ? null : h("div", { class: "row mt" },
     h("label", { class: "row", style: { gap: "6px" } }, "Startår", h("input", { type: "number", min: 1990, max: new Date().getFullYear(), value: plan.start_year, style: { width: "90px" }, oninput: (e) => { plan.start_year = Number(e.target.value); onDirty(); } })),
     h("label", { class: "row", style: { gap: "6px" } }, "Parse-processer", h("input", { type: "number", min: 0, max: 32, value: plan.workers || 0, style: { width: "70px" }, oninput: (e) => { plan.workers = Number(e.target.value); onDirty(); } }), h("small", { class: "muted" }, "0 = automatisk")));
   return h("div", {},
     h("h3", { style: { marginTop: 0 } }, "Opdateringsplan"),
     h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, isDof
-      ? "Hvor ofte hvert tidsvindue hentes igen fra DOFbasen. Alt går gennem gatewayen: højst ét kald i minuttet, live-hentningen skiftes med køen. Vinduer, der stadig ligger i kø, lægges ikke i kø igen."
+      ? `Hvor ofte hvert tidsvindue hentes igen fra DOFbasen. Alt går gennem gatewayen: højst ét udtræk pr. ${d.min_interval || 120} s, og live-hentningen, medie-scanningen (billeder, lyd og DKU-status – følger live-intervallet, højst hvert ${Math.round((d.media_interval || 600) / 60)}. min) og køen deler pladserne. Vinduer, der stadig ligger i kø, lægges ikke i kø igen.`
       : "Hvor ofte vejrarkivet opdateres. DMI genberegner de nyeste måneder løbende; ældre måneder ændrer sig sjældent."),
     h("div", { class: "table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 2 } }, h("thead", {}, h("tr", {}, h("th", {}, "Vindue"), h("th", {}, "Interval"), h("th", {}, "Sidst"), h("th", { class: "right" }, "Belastning"), h("th", {}))), h("tbody", {}, ...rows))),
     isDof ? (queueNeed > queueCap
-      ? h("div", { class: "notice warn mt" }, `Planen kræver ca. ${fmtN(Math.round(queueNeed))} kø-kald/døgn, men der er kun plads til ca. ${fmtN(queueCap)} ved siden af live-hentningen (ét kald i minuttet). Køen vil vokse – sæt intervallerne ned.`)
-      : h("p", { class: "muted mt", style: { fontSize: ".85rem" } }, `Køen bruger ca. ${fmtN(Math.round(queueNeed))} af ${fmtN(queueCap)} mulige kald/døgn ved siden af live-hentningen (${fmtN(Math.round(live))} kald/døgn, når køen er tom).`)) : null,
+      ? h("div", { class: "notice warn mt" }, `Planen kræver ca. ${fmtN(Math.round(queueNeed))} kø-kald/døgn, men der er kun plads til ca. ${fmtN(queueCap)} ved siden af live-hentningen og medie-scanningen (ét udtræk pr. ${d.min_interval || 120} s). Køen vil vokse – sæt intervallerne ned.`)
+      : h("p", { class: "muted mt", style: { fontSize: ".85rem" } }, `Køen bruger ca. ${fmtN(Math.round(queueNeed))} af ${fmtN(queueCap)} mulige kald/døgn ved siden af live-hentningen (${fmtN(Math.round(live))} kald/døgn, når køen er tom) og medie-scanningen (${fmtN(media)} kald/døgn).`)) : null,
     extras,
     h("div", { class: "row mt" }, h("button", { class: "btn primary", onclick: async () => {
       try { await api(`/api/admin/data/${source}/plan`, { method: "PUT", body: { tiers: plan.tiers, start_year: plan.start_year, workers: plan.workers } }); toast("Planen er gemt"); await onSaved(); }

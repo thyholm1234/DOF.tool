@@ -51,7 +51,7 @@ feedet (eller en alarmregel med området) gælder en radius, der følger brugere
 **Nær mig uden område.** Under *Nær mig* i feedet kan man vælge *Brug min position som filter*: enhedens position er midtpunkt for en radius (2–100 km), og der oprettes ingen lokation eller noget område. Feedet kalder `scope=near:breddegrad,længdegrad,km`, og positionen hentes igen højst hvert 2. minut.
 
 **Synkronisér alle mine observationer** (Profil → Data). Henter brugerens observationer fra DOFbasen fra 1900 til i år i ét udtræk
-(`search_result1.php?…&periode=maanedaar&aar_first=1900&aar_second=<i år>&obserdata=<obserkode>`) gennem gatewayen (ét kald i minuttet).
+(`search_result1.php?…&periode=maanedaar&aar_first=1900&aar_second=<i år>&obserdata=<obserkode>`) gennem gatewayen (ét udtræk hvert andet minut).
 Ændrede observationer rettes, nye får observationsdatoen som første-set (så de ikke dukker op som nye fund), og brugerens egne
 observationer, der ikke længere findes i DOFbasen, slettes – men kun når udtrækket rummer mindst 90 % af de kendte (ellers slettes intet).
 Højst én gang i timen; status og forventet ventetid vises på profilen (`GET/POST /api/me/sync`).
@@ -96,7 +96,7 @@ måned-gitter viser for hver måned antal observationer og hvornår den sidst er
 (månedsudtræk, arkivfil eller alle dage enkeltvis); klik henter måneden igen. For vinduerne *dagen i dag,
 de sidste 3 dage, den sidste uge, den sidste måned, det sidste år* og *alle data* vælges, om og hvor ofte
 de hentes igen. DOFbasen: i dag = live-intervallet, 3 dage/uge = dagsudtræk, måned/år/alle = månedsudtræk –
-alt gennem gatewayen (ét kald i minuttet), og panelet regner belastningen ud.
+alt gennem gatewayen (ét udtræk hvert andet minut, delt med live-hentningen og medie-scanningen), og panelet regner belastningen ud.
 
 **Vejrarkiv.** DMI's 10 km-grid (Det Danske Kvadratnet) hentes som månedsfiler fra
 `opendataapi.dmi.dk/v2/climateData/bulk/10kmgridValue` (≈0,5 GB, én ad gangen, ingen nøgle), parses
