@@ -1149,10 +1149,10 @@ tr.click { cursor: pointer; }
 /* guld: observationen af en SU-art er godkendt af SU */
 .dl-dku.pheno { background: #bfe3f7; color: #0b3a5c; }
 .dl-dku.local { background: var(--local); color: #fff; }
-.su-finds { display: grid; gap: 10px; }
-.su-find { padding: 10px 14px; }
 .dl-dku.su-ok, .tag.su-ok { background: linear-gradient(135deg, #f3d36b, #c9971c); color: #3d2a00; border: 1px solid #b8860b; }
 /* SU: fund samlet i kasser pr. art × lokalitet, datoerne som linjer med flueben til højre */
+.su-finds { display: grid; gap: 10px; }
+.su-find { padding: 10px 14px; }
 .su-find-head { display: flex; gap: 10px; align-items: flex-start; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
 .su-find-row { display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
 .su-find-row:last-child { border-bottom: 0; }
@@ -1293,15 +1293,20 @@ tr.click { cursor: pointer; }
 .dl-mx th[scope=row] { text-align: left; }
 .dl-mx td { padding: 0; text-align: center; }
 .dl-mx tr.has th[scope=row] .mx-row { color: var(--text); font-weight: 700; }
-.mx-head, .mx-row { border: 0; background: transparent; font: inherit; font-size: .8rem; color: var(--text-2); cursor: pointer; border-radius: 8px; padding: 6px 8px; white-space: nowrap; }
-.mx-head { font-weight: 700; text-transform: uppercase; letter-spacing: .03em; font-size: .72rem; }
-.mx-grip { display: inline-grid; place-items: center; width: 22px; height: 28px; cursor: grab; color: var(--text-3); touch-action: none; user-select: none; -webkit-user-select: none; letter-spacing: -2px; font-weight: 800; border-radius: 6px; }
+.mx-grip { display: inline-flex; align-items: center; gap: 6px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; padding: 6px 8px 6px 4px; border-radius: 8px; font-size: .88rem; font-weight: 500; color: var(--text-2); }
+.mx-dots { color: var(--text-3); letter-spacing: -2px; font-weight: 800; }
 .mx-grip:hover, .mx-grip:focus-visible { background: var(--bg-2); color: var(--text); outline: none; }
+.dl-mx tr.has .mx-grip { color: var(--text); font-weight: 700; }
 .dl-mx.dragging { cursor: grabbing; user-select: none; }
-.dl-mx th.drag { background: var(--bg-2); border-radius: 10px; }
-.dl-mx th { white-space: nowrap; }
+.dl-mx tr.drag { background: var(--bg-2); box-shadow: var(--shadow); position: relative; z-index: 2; }
+.dl-mx tr.drag .mx-grip { cursor: grabbing; }
+.mx-all-row { border: 0; background: transparent; color: var(--text-3); cursor: pointer; border-radius: 6px; padding: 4px 6px; font-size: .8rem; }
+.mx-all-row:hover { background: var(--bg-2); color: var(--text); }
+.dl-mx th[scope=row] { white-space: nowrap; }
 .dl-mod td { padding: 10px 6px 2px; font-size: .86rem; }
 .mx-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.mx-head, .mx-row { border: 0; background: transparent; font: inherit; font-size: .8rem; color: var(--text-2); cursor: pointer; border-radius: 8px; padding: 6px 8px; white-space: nowrap; }
+.mx-head { font-weight: 700; text-transform: uppercase; letter-spacing: .03em; font-size: .72rem; }
 .mx-head:hover, .mx-row:hover { background: var(--bg-2); color: var(--text); }
 .mx-row { text-align: left; font-size: .88rem; width: 100%; }
 .mx-cell { --c: var(--brand); width: 100%; min-width: 44px; height: 32px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--bg-2); color: #fff; font-weight: 800; cursor: pointer; transition: background .12s, border-color .12s, transform .08s; }
