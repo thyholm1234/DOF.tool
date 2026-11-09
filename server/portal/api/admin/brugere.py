@@ -25,6 +25,7 @@ from portal.models import (
 from portal.services import (
     account,
     activity,
+    totp,
 )
 from portal.services import auth as auth_service
 from portal.services.auth import (
@@ -42,7 +43,7 @@ router = APIRouter(prefix="/api", tags=["admin"])
 async def users(q: str = "", user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
         SELECT u.id, u.obserkode, u.navn, u.email, (u.pw_hash IS NOT NULL OR u.is_test) AS account, u.role, u.blocked, u.approved,
-               u.is_test, u.permissions, u.created_at, u.last_seen, u.history_synced_at,
+               u.is_test, u.permissions, u.totp_at IS NOT NULL AS totp, u.created_at, u.last_seen, u.history_synced_at,
                (SELECT count(*) FROM push_subscriptions p WHERE p.user_id = u.id) AS devices,
                (SELECT count(*) FROM alert_rules r WHERE r.user_id = u.id) AS rules
         FROM users u WHERE (:q = '' OR u.obserkode ILIKE :like OR u.navn ILIKE :like OR u.email ILIKE :like)
@@ -180,6 +181,22 @@ def _set_permissions(user: User, target: User, value: Any) -> None:
     if user.role != "superadmin" and (before ^ after) - modules(user):
         raise HTTPException(403, "Du kan kun give og fjerne moduler, du selv har adgang til")
     target.permissions = None if value is None else sorted(after)
+
+
+@router.delete("/admin/users/{user_id}/totp")
+async def remove_totp(user_id: int, user: User = Depends(perm_brugere), db: AsyncSession = Depends(get_session)):
+    """Fjern brugerens totrinslogin (mistet telefon). Brugeren logger derefter ind med adgangskoden alene."""
+    target = await db.get(User, user_id)
+    if target is None:
+        raise HTTPException(404)
+    if target.role in ("admin", "superadmin") and user.role != "superadmin":
+        raise HTTPException(403, "Kun superadmin kan fjerne totrinslogin for administratorer")
+    try:
+        await totp.remove(db, target)
+    except auth_service.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    await activity.track(user.id, "totp_remove", None, {"user": target.id})
+    return {"ok": True}
 
 
 @router.delete("/admin/users/{user_id}")

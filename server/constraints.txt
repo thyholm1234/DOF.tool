@@ -52,6 +52,7 @@ pywebpush==2.5.0
 PyYAML==6.0.3
 redis==8.1.0
 requests==2.34.2
+segno==1.6.6
 SQLAlchemy==2.1.8
 starlette==1.10.0
 typing-inspection==0.4.5

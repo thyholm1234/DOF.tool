@@ -173,4 +173,6 @@ EXTRA_DDL = [
     "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email ON users (lower(email)) WHERE email IS NOT NULL",
     # E-mailen bekræftes med en kode sendt til den (services/konto.py)
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at timestamptz",
+    # Totrinslogin (TOTP) – hemmeligheden ligger i Zitadel; kolonnen spejler, at den er slået til (services/totp.py)
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_at timestamptz",
 ]

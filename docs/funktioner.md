@@ -71,6 +71,16 @@ gamle adresse får besked. Konti fra før bekræftelsen er mærket *ikke bekræf
 (`users.email_verified_at`). Uden SMTP_HOST sendes intet – mailen skrives i api'ets log. Admin → Brugere viser e-mail og
 mærket *ingen konto*.
 
+**Totrinslogin (TOTP)** (`services/totp.py`). Profil → *Konto og sikkerhed* → *Totrinslogin* (kun inden for 15 minutter
+efter et login): Zitadel laver hemmeligheden, api'et viser den som QR-kode (segno) med udstederen `TOTP_ISSUER` (standard
+«DOF»), og den bliver først aktiv, når en kode fra appen er tastet. Hemmeligheden ligger kun i Zitadel, så andre DOF-apps på
+samme Zitadel kan bruge den samme opsætning senere; `users.totp_at` spejler blot, at den er slået til. Derefter giver login
+med adgangskode – også efter *Glemt adgangskode* – ikke en session, men et bevis (`{"totp": …}`, 5 min), der byttes til en
+session med koden (`POST /api/auth/totp`). Højst fem forkerte koder pr. bevis, og forsøg tæller også pr. bruger og IP;
+Zitadel afviser en kode, der allerede er brugt. Svarer Zitadel ikke, afvises login for brugere med TOTP (fail closed).
+Login med passkey kræver ikke koden. Slå fra kræver adgangskoden; mistet telefon: log ind med passkey og slå fra, eller
+Admin → Brugere → *Fjern 2FA* (mærket *2FA*).
+
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og
 adgangskoden vises kun ved oprettelse/nulstilling.

@@ -1,4 +1,4 @@
-"""Klient til Zitadel (v2-API'et), som gemmer brugernes passkeys og kontrollerer deres signaturer.
+"""Klient til Zitadel (v2-API'et), som gemmer brugernes passkeys og TOTP-hemmeligheder og kontrollerer begge.
 
 Zitadel kører kun i Docker-netværket uden port på værten. Kun api'et taler med den, med servicekontoens token (PAT), som
 Zitadel skriver til volumen zitadel_key ved første start. Browseren og appen ser aldrig Zitadel – al login foregår gennem
@@ -35,13 +35,13 @@ def _token() -> str:
 
 async def call(method: str, path: str, body: dict | None = None) -> dict[str, Any]:
     if not enabled():
-        raise ZitadelError(503, "Passkeys er ikke slået til på serveren")
+        raise ZitadelError(503, "Passkeys og totrinslogin er ikke slået til på serveren")
     async with httpx.AsyncClient(base_url=get_settings().zitadel_url, timeout=TIMEOUT, follow_redirects=False) as client:
         try:
             r = await client.request(method, path, json=body, headers={"Authorization": f"Bearer {_token()}"})
         except httpx.HTTPError as exc:
             log.warning("Zitadel kunne ikke nås: %s", exc)
-            raise ZitadelError(503, "Passkey-tjenesten svarer ikke. Prøv igen om lidt.") from exc
+            raise ZitadelError(503, "Login-tjenesten (passkeys og totrinslogin) svarer ikke. Prøv igen om lidt.") from exc
     if r.status_code >= 400:
         try:
             msg = r.json().get("message", "")
@@ -106,6 +106,42 @@ async def list_passkeys(user_id: str) -> list[dict]:
 
 async def remove_passkey(user_id: str, passkey_id: str) -> None:
     await call("DELETE", f"/v2/users/{user_id}/passkeys/{passkey_id}")
+
+
+# ---------------------------------------------------------------- TOTP (services/totp.py)
+
+
+async def has_totp(user_id: str) -> bool:
+    res = await call("GET", f"/v2/users/{user_id}/authentication_methods")
+    return "AUTHENTICATION_METHOD_TYPE_TOTP" in (res.get("authMethodTypes") or [])
+
+
+async def start_totp(user_id: str) -> str:
+    """Ny (endnu ikke aktiv) TOTP-hemmelighed; en tidligere ubekræftet erstattes. 409 = brugeren har allerede TOTP."""
+    return (await call("POST", f"/v2/users/{user_id}/totp", {}))["secret"]
+
+
+async def verify_totp(user_id: str, code: str) -> None:
+    """Aktivér hemmeligheden med en kode fra appen (400 = forkert kode)."""
+    await call("POST", f"/v2/users/{user_id}/totp/verify", {"code": code})
+
+
+async def remove_totp(user_id: str) -> None:
+    try:
+        await call("DELETE", f"/v2/users/{user_id}/totp")
+    except ZitadelError as exc:
+        if exc.status != 404:
+            raise
+
+
+async def check_totp(user_id: str, code: str) -> dict:
+    """Kontrollér en kode i en kortlivet session og returnér sessionens faktorer. Zitadel afviser en kode, der allerede
+    er brugt (400), så en opsnappet kode ikke kan bruges igen."""
+    s = await call("POST", "/v2/sessions", {"checks": {"user": {"userId": user_id}, "totp": {"code": code}}})
+    try:
+        return ((await call("GET", f"/v2/sessions/{s['sessionId']}")).get("session") or {}).get("factors") or {}
+    finally:
+        await end_session(s["sessionId"])
 
 
 # ---------------------------------------------------------------- sessioner (kun til at kontrollere en passkey)

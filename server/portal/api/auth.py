@@ -17,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
-from portal.services import konto, passkeys, zitadel
+from portal.services import konto, passkeys, totp, zitadel
 from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
 from portal.services import dataset
@@ -62,6 +62,15 @@ class CodeIn(BaseModel):
     code: str = Field(max_length=16)
 
 
+class TotpLoginIn(BaseModel):
+    token: str = Field(max_length=64)
+    code: str = Field(max_length=16)
+
+
+class TotpOffIn(BaseModel):
+    password: str = Field(max_length=200)
+
+
 # Indstillinger, superadmin ikke ser i «se som bruger»: positionsenheden og ICS-tokenet (giver adgang til kalenderen)
 VIEW_AS_HIDDEN_PREFS = {"position_device", "ics_token"}
 
@@ -79,16 +88,33 @@ def user_out(user: User, view_as: bool = False) -> dict:
 @router.post("/auth/login")
 async def login(body: LoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_session)):
     """Login med DOF.tool-kontoen: e-mail eller obserkode + kontoens adgangskode (services/konto.py). 409 = obserkoden
-    har endnu ingen konto (brugeren sendes til oprettelsen)."""
+    har endnu ingen konto (brugeren sendes til oprettelsen). Med totrinslogin: {"totp": bevis} – sessionen kommer
+    først med koden (/auth/totp)."""
     try:
         user = await konto.login(db, body.login or body.obserkode, body.password, client_ip(request))
+        if await totp.required(db, user):
+            return await totp.challenge(user)
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
+    return await _password_login(user, response, "password")
+
+
+async def _password_login(user: User, response: Response, method: str) -> dict:
     await start_session(user, response)
     if user.history_synced_at is None:
         await enqueue_history(user.obserkode)
-    await activity.track(user.id, "login", None, {"new": False, "method": "password"})
+    await activity.track(user.id, "login", None, {"new": False, "method": method})
     return {"user": user_out(user), "new": False, "passkeys": passkeys_offer(user)}
+
+
+@router.post("/auth/totp")
+async def totp_login(body: TotpLoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_session)):
+    """Totrinslogin, trin 2: koden fra authenticator-appen byttes sammen med beviset fra /auth/login til en session."""
+    try:
+        user = await totp.login(db, body.token, body.code, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    return await _password_login(user, response, "password+totp")
 
 
 @router.post("/auth/konto/bekraeft")
@@ -110,7 +136,7 @@ async def account_complete(body: CompleteIn, response: Response, db: AsyncSessio
         raise HTTPException(exc.status, str(exc)) from exc
     if isinstance(r, dict):
         return r
-    return await _account_ready(*r, response)
+    return await _account_ready(*r, response, db)
 
 
 @router.post("/auth/konto/email")
@@ -121,7 +147,7 @@ async def account_confirm(body: PendingIn, request: Request, response: Response,
         user, new = await konto.confirm_signup(db, body.pending, body.code, client_ip(request))
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
-    return await _account_ready(user, new, response)
+    return await _account_ready(user, new, response, db)
 
 
 @router.post("/auth/konto/email/igen")
@@ -133,7 +159,13 @@ async def account_resend(body: PendingIn, request: Request):
         raise HTTPException(exc.status, str(exc)) from exc
 
 
-async def _account_ready(user: User, new: bool, response: Response) -> dict:
+async def _account_ready(user: User, new: bool, response: Response, db: AsyncSession) -> dict:
+    if not new:  # «Glemt adgangskode» må ikke gå uden om totrinslogin: den nye adgangskode er gemt, men koden kræves
+        try:
+            if await totp.required(db, user):
+                return {**await totp.challenge(user), "reset": True}
+        except auth.AuthError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
     await start_session(user, response)
     if new or user.history_synced_at is None:
         await enqueue_history(user.obserkode)
@@ -298,6 +330,49 @@ async def my_passkey_delete(passkey_id: str = Path(pattern=r"^[0-9]{1,32}$"), us
     except auth.AuthError as exc:
         raise _auth_error(exc) from exc
     await activity.track(user.id, "passkey_remove", None, {"id": passkey_id})
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- totrinslogin (services/totp.py)
+
+
+@router.get("/me/totp")
+async def my_totp(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    if getattr(request.state, "view_as", None):
+        return {"enabled": zitadel.enabled(), "active": False}
+    try:
+        return await totp.status(db, user)
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+
+
+@router.post("/me/totp/start")
+async def my_totp_start(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Ny hemmelighed som QR-kode (og tekst til manuel indtastning). Først aktiv efter /me/totp/finish."""
+    try:
+        return await totp.setup_start(db, user, request.cookies.get(COOKIE))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+
+
+@router.post("/me/totp/finish")
+async def my_totp_finish(body: CodeIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    try:
+        await totp.setup_finish(db, user, body.code, client_ip(request))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await activity.track(user.id, "totp_on", None, {})
+    return {"ok": True}
+
+
+@router.post("/me/totp/off")
+async def my_totp_off(body: TotpOffIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Slå totrinslogin fra – kræver adgangskoden."""
+    try:
+        await totp.disable(db, user, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await activity.track(user.id, "totp_off", None, {})
     return {"ok": True}
 
 

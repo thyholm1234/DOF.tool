@@ -28,6 +28,7 @@ dependencies = [
   "mdit-py-plugins>=0.4",  # tabeller, containere, fodnoter (MIT)
   "nh3>=0.2.18",  # sanitering af HTML (MIT)
   "pillow>=10.4",  # billedvarianter til artikler (MIT-CMU/HPND)
+  "segno>=1.6",  # QR-koden til totrinslogin (BSD-3)
 ]
 
 [project.optional-dependencies]

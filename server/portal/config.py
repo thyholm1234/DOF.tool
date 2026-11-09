@@ -73,6 +73,8 @@ class Settings(BaseSettings):
     # browseren og appen taler alene med api'et. Tom ZITADEL_URL = passkeys slået fra (login kun med adgangskode).
     zitadel_url: str = ""  # fx http://zitadel:8080
     zitadel_pat_file: str = "/zitadel/pat.txt"  # servicekontoens token (skrives af Zitadel ved første start)
+    # Navnet, authenticator-appen viser ved koden (services/totp.py). Fælles for DOF's apps, der bruger samme Zitadel.
+    totp_issuer: str = "DOF"
     # Appens tilknytning til domænet (passkeys i appen): Androids signeringscertifikat (SHA-256, AA:BB:…) og Apples Team ID
     android_cert_sha256: str = ""
     ios_team_id: str = ""

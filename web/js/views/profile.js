@@ -75,7 +75,7 @@ const SECTIONS = {
     const stats = h("div", { class: "stats" });
     const links = [
       ["personligt", "edit", "Personlige oplysninger", "Navn, e-mail og telefon"],
-      ...(u.view_as ? [] : [["sikkerhed", "lock", "Konto og sikkerhed", "Adgangskode, passkeys og enheder"]]),
+      ...(u.view_as ? [] : [["sikkerhed", "lock", "Konto og sikkerhed", "Adgangskode, totrinslogin, passkeys og enheder"]]),
       ["notifikationer", "bell", "Notifikationer", "Push og stille timer"],
       ["omraader", "pin", "Områder og lister", "Lokalafdelinger og kommuner"],
       ["data", "download", "Dine data", "Synkronisering, udtræk og sletning"],
@@ -167,12 +167,14 @@ const SECTIONS = {
     if (params().mailkode) { codeText.textContent = "Bekræfter koden fra mailen …"; codeForm.classList.remove("hide"); setTimeout(() => codeForm.requestSubmit(), 0); }
 
     const pkBox = h("div", { class: "card stack settings-card" });
+    const totpBox = h("div", { class: "card stack settings-card" });
     panel.append(
       card("Log ind", "Du logger ind med e-mail eller obserkode og din DOF.tool-adgangskode. Har du glemt den, kan du vælge en ny fra login-siden ved at bekræfte obserkoden hos DOFbasen igen.",
         row("E-mail", mailVal, h("button", { type: "button", class: "btn sm ghost", onclick: () => { pwForm.classList.add("hide"); codeForm.classList.add("hide"); mailForm.classList.toggle("hide"); mail.focus(); } }, state.user.email && !state.user.email_verified ? "Bekræft / skift" : "Skift")),
         mailForm, codeForm,
         row("Adgangskode", h("span", { class: "muted" }, "••••••••••"), h("button", { type: "button", class: "btn sm ghost", onclick: () => { mailForm.classList.add("hide"); pwForm.classList.toggle("hide"); cur.focus(); } }, "Skift")),
         pwForm, msg),
+      totpBox,
       pkBox,
       card("Enheder", "Er du logget ind på en telefon eller computer, du ikke længere har, kan du logge ud alle andre steder. Telefonens positionsdeling stopper også.",
         h("div", { class: "row" }, h("button", { type: "button", class: "btn", onclick: async () => {
@@ -180,6 +182,7 @@ const SECTIONS = {
           try { await api("/api/me/logout-all", { method: "POST" }); toast("Du er logget ud på alle andre enheder"); } catch (err) { toast(err.message, "err"); }
         } }, "Log ud på alle andre enheder"))));
     passkeys(pkBox);
+    totpCard(totpBox);
   },
 
   // ---------------------------------------------------------------- notifikationer
@@ -342,6 +345,60 @@ async function passkeys(box) {
         catch (err) { toast(err.message, "err"); }
       } }, "Slet")))) : h("p", { style: { margin: 0 } }, "Du har ingen passkeys endnu."),
     h("div", { class: "row" }, add));
+}
+
+/** Totrinslogin: kode fra en authenticator-app efter adgangskoden (server/portal/services/totp.py). */
+async function totpCard(box) {
+  const title = h("h3", { style: { margin: 0 } }, "Totrinslogin");
+  let d;
+  try { d = await api("/api/me/totp"); } catch (err) { box.replaceChildren(title, h("p", { class: "muted", style: { margin: 0 } }, err.message)); return; }
+  if (!d.enabled) { box.remove(); return; }
+  const intro = h("p", { class: "muted", style: { margin: 0 } }, "Når du logger ind med adgangskode, skal du også skrive en kode med seks cifre fra en authenticator-app ",
+    "(fx Google Authenticator, Microsoft Authenticator, 1Password eller Bitwarden). Så kan en, der kender din adgangskode, ikke logge ind uden din telefon. ",
+    "Login med passkey kræver ikke koden.");
+  if (d.active) {
+    const pw = h("input", { type: "password", autocomplete: "current-password", required: true, maxlength: 200 });
+    const off = h("form", { class: "stack hide", onsubmit: async (e) => {
+      e.preventDefault();
+      try { await api("/api/me/totp/off", { method: "POST", body: { password: pw.value } }); toast("Totrinslogin er slået fra"); totpCard(box); }
+      catch (err) { toast(err.message, "err"); pw.select(); }
+    } }, h("label", { class: "field" }, h("span", {}, "Din adgangskode"), pw),
+      h("div", { class: "row" }, h("button", { class: "btn danger" }, "Slå fra"),
+        h("button", { type: "button", class: "btn ghost", onclick: () => off.classList.add("hide") }, "Annullér")));
+    box.replaceChildren(title, intro,
+      h("p", { style: { margin: 0 } }, h("span", { class: "tag plain" }, "Slået til"), " Du skal bruge koden fra appen, når du logger ind med adgangskode."),
+      h("div", { class: "row" }, h("button", { type: "button", class: "btn ghost", onclick: () => { off.classList.toggle("hide"); pw.focus(); } }, "Slå totrinslogin fra")),
+      off);
+    return;
+  }
+  const start = h("button", { type: "button", class: "btn primary", onclick: async () => {
+    start.disabled = true;
+    let s;
+    try { s = await api("/api/me/totp/start", { method: "POST" }); } catch (err) { toast(err.message, "err"); start.disabled = false; return; }
+    const code = h("input", { inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]*", maxlength: 7, required: true,
+      placeholder: "123456", style: { fontSize: "1.2rem", letterSpacing: ".3em", textAlign: "center", maxWidth: "12em" } });
+    const secret = s.secret.replace(/(.{4})/g, "$1 ").trim();
+    box.replaceChildren(title,
+      h("ol", { class: "stack", style: { margin: 0, paddingLeft: "1.2em", gap: "6px" } },
+        h("li", {}, "Åbn din authenticator-app, og tilføj en ny konto."),
+        h("li", {}, "Scan QR-koden – eller på telefonen: ", h("a", { href: s.uri }, "åbn i appen"), ". Du kan også skrive nøglen ind selv."),
+        h("li", {}, "Skriv den kode med seks cifre, appen viser ved ", h("b", {}, `${s.issuer} (${s.account})`), ".")),
+      h("div", { html: s.qr, style: { width: "min(220px, 100%)", background: "#fff", borderRadius: "8px", lineHeight: 0 }, "aria-label": "QR-kode til authenticator-appen" }),
+      h("div", { class: "muted", style: { fontSize: ".85rem" } }, "Nøgle: ", h("code", { style: { userSelect: "all", wordBreak: "break-all" } }, secret)),
+      h("form", { class: "stack", onsubmit: async (e) => {
+        e.preventDefault();
+        try { await api("/api/me/totp/finish", { method: "POST", body: { code: code.value } }); toast("Totrinslogin er slået til"); totpCard(box); }
+        catch (err) { toast(err.message, "err"); code.select(); }
+      } }, h("label", { class: "field" }, h("span", {}, "Kode fra appen"), code),
+        h("div", { class: "row" }, h("button", { class: "btn primary" }, "Slå til"),
+          h("button", { type: "button", class: "btn ghost", onclick: () => totpCard(box) }, "Annullér"))));
+    const svg = box.querySelector("svg");
+    if (svg) { svg.removeAttribute("width"); svg.removeAttribute("height"); svg.style.width = "100%"; svg.style.height = "auto"; }
+    code.focus();
+  } }, "Slå totrinslogin til");
+  box.replaceChildren(title, intro,
+    h("p", { class: "muted", style: { margin: 0, fontSize: ".85rem" } }, "Kan kun slås til inden for 15 minutter efter et login. Mister du telefonen, kan du logge ind med en passkey og slå det fra – eller bede en administrator om hjælp."),
+    h("div", { class: "row" }, start));
 }
 
 /** API-nøgler til DOFbasen-API'et: en administrator giver adgang, brugeren laver og sletter selv sine nøgler. */

@@ -2041,6 +2041,20 @@ true,
 ]
 }
 },
+"/api/admin/users/{user_id}/totp": {
+"delete": {
+"body": false,
+"op": "remove_totp_api_admin_users__user_id__totp_delete",
+"params": [
+[
+"user_id",
+"path",
+true,
+"{\"title\": \"User Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/admin/worker/{cmd}": {
 "post": {
 "body": true,
@@ -2497,6 +2511,13 @@ true,
 "post": {
 "body": true,
 "op": "passkey_login_start_api_auth_passkey_start_post",
+"params": []
+}
+},
+"/api/auth/totp": {
+"post": {
+"body": true,
+"op": "totp_login_api_auth_totp_post",
 "params": []
 }
 },
@@ -7162,6 +7183,34 @@ true,
 "post": {
 "body": false,
 "op": "resync_api_me_sync_post",
+"params": []
+}
+},
+"/api/me/totp": {
+"get": {
+"body": false,
+"op": "my_totp_api_me_totp_get",
+"params": []
+}
+},
+"/api/me/totp/finish": {
+"post": {
+"body": true,
+"op": "my_totp_finish_api_me_totp_finish_post",
+"params": []
+}
+},
+"/api/me/totp/off": {
+"post": {
+"body": true,
+"op": "my_totp_off_api_me_totp_off_post",
+"params": []
+}
+},
+"/api/me/totp/start": {
+"post": {
+"body": false,
+"op": "my_totp_start_api_me_totp_start_post",
 "params": []
 }
 },

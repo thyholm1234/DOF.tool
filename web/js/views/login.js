@@ -1,6 +1,7 @@
 // Forside for ikke-indloggede: kort præsentation + login, oprettelse af DOF.tool-konto og ny adgangskode.
 //
-// Login: e-mail eller obserkode + DOF.tool-adgangskode (eller passkey).
+// Login: e-mail eller obserkode + DOF.tool-adgangskode (eller passkey). Med totrinslogin følger en kode fra
+// authenticator-appen (server/portal/services/totp.py) – også efter «Glemt adgangskode».
 // Opret konto / glemt adgangskode (server/portal/services/konto.py):
 //   1. Bekræft obserkoden med ét DOFbasen-login (adgangskoden sendes kun videre til DOFbasen)
 //   2. Vælg e-mail og egen adgangskode – kontoen bindes til obserkoden
@@ -43,6 +44,7 @@ export async function render(view) {
     create: () => showCreate(card, go, flow),
     mail: (r, code) => showMail(card, go, flow, r, code),
     done: (r) => showDone(card, r),
+    totp: (r) => showTotp(card, go, r),
   };
   const mode = link.konto;
   if (link.bekraeft) go.mail({ pending: link.bekraeft, email: "", link: true }, link.kode);
@@ -114,6 +116,7 @@ function showLogin(card, go, flow, prefill) {
     try {
       const r = await api("/api/auth/login", { method: "POST", body: { login: identValue(), password: pw.value } });
       passkey.rememberLogin(identValue());
+      if (r.totp) { go.totp(r); return; }
       await finish(r, go);
     } catch (err) { handle(err); pw.select(); } finally { done(); }
   } },
@@ -212,6 +215,7 @@ function showCreate(card, go, flow) {
         const r = await api("/api/auth/konto/opret", { method: "POST", body });
         flow.bind = null;
         if (r.pending) { go.mail({ ...r, reset }); return; }
+        if (r.totp) { go.totp({ ...r, reset, flow: true }); return; }
         passkey.rememberLogin(r.user.email || r.user.obserkode);
         await finish({ ...r, reset, flow: true }, go);
       } catch (err) {
@@ -253,6 +257,7 @@ function showMail(card, go, flow, r, prefill) {
     try {
       const res = await api("/api/auth/konto/email", { method: "POST", body: { pending: r.pending, code: code.value } });
       history.replaceState(null, "", location.pathname + "#/login");  // linket virker kun én gang
+      if (res.totp) { go.totp({ ...res, reset: r.reset, flow: true }); return; }
       passkey.rememberLogin(res.user.email || res.user.obserkode);
       await finish({ ...res, reset: r.reset, flow: true }, go);
     } catch (err) {
@@ -282,6 +287,41 @@ function showMail(card, go, flow, r, prefill) {
     r.reset ? h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } }, "Den nye adgangskode gemmes først, når e-mailen er bekræftet.") : null,
     back(go, "Annullér"));
   if (prefill) submit(); else code.focus();
+}
+
+// ---------------------------------------------------------------- totrinslogin: kode fra authenticator-appen
+
+function showTotp(card, go, r) {
+  const code = h("input", { inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]*", maxlength: 7, required: true,
+    placeholder: "123456", style: { fontSize: "1.4rem", letterSpacing: ".3em", textAlign: "center" } });
+  const btn = big("primary", "Bekræft");
+  const msg = h("div", {});
+  const again = (text) => h("div", { class: "notice err stack", style: { gap: "8px" } }, h("span", {}, text),
+    h("button", { type: "button", class: "btn sm", onclick: () => go.login() }, "Log ind igen"));
+  const submit = async () => {
+    if (btn.disabled) return;
+    const done = busy(btn, "Bekræfter…");
+    try {
+      const res = await api("/api/auth/totp", { method: "POST", body: { token: r.totp, code: code.value } });
+      passkey.rememberLogin(res.user.email || res.user.obserkode);
+      await finish({ ...res, reset: r.reset, flow: r.flow }, go);
+    } catch (err) {
+      if (err.status === 403 && PENDING.test(err.message)) { showDone(card, null, err.message); return; }
+      msg.replaceChildren(/udløbet|for mange forkerte/i.test(err.message) ? again(err.message) : notice(err.message));
+      code.value = ""; code.focus();
+    } finally { done(); }
+  };
+  code.addEventListener("input", () => { if (/^\d{6}$/.test(code.value.replace(/\s/g, ""))) submit(); });
+  card.replaceChildren(
+    h("h2", { style: { margin: 0 } }, "Totrinslogin"),
+    r.reset ? notice("Den nye adgangskode er gemt. Skriv koden fra din authenticator-app for at logge ind.", "") : null,
+    h("p", { style: { margin: 0 } }, "Åbn din authenticator-app, og skriv den kode med seks cifre, der står ved ", h("b", {}, "DOF"), "."),
+    h("form", { class: "stack", onsubmit: (e) => { e.preventDefault(); submit(); } }, field("Kode", code), btn),
+    msg,
+    h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } },
+      "Mistet telefonen? Log ind med en passkey, hvis du har en, og slå totrinslogin fra under Profil – eller kontakt en administrator."),
+    back(go, "Annullér"));
+  code.focus();
 }
 
 // ---------------------------------------------------------------- trin 4: klar

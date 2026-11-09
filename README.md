@@ -108,7 +108,7 @@ flowchart LR
     PG[("🐘 PostgreSQL 17 + PostGIS<br/>grupper: brugere · observationer<br/>· DOF.tool-indtastninger<br/>primary + replikaer")]
     VK[("🔴 Valkey<br/>sessioner · køer · cache · pub/sub")]
     S3[("🪣 RustFS<br/>S3: fotos og lyd")]
-    ZIT["🔑 Zitadel<br/>passkeys (kun internt)"]
+    ZIT["🔑 Zitadel<br/>passkeys + TOTP (kun internt)"]
     SPM["🗣️ speech-model<br/>bygger talemodellen (ONNX)"]
     DBA["🛠️ db-admin<br/>noder · replikaer"]
   end
@@ -135,7 +135,7 @@ flowchart LR
 | Frontend | Vanilla JavaScript (ES-moduler, intet byggetrin), Leaflet, service worker, IndexedDB |
 | App | Capacitor 8 (Android/iOS), native baggrundsposition, ONNX Runtime til tale |
 | Backend | Python 3.12, FastAPI, SQLAlchemy (async), server-sent events |
-| Login | DOF.tool-konti (e-mail/obserkode + scrypt), bundet til obserkoden med ét DOFbasen-login, e-mail bekræftet med kode (SMTP); passkeys via Zitadel (kun internt) |
+| Login | DOF.tool-konti (e-mail/obserkode + scrypt), bundet til obserkoden med ét DOFbasen-login, e-mail bekræftet med kode (SMTP); passkeys og totrinslogin (TOTP) via Zitadel (kun internt) |
 | Data | PostgreSQL 17 + PostGIS i grupper (brugere, observationer, DOF.tool-indtastninger) med replikaer, Valkey |
 | Filer | RustFS (S3-kompatibelt objektlager) |
 | Tale | CoRal roest-v3 eksporteret til ONNX int8 af speech-model-agenten; genkendes på telefonen |

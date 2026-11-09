@@ -50,6 +50,7 @@ export async function users(body) {
         h("td", {}, h("b", {}, u.navn || u.obserkode), u.approved ? null : h("span", { class: "tag SUB", style: { marginLeft: "6px" } }, "afventer"),
           u.is_test ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Testbruger med lokal adgangskode" }, "test") : null,
           u.account ? null : h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Har ikke oprettet en DOF.tool-konto endnu og kan ikke logge ind, før det sker" }, "ingen konto"),
+          u.totp ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Totrinslogin med kode fra en authenticator-app" }, "2FA") : null,
           h("div", { class: "muted" }, u.obserkode, u.email ? ` · ${u.email}` : "", u.blocked ? " · spærret" : "")),
         h("td", { class: "wide", "data-label": "Rolle" }, roleSelect(u, meta.role_names, load)),
         h("td", { "data-label": "Moduler" },
@@ -62,6 +63,10 @@ export async function users(body) {
         h("td", { class: "right nowrap wide" }, u.role !== "superadmin" ? [
           u.approved ? null : h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
           u.is_test ? h("button", { class: "btn sm", onclick: () => testUserModal(u, load) }, "Ny kode") : null,
+          u.totp ? h("button", { class: "btn sm ghost", title: "Fx ved mistet telefon – brugeren logger derefter ind med adgangskoden alene", onclick: async () => {
+            if (!confirm(`Fjern totrinslogin for ${u.obserkode}? Gør det kun, når du er sikker på, at det er brugeren selv, der beder om det.`)) return;
+            try { await api(`/api/admin/users/${u.id}/totp`, { method: "DELETE" }); toast("Totrinslogin er fjernet"); load(); } catch (err) { toast(err.message, "err"); }
+          } }, "Fjern 2FA") : null,
           h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { blocked: !u.blocked } }); load(); } }, u.blocked ? "Ophæv spærring" : "Spær"),
           isSuper && !u.blocked ? h("button", { class: "btn sm ghost", title: "Se appen som brugeren (kun læsning, 15 minutter, logges)", onclick: () => viewAs(u) }, "Se som") : null,
           isSuper || u.is_test ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));

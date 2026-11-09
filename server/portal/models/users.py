@@ -60,6 +60,8 @@ class User(Base):
     test_pw_hash: Mapped[str | None] = mapped_column(String(200))
     # Brugerens id i Zitadel, der gemmer brugerens passkeys (services/passkeys.py). Oprettes ved første passkey.
     zitadel_id: Mapped[str | None] = mapped_column(String(32), unique=True)
+    # Hvornår brugeren slog totrinslogin (TOTP) til; Zitadel er kilden, dette er spejlet (services/totp.py)
+    totp_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # DOF.tool-kontoen (services/konto.py): e-mail og egen adgangskode (scrypt), bundet til obserkoden med ét DOFbasen-login
     # ved oprettelsen. Brugere uden pw_hash har ingen konto endnu og kan ikke logge ind, før de opretter den.
     email: Mapped[str | None] = mapped_column(String(254))

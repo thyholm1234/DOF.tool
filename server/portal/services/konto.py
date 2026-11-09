@@ -419,7 +419,7 @@ async def logout_user(user_id: int) -> None:
     await position_privacy.revoke_token(user_id)
 
 
-LOGOUT_PATTERNS = ("sess:*", "usess:*", "loctok:*", "pk:login:*", "pk:reg:*")
+LOGOUT_PATTERNS = ("sess:*", "usess:*", "loctok:*", "pk:login:*", "pk:reg:*", "totp:login:*")
 
 
 async def logout_everyone_once(db: AsyncSession) -> int:
