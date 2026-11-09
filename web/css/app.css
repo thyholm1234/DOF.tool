@@ -1241,3 +1241,18 @@ tr.click { cursor: pointer; }
   .settings-nav button:hover { background: var(--bg-2); }
   .settings-nav button.on { background: var(--brand-soft); }
 }
+
+/* Indtast: valg af indtastning (views/indtast-start.js) og spontan-/FiNN-tælling (views/taelling.js, tur-view.js) */
+.indtast-start { max-width: 640px; }
+.indtast-sub { margin: 10px 0 0; font-size: .95rem; color: var(--text-2); }
+.indtast-choice { display: flex; align-items: center; gap: 14px; padding: 14px 16px; color: var(--text); text-decoration: none; }
+.indtast-choice:hover { text-decoration: none; border-color: var(--brand-2); }
+.indtast-choice b { display: block; font-size: 1.02rem; }
+.indtast-choice small { display: block; margin-top: 2px; line-height: 1.4; }
+.indtast-txt { flex: 1; min-width: 0; }
+.indtast-ic { flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--brand-soft); color: var(--brand); }
+.indtast-ic .ic { width: 22px; height: 22px; }
+.indtast-go { flex: none; color: var(--text-3); }
+.indtast-choice.current { border-color: var(--accent); }
+.indtast-choice.current .indtast-ic { background: var(--warn-soft); color: var(--accent); }
+.count-banner.running { background: var(--brand-soft); border: 1px solid var(--brand-2); }

@@ -1,7 +1,7 @@
 // Tur: kun denne turs observationer. Her tilføjes og rettes observationer (+1 / +10 på hver), og ynglepar.
 // Selve turens oplysninger redigeres på sin egen side (tur-form.js).
 import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT, todayISO } from "../core.js";
-import { tracker, nowHM, finishTrack } from "../tur-data.js";
+import { tracker, nowHM, finishTrack, isCount, countLeft, FINN, COUNT_MIN } from "../tur-data.js";
 import { quickSpecies } from "../tur-quick.js";
 import { isApp } from "../native.js";
 import { newId } from "../offline.js";
@@ -281,6 +281,29 @@ export function view(page, ref, store_, recent) {
   const tabsEl = showTale ? tabs([["obs", "Observationer", obsCard], ["tale", "Tale", taleCard]], {
     onChange: (k) => { curTab = k; page.classList.toggle("tale-mode", k === "tale"); syncVoiceBtn(); if (k === "tale") toBottom(); } }) : null;
   tabsEl?.panels.classList.add("tur-panels");
+  // Spontan-/FiNN-tælling: nedtælling i de fem minutter – og en påmindelse om den komplette liste bagefter
+  const countBanner = isCount(T) ? h("div", { class: "notice mb count-banner" }) : null;
+  let countTimer = null, wasRunning = false;
+  const drawCount = () => {
+    if (!countBanner) return;
+    const kind = T.metode_id === FINN ? "FiNN-tælling" : "Spontantælling";
+    const left = countLeft(T);
+    if (left != null && left > 0) {
+      wasRunning = true;
+      countBanner.className = "notice mb count-banner running";
+      countBanner.replaceChildren(h("div", { class: "row between" }, h("b", {}, kind),
+        h("b", { class: "num", style: { fontSize: "1.4rem" } }, `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`)),
+        h("small", {}, "Registrér alle fugle, du ser og hører og kan bestemme. Stå stille."));
+      return;
+    }
+    clearInterval(countTimer); countTimer = null;
+    if (wasRunning) { wasRunning = false; navigator.vibrate?.([200, 100, 200]); toast(`${kind}en er slut – tjek, at listen er komplet`, "ok"); }
+    countBanner.className = "notice mb count-banner";
+    countBanner.replaceChildren(h("b", {}, `${kind} · ${COUNT_MIN} minutter`), ` (${[T.turtidfra, T.turtidtil].filter(Boolean).join("–")})`,
+      h("div", {}, h("small", {}, "Komplet artsliste: alle fugle, du så og hørte og kunne bestemme, skal med.")));
+  };
+  if (countBanner) { drawCount(); if ((countLeft(T) ?? 0) > 0) countTimer = setInterval(drawCount, 1000); }
+
   page.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("p", { style: { margin: 0 } }, h("a", { href: "#/indtast" }, "← Mine indtastninger")),
       h("h1", { style: { marginTop: "4px" } }, T.lok || "Tur"),
@@ -290,6 +313,7 @@ export function view(page, ref, store_, recent) {
         h("a", { class: "btn tur-edit", href: `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}/ret`, html: `${icon("edit")} Redigér tur` }),
         finishBtn)),
     T.on_behalf_of ? h("div", { class: "notice warn mb" }, `Indtastet på vegne af ${T.on_behalf_of}.`) : null,
+    countBanner,
     showTale ? tabsEl.bar : null, showTale ? tabsEl.panels : obsCard,
     extras,
     // Ynglepar (1/3) og Observation (2/3) som store felter i samme stil som mikrofonfeltet på fanen Tale
@@ -298,5 +322,5 @@ export function view(page, ref, store_, recent) {
       h("button", { class: "tur-pad primary", type: "button", onclick: () => edit() }, h("span", { class: "tur-pad-icon", html: icon("plus") }), "Observation")),
     showTale ? [voiceStatus, voiceBtn] : null);
   drawRows(); drawSpeech(); drawPairs();
-  return () => { unsub(); tracker.listeners.delete(onPoint); clearInterval(fadeTimer); window.removeEventListener("resize", fitFeed); page.classList.remove("tale-mode"); stopVoice?.(); };
+  return () => { clearInterval(countTimer); unsub(); tracker.listeners.delete(onPoint); clearInterval(fadeTimer); window.removeEventListener("resize", fitFeed); page.classList.remove("tale-mode"); stopVoice?.(); };
 }

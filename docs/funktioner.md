@@ -75,6 +75,16 @@ gamle adresse får besked. Konti fra før bekræftelsen er mærket *ikke bekræf
 (`users.email_verified_at`). Uden SMTP_HOST sendes intet – mailen skrives i api'ets log. Admin → Brugere viser e-mail og
 mærket *ingen konto*.
 
+**Indtast** (`views/indtast-start.js`, `#/indtast/ny`). Knappen *Indtast* åbner et valg: *Fortsæt aktuel indtastning*
+(ture uden sluttid fra de seneste to dage og tællinger, der stadig kører – på enheden og på serveren), *Normal
+indtastning* (ny tur) og tællingerne *Spontantælling* og *FiNN-tælling* (`views/taelling.js`). En tælling er en tur med
+DOFbasens metode 98/99, komplet artsliste og fem minutter (sluttid = start + 5): stedet tages fra GPS (eller kortet), og
+den nærmeste lokalitet vælges. FiNN-tællingen viser FiNN-områderne og -punkterne (fra DOFbasens offentlige API, cachet et
+døgn – `services/finn.py`, `GET /api/trips/finn`), gemmer området i `field_trips.finn_site_id` og advarer, hvis man står
+uden for et område; inden for 25 m af et FiNN-punkt noteres punktet i turnoterne. Talt på papir: dato og præcist
+starttidspunkt. Turens side viser en nedtælling (det præcise starttidspunkt gemmes på enheden) og bagefter en påmindelse
+om den komplette liste. DOFbasens point/spiltilstand for spontantællinger er ikke med.
+
 **Konti uden DOFbasen** (`services/dofbinding.py`). En konto kan være uden forbindelse til en obserkode: oprettet med
 *Opret konto uden DOFbasen* (navn, e-mail, adgangskode, kode på mail – `POST /api/auth/konto/opret-lokal`, samme
 godkendelse som andre nye brugere), eller fordi brugeren har fjernet forbindelsen under Profil → *DOFbasen*

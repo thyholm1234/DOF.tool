@@ -47,6 +47,8 @@ class FieldTrip(Base):
     metode_id: Mapped[int] = mapped_column(SmallInteger, default=1, server_default="1")
     komplet: Mapped[bool | None] = mapped_column(Boolean)  # komplet artsliste
     spontan: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # FiNN-tælling (metode 99): FiNN-området, tællingen er lavet i (DOFbasens id, services/finn.py)
+    finn_site_id: Mapped[int | None] = mapped_column(Integer)
     lat: Mapped[float | None] = mapped_column(Float)
     lon: Mapped[float | None] = mapped_column(Float)
     temperatur: Mapped[int | None] = mapped_column(SmallInteger)

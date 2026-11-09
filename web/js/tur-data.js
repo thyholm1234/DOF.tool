@@ -129,12 +129,12 @@ export function finishTrack(T) {
 
 // ---------------------------------------------------------------- tur-modellen
 
-const TRIP_FIELDS = ["dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "medobser", "turnoter", "on_behalf_of", "lat", "lon",
+const TRIP_FIELDS = ["dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "finn_site_id", "medobser", "turnoter", "on_behalf_of", "lat", "lon",
   "temperatur", "skydaekke", "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv"];
 
 export function blankTrip() {
   return { client_id: newId(), server_id: null, dato: todayISO(), loknr: null, lok: null, turtidfra: nowHM(), turtidtil: "", metode_id: 1, komplet: null,
-    spontan: false, medobser: "", turnoter: "", on_behalf_of: "", lat: null, lon: null, temperatur: null, skydaekke: null, vindretning: null,
+    spontan: false, finn_site_id: null, medobser: "", turnoter: "", on_behalf_of: "", lat: null, lon: null, temperatur: null, skydaekke: null, vindretning: null,
     vindstyrke: null, nedboer: null, nedboertype: null, sigtbarhed: null, gps_aktiv: false, gps_track: [], observations: [], breeding_pairs: [],
     disturbances: [], speech: [] };  // speech: indtalte poster (kun på enheden; summen står i observations)
 }
@@ -180,6 +180,46 @@ export async function openTrip(which, ref) {
     if (!t) throw new Error(`Ingen forbindelse – kun ture fra de seneste ${RECENT_DAYS} dage kan åbnes uden net`);
   }
   return { T: fromServer(t, ref), files: {} };
+}
+
+// ---------------------------------------------------------------- spontan- og FiNN-tællinger (metode 98/99)
+
+export const SPONTAN = 98, FINN = 99;
+export const COUNT_MIN = 5;  // en tælling varer fem minutter
+export const isCount = (T) => T.metode_id === SPONTAN || T.metode_id === FINN;
+export const addMinutes = (hm, min) => {
+  const [hh, mm] = hm.split(":").map(Number), t = (hh * 60 + mm + min) % 1440;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+};
+// Det præcise starttidspunkt for en tælling startet på denne enhed (turtidfra er kun i hele minutter)
+const startKey = (cid) => `count-start:${cid}`;
+export function markCountStart(cid) {
+  try {
+    localStorage.setItem(startKey(cid), String(Date.now()));
+    for (const k of Object.keys(localStorage)) if (k.startsWith("count-start:") && Date.now() - Number(localStorage.getItem(k)) > 86400000) localStorage.removeItem(k);
+  } catch { /* ingen localStorage */ }
+}
+/** Sekunder til tællingen slutter (negativ: slut). null, hvis det ikke er en tælling i dag. */
+export function countLeft(T) {
+  if (!isCount(T) || T.dato !== todayISO() || !T.turtidfra) return null;
+  let start = null;
+  try { start = Number(localStorage.getItem(startKey(T.client_id))) || null; } catch { /* ingen localStorage */ }
+  start ??= new Date(`${T.dato}T${T.turtidfra}:00`).getTime();
+  return Math.round((start + COUNT_MIN * 60000 - Date.now()) / 1000);
+}
+
+/** Indtastninger, der ikke er afsluttet: ture uden sluttid fra de seneste dage – og tællinger, der stadig kører.
+ *  Både ture på enheden (ikke sendt) og på serveren. [{ T-lignende: client_id/server_id, lok, dato, turtidfra, metode_id, n_obs }] */
+export async function openEntries() {
+  const since = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  const open = (t) => t.dato >= since && (!t.turtidtil || (isCount(t) && (countLeft(t) ?? -1) > 0));
+  const local = (await listLocal().catch(() => [])).map(r => ({ ...r.draft, server_id: r.server_id ?? r.draft?.server_id })).filter(t => t?.dato && open(t));
+  let server = [];
+  try { server = await cachedApi("tripsmine", "/api/trips/mine"); } catch { /* uden net og uden kopi */ }
+  const seen = new Set(local.map(t => t.server_id).filter(Boolean));
+  const rows = [...local.map(t => ({ ...t, n_obs: t.observations?.length || 0 })),
+    ...server.filter(t => !seen.has(t.id) && open(t)).map(t => ({ ...t, server_id: t.id }))];
+  return rows.sort((a, b) => `${b.dato} ${b.turtidfra || ""}`.localeCompare(`${a.dato} ${a.turtidfra || ""}`));
 }
 
 export const tripHash = (T, suffix = "") => `#/indtast/tur/${T.server_id || `lokal/${T.client_id}`}${suffix}`;

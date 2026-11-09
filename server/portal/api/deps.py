@@ -46,6 +46,11 @@ async def short_user(request: Request) -> User | None:
     async with SessionLocal() as db:
         real = await real_user(request, db)
         user = await optional_user(request, real, db)
+        # Løsrives med deres indlæste felter, før sessionen lukkes – rollback ville ellers udløbe dem, så fx user.id ikke
+        # kan læses bagefter (DetachedInstanceError)
+        for obj in {id(o): o for o in (real, user) if o is not None}.values():
+            if obj in db:
+                db.expunge(obj)
         await db.rollback()
     return user
 

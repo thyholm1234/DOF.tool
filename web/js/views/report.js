@@ -57,7 +57,7 @@ async function startPage(view) {
   view.replaceChildren(
     h("div", { class: "page-head" }, h("div", {}, h("h1", {}, "Mine indtastninger"),
       h("p", { class: "lead" }, "Dine ture og fugle indtastet i DOF.tool. De vises med det samme i trådene og alarmerne.")),
-      h("span", { class: "spacer" }), newBtn, h("a", { class: "btn primary", href: "#/indtast/tur/ny", html: `${icon("plus")} Ny tur` })),
+      h("span", { class: "spacer" }), newBtn, h("a", { class: "btn primary", href: "#/indtast/ny", html: `${icon("plus")} Ny indtastning` })),
     newPanel,
     h("div", { class: "mb" }, seg([["ture", "Ture"], ["fugle", "Alle fugle"]], tab, (v) => { tab = v; store("indtasttab", v); showTab(); })),
     tripsEl, listEl,

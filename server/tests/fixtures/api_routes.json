@@ -9445,6 +9445,13 @@ false,
 ]
 }
 },
+"/api/trips/finn": {
+"get": {
+"body": false,
+"op": "finn_areas_api_trips_finn_get",
+"params": []
+}
+},
 "/api/trips/lookups": {
 "get": {
 "body": false,

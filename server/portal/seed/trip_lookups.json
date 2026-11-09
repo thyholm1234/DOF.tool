@@ -111,6 +111,16 @@
    "kort": "FRW"
   },
   {
+   "id": 98,
+   "navn": "Spontantælling",
+   "kort": "SPT"
+  },
+  {
+   "id": 99,
+   "navn": "FiNN-tælling",
+   "kort": "FiNN"
+  },
+  {
    "id": 24,
    "navn": "Ilanddrevne døde fugle langs kyst",
    "kort": "ILAND"

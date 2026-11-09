@@ -81,6 +81,7 @@ class TripIn(BaseModel):
     metode_id: int = 1
     komplet: bool | None = None
     spontan: bool = False
+    finn_site_id: int | None = Field(None, ge=1, le=10_000_000)  # FiNN-tælling: FiNN-området (services/finn.py)
     medobser: str | None = Field(None, max_length=300)
     turnoter: str | None = Field(None, max_length=4000)
     # Kun til ture indtastet på vegne af en anden før funktionen blev fjernet (se _observer_code); nye ture afvises
@@ -150,6 +151,14 @@ async def lookups():
     return {**LOOKUPS, "vindretninger": VIND, "nedboertyper": NEDBOER}
 
 
+@router.get("/finn")
+async def finn_areas(user: User = Depends(require_user)):
+    """FiNN-områder og -punkter til FiNN-tællinger (fra DOFbasens offentlige API, cachet et døgn – services/finn.py)."""
+    from portal.services import finn
+
+    return await finn.data()
+
+
 @router.get("/weather")
 async def weather(lat: float = Query(ge=54.4, le=57.9), lon: float = Query(ge=7.8, le=15.4), dato: date = Query(),
                   fra: str | None = Query(None, pattern=TIME), til: str | None = Query(None, pattern=TIME),
@@ -193,7 +202,7 @@ async def common(loknr: int, n: int = Query(30, ge=1, le=100), user: User = Depe
 async def mine(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
         SELECT t.id, t.dato, t.turtidfra, t.turtidtil, t.loknr, l.navn AS lok, k.navn AS kommune, t.obserkode,
-               t.metode_id, t.komplet, t.spontan, t.gps_aktiv, t.created_at,
+               t.metode_id, t.komplet, t.spontan, t.finn_site_id, t.gps_aktiv, t.created_at,
                (SELECT count(*) FROM field_reports r WHERE r.trip_id = t.id) AS n_obs,
                (SELECT count(DISTINCT r.artnr) FROM field_reports r WHERE r.trip_id = t.id) AS n_arter,
                (SELECT count(*) FROM field_breeding_pairs p WHERE p.trip_id = t.id) AS n_ynglepar,
@@ -225,7 +234,7 @@ async def trip_out(db: AsyncSession, t: FieldTrip, user: User, hide_route: bool 
     dist = (await db.execute(select(FieldDisturbance).where(FieldDisturbance.trip_id == t.id)
                              .order_by(FieldDisturbance.id))).scalars().all()
     head = {k: getattr(t, k) for k in ("id", "obserkode", "client_id", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet",
-                                        "spontan", "medobser", "turnoter", "lat", "lon", "temperatur", "skydaekke",
+                                        "spontan", "finn_site_id", "medobser", "turnoter", "lat", "lon", "temperatur", "skydaekke",
                                         "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv",
                                         "gps_track")}
     if hide_route:
@@ -295,7 +304,7 @@ async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> 
     """Skriver turen og dens børn. Returnerer id'er på nye, ændrede og slettede observationer."""
     await _location_exists(db, body.loknr)
     trip.obserkode = await _observer_code(user, trip, body.on_behalf_of)
-    for k in ("dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "medobser", "turnoter", "lat", "lon",
+    for k in ("dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "finn_site_id", "medobser", "turnoter", "lat", "lon",
               "temperatur", "skydaekke", "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv"):
         setattr(trip, k, _hhmm(getattr(body, k)) if k in ("turtidfra", "turtidtil") else getattr(body, k))
     if body.gps_track is not None or not trip.id:

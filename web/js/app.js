@@ -90,6 +90,8 @@ const ROUTES = [
   [/^\/admin$/, () => import("./views/admin.js")],
   [/^\/moderation$/, () => import("./views/moderation.js")],
   [/^\/login$/, () => import("./views/login.js")],
+  [/^\/indtast\/ny$/, () => import("./views/indtast-start.js")],
+  [/^\/indtast\/(spontan|finn)$/, () => import("./views/taelling.js")],
   [/^\/indtast\/tur\/(ny|\d+|lokal\/[\w-]+)(?:\/(ret))?$/, () => import("./views/tur.js")],
   [/^\/indtast(?:\/obs\/(\d+))?$/, () => import("./views/report.js")],
   [/^\/support$/, () => import("./views/support.js")],
@@ -116,12 +118,12 @@ function renderNav() {
   const inMore = current && !BOTTOM.includes(current);
   const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
-    ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
+    ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast/ny", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
     : []));
   const side = [];
   for (const [title, items] of sections()) side.push(h("div", { class: "nav-h" }, title), ...items.map(n => link(n)));
   if (state.user) {
-    side.unshift(link(["#/indtast/tur/ny", "plus", "Indtast"], "cta"));
+    side.unshift(link(["#/indtast/ny", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
     side.push(h("a", { href: "#/profil", class: current === "#/profil" ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
     side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));

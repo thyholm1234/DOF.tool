@@ -101,6 +101,8 @@ EXTRA_DDL = [
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS metode_id smallint NOT NULL DEFAULT 1",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS komplet boolean",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS spontan boolean NOT NULL DEFAULT false",
+    # Spontan- og FiNN-tællinger (metode 98/99): FiNN-området (services/finn.py)
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS finn_site_id integer",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS lat double precision",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS lon double precision",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS temperatur smallint",
