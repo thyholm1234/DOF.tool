@@ -17,7 +17,9 @@ export function form(page, ref, store_, recent, isNew) {
   const known = new Map(T.loknr ? [[T.loknr, T.lok]] : []);
   const lokSel = h("select", { "aria-label": "Lokalitet" });
   const titleEl = h("h2", {}, T.lok || "Ny tur");
+  let shown = { rows: [], head: null };  // det, der står i listen (så et søgevalg kan lægges øverst)
   const fillLocs = (rows, head) => {
+    shown = { rows, head };
     rows.forEach(l => { known.set(l.loknr, l.navn); if (l.lat != null) { T.__coords ||= {}; T.__coords[l.loknr] = [l.lat, l.lon]; } });
     const opts = !T.loknr || rows.some(l => l.loknr === T.loknr) ? rows : [{ loknr: T.loknr, navn: known.get(T.loknr) }, ...rows];
     lokSel.replaceChildren(h("option", { value: "" }, head || "Vælg lokalitet …"), ...opts.map(l => h("option", { value: l.loknr },
@@ -30,16 +32,28 @@ export function form(page, ref, store_, recent, isNew) {
     titleEl.textContent = T.lok || "Ny tur"; lokF.refresh(); lokSel.classList.remove("invalid"); autoWeather();
   };
   lokSel.onchange = () => setLok(Number(lokSel.value));
-  const lokQ = h("input", { type: "search", placeholder: "Søg lokalitet …", autocomplete: "off" });
-  let lokT;
+  // Søgning: forslagene vises som dropdown under søgefeltet; et valg sætter lokaliteten (og lægger den i listen ovenfor)
+  const lokQ = h("input", { type: "search", placeholder: "Søg lokalitet …", autocomplete: "off", autocorrect: "off", spellcheck: "false" });
+  const lokSug = h("div", { class: "suggest dropdown" });
+  const pickFound = (l) => {
+    lokQ.value = ""; lokSug.replaceChildren();
+    fillLocs([l, ...shown.rows.filter(x => x.loknr !== l.loknr)], shown.head); lokSel.value = String(l.loknr); setLok(l.loknr);
+  };
+  const lokOpt = (l) => h("button", { type: "button", onmousedown: (e) => e.preventDefault(), onclick: () => pickFound(l) },
+    h("span", {}, l.navn), l.kommune ? h("i", { class: "muted" }, l.kommune) : null);
+  let lokT, lokN = 0;
   lokQ.oninput = () => {
     clearTimeout(lokT);
+    const q = lokQ.value.trim();
+    if (q.length < 2) { lokSug.replaceChildren(); return; }
     lokT = setTimeout(async () => {
-      const q = lokQ.value.trim();
-      if (q.length < 2) return;
-      try { fillLocs(await findLocations(q), "Vælg blandt søgeresultaterne …"); } catch (err) { toast(err.message, "err"); }
-    }, 250);
+      const n = ++lokN;
+      try { const rows = await findLocations(q); if (n === lokN && lokQ.value.trim() === q) lokSug.replaceChildren(...rows.map(lokOpt)); }
+      catch (err) { toast(err.message, "err"); }
+    }, 200);
   };
+  lokQ.onblur = () => setTimeout(() => lokSug.replaceChildren(), 150);
+  lokQ.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); lokSug.querySelector("button")?.click(); } if (e.key === "Escape") lokSug.replaceChildren(); };
   const nearTo = async (lat, lon) => {
     try {
       const rows = await nearestLocations(lat, lon, 12);
@@ -52,7 +66,7 @@ export function form(page, ref, store_, recent, isNew) {
   }, (err) => toast("Position ikke tilgængelig: " + err.message, "err"), { enableHighAccuracy: true, timeout: 15000 });
   const onMap = () => pickPosition(T.lat ? [T.lat, T.lon] : null, T.lok_lat ? [T.lok_lat, T.lok_lon] : null, (p) => { if (p) { [T.lat, T.lon] = p; nearTo(p[0], p[1]); } }, { locations: true });
   fillLocs(recent.locations.length && !T.loknr ? recent.locations : [], recent.locations.length && !T.loknr ? "Dine seneste lokaliteter …" : null);
-  const lokF = reqField("Lokalitet", h("div", { class: "stack", style: { gap: "8px" } }, lokSel, lokQ,
+  const lokF = reqField("Lokalitet", h("div", { class: "stack", style: { gap: "8px" } }, lokSel, h("div", { class: "dd-wrap" }, lokQ, lokSug),
     h("div", { class: "row", style: { gap: "8px" } }, h("button", { class: "btn primary grow", type: "button", onclick: near }, "Nærmeste lokaliteter"),
       h("button", { class: "btn primary", type: "button", onclick: onMap }, "Kort"))), () => !!T.loknr);
 
