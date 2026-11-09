@@ -43,7 +43,7 @@ function toQuery(f) {
   return q;
 }
 
-/** Fritekstfelt med forslag fra serveren (datalist); onPick får det valgte element eller null. */
+/** Fritekstfelt med forslag fra serveren (datalist); onPick får det valgte element eller null (og den skrevne tekst). */
 function suggest(url, { value = "", placeholder, label, onPick }) {
   const list = h("datalist", { id: `sg-${Math.random().toString(36).slice(2)}` });
   const items = new Map();
@@ -52,7 +52,7 @@ function suggest(url, { value = "", placeholder, label, onPick }) {
     oninput: () => {
       const hit = items.get(inp.value);
       if (hit) { onPick(hit); return; }
-      onPick(null);
+      onPick(null, inp.value.trim());
       clearTimeout(timer);
       if (inp.value.trim().length < 2) return;
       timer = setTimeout(async () => {
@@ -131,7 +131,10 @@ export async function render(view) {
         field("Adfærd / alder", sel("adf", [["", "Adfærd"], ...Object.entries(valg.adf)]), sel("alder", [["", "Alder"], ...valg.alder.map(a => [a, a])])),
         field("Dragt / køn", sel("dragt", [["", "Dragt"], ...Object.entries(valg.dragt)]), sel("sex", [["", "Køn"], ["M", "Han"], ["F", "Hun"]])),
         field("Metode", sel("metode", [["", "Alle"], ...Object.entries(valg.metode).sort((a, b) => a[1].localeCompare(b[1], "da"))])),
-        field("Observatør (obserkode)", inp("obserdata", { placeholder: "fx ABC1", style: { textTransform: "uppercase" } })),
+        // Navn eller obserkode; vælges et forslag, søges der på dets obserkode, ellers på det skrevne som obserkode
+        field("Observatør", suggest("/api/search/observers?q=", { value: f.obserdata_navn || f.obserdata || "", placeholder: "Navn eller obserkode",
+          label: (r) => `${r.navn} (${r.obserkode})`,
+          onPick: (r, txt) => { f.obserdata = r?.obserkode ?? (txt || null); f.obserdata_navn = r ? `${r.navn} (${r.obserkode})` : null; } })),
         chk("medobser", "Også som medobservatør")),
       h("div", { class: "stack" },
         field("Tekst i fugle- og turnoter", inp("textsearch", { type: "search" })),

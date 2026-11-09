@@ -3763,6 +3763,20 @@ false,
 ]
 }
 },
+"/api/dofbasen/observatoerer/soeg": {
+"get": {
+"body": false,
+"op": "obser_soeg_api_dofbasen_observatoerer_soeg_get",
+"params": [
+[
+"q",
+"query",
+true,
+"{\"maxLength\": 60, \"minLength\": 2, \"title\": \"Q\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/dofbasen/omraader": {
 "get": {
 "body": false,
@@ -8795,6 +8809,20 @@ true,
 "path",
 true,
 "{\"title\": \"Fmt\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/search/observers": {
+"get": {
+"body": false,
+"op": "observers_api_search_observers_get",
+"params": [
+[
+"q",
+"query",
+true,
+"{\"maxLength\": 60, \"minLength\": 2, \"title\": \"Q\", \"type\": \"string\"}"
 ]
 ]
 }

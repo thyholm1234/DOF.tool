@@ -67,6 +67,15 @@ export async function page(parts, q) {
     return i;
   };
   const chk = (name) => h("input", { type: "checkbox", checked: !!f[name], onchange: (e) => { f[name] = e.target.checked; } });
+  // Observatør: navn eller obserkode. Et valgt forslag giver dets obserkode; ellers søges på det skrevne som obserkode
+  const obserField = () => {
+    const box = autosuggest({ url: "/api/dofbasen/observatoerer/soeg?q=", placeholder: "Navn eller obserkode", width: "200px",
+      initial: f.obserdata_navn || f.obserdata || "", label: (r) => `${r.navn} (${r.obserkode})`,
+      onPick: (r) => { f.obserdata = r?.obserkode ?? null; f.obserdata_navn = r ? `${r.navn} (${r.obserkode})` : null; } });
+    const i = box.querySelector("input");
+    i.addEventListener("input", () => { f.obserdata = i.value.trim() || null; f.obserdata_navn = null; });
+    return box;
+  };
   const row = (label, title, ...ctl) => h("div", { class: "row" }, h("span", { title }, label + ":"), h("span", {}, ...ctl));
 
   const periodBox = h("div", {});
@@ -124,7 +133,7 @@ export async function page(parts, q) {
     row("Summering", "Summér antal pr. tur og art", chk("summering")));
   const right = h("div", { class: "r2" },
     row("Medobservatør", "Søg også hvor observatøren er medobservatør", chk("medobser")),
-    row("Observatør", "Obserkode", inp("obserdata", { size: 8 })), h("hr"),
+    row("Observatør", "Navn eller obserkode", obserField()), h("hr"),
     row("Koordinater", "Kun observationer med fuglens position", chk("koordinat")),
     row("Kommentarer", "Kun observationer med kommentar", chk("kommentar")),
     row("Udelad burfugle", "Udelad arter i [klammer]", chk("udelad_burfugle")),

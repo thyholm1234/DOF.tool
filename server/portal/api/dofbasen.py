@@ -24,6 +24,7 @@ from portal.db import get_session
 from portal.models import DofbApiGrant, DofbApiToken, DofbArea, DofbFocus, DofbList, DofbNews, DofbObsStatus, DofbPage, DofbRole, User
 from portal.services import dofbasen as svc
 from portal.services import features
+from portal.services import observers
 from portal.services import sheets
 from portal.timeutil import dk_today
 from portal.services import dataset
@@ -407,6 +408,12 @@ async def lok_soeg(q: str = Query(min_length=2, max_length=60), ctx: svc.Ctx = D
         SELECT l.loknr, l.navn, a.navn AS afdeling, k.navn AS kommune FROM locations l LEFT JOIN afdelinger a ON a.id = l.afdeling_id
         LEFT JOIN kommuner k ON k.kode = l.kommune_kode WHERE l.navn ILIKE :q ORDER BY (l.navn ILIKE :p) DESC, length(l.navn) LIMIT 20
     """, q=f"%{q}%", p=f"{q}%")
+
+
+@router.get("/observatoerer/soeg")
+async def obser_soeg(q: str = Query(min_length=2, max_length=60), ctx: svc.Ctx = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Forslag til observatørfeltet i søgningen: navn eller obserkode (skjulte profiler udelades)."""
+    return await observers.search(db, q, ctx.user)
 
 
 # ---------------------------------------------------------------- fænologi

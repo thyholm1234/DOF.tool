@@ -248,7 +248,7 @@ class SearchIn(BaseModel):
     dragt: str = Field("", max_length=4)
     sex: str = Field("", pattern="^(|M|F)$")
     metode: int | None = None
-    obserdata: str = Field("", max_length=16)
+    obserdata: str = Field("", max_length=60)  # obserkode eller (en del af) observatørens navn
     medobser: bool = False
     koordinat: bool = False
     kommentar: bool = False
@@ -267,7 +267,7 @@ class SearchIn(BaseModel):
     @field_validator("obserdata")
     @classmethod
     def _kode(cls, v: str) -> str:
-        return v.strip().upper()
+        return v.strip()
 
 
 def period(p: SearchIn) -> tuple[date | None, date | None]:
@@ -402,12 +402,22 @@ def search_sql(p: SearchIn, viewer: str | None) -> tuple[str, dict[str, Any], li
         where.append("o.metode = :metode")
         args["metode"] = METODER[p.metode]
     if p.obserdata:
+        # Obserkode eller navn: «JH1», «Jens Hansen» og «hansen» virker alle. En kortere tekst uden mellemrum, der er en
+        # kendt obserkode, søges kun som kode (ellers ville «HANS» også finde alle med Hans i navnet). ARRAY(...) beregnes
+        # én gang, så obserkode-indekset stadig bruges
+        name = "(coalesce(fornavn, '') || ' ' || coalesce(efternavn, '')) ILIKE :obser_navn"
+        if " " in p.obserdata or len(p.obserdata) > 16:
+            obser = f"o.obserkode = ANY(ARRAY(SELECT obserkode FROM observers WHERE {name}))"
+        else:
+            obser = (f"o.obserkode = ANY(ARRAY(SELECT CAST(:obser AS varchar) UNION SELECT obserkode FROM observers WHERE {name}"
+                     " AND NOT EXISTS (SELECT 1 FROM observers WHERE obserkode = :obser)))")
+            args["obser"] = p.obserdata.upper()
+        args["obser_navn"] = f"%{p.obserdata}%"
         if p.medobser:
-            where.append("(o.obserkode = :obser OR t.medobser ILIKE :obser_like)")
+            where.append(f"({obser} OR t.medobser ILIKE :obser_like)")
             args["obser_like"] = f"%{p.obserdata}%"
         else:
-            where.append("o.obserkode = :obser")
-        args["obser"] = p.obserdata
+            where.append(obser)
     if p.koordinat:
         where.append("o.obs_lat IS NOT NULL")
     if p.kommentar:

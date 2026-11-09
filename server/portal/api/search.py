@@ -3,7 +3,7 @@ fund og download som CSV, ODS eller XLSX. Slås til/fra under Admin → Funktion
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,7 @@ from portal.db import get_session
 from portal.models import User
 from portal.services import dofbasen as svc
 from portal.services import features, sheets
+from portal.services import observers as obs_svc
 from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -43,6 +44,12 @@ async def valg(user: User = Depends(need_search), db: AsyncSession = Depends(get
         "omraader": await _rows(db, "SELECT id, kind, navn FROM dofb_areas WHERE kind = 'stor' ORDER BY navn"),
         "iba": await svc.iba_options(db),
     }
+
+
+@router.get("/observers")
+async def observers(q: str = Query(min_length=2, max_length=60), user: User = Depends(need_search), db: AsyncSession = Depends(get_session)):
+    """Forslag til observatørfeltet: navn eller obserkode (skjulte profiler udelades som på observatørsiderne)."""
+    return await obs_svc.search(db, q, user)
 
 
 @router.post("")
