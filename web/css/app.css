@@ -284,7 +284,17 @@ table.data tr.click:hover td { background: var(--surface-2); }
 
 .feed-layout { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
 .feed-layout > *, .grid-2 > *, .grid-3 > *, .stack > * { min-width: 0; }
-@media (min-width: 1100px) { .feed-layout { grid-template-columns: minmax(0, 1fr) 320px; } }
+.feed-date { justify-content: center; }
+.feed-side { display: contents; }
+.feed-layout > .feed-main { order: 1; }
+.feed-side > .stack { order: 2; }  /* smal skærm: datovælgeren øverst, «Største træk» under listen */
+@media (min-width: 1100px) {
+  .feed-layout { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+  .feed-layout > .feed-main { order: 0; }
+  .feed-layout > .feed-side { order: 1; }
+  .feed-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: calc(var(--top-h) + 16px);
+    max-height: calc(100dvh - var(--top-h) - 32px); overflow-y: auto; }
+}
 .mini-list { list-style: none; margin: 0; padding: 0; }
 .mini-list li { display: flex; justify-content: space-between; gap: .5rem; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: .88rem; }
 .mini-list li:last-child { border-bottom: 0; }
@@ -1139,6 +1149,8 @@ tr.click { cursor: pointer; }
 /* guld: observationen af en SU-art er godkendt af SU */
 .dl-dku.su-ok, .tag.su-ok { background: linear-gradient(135deg, #f3d36b, #c9971c); color: #3d2a00; border: 1px solid #b8860b; }
 /* SU: fund samlet i kasser pr. art × lokalitet, datoerne som linjer med flueben til højre */
+.dl-dku.pheno { background: #bfe3f7; color: #0b3a5c; }
+.dl-dku.local { background: var(--local); color: #fff; }
 .su-finds { display: grid; gap: 10px; }
 .su-find { padding: 10px 14px; }
 .su-find-head { display: flex; gap: 10px; align-items: flex-start; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
@@ -1266,3 +1278,23 @@ tr.click { cursor: pointer; }
   background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 10px; font: inherit; cursor: pointer; }
 .lok-opt.on { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); font-weight: 600; }
 .lok-opt small { white-space: nowrap; font-weight: 400; }
+/* Observationer: matrix afdeling × niveau */
+.dl-matrix { margin: 0 0 16px; padding: 14px 16px; }
+.dl-matrix[hidden] { display: none; }
+.mx-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 8px; }
+.dl-mx { border-collapse: separate; border-spacing: 4px; margin: 0 -4px; }
+.dl-mx th { font-weight: 600; padding: 0; text-align: center; }
+.dl-mx th[scope=row] { text-align: left; }
+.dl-mx td { padding: 0; text-align: center; }
+.dl-mx tr.has th[scope=row] .mx-row { color: var(--text); font-weight: 700; }
+.mx-head, .mx-row { border: 0; background: transparent; font: inherit; font-size: .8rem; color: var(--text-2); cursor: pointer; border-radius: 8px; padding: 6px 8px; white-space: nowrap; }
+.mx-head { font-weight: 700; text-transform: uppercase; letter-spacing: .03em; font-size: .72rem; }
+.mx-head:hover, .mx-row:hover { background: var(--bg-2); color: var(--text); }
+.mx-row { text-align: left; font-size: .88rem; width: 100%; }
+.mx-cell { --c: var(--brand); width: 100%; min-width: 44px; height: 32px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--bg-2); color: #fff; font-weight: 800; cursor: pointer; transition: background .12s, border-color .12s, transform .08s; }
+.mx-cell:hover { border-color: var(--c); }
+.mx-cell:active { transform: scale(.94); }
+.mx-cell.on { background: var(--c); border-color: var(--c); }
+.mx-cell:focus-visible, .mx-head:focus-visible, .mx-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.mx-SU { --c: var(--su); } .mx-SUB { --c: var(--sub); } .mx-bemaerk { --c: var(--warn, #d4a017); } .mx-all { --c: #6b7a8c; } .mx-pheno { --c: #5aaee0; } .mx-local { --c: var(--local); }
+@media (max-width: 640px) { .mx-cell { min-width: 34px; height: 30px; } .mx-head { padding: 6px 2px; font-size: .62rem; } }

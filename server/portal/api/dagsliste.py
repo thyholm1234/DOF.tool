@@ -32,13 +32,15 @@ async def afdelinger(user: User = Depends(need_dagsliste), db: AsyncSession = De
 
 @router.get("")
 async def dagsliste(dato: date | None = None, visning: str = Query("fugle", pattern=svc.VISNING_RE), lok: int | None = None, lokalitet: int | None = None,
-                    summering: str = Query("tur", pattern="^(tur|dato|ingen)$"), user: User = Depends(need_dagsliste), db: AsyncSession = Depends(get_session)):
+                    summering: str = Query("tur", pattern="^(tur|dato|ingen)$"),
+                    matrix: str | None = Query(None, pattern=r"^[0-9]+:[A-Za-z]+(\.[A-Za-z]+)*(,[0-9]+:[A-Za-z]+(\.[A-Za-z]+)*)*$", max_length=600), user: User = Depends(need_dagsliste), db: AsyncSession = Depends(get_session)):
     d = dato or dk_today()
     if d > dk_today():
         raise HTTPException(422, "Datoen ligger i fremtiden")
     from portal.services import su
 
-    return await svc.day_observations(db, user.obserkode, d, visning, lok, lokalitet, summering, su_badge=await su.badge_visible(db, user))
+    return await svc.day_observations(db, user.obserkode, d, visning, lok, lokalitet, summering, su_badge=await su.badge_visible(db, user),
+                                   matrix=svc.parse_matrix(matrix) if matrix else None)
 
 
 @router.get("/obs/{obsid}")

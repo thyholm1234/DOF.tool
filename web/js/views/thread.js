@@ -240,7 +240,10 @@ function obsRow(o, mediaRows, allRows) {
       " · ", h("span", { class: "nowrap" }, `set i portalen ${fmtTime(o.first_seen)}`)),
     o.fuglnoter ? h("p", { style: { margin: "4px 0 0" } }, o.fuglnoter) : null,
     o.turnoter ? h("p", { class: "muted", style: { margin: "4px 0 0", fontSize: ".85rem" } }, "Tur: ", o.turnoter) : null,
-    h("div", { class: "row mt" }, h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
+    h("div", { class: "row mt" },
+      // Én observation (#/obs/<obsid>): alle felter og resten af turlisten – kræver Observationer (dagslisten)
+      state.user?.dagsliste ? h("a", { class: "btn sm", href: `#/obs/${o.obsid}` }, "Se observationen") : null,
+      h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
       tipButton("dofbasen", o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
         label: `${fmtN(o.antal)} · ${o.observer || o.obserkode || ""} · ${o.dato || ""}` })),
     media, obsPhotoStrip(o.obsid));

@@ -3322,6 +3322,12 @@ true,
 "/api/dofbasen/arter/soeg": {
 "get": {
 "body": false,
+"matrix",
+"query",
+false,
+"{\"anyOf\": [{\"maxLength\": 600, \"pattern\": \"^[0-9]+:[A-Za-z]+(\\\\.[A-Za-z]+)*(,[0-9]+:[A-Za-z]+(\\\\.[A-Za-z]+)*)*$\", \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Matrix\"}"
+],
+[
 "op": "arter_soeg_api_dofbasen_arter_soeg_get",
 "params": [
 [

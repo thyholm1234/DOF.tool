@@ -1,4 +1,4 @@
-// Én observation (#/obs/<obsid>), åbnet fra Observationer (dagslisten): alle DOFbasens felter som popobs.php
+// Én observation (#/obs/<obsid>), åbnet fra Observationer (dagslisten) eller en tråd: alle DOFbasens felter som popobs.php
 // og resten af turlistens indtastninger. Trådene på Mit overblik bevarer deres samlede format.
 import { api, state, h, fmtN, fmtDate, errorBox, tag, KAT, observerLink, backLink, icon } from "../core.js";
 import { tipButton } from "./dku.js";

@@ -102,18 +102,16 @@ export async function render(view) {
   const shiftDay = (n) => { const d = new Date(st.date + "T12:00:00"); d.setDate(d.getDate() + n); const iso = d.toISOString().slice(0, 10); if (iso > todayISO()) return; st.date = iso; dateInput.value = iso; load(); };
 
   view.append(
-    h("div", { class: "page-head" },
-      h("div", {}, h("h1", {}, "Hvad sker der nu?"), h("p", { class: "lead" }, "Live fra DOFbasen – samlet i tråde pr. art og lokalitet.")),
-      h("span", { class: "spacer" }),
-      h("div", { class: "row" },
-        h("button", { class: "btn sm ghost", onclick: () => shiftDay(-1), "aria-label": "Forrige dag", html: icon("prev") }), dateInput,
-        h("button", { class: "btn sm ghost", onclick: () => shiftDay(1), "aria-label": "Næste dag", html: icon("next") }),
-        h("button", { class: "btn sm", onclick: nearby, html: `${icon("pin")} Tæt på mig` }))),
     h("div", { class: "feed-layout" },
-      h("div", { class: "stack" },
+      h("div", { class: "stack feed-main" },
         h("div", { class: "card toolbox" }, toggles, filterRow),
         listEl),
-      sideEl));
+      // Datovælger og «Største træk» følger med, når de står i deres egen kolonne
+      h("div", { class: "feed-side" },
+        h("div", { class: "card row feed-date" },
+          h("button", { class: "btn sm ghost", onclick: () => shiftDay(-1), "aria-label": "Forrige dag", html: icon("prev") }), dateInput,
+          h("button", { class: "btn sm ghost", onclick: () => shiftDay(1), "aria-label": "Næste dag", html: icon("next") })),
+        sideEl)));
 
   const opts = (await scopeOptions()).filter(o => o[0] !== "mine");
   for (const [v, l] of opts) scopeSel.append(h("option", { value: v, selected: v === st.scope }, l));
@@ -264,22 +262,4 @@ async function nearMe({ here, saved }) {
       m.close(); toast(`Området «${area.name}» er gemt`); await saved(area);
     } catch (err) { keep.disabled = false; toast(err.message, "err"); }
   };
-}
-
-async function nearby() {
-  if (!navigator.geolocation) { toast("Din enhed understøtter ikke position", "err"); return; }
-  const body = h("div", {}, h("div", { class: "skeleton" }));
-  const m = modal("Tæt på mig (25 km, 3 dage)", body, { wide: true });
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    try {
-      const { latitude: lat, longitude: lon } = pos.coords;
-      const data = await api(`/api/nearby?lat=${lat}&lon=${lon}&radius_km=25&days=3&level=bemaerk`);
-      if (!data.items.length) { body.replaceChildren(empty("Intet bemærkelsesværdigt inden for 25 km de sidste 3 dage")); return; }
-      body.replaceChildren(h("div", { class: "table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 3 } },
-        h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Lokalitet"), h("th", {}, "Dato"), h("th", { class: "right" }, "Antal"), h("th", { class: "right" }, "km"))),
-        h("tbody", {}, ...data.items.map(i => h("tr", { class: "click", onclick: () => { m.close(); location.hash = `#/traad/${i.dato}/${i.artnr}/${i.loknr}`; } },
-          h("td", {}, tag(i.kategori), " ", h("b", {}, i.art)), h("td", { class: "wide" }, i.lok), h("td", { class: "nowrap", "data-label": "Dato" }, fmtDate(i.dato, false)),
-          h("td", { class: "right num", "data-label": "Antal" }, fmtN(i.antal)), h("td", { class: "right num", "data-label": "km" }, String(i.km).replace(".", ","))))))));
-    } catch (err) { body.replaceChildren(errorBox(err)); }
-  }, (err) => body.replaceChildren(errorBox(new Error("Position ikke tilgængelig: " + err.message))), { enableHighAccuracy: false, timeout: 15000 });
 }

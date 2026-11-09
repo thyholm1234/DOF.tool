@@ -577,14 +577,54 @@ VISNING_RE = "^(fugle|allfugle|sufugle|trkfugle|patdyr|somfugle|krybdyr)$"
 VISNING = {"fugle": "o.kategori <> 'alm'", "allfugle": "TRUE", "sufugle": "o.kategori IN ('SU', 'SUB')", "trkfugle": ADF[2][1]}
 
 
+# Fænologi og lokale hits (som i feedet, se services/feed.py): joinene ph og lc ligger altid på dagslisten
+PHENO_SQL = ("(s.art_type IN ('art', 'underart') AND ph.artnr IS NOT NULL AND (CASE WHEN ph.start_doy <= ph.end_doy "
+             "THEN (:doy < ph.start_doy OR :doy > ph.end_doy) ELSE (:doy > ph.end_doy AND :doy < ph.start_doy) END))")
+LOCAL_COND = "(coalesce(lc.n_finds, 0) < :lmax AND s.art_type IN ('art', 'underart'))"
+MATRIX_LEVELS = ("SU", "SUB", "bemaerk", "all", "pheno", "local")
+LOCAL_MAX = 10  # lokale hits: færre end så mange estimerede fund af arten på lokaliteten (som i feedet)
+
+
+def parse_matrix(raw: str) -> dict[int, list[str]]:
+    """«3:SU.SUB,5:all» → {3: ["SU", "SUB"], 5: ["all"]} (afdeling → markerede niveauer). Ukendte niveauer ignoreres."""
+    out: dict[int, list[str]] = {}
+    for part in raw.split(","):
+        afd, _, lv = part.partition(":")
+        if afd.isdigit():
+            levels = [x for x in lv.split(".") if x in MATRIX_LEVELS]
+            if levels:
+                out[int(afd)] = levels
+    return out
+
+
+def _matrix_where(matrix: dict[int, list[str]], d: date, args: dict[str, Any]) -> str:
+    """Afdeling × niveau-matrix: en observation vises, hvis dens afdeling har mindst ét markeret niveau, den opfylder.
+    SUB og Bemærk er som i feedet «og derover»; Fænologi og Lokale hits som i feedet (se services/feed.py)."""
+    cond = {
+        "SU": "o.kategori = 'SU'", "SUB": "o.kategori IN ('SU', 'SUB')", "bemaerk": "o.kategori <> 'alm'", "all": "TRUE",
+        "local": f"{LOCAL_COND} OR o.kategori IN ('SU', 'SUB')", "pheno": PHENO_SQL,
+    }
+    parts = []
+    for i, (afd, levels) in enumerate(sorted(matrix.items())):
+        args[f"mx{i}"] = afd
+        parts.append(f"(l.afdeling_id = :mx{i} AND ({' OR '.join(f'({cond[lv]})' for lv in levels)}))")
+    return f"({' OR '.join(parts)})" if parts else "FALSE"
+
+
 async def day_observations(db: AsyncSession, me: str | None, d: date, visning: str, lok: int | None, lokalitet: int | None, summering: str,
-                           su_badge: bool = False) -> dict:
+                           su_badge: bool = False, matrix: dict[int, list[str]] | None = None) -> dict:
     """Observationer på en dag: visning, afdeling (lok), én lokalitet og summering (tur/dato/ingen). Hemmelige vises kun for observatøren selv."""
     if visning in ("patdyr", "somfugle", "krybdyr"):
         return {"dato": d.isoformat(), "rows": [], "note": "Portalen henter kun fugle fra DOFbasen – andre dyr findes ikke i data."}
-    where = [VISNING[visning], "o.dato = :d", "(o.hemmelig = 0 OR o.obserkode = :me)"]
-    args: dict[str, Any] = {"d": d, "me": me}
-    if lok:
+    from portal.services import seasons
+
+    # Fugle – bemærkelsesværdige: bemærk-kategorierne og arter uden for deres normale periode (fænologi)
+    where = [f"(o.kategori <> 'alm' OR {PHENO_SQL})" if visning == "fugle" else VISNING[visning], "o.dato = :d", "(o.hemmelig = 0 OR o.obserkode = :me)"]
+    args: dict[str, Any] = {"d": d, "me": me, "doy": seasons.doy365(d), "lmax": LOCAL_MAX}
+    if matrix is not None:
+        # Matricen erstatter visning og afdeling
+        where[0] = _matrix_where(matrix, d, args)
+    elif lok:
         where.append("l.afdeling_id = :lok")
         args["lok"] = lok
     if lokalitet:
@@ -604,10 +644,13 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
                min(o.obstidfra) AS obstidfra, max(coalesce(o.obstidtil, o.obstidfra)) AS obstidtil,
                min(t.turtidfra) AS turtidfra, max(coalesce(t.turtidtil, t.turtidfra)) AS turtidtil,
                bool_or(o.obstidfra IS NOT NULL OR o.obstidtil IS NOT NULL OR t.turtidfra IS NOT NULL) AS tid,  -- DOFbasen-modulets ur
-               max(st.status) AS dku, min(o.indtastning) AS indtastning
+               max(st.status) AS dku, min(o.indtastning) AS indtastning,
+               bool_or({PHENO_SQL}) AS pheno, bool_or({LOCAL_COND}) AS local, min(coalesce(lc.n_finds, 0)) AS lok_fund
         FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
         LEFT JOIN trips t ON t.turid = o.turid LEFT JOIN observers ob ON ob.obserkode = o.obserkode
         LEFT JOIN dofb_obs_status st ON st.obsid = o.obsid
+        LEFT JOIN species_season ph ON ph.artnr = coalesce(s.list_artnr, s.artnr)
+        LEFT JOIN loc_species_finds lc ON lc.loknr = o.loknr AND lc.artnr = o.artnr
         WHERE {' AND '.join(where)}
         GROUP BY {group}, s.navn, s.latin, s.sortering, o.loknr, l.navn, l.afdeling_id, o.obserkode, o.artnr
         ORDER BY l.afdeling_id, s.sortering, l.navn LIMIT 10000
