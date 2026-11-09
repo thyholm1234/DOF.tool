@@ -80,7 +80,9 @@ mærket *ingen konto*.
 indtastning* (ny tur) og tællingerne *Spontantælling* og *FiNN-tælling* (`views/taelling.js`). En tælling er en tur med
 DOFbasens metode 98/99, komplet artsliste og fem minutter (sluttid = start + 5): stedet tages fra GPS (eller kortet), og
 lokaliteten vælges i en liste med de fem nærmeste (den, man står i, er valgt på forhånd; lokaliteterne tegnes ikke på
-kortet). FiNN-tællingen viser FiNN-områderne og referencepunkterne (fra DOFbasens offentlige API, cachet et
+kortet). FiNN-tællingen viser i stedet en liste med de fem nærmeste FiNN-områder (det, man står i, er valgt; tryk for at
+vælge et andet og se det på kortet), og DOFbasen-lokaliteten vælges automatisk (kan ændres med søgning). Kortet viser
+FiNN-områderne og referencepunkterne (fra DOFbasens offentlige API, cachet et
 døgn – `services/finn.py`, `GET /api/trips/finn`), gemmer området i `field_trips.finn_site_id` og advarer, hvis man står
 uden for et område; inden for 25 m af et FiNN-punkt noteres punktet i turnoterne. Talt på papir: dato og præcist
 starttidspunkt. Turens side viser en nedtælling (det præcise starttidspunkt gemmes på enheden) og bagefter en påmindelse
