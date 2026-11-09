@@ -213,24 +213,14 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
     if data is None:
         data = await feed.thread_meta(db, day, artnr, loknr)
     data["reports"] = portal
-    found = await media_many([o["obsid"] for o in data.get("observations", [])])
     from portal.services import dofbasen as dofb, su
 
     cases, su_ok = await dofb.obs_marks(db, [o["obsid"] for o in data.get("observations", [])], await su.badge_visible(db, user),
                                         [dofb.find_key(day, artnr, loknr)])
     data["su_ok"] = bool(su_ok)  # fundet (art × lokalitet × dag) er godkendt af SU: guld
     for o in data.get("observations", []):
-        o["media"] = found.get(o["obsid"])
         o["dku_case"], o["su_ok"] = o["obsid"] in cases, bool(su_ok)  # åben DKU-sag (lyseblåt) og SU-godkendt (guld)
-    # Mangler billeder/lyd/DKU: ét opslag pr. observation (største antal først) lægges forrest i gatewayens kø.
-    # Resultatet gemmes i 7 dage, og tråden får besked, når det er hentet.
-    data["media_pending"], data["media_eta"] = False, None
-    missing = sorted((o for o in data.get("observations", []) if o["media"] is None), key=lambda o: -(o.get("antal") or 0))
-    if missing:
-        st = await ensure_media_obs([o["obsid"] for o in missing])
-        data["media_pending"], data["media_eta"] = st["pending"], st["eta"]
-        for o in missing:
-            o["media_pending"] = o["obsid"] in st["obsids"]  # observationer ud over de første få slås op ved næste besøg
+    # Billeder, lyd og DKU-status fra DOFbasen hentes for sig (/media), når tråden er vist – siden skal ikke vente på dem
     data["find"] = await finds.thread_find(db, day, artnr, loknr)
     data["status"] = await reports.thread_status(db, day, artnr, loknr, user)
     data["comments"] = await _comments(db, day, artnr, loknr, user)
@@ -243,6 +233,23 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
         data["following"] = bool(f and not f.muted)
         data["comment_ban"] = await moderation.active_ban(db, user.id)
     return data
+
+
+@router.get("/thread/{day}/{artnr}/{loknr}/media")
+async def thread_media(day: date, artnr: int, loknr: int, db: AsyncSession = Depends(get_session)):
+    """Billeder, lyd og DKU-status for trådens DOFbasen-observationer – hentes af siden, efter tråden er vist.
+    {"media": {obsid: {...} | null}, "pending": [obsid …], "eta": sek.}. Mangler noget, lægges ét opslag pr. observation
+    (største antal først) forrest i gatewayens kø; resultatet gemmes i 7 dage, og tråden får besked, når det er hentet."""
+    data = await feed.thread_detail(db, day, artnr, loknr)
+    obs = (data or {}).get("observations", [])
+    found = await media_many([o["obsid"] for o in obs])
+    out = {"media": {str(o["obsid"]): found.get(o["obsid"]) for o in obs}, "pending": [], "eta": None}
+    missing = sorted((o for o in obs if found.get(o["obsid"]) is None), key=lambda o: -(o.get("antal") or 0))
+    if missing:
+        st = await ensure_media_obs([o["obsid"] for o in missing])
+        out["pending"] = [o["obsid"] for o in missing if o["obsid"] in st["obsids"]] if st["pending"] else []
+        out["eta"] = st["eta"]
+    return out
 
 
 async def _comments(db: AsyncSession, day: date, artnr: int, loknr: int, user: User | None) -> list[dict]:

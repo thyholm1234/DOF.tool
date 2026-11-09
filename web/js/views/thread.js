@@ -45,7 +45,8 @@ export async function render(view, [date, artnr, loknr]) {
   };
 
   const threadKey = `${date}/${artnr}/${loknr}`;
-  const mediaRows = new Map();  // obsid → visning af billeder/lyd/DKU, opdateres når medie-scanneren melder nyt
+  const mediaRows = new Map();  // obsid → visning af billeder/lyd/DKU for de observationer, der stadig venter på medier
+  const allRows = new Map();  // obsid → visning for alle observationer (medierne hentes, når tråden er vist)
   const likeEl = likeWidget("thread", threadKey, t.likes, { title: `Synes godt om ${t.art}` });
   const weatherEl = h("div", {});
   const mapEl = h("div", { class: "map small" });
@@ -75,7 +76,7 @@ export async function render(view, [date, artnr, loknr]) {
         reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
           h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, "Indtastet direkte i portalen."), repList) : null,
         h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
-          obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, { pending: !!o.media_pending, eta: t.media_eta }, mediaRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
+          obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, mediaRows, allRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
       h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
         weatherEl,
         h("div", { class: "card" }, h("h3", {}, "Kommentarer"), commentsEl))));
@@ -149,18 +150,25 @@ export async function render(view, [date, artnr, loknr]) {
     if (e.kind === "thread" && e.key === threadKey) api(`/api/likes?kind=thread&key=${encodeURIComponent(threadKey)}`)
       .then(d => likeEl.update({ count: d.count, names: d.users.slice(-3).reverse().map(u => u.navn) })).catch(() => {});
   });
-  // Billeder/lyd: serveren slår dem op hos DOFbasen (forrest i køen) og melder, når de er hentet. Hvis beskeden udebliver
-  // (fx mistet forbindelse), spørges der også med jævne mellemrum, så længe noget venter – og ventetiden opdateres.
-  let mediaTimer = null, polls = 0;
-  const refreshMedia = async () => {
-    if (!mediaRows.size) return;
-    try {
-      const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`);
-      for (const o of fresh.observations || []) mediaRows.get(o.obsid)?.(o.media, { pending: !!o.media_pending, eta: fresh.media_eta });
-    } catch { /* næste forsøg */ }
-    if (mediaRows.size && ++polls < 20) mediaTimer = setTimeout(refreshMedia, 8000);
+  // Billeder/lyd/DKU hentes først, når tråden er vist (/media), så siden aldrig venter på dem. Mangler noget, slår serveren
+  // det op hos DOFbasen (forrest i køen) og melder, når det er hentet. Udebliver beskeden (fx mistet forbindelse), spørges
+  // der også med jævne mellemrum, så længe noget venter – og ventetiden opdateres.
+  let mediaTimer = null, polls = 0, closed = false;
+  const applyMedia = (m, rows) => {
+    for (const [id, show] of rows) show(m.media?.[id] || null, { pending: (m.pending || []).includes(id), eta: m.eta });
   };
-  if (mediaRows.size) mediaTimer = setTimeout(refreshMedia, 8000);
+  const refreshMedia = async () => {
+    if (!mediaRows.size || closed) return;
+    try { applyMedia(await api(`/api/thread/${date}/${artnr}/${loknr}/media`), new Map(mediaRows)); } catch { /* næste forsøg */ }
+    if (mediaRows.size && ++polls < 20 && !closed) mediaTimer = setTimeout(refreshMedia, 8000);
+  };
+  const loadMedia = async () => {
+    if (!allRows.size || closed) return;
+    try { applyMedia(await api(`/api/thread/${date}/${artnr}/${loknr}/media`), allRows); } catch { return; }
+    if (mediaRows.size && !closed) mediaTimer = setTimeout(refreshMedia, 8000);
+  };
+  // Efter første tegning – når browseren har tid (men senest efter et halvt sekund)
+  requestAnimationFrame(() => (window.requestIdleCallback || ((f) => setTimeout(f, 50)))(loadMedia, { timeout: 500 }));
   const offMedia = live.on("feed", (e) => {
     if (!(e.media || e.media_day === date) || !mediaRows.size) return;
     clearTimeout(mediaTimer);
@@ -174,14 +182,14 @@ export async function render(view, [date, artnr, loknr]) {
     if (!e.portal || !reps.length) return;
     try { const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`); reps.splice(0, reps.length, ...(fresh.reports || [])); drawReports(); } catch { /* ignore */ }
   });
-  return () => { off(); offFeed(); offMedia(); offLike(); offStatus(); clearTimeout(pending); clearTimeout(mediaTimer); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
+  return () => { closed = true; off(); offFeed(); offMedia(); offLike(); offStatus(); clearTimeout(pending); clearTimeout(mediaTimer); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
 }
 
 const SEX = { M: "han", F: "hun", MF: "han og hun", FM: "han og hun" };
 const sexText = (k) => !k || k === "-" ? null : SEX[k.replace(/[^MF]/g, "")] || k;
 const dragtText = (o) => o.dragt && o.dragt !== "Uspecificeret dragt" ? o.dragt : !o.dragt && o.dragtkode && o.dragtkode !== "-" ? o.dragtkode : null;
 
-function obsRow(o, ms, mediaRows) {
+function obsRow(o, mediaRows, allRows) {
   const media = h("div", {});
   const tid = [o.obstidfra || o.turtidfra, o.obstidtil || o.turtidtil].filter(Boolean).join("–");
   const dkuEl = h("span", {});
@@ -191,7 +199,8 @@ function obsRow(o, ms, mediaRows) {
       dkuEl.replaceChildren(o.dku_case ? h("span", { class: "tag dku-status behandling", title: "Der er en DKU-sag på observationen" }, "DKU-sag") : "");
       media.replaceChildren(ms.pending ? h("small", { class: "muted" }, h("span", { class: "spinner" }),
         ms.eta > 5 ? ` Henter billeder og lyd fra DOFbasen – ca. ${ms.eta < 90 ? `${ms.eta} sek.` : `${Math.round(ms.eta / 60)} min.`}` : " Henter billeder og lyd fra DOFbasen…") : "");
-      if (!ms.pending) mediaRows.delete(o.obsid);
+      if (ms.pending) mediaRows.set(o.obsid, show);
+      else mediaRows.delete(o.obsid);
       return;
     }
     mediaRows.delete(o.obsid);
@@ -199,11 +208,11 @@ function obsRow(o, ms, mediaRows) {
     const kind = o.dku_case || /behandling/i.test(r.dku || "") ? "behandling" : /\bSU\b/.test(r.dku || "") ? "su" : "dku";
     dkuEl.replaceChildren(r.dku || o.dku_case ? h("span", { class: `tag dku-status ${kind}`, title: "Status hos DKU (Danmarks Fugles Sjældenhedskomité)" }, r.dku ? `DKU: ${r.dku}` : "DKU-sag") : "");
     media.replaceChildren(
-      ...(r.images || []).map(src => h("a", { href: src, target: "_blank", rel: "noopener" }, h("img", { src, loading: "lazy", style: { maxWidth: "100%", borderRadius: "10px", marginTop: "6px" }, alt: "Foto fra DOFbasen" }))),
+      ...(r.images || []).map(src => h("a", { href: src, target: "_blank", rel: "noopener" }, h("img", { src, loading: "lazy", decoding: "async", fetchpriority: "low", style: { maxWidth: "100%", borderRadius: "10px", marginTop: "6px" }, alt: "Foto fra DOFbasen" }))),
       ...(r.sounds || []).map(src => h("audio", { controls: true, src, preload: "none", style: { width: "100%", marginTop: "6px" } })));
   };
-  if (!o.media && ms.pending) mediaRows.set(o.obsid, show);
-  show(o.media, ms);
+  allRows.set(o.obsid, show);
+  show(null, { pending: false });
   return h("div", { style: { borderBottom: "1px dashed var(--line)", paddingBottom: "10px" } },
     h("div", { class: "row between" },
       h("div", {}, h("b", { class: "num" }, `${fmtN(o.antal)} `), [o.adf || o.adfkode, o.alderkode, sexText(o.koen), dragtText(o)].filter(Boolean).join(", ")),

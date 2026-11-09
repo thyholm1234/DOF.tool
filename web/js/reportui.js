@@ -35,7 +35,7 @@ export function reportCard(r, { onEdit, showObserver = true, extra = null } = {}
     r.fuglnoter ? h("p", { style: { margin: "6px 0 0", whiteSpace: "pre-wrap" } }, r.fuglnoter) : null,
     r.media?.length ? h("div", { class: "report-media" }, ...r.media.map(m => m.kind === "audio"
       ? h("audio", { controls: true, src: m.url, preload: "none" })
-      : h("a", { href: m.url, target: "_blank", rel: "noopener" }, h("img", { src: m.url, loading: "lazy", alt: `Foto af ${r.art}` })))) : null,
+      : h("a", { href: m.url, target: "_blank", rel: "noopener" }, h("img", { src: m.url, loading: "lazy", decoding: "async", fetchpriority: "low", alt: `Foto af ${r.art}` })))) : null,
     r.updates?.length > 1 || (r.updates?.length === 1 && r.updates[0].note) ? h("ul", { class: "timeline" },
       ...r.updates.map(u => h("li", {}, h("b", {}, STATUS[u.status] || u.status), ` · ${u.navn} · ${fmtTime(u.at)}`, u.note ? h("div", { class: "muted" }, u.note) : null))) : null,
     h("div", { class: "row", style: { gap: "6px", marginTop: "6px" } }, h("span", { class: "tag plain", title: "Indtastet i DOF.tool – ikke sendt til DOFbasen" }, "Indtastet i DOF.tool"),

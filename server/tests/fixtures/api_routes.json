@@ -9308,6 +9308,32 @@ false,
 ]
 }
 },
+"/api/thread/{day}/{artnr}/{loknr}/media": {
+"get": {
+"body": false,
+"op": "thread_media_api_thread__day___artnr___loknr__media_get",
+"params": [
+[
+"artnr",
+"path",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
+],
+[
+"day",
+"path",
+true,
+"{\"format\": \"date\", \"title\": \"Day\", \"type\": \"string\"}"
+],
+[
+"loknr",
+"path",
+true,
+"{\"title\": \"Loknr\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/thread/{day}/{artnr}/{loknr}/status": {
 "post": {
 "body": true,

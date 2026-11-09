@@ -43,8 +43,11 @@ def user(**kw):
 
 @pytest.fixture
 def env(monkeypatch):
+    from portal.config import get_settings
     from portal.services import auth, dofbinding
 
+    monkeypatch.setattr(get_settings(), "superadmin_email", "")  # uafhængig af SUPERADMIN_* i .env
+    monkeypatch.setattr(get_settings(), "superadmin_obserkode", "")
     store = FakeKV()
     monkeypatch.setattr(auth, "kv", lambda: store)
     calls = {"renamed": [], "worker": [], "dof": []}

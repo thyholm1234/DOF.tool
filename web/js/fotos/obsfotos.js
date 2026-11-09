@@ -20,11 +20,12 @@ export function obsPhotoStrip(obsid) {
   new Promise(res => {
     if (!pending.has(obsid)) pending.set(obsid, []);
     pending.get(obsid).push(res);
-    timer ||= setTimeout(flush, 30);
+    // Samles og hentes, når browseren har tid – siden tegnes først
+    timer ||= (window.requestIdleCallback || ((f) => setTimeout(f, 60)))(flush, { timeout: 800 });
   }).then(list => {
     if (!list.length) return;
     box.replaceChildren(h("small", { class: "muted" }, "Fotos i galleriet: "), ...list.map(p => h("a", { href: `#/fotos/${p.id}`, title: "Åbn fotoet" },
-      h("img", { src: p.thumb, alt: "Foto", loading: "lazy", style: { height: "56px", borderRadius: "6px", marginRight: "4px", verticalAlign: "middle" } }))));
+      h("img", { src: p.thumb, alt: "Foto", loading: "lazy", decoding: "async", fetchpriority: "low", style: { height: "56px", borderRadius: "6px", marginRight: "4px", verticalAlign: "middle" } }))));
   });
   return box;
 }
