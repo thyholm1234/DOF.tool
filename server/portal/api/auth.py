@@ -53,6 +53,15 @@ class EmailIn(BaseModel):
     email: str = Field(max_length=254)
 
 
+class PendingIn(BaseModel):
+    pending: str = Field(max_length=64)
+    code: str = Field("", max_length=16)
+
+
+class CodeIn(BaseModel):
+    code: str = Field(max_length=16)
+
+
 # Indstillinger, superadmin ikke ser i «se som bruger»: positionsenheden og ICS-tokenet (giver adgang til kalenderen)
 VIEW_AS_HIDDEN_PREFS = {"position_device", "ics_token"}
 
@@ -63,6 +72,7 @@ def user_out(user: User, view_as: bool = False) -> dict:
         prefs = {k: v for k, v in prefs.items() if k not in VIEW_AS_HIDDEN_PREFS}
     return {"id": user.id, "obserkode": user.obserkode, "navn": user.navn, "role": user.role,
             "email": None if view_as else user.email, "account": bool(user.pw_hash),
+            "email_verified": bool(user.email_verified_at),
             "modules": sorted(auth.modules(user)), "prefs": prefs, "history_synced_at": user.history_synced_at}
 
 
@@ -92,11 +102,38 @@ async def account_verify(body: VerifyIn, request: Request, db: AsyncSession = De
 
 @router.post("/auth/konto/opret")
 async def account_complete(body: CompleteIn, response: Response, db: AsyncSession = Depends(get_session)):
-    """Trin 2: kontoen oprettes (eller får ny adgangskode) og bindes til obserkoden fra trin 1. Tidligere sessioner logges ud."""
+    """Trin 2: felterne kontrolleres, og en kode sendes til e-mailen ({"pending": …}; kontoen oprettes i
+    /auth/konto/email). «Glemt adgangskode» uden ny e-mail gemmes straks og logger ind."""
     try:
-        user, new = await konto.complete(db, body.token, body.password, body.email, body.navn)
+        r = await konto.complete(db, body.token, body.password, body.email, body.navn)
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
+    if isinstance(r, dict):
+        return r
+    return await _account_ready(*r, response)
+
+
+@router.post("/auth/konto/email")
+async def account_confirm(body: PendingIn, request: Request, response: Response, db: AsyncSession = Depends(get_session)):
+    """Trin 3: koden fra e-mailen. Kontoen oprettes (eller får ny adgangskode/e-mail) og bindes til obserkoden fra trin 1.
+    Tidligere sessioner logges ud."""
+    try:
+        user, new = await konto.confirm_signup(db, body.pending, body.code, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    return await _account_ready(user, new, response)
+
+
+@router.post("/auth/konto/email/igen")
+async def account_resend(body: PendingIn, request: Request):
+    """Send en ny kode til den ventende oprettelse."""
+    try:
+        return await konto.resend_signup(body.pending, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+
+
+async def _account_ready(user: User, new: bool, response: Response) -> dict:
     await start_session(user, response)
     if new or user.history_synced_at is None:
         await enqueue_history(user.obserkode)
@@ -134,10 +171,22 @@ async def logout_all(request: Request, response: Response, user: User = Depends(
 
 @router.post("/me/email")
 async def change_email(body: EmailIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Skift (eller bekræft) e-mail, trin 1: adgangskoden kræves, og en kode sendes til adressen. Intet gemmes endnu."""
     if getattr(request.state, "view_as", None):
         raise HTTPException(403, "Ikke i «se som bruger»")
     try:
-        await konto.change_email(db, user, body.current, body.email, client_ip(request))
+        return await konto.request_email_change(db, user, body.current, body.email, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+
+
+@router.post("/me/email/bekraeft")
+async def confirm_email(body: CodeIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Skift e-mail, trin 2: koden fra mailen. Først nu gemmes adressen; den gamle får besked."""
+    if getattr(request.state, "view_as", None):
+        raise HTTPException(403, "Ikke i «se som bruger»")
+    try:
+        await konto.confirm_email_change(db, user, body.code, client_ip(request))
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
     await activity.track(user.id, "email_change", None, {})

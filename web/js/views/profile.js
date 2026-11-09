@@ -99,7 +99,7 @@ const SECTIONS = {
         h("label", { class: "field" }, h("span", {}, "Navn"), navn),
         saveRow(() => patch({ navn: navn.value.trim() }))),
       card("Kontaktoplysninger", null,
-        u.view_as ? null : row("E-mail", h("b", {}, u.email || "–"), h("button", { type: "button", class: "btn sm ghost", onclick: () => go("sikkerhed") }, "Skift")),
+        u.view_as ? null : row("E-mail", h("span", {}, h("b", {}, u.email || "–"), u.email && !u.email_verified ? h("span", { class: "tag bemaerk", style: { marginLeft: "6px" } }, "ikke bekræftet") : ""), h("button", { type: "button", class: "btn sm ghost", onclick: () => go("sikkerhed") }, "Skift")),
         h("label", { class: "field" }, h("span", {}, "Telefonnummer"), phone),
         h("small", { class: "muted", style: { marginTop: "-6px" } }, "Vises kun på de kalenderbesøg, hvor du selv vælger det – så andre på trækposten kan ringe, fx når der er noget at se."),
         saveRow(() => patch({ phone: phone.value.trim() }))),
@@ -127,26 +127,50 @@ const SECTIONS = {
       h("div", { class: "row" }, h("button", { class: "btn primary" }, "Skift adgangskode"),
         h("button", { type: "button", class: "btn ghost", onclick: () => pwForm.classList.add("hide") }, "Annullér")));
 
+    // E-mail: ny adresse + adgangskode → kode sendes til adressen → koden tastes (eller linket i mailen åbnes:
+    // #/profil?fane=sikkerhed&mailkode=…). Adressen gemmes først, når koden er godkendt.
     const mail = h("input", { type: "email", autocomplete: "email", maxlength: 254, value: u.email || "" });
     const [mcur, mcurL] = pwField("Din adgangskode", "current-password");
-    const mailVal = h("b", {}, u.email || "–");
+    const unverified = () => h("span", { class: "tag bemaerk", style: { marginLeft: "6px" }, title: "Bekræft adressen med en kode, vi sender til den" }, "ikke bekræftet");
+    const mailVal = h("span", {});
+    const showMail = () => mailVal.replaceChildren(h("b", {}, state.user.email || "–"), state.user.email && !state.user.email_verified ? unverified() : "");
+    showMail();
+    const code = h("input", { inputmode: "numeric", autocomplete: "one-time-code", maxlength: 7, placeholder: "123456",
+      value: params().mailkode || "", style: { letterSpacing: ".25em", maxWidth: "12em" } });
+    const codeText = h("p", { style: { margin: 0 } });
+    const codeForm = h("form", { class: "stack hide", onsubmit: async (e) => {
+      e.preventDefault();
+      try {
+        const r = await api("/api/me/email/bekraeft", { method: "POST", body: { code: code.value } });
+        Object.assign(state.user, { email: r.user.email, email_verified: r.user.email_verified });
+        showMail(); code.value = ""; codeForm.classList.add("hide");
+        if (params().mailkode) setParams({ fane: "sikkerhed" });
+        show("E-mailadressen er bekræftet.", true);
+      } catch (err) { show(err.message); code.select(); }
+    } }, codeText, h("label", { class: "field" }, h("span", {}, "Kode fra mailen"), code),
+      h("div", { class: "row" }, h("button", { class: "btn primary" }, "Bekræft"),
+        h("button", { type: "button", class: "btn ghost", onclick: () => codeForm.classList.add("hide") }, "Annullér")));
     const mailForm = h("form", { class: "stack hide", onsubmit: async (e) => {
       e.preventDefault();
       try {
         const r = await api("/api/me/email", { method: "POST", body: { current: mcur.value, email: mail.value.trim() } });
-        state.user.email = r.user.email; mailVal.textContent = r.user.email;
-        mcur.value = ""; mailForm.classList.add("hide");
-        show("E-mailadressen er ændret.", true);
+        mcur.value = ""; mailForm.classList.add("hide"); msg.replaceChildren();
+        codeText.replaceChildren("Vi har sendt en kode med seks cifre til ", h("b", {}, r.email),
+          `. Skriv den her, eller tryk på linket i mailen. Koden gælder i ${Math.round(r.expires_in / 60)} minutter – indtil da er din e-mail uændret.`);
+        codeForm.classList.remove("hide"); code.value = ""; code.focus();
       } catch (err) { show(err.message); }
-    } }, h("label", { class: "field" }, h("span", {}, "Ny e-mailadresse"), mail), mcurL,
-      h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem e-mail"),
+    } }, h("label", { class: "field" }, h("span", {}, "E-mailadresse"), mail),
+      h("small", { class: "muted", style: { marginTop: "-6px" } }, "Vi sender en kode til adressen. Den gemmes først, når du har bekræftet den."),
+      mcurL,
+      h("div", { class: "row" }, h("button", { class: "btn primary" }, "Send kode"),
         h("button", { type: "button", class: "btn ghost", onclick: () => mailForm.classList.add("hide") }, "Annullér")));
+    if (params().mailkode) { codeText.textContent = "Bekræfter koden fra mailen …"; codeForm.classList.remove("hide"); setTimeout(() => codeForm.requestSubmit(), 0); }
 
     const pkBox = h("div", { class: "card stack settings-card" });
     panel.append(
       card("Log ind", "Du logger ind med e-mail eller obserkode og din DOF.tool-adgangskode. Har du glemt den, kan du vælge en ny fra login-siden ved at bekræfte obserkoden hos DOFbasen igen.",
-        row("E-mail", mailVal, h("button", { type: "button", class: "btn sm ghost", onclick: () => { pwForm.classList.add("hide"); mailForm.classList.toggle("hide"); mail.focus(); } }, "Skift")),
-        mailForm,
+        row("E-mail", mailVal, h("button", { type: "button", class: "btn sm ghost", onclick: () => { pwForm.classList.add("hide"); codeForm.classList.add("hide"); mailForm.classList.toggle("hide"); mail.focus(); } }, state.user.email && !state.user.email_verified ? "Bekræft / skift" : "Skift")),
+        mailForm, codeForm,
         row("Adgangskode", h("span", { class: "muted" }, "••••••••••"), h("button", { type: "button", class: "btn sm ghost", onclick: () => { mailForm.classList.add("hide"); pwForm.classList.toggle("hide"); cur.focus(); } }, "Skift")),
         pwForm, msg),
       pkBox,

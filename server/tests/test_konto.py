@@ -42,6 +42,24 @@ def dof(monkeypatch):
 
 
 @pytest.fixture
+def mails(monkeypatch):
+    """Udgående mails: (modtager, emne, tekst). Koden står først i emnet."""
+    from portal.services import mail
+
+    sent = []
+
+    async def send(to, subject, text):
+        sent.append((to, subject, text))
+
+    monkeypatch.setattr(mail, "send", send)
+    return sent
+
+
+def last_code(mails):
+    return mails[-1][1].split()[0]
+
+
+@pytest.fixture
 def approval(monkeypatch):
     from portal.services import auth
 
@@ -103,6 +121,7 @@ def user(**kw):
 
     base = dict(id=7, obserkode="8000ABC", navn="Anna Andersen", email="anna@example.dk", pw_hash=auth.hash_password("rigtig-kode-1"),
                 is_test=False, test_pw_hash=None, blocked=False, approved=True, account_at=None, dof_verified_at=None,
+                email_verified_at=None,
                 history_synced_at=None, prefs={})
     return SimpleNamespace(**{**base, **kw})
 
@@ -206,20 +225,91 @@ async def test_bekraeft_testbruger_afvises_uden_dofbasen_kald(kv, dof):
 # ---------------------------------------------------------------- trin 2: opret / ny adgangskode
 
 
-async def test_opret_ny_bruger_og_beviset_bruges_kun_en_gang(kv, dof, approval):
+async def signup(db, mails, email="anna@example.dk", navn=None, password="en-god-kode-1"):
+    """Trin 1-3 med koden fra mailen."""
+    from portal.services import konto
+
+    token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
+    r = await konto.complete(db, token, password, email, navn)
+    return await konto.confirm_signup(db, r["pending"], last_code(mails), "1.1.1.1")
+
+
+async def test_opret_kraever_kode_fra_email(kv, dof, approval, mails):
     from portal.services import auth, konto
 
     db = DB(None)
     token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
-    u, new = await konto.complete(db, token, "en-god-kode-1", "Anna@Example.dk", "Anna A.")
-    assert new and u.obserkode == "8000ABC" and u.email == "anna@example.dk" and u.navn == "Anna A."
-    assert auth.check_password(u.pw_hash, "en-god-kode-1") and u.account_at and u.dof_verified_at
-    with pytest.raises(auth.AuthError) as again:
+    r = await konto.complete(db, token, "en-god-kode-1", "Anna@Example.dk", "Anna A.")
+    assert r["email"] == "anna@example.dk" and r["pending"] and db.added == [] and db.commits == 0  # intet gemt endnu
+    to, subject, text = mails[-1]
+    code = subject.split()[0]
+    assert to == "anna@example.dk" and len(code) == 6 and code.isdigit() and f"bekraeft={r['pending']}&kode={code}" in text
+    assert not any(code in v or "en-god-kode-1" in v for v in kv.data.values() if isinstance(v, str))  # kun hashes
+    with pytest.raises(auth.AuthError) as again:  # bindingsbeviset er brugt
         await konto.complete(db, token, "en-god-kode-2", "anna@example.dk")
     assert again.value.status == 400 and "udløbet" in str(again.value)
 
+    u, new = await konto.confirm_signup(db, r["pending"], f" {code[:3]} {code[3:]} ", "1.1.1.1")  # mellemrum ignoreres
+    assert new and u.obserkode == "8000ABC" and u.email == "anna@example.dk" and u.navn == "Anna A."
+    assert auth.check_password(u.pw_hash, "en-god-kode-1") and u.account_at and u.dof_verified_at and u.email_verified_at
+    with pytest.raises(auth.AuthError) as used:  # koden og linket virker kun én gang
+        await konto.confirm_signup(db, r["pending"], code, "1.1.1.1")
+    assert used.value.status == 410
 
-async def test_svag_kode_bruger_ikke_beviset(kv, dof, approval):
+
+async def test_forkert_kode_taeller_og_kasserer(kv, dof, approval, mails):
+    from portal.services import auth, konto
+
+    db = DB(None)
+    token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
+    r = await konto.complete(db, token, "en-god-kode-1", "anna@example.dk")
+    code = last_code(mails)
+    wrong = "000000" if code != "000000" else "111111"
+    for i in range(konto.MAIL_TRIES):
+        with pytest.raises(auth.AuthError) as exc:
+            await konto.confirm_signup(db, r["pending"], wrong, f"1.1.1.{i}")
+        assert exc.value.status == 400
+    assert "for mange" in str(exc.value).lower()
+    with pytest.raises(auth.AuthError):  # selv den rigtige kode virker ikke længere
+        await konto.confirm_signup(db, r["pending"], code, "1.1.2.1")
+    assert db.added == []
+
+
+async def test_ny_kode_erstatter_den_gamle(kv, dof, approval, mails):
+    from portal.services import auth, konto
+
+    db = DB(None)
+    token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
+    r = await konto.complete(db, token, "en-god-kode-1", "anna@example.dk")
+    first = last_code(mails)
+    for _ in range(konto.MAIL_RESENDS):
+        await konto.resend_signup(r["pending"], "1.1.1.1")
+    with pytest.raises(auth.AuthError) as many:
+        await konto.resend_signup(r["pending"], "1.1.1.1")
+    assert many.value.status == 429
+    second = last_code(mails)
+    if first != second:
+        with pytest.raises(auth.AuthError):
+            await konto.confirm_signup(db, r["pending"], first, "1.1.1.1")
+    u, _ = await konto.confirm_signup(db, r["pending"], second, "1.1.1.1")
+    assert u.email == "anna@example.dk"
+
+
+async def test_mail_kan_ikke_sendes(kv, dof, approval, monkeypatch):
+    from portal.services import auth, konto, mail
+
+    async def fail(*a):
+        raise mail.MailError("550 nej")
+
+    monkeypatch.setattr(mail, "send", fail)
+    db = DB(None)
+    token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
+    with pytest.raises(auth.AuthError) as exc:
+        await konto.complete(db, token, "en-god-kode-1", "anna@example.dk")
+    assert exc.value.status == 502 and not any(k.startswith("konto:mail:") for k in kv.data)
+
+
+async def test_svag_kode_bruger_ikke_beviset(kv, dof, approval, mails):
     """En afvist adgangskode må ikke kræve et nyt DOFbasen-login."""
     from portal.services import auth, konto
 
@@ -230,55 +320,115 @@ async def test_svag_kode_bruger_ikke_beviset(kv, dof, approval):
             await konto.complete(db, token, bad, "anna@example.dk")
     with pytest.raises(auth.AuthError):
         await konto.complete(db, token, "en-god-kode-1", "ikke-en-mail")
-    u, _ = await konto.complete(db, token, "en-god-kode-1", "anna@example.dk")
-    assert u.pw_hash
+    assert mails == []
+    r = await konto.complete(db, token, "en-god-kode-1", "anna@example.dk")
+    assert r["pending"]
 
 
-async def test_eksisterende_bruger_bindes_og_logges_ud(kv, dof, approval):
+async def test_eksisterende_bruger_bindes_og_logges_ud(kv, dof, approval, mails):
     """En bruger fra før kontiene beholder sin række (og dermed alle data) og logges ud overalt."""
-    from portal.services import auth, konto
+    from portal.services import auth
 
     old = user(pw_hash=None, email=None)
     db = DB(old)
     stale = await auth.create_session(old)
     kv.data["loctok:user:7"] = "loctok:h:abc"
-    token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
-    u, new = await konto.complete(db, token, "en-god-kode-1", "anna@example.dk")
+    u, new = await signup(db, mails)
     assert u is old and not new and u.id == 7 and u.email == "anna@example.dk" and u.account_at
     assert await auth.session_user_id(stale) is None
     assert "loctok:user:7" not in kv.data and db.added == []
 
 
-async def test_glemt_kode_kraever_ikke_email(kv, dof, approval):
+async def test_glemt_kode_kraever_ikke_email(kv, dof, approval, mails):
     from portal.services import auth, konto
 
     u = user()
     db = DB(u)
     token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
-    await konto.complete(db, token, "helt-ny-kode-9")
-    assert auth.check_password(u.pw_hash, "helt-ny-kode-9") and u.email == "anna@example.dk"
+    assert await konto.complete(db, token, "helt-ny-kode-9") == (u, False)
+    assert auth.check_password(u.pw_hash, "helt-ny-kode-9") and u.email == "anna@example.dk" and mails == []
 
 
-async def test_email_i_brug_afvises(kv, dof, approval):
+async def test_glemt_kode_med_ny_email_venter_paa_koden(kv, dof, approval, mails):
+    from portal.services import auth, konto
+
+    u = user(email_verified_at="før")
+    db = DB(u)
+    token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
+    r = await konto.complete(db, token, "helt-ny-kode-9", "ny@example.dk")
+    assert auth.check_password(u.pw_hash, "rigtig-kode-1") and u.email == "anna@example.dk"  # uændret indtil koden
+    assert mails[-1][0] == "ny@example.dk"
+    await konto.confirm_signup(db, r["pending"], last_code(mails), "1.1.1.1")
+    assert auth.check_password(u.pw_hash, "helt-ny-kode-9") and u.email == "ny@example.dk"
+
+
+async def test_email_i_brug_afvises(kv, dof, approval, mails):
     from portal.services import auth, konto
 
     db = DB(None, email_owner=42)
     token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
     with pytest.raises(auth.AuthError) as exc:
         await konto.complete(db, token, "en-god-kode-1", "optaget@example.dk")
-    assert exc.value.status == 409
+    assert exc.value.status == 409 and mails == []
 
 
-async def test_ny_bruger_afventer_godkendelse(kv, dof, approval):
-    from portal.services import auth, konto
+async def test_ny_bruger_afventer_godkendelse(kv, dof, approval, mails):
+    from portal.services import auth
 
     approval["required"] = True
     db = DB(None)
-    token = (await konto.verify(db, "8000ABC", "dof-hemmelig", "1.1.1.1"))["token"]
     with pytest.raises(auth.AuthError) as exc:
-        await konto.complete(db, token, "en-god-kode-1", "anna@example.dk")
+        await signup(db, mails)
     assert exc.value.status == 403 and approval["notified"] == ["8000ABC"]
     assert db.user.pw_hash and db.user.approved is False  # kontoen findes – login venter på godkendelsen
+
+
+# ---------------------------------------------------------------- skift af e-mail
+
+
+async def test_skift_email_kraever_kode(kv, mails):
+    from portal.services import auth, konto
+
+    u = user(email_verified_at="før")
+    db = DB(u)
+    with pytest.raises(auth.AuthError) as pw:
+        await konto.request_email_change(db, u, "forkert", "ny@example.dk", "1.1.1.1")
+    assert pw.value.status == 403 and mails == []
+    r = await konto.request_email_change(db, u, "rigtig-kode-1", "Ny@Example.dk", "1.1.1.1")
+    assert r["email"] == "ny@example.dk" and u.email == "anna@example.dk" and db.commits == 0  # ikke gemt endnu
+    to, subject, text = mails[-1]
+    code = subject.split()[0]
+    assert to == "ny@example.dk" and f"mailkode={code}" in text
+    with pytest.raises(auth.AuthError):
+        await konto.confirm_email_change(db, u, "000000" if code != "000000" else "111111", "1.1.1.1")
+    await konto.confirm_email_change(db, u, code, "1.1.1.1")
+    assert u.email == "ny@example.dk" and u.email_verified_at != "før" and db.commits == 1
+    assert mails[-1][0] == "anna@example.dk" and "n•••@example.dk" in mails[-1][2]  # den gamle adresse får besked
+    with pytest.raises(auth.AuthError):  # koden virker kun én gang
+        await konto.confirm_email_change(db, u, code, "1.1.1.1")
+
+
+async def test_bekraeft_nuvaerende_email(kv, mails):
+    """En konto oprettet før bekræftelsen kan bekræfte sin nuværende adresse – men ikke en, der allerede er bekræftet."""
+    from portal.services import auth, konto
+
+    u = user()
+    db = DB(u)
+    await konto.request_email_change(db, u, "rigtig-kode-1", "anna@example.dk", "1.1.1.1")
+    await konto.confirm_email_change(db, u, last_code(mails), "1.1.1.1")
+    assert u.email_verified_at and len(mails) == 1  # ingen besked til «den gamle», når adressen er den samme
+    with pytest.raises(auth.AuthError) as exc:
+        await konto.request_email_change(db, u, "rigtig-kode-1", "anna@example.dk", "1.1.1.2")
+    assert exc.value.status == 400
+
+
+async def test_skift_email_til_optaget_adresse(kv, mails):
+    from portal.services import auth, konto
+
+    u = user()
+    with pytest.raises(auth.AuthError) as exc:
+        await konto.request_email_change(DB(u, email_owner=42), u, "rigtig-kode-1", "optaget@example.dk", "1.1.1.1")
+    assert exc.value.status == 409 and mails == []
 
 
 async def test_skift_kode_kraever_nuvaerende(kv):
@@ -332,8 +482,8 @@ def test_email_og_maskering():
 def test_vagten():
     from portal.main import public_api
 
-    assert public_api("/api/auth/konto/bekraeft") and public_api("/api/auth/konto/opret")
-    assert not public_api("/api/me/password") and not public_api("/api/me/email")
+    assert public_api("/api/auth/konto/bekraeft") and public_api("/api/auth/konto/opret") and public_api("/api/auth/konto/email")
+    assert not public_api("/api/me/password") and not public_api("/api/me/email") and not public_api("/api/me/email/bekraeft")
 
 
 def test_hashen_er_hemmelig_i_eksport():

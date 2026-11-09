@@ -40,7 +40,7 @@ Live-feed med tråde og alarmer · indtastning i felten med GPS, tale og offline
 DOF.tool samler de tidligere apps **DOF.not**, **Boligbirding/Fugleliga** og **Trækfugl** i én PWA med fælles login og
 fælles database – og bygger videre med indtastning i felten, alarmer, læring og planlægning. Login sker med en
 DOF.tool-konto (e-mail eller obserkode + egen adgangskode, eller passkey), der ved oprettelsen bindes til obserkoden med ét
-DOFbasen-login. DOFbasen-adgangskoden gemmes aldrig.
+DOFbasen-login. E-mailen bekræftes med en kode – ved oprettelsen og ved skift. DOFbasen-adgangskoden gemmes aldrig.
 
 | Tidligere app | I DOF.tool |
 |---|---|
@@ -135,7 +135,7 @@ flowchart LR
 | Frontend | Vanilla JavaScript (ES-moduler, intet byggetrin), Leaflet, service worker, IndexedDB |
 | App | Capacitor 8 (Android/iOS), native baggrundsposition, ONNX Runtime til tale |
 | Backend | Python 3.12, FastAPI, SQLAlchemy (async), server-sent events |
-| Login | DOF.tool-konti (e-mail/obserkode + scrypt), bundet til obserkoden med ét DOFbasen-login; passkeys via Zitadel (kun internt) |
+| Login | DOF.tool-konti (e-mail/obserkode + scrypt), bundet til obserkoden med ét DOFbasen-login, e-mail bekræftet med kode (SMTP); passkeys via Zitadel (kun internt) |
 | Data | PostgreSQL 17 + PostGIS i grupper (brugere, observationer, DOF.tool-indtastninger) med replikaer, Valkey |
 | Filer | RustFS (S3-kompatibelt objektlager) |
 | Tale | CoRal roest-v3 eksporteret til ONNX int8 af speech-model-agenten; genkendes på telefonen |

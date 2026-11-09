@@ -68,7 +68,9 @@ async def privacy() -> HTMLResponse:
             """<ul>
             <li><b>DOF / DOFbasen:</b> når du opretter din konto eller vælger en ny adgangskode, bekræfter vi én gang hos
             DOFbasen, at obserkoden er din. DOFbasen-adgangskoden sendes kun videre til DOFbasen og gemmes ikke i DOF.tool –
-            heller ikke som hash. DOF.tool sender ikke e-mails til dig.</li>
+            heller ikke som hash.</li>
+            <li><b>E-mail:</b> DOF.tool sender kun e-mails, når du opretter din konto eller skifter e-mailadresse (en kode,
+            der bekræfter adressen, og en besked til den gamle adresse ved skift). De sendes gennem vores mailudbyder.</li>
             <li><b>Andre brugere</b> ser det, du selv offentliggør (kommentarer, fotos, feltmeldinger og – medmindre du fravælger
             det – dine lister og placeringer samt din observatørside med tal og fund fra dine DOFbasen-observationer, uden
             hemmelige observationer).</li>

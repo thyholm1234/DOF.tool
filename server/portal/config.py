@@ -77,6 +77,15 @@ class Settings(BaseSettings):
     android_cert_sha256: str = ""
     ios_team_id: str = ""
 
+    # E-mail (services/mail.py): bekræftelseskoder ved oprettelse af konto og skift af e-mail. Tom SMTP_HOST = intet sendes;
+    # beskeden skrives i loggen i stedet (til udvikling). smtp_security: starttls (587), ssl (465) eller none.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: str = "starttls"
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""  # fx «DOF.tool <noreply@doftool.dk>»; tom = smtp_user
+
     vapid_subject: str = "mailto:admin@example.org"
     # Firebase (push til Android-appen): servicekontoens JSON, direkte eller base64-kodet (se services/fcm.py)
     fcm_service_account_json: str = ""

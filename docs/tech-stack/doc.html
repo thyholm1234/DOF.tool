@@ -154,15 +154,21 @@
     opslagsbane (adgangskoden ligger højst 3 min i køen og gemmes ikke – heller ikke som hash). Svaret er et engangsbevis, der kun
     står som hash i Valkey (<code>konto:bind:&lt;sha256&gt;</code>, 20 min).</li>
   <li><code>POST /api/auth/konto/opret</code>: navn, e-mail og adgangskode. Felterne kontrolleres, før beviset bruges (GETDEL).
-    Findes obserkoden i forvejen, beholdes brugerrækken med alle data. Alle brugerens tidligere sessioner og positionstokens
+    Beviset byttes til en ventende oprettelse (<code>konto:mail:&lt;sha256&gt;</code>, 30 min, adgangskoden som scrypt-hash), og en
+    sekscifret kode mailes til adressen over SMTP (<code>services/mail.py</code>, <code>SMTP_*</code> i .env; uden SMTP_HOST skrives
+    mailen i loggen).</li>
+  <li><code>POST /api/auth/konto/email</code>: koden (eller linket <code>#/login?bekraeft=…&amp;kode=…</code>). Fem forkerte koder
+    kasserer oprettelsen; <code>/api/auth/konto/email/igen</code> sender en ny (højst tre). Først nu oprettes kontoen – findes
+    obserkoden i forvejen, beholdes brugerrækken med alle data. Alle brugerens tidligere sessioner og positionstokens
     tilbagekaldes, og der startes en ny session.</li>
   <li>Tilbud om passkey på enheden.</li>
 </ol>
-<p><i>Glemt adgangskode</i> er samme vej: den, der kan logge ind på DOFbasen med obserkoden, kan vælge en ny adgangskode. Portalen
-  sender ingen e-mails. Brugere fra før kontiene (kun obserkode, ingen <code>pw_hash</code>) får 409 ved login og sendes til
+<p><i>Glemt adgangskode</i> er samme vej: den, der kan logge ind på DOFbasen med obserkoden, kan vælge en ny adgangskode (uden ny
+  e-mail gemmes den straks; med ny e-mail først efter koden). Brugere fra før kontiene (kun obserkode, ingen <code>pw_hash</code>) får 409 ved login og sendes til
   oprettelsen; ved overgangen blev alle sessioner, positionstokens og passkey-udfordringer slettet én gang (markøren
   <code>accounts_logout_done</code> i <code>settings</code> tages atomisk). Profil → <i>Konto og login</i> skifter adgangskode
-  (<code>/api/me/password</code> – logger andre enheder ud) og e-mail (<code>/api/me/email</code>).</p>
+  (<code>/api/me/password</code> – logger andre enheder ud) og e-mail (<code>/api/me/email</code> sender en kode til den nye adresse, <code>/api/me/email/bekraeft</code> gemmer den og
+  giver den gamle adresse besked; <code>users.email_verified_at</code>).</p>
 <p>En <b>passkey</b> (Face ID, fingeraftryk, skærmlås) kræver en konto. Alt går gennem api'ets egne endpoints
   (<code>/api/auth/passkey/*</code>, <code>/api/me/passkeys</code>); der åbnes ingen fremmede vinduer, og browseren og appen ser
   aldrig Zitadel.</p>

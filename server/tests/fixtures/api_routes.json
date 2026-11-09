@@ -2451,6 +2451,20 @@ true,
 "params": []
 }
 },
+"/api/auth/konto/email": {
+"post": {
+"body": true,
+"op": "account_confirm_api_auth_konto_email_post",
+"params": []
+}
+},
+"/api/auth/konto/email/igen": {
+"post": {
+"body": true,
+"op": "account_resend_api_auth_konto_email_igen_post",
+"params": []
+}
+},
 "/api/auth/konto/opret": {
 "post": {
 "body": true,
@@ -7021,6 +7035,13 @@ false,
 "post": {
 "body": true,
 "op": "change_email_api_me_email_post",
+"params": []
+}
+},
+"/api/me/email/bekraeft": {
+"post": {
+"body": true,
+"op": "confirm_email_api_me_email_bekraeft_post",
 "params": []
 }
 },

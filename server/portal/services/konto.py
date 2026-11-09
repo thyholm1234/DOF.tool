@@ -3,13 +3,20 @@
 En konto er en bruger med e-mail og egen adgangskode (scrypt, auth.hash_password). Kontoen bindes til obserkoden ved
 oprettelsen: brugeren logger én gang ind med obserkode og DOFbasen-adgangskode (auth.verify_dofbasen), og først derefter
 kan kontoen oprettes. Samme vej bruges til «Glemt adgangskode» – den, der kan logge ind på DOFbasen med obserkoden, ejer
-kontoen. Portalen sender ingen e-mails; adressen er brugernavn og kontaktoplysning.
+kontoen. E-mailadressen er brugernavn og kontaktoplysning og skal bekræftes med en kode, der sendes til den
+(services/mail.py) – både ved oprettelsen og når den skiftes.
 
 Forløbet:
 1. verify(obserkode, DOFbasen-adgangskode) → et bindingsbevis (engangstoken, BIND_TTL), der kun gemmes som hash i Valkey.
-2. complete(bevis, adgangskode, e-mail, navn) → kontoen oprettes (eller får ny adgangskode). Alle tidligere sessioner og
+2. complete(bevis, adgangskode, e-mail, navn) → bindingsbeviset byttes til en ventende oprettelse (MAIL_TTL), og en
+   sekscifret kode sendes til e-mailen. Ventende oprettelser gemmes kun i Valkey (adgangskoden som scrypt-hash).
+   «Glemt adgangskode» uden ny e-mail gemmes straks.
+3. confirm_signup(ventende id, kode) → kontoen oprettes (eller får ny adgangskode). Alle tidligere sessioner og
    positionstokens for brugeren tilbagekaldes, og api'et starter en ny session.
-3. Derefter: login(e-mail eller obserkode, adgangskode) eller passkey (services/passkeys.py).
+4. Derefter: login(e-mail eller obserkode, adgangskode) eller passkey (services/passkeys.py).
+
+Skift af e-mail (request_email_change → confirm_email_change) gemmer først den nye adresse, når koden, der er sendt til
+den, er tastet; den gamle adresse får besked bagefter.
 
 Brugere fra før kontiene (kun obserkode) har ingen pw_hash. De logges ud én gang (logout_everyone_once) og skal oprette
 en konto, som bindes til deres eksisterende bruger – alle data bliver liggende.
@@ -18,6 +25,7 @@ en konto, som bindes til deres eksisterende bruger – alle data bliver liggende
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import re
 import secrets
@@ -28,11 +36,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
+from portal.config import get_settings
 from portal.models import User
-from portal.services import auth
+from portal.services import auth, mail
 from portal.services.auth import AuthError
 
 BIND_TTL = 20 * 60  # bindingsbeviset gælder i 20 minutter
+MAIL_TTL = 30 * 60  # e-mailkoden gælder i 30 minutter
+MAIL_TRIES = 5  # forkerte koder, før den ventende oprettelse/skift kasseres
+MAIL_RESENDS = 3  # nye koder pr. ventende oprettelse/skift
 PW_MIN = 10
 PW_MAX = 200
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s.]{2,}$")
@@ -144,11 +156,12 @@ async def verify(db: AsyncSession, obserkode: str, dof_password: str, ip: str) -
 
 
 async def complete(db: AsyncSession, token: str, password: str, email: str | None = None,
-                   navn: str | None = None) -> tuple[User, bool]:
-    """Trin 2: opret kontoen (eller giv den en ny adgangskode). Returnerer (bruger, ny_bruger_i_portalen).
+                   navn: str | None = None) -> dict | tuple[User, bool]:
+    """Trin 2: kontrollér felterne og byt bindingsbeviset til en ventende oprettelse, hvis en e-mailadresse skal bekræftes
+    (ny konto eller ny adresse). Returnerer da {"pending": id, "email": adresse, "expires_in": …}; koden er sendt.
+    «Glemt adgangskode» uden ny e-mail gemmes straks og returnerer (bruger, False).
 
-    Felterne kontrolleres, før beviset bruges, så en for svag adgangskode ikke kræver et nyt DOFbasen-login. Alle
-    brugerens tidligere sessioner og positionstokens tilbagekaldes."""
+    Felterne kontrolleres, før beviset bruges, så en for svag adgangskode ikke kræver et nyt DOFbasen-login."""
     raw = await kv().get(_bind_key(token or "x"))
     if raw is None:
         raise AuthError("Bekræftelsen hos DOFbasen er udløbet. Start forfra.", 400)
@@ -159,16 +172,76 @@ async def complete(db: AsyncSession, token: str, password: str, email: str | Non
     existing = has_account(user)
     email = normalize_email(email) if (email or not existing) else None
     if email:
-        clash = (await db.execute(select(User.id).where(func.lower(User.email) == email))).scalar()
-        if clash is not None and (user is None or clash != user.id):
-            raise AuthError("E-mailadressen bruges allerede af en anden konto", 409)
+        await _email_free(db, email, user.id if user is not None else None)
     check_new_password(password, kode, email or (user.email if user else None))
+    if email and existing and user.email and email == user.email.lower() and user.email_verified_at:
+        email = None  # samme, allerede bekræftede adresse
+    navn = (navn or "").strip()[:160] or None
     if await kv().getdel(_bind_key(token)) is None:  # brugt i mellemtiden (to faner)
         raise AuthError("Bekræftelsen hos DOFbasen er udløbet. Start forfra.", 400)
+    pw_hash = auth.hash_password(password)
+    if not email:
+        return await _apply(db, kode, pw_hash, None, navn)
 
+    pending = secrets.token_urlsafe(24)
+    code = _new_code()
+    rec = {"kode": kode, "email": email, "navn": navn, "pw_hash": pw_hash, "code": _code_hash(pending, code), "resends": 0}
+    await kv().set(_pending_key(pending), json.dumps(rec), ex=MAIL_TTL)
+    try:
+        await _send_signup_code(email, pending, code, reset=existing)
+    except mail.MailError as exc:
+        await kv().delete(_pending_key(pending))
+        raise AuthError("Vi kunne ikke sende en e-mail til adressen. Tjek den, og prøv igen.", 502) from exc
+    return {"pending": pending, "email": email, "expires_in": MAIL_TTL}
+
+
+async def confirm_signup(db: AsyncSession, pending: str, code: str, ip: str) -> tuple[User, bool]:
+    """Trin 3: koden fra e-mailen. Opretter kontoen (eller giver den ny adgangskode og e-mail). Returnerer (bruger, ny)."""
+    key = _pending_key(pending or "x")
+    await auth.rate_limit(key, ip, prefix="mailcode")
+    raw = await kv().get(key)
+    if raw is None:
+        if await kv().get(_done_key(pending or "x")):
+            raise AuthError("E-mailen er allerede bekræftet, og kontoen er klar. Log ind.", 410)
+        raise AuthError("Koden er udløbet. Start forfra.", 400)
+    rec = json.loads(raw)
+    await _check_code(key, rec["code"], _code_hash(pending, _clean_code(code)))
+    if await kv().getdel(key) is None:  # brugt i mellemtiden (linket og koden på samme tid)
+        raise AuthError("E-mailen er allerede bekræftet, og kontoen er klar. Log ind.", 410)
+    await kv().delete(key + ":tries")
+    await kv().set(_done_key(pending), "1", ex=3600)
+    return await _apply(db, rec["kode"], rec["pw_hash"], rec["email"], rec["navn"])
+
+
+async def resend_signup(pending: str, ip: str) -> dict:
+    """Ny kode til en ventende oprettelse (den gamle holder op med at virke)."""
+    key = _pending_key(pending or "x")
+    await auth.rate_limit(key, ip, prefix="mailsend")
+    raw = await kv().get(key)
+    if raw is None:
+        raise AuthError("Koden er udløbet. Start forfra.", 400)
+    rec = json.loads(raw)
+    if rec.get("resends", 0) >= MAIL_RESENDS:
+        raise AuthError("Der er sendt for mange koder. Start forfra.", 429)
+    code = _new_code()
+    rec.update(code=_code_hash(pending, code), resends=rec.get("resends", 0) + 1)
+    await kv().set(key, json.dumps(rec), ex=MAIL_TTL)
+    await kv().delete(key + ":tries")
+    try:
+        await _send_signup_code(rec["email"], pending, code, reset=False)
+    except mail.MailError as exc:
+        raise AuthError("E-mailen kunne ikke sendes. Prøv igen om lidt.", 502) from exc
+    return {"pending": pending, "email": rec["email"], "expires_in": MAIL_TTL}
+
+
+async def _apply(db: AsyncSession, kode: str, pw_hash: str, email: str | None, navn: str | None) -> tuple[User, bool]:
+    """Gem kontoen. email er None, når adressen ikke ændres (ny adgangskode); ellers er den netop bekræftet."""
+    user = await _by_obserkode(db, kode)
+    if user is not None and user.blocked:
+        raise AuthError("Brugeren er spærret", 403)
+    existing = has_account(user)
     now = datetime.now(timezone.utc)
     new = user is None
-    navn = (navn or "").strip()[:160] or None
     if new:
         user = User(obserkode=kode, navn=navn or await auth.observer_name(db, kode) or kode, role="user",
                     approved=not await auth.approval_required(db),
@@ -176,9 +249,10 @@ async def complete(db: AsyncSession, token: str, password: str, email: str | Non
         db.add(user)
     elif navn:
         user.navn = navn
-    user.pw_hash = auth.hash_password(password)
+    user.pw_hash = pw_hash
     if email:
         user.email = email
+        user.email_verified_at = now
     if not existing or user.account_at is None:
         user.account_at = now
     user.dof_verified_at = now
@@ -203,6 +277,65 @@ async def complete(db: AsyncSession, token: str, password: str, email: str | Non
     return user, new
 
 
+# ---------------------------------------------------------------- e-mailkoder
+
+
+def _pending_key(pending: str) -> str:
+    return "konto:mail:" + hashlib.sha256(pending.encode()).hexdigest()
+
+
+def _done_key(pending: str) -> str:
+    return "konto:maildone:" + hashlib.sha256(pending.encode()).hexdigest()
+
+
+def _change_key(user_id: int) -> str:
+    return f"konto:mailchg:{user_id}"
+
+
+def _new_code() -> str:
+    return f"{secrets.randbelow(10**6):06d}"
+
+
+def _clean_code(code: str | None) -> str:
+    return "".join(ch for ch in (code or "") if ch.isdigit())[:6]
+
+
+def _code_hash(salt: str, code: str) -> str:
+    return hashlib.sha256(f"{salt}:{code}".encode()).hexdigest()
+
+
+async def _check_code(key: str, stored: str, given: str) -> None:
+    """Forkert kode tæller; efter MAIL_TRIES forkerte kasseres det ventende (nøglen og tælleren)."""
+    if hmac.compare_digest(stored, given):
+        return
+    n = await kv().incr(key + ":tries")
+    if n == 1:
+        await kv().expire(key + ":tries", MAIL_TTL)
+    if n >= MAIL_TRIES:
+        await kv().delete(key, key + ":tries")
+        raise AuthError("For mange forkerte koder. Start forfra.", 400)
+    raise AuthError(f"Forkert kode. Du har {MAIL_TRIES - n} forsøg mere.", 400)
+
+
+async def _email_free(db: AsyncSession, email: str, user_id: int | None) -> None:
+    clash = (await db.execute(select(User.id).where(func.lower(User.email) == email))).scalar()
+    if clash is not None and clash != user_id:
+        raise AuthError("E-mailadressen bruges allerede af en anden konto", 409)
+
+
+def _url(path: str) -> str:
+    return get_settings().public_url.rstrip("/") + path
+
+
+async def _send_signup_code(email: str, pending: str, code: str, reset: bool) -> None:
+    what = "den nye e-mailadresse til din DOF.tool-konto" if reset else "din DOF.tool-konto"
+    await mail.send(email, f"{code} er din kode til DOF.tool",
+                    f"Hej\n\nBrug koden herunder til at bekræfte {what}:\n\n    {code}\n\n"
+                    f"Eller åbn linket:\n{_url(f'/#/login?bekraeft={pending}&kode={code}')}\n\n"
+                    f"Koden gælder i {MAIL_TTL // 60} minutter. Har du ikke bedt om den, kan du se bort fra denne mail.\n\n"
+                    f"Venlig hilsen\n{get_settings().app_name}\n")
+
+
 async def change_password(db: AsyncSession, user: User, current: str, new: str, ip: str) -> None:
     """Skift adgangskode som indlogget. Alle sessioner logges ud; api'et starter en ny for denne enhed."""
     await auth.rate_limit(f"pw:{user.id}", ip, prefix="pw")
@@ -214,20 +347,65 @@ async def change_password(db: AsyncSession, user: User, current: str, new: str, 
     await logout_user(user.id)
 
 
-async def change_email(db: AsyncSession, user: User, current: str, email: str, ip: str) -> None:
+async def request_email_change(db: AsyncSession, user: User, current: str, email: str, ip: str) -> dict:
+    """Skift (eller bekræft) e-mail, trin 1: kræver adgangskoden og sender en kode til den nye adresse. Adressen gemmes
+    først i confirm_email_change. Den nuværende adresse kan sendes igen, hvis den endnu ikke er bekræftet."""
     await auth.rate_limit(f"pw:{user.id}", ip, prefix="pw")
     if not auth.check_password(user.pw_hash, current or ""):
         raise AuthError("Adgangskoden er forkert", 403)
     email = normalize_email(email)
-    clash = (await db.execute(select(User.id).where(func.lower(User.email) == email, User.id != user.id))).scalar()
-    if clash is not None:
-        raise AuthError("E-mailadressen bruges allerede af en anden konto", 409)
-    user.email = email
+    if user.email and email == user.email.lower() and user.email_verified_at:
+        raise AuthError("Det er allerede din e-mailadresse", 400)
+    await _email_free(db, email, user.id)
+    key = _change_key(user.id)
+    old = await kv().get(key)
+    resends = json.loads(old).get("resends", 0) + 1 if old and json.loads(old)["email"] == email else 0
+    if resends > MAIL_RESENDS:
+        raise AuthError("Der er sendt for mange koder. Prøv igen senere.", 429)
+    code = _new_code()
+    await kv().set(key, json.dumps({"email": email, "code": _code_hash(key, code), "resends": resends}), ex=MAIL_TTL)
+    await kv().delete(key + ":tries")
+    try:
+        await mail.send(email, f"{code} er din kode til DOF.tool",
+                        f"Hej {user.navn or user.obserkode}\n\nBrug koden herunder til at bekræfte e-mailadressen til din "
+                        f"DOF.tool-konto ({user.obserkode}):\n\n    {code}\n\n"
+                        f"Eller åbn linket, mens du er logget ind:\n{_url(f'/#/profil?fane=sikkerhed&mailkode={code}')}\n\n"
+                        f"Koden gælder i {MAIL_TTL // 60} minutter. Har du ikke bedt om den, kan du se bort fra denne mail.\n\n"
+                        f"Venlig hilsen\n{get_settings().app_name}\n")
+    except mail.MailError as exc:
+        await kv().delete(key)
+        raise AuthError("Vi kunne ikke sende en e-mail til adressen. Tjek den, og prøv igen.", 502) from exc
+    return {"email": email, "expires_in": MAIL_TTL}
+
+
+async def confirm_email_change(db: AsyncSession, user: User, code: str, ip: str) -> None:
+    """Skift e-mail, trin 2: koden fra mailen. Den gamle adresse får besked (bedst muligt)."""
+    key = _change_key(user.id)
+    await auth.rate_limit(key, ip, prefix="mailcode")
+    raw = await kv().get(key)
+    if raw is None:
+        raise AuthError("Koden er udløbet. Bed om en ny.", 400)
+    rec = json.loads(raw)
+    await _check_code(key, rec["code"], _code_hash(key, _clean_code(code)))
+    await kv().delete(key, key + ":tries")
+    await _email_free(db, rec["email"], user.id)
+    old = user.email
+    user.email = rec["email"]
+    user.email_verified_at = datetime.now(timezone.utc)
     try:
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
         raise AuthError("E-mailadressen bruges allerede af en anden konto", 409) from exc
+    if old and old.lower() != user.email:
+        try:
+            await mail.send(old, "Din e-mailadresse i DOF.tool er ændret",
+                            f"Hej {user.navn or user.obserkode}\n\nE-mailadressen på din DOF.tool-konto ({user.obserkode}) er "
+                            f"ændret til {mask_email(user.email)}.\n\nVar det ikke dig, så vælg en ny adgangskode via "
+                            f"«Glemt adgangskode» på {_url('/#/login?konto=glemt')} – det kræver din DOFbasen-adgangskode – og "
+                            f"skift e-mailen tilbage under Profil.\n\nVenlig hilsen\n{get_settings().app_name}\n")
+        except mail.MailError:
+            pass
 
 
 # ---------------------------------------------------------------- log ud

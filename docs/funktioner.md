@@ -57,13 +57,19 @@ observationer, der ikke længere findes i DOFbasen, slettes – men kun når udt
 Højst én gang i timen; status og forventet ventetid vises på profilen (`GET/POST /api/me/sync`).
 
 **Konti og login** (`services/konto.py`, `views/login.js`). Man logger ind med en DOF.tool-konto: e-mail eller obserkode og
-egen adgangskode (scrypt i `users.pw_hash`, mindst 10 tegn) – eller en passkey. *Opret konto* er tre trin: (1) obserkoden
+egen adgangskode (scrypt i `users.pw_hash`, mindst 10 tegn) – eller en passkey. *Opret konto* er fire trin: (1) obserkoden
 bekræftes med ét DOFbasen-login, der giver et engangsbevis (20 min, kun som hash i Valkey); (2) navn, e-mail og adgangskode –
-kontoen bindes til obserkoden, og findes brugeren i forvejen, beholdes rækken med alle data; (3) tilbud om passkey. *Glemt
-adgangskode* er samme vej: den, der kan logge ind på DOFbasen med obserkoden, kan vælge en ny adgangskode. En ny eller skiftet
-adgangskode logger alle brugerens andre enheder ud. Portalen sender ingen e-mails. Brugere uden konto (fra før kontiene) får
-409 ved login og sendes til oprettelsen; overgangen loggede alle ud én gang (markøren `accounts_logout_done` i settings).
-Profil → *Konto og login* skifter adgangskode og e-mail; Admin → Brugere viser e-mail og mærket *ingen konto*.
+beviset byttes til en ventende oprettelse (30 min, kun i Valkey, adgangskoden som scrypt-hash), og en sekscifret kode mailes
+til adressen (`services/mail.py`, SMTP_* i .env); (3) koden tastes, eller linket i mailen åbnes – først da oprettes kontoen og
+bindes til obserkoden, og findes brugeren i forvejen, beholdes rækken med alle data; (4) tilbud om passkey. Fem forkerte koder
+kasserer oprettelsen; der kan sendes tre nye koder. *Glemt adgangskode* er samme vej: den, der kan logge ind på DOFbasen med
+obserkoden, kan vælge en ny adgangskode (vælges samtidig en ny e-mail, skal den bekræftes først). En ny eller skiftet
+adgangskode logger alle brugerens andre enheder ud. Brugere uden konto (fra før kontiene) får 409 ved login og sendes til
+oprettelsen; overgangen loggede alle ud én gang (markøren `accounts_logout_done` i settings). Profil → *Konto og login*
+skifter adgangskode og e-mail: en ny e-mail gemmes først, når koden sendt til den er tastet (eller linket åbnet), og den
+gamle adresse får besked. Konti fra før bekræftelsen er mærket *ikke bekræftet* og kan bekræfte adressen samme sted
+(`users.email_verified_at`). Uden SMTP_HOST sendes intet – mailen skrives i api'ets log. Admin → Brugere viser e-mail og
+mærket *ingen konto*.
 
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
 `users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og

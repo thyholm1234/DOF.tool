@@ -4,7 +4,8 @@
 // Opret konto / glemt adgangskode (server/portal/services/konto.py):
 //   1. Bekræft obserkoden med ét DOFbasen-login (adgangskoden sendes kun videre til DOFbasen)
 //   2. Vælg e-mail og egen adgangskode – kontoen bindes til obserkoden
-//   3. Klar (tilbud om passkey på enheden)
+//   3. Bekræft e-mailen med koden, der sendes til den (eller linket i mailen: #/login?bekraeft=…&kode=…)
+//   4. Klar (tilbud om passkey på enheden)
 import { api, state, h, icon, params, toast } from "../core.js";
 import { refreshUser } from "../app.js";
 import { live } from "../live.js";
@@ -22,7 +23,8 @@ const PW_MIN = 10;
 const PENDING = /afventer/;
 
 export async function render(view) {
-  if (state.user) { location.hash = params().next || "#/"; return; }
+  const link = params();
+  if (state.user && !link.bekraeft) { location.hash = link.next || "#/"; return; }
   const card = h("div", { class: "card stack landing-login auth-card" });
   view.append(h("div", { class: "landing" },
     h("section", { class: "landing-hero" },
@@ -39,10 +41,12 @@ export async function render(view) {
     login: (prefill) => showLogin(card, go, flow, prefill),
     verify: (purpose, kode) => showVerify(card, go, flow, purpose, kode),
     create: () => showCreate(card, go, flow),
+    mail: (r, code) => showMail(card, go, flow, r, code),
     done: (r) => showDone(card, r),
   };
-  const mode = params().konto;
-  if (mode === "opret") go.verify("opret");
+  const mode = link.konto;
+  if (link.bekraeft) go.mail({ pending: link.bekraeft, email: "", link: true }, link.kode);
+  else if (mode === "opret") go.verify("opret");
   else if (mode === "glemt") go.verify("glemt");
   else go.login();
 }
@@ -61,8 +65,8 @@ function busy(btn, text) {
 }
 
 function stepper(active) {
-  const steps = ["Bekræft obserkode", "Konto", "Klar"];
-  return h("ol", { class: "auth-steps", "aria-label": `Trin ${active} af 3` }, ...steps.map((s, i) =>
+  const steps = ["Obserkode", "Konto", "E-mail", "Klar"];
+  return h("ol", { class: "auth-steps", "aria-label": `Trin ${active} af ${steps.length}` }, ...steps.map((s, i) =>
     h("li", { class: i + 1 < active ? "done" : i + 1 === active ? "on" : "", "aria-current": i + 1 === active ? "step" : null },
       h("span", { class: "auth-dot", html: i + 1 < active ? icon("check") : String(i + 1) }), h("span", {}, s))));
 }
@@ -206,8 +210,9 @@ function showCreate(card, go, flow) {
         if (!reset) { body.email = email.value.trim(); body.navn = navn.value.trim(); }
         else if (email.value.trim()) body.email = email.value.trim();
         const r = await api("/api/auth/konto/opret", { method: "POST", body });
-        passkey.rememberLogin(r.user.email || r.user.obserkode);
         flow.bind = null;
+        if (r.pending) { go.mail({ ...r, reset }); return; }
+        passkey.rememberLogin(r.user.email || r.user.obserkode);
         await finish({ ...r, reset, flow: true }, go);
       } catch (err) {
         if (err.status === 403 && PENDING.test(err.message)) { showDone(card, null, err.message); return; }
@@ -220,7 +225,9 @@ function showCreate(card, go, flow) {
       user,
       reset ? null : field("Navn", navn),
       reset ? null : field("E-mail", email),
-      reset ? null : h("small", { class: "muted", style: { marginTop: "-6px" } }, "Du kan logge ind med e-mailen eller obserkoden. DOF.tool sender ikke e-mails."),
+      reset ? null : h("small", { class: "muted", style: { marginTop: "-6px" } }, "Du kan logge ind med e-mailen eller obserkoden. Vi sender en kode til adressen, som du skal bekræfte den med."),
+      reset ? field("Ny e-mail (valgfri)", email) : null,
+      reset ? h("small", { class: "muted", style: { marginTop: "-6px" } }, "Udfyldes kun, hvis du vil skifte adresse – så bekræfter du den med en kode, før den nye adgangskode gemmes.") : null,
       field(reset ? "Ny adgangskode" : "Adgangskode til DOF.tool", pw),
       field("Gentag adgangskoden", pw2),
       list,
@@ -232,12 +239,57 @@ function showCreate(card, go, flow) {
   (reset ? pw : email).focus();
 }
 
-// ---------------------------------------------------------------- trin 3: klar
+// ---------------------------------------------------------------- trin 3: bekræft e-mailen
+
+function showMail(card, go, flow, r, prefill) {
+  const code = h("input", { inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9 ]*", maxlength: 7, required: true,
+    placeholder: "123456", value: prefill || "", style: { fontSize: "1.4rem", letterSpacing: ".3em", textAlign: "center" } });
+  const btn = big("primary", "Bekræft");
+  const msg = h("div", {});
+  const restart = (text) => h("div", { class: "notice err stack", style: { gap: "8px" } }, h("span", {}, text),
+    h("button", { type: "button", class: "btn sm", onclick: () => go.verify(r.reset ? "glemt" : "opret") }, "Start forfra"));
+  const submit = async () => {
+    const done = busy(btn, "Bekræfter…");
+    try {
+      const res = await api("/api/auth/konto/email", { method: "POST", body: { pending: r.pending, code: code.value } });
+      history.replaceState(null, "", location.pathname + "#/login");  // linket virker kun én gang
+      passkey.rememberLogin(res.user.email || res.user.obserkode);
+      await finish({ ...res, reset: r.reset, flow: true }, go);
+    } catch (err) {
+      if (err.status === 403 && PENDING.test(err.message)) { showDone(card, null, err.message); return; }
+      if (err.status === 410) { msg.replaceChildren(notice(err.message, "")); history.replaceState(null, "", location.pathname + "#/login"); setTimeout(() => go.login(), 2500); return; }
+      msg.replaceChildren(/udløbet|for mange/i.test(err.message) ? restart(err.message) : notice(err.message));
+      code.select();
+    } finally { done(); }
+  };
+  const resend = h("button", { type: "button", class: "linkbtn", onclick: async () => {
+    resend.disabled = true;
+    try { await api("/api/auth/konto/email/igen", { method: "POST", body: { pending: r.pending } }); msg.replaceChildren(notice("Vi har sendt en ny kode. Den gamle virker ikke længere.", "")); code.value = ""; code.focus(); }
+    catch (err) { msg.replaceChildren(/udløbet|for mange/i.test(err.message) ? restart(err.message) : notice(err.message)); }
+    finally { setTimeout(() => { resend.disabled = false; }, 30000); }
+  } }, "Send en ny kode");
+
+  card.replaceChildren(
+    stepper(3),
+    h("h2", { style: { margin: 0 } }, "Bekræft din e-mail"),
+    h("p", { style: { margin: 0 } }, r.email
+      ? ["Vi har sendt en kode med seks cifre til ", h("b", {}, r.email), ". Skriv den her, eller tryk på linket i mailen."]
+      : "Skriv koden fra mailen."),
+    h("form", { class: "stack", onsubmit: (e) => { e.preventDefault(); submit(); } }, field("Kode", code), btn),
+    msg,
+    r.link ? null : h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } },
+      `Koden gælder i ${Math.round((r.expires_in || 1800) / 60)} minutter. Ingen mail? Kig i spam-mappen, eller `, resend, "."),
+    r.reset ? h("p", { class: "muted", style: { fontSize: ".82rem", margin: 0 } }, "Den nye adgangskode gemmes først, når e-mailen er bekræftet.") : null,
+    back(go, "Annullér"));
+  if (prefill) submit(); else code.focus();
+}
+
+// ---------------------------------------------------------------- trin 4: klar
 
 function showDone(card, r, pendingMsg) {
   const next = () => { location.hash = params().next || (r?.new ? "#/profil?fane=omraader" : "#/"); };
   if (pendingMsg) {
-    card.replaceChildren(stepper(3),
+    card.replaceChildren(stepper(4),
       h("div", { class: "auth-hello" }, h("span", { class: "auth-dot done big", html: icon("check") }),
         h("h2", { style: { margin: 0 } }, "Kontoen er oprettet")),
       notice([h("b", {}, "Den afventer godkendelse. "), pendingMsg.replace(/^[^.]*\.\s*/, "")], ""),
@@ -252,7 +304,7 @@ function showDone(card, r, pendingMsg) {
   } });
   const title = r.reset ? "Ny adgangskode gemt" : r.flow ? `Velkommen, ${r.user.navn}!` : `Velkommen tilbage, ${r.user.navn}`;
   const text = r.reset ? "Alle dine andre enheder er logget ud." : r.flow ? `Din konto er bundet til obserkoden ${r.user.obserkode}.` : "";
-  card.replaceChildren(r.flow ? stepper(3) : null,
+  card.replaceChildren(r.flow ? stepper(4) : null,
     h("div", { class: "auth-hello" }, h("span", { class: "auth-dot done big", html: icon("check") }),
       h("h2", { style: { margin: 0 } }, title)),
     text || r.new ? h("p", { style: { margin: 0 } }, text, r.new ? " Vi henter dine ældre observationer i baggrunden." : "") : null,

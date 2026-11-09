@@ -65,6 +65,8 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(254))
     pw_hash: Mapped[str | None] = mapped_column(String(200))
     account_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Hvornår e-mailen sidst blev bekræftet med en kode sendt til den (None = endnu ikke bekræftet)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
