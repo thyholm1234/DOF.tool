@@ -3,7 +3,7 @@
 // 98 (Spontantælling) / 99 (FiNN-tælling) og åbnes på turens observationsside med nedtælling (tur-view.js).
 // FiNN-områderne og -punkterne kommer fra DOFbasen (server/portal/services/finn.py) og gemmes på enheden.
 import { api, h, icon, toast, todayISO, state, requireLogin } from "../core.js";
-import { baseMap, leaflet, locationOutlines } from "../maps.js";
+import { baseMap, leaflet } from "../maps.js";
 import { blankTrip, tripStore, tripHash, nowHM, addMinutes, nearestLocations, findLocations, loadRecent, meters, markCountStart, SPONTAN, FINN, COUNT_MIN } from "../tur-data.js";
 import { cachedApi } from "../offline.js";
 import { field, fail } from "../tur-ui.js";
@@ -61,14 +61,6 @@ export async function render(page, [kind]) {
         .bindTooltip(`FiNN-${TYPE[p.type] || "punkt"}, ${SOURCE[p.source] || ""}`).addTo(map);
     }
   }
-  // DOFbasens lokaliteter: kun den valgte tegnes (blå). Den lokalitet, du står i, vælges.
-  // Den valgte lokalitet fremhæves med blåt – orange er FiNN-områderne
-  const outlines = locationOutlines(map, { onChange: () => S.pos && markLok(), highlight: "#1a73e8", selectedOnly: true });
-  const markLok = () => {
-    const hit = outlines.at(S.pos[0], S.pos[1]);
-    if (hit && hit.loknr !== S.loknr) { known.set(hit.loknr, hit.navn); if (![...lokSel.options].some(o => Number(o.value) === hit.loknr)) lokSel.append(h("option", { value: hit.loknr }, `${hit.navn} · her`)); pick(hit.loknr); }
-    outlines.select(S.loknr);
-  };
   map.on("click", (e) => setPos([e.latlng.lat, e.latlng.lng], null, false));
 
   // --- status for stedet
@@ -118,16 +110,20 @@ export async function render(page, [kind]) {
     (err) => { toast("Position ikke tilgængelig: " + err.message, "err"); drawPlace(); },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 
-  // --- lokalitet: de nærmeste (den første vælges); søg, hvis ingen passer
-  const lokSel = h("select", { "aria-label": "Lokalitet" }, h("option", { value: "" }, "Vælg lokalitet …"));
-  const known = new Map();
-  const fill = (rows, head) => {
-    rows.forEach(l => known.set(l.loknr, l.navn));
-    lokSel.replaceChildren(h("option", { value: "" }, head), ...rows.map(l => h("option", { value: l.loknr },
-      [l.navn, l.inde ? "her" : l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune].filter(Boolean).join(" · "))));
+  // --- lokalitet: en liste med de fem nærmeste (den første – den, du står i – vælges); søg, hvis ingen passer.
+  // Lokaliteterne tegnes ikke på kortet – der er kun FiNN-områderne.
+  const lokSel = h("div", { class: "lok-list", role: "radiogroup", "aria-label": "Lokalitet" });
+  const lokHead = h("small", { class: "muted" }, "Vælg lokalitet …");
+  let lokRows = [];
+  const where = (l) => l.inde ? "du står her" : l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune || "";
+  const drawLoks = () => lokSel.replaceChildren(...lokRows.map(l => h("button", {
+    type: "button", role: "radio", "aria-checked": String(l.loknr === S.loknr), class: `lok-opt${l.loknr === S.loknr ? " on" : ""}`,
+    onclick: () => pick(l.loknr) }, h("span", {}, l.navn), h("small", { class: "muted" }, where(l)))));
+  const fill = (rows, head, n = 5) => { lokRows = rows.slice(0, n); lokHead.textContent = head; drawLoks(); };
+  const pick = (loknr) => {
+    S.loknr = loknr || null; S.lok = lokRows.find(l => l.loknr === S.loknr)?.navn || null;
+    lokSel.classList.remove("invalid"); drawLoks();
   };
-  const pick = (loknr) => { S.loknr = loknr || null; S.lok = known.get(S.loknr) || null; lokSel.value = S.loknr ? String(S.loknr) : ""; lokSel.classList.remove("invalid"); outlines?.select(S.loknr); };
-  lokSel.onchange = () => pick(Number(lokSel.value));
   let lokReq = 0;
   async function loadLocs() {
     const n = ++lokReq;
@@ -135,16 +131,15 @@ export async function render(page, [kind]) {
       const rows = await nearestLocations(S.pos[0], S.pos[1], 12);
       if (n !== lokReq) return;
       if (!rows.length) return;  // behold listen, der står
-      fill(rows, "Nærmeste lokaliteter …");
+      fill(rows, "De fem nærmeste lokaliteter");
       pick(rows[0]?.loknr);
-      markLok();
     } catch (err) { toast(err.message, "err"); }
   }
   const lokQ = h("input", { type: "search", placeholder: "Søg lokalitet …", autocomplete: "off" });
   let lokT;
   lokQ.oninput = () => { clearTimeout(lokT); lokT = setTimeout(async () => {
     const q = lokQ.value.trim(); if (q.length < 2) return;
-    try { const rows = await findLocations(q); fill(rows, "Vælg blandt søgeresultaterne …"); } catch (err) { toast(err.message, "err"); }
+    try { const rows = await findLocations(q); fill(rows, "Søgeresultater", 10); } catch (err) { toast(err.message, "err"); }
   }, 250); };
 
   // --- tidspunkt: nu, eller dato og præcist starttidspunkt (talt på papir)
@@ -209,14 +204,13 @@ export async function render(page, [kind]) {
         h("div", { class: "row between" }, h("h3", { style: { margin: 0 } }, "Hvor står du?"),
           h("button", { class: "btn sm", type: "button", html: `${icon("pin")} Min position`, onclick: locate })),
         mapEl, placeEl,
-        field("Lokalitet i DOFbasen", h("div", { class: "stack", style: { gap: "8px" } }, lokSel, lokQ)),
-        h("small", { class: "muted", style: { marginTop: "-6px" } }, "Vælg den lokalitet, der passer bedst til tællingen.")),
+        field("Lokalitet i DOFbasen", h("div", { class: "stack", style: { gap: "8px" } }, lokHead, lokSel, lokQ))),
       h("div", { class: "card stack" },
         h("label", { class: "check" }, paper, h("span", {}, "Jeg har talt på papir og vil indtaste bagefter")), paperBox,
         startBtn)));
   drawPlace();
   // Indtil positionen er fundet: dine seneste lokaliteter, så listen aldrig er tom
-  loadRecent().then(r => { if (!S.pos && r.locations?.length) fill(r.locations, "Dine seneste lokaliteter …"); }).catch(() => {});
+  loadRecent().then(r => { if (!S.pos && r.locations?.length) fill(r.locations, "Dine seneste lokaliteter"); }).catch(() => {});
   locate();
-  return () => { outlines.remove(); map.remove(); };
+  return () => { map.remove(); };
 }
