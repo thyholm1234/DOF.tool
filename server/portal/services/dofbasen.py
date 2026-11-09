@@ -599,11 +599,11 @@ def parse_matrix(raw: str) -> dict[int, list[str]]:
 
 def _matrix_where(matrix: dict[int, list[str]], d: date, args: dict[str, Any]) -> str:
     """Afdeling × niveau-matrix: en observation vises, hvis dens afdeling har mindst ét markeret niveau, den opfylder.
-    SUB og Bemærk er som i feedet «og derover»; Fænologi og Lokale hits som i feedet (se services/feed.py)."""
-    cond = {
-        "SU": "o.kategori = 'SU'", "SUB": "o.kategori IN ('SU', 'SUB')", "bemaerk": "o.kategori <> 'alm'", "all": "TRUE",
-        "local": f"{LOCAL_COND} OR o.kategori IN ('SU', 'SUB')", "pheno": PHENO_SQL,
-    }
+    Fænologi og Lokale hits som i feedet (se services/feed.py), men uden SU/SUB-tilføjelsen."""
+    # Hvert felt rummer kun sig selv: SUB er kun SUB (ikke SU), Alle er de almindelige observationer, og Fænologi og Lokale hits
+    # gælder uanset kategori
+    cond = {"SU": "o.kategori = 'SU'", "SUB": "o.kategori = 'SUB'", "bemaerk": "o.kategori = 'bemaerk'", "all": "o.kategori = 'alm'",
+            "local": LOCAL_COND, "pheno": PHENO_SQL}
     parts = []
     for i, (afd, levels) in enumerate(sorted(matrix.items())):
         args[f"mx{i}"] = afd
@@ -657,7 +657,14 @@ async def day_observations(db: AsyncSession, me: str | None, d: date, visning: s
     """
     rows = [dict(r) for r in (await db.execute(text(sql), args)).mappings().all()]
     # DOF.tool-gruppens observationer samme dag (samme forespørgsel der) – grupperne går aldrig på tværs af kilderne
-    tool, _ = await dataset.tool_fetch(sql, args)
+    # DOF.tool-gruppen har ikke fænologi- og fundtællingstabellerne (de beregnes af DOFbasens observationer): ingen fænologi,
+    # og ingen lokale hits (n_finds sat højt)
+    tool_sql = (sql.replace("LEFT JOIN species_season ph ON ph.artnr = coalesce(s.list_artnr, s.artnr)",
+                            "LEFT JOIN (SELECT 0 AS artnr, 0 AS start_doy, 0 AS end_doy WHERE FALSE) ph ON ph.artnr = s.artnr")
+                .replace("LEFT JOIN loc_species_finds lc ON lc.loknr = o.loknr AND lc.artnr = o.artnr",
+                         "LEFT JOIN (SELECT 0 AS loknr, 0 AS artnr, 0 AS n_finds WHERE FALSE) lc ON lc.loknr = o.loknr AND lc.artnr = o.artnr")
+                .replace("coalesce(lc.n_finds, 0)", "999999"))
+    tool, _ = await dataset.tool_fetch(tool_sql, args)
     if tool:
         rows = sorted(rows + tool, key=lambda r: (r["afdeling_id"] is None, r["afdeling_id"] or 0, r["sortering"] or 0, r["lokalitet"] or ""))
     await attach_media(rows, db, su_badge, d)

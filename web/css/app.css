@@ -1147,12 +1147,12 @@ tr.click { cursor: pointer; }
 .dl-dku.dku, .tag.dku-status.dku { background: #1e7fc4; color: #fff; }
 .dl-dku.su, .tag.dku-status.su { background: #2e7d32; color: #fff; }
 /* guld: observationen af en SU-art er godkendt af SU */
-.dl-dku.su-ok, .tag.su-ok { background: linear-gradient(135deg, #f3d36b, #c9971c); color: #3d2a00; border: 1px solid #b8860b; }
-/* SU: fund samlet i kasser pr. art × lokalitet, datoerne som linjer med flueben til højre */
 .dl-dku.pheno { background: #bfe3f7; color: #0b3a5c; }
 .dl-dku.local { background: var(--local); color: #fff; }
 .su-finds { display: grid; gap: 10px; }
 .su-find { padding: 10px 14px; }
+.dl-dku.su-ok, .tag.su-ok { background: linear-gradient(135deg, #f3d36b, #c9971c); color: #3d2a00; border: 1px solid #b8860b; }
+/* SU: fund samlet i kasser pr. art × lokalitet, datoerne som linjer med flueben til højre */
 .su-find-head { display: flex; gap: 10px; align-items: flex-start; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
 .su-find-row { display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
 .su-find-row:last-child { border-bottom: 0; }
@@ -1279,7 +1279,13 @@ tr.click { cursor: pointer; }
 .lok-opt.on { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); font-weight: 600; }
 .lok-opt small { white-space: nowrap; font-weight: 400; }
 /* Observationer: matrix afdeling × niveau */
-.dl-matrix { margin: 0 0 16px; padding: 14px 16px; }
+.dl-box { margin: 12px 0 16px; padding: 10px 14px; }
+.dl-box > summary { cursor: pointer; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; list-style: none; }
+.dl-box > summary::-webkit-details-marker { display: none; }
+.dl-box > summary::before { content: "▾"; color: var(--text-3); transition: transform .15s; }
+.dl-box:not([open]) > summary::before { transform: rotate(-90deg); }
+.dl-box .dl-filters { margin: 12px 0 0; }
+.dl-matrix { margin: 14px 0 0; padding: 0; }
 .dl-matrix[hidden] { display: none; }
 .mx-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 8px; }
 .dl-mx { border-collapse: separate; border-spacing: 4px; margin: 0 -4px; }
@@ -1289,6 +1295,13 @@ tr.click { cursor: pointer; }
 .dl-mx tr.has th[scope=row] .mx-row { color: var(--text); font-weight: 700; }
 .mx-head, .mx-row { border: 0; background: transparent; font: inherit; font-size: .8rem; color: var(--text-2); cursor: pointer; border-radius: 8px; padding: 6px 8px; white-space: nowrap; }
 .mx-head { font-weight: 700; text-transform: uppercase; letter-spacing: .03em; font-size: .72rem; }
+.mx-grip { display: inline-grid; place-items: center; width: 22px; height: 28px; cursor: grab; color: var(--text-3); touch-action: none; user-select: none; -webkit-user-select: none; letter-spacing: -2px; font-weight: 800; border-radius: 6px; }
+.mx-grip:hover, .mx-grip:focus-visible { background: var(--bg-2); color: var(--text); outline: none; }
+.dl-mx.dragging { cursor: grabbing; user-select: none; }
+.dl-mx th.drag { background: var(--bg-2); border-radius: 10px; }
+.dl-mx th { white-space: nowrap; }
+.dl-mod td { padding: 10px 6px 2px; font-size: .86rem; }
+.mx-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .mx-head:hover, .mx-row:hover { background: var(--bg-2); color: var(--text); }
 .mx-row { text-align: left; font-size: .88rem; width: 100%; }
 .mx-cell { --c: var(--brand); width: 100%; min-width: 44px; height: 32px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--bg-2); color: #fff; font-weight: 800; cursor: pointer; transition: background .12s, border-color .12s, transform .08s; }
