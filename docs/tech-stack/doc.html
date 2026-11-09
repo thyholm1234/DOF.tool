@@ -69,7 +69,7 @@
     <tr><td><b>postgres</b></td><td><code>postgis/postgis:17-3.5</code></td><td>Den samlede database: al data i legacy-tilstand,
       kilde og sikkerhedskopi efter opdelingen.</td><td>kun internt</td><td>pgdata</td></tr>
     <tr><td><b>doftool-db-*</b></td><td><code>doftool-dbnode</code> (PostGIS + replikering)</td><td>Databasenoder i grupperne
-      users og observations; primary eller replika. Oprettes af db-admin eller med dens script.</td>
+      users, observations og doftool; primary eller replika. Oprettes af db-admin eller med dens script.</td>
       <td>ingen / <code>127.0.0.1</code> på samme vært</td><td>doftool_db_&lt;navn&gt;</td></tr>
     <tr><td><b>rustfs</b></td><td><code>rustfs/rustfs:1.0.3</code></td><td>Objektlager (S3) til fotos og lyd i
       observationer, bucket <code>doftool-media</code>.</td><td>ingen på værten</td><td>rustfs</td></tr>
@@ -103,7 +103,8 @@
     <tr><td>Øvrigt</td><td>numpy, orjson, cryptography</td><td>Fænologi-beregninger, hurtig JSON, kryptering.</td></tr>
     <tr><td>Frontend</td><td>Vanilla JavaScript (ES-moduler), Leaflet 1.9.4, lamejs</td><td>Ingen byggetrin; filerne serveres
       med build-id i adressen. Service worker til offline og push.</td></tr>
-    <tr><td>Mobilapp</td><td>Capacitor 8 (Android/iOS)</td><td>WebView med samme PWA; baggrundsposition og push-notifikationer.
+    <tr><td>Mobilapp</td><td>Capacitor 8 (Android/iOS)</td><td>WebView med samme PWA; baggrundsposition og push-notifikationer. På Android
+      bruges appens eget positionsplugin <code>DofPosition</code> (fused-positionstjenesten, ingen wakelock), på iOS <code>@capgo/background-geolocation</code>.
       Android bygges lokalt (<code>app/build.sh</code>), iOS som kildepakke til Xcode eller via GitHub Actions.</td></tr>
     <tr><td>Tale-indtastning</td><td>CoRal <code>roest-v3-wav2vec2-315m</code> (ONNX int8), ONNX Runtime (MIT)</td><td>Kører på telefonen i
       pluginnet <code>DofAsr</code>; ingen Google-genkender. Output afkodes i <code>web/js/voice-ctc.js</code> mod artslisten, tal og adfærdskoder.</td></tr>
@@ -112,12 +113,17 @@
 </table>
 
 <h2>Data og databaser</h2>
-<p>Tabellerne er delt i tre grupper (<code>server/portal/dbgroups.py</code>):</p>
+<p>Tabellerne er delt i grupper (<code>server/portal/dbgroups.py</code>):</p>
 <ul>
   <li><b>users</b> – alt der handler om brugere: konti, lister, områder, alarmregler, feltmeldinger, kommentarer, kalendere,
     Netfugl-indhold, support.</li>
   <li><b>observations</b> – observationer, ture og observatører fra DOFbasen samt alle aggregater (artsdage, fænologi,
     regioner, vejr).</li>
+  <li><b>doftool</b> – observationer og ture indtastet i DOF.tool, i samme skema som DOFbasens, men i sin egen database
+    (uden egen node en separat database på observationsgruppens server). Den bygges af workeren ud fra turene og fundene i
+    brugergruppen (ved hver ændring og hvert 10. minut) og kan altid genskabes. Står samme fugl også i DOFbasen, tæller kun
+    DOFbasens række. Søg, Observationer, lister og statistik kører samme forespørgsel i begge grupper og fletter svarene
+    (<code>services/dataset.py</code>); hemmelige DOF.tool-fund er udeladt for andre end ejeren.</li>
   <li><b>reference</b> – arter, afdelinger, kommuner, lokaliteter m.m. findes i begge grupper, så joins mod dem er lokale.</li>
 </ul>
 <p>En SQL-sætning må aldrig blande bruger- og observationstabeller; routeren afviser den. Data hentes i stedet i to
@@ -149,11 +155,16 @@
   (kun forventede filer, SHA-256), før det tages i brug.</p>
 
 <h2>Ture og GPS-ruter</h2>
-<p>En tur sendes og gemmes i ét kald og kan lægges i en lokal kø på enheden (IndexedDB), når der ikke er net. Ruten optages i
-  appen af den native positionstjeneste (også med slukket skærm) og i browseren af <code>navigator.geolocation</code>.
+<p>En tur sendes og gemmes i ét kald og kan lægges i en lokal kø på enheden (IndexedDB), når der ikke er net. Nye ture
+  oprettes altid på brugerens egen obserkode. Ruten optages i appen af den native positionstjeneste (også med slukket skærm; GPS
+  hvert 5. s/5. m, i baggrunden sendt samlet pr. minut) og i browseren af <code>navigator.geolocation</code>.
   Når turen afsluttes, stoppes optagelsen, og ruten beskæres til turens start- og sluttidspunkt. Efter afslutningen tilbyder appen
   de 30 mest almindelige arter på lokaliteten (<code>GET /api/trips/common</code>, bygget på lokalitetens cachede artsliste), som endnu ikke
   står på turen, til hurtig indtastning af antal.</p>
+<p><b>Kort:</b> «Se på kort» viser turens GPS-rute på et Leaflet-kort under turens data. Når en lokalitet vælges på kortet,
+  tegnes lokaliteternes omrids (<code>GET /api/locations/shapes</code> for kortudsnittet, fra zoom 10), og punktet vælger den
+  lokalitet, det ligger i – den inderste først, ellers den med den nærmeste grænse (<code>/api/reports/near</code>). Kortfliserne
+  hentes direkte fra OpenStreetMap. Ruten og positioner vises ikke i «se som bruger».</p>
 
 <h2>Baggrundsjob</h2>
 <table>
@@ -181,15 +192,22 @@
 <h2>Sikkerhed</h2>
 <div class="cols">
 <ul>
-  <li><b>Login</b> kontrolleres hos DOFbasen ved hvert login; adgangskoden gemmes ikke. Grænse for forsøg pr. obserkode og IP.</li>
+  <li><b>Login</b> kontrolleres hos DOFbasen ved hvert login; adgangskoden gemmes ikke. Grænse for forsøg pr. IP og højst
+    30 pr. obserkode i timen.</li>
   <li><b>Sessioner</b> i Valkey (<code>sess:h:&lt;sha256 af cookien&gt;</code> – kun hashen gemmes), cookie <code>HttpOnly</code>, <code>SameSite=Lax</code>, altid
-    <code>Secure</code> når <code>PUBLIC_URL</code> er https. Alle en brugers sessioner kan lukkes på én gang.</li>
+    <code>Secure</code> når <code>PUBLIC_URL</code> er https. Alle en brugers sessioner kan lukkes på én gang.
+    Positionstokens gemmes også kun som hash.</li>
   <li><b>CSRF</b>: ændrende kald kræver <code>X-Requested-With</code> eller <code>Sec-Fetch-Site: same-origin</code>.</li>
   <li><b>Headers</b>: streng CSP (scripts kun egne + hash), HSTS over https, <code>X-Frame-Options: DENY</code>,
     <code>nosniff</code>, Referrer- og Permissions-Policy. Uploads leveres med <code>sandbox</code>-CSP.</li>
   <li><b>Klientens IP</b> tages kun fra X-Forwarded-For, når kaldet kommer fra en betroet proxy.</li>
   <li><b>Uploads</b>: størrelsesgrænse, tilladte typer, tilfældigt filnavn; GPS og andre metadata fjernes, før filen gemmes.</li>
-  <li><b>SQL</b>: kun parametre; sortering og visning fra whitelists.</li>
+  <li><b>SQL</b>: kun parametre; sortering og visning fra whitelists. Regnearkseksporter neutraliserer formler.</li>
+  <li><b>Udgående kald</b> til brugerbestemte adresser (RSS, artikelbilleder) går gennem SSRF-værnet
+    (<code>services/egress.py</code>), som afviser interne adresser, også efter omdirigering.</li>
+  <li><b>«Se som bruger»</b> er rent læsende og viser hverken positioner, ruter, ICS-link eller personlige notifikationer.
+    Ændringer af rettigheder skrives i en audit-log.</li>
+  <li><b>Afhængigheder</b> er låst (<code>server/constraints.txt</code>); der er loft over åbne SSE-strømme pr. bruger.</li>
   <li><b>Showcase-API'er</b>: token gemt som hash, kun læsning, egne grænser pr. minut.</li>
   <li><b>Netværk</b>: db-admin, databasenoder og RustFS har ingen offentlige porte; db-admin har eget kodeord og
     begrænsning af forsøg. db-admin har adgang til Docker og skal aldrig udstilles mod internettet.</li>
