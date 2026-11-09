@@ -55,13 +55,13 @@ export async function render(view) {
   st.mode = q.mode === "klassisk" ? "klassisk" : q.mode === "avanceret" || Object.keys(st.matrix).length ? "avanceret" : "klassisk";
   const view_ = () => ({ visning: st.visning, sort: st.sort, summering: st.summering, lok: st.lok, mode: st.mode, matrix: matrixStr(st.matrix) });
   const isDefault = () => JSON.stringify(view_()) === JSON.stringify({ visning: "fugle", sort: "art", summering: "tur", lok: "", mode: "klassisk", matrix: "", ...saved });
-  // Rækkefølgen af modulerne (kolonnerne) vælger brugeren selv – huskes pr. bruger på enheden
-  const ORDER_KEY = `${KEY}:rakkefolge`;
-  let order = (() => {
-    const keys = LEVELS.map(l => l[0]), got = (store(ORDER_KEY) || []).filter(k => keys.includes(k));
-    return [...new Set([...got, ...keys])];
-  })();
-  const levels = () => order.map(k => LEVELS.find(l => l[0] === k));
+  // Rækkefølgen af lokalafdelingerne vælger brugeren selv (træk i navnet) – huskes pr. bruger på enheden
+  const AFD_KEY = `${KEY}:afdelinger`;
+  let afdOrder = (store(AFD_KEY) || []).map(String);
+  const order = LEVELS.map(l => l[0]);  // kategorierne står fast
+  const levels = () => LEVELS;
+  const afdRank = (id) => { const i = afdOrder.indexOf(String(id)); return i < 0 ? 1e6 + Number(id) : i; };
+  const afdSorted = () => [...afd].sort((x, y) => afdRank(x.id) - afdRank(y.id));
   const advanced = () => st.mode === "avanceret";
   const hasMatrix = () => advanced() && !!matrixStr(st.matrix);
   let afd = [];
@@ -70,6 +70,12 @@ export async function render(view) {
   const out = h("div", {});
   const filters = h("div", { class: "dl-filters" });
   const matrixEl = h("div", { class: "dl-matrix" });
+  // Matrixen har sin egen boks, der kan klappes helt sammen (huskes)
+  const MOPEN_KEY = `${KEY}:matrix-aaben`;
+  const mbox = h("details", { class: "card dl-box" });
+  mbox.open = store(MOPEN_KEY) !== false;
+  mbox.addEventListener("toggle", () => store(MOPEN_KEY, mbox.open));
+  const mTitle = h("summary", {});
   // Filtrene kan klappes sammen (huskes); overskriften opsummerer, hvad der er valgt
   const OPEN_KEY = `${KEY}:filter-aaben`;
   const box = h("details", { class: "card dl-box" });
@@ -102,11 +108,12 @@ export async function render(view) {
   ];
 
   function drawMatrix() {
-    matrixEl.hidden = !advanced();
+    mbox.hidden = !advanced();
     if (!advanced()) return;
     const ids = afd.map(a => String(a.id));
     const levelKeys = [...order];
     const n = Object.values(st.matrix).reduce((s, v) => s + v.length, 0);
+    mTitle.replaceChildren(h("b", {}, "Matrix"), h("span", { class: "muted small dl-box-sum" }, n ? `${n} valgt` : "intet valgt – klik for at vælge pr. lokalafdeling"));
     const cell = (a, l) => {
       const on = !!st.matrix[a]?.includes(l);
       return h("td", {}, h("button", { type: "button", class: `mx-cell mx-${l}${on ? " on" : ""}`, "aria-pressed": String(on),
@@ -114,61 +121,63 @@ export async function render(view) {
     };
     matrixEl.replaceChildren(...[
       h("div", { class: "row between", style: { alignItems: "flex-start" } },
-        h("div", {}, h("b", {}, "Vælg pr. lokalafdeling"),
-          h("p", { class: "muted small", style: { margin: "2px 0 0" } }, "Markér, hvad du vil se fra hver afdeling. Klik på en overskrift for at markere hele kolonnen eller rækken.")),
+        h("p", { class: "muted small", style: { margin: 0 } }, "Markér, hvad du vil se fra hver afdeling. Klik på en overskrift for at markere hele kolonnen eller rækken. Tag fat i en afdelings navn og træk op eller ned for at ændre rækkefølgen."),
         n ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { st.matrix = {}; go(); } }, `Ryd (${n})`) : null),
       h("div", { class: "mx-presets" }, h("span", { class: "muted small" }, "Hurtigvalg:"),
         ...PRESETS.map(([t, fn]) => h("button", { class: "chip", type: "button", onclick: () => { st.matrix = fn(ids); go(); } }, t))),
       h("div", { class: "table-wrap" }, h("table", { class: "dl-mx" },
-        h("thead", {}, h("tr", {}, h("th", {}, ""), ...levels().map(([k, t]) => h("th", { "data-key": k },
-          h("span", { class: "mx-grip", role: "button", tabindex: "0", title: "Træk for at flytte kolonnen (eller brug piletasterne)", "aria-label": `Flyt ${t}`, html: "⋮⋮" }),
+        h("thead", {}, h("tr", {}, h("th", {}, ""), ...levels().map(([k, t]) => h("th", {},
           h("button", { class: `mx-head mx-${k}`, type: "button", title: `${LEVEL_HINT[k]} – alle afdelinger`, onclick: () => toggleCells(ids, [k]) }, t))))),
-        h("tbody", {}, ...afd.map(a => {
+        h("tbody", {}, ...afdSorted().map(a => {
           const sel = st.matrix[String(a.id)]?.length || 0;
-          return h("tr", { class: sel ? "has" : "" },
-            h("th", { scope: "row" }, h("button", { class: "mx-row", type: "button", title: "Hele rækken", onclick: () => toggleCells([String(a.id)], levelKeys) }, a.navn)),
+          return h("tr", { class: sel ? "has" : "", "data-afd": a.id },
+            h("th", { scope: "row" }, h("span", { class: "mx-grip", role: "button", tabindex: "0", title: "Tag fat i navnet og træk op eller ned (eller brug piletasterne)", "aria-label": `Flyt ${a.navn}` },
+              h("span", { class: "mx-dots", html: "⋮⋮" }), h("span", { class: "mx-name" }, a.navn)),
+              h("button", { class: "mx-all-row", type: "button", title: "Markér hele rækken", "aria-label": `Markér hele rækken for ${a.navn}`, onclick: () => toggleCells([String(a.id)], levelKeys), html: "✓" })),
             ...levels().map(([k]) => cell(String(a.id), k)));
         }))))].filter(Boolean));
     enableDrag(matrixEl.querySelector("table"));
   }
 
-  /** Flyt kolonner ved at trække i grebet – med pegehændelser, så det virker med mus og på berøringsskærme – eller med piletasterne. */
+  /** Flyt afdelinger op og ned ved at tage fat i navnet – med pegehændelser, så det virker med mus og på berøringsskærme – eller med piletasterne.
+   *  Et almindeligt klik (uden at flytte) gør intet; trækket starter først efter et par pixel. */
   function enableDrag(table) {
     if (!table) return;
-    const rows = [...table.rows];
-    const keys = () => [...table.tHead.rows[0].cells].slice(1).map(c => c.dataset.key);
-    const move = (from, to) => {  // kolonne fra → to (0-baseret uden rækkeoverskriften)
-      if (from === to) return;
-      for (const r of rows) { const cells = [...r.cells]; const el = cells[from + 1], ref = cells[to + 1]; r.insertBefore(el, to > from ? ref.nextSibling : ref); }
-    };
-    const commit = () => { order = keys(); store(ORDER_KEY, order); drawFilters(); load(); };
+    const body = table.tBodies[0];
+    const keys = () => [...body.rows].map(r => r.dataset.afd);
+    const commit = () => { afdOrder = keys(); store(AFD_KEY, afdOrder); drawFilters(); load(); };
     for (const grip of table.querySelectorAll(".mx-grip")) {
-      const th = grip.closest("th");
+      const tr = grip.closest("tr");
       grip.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        grip.setPointerCapture(e.pointerId);
-        table.classList.add("dragging"); th.classList.add("drag");
+        if (e.button) return;
+        const y0 = e.clientY; let moved = false;
+        grip.setPointerCapture?.(e.pointerId);
         const onMove = (ev) => {
-          const heads = [...table.tHead.rows[0].cells].slice(1);
-          const from = heads.indexOf(th);
-          let to = heads.findIndex(c => { const r = c.getBoundingClientRect(); return ev.clientX >= r.left && ev.clientX <= r.right; });
-          if (to < 0) to = ev.clientX < heads[0].getBoundingClientRect().left ? 0 : heads.length - 1;
-          move(from, to);
+          if (!moved && Math.abs(ev.clientY - y0) < 5) return;
+          if (!moved) { moved = true; table.classList.add("dragging"); tr.classList.add("drag"); }
+          ev.preventDefault();
+          const rows = [...body.rows];
+          const over = rows.find(r => { const b = r.getBoundingClientRect(); return ev.clientY >= b.top && ev.clientY <= b.bottom; });
+          const target = over || (ev.clientY < rows[0].getBoundingClientRect().top ? rows[0] : rows[rows.length - 1]);
+          if (target === tr) return;
+          const from = rows.indexOf(tr), to = rows.indexOf(target);
+          body.insertBefore(tr, to > from ? target.nextSibling : target);
         };
         const onEnd = () => {
           grip.removeEventListener("pointermove", onMove); grip.removeEventListener("pointerup", onEnd); grip.removeEventListener("pointercancel", onEnd);
-          table.classList.remove("dragging"); th.classList.remove("drag");
-          if (keys().join() !== order.join()) commit();
+          table.classList.remove("dragging"); tr.classList.remove("drag");
+          if (moved && keys().join() !== afdSorted().map(a => String(a.id)).join()) commit();
         };
         grip.addEventListener("pointermove", onMove); grip.addEventListener("pointerup", onEnd); grip.addEventListener("pointercancel", onEnd);
       });
       grip.addEventListener("keydown", (e) => {
-        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
         e.preventDefault();
-        const i = keys().indexOf(th.dataset.key), j = i + (e.key === "ArrowLeft" ? -1 : 1);
-        if (j < 0 || j >= order.length) return;
-        move(i, j); order = keys(); store(ORDER_KEY, order); drawFilters(); load();
-        matrixEl.querySelector(`th[data-key="${th.dataset.key}"] .mx-grip`)?.focus();
+        const rows = [...body.rows], i = rows.indexOf(tr), j = i + (e.key === "ArrowUp" ? -1 : 1);
+        if (j < 0 || j >= rows.length) return;
+        body.insertBefore(tr, e.key === "ArrowUp" ? rows[j] : rows[j].nextSibling);
+        commit();
+        matrixEl.querySelector(`tr[data-afd="${tr.dataset.afd}"] .mx-grip`)?.focus();
       });
     }
   }
@@ -256,11 +265,12 @@ export async function render(view) {
       d.note ? h("div", { class: "notice" }, d.note) : null,
       !d.rows.length && !d.note ? empty("Ingen observationer", "Prøv en anden visning, dato eller afdeling") : null,
       d.rows.length ? timeLegend() : null,
-      d.rows.length ? sheet([...byAfd].flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...(hasMatrix() ? modules(id, rows) : groups(rows, st.dato))])) : null);
+      d.rows.length ? sheet([...byAfd].sort((x, y) => afdRank(x[0]) - afdRank(y[0])).flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...(hasMatrix() ? modules(id, rows) : groups(rows, st.dato))])) : null);
   }
 
-  view.append(h("h1", {}, "Observationer"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og resten af turlisten."), box, out);
-  box.append(boxTitle, filters, matrixEl);
+  view.append(h("h1", {}, "Observationer"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og resten af turlisten."), box, mbox, out);
+  box.append(boxTitle, filters);
+  mbox.append(mTitle, matrixEl);
   drawFilters();
   initPopup(out);
   load();
