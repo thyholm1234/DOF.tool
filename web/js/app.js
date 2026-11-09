@@ -1,4 +1,4 @@
-import { api, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer } from "./core.js";
+import { api, prefetch, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer } from "./core.js";
 import { live } from "./live.js";
 import { syncSharing, syncPush, stopAppPush } from "./native.js";
 import { initSelectMenu } from "./select-menu.js";
@@ -303,6 +303,25 @@ function restoreScroll(y) {
   addEventListener("wheel", stop, { passive: true });
 }
 
+// Data, en side skal bruge, hentes samtidig med sidens moduler (og allerede ved tryk på et link), så ventetiderne ikke
+// lægges oven i hinanden. Siden selv kalder api() med samme sti og får det forhåndshentede svar.
+const PREFETCH = [
+  [/^\/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)$/, (m) => `/api/thread/${m[1]}/${m[2]}/${m[3]}`],
+];
+
+function prefetchFor(path) {
+  for (const [re, url] of PREFETCH) {
+    const m = path.match(re);
+    if (m) { prefetch(url(m)); return; }
+  }
+}
+
+// Tryk på et link til en tråd: hent data med det samme (ikke ved mus over – tråden kan sætte opslag i DOFbasens kø i gang)
+function prefetchLink(e) {
+  const a = e.target.closest?.('a[href^="#/traad/"]');
+  if (a && state.user) prefetchFor(a.getAttribute("href").slice(1).split("?")[0]);
+}
+
 async function route() {
   routing = true;
   const y = history.state?.y;
@@ -347,11 +366,16 @@ async function show(y) {
     if (typeof cleanup === "function") { try { cleanup(); } catch { /* ignore */ } }
     cleanup = null;
     const view = $("#view");
+    prefetchFor(path);
+    // Tager det mere end et øjeblik at hente siden første gang, vises et skelet, så man kan se, at der sker noget
+    const wait = setTimeout(() => view.replaceChildren(h("div", { class: "skeleton", style: { height: "200px" } })), 150);
     try {
       const mod = await loader();
+      clearTimeout(wait);
       view.replaceChildren();
       cleanup = await mod.render(view, m.slice(1));
     } catch (err) {
+      clearTimeout(wait);
       console.error(err);
       view.replaceChildren(h("div", { class: "notice err" }, "Siden kunne ikke vises: " + err.message));
     }
@@ -365,12 +389,16 @@ async function boot() {
   $("#userbtn").addEventListener("click", openMenu);
   $("#bell").addEventListener("click", openNotifications);
   window.addEventListener("hashchange", route);
+  document.addEventListener("pointerdown", prefetchLink, { passive: true });
   await refreshUser();
   if (state.user && !state.user.view_as) live.start();  // «se som bruger» opretter ikke SSE-strømmen
   live.on("notification", (d) => { state.unread += 1; renderUser(); toast(`🔔 ${d.title}`); });
   live.onStatus((on) => $("#live").classList.toggle("on", on));
   live.on("resume", () => { if (state.user && !state.user.view_as) refreshUnread(); });  // tilbage fra baggrunden
   await route();
+  // Tråde er det, man oftest åbner: hent modulet i baggrunden, når appen er i ro, så første tråd ikke venter på det
+  const idle = window.requestIdleCallback || ((f) => setTimeout(f, 2000));
+  if (state.user) idle(() => import("./views/thread.js").catch(() => {}));
   const splash = $("#splash");
   if (splash) { splash.classList.add("out"); setTimeout(() => splash.remove(), 300); }
   if ("serviceWorker" in navigator) {

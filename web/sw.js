@@ -1,5 +1,5 @@
 // DOF.tool service worker: app-shell offline, netværk-først for API, push-notifikationer.
-const VERSION = "doftool-v19";
+const VERSION = "doftool-v20";
 // App-filerne ligger under /v/<build>/ og caches løbende af fetch-handleren nedenfor
 const SHELL = ["/", "/vendor/leaflet/leaflet.js", "/vendor/leaflet/leaflet.css", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png"];
 // Svar, der viser brugerens position (eller Nær mig-områdets cirkel om den), gemmes aldrig på enheden
@@ -40,6 +40,15 @@ self.addEventListener("fetch", (e) => {
     }).catch(() => caches.match(e.request).then((r) => r || new Response(JSON.stringify({ detail: "Offline" }), { status: 503, headers: { "Content-Type": "application/json" } }))));
     return;
   }
+  // Versionerede app-filer (/v/<build>/…) ændrer aldrig indhold – ny kode får en ny adresse. Cache først: ingen rundtur til
+  // serveren for hvert modul, når en side åbnes første gang.
+  if (url.pathname.startsWith("/v/")) {
+    e.respondWith(caches.open(VERSION).then(async (c) => (await c.match(e.request)) || fetch(e.request).then((r) => {
+      if (r.ok) { c.put(e.request, r.clone()); pruneBuilds(c, url.pathname.split("/")[2]); }
+      return r;
+    })));
+    return;
+  }
   // App-shell: netværk først (altid nyeste kode online), cache kun som offline-nødløsning
   e.respondWith(caches.open(VERSION).then(async (c) => {
     try {
@@ -51,6 +60,17 @@ self.addEventListener("fetch", (e) => {
     }
   }));
 });
+
+// Filer fra tidligere builds ryddes, første gang en fil fra en ny build hentes
+let currentBuild = null;
+function pruneBuilds(cache, build) {
+  if (build === currentBuild) return;
+  currentBuild = build;
+  cache.keys().then((reqs) => reqs.forEach((r) => {
+    const p = new URL(r.url).pathname;
+    if (p.startsWith("/v/") && p.split("/")[2] !== build) cache.delete(r);
+  }));
+}
 
 self.addEventListener("push", (e) => {
   let d = {};

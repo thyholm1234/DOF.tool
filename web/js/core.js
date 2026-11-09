@@ -28,7 +28,31 @@ for (const name of ["append", "replaceChildren", "prepend"]) {
   };
 }
 
-export async function api(path, { method = "GET", body, form } = {}) {
+// Forhåndshentede GET-svar (prefetch): bruges én gang af det næste api()-kald til samme sti inden for PREFETCH_MS. Så kan
+// data hentes, mens siden og dens moduler indlæses – eller allerede når man trykker på et link (app.js).
+const prefetched = new Map();
+const PREFETCH_MS = 15000;
+
+export function prefetch(path) {
+  if (!prefetched.has(path)) {
+    const p = request(path);
+    p.catch(() => prefetched.delete(path));
+    prefetched.set(path, p);
+    setTimeout(() => { if (prefetched.get(path) === p) prefetched.delete(path); }, PREFETCH_MS);
+  }
+  return prefetched.get(path);
+}
+
+export async function api(path, opts = {}) {
+  if ((opts.method || "GET") === "GET" && prefetched.has(path)) {
+    const p = prefetched.get(path);
+    prefetched.delete(path);
+    return p;
+  }
+  return request(path, opts);
+}
+
+async function request(path, { method = "GET", body, form } = {}) {
   const opts = { method, headers: { "X-Requested-With": "fetch" }, credentials: "same-origin" };
   if (form) opts.body = form;
   else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers["Content-Type"] = "application/json"; }
