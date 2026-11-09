@@ -327,13 +327,23 @@ def _url(path: str) -> str:
     return get_settings().public_url.rstrip("/") + path
 
 
+IGNORE = "Har du ikke bedt om koden, kan du roligt se bort fra denne mail – der sker ikke noget med din konto."
+
+
 async def _send_signup_code(email: str, pending: str, code: str, reset: bool) -> None:
-    what = "den nye e-mailadresse til din DOF.tool-konto" if reset else "din DOF.tool-konto"
-    await mail.send(email, f"{code} er din kode til DOF.tool",
+    app = get_settings().app_name
+    what = f"den nye e-mailadresse til din {app}-konto" if reset else f"din {app}-konto"
+    link = _url(f"/#/login?bekraeft={pending}&kode={code}")
+    html_body = mail.layout(
+        title="Bekræft din e-mailadresse", preheader=f"Din kode er {code}. Den gælder i {MAIL_TTL // 60} minutter.",
+        greeting="Hej", paragraphs=[f"Brug koden herunder til at bekræfte {what}."], code=code,
+        button=("Bekræft e-mailadressen", link),
+        notes=[f"Koden gælder i {MAIL_TTL // 60} minutter.", IGNORE])
+    await mail.send(email, f"{code} er din kode til {app}",
                     f"Hej\n\nBrug koden herunder til at bekræfte {what}:\n\n    {code}\n\n"
-                    f"Eller åbn linket:\n{_url(f'/#/login?bekraeft={pending}&kode={code}')}\n\n"
+                    f"Eller åbn linket:\n{link}\n\n"
                     f"Koden gælder i {MAIL_TTL // 60} minutter. Har du ikke bedt om den, kan du se bort fra denne mail.\n\n"
-                    f"Venlig hilsen\n{get_settings().app_name}\n")
+                    f"Venlig hilsen\n{app}\n", html_body)
 
 
 async def change_password(db: AsyncSession, user: User, current: str, new: str, ip: str) -> None:
@@ -366,12 +376,21 @@ async def request_email_change(db: AsyncSession, user: User, current: str, email
     await kv().set(key, json.dumps({"email": email, "code": _code_hash(key, code), "resends": resends}), ex=MAIL_TTL)
     await kv().delete(key + ":tries")
     try:
-        await mail.send(email, f"{code} er din kode til DOF.tool",
-                        f"Hej {user.navn or user.obserkode}\n\nBrug koden herunder til at bekræfte e-mailadressen til din "
-                        f"DOF.tool-konto ({user.obserkode}):\n\n    {code}\n\n"
-                        f"Eller åbn linket, mens du er logget ind:\n{_url(f'/#/profil?fane=sikkerhed&mailkode={code}')}\n\n"
+        app, navn = get_settings().app_name, user.navn or user.obserkode
+        link = _url(f"/#/profil?fane=sikkerhed&mailkode={code}")
+        html_body = mail.layout(
+            title="Bekræft din nye e-mailadresse", preheader=f"Din kode er {code}. Den gælder i {MAIL_TTL // 60} minutter.",
+            greeting=f"Hej {navn}",
+            paragraphs=[f"Brug koden herunder til at bekræfte e-mailadressen til din {app}-konto (**{user.obserkode}**). "
+                        "Din e-mail er uændret, indtil koden er tastet."],
+            code=code, button=("Bekræft e-mailadressen", link),
+            notes=[f"Koden gælder i {MAIL_TTL // 60} minutter. Linket virker, mens du er logget ind.", IGNORE])
+        await mail.send(email, f"{code} er din kode til {app}",
+                        f"Hej {navn}\n\nBrug koden herunder til at bekræfte e-mailadressen til din "
+                        f"{app}-konto ({user.obserkode}):\n\n    {code}\n\n"
+                        f"Eller åbn linket, mens du er logget ind:\n{link}\n\n"
                         f"Koden gælder i {MAIL_TTL // 60} minutter. Har du ikke bedt om den, kan du se bort fra denne mail.\n\n"
-                        f"Venlig hilsen\n{get_settings().app_name}\n")
+                        f"Venlig hilsen\n{app}\n", html_body)
     except mail.MailError as exc:
         await kv().delete(key)
         raise AuthError("Vi kunne ikke sende en e-mail til adressen. Tjek den, og prøv igen.", 502) from exc
@@ -399,11 +418,20 @@ async def confirm_email_change(db: AsyncSession, user: User, code: str, ip: str)
         raise AuthError("E-mailadressen bruges allerede af en anden konto", 409) from exc
     if old and old.lower() != user.email:
         try:
-            await mail.send(old, "Din e-mailadresse i DOF.tool er ændret",
-                            f"Hej {user.navn or user.obserkode}\n\nE-mailadressen på din DOF.tool-konto ({user.obserkode}) er "
+            app, navn, link = get_settings().app_name, user.navn or user.obserkode, _url("/#/login?konto=glemt")
+            html_body = mail.layout(
+                title="Din e-mailadresse er ændret", preheader=f"E-mailen på din {app}-konto er ændret til {mask_email(user.email)}.",
+                greeting=f"Hej {navn}",
+                paragraphs=[f"E-mailadressen på din {app}-konto (**{user.obserkode}**) er ændret til **{mask_email(user.email)}**.",
+                            "Var det ikke dig, så vælg en ny adgangskode via «Glemt adgangskode» – det kræver din "
+                            "DOFbasen-adgangskode – og skift derefter e-mailen tilbage under Profil."],
+                button=("Vælg ny adgangskode", link),
+                notes=["Var det dig, behøver du ikke gøre noget."])
+            await mail.send(old, f"Din e-mailadresse i {app} er ændret",
+                            f"Hej {navn}\n\nE-mailadressen på din {app}-konto ({user.obserkode}) er "
                             f"ændret til {mask_email(user.email)}.\n\nVar det ikke dig, så vælg en ny adgangskode via "
-                            f"«Glemt adgangskode» på {_url('/#/login?konto=glemt')} – det kræver din DOFbasen-adgangskode – og "
-                            f"skift e-mailen tilbage under Profil.\n\nVenlig hilsen\n{get_settings().app_name}\n")
+                            f"«Glemt adgangskode» på {link} – det kræver din DOFbasen-adgangskode – og "
+                            f"skift e-mailen tilbage under Profil.\n\nVenlig hilsen\n{app}\n", html_body)
         except mail.MailError:
             pass
 

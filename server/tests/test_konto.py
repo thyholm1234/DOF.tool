@@ -48,7 +48,8 @@ def mails(monkeypatch):
 
     sent = []
 
-    async def send(to, subject, text):
+    async def send(to, subject, text, html_body=None):
+        assert html_body is None or (text.split()[0] in html_body or "<!doctype html>" in html_body)
         sent.append((to, subject, text))
 
     monkeypatch.setattr(mail, "send", send)
@@ -490,3 +491,15 @@ def test_hashen_er_hemmelig_i_eksport():
     from portal.services import account
 
     assert "pw_hash" in account.SECRET_COLUMNS
+
+
+def test_mail_layout_escaper_og_viser_kode_og_knap():
+    from portal.services import mail
+
+    out = mail.layout(title="Bekræft <x>", preheader="p", greeting="Hej <b>", paragraphs=["Konto **ABC** & co"],
+                      code="123456", button=("Bekræft", "https://x.dk/#/login?a=1&b=2"), notes=["n"])
+    assert out.startswith("<!doctype html>") and "123456" in out
+    assert "Bekræft &lt;x&gt;" in out and "Hej &lt;b&gt;" in out and "<b>" not in out
+    assert ">ABC</strong>" in out and "&amp; co" in out
+    assert 'href="https://x.dk/#/login?a=1&amp;b=2"' in out
+    assert "/icons/icon-192.png" in out
