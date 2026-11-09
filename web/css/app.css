@@ -1256,3 +1256,6 @@ tr.click { cursor: pointer; }
 .indtast-choice.current { border-color: var(--accent); }
 .indtast-choice.current .indtast-ic { background: var(--warn-soft); color: var(--accent); }
 .count-banner.running { background: var(--brand-soft); border: 1px solid var(--brand-2); }
+.leaflet-tooltip.finn-label { background: rgba(255, 255, 255, .85); border: 1px solid #ff8800; color: #8a4a00; font-weight: 700; font-size: 11px; padding: 1px 5px; box-shadow: none; }
+.leaflet-tooltip.finn-label::before { display: none; }
+.finn-labels-off .leaflet-tooltip.finn-label { display: none; }

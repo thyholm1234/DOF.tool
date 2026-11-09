@@ -106,10 +106,10 @@ const polyHas = (g, x, y) => polys(g).some(([outer, ...holes]) => ringHas(outer,
 /** Lokaliteternes grænser på kortet (fra zoom 10; hentes for kortudsnittet, når kortet flyttes). Lokaliteter uden grænse
  *  vises som små prikker. Grænserne tager ikke imod klik, så et tryk sætter stadig positionen.
  *  at(lat, lon) = den inderste lokalitet med grænse, punktet ligger i ({ loknr, navn }) eller null; select(loknr)
- *  fremhæver en lokalitet. onChange() kaldes, når nye grænser er hentet. */
-export function locationOutlines(map, { onChange } = {}) {
+ *  fremhæver en lokalitet (i highlight-farven, standard --accent). onChange() kaldes, når nye grænser er hentet. */
+export function locationOutlines(map, { onChange, highlight } = {}) {
   const feats = new Map();  // loknr → feature
-  const color = cssVar("--brand"), hi = cssVar("--accent") || color;
+  const color = cssVar("--brand"), hi = highlight || cssVar("--accent") || color;
   const layer = L.geoJSON(null, {
     interactive: false,
     style: () => ({ color, weight: 1.5, opacity: .8, fillColor: color, fillOpacity: .06 }),

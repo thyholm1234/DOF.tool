@@ -3,8 +3,8 @@
 // 98 (Spontantælling) / 99 (FiNN-tælling) og åbnes på turens observationsside med nedtælling (tur-view.js).
 // FiNN-områderne og -punkterne kommer fra DOFbasen (server/portal/services/finn.py) og gemmes på enheden.
 import { api, h, icon, toast, todayISO, state, requireLogin } from "../core.js";
-import { baseMap, leaflet } from "../maps.js";
-import { blankTrip, tripStore, tripHash, nowHM, addMinutes, nearestLocations, findLocations, meters, markCountStart, SPONTAN, FINN, COUNT_MIN } from "../tur-data.js";
+import { baseMap, leaflet, locationOutlines } from "../maps.js";
+import { blankTrip, tripStore, tripHash, nowHM, addMinutes, nearestLocations, findLocations, loadRecent, meters, markCountStart, SPONTAN, FINN, COUNT_MIN } from "../tur-data.js";
 import { cachedApi } from "../offline.js";
 import { field, fail } from "../tur-ui.js";
 
@@ -38,10 +38,22 @@ export async function render(page, [kind]) {
   const map = baseMap(mapEl, { center: [56.1, 10.8], zoom: 7 });
   let you = null, accC = null;
   const orange = "#ff8800";
+  const areaLayer = L.layerGroup().addTo(map), dotLayer = L.layerGroup().addTo(map);
   if (isFinn) {
     for (const s of finn.sites) {
-      L.polygon(s.ring, { color: orange, fillColor: orange, weight: 2, fillOpacity: 0.15 }).bindTooltip(`${s.title} (FiNN-område)`).addTo(map);
+      L.polygon(s.ring, { color: orange, fillColor: orange, weight: 2.5, fillOpacity: 0.22 })
+        .bindTooltip(s.title, { permanent: true, direction: "center", className: "finn-label" }).addTo(areaLayer);
+      // Langt ude (små områder er usynlige): en orange prik midt i hvert område
+      L.circleMarker(ringCenter(s.ring), { radius: 5, color: "#fff", weight: 1.5, fillColor: orange, fillOpacity: 1 })
+        .bindTooltip(`${s.title} (FiNN-område)`).on("click", () => map.fitBounds(L.polygon(s.ring).getBounds(), { padding: [20, 20] })).addTo(dotLayer);
     }
+    const zoomed = () => {
+      const z = map.getZoom();
+      if (z >= 12) { dotLayer.remove(); if (!map.hasLayer(areaLayer)) areaLayer.addTo(map); }
+      else { if (!map.hasLayer(dotLayer)) dotLayer.addTo(map); }
+      mapEl.classList.toggle("finn-labels-off", z < 13);  // navnene først, når man er tæt på
+    };
+    map.on("zoomend", zoomed); zoomed();
     for (const p of finn.points) {
       const color = p.source === "researcher" ? "#e53935" : "#1f7aaf";
       const html = `<span style="color:${color};font:700 18px/1 system-ui;text-shadow:0 0 2px #fff,0 0 2px #fff">${p.type === "management" ? "×" : "o"}</span>`;
@@ -49,6 +61,14 @@ export async function render(page, [kind]) {
         .bindTooltip(`FiNN-${TYPE[p.type] || "punkt"}, ${SOURCE[p.source] || ""}`).addTo(map);
     }
   }
+  // DOFbasens lokaliteter (grænser fra zoom 10). Den lokalitet, du står i, vælges og fremhæves.
+  // Den valgte lokalitet fremhæves med blåt – orange er FiNN-områderne
+  const outlines = locationOutlines(map, { onChange: () => S.pos && markLok(), highlight: "#1a73e8" });
+  const markLok = () => {
+    const hit = outlines.at(S.pos[0], S.pos[1]);
+    if (hit && hit.loknr !== S.loknr) { known.set(hit.loknr, hit.navn); if (![...lokSel.options].some(o => Number(o.value) === hit.loknr)) lokSel.append(h("option", { value: hit.loknr }, `${hit.navn} · her`)); pick(hit.loknr); }
+    outlines.select(S.loknr);
+  };
   map.on("click", (e) => setPos([e.latlng.lat, e.latlng.lng], null, false));
 
   // --- status for stedet
@@ -73,11 +93,22 @@ export async function render(page, [kind]) {
     you ? you.setLatLng(S.pos) : (you = L.circleMarker(S.pos, { radius: 7, color: "#fff", weight: 2, fillColor: "#1a73e8", fillOpacity: 1 }).addTo(map));
     if (acc) { accC ? accC.setLatLng(S.pos).setRadius(acc) : (accC = L.circle(S.pos, { radius: acc, color: "#1a73e8", weight: 1, fillOpacity: 0.08 }).addTo(map)); }
     else if (accC) { accC.remove(); accC = null; }
-    if (center) map.setView(S.pos, 16);
     if (isFinn) {
       S.site = finn.sites.find(s => insideRing(S.pos, s.ring)) || null;
       const pts = finn.points.map(p => ({ p, m: meters(S.pos, [p.lat, p.lon]) })).sort((a, b) => a.m - b.m);
       S.point = pts[0] && pts[0].m < 5000 ? pts[0] : null;
+    }
+    if (center) {
+      map.invalidateSize();  // positionen kan komme, før kortet har fået sin størrelse – så bliver udsnittet forkert
+      if (isFinn && !S.site && finn.sites.length) {
+        // Uden for områderne: vis både dig og det nærmeste område (og et par til, hvis de ligger tæt)
+        const near = finn.sites.map(s => ({ s, m: meters(S.pos, ringCenter(s.ring)) })).sort((a, b) => a.m - b.m).slice(0, 3)
+          .filter((x, i) => i === 0 || x.m < 15000);
+        const b = L.latLngBounds([S.pos]);
+        near.forEach(x => b.extend(L.polygon(x.s.ring).getBounds()));
+        map.fitBounds(b, { padding: [24, 24], maxZoom: 16 });
+      } else if (isFinn && S.site) map.fitBounds(L.latLngBounds([S.pos]).extend(L.polygon(S.site.ring).getBounds()), { padding: [24, 24], maxZoom: 16 });
+      else map.setView(S.pos, 15);
     }
     drawPlace();
     loadLocs();
@@ -95,7 +126,7 @@ export async function render(page, [kind]) {
     lokSel.replaceChildren(h("option", { value: "" }, head), ...rows.map(l => h("option", { value: l.loknr },
       [l.navn, l.inde ? "her" : l.km != null ? `${String(l.km).replace(".", ",")} km` : l.kommune].filter(Boolean).join(" · "))));
   };
-  const pick = (loknr) => { S.loknr = loknr || null; S.lok = known.get(S.loknr) || null; lokSel.value = S.loknr ? String(S.loknr) : ""; lokSel.classList.remove("invalid"); };
+  const pick = (loknr) => { S.loknr = loknr || null; S.lok = known.get(S.loknr) || null; lokSel.value = S.loknr ? String(S.loknr) : ""; lokSel.classList.remove("invalid"); outlines?.select(S.loknr); };
   lokSel.onchange = () => pick(Number(lokSel.value));
   let lokReq = 0;
   async function loadLocs() {
@@ -103,8 +134,10 @@ export async function render(page, [kind]) {
     try {
       const rows = await nearestLocations(S.pos[0], S.pos[1], 12);
       if (n !== lokReq) return;
+      if (!rows.length) return;  // behold listen, der står
       fill(rows, "Nærmeste lokaliteter …");
       pick(rows[0]?.loknr);
+      markLok();
     } catch (err) { toast(err.message, "err"); }
   }
   const lokQ = h("input", { type: "search", placeholder: "Søg lokalitet …", autocomplete: "off" });
@@ -182,6 +215,8 @@ export async function render(page, [kind]) {
         h("label", { class: "check" }, paper, h("span", {}, "Jeg har talt på papir og vil indtaste bagefter")), paperBox,
         startBtn)));
   drawPlace();
+  // Indtil positionen er fundet: dine seneste lokaliteter, så listen aldrig er tom
+  loadRecent().then(r => { if (!S.pos && r.locations?.length) fill(r.locations, "Dine seneste lokaliteter …"); }).catch(() => {});
   locate();
-  return () => map.remove();
+  return () => { outlines.remove(); map.remove(); };
 }
