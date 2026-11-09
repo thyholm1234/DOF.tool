@@ -33,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import cached, kv, version
 from portal.domain import adfaerd, geo
 from portal.services import dataset
+from portal.timeutil import dk_today
 
 LINK_KM = 15.0
 LINK_DAYS = 1
@@ -145,12 +146,16 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
     list_artnr, klass = sp
 
     async def produce() -> dict:
+        # Artens numre (arten og dens underarter/former) først: filtret står direkte på o.artnr, så indekset bruges – også
+        # når DOF.tool-rækkerne er flettet ind med UNION ALL (dataset.include får dem som grovfilter). Med et join mod
+        # species læste Postgres alle observationer (12–25 s pr. art).
+        arts = list((await session.execute(text("SELECT artnr FROM species WHERE list_artnr = :a"), {"a": list_artnr})).scalars())
         obs = (await dataset.execute(session, """
             SELECT o.dato, o.loknr, o.turid, coalesce(o.adfkode, '') AS adf, coalesce(o.obs_lat, l.lat) AS lat,
                    coalesce(o.obs_lon, l.lon) AS lon, o.antal, o.hemmelig <> 0 AS secret
-            FROM observations o JOIN species s ON s.artnr = o.artnr JOIN locations l ON l.loknr = o.loknr
-            WHERE s.list_artnr = :a AND o.antal > 0 AND o.dato <= current_date AND l.lat IS NOT NULL
-        """, {"a": list_artnr}, secret_all=True)).all()  # hemmelige tæller med, men stedet vises ikke (nedenfor)
+            FROM observations o JOIN locations l ON l.loknr = o.loknr
+            WHERE o.artnr = ANY(:arts) AND o.antal > 0 AND o.dato <= current_date AND l.lat IS NOT NULL
+        """, {"arts": arts}, artnrs=arts, secret_all=True)).all()  # hemmelige tæller med, men stedet vises ikke (nedenfor)
         # Punkter: dag, lokalitet og adfærd (stationær / trækkende pr. retning, "T" = uden retning)
         acc: dict[tuple, dict] = {}
         for o in obs:
@@ -212,10 +217,14 @@ async def species_finds(session: AsyncSession, artnr: int, fresh: bool = False) 
                 "per_year": [{"year": y, "n": n, "birds": b} for y, (n, b) in sorted(per_year.items())],
                 "finds": finds, "members": members}
 
-    key = f"finds3:{list_artnr}:{await version('finds')}"
+    # Caches for dagen (DK-tid). Nye fund i løbet af dagen: se thread_find (højst én genberegning pr. art pr. REFRESH_EVERY).
+    key = f"finds4:{list_artnr}:{dk_today().isoformat()}:{await version('finds')}"
     if fresh:
         await kv().delete(key)
-    return await cached(key, 1800, produce)
+    return await cached(key, 26 * 3600, produce)
+
+
+REFRESH_EVERY = 600  # sekunder: højst så ofte regnes en art igen, fordi en tråd mangler i dagens beregning
 
 
 async def thread_find(session: AsyncSession, day: date, artnr: int, loknr: int) -> dict | None:
@@ -225,7 +234,10 @@ async def thread_find(session: AsyncSession, day: date, artnr: int, loknr: int) 
         return None
     key = f"{day.isoformat()}|{loknr}"
     if key not in data["members"]:
-        # Nye observationer siden beregningen: regn arten igen
+        # Nye observationer siden dagens beregning: regn arten igen – men højst én gang pr. REFRESH_EVERY, så en tråd, der
+        # aldrig kommer med (fx kun hemmelige eller portal-meldinger), ikke regner arten om ved hvert besøg
+        if not await kv().set(f"finds:refresh:{data['artnr']}", "1", nx=True, ex=REFRESH_EVERY):
+            return None
         data = await species_finds(session, artnr, fresh=True)
         if key not in data["members"]:
             return None

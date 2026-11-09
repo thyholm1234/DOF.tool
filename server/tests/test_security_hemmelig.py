@@ -122,6 +122,9 @@ async def test_fund_viser_ikke_hemmelige_steder(monkeypatch):
         def all(self):
             return self.data
 
+        def scalars(self):  # artens numre (SELECT artnr FROM species WHERE list_artnr = …)
+            return [100]
+
     async def fake_execute(session, sql, params=None, **kw):
         seen.update(kw)
         return R(rows)
@@ -145,6 +148,7 @@ async def test_fund_viser_ikke_hemmelige_steder(monkeypatch):
     monkeypatch.setattr(finds, "cached", cached)
     data = await finds.species_finds(Session(), 100)
     assert seen.get("secret_all") is True
+    assert seen.get("artnrs") == [100]  # DOF.tool-rækkerne grovfiltreres på arten (ellers læses alle observationer)
     assert data["total"] == 2
     secret = [f for f in data["finds"] if f["loknr"] is None]
     assert len(secret) == 1 and secret[0]["lat"] is None and secret[0]["lok"] is None

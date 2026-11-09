@@ -9276,6 +9276,32 @@ true,
 ]
 }
 },
+"/api/thread/{day}/{artnr}/{loknr}/find": {
+"get": {
+"body": false,
+"op": "thread_find_api_thread__day___artnr___loknr__find_get",
+"params": [
+[
+"artnr",
+"path",
+true,
+"{\"title\": \"Artnr\", \"type\": \"integer\"}"
+],
+[
+"day",
+"path",
+true,
+"{\"format\": \"date\", \"title\": \"Day\", \"type\": \"string\"}"
+],
+[
+"loknr",
+"path",
+true,
+"{\"title\": \"Loknr\", \"type\": \"integer\"}"
+]
+]
+}
+},
 "/api/thread/{day}/{artnr}/{loknr}/follow": {
 "post": {
 "body": false,

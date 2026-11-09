@@ -37,6 +37,19 @@ async def optional_user(request: Request, real: User | None = Depends(real_user)
     return real
 
 
+async def short_user(request: Request) -> User | None:
+    """Som optional_user, men med en kortlivet databasesession, der lukkes med det samme. Til lange svar (SSE-strømmen):
+    afhængigheder med yield holdes åbne, til svaret er færdigt, så get_session ville holde en forbindelse fra puljen –
+    og en åben transaktion – i hele strømmens levetid (én pr. åben fane)."""
+    from portal.db import SessionLocal
+
+    async with SessionLocal() as db:
+        real = await real_user(request, db)
+        user = await optional_user(request, real, db)
+        await db.rollback()
+    return user
+
+
 async def require_user(user: User | None = Depends(optional_user)) -> User:
     if user is None:
         raise HTTPException(401, "Log ind for at bruge denne funktion")

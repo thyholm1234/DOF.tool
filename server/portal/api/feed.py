@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.api.deps import optional_user, require_user
+from portal.api.deps import optional_user, require_user, short_user
 from portal.api.social import like_summary, notify_comment
 from portal.cache import kv, publish
 from portal.db import SessionLocal, get_session
@@ -221,7 +221,7 @@ async def thread(day: date, artnr: int, loknr: int, user: User | None = Depends(
     for o in data.get("observations", []):
         o["dku_case"], o["su_ok"] = o["obsid"] in cases, bool(su_ok)  # åben DKU-sag (lyseblåt) og SU-godkendt (guld)
     # Billeder, lyd og DKU-status fra DOFbasen hentes for sig (/media), når tråden er vist – siden skal ikke vente på dem
-    data["find"] = await finds.thread_find(db, day, artnr, loknr)
+    # Fundet (n. fund i året …) for SU/SUB-arter hentes for sig (/find), når tråden er vist
     data["status"] = await reports.thread_status(db, day, artnr, loknr, user)
     data["comments"] = await _comments(db, day, artnr, loknr, user)
     key = f"{day.isoformat()}/{artnr}/{loknr}"
@@ -250,6 +250,13 @@ async def thread_media(day: date, artnr: int, loknr: int, db: AsyncSession = Dep
         out["pending"] = [o["obsid"] for o in missing if o["obsid"] in st["obsids"]] if st["pending"] else []
         out["eta"] = st["eta"]
     return out
+
+
+@router.get("/thread/{day}/{artnr}/{loknr}/find")
+async def thread_find(day: date, artnr: int, loknr: int, db: AsyncSession = Depends(get_session)):
+    """Fundet, tråden hører til (SU/SUB-arter: n. fund i året, varighed, antal fund) – hentes af siden, efter tråden er
+    vist. Beregningen caches for dagen (services/finds.py). {"find": {...} | null}."""
+    return {"find": await finds.thread_find(db, day, artnr, loknr)}
 
 
 async def _comments(db: AsyncSession, day: date, artnr: int, loknr: int, user: User | None) -> list[dict]:
@@ -446,7 +453,7 @@ class _StreamSlot:
 
 
 @router.get("/stream")
-async def stream(request: Request, user: User | None = Depends(optional_user)):
+async def stream(request: Request, user: User | None = Depends(short_user)):
     """Server-sent events: nye observationer, kommentarer og personlige notifikationer."""
     # «Se som bruger»: superadmin får kun det fælles feed – ikke målbrugerens personlige notifikationer (runde 4, U-12)
     personal = user is not None and getattr(request.state, "view_as", None) is None

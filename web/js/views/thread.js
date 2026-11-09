@@ -49,6 +49,7 @@ export async function render(view, [date, artnr, loknr]) {
   const allRows = new Map();  // obsid → visning for alle observationer (medierne hentes, når tråden er vist)
   const likeEl = likeWidget("thread", threadKey, t.likes, { title: `Synes godt om ${t.art}` });
   const weatherEl = h("div", {});
+  const findEl = h("div", {});  // «n. fund i året» for SU/SUB – hentes efter tråden (/find)
   const mapEl = h("div", { class: "map small" });
   const commentsEl = h("div", { class: "stack" });
   // Delelinket kan også åbnes af folk uden bruger (server-renderet side med fundet); indloggede sendes videre hertil
@@ -69,7 +70,7 @@ export async function render(view, [date, artnr, loknr]) {
       h("span", { class: "spacer" }),
       h("div", { class: "row" }, followBtn, h("button", { class: "btn", onclick: share }, "Del"))),
     h("div", { class: "mb" }, likeEl),
-    findNotice(t.find, artnr),
+    findEl,
     h("div", { class: "grid-2" },
       h("div", { class: "stack" },
         statusEl,
@@ -169,6 +170,9 @@ export async function render(view, [date, artnr, loknr]) {
   };
   // Efter første tegning – når browseren har tid (men senest efter et halvt sekund)
   requestAnimationFrame(() => (window.requestIdleCallback || ((f) => setTimeout(f, 50)))(loadMedia, { timeout: 500 }));
+  // Fundet (kun SU/SUB) beregnes på tværs af alle år – hentes for sig, så tråden aldrig venter på det
+  api(`/api/thread/${date}/${artnr}/${loknr}/find`)
+    .then(r => { if (!closed && r.find) findEl.replaceChildren(findNotice(r.find, artnr)); }).catch(() => {});
   const offMedia = live.on("feed", (e) => {
     if (!(e.media || e.media_day === date) || !mediaRows.size) return;
     clearTimeout(mediaTimer);
