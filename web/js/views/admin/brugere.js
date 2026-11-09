@@ -51,6 +51,7 @@ export async function users(body) {
           u.is_test ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Testbruger med lokal adgangskode" }, "test") : null,
           u.account ? null : h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Har ikke oprettet en DOF.tool-konto endnu og kan ikke logge ind, før det sker" }, "ingen konto"),
           u.totp ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Totrinslogin med kode fra en authenticator-app" }, "2FA") : null,
+          /^DT\d{6,}$/.test(u.obserkode) ? h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Kontoen er ikke bundet til en obserkode i DOFbasen (lokal kode)" }, "uden DOFbasen") : null,
           h("div", { class: "muted" }, u.obserkode, u.email ? ` · ${u.email}` : "", u.blocked ? " · spærret" : "")),
         h("td", { class: "wide", "data-label": "Rolle" }, roleSelect(u, meta.role_names, load)),
         h("td", { "data-label": "Moduler" },

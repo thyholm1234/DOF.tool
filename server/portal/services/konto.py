@@ -15,6 +15,9 @@ Forløbet:
    positionstokens for brugeren tilbagekaldes, og api'et starter en ny session.
 4. Derefter: login(e-mail eller obserkode, adgangskode) eller passkey (services/passkeys.py).
 
+Konto uden DOFbasen (request_local_signup → confirm_signup): navn, e-mail og adgangskode, bekræftet med en kode på mail.
+Kontoen får en lokal kode (services/dofbinding.py) og kan senere bindes til en obserkode.
+
 «Glemt adgangskode» kan også klares med den bekræftede e-mail (request_reset → confirm_reset): en kode sendes til
 adressen, og med koden vælges en ny adgangskode. Svaret afslører ikke, om kontoen eller adressen findes.
 
@@ -140,7 +143,11 @@ async def login(db: AsyncSession, ident: str, password: str, ip: str) -> User:
 
 async def verify(db: AsyncSession, obserkode: str, dof_password: str, ip: str) -> dict:
     """Trin 1: obserkoden bekræftes hos DOFbasen. Returnerer bindingsbeviset og det, formularen i trin 2 skal vise."""
+    from portal.services import dofbinding
+
     kode = auth.normalize(obserkode)
+    if dofbinding.is_local(kode):
+        raise AuthError("Det er en lokal DOF.tool-kode, ikke en obserkode. Log ind med din e-mail.", 400)
     if not dof_password:
         raise AuthError("DOFbasen-adgangskoden mangler", 400)
     await auth.rate_limit(kode, ip, prefix="bind")
@@ -213,7 +220,55 @@ async def confirm_signup(db: AsyncSession, pending: str, code: str, ip: str) -> 
         raise AuthError("E-mailen er allerede bekræftet, og kontoen er klar. Log ind.", 410)
     await kv().delete(key + ":tries")
     await kv().set(_done_key(pending), "1", ex=3600)
+    if rec["kode"] is None:
+        return await _apply_local(db, rec["pw_hash"], rec["email"], rec["navn"]), True
     return await _apply(db, rec["kode"], rec["pw_hash"], rec["email"], rec["navn"])
+
+
+async def request_local_signup(db: AsyncSession, navn: str, email: str, password: str, ip: str) -> dict:
+    """Konto uden DOFbasen, trin 1: kontrollér felterne og send en kode til e-mailen (som complete())."""
+    await auth.rate_limit(f"local:{(email or '').strip().lower()}", ip, prefix="signup")
+    navn = (navn or "").strip()[:160]
+    if len(navn) < 2:
+        raise AuthError("Skriv dit navn", 400)
+    email = normalize_email(email)
+    await _email_free(db, email, None)
+    check_new_password(password, "", email)
+    pending = secrets.token_urlsafe(24)
+    code = _new_code()
+    rec = {"kode": None, "email": email, "navn": navn, "pw_hash": auth.hash_password(password),
+           "code": _code_hash(pending, code), "resends": 0}
+    await kv().set(_pending_key(pending), json.dumps(rec), ex=MAIL_TTL)
+    try:
+        await _send_signup_code(email, pending, code, reset=False)
+    except mail.MailError as exc:
+        await kv().delete(_pending_key(pending))
+        raise AuthError("Vi kunne ikke sende en e-mail til adressen. Tjek den, og prøv igen.", 502) from exc
+    return {"pending": pending, "email": email, "expires_in": MAIL_TTL}
+
+
+async def _apply_local(db: AsyncSession, pw_hash: str, email: str, navn: str | None) -> User:
+    """Opret kontoen uden DOFbasen. Den lokale kode bygger på id'et, så rækken gemmes først med en midlertidig kode."""
+    from portal.services import dofbinding
+
+    now = datetime.now(timezone.utc)
+    user = User(obserkode="DT" + secrets.token_hex(6).upper()[:12], navn=navn, role="user", email=email, pw_hash=pw_hash,
+                email_verified_at=now, account_at=now, history_synced_at=now,
+                approved=not await auth.approval_required(db),
+                prefs={"lists_public": True, "push_enabled": True, "afdelinger": [], "kommuner": []})
+    db.add(user)
+    try:
+        await db.flush()
+        user.obserkode = dofbinding.local_code(user.id)
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise AuthError("E-mailadressen bruges allerede af en anden konto", 409) from exc
+    await db.refresh(user)
+    if not user.approved:
+        await auth.notify_pending(db, user)
+        raise AuthError(auth.PENDING_MSG, 403)
+    return user
 
 
 async def resend_signup(pending: str, ip: str) -> dict:

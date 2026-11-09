@@ -79,6 +79,12 @@ async def find_user(obserkode: str) -> str | None:
     return (res.get("result") or [{}])[0].get("userId")
 
 
+async def rename_user(user_id: str, username: str) -> None:
+    """Nyt brugernavn (obserkoden eller den lokale kode, services/dofbinding.py) og dertil hørende pladsholder-e-mail."""
+    await call("PUT", f"/v2/users/human/{user_id}", {
+        "username": username, "email": {"email": f"{username.lower()}@brugere.doftool.invalid", "isVerified": True}})
+
+
 async def delete_user(user_id: str) -> None:
     try:
         await call("DELETE", f"/v2/users/{user_id}")

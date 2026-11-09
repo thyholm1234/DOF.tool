@@ -2500,6 +2500,13 @@ true,
 "params": []
 }
 },
+"/api/auth/konto/opret-lokal": {
+"post": {
+"body": true,
+"op": "account_local_api_auth_konto_opret_lokal_post",
+"params": []
+}
+},
 "/api/auth/login": {
 "post": {
 "body": true,
@@ -7063,6 +7070,20 @@ false,
 "patch": {
 "body": true,
 "op": "update_me_api_me_patch",
+"params": []
+}
+},
+"/api/me/dofbasen/bind": {
+"post": {
+"body": true,
+"op": "dofbasen_bind_api_me_dofbasen_bind_post",
+"params": []
+}
+},
+"/api/me/dofbasen/unbind": {
+"post": {
+"body": true,
+"op": "dofbasen_unbind_api_me_dofbasen_unbind_post",
 "params": []
 }
 },

@@ -119,6 +119,9 @@ class DB:
     async def get(self, model, key):
         return self.user if self.user is not None and self.user.id == key else None
 
+    async def flush(self):
+        pass
+
 
 def user(**kw):
     from portal.services import auth
@@ -569,3 +572,36 @@ def test_vagten_nulstil():
     from portal.main import public_api
 
     assert public_api("/api/auth/konto/glemt") and public_api("/api/auth/konto/nulstil")
+
+
+# ---------------------------------------------------------------- konto uden DOFbasen
+
+
+async def test_konto_uden_dofbasen(kv, approval, mails, dof):
+    from portal.services import auth, dofbinding, konto
+
+    db = DB(None)
+    r = await konto.request_local_signup(db, "Bo Fugl", "bo@example.dk", "en-god-kode-1", "1.1.1.1")
+    assert r["email"] == "bo@example.dk" and not dof  # DOFbasen kaldes ikke
+    u, new = await konto.confirm_signup(db, r["pending"], last_code(mails), "1.1.1.1")
+    assert new and u.obserkode == "DT000099" and dofbinding.is_local(u.obserkode) and not dofbinding.is_bound(u)
+    assert u.email_verified_at and auth.check_password(u.pw_hash, "en-god-kode-1") and u.history_synced_at
+
+
+async def test_konto_uden_dofbasen_afventer_godkendelse(kv, approval, mails):
+    from portal.services import auth, konto
+
+    approval["required"] = True
+    db = DB(None)
+    r = await konto.request_local_signup(db, "Bo Fugl", "bo@example.dk", "en-god-kode-1", "1.1.1.1")
+    with pytest.raises(auth.AuthError) as e:
+        await konto.confirm_signup(db, r["pending"], last_code(mails), "1.1.1.1")
+    assert e.value.status == 403 and approval["notified"] == ["DT000099"]
+
+
+async def test_lokal_kode_kan_ikke_bekraeftes_hos_dofbasen(kv, dof):
+    from portal.services import auth, konto
+
+    with pytest.raises(auth.AuthError):
+        await konto.verify(DB(None), "DT000042", "dof-hemmelig", "1.1.1.1")
+    assert not dof

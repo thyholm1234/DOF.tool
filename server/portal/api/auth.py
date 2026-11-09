@@ -17,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
-from portal.services import konto, passkeys, totp, zitadel
+from portal.services import dofbinding, konto, passkeys, totp, zitadel
 from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
 from portal.services import dataset
@@ -62,6 +62,17 @@ class CodeIn(BaseModel):
     code: str = Field(max_length=16)
 
 
+class LocalSignupIn(BaseModel):
+    navn: str = Field(max_length=160)
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=konto.PW_MAX)
+
+
+class BindIn(BaseModel):
+    obserkode: str = Field(max_length=16)
+    password: str = Field(max_length=200)  # DOFbasen-adgangskoden – sendes kun videre til DOFbasen
+
+
 class ResetRequestIn(BaseModel):
     login: str = Field(max_length=254)  # e-mail eller obserkode
 
@@ -91,7 +102,7 @@ def user_out(user: User, view_as: bool = False) -> dict:
         prefs = {k: v for k, v in prefs.items() if k not in VIEW_AS_HIDDEN_PREFS}
     return {"id": user.id, "obserkode": user.obserkode, "navn": user.navn, "role": user.role,
             "email": None if view_as else user.email, "account": bool(user.pw_hash),
-            "email_verified": bool(user.email_verified_at),
+            "email_verified": bool(user.email_verified_at), "bound": dofbinding.is_bound(user),
             "modules": sorted(auth.modules(user)), "prefs": prefs, "history_synced_at": user.history_synced_at}
 
 
@@ -111,7 +122,7 @@ async def login(body: LoginIn, request: Request, response: Response, db: AsyncSe
 
 async def _password_login(user: User, response: Response, method: str) -> dict:
     await start_session(user, response)
-    if user.history_synced_at is None:
+    if user.history_synced_at is None and dofbinding.is_bound(user):
         await enqueue_history(user.obserkode)
     await activity.track(user.id, "login", None, {"new": False, "method": method})
     return {"user": user_out(user), "new": False, "passkeys": passkeys_offer(user)}
@@ -163,6 +174,16 @@ async def account_confirm(body: PendingIn, request: Request, response: Response,
     return await _account_ready(user, new, response, db)
 
 
+@router.post("/auth/konto/opret-lokal")
+async def account_local(body: LocalSignupIn, request: Request, db: AsyncSession = Depends(get_session)):
+    """Konto uden DOFbasen: navn, e-mail og adgangskode. En kode sendes til e-mailen ({"pending": …}); kontoen oprettes i
+    /auth/konto/email som de andre."""
+    try:
+        return await konto.request_local_signup(db, body.navn, body.email, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+
+
 @router.post("/auth/konto/glemt")
 async def reset_request(body: ResetRequestIn, request: Request, db: AsyncSession = Depends(get_session)):
     """Glemt adgangskode via e-mail, trin 1: en kode sendes til kontoens bekræftede e-mail. Samme svar, uanset om kontoen
@@ -201,7 +222,7 @@ async def _account_ready(user: User, new: bool, response: Response, db: AsyncSes
         except auth.AuthError as exc:
             raise HTTPException(exc.status, str(exc)) from exc
     await start_session(user, response)
-    if new or user.history_synced_at is None:
+    if (new or user.history_synced_at is None) and dofbinding.is_bound(user):
         await enqueue_history(user.obserkode)
     if new:
         await bump("lists")
@@ -367,6 +388,33 @@ async def my_passkey_delete(passkey_id: str = Path(pattern=r"^[0-9]{1,32}$"), us
     return {"ok": True}
 
 
+# ---------------------------------------------------------------- forbindelsen til DOFbasen (services/dofbinding.py)
+
+
+@router.post("/me/dofbasen/unbind")
+async def dofbasen_unbind(body: TotpOffIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Fjern forbindelsen til obserkoden (kræver adgangskoden). Kontoen får en lokal kode; egne data følger med."""
+    try:
+        old = await dofbinding.unbind(db, user, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await activity.track(user.id, "dofbasen_unbind", None, {"obserkode": old, "local": user.obserkode})
+    return {"user": user_out(user)}
+
+
+@router.post("/me/dofbasen/bind")
+async def dofbasen_bind(body: BindIn, request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """Bind kontoen til en obserkode med ét DOFbasen-login – kun hvis ingen anden konto har den."""
+    local = user.obserkode
+    try:
+        await dofbinding.bind(db, user, body.obserkode, body.password, client_ip(request))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await enqueue_history(user.obserkode)
+    await activity.track(user.id, "dofbasen_bind", None, {"obserkode": user.obserkode, "local": local})
+    return {"user": user_out(user)}
+
+
 # ---------------------------------------------------------------- totrinslogin (services/totp.py)
 
 
@@ -524,6 +572,8 @@ RESYNC_EVERY = 3600  # sekunder mellem to synkroniseringer for samme bruger
 @router.post("/me/sync")
 async def resync(user: User = Depends(require_user)):
     """Synkronisér alle egne observationer fra DOFbasen (1900 til i år; højst én gang i timen). Ét kald i gatewayens kø."""
+    if not dofbinding.is_bound(user):
+        raise HTTPException(400, "Kontoen er ikke bundet til en obserkode i DOFbasen")
     if not await kv().set(f"resync:{user.id}", "1", nx=True, ex=RESYNC_EVERY):
         wait = max(1, round(await kv().ttl(f"resync:{user.id}") / 60))
         raise HTTPException(429, f"Du kan synkronisere igen om {wait} min.")

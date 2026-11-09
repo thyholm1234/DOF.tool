@@ -103,9 +103,7 @@ const SECTIONS = {
         h("label", { class: "field" }, h("span", {}, "Telefonnummer"), phone),
         h("small", { class: "muted", style: { marginTop: "-6px" } }, "Vises kun på de kalenderbesøg, hvor du selv vælger det – så andre på trækposten kan ringe, fx når der er noget at se."),
         saveRow(() => patch({ phone: phone.value.trim() }))),
-      card("DOFbasen", null,
-        row("Obserkode", h("span", {}, h("b", {}, u.obserkode), h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Bekræftet hos DOFbasen, da kontoen blev oprettet" }, "bundet"))),
-        h("p", { class: "muted", style: { margin: 0 } }, "Kontoen er bundet til obserkoden. Dine observationer kommer fra DOFbasen og rettes dér.")));
+      dofbasenCard(u));
   },
 
   // ---------------------------------------------------------------- konto og sikkerhed
@@ -294,6 +292,7 @@ const SECTIONS = {
     let syncTimer = null;
     const drawSync = async () => {
       clearTimeout(syncTimer);
+      if (!u.bound) return;
       let s;
       try { s = await api("/api/me/sync"); } catch { return; }
       if (!syncStatus.isConnected && syncTimer !== null) return;  // fanen eller siden er forladt
@@ -307,7 +306,7 @@ const SECTIONS = {
     };
     drawSync();
     panel.append(
-      card("Observationer fra DOFbasen", "Historik kommer fra det lokale arkiv, ældre år hentes én gang ved første login, og nye observationer kommer automatisk med live-hentningen. Synkroniseringen henter alle dine observationer fra DOFbasen igen (fra 1900 til i år), retter dem, der er ændret, og fjerner dem, du har slettet i DOFbasen.",
+      !u.bound ? null : card("Observationer fra DOFbasen", "Historik kommer fra det lokale arkiv, ældre år hentes én gang ved første login, og nye observationer kommer automatisk med live-hentningen. Synkroniseringen henter alle dine observationer fra DOFbasen igen (fra 1900 til i år), retter dem, der er ændret, og fjerner dem, du har slettet i DOFbasen.",
         syncStatus, h("div", { class: "row" }, syncBtn)),
       card("Hent dine data", "Alt, hvad du har lavet i DOF.tool, som én JSON-fil.",
         h("div", { class: "row" }, h("a", { class: "btn", href: "/api/me/export", download: "" }, "Hent mine data"), h("a", { class: "btn ghost", href: "/privatliv" }, "Privatlivspolitik"))),
@@ -345,6 +344,56 @@ async function passkeys(box) {
         catch (err) { toast(err.message, "err"); }
       } }, "Slet")))) : h("p", { style: { margin: 0 } }, "Du har ingen passkeys endnu."),
     h("div", { class: "row" }, add));
+}
+
+/** Forbindelsen til DOFbasen: fjern den (adgangskoden) – eller bind kontoen til en obserkode (ét DOFbasen-login). */
+function dofbasenCard(u) {
+  const box = h("div", { class: "card stack settings-card" });
+  const title = h("h3", { style: { margin: 0 } }, "DOFbasen");
+  const after = async (r, text) => { state.user = { ...state.user, ...r.user }; await refreshUser(); toast(text); box.replaceWith(dofbasenCard(state.user)); };
+  if (u.bound) {
+    const pw = h("input", { type: "password", autocomplete: "current-password", required: true, maxlength: 200 });
+    const btn = h("button", { class: "btn danger" }, "Fjern forbindelsen");
+    const form = h("form", { class: "stack hide", onsubmit: async (e) => {
+      e.preventDefault();
+      if (!confirm(`Fjern forbindelsen til obserkoden ${u.obserkode}?\n\nDine observationer fra DOFbasen vises ikke længere på din konto, og obserkoden kan bruges af en anden konto. Det, du har lavet i DOF.tool, følger med kontoen.`)) return;
+      btn.disabled = true;
+      try { await after(await api("/api/me/dofbasen/unbind", { method: "POST", body: { password: pw.value } }), "Forbindelsen til DOFbasen er fjernet"); }
+      catch (err) { toast(err.message, "err"); pw.select(); btn.disabled = false; }
+    } },
+      h("div", { class: "notice warn stack", style: { gap: "4px" } },
+        h("b", {}, "Hvad sker der?"),
+        h("span", {}, "Kontoen får en lokal kode i stedet for obserkoden. Dine observationer fra DOFbasen bliver i DOFbasen, men vises ikke længere på din konto, i dine lister eller i synkroniseringen."),
+        h("span", {}, "Det, du har lavet i DOF.tool – indtastninger, manuelle kryds, grupper, områder, alarmer, passkeys og totrinslogin – følger med kontoen."),
+        h("span", {}, "Obserkoden bliver ledig, og du kan binde kontoen til en obserkode igen senere med et DOFbasen-login.")),
+      h("label", { class: "field" }, h("span", {}, "Din DOF.tool-adgangskode"), pw),
+      h("div", { class: "row" }, btn, h("button", { type: "button", class: "btn ghost", onclick: () => form.classList.add("hide") }, "Annullér")));
+    box.append(title,
+      row("Obserkode", h("span", {}, h("b", {}, u.obserkode), h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Bekræftet hos DOFbasen" }, "bundet")),
+        u.role === "superadmin" || u.view_as ? null : h("button", { type: "button", class: "btn sm ghost", onclick: () => { form.classList.toggle("hide"); pw.focus(); } }, "Fjern forbindelse")),
+      h("p", { class: "muted", style: { margin: 0 } }, "Kontoen er bundet til obserkoden. Dine observationer kommer fra DOFbasen og rettes dér."),
+      form);
+    return box;
+  }
+  const kode = h("input", { autocomplete: "off", placeholder: "Fx 8000ABC", required: true, maxlength: 16, style: { textTransform: "uppercase" }, autocapitalize: "characters", spellcheck: "false" });
+  const pw = h("input", { type: "password", autocomplete: "off", required: true, maxlength: 200 });
+  const btn = h("button", { class: "btn primary" }, "Bekræft hos DOFbasen og bind");
+  const form = h("form", { class: "stack hide", onsubmit: async (e) => {
+    e.preventDefault();
+    btn.disabled = true; btn.textContent = "Spørger DOFbasen…";
+    try { const r = await api("/api/me/dofbasen/bind", { method: "POST", body: { obserkode: kode.value.trim().toUpperCase(), password: pw.value } }); pw.value = ""; await after(r, `Kontoen er bundet til ${r.user.obserkode}. Vi henter dine observationer i baggrunden.`); }
+    catch (err) { toast(err.message, "err"); pw.select(); btn.disabled = false; btn.textContent = "Bekræft hos DOFbasen og bind"; }
+  } },
+    h("label", { class: "field" }, h("span", {}, "Obserkode"), kode),
+    h("label", { class: "field" }, h("span", {}, "DOFbasen-adgangskode"), pw),
+    h("small", { class: "muted", style: { marginTop: "-6px" } }, "Adgangskoden sendes kun videre til DOFbasen og gemmes ikke. Obserkoden må ikke allerede have en konto i DOF.tool."),
+    h("div", { class: "row" }, btn, h("button", { type: "button", class: "btn ghost", onclick: () => form.classList.add("hide") }, "Annullér")));
+  box.append(title,
+    row("Kode", h("span", {}, h("b", {}, u.obserkode), h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Lokal kode i DOF.tool – ikke en obserkode i DOFbasen" }, "uden DOFbasen")),
+      u.view_as ? null : h("button", { type: "button", class: "btn sm ghost", onclick: () => { form.classList.toggle("hide"); kode.focus(); } }, "Bind til obserkode")),
+    h("p", { class: "muted", style: { margin: 0 } }, "Kontoen er ikke bundet til DOFbasen. Det, du indtaster i DOF.tool, står under din lokale kode. Har du en obserkode, kan du binde kontoen til den – så kommer dine observationer fra DOFbasen med."),
+    form);
+  return box;
 }
 
 /** Totrinslogin: kode fra en authenticator-app efter adgangskoden (server/portal/services/totp.py). */

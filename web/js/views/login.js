@@ -7,6 +7,7 @@
 //   2. Vælg e-mail og egen adgangskode – kontoen bindes til obserkoden
 //   3. Bekræft e-mailen med koden, der sendes til den (eller linket i mailen: #/login?bekraeft=…&kode=…)
 //   4. Klar (tilbud om passkey på enheden)
+// Uden DOFbasen: navn, e-mail og adgangskode → koden på mail → kontoen med en lokal kode (kan bindes senere under Profil).
 // Glemt adgangskode: en kode til den bekræftede e-mail (#/login?nulstil=…&kode=…) – eller DOFbasen-vejen ovenfor.
 import { api, state, h, icon, params, toast } from "../core.js";
 import { refreshUser } from "../app.js";
@@ -47,6 +48,7 @@ export async function render(view) {
     done: (r) => showDone(card, r),
     totp: (r) => showTotp(card, go, r),
     forgot: (prefill) => showForgot(card, go, flow, prefill),
+    local: () => showCreateLocal(card, go),
     reset: (r, code) => showReset(card, go, r, code),
   };
   const mode = link.konto;
@@ -83,7 +85,7 @@ async function finish(r, go) {  // r.flow: kom fra oprettelsen (trin 3 vises med
   await refreshUser();
   live.restart();
   if (r.passkeys && passkey.supported()) { go.done(r); return; }
-  toast(r.new ? `Velkommen, ${r.user.navn}! Vi henter dine ældre observationer i baggrunden.` : `Velkommen, ${r.user.navn}`);
+  toast(r.new && r.user.bound ? `Velkommen, ${r.user.navn}! Vi henter dine ældre observationer i baggrunden.` : r.new ? `Velkommen, ${r.user.navn}!` : `Velkommen, ${r.user.navn}`);
   location.hash = params().next || (r.new ? "#/profil?fane=omraader" : "#/");
 }
 
@@ -172,6 +174,10 @@ function showVerify(card, go, flow, purpose, kode) {
     msg,
     h("div", { class: "auth-why" }, h("span", { html: icon("shield") }),
       h("p", {}, "DOFbasen-adgangskoden sendes kun videre til DOFbasen og gemmes ikke i DOF.tool – heller ikke krypteret. Du skal bruge den her og aldrig igen.")),
+    reset ? null : h("div", { class: "auth-new stack" },
+      h("div", {}, h("b", {}, "Ingen DOFbasen-konto?"),
+        h("p", { class: "muted", style: { margin: "2px 0 0" } }, "Opret en konto med e-mail og adgangskode alene. Du kan binde den til en obserkode senere under Profil.")),
+      big("", "Opret konto uden DOFbasen", { type: "button", onclick: () => go.local() })),
     back(go));
   (obs.value ? pw : obs).focus();
 }
@@ -247,6 +253,40 @@ function showCreate(card, go, flow) {
   (reset ? pw : email).focus();
 }
 
+// ---------------------------------------------------------------- konto uden DOFbasen
+
+function showCreateLocal(card, go) {
+  const navn = h("input", { autocomplete: "name", maxlength: 160, required: true });
+  const email = h("input", { type: "email", autocomplete: "email", maxlength: 254, required: true, placeholder: "navn@eksempel.dk" });
+  const pw = h("input", { type: "password", autocomplete: "new-password", required: true, minlength: PW_MIN, maxlength: 200 });
+  const pw2 = h("input", { type: "password", autocomplete: "new-password", required: true, maxlength: 200 });
+  const btn = big("primary", "Opret konto");
+  const msg = h("div", {});
+  card.replaceChildren(
+    h("h2", { style: { margin: 0 } }, "Opret konto uden DOFbasen"),
+    h("p", { class: "muted", style: { margin: 0 } }, "Kontoen får en lokal kode i stedet for en obserkode. Live-fund, ture, kalendere og læring virker som for alle andre; dine egne observationer fra DOFbasen kommer først med, hvis du binder kontoen til en obserkode under Profil."),
+    h("form", { class: "stack", onsubmit: async (e) => {
+      e.preventDefault();
+      if (pw.value.length < PW_MIN) { msg.replaceChildren(notice(`Adgangskoden skal være mindst ${PW_MIN} tegn.`)); return; }
+      if (pw.value !== pw2.value) { msg.replaceChildren(notice("De to adgangskoder er ikke ens.")); return; }
+      const done = busy(btn, "Opretter…");
+      try {
+        const r = await api("/api/auth/konto/opret-lokal", { method: "POST", body: { navn: navn.value.trim(), email: email.value.trim(), password: pw.value } });
+        go.mail({ ...r, local: true });
+      } catch (err) { msg.replaceChildren(notice(err.message)); } finally { done(); }
+    } },
+      field("Navn", navn),
+      field("E-mail", email),
+      h("small", { class: "muted", style: { marginTop: "-6px" } }, "Du logger ind med e-mailen. Vi sender en kode til adressen, som du skal bekræfte den med."),
+      field("Adgangskode", pw),
+      field("Gentag adgangskoden", pw2),
+      h("small", { class: "muted" }, `Mindst ${PW_MIN} tegn.`),
+      btn),
+    msg,
+    back(go, "Annullér"));
+  navn.focus();
+}
+
 // ---------------------------------------------------------------- trin 3: bekræft e-mailen
 
 function showMail(card, go, flow, r, prefill) {
@@ -255,7 +295,7 @@ function showMail(card, go, flow, r, prefill) {
   const btn = big("primary", "Bekræft");
   const msg = h("div", {});
   const restart = (text) => h("div", { class: "notice err stack", style: { gap: "8px" } }, h("span", {}, text),
-    h("button", { type: "button", class: "btn sm", onclick: () => go.verify(r.reset ? "glemt" : "opret") }, "Start forfra"));
+    h("button", { type: "button", class: "btn sm", onclick: () => r.local ? go.local() : go.verify(r.reset ? "glemt" : "opret") }, "Start forfra"));
   const submit = async () => {
     const done = busy(btn, "Bekræfter…");
     try {
@@ -437,11 +477,12 @@ function showDone(card, r, pendingMsg) {
     catch (err) { done(); toast(`${err.message} Du kan prøve igen under Profil.`, "err"); }
   } });
   const title = r.reset ? "Ny adgangskode gemt" : r.flow ? `Velkommen, ${r.user.navn}!` : `Velkommen tilbage, ${r.user.navn}`;
-  const text = r.reset ? "Alle dine andre enheder er logget ud." : r.flow ? `Din konto er bundet til obserkoden ${r.user.obserkode}.` : "";
+  const text = r.reset ? "Alle dine andre enheder er logget ud." : !r.flow ? ""
+    : r.user.bound ? `Din konto er bundet til obserkoden ${r.user.obserkode}.` : "Din konto er klar. Du kan binde den til en obserkode i DOFbasen under Profil.";
   card.replaceChildren(r.flow ? stepper(4) : null,
     h("div", { class: "auth-hello" }, h("span", { class: "auth-dot done big", html: icon("check") }),
       h("h2", { style: { margin: 0 } }, title)),
-    text || r.new ? h("p", { style: { margin: 0 } }, text, r.new ? " Vi henter dine ældre observationer i baggrunden." : "") : null,
+    text || r.new ? h("p", { style: { margin: 0 } }, text, r.new && r.user.bound ? " Vi henter dine ældre observationer i baggrunden." : "") : null,
     h("div", { class: "auth-why" }, h("span", { html: icon("user") }),
       h("p", {}, h("b", {}, "Log ind hurtigere næste gang. "), "Med en passkey bruger du Face ID, fingeraftryk eller skærmlås i stedet for adgangskoden. Nøglen bliver på denne enhed.")),
     pkBtn, big("ghost", "Ikke nu", { type: "button", onclick: next }));
