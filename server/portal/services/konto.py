@@ -265,6 +265,7 @@ async def _apply_local(db: AsyncSession, pw_hash: str, email: str, navn: str | N
         await db.rollback()
         raise AuthError("E-mailadressen bruges allerede af en anden konto", 409) from exc
     await db.refresh(user)
+    await auth.ensure_superadmin(db)
     if not user.approved:
         await auth.notify_pending(db, user)
         raise AuthError(auth.PENDING_MSG, 403)
@@ -328,6 +329,8 @@ async def _apply(db: AsyncSession, kode: str, pw_hash: str, email: str | None, n
         await db.commit()
     except Exception:  # noqa: BLE001
         await db.rollback()
+    if email:
+        await auth.ensure_superadmin(db)  # SUPERADMIN_EMAIL: rollen følger den bekræftede adresse
     if not user.approved:
         if new:
             await auth.notify_pending(db, user)
@@ -396,6 +399,7 @@ async def confirm_reset(db: AsyncSession, token: str, code: str, password: str, 
     user.pw_hash = auth.hash_password(password)
     user.email_verified_at = datetime.now(timezone.utc)  # koden kom frem: adressen virker stadig
     await db.commit()
+    await auth.ensure_superadmin(db)
     await logout_user(user.id)
     if not user.approved:
         raise AuthError(auth.PENDING_MSG, 403)
@@ -559,6 +563,7 @@ async def confirm_email_change(db: AsyncSession, user: User, code: str, ip: str)
     except IntegrityError as exc:
         await db.rollback()
         raise AuthError("E-mailadressen bruges allerede af en anden konto", 409) from exc
+    await auth.ensure_superadmin(db)
     if old and old.lower() != user.email:
         try:
             app, navn, link = get_settings().app_name, user.navn or user.obserkode, _url("/#/login?konto=glemt")

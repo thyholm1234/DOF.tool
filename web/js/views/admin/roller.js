@@ -33,7 +33,7 @@ export async function rolesPanel(body) {
         h("small", { class: "muted" }, `${fmtN(r.users)} ${r.users === 1 ? "bruger" : "brugere"}`),
         r.fixed ? h("small", { class: "muted", title: r.locked ? "Almindelige brugere har ingen admin-moduler" : "Administratorer har særlige rettigheder i koden og kan ikke slettes" }, "fast rolle")
           : h("button", { class: "btn sm ghost danger", type: "button", onclick: () => removeRole(r) }, "Slet"))),
-      h("th", { class: "roles-col" }, h("b", {}, "Superadmin"), h("small", { class: "muted" }, d.superadmin.obserkode ? `${d.superadmin.obserkode} · fra .env` : "fra .env"), h("small", { class: "muted" }, "alle moduler")));
+      h("th", { class: "roles-col" }, h("b", {}, "Superadmin"), h("small", { class: "muted" }, d.superadmin.email ? `${d.superadmin.email} · fra .env` : d.superadmin.obserkode ? `${d.superadmin.obserkode} · fra .env` : "fra .env"), h("small", { class: "muted" }, "alle moduler")));
     const rows = Object.entries(d.modules).map(([m, label]) => {
       const [name, rest] = label.split(": ");
       return h("tr", {}, h("th", { class: "roles-mod", scope: "row" }, h("b", {}, name), rest ? h("small", { class: "muted", style: { display: "block" } }, rest) : null),

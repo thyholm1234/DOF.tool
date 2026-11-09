@@ -370,7 +370,7 @@ function dofbasenCard(u) {
       h("div", { class: "row" }, btn, h("button", { type: "button", class: "btn ghost", onclick: () => form.classList.add("hide") }, "Annullér")));
     box.append(title,
       row("Obserkode", h("span", {}, h("b", {}, u.obserkode), h("span", { class: "tag plain", style: { marginLeft: "6px" }, title: "Bekræftet hos DOFbasen" }, "bundet")),
-        u.role === "superadmin" || u.view_as ? null : h("button", { type: "button", class: "btn sm ghost", onclick: () => { form.classList.toggle("hide"); pw.focus(); } }, "Fjern forbindelse")),
+        u.view_as ? null : h("button", { type: "button", class: "btn sm ghost", onclick: () => { form.classList.toggle("hide"); pw.focus(); } }, "Fjern forbindelse")),
       h("p", { class: "muted", style: { margin: 0 } }, "Kontoen er bundet til obserkoden. Dine observationer kommer fra DOFbasen og rettes dér."),
       form);
     return box;

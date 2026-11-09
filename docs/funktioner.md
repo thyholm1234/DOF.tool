@@ -78,14 +78,16 @@ mærket *ingen konto*.
 **Konti uden DOFbasen** (`services/dofbinding.py`). En konto kan være uden forbindelse til en obserkode: oprettet med
 *Opret konto uden DOFbasen* (navn, e-mail, adgangskode, kode på mail – `POST /api/auth/konto/opret-lokal`, samme
 godkendelse som andre nye brugere), eller fordi brugeren har fjernet forbindelsen under Profil → *DOFbasen*
-(`POST /api/me/dofbasen/unbind`, kræver adgangskoden; ikke superadmin). Kontoen har da en lokal kode, `DT` + id
+(`POST /api/me/dofbasen/unbind`, kræver adgangskoden; superadmin kun, når rollen er bundet til e-mailen). Kontoen har da en lokal kode, `DT` + id
 (`DT000042`), i `users.obserkode`; rigtige obserkoder starter med et ciffer eller DOF/OSS/IC/NIMBUS, og koden tjekkes mod
 observatørregistret. Ved fjernelse flyttes brugerens egne indtastninger (`field_trips`/`field_reports` med eget
 `user_id`), manuelle kryds (`kl_kryds`, `nf_kryds`) og listegruppe-medlemskaber til den lokale kode; DOFbasens
 observationer bliver ved obserkoden, som bliver ledig. Med ét DOFbasen-login kan kontoen bindes til en obserkode igen
 (`POST /api/me/dofbasen/bind`) – kun hvis ingen anden konto har den – og data flyttes med. Zitadel-brugernavnet følger
 koden, så en ny konto på en frigivet obserkode aldrig arver den gamle kontos passkeys og 2FA. Uden forbindelse hentes
-ingen historik og kan ikke synkroniseres; Admin → Brugere viser mærket *uden DOFbasen*.
+ingen historik og kan ikke synkroniseres; Admin → Brugere viser mærket *uden DOFbasen*. Superadmin kan bindes til en e-mail
+(`SUPERADMIN_EMAIL`, vinder over `SUPERADMIN_OBSERKODE`): kontoen med den bekræftede adresse får rollen ved opstart og
+så snart adressen bekræftes (oprettelse, skift af e-mail, nulstilling), og kan derfor stå uden DOFbasen.
 
 **Totrinslogin (TOTP)** (`services/totp.py`). Profil → *Konto og sikkerhed* → *Totrinslogin* (kun inden for 15 minutter
 efter et login): Zitadel laver hemmeligheden, api'et viser den som QR-kode (segno) med udstederen `TOTP_ISSUER` (standard

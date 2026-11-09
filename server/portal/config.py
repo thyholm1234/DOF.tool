@@ -27,6 +27,9 @@ class Settings(BaseSettings):
 
     # Superadmin er denne obserkode (sættes ved opstart). Den logger ind med sin DOFbasen-adgangskode som alle andre.
     superadmin_obserkode: str = ""
+    # Superadmin bundet til e-mailen i stedet (vinder over obserkoden): kontoen med denne bekræftede e-mail får rollen –
+    # også uden forbindelse til DOFbasen (services/auth.ensure_superadmin)
+    superadmin_email: str = ""
 
     session_days: int = 90
     cookie_secure: bool = False  # login-cookien er altid Secure, når PUBLIC_URL er https

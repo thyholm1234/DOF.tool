@@ -66,7 +66,8 @@ async def roles(user: User = Depends(superadmin), db: AsyncSession = Depends(get
         "modules": MODULES,
         "roles": [{"key": r.key, "name": r.name, "modules": sorted(ROLE_MODULES.get(r.key, ())), "fixed": r.key in FIXED_ROLES,
                    "locked": r.key == "user", "users": counts.get(r.key, 0)} for r in rows],
-        "superadmin": {"obserkode": get_settings().superadmin_obserkode.upper() or None},
+        "superadmin": {"obserkode": None if get_settings().superadmin_email.strip() else get_settings().superadmin_obserkode.upper() or None,
+                       "email": get_settings().superadmin_email.strip().lower() or None},
         "people": [{**dict(p), "modules": sorted(modules(User(role=p["role"], blocked=False, permissions=p["permissions"])))}
                    for p in people],
     }

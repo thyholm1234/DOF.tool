@@ -7,7 +7,8 @@ bogstavpræfikser (DOF…, OSS…, IC…); ingen starter med DT, og koden kontro
 
 * unbind: kræver adgangskoden. Det, brugeren har lavet i DOF.tool under obserkoden (egne indtastninger, manuelle kryds,
   medlemskab af listegrupper), flyttes til den lokale kode; DOFbasens egne observationer bliver ved obserkoden, som nu er
-  ledig – ejeren kan oprette en ny konto med den. Superadmin (obserkoden fra .env) kan ikke fjerne forbindelsen.
+  ledig – ejeren kan oprette en ny konto med den. Superadmin kan kun fjerne forbindelsen, når rollen er bundet til
+  e-mailen (SUPERADMIN_EMAIL) og ikke til obserkoden.
 * bind: med ét DOFbasen-login, og kun hvis ingen anden konto har obserkoden. Det under den lokale kode flyttes med.
 * Zitadel-brugernavnet følger koden (zitadel.rename_user), så en ny konto på en frigivet obserkode aldrig kan blive
   koblet til den gamle kontos passkeys og totrinslogin (users.zitadel_id er desuden unik)."""
@@ -100,8 +101,9 @@ async def unbind(db: AsyncSession, user: User, password: str, ip: str) -> str:
     await auth.rate_limit(f"unbind:{user.id}", ip, prefix="bind")
     if not is_bound(user):
         raise AuthError("Kontoen er ikke bundet til en obserkode", 400)
-    if user.role == auth.SUPERADMIN:
-        raise AuthError("Superadmin er obserkoden fra .env og kan ikke fjerne forbindelsen", 400)
+    if user.role == auth.SUPERADMIN and not auth.superadmin_by_email():
+        raise AuthError("Superadmin er obserkoden fra .env (SUPERADMIN_OBSERKODE) og kan ikke fjerne forbindelsen. "
+                        "Bind superadmin til e-mailen med SUPERADMIN_EMAIL først.", 400)
     _check_pw(user, password)
     new = local_code(user.id)
     if await _code_taken(db, new, user.id):

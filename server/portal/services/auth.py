@@ -13,7 +13,7 @@ import re
 import secrets
 from datetime import datetime, timezone
 
-from sqlalchemy import or_, select, text, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv
@@ -108,19 +108,36 @@ def normalize(kode: str) -> str:
     return kode
 
 
+def superadmin_by_email() -> str:
+    """SUPERADMIN_EMAIL (små bogstaver), hvis superadmin er bundet til e-mailen; ellers ''."""
+    return get_settings().superadmin_email.strip().lower()
+
+
 async def ensure_superadmin(session: AsyncSession) -> None:
-    """Superadmin er obserkoden fra .env. Den opretter sin DOF.tool-konto som alle andre (services/konto.py)."""
+    """Superadmin er kontoen med den bekræftede e-mail SUPERADMIN_EMAIL – eller, uden den, obserkoden SUPERADMIN_OBSERKODE.
+    Med e-mailen kan superadmin stå selv uden DOFbasen. Kaldes ved opstart og når en konto oprettes eller får ny e-mail
+    (services/konto.py), så rollen følger, så snart adressen er bekræftet. Kun en bekræftet adresse tæller."""
     s = get_settings()
-    if not s.superadmin_obserkode:
+    email = superadmin_by_email()
+    if email:
+        user = (await session.execute(select(User).where(func.lower(User.email) == email,
+                                                         User.email_verified_at.is_not(None)))).scalar_one_or_none()
+        if user is None:
+            return  # kontoen findes ikke endnu: rollen gives, når den oprettes og e-mailen bekræftes
+    elif s.superadmin_obserkode:
+        kode = normalize(s.superadmin_obserkode)
+        user = (await session.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
+        if user is None:
+            user = User(obserkode=kode, navn=kode, role="superadmin", prefs={})
+            session.add(user)
+    else:
         return
-    kode = normalize(s.superadmin_obserkode)
-    user = (await session.execute(select(User).where(User.obserkode == kode))).scalar_one_or_none()
-    if user is None:
-        user = User(obserkode=kode, navn=kode, role="superadmin", prefs={})
-        session.add(user)
+    if user.role == SUPERADMIN and user.approved and not (await session.execute(
+            select(User.id).where(User.role == SUPERADMIN, User.id != user.id))).first():
+        return
     user.role = SUPERADMIN
     user.approved = True
-    # Der er kun én superadmin – den fra .env. Andre med rollen (fx en tidligere SUPERADMIN_OBSERKODE) bliver administratorer.
+    # Der er kun én superadmin – den fra .env. Andre med rollen (fx en tidligere SUPERADMIN_OBSERKODE/-EMAIL) bliver administratorer.
     await session.execute(update(User).where(User.role == SUPERADMIN, User.id != user.id).values(role="admin"))
     await session.commit()
 

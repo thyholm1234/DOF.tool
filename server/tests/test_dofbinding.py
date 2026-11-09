@@ -189,3 +189,72 @@ def test_se_som_bruger_og_vagten():
 
     assert view_as.blocked("POST", "/api/me/dofbasen/unbind") and view_as.blocked("POST", "/api/me/dofbasen/bind")
     assert not public_api("/api/me/dofbasen/unbind") and public_api("/api/auth/konto/opret-lokal")
+
+
+# ---------------------------------------------------------------- superadmin bundet til e-mailen
+
+
+class SuperDB:
+    """users-tabellen som en liste; forespørgslerne i ensure_superadmin skelnes på deres tekst."""
+
+    def __init__(self, users):
+        self.users = users
+        self.commits = 0
+
+    async def execute(self, stmt, params=None):
+        sql = str(stmt)
+        if sql.startswith("UPDATE users"):
+            keep = stmt.compile().params.get("id_1")
+            for u in self.users:
+                if u.role == "superadmin" and u.id != keep:
+                    u.role = "admin"
+            return SimpleNamespace()
+        p = stmt.compile().params
+        if "lower(users.email)" in sql:
+            hit = [u for u in self.users if (u.email or "").lower() == p.get("lower_1") and u.email_verified_at]
+            return SimpleNamespace(scalar_one_or_none=lambda: hit[0] if hit else None)
+        if "users.obserkode" in sql:
+            hit = [u for u in self.users if u.obserkode == p.get("obserkode_1")]
+            return SimpleNamespace(scalar_one_or_none=lambda: hit[0] if hit else None)
+        others = [u for u in self.users if u.role == "superadmin" and u.id != p.get("id_1")]
+        return SimpleNamespace(first=lambda: (others[0].id,) if others else None)
+
+    def add(self, u):
+        self.users.append(u)
+
+    async def commit(self):
+        self.commits += 1
+
+
+def su(id, **kw):
+    return SimpleNamespace(**{"id": id, "obserkode": f"80{id}ABC", "email": None, "email_verified_at": None, "role": "user",
+                              "approved": True, **kw})
+
+
+@pytest.mark.asyncio
+async def test_superadmin_efter_bekraeftet_email(monkeypatch):
+    from portal.config import get_settings
+    from portal.services import auth
+
+    monkeypatch.setattr(get_settings(), "superadmin_email", " Chef@Example.dk ")
+    monkeypatch.setattr(get_settings(), "superadmin_obserkode", "8001ABC")
+    old = su(1, role="superadmin")
+    unverified = su(2, email="chef@example.dk")
+    db = SuperDB([old, unverified])
+    await auth.ensure_superadmin(db)
+    assert old.role == "superadmin" and unverified.role == "user"  # kun en bekræftet adresse tæller
+    unverified.email_verified_at = "2026-11-09"
+    unverified.approved = False
+    await auth.ensure_superadmin(db)
+    assert unverified.role == "superadmin" and unverified.approved and old.role == "admin"  # e-mailen vinder over obserkoden
+
+
+@pytest.mark.asyncio
+async def test_superadmin_kan_fjerne_forbindelse_naar_bundet_til_email(env, monkeypatch):
+    from portal.config import get_settings
+    from portal.services import dofbinding
+
+    monkeypatch.setattr(get_settings(), "superadmin_email", "anna@example.dk")
+    u = user(role="superadmin")
+    assert await dofbinding.unbind(DB(u), u, "rigtig-kode-1", "1.1.1.1") == "8220CVH"
+    assert u.obserkode == "DT000042"

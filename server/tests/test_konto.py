@@ -15,6 +15,15 @@ class KV(FakeKV):
         return self.data.pop(k, None)
 
 
+@pytest.fixture(autouse=True)
+def no_superadmin(monkeypatch):
+    """Testene må ikke afhænge af SUPERADMIN_* i .env (ensure_superadmin kaldes, når en e-mail bekræftes)."""
+    from portal.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "superadmin_email", "")
+    monkeypatch.setattr(get_settings(), "superadmin_obserkode", "")
+
+
 @pytest.fixture
 def kv(monkeypatch):
     from portal.services import account, auth, konto, position_privacy
