@@ -49,7 +49,9 @@ export async function render(view, [date, artnr, loknr]) {
   const allRows = new Map();  // obsid → visning for alle observationer (medierne hentes, når tråden er vist)
   const likeEl = likeWidget("thread", threadKey, t.likes, { title: `Synes godt om ${t.art}` });
   const weatherEl = h("div", {});
-  const findEl = h("div", {});  // «n. fund i året» for SU/SUB – hentes efter tråden (/find)
+  const findEl = h("div", {});
+  // Én samlet linje, mens billeder/lyd hentes hos DOFbasen – ikke én pr. observation
+  const mediaStatus = h("small", { class: "muted", style: { display: "none", margin: "-4px 0 8px" } });  // «n. fund i året» for SU/SUB – hentes efter tråden (/find)
   const mapEl = h("div", { class: "map small" });
   const commentsEl = h("div", { class: "stack" });
   // Delelinket kan også åbnes af folk uden bruger (server-renderet side med fundet); indloggede sendes videre hertil
@@ -77,6 +79,7 @@ export async function render(view, [date, artnr, loknr]) {
         reps.length ? h("div", { class: "card" }, h("h3", {}, "Feltmeldinger i portalen"),
           h("p", { class: "muted", style: { fontSize: ".85rem", marginTop: 0 } }, "Indtastet direkte i portalen."), repList) : null,
         h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
+          mediaStatus,
           obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, mediaRows, allRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
       h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
         weatherEl,
@@ -155,13 +158,22 @@ export async function render(view, [date, artnr, loknr]) {
   // det op hos DOFbasen (forrest i køen) og melder, når det er hentet. Udebliver beskeden (fx mistet forbindelse), spørges
   // der også med jævne mellemrum, så længe noget venter – og ventetiden opdateres.
   let mediaTimer = null, polls = 0, closed = false;
+  const drawMediaStatus = (eta) => {
+    const n = mediaRows.size;
+    mediaStatus.style.display = n ? "block" : "none";
+    if (!n) return;
+    const wait = eta > 5 ? ` – ca. ${eta < 90 ? `${eta} sek.` : `${Math.round(eta / 60)} min.`}` : "…";
+    mediaStatus.replaceChildren(h("span", { class: "spinner" }), ` Henter billeder og lyd fra DOFbasen${n > 1 ? ` (${n} obs.)` : ""}${wait}`);
+  };
   const applyMedia = (m, rows) => {
-    for (const [id, show] of rows) show(m.media?.[id] || null, { pending: (m.pending || []).includes(id), eta: m.eta });
+    for (const [id, show] of rows) show(m.media?.[id] || null, { pending: (m.pending || []).includes(id) });
+    drawMediaStatus(m.eta);
   };
   const refreshMedia = async () => {
     if (!mediaRows.size || closed) return;
     try { applyMedia(await api(`/api/thread/${date}/${artnr}/${loknr}/media`), new Map(mediaRows)); } catch { /* næste forsøg */ }
     if (mediaRows.size && ++polls < 20 && !closed) mediaTimer = setTimeout(refreshMedia, 8000);
+    else mediaStatus.style.display = "none";  // opgivet (eller færdig): ingen evig spinner
   };
   const loadMedia = async () => {
     if (!allRows.size || closed) return;
@@ -201,8 +213,7 @@ function obsRow(o, mediaRows, allRows) {
   const show = (r, ms) => {
     if (!r) {
       dkuEl.replaceChildren(o.dku_case ? h("span", { class: "tag dku-status behandling", title: "Der er en DKU-sag på observationen" }, "DKU-sag") : "");
-      media.replaceChildren(ms.pending ? h("small", { class: "muted" }, h("span", { class: "spinner" }),
-        ms.eta > 5 ? ` Henter billeder og lyd fra DOFbasen – ca. ${ms.eta < 90 ? `${ms.eta} sek.` : `${Math.round(ms.eta / 60)} min.`}` : " Henter billeder og lyd fra DOFbasen…") : "");
+      media.replaceChildren();
       if (ms.pending) mediaRows.set(o.obsid, show);
       else mediaRows.delete(o.obsid);
       return;
