@@ -95,35 +95,38 @@ hvor ny kode skal ligge, står i **[docs/arkitektur.md](docs/arkitektur.md)**.
 ```mermaid
 flowchart LR
   subgraph K["Klienter"]
-    PWA["🌐 PWA<br/>ES-moduler · Leaflet<br/>service worker · IndexedDB"]
-    APP["📱 Android/iOS<br/>Capacitor 8<br/>baggrunds-GPS · tale (ONNX)"]
+    PWA["🌐 PWA<br/>ES-moduler · Leaflet (OSM-kort)<br/>service worker · IndexedDB"]
+    APP["📱 Android/iOS · Capacitor 8<br/>baggrundsposition · tale på telefonen<br/>passkeys"]
+    EXT["🔗 Kalenderapps · showcase-API<br/>delelinks"]
   end
 
-  subgraph S["docker compose"]
-    API["⚡ api<br/>FastAPI · REST · SSE"]
-    W["⚙️ worker<br/>gateway · planlagte job<br/>arkivimport · fænologi"]
-    PG[("🐘 PostgreSQL 17<br/>+ PostGIS")]
-    VK[("🔴 Valkey<br/>cache · kø · pub/sub")]
-    S3[("🪣 RustFS<br/>S3: foto og lyd")]
+  PX["🔒 Reverse proxy<br/>TLS :443"]
+
+  subgraph S["docker compose «doftool»"]
+    API["⚡ api · FastAPI<br/>REST · SSE · konti"]
+    W["⚙️ worker (én proces)<br/>DOFbasen-gateway · planlagte job<br/>arkivimport · alarmer → push"]
+    PG[("🐘 PostgreSQL 17 + PostGIS<br/>grupper: brugere · observationer<br/>· DOF.tool-indtastninger<br/>primary + replikaer")]
+    VK[("🔴 Valkey<br/>sessioner · køer · cache · pub/sub")]
+    S3[("🪣 RustFS<br/>S3: fotos og lyd")]
+    ZIT["🔑 Zitadel<br/>passkeys (kun internt)"]
+    SPM["🗣️ speech-model<br/>bygger talemodellen (ONNX)"]
     DBA["🛠️ db-admin<br/>noder · replikaer"]
   end
 
-  subgraph E["Eksterne kilder"]
-    DOF["dofbasen.dk<br/>højst 1 udtræk/min"]
-    DMI["DMI open data<br/>vejr · klima"]
-    DOFDK["dof.dk<br/>ture"]
+  subgraph E["Eksterne tjenester"]
+    DOF["dofbasen.dk<br/>højst 1 udtræk/2 min"]
+    DMI["DMI · Open-Meteo<br/>vejr · klima · prognose"]
+    WEB["dof.dk · netfugl.dk · xeno-canto<br/>ture · RSS · lyd"]
+    PUSH["FCM · browser-push"]
   end
 
-  PWA -->|HTTPS| API
-  APP -->|HTTPS| API
-  API --> PG
-  API --> VK
-  API --> S3
-  W --> PG
-  W --> VK
-  W --> DOF
-  W --> DMI
-  W --> DOFDK
+  PWA & APP & EXT -->|HTTPS| PX --> API
+  API --> PG & VK & S3
+  API -->|passkeys| ZIT
+  SPM -->|model.onnx| API
+  W --> PG & VK & S3
+  W -->|gateway| DOF
+  W --> DMI & WEB & PUSH
   DBA --> PG
 ```
 
@@ -132,8 +135,10 @@ flowchart LR
 | Frontend | Vanilla JavaScript (ES-moduler, intet byggetrin), Leaflet, service worker, IndexedDB |
 | App | Capacitor 8 (Android/iOS), native baggrundsposition, ONNX Runtime til tale |
 | Backend | Python 3.12, FastAPI, SQLAlchemy (async), server-sent events |
-| Data | PostgreSQL 17 + PostGIS (opdeles i bruger- og observationsgruppe med replikaer), Valkey |
+| Login | DOF.tool-konti (e-mail/obserkode + scrypt), bundet til obserkoden med ét DOFbasen-login; passkeys via Zitadel (kun internt) |
+| Data | PostgreSQL 17 + PostGIS i grupper (brugere, observationer, DOF.tool-indtastninger) med replikaer, Valkey |
 | Filer | RustFS (S3-kompatibelt objektlager) |
+| Tale | CoRal roest-v3 eksporteret til ONNX int8 af speech-model-agenten; genkendes på telefonen |
 | Drift | Docker Compose, eget db-admin-panel |
 
 Alt er open source; Google-tjenester er holdt ude, hvor det kan lade sig gøre. Det fulde diagram med alle forbindelser
@@ -153,7 +158,8 @@ under *Opret konto* på forsiden som alle andre.
 Opsætning af push, databaser og replikaer, objektlager og gatewayen til dofbasen.dk står i
 **[docs/drift.md](docs/drift.md)**. Appen bygges som beskrevet i [app/README.md](app/README.md).
 
-> **Hensyn til dofbasen.dk.** Alt, der hentes fra dofbasen.dk, går gennem én gateway med højst ét udtræk i minuttet.
+> **Hensyn til dofbasen.dk.** Alt, der hentes fra dofbasen.dk, går gennem én gateway med højst ét udtræk hvert andet minut – live-hentning, medie-scanning og
+> historik deler pladserne.
 > Én dagsliste dækker alle moduler, og historik kommer fra det lokale arkiv.
 
 ## Udvikling
