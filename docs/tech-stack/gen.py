@@ -44,6 +44,7 @@ CLUSTERS = [
             ("models", "/models/*", "talemodel + speech.json (åben)"),
             ("modelup", "Modelupload", "Admin → Drift, bidder + SHA-256"),
             ("apisvc", "Tjenester", "push, imagemeta, konto, diskusage"),
+            ("pksvc", "passkeys.py", "origin/challenge-kontrol, zitadel.py"),
             ("storsvc", "storage.py", "S3-klient (minio-py)"),
             ("router1", "dbrouter", "gruppe + primary/replika"),
         ]),
@@ -77,6 +78,11 @@ CLUSTERS = [
         ("rustfs", "rustfs :9000 (ingen port på værten)", [
             ("bucket", "Bucket doftool-media", "obs/<uuid>.jpg|mp3 …"),
         ]),
+        ("zitadel", "zitadel v4 :8080 (ingen port på værten)", [
+            ("zuser", "Brugere + passkeys", "offentlige nøgler, v2-API"),
+            ("zsess", "Sessioner", "kontrol af passkey-signatur"),
+            ("zdb", "zitadel-db", "PostgreSQL 17 (egen)"),
+        ]),
         ("dbadmin", "dbadmin :8100 (kun DBADMIN_BIND)", [
             ("panel", "Panel", "eget login"),
             ("topo", "/api/topology", "noder, roller, tokens"),
@@ -89,6 +95,7 @@ CLUSTERS = [
             ("dsock", "Docker Engine", "/var/run/docker.sock"),
             ("vols", "Volumener", "media, weather, archive_upload"),
             ("modelvol", "Volumen models", "model.onnx, speech.json"),
+            ("zkey", "Volumen zitadel_key", "servicekontoens token (PAT)"),
             ("archdir", "/archive (read-only)", "DOFbasen-månedsudtræk"),
         ]),
     ]),
@@ -135,6 +142,11 @@ EDGES = [
     ("rest", "apisvc", "Kald", "", "Alarmer/push, metadata-rensning af uploads, udtræk og sletning af konto, lagerforbrug", True),
     ("rest", "storsvc", "Kald", "", "Gem/slet filer ved upload til feltmeldinger og ture", True),
     ("mediar", "storsvc", "Kald", "", "Hent fil (evt. et byte-interval) til afspilning/visning", True),
+    ("rest", "pksvc", "Kald", "", "Login med passkey og brugerens egne passkeys (/api/auth/passkey/*, /api/me/passkeys)", True),
+    ("pksvc", "zuser", "HTTP", "HTTP :8080", "Opret bruger (obserkode), start/bekræft/slet passkey; Bearer-token fra zitadel_key", True),
+    ("pksvc", "zsess", "HTTP", "HTTP", "Session med passkey-udfordring → telefonens signatur kontrolleres; sessionen slettes bagefter", True),
+    ("zuser", "zdb", "PostgreSQL", "SQL", "Zitadels egne data (brugere, offentlige nøgler, hændelser), krypteret med ZITADEL_MASTERKEY", True),
+    ("pksvc", "zkey", "Fil", "fil", "Læser servicekontoens token (read-only), som Zitadel skrev ved første start", True),
     ("rest", "router1", "Kald", "", "SQLAlchemy async-sessioner; hver sætning routes til sin databasegruppe", True),
     # dbadmin-topologi
     ("router1", "topo", "HTTP", "HTTP", "GET /api/topology hvert 15. s med Bearer servicetoken → JSON: noder, roller, adresser, adgangskoder", True),

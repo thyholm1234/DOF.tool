@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -14,6 +16,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(DofPosition.class); // rute og Nær mig med lavt strømforbrug (erstatter BackgroundGeolocation på Android)
         super.onCreate(savedInstanceState);
         stopLegacyPosition();
+        enablePasskeys();
         // Tilbageknappen: uden Capacitors App-plugin lukker Android ellers appen. Portalen (window.dofBack i
         // web/js/core.js) lukker først et åbent lag og går ellers tilbage i historikken; er der intet at gå tilbage
         // til, lægges appen i baggrunden i stedet for at blive lukket.
@@ -29,6 +32,19 @@ public class MainActivity extends BridgeActivity {
                 });
             }
         });
+    }
+
+    /** Passkeys (login med fingeraftryk/skærmlås) i portalen: WebView'en skal have WebAuthn slået til, og domænet skal pege
+     *  på appen (/.well-known/assetlinks.json med signeringscertifikatet, ANDROID_CERT_SHA256 på serveren). Ældre
+     *  WebView-versioner uden understøttelse springes over – så viser portalen blot ikke passkey-knappen. */
+    private void enablePasskeys() {
+        try {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION)) {
+                WebSettingsCompat.setWebAuthenticationSupport(getBridge().getWebView().getSettings(),
+                        WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_APP);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     /** Telefoner opdateret fra en ældre version: det gamle positionsplugin (BackgroundGeolocation – uafbrudt GPS med

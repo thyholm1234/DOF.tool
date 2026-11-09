@@ -50,7 +50,9 @@ async def get_settings_dict(db: AsyncSession) -> dict:
 @router.get("/settings/public")
 async def public_settings(db: AsyncSession = Depends(get_session)):
     s = await get_settings_dict(db)
-    return {"matrikel_tag": s["matrikel_tag"], "welcome": s["welcome"]}
+    from portal.services import zitadel
+
+    return {"matrikel_tag": s["matrikel_tag"], "welcome": s["welcome"], "passkeys": zitadel.enabled()}
 
 
 @router.put("/admin/settings")

@@ -6,6 +6,7 @@ automatisk kommer med. Hemmeligheder (adgangskode-hash, token-hash, kalendertoke
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -20,6 +21,8 @@ from portal.db import Base
 from portal.dbgroups import USER_TABLES
 from portal.models import User
 from portal.services import storage
+
+log = logging.getLogger("portal.account")
 
 SECRET_COLUMNS = {"test_pw_hash", "token_hash"}
 SECRET_PREFS = {"ics_token"}
@@ -79,7 +82,8 @@ def _media_path(url: str | None) -> Path | None:
 
 
 async def delete(db: AsyncSession, user: User) -> None:
-    """Slet kontoen med alt tilknyttet: rækker (kaskade), aktivitetslog, uploadede filer og alle sessioner."""
+    """Slet kontoen med alt tilknyttet: rækker (kaskade), aktivitetslog, uploadede filer, sessioner og passkeys."""
+    zid = user.zitadel_id  # læses før sletningen (objektet kan ikke genindlæses bagefter)
     urls = [m.get("url") for (media,) in (await db.execute(text("SELECT media FROM field_reports WHERE user_id = :u"),
                                                              {"u": user.id})).all() for m in (media or [])]
     urls += list((await db.execute(text("SELECT url FROM nf_photos WHERE user_id = :u"), {"u": user.id})).scalars())
@@ -92,6 +96,13 @@ async def delete(db: AsyncSession, user: User) -> None:
         if p and p.is_file():
             p.unlink()
     await destroy_sessions(user.id)
+    if zid:  # brugerens passkeys (offentlige nøgler) slettes også
+        from portal.services import zitadel
+
+        try:
+            await zitadel.delete_user(zid)
+        except zitadel.ZitadelError:
+            log.warning("Zitadel-brugeren %s kunne ikke slettes – slet den manuelt", zid)
     await worker_command("doftool_sync")  # brugerens fund forsvinder også fra DOF.tool-datasættet
 
 

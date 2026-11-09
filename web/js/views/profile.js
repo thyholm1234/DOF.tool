@@ -3,6 +3,7 @@ import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
 import { isApp, isPositionDevice, takeOverPosition } from "../native.js";
 import { forgetUser } from "../offline.js";
+import * as passkey from "../passkey.js";
 
 export async function render(view) {
   if (requireLogin(view)) return;
@@ -131,6 +132,9 @@ export async function render(view) {
           await forgetUser();
           location.hash = "#/"; location.reload();
         } }, "Slet min konto") : null)));
+  const pkBox = h("div", { class: "card mt2 stack" });
+  view.append(pkBox);
+  passkeys(pkBox);
   // API-nøgler til showcase-modulerne: en administrator giver adgang, brugeren laver selv sine nøgler
   for (const [mod, label] of [["dofbasen", "DOFbasen"], ["netfugl", "Netfugl"]]) {
     if (!state.user[mod]?.features?.[`${mod}_api`]) continue;
@@ -139,6 +143,31 @@ export async function render(view) {
     apiTokens(apiBox, mod, label);
   }
   if (location.hash.includes("matrikler")) location.hash = "#/matrikel?tab=matrikler";
+}
+
+/** Passkeys: log ind med Face ID, fingeraftryk eller skærmlås i stedet for DOFbasen-adgangskoden. */
+async function passkeys(box) {
+  let d;
+  try { d = await api("/api/me/passkeys"); } catch (err) { box.replaceChildren(h("h3", {}, "Passkeys"), h("p", { class: "muted" }, err.message)); return; }
+  if (!d.enabled) { box.remove(); return; }
+  const add = h("button", { class: "btn primary", type: "button", disabled: !passkey.supported(), onclick: async () => {
+    add.disabled = true;
+    try { await passkey.register(passkey.deviceName()); toast("Passkey oprettet"); passkeys(box); }
+    catch (err) { toast(err.message, "err"); add.disabled = false; }
+  } }, "Opret passkey på denne enhed");
+  box.replaceChildren(h("h3", { style: { margin: 0 } }, "Passkeys"),
+    h("p", { class: "muted", style: { margin: 0 } }, "Med en passkey logger du ind med Face ID, fingeraftryk eller skærmlås – uden DOFbasen-adgangskoden. ",
+      "Nøglen bliver på din enhed; portalen gemmer kun den offentlige del. En passkey kan kun oprettes inden for 15 minutter efter et login, ",
+      "og hvert halve år skal du logge ind med DOFbasen-adgangskoden én gang, så vi ved, at obserkoden stadig er gyldig."),
+    passkey.supported() ? null : h("p", { class: "notice" }, "Denne browser eller app understøtter ikke passkeys."),
+    d.passkeys.length ? h("ul", { class: "stack", style: { margin: 0, paddingLeft: "1.1em" } }, ...d.passkeys.map(p => h("li", { class: "row between" },
+      h("span", {}, p.name),
+      h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => {
+        if (!confirm(`Slet passkeyen "${p.name}"? Du kan stadig logge ind med DOFbasen-adgangskoden.`)) return;
+        try { await api(`/api/me/passkeys/${p.id}`, { method: "DELETE" }); toast("Passkeyen er slettet"); passkeys(box); }
+        catch (err) { toast(err.message, "err"); }
+      } }, "Slet")))) : h("p", { style: { margin: 0 } }, "Du har ingen passkeys endnu."),
+    h("div", { class: "row" }, add));
 }
 
 /** API-nøgler til DOFbasen-API'et: en administrator giver adgang, brugeren laver og sletter selv sine nøgler. */

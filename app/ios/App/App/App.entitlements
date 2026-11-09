@@ -4,5 +4,11 @@
 <dict>
 	<key>aps-environment</key>
 	<string>production</string>
+	<!-- Passkeys i portalen: domænet (DOF_SERVER_URL) skal være tilknyttet appen; serveren leverer
+	     /.well-known/apple-app-site-association (IOS_TEAM_ID). .github/workflows/ios.yml retter domænet ved byg. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>webcredentials:doftool.chfotofilm.dk</string>
+	</array>
 </dict>
 </plist>

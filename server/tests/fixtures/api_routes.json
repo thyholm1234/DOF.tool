@@ -2458,6 +2458,20 @@ true,
 "params": []
 }
 },
+"/api/auth/passkey/finish": {
+"post": {
+"body": true,
+"op": "passkey_login_finish_api_auth_passkey_finish_post",
+"params": []
+}
+},
+"/api/auth/passkey/start": {
+"post": {
+"body": true,
+"op": "passkey_login_start_api_auth_passkey_start_post",
+"params": []
+}
+},
 "/api/calendars": {
 "get": {
 "body": false,
@@ -7039,6 +7053,41 @@ false,
 "body": true,
 "op": "location_token_api_me_location_token_post",
 "params": []
+}
+},
+"/api/me/passkeys": {
+"get": {
+"body": false,
+"op": "my_passkeys_api_me_passkeys_get",
+"params": []
+}
+},
+"/api/me/passkeys/finish": {
+"post": {
+"body": true,
+"op": "my_passkey_finish_api_me_passkeys_finish_post",
+"params": []
+}
+},
+"/api/me/passkeys/start": {
+"post": {
+"body": false,
+"op": "my_passkey_start_api_me_passkeys_start_post",
+"params": []
+}
+},
+"/api/me/passkeys/{passkey_id}": {
+"delete": {
+"body": false,
+"op": "my_passkey_delete_api_me_passkeys__passkey_id__delete",
+"params": [
+[
+"passkey_id",
+"path",
+true,
+"{\"pattern\": \"^[0-9]{1,32}$\", \"title\": \"Passkey Id\", \"type\": \"string\"}"
+]
+]
 }
 },
 "/api/me/stats": {

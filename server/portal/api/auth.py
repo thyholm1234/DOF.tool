@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -17,6 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
+from portal.services import passkeys, zitadel
 from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
 from portal.services import dataset
@@ -47,16 +48,120 @@ async def login(body: LoginIn, request: Request, response: Response, db: AsyncSe
         user, new = await auth.login(db, body.obserkode, body.password, client_ip(request))
     except auth.AuthError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
-    token = await auth.create_session(user)
-    s = get_settings()
-    response.set_cookie(COOKIE, token, max_age=s.session_days * 86400, httponly=True,
-                        secure=s.cookie_secure or s.public_url.startswith("https://"), samesite="lax", path="/")
+    await start_session(user, response)
     if new or user.history_synced_at is None:
         await enqueue_history(user.obserkode)
     if new:
         await bump("lists")
     await activity.track(user.id, "login", None, {"new": new})
-    return {"user": user_out(user), "new": new}
+    return {"user": user_out(user), "new": new, "passkeys": passkeys_offer(user)}
+
+
+async def start_session(user: User, response: Response) -> None:
+    """Ny session + login-cookie. Et frisk login giver i et kvarter lov til at tilføje en passkey (services/passkeys.py)."""
+    token = await auth.create_session(user)
+    await passkeys.mark_fresh(token)
+    s = get_settings()
+    response.set_cookie(COOKIE, token, max_age=s.session_days * 86400, httponly=True,
+                        secure=s.cookie_secure or s.public_url.startswith("https://"), samesite="lax", path="/")
+
+
+def passkeys_offer(user: User) -> bool:
+    """Skal appen tilbyde at oprette en passkey efter login? (Passkeys slået til, og brugeren har ikke forbundet en endnu.)"""
+    return zitadel.enabled() and not user.zitadel_id
+
+
+# ---------------------------------------------------------------- passkeys (services/passkeys.py)
+
+
+class Credential(BaseModel):
+    """WebAuthn-svaret fra browseren med base64url-felter (web/js/passkey.js). Kun størrelsen kontrolleres her; indholdet
+    kontrolleres af passkeys.check_client_data og af Zitadel."""
+    id: str = Field(max_length=1400)
+    rawId: str = Field(max_length=1400)
+    type: str = Field(pattern="^public-key$")
+    response: dict[str, str | None]
+    authenticatorAttachment: str | None = Field(None, max_length=40)
+
+    def plain(self) -> dict:
+        if len(json.dumps(self.response)) > 16000:
+            raise HTTPException(400, "Svaret fra passkey er for stort")
+        return {"id": self.id, "rawId": self.rawId, "type": self.type, "response": self.response}
+
+
+class PasskeyStartIn(BaseModel):
+    obserkode: str = Field(max_length=16)
+
+
+class PasskeyFinishIn(BaseModel):
+    token: str = Field(max_length=64)
+    credential: Credential
+
+
+class PasskeyRegisterIn(BaseModel):
+    credential: Credential
+    name: str = Field("", max_length=60)
+
+
+def _auth_error(exc: auth.AuthError) -> HTTPException:
+    return HTTPException(exc.status, str(exc))
+
+
+@router.post("/auth/passkey/start")
+async def passkey_login_start(body: PasskeyStartIn, request: Request, db: AsyncSession = Depends(get_session)):
+    try:
+        return await passkeys.login_start(db, body.obserkode, client_ip(request))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+
+
+@router.post("/auth/passkey/finish")
+async def passkey_login_finish(body: PasskeyFinishIn, response: Response, db: AsyncSession = Depends(get_session)):
+    try:
+        user = await passkeys.login_finish(db, body.token, body.credential.plain())
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await start_session(user, response)
+    await activity.track(user.id, "login", None, {"new": False, "method": "passkey"})
+    return {"user": user_out(user), "new": False}
+
+
+@router.get("/me/passkeys")
+async def my_passkeys(request: Request, user: User = Depends(require_user)):
+    if getattr(request.state, "view_as", None):  # brugerens egne enheder vises ikke i «se som bruger»
+        return {"enabled": zitadel.enabled(), "passkeys": []}
+    try:
+        return {"enabled": zitadel.enabled(), "passkeys": await passkeys.list_for(user)}
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+
+
+@router.post("/me/passkeys/start")
+async def my_passkey_start(request: Request, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    try:
+        return await passkeys.register_start(db, user, request.cookies.get(COOKIE))
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+
+
+@router.post("/me/passkeys/finish")
+async def my_passkey_finish(body: PasskeyRegisterIn, user: User = Depends(require_user)):
+    try:
+        await passkeys.register_finish(user, body.credential.plain(), body.name)
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await activity.track(user.id, "passkey_add", None, {"name": body.name[:60]})
+    return {"ok": True}
+
+
+@router.delete("/me/passkeys/{passkey_id}")
+async def my_passkey_delete(passkey_id: str = Path(pattern=r"^[0-9]{1,32}$"), user: User = Depends(require_user)):
+    try:
+        await passkeys.remove(user, passkey_id)
+    except auth.AuthError as exc:
+        raise _auth_error(exc) from exc
+    await activity.track(user.id, "passkey_remove", None, {"id": passkey_id})
+    return {"ok": True}
 
 
 async def enqueue_history(obserkode: str) -> None:

@@ -163,4 +163,7 @@ EXTRA_DDL = [
     "ALTER TABLE trips ADD COLUMN IF NOT EXISTS indtastning varchar(12) NOT NULL DEFAULT 'dofbasen'",
     # (intet indeks: DOF.tool-rækkerne har obsid < -1e9 og findes via primærnøglen)
     "UPDATE observations SET indtastning = 'manuel' WHERE obsid < 0 AND obsid > -1000000000 AND indtastning = 'dofbasen'",
+    # Passkeys: brugerens id i Zitadel (services/passkeys.py)
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS zitadel_id varchar(32)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_zitadel_id ON users (zitadel_id)",
 ]

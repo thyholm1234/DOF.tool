@@ -58,6 +58,8 @@ class User(Base):
     # Testbrugere oprettes af en administrator og logger ind med en lokal adgangskode (ikke hos DOFbasen)
     is_test: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     test_pw_hash: Mapped[str | None] = mapped_column(String(200))
+    # Brugerens id i Zitadel, der gemmer brugerens passkeys (services/passkeys.py). Oprettes ved første passkey.
+    zitadel_id: Mapped[str | None] = mapped_column(String(32), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

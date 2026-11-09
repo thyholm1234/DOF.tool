@@ -76,6 +76,10 @@
     <tr><td><b>dbadmin</b></td><td><code>dbadmin/Dockerfile</code></td><td>Register over databasenoder, topologi til api/worker,
       sundhedstjek, migrering, oprettelse af noder via Docker.</td><td><code>DBADMIN_BIND</code>:8100 (standard 127.0.0.1)</td>
       <td>dbadmin, <code>docker.sock</code></td></tr>
+    <tr><td><b>zitadel</b> + <b>zitadel-db</b></td><td><code>ghcr.io/zitadel/zitadel:v4.20.2</code> (AGPL-3.0, uændret),
+      <code>postgres:17-alpine</code></td><td>Gemmer brugernes passkeys (offentlige nøgler) og kontrollerer signaturerne. Kun api'et kalder
+      dens v2-API; Zitadels egne login-sider og konsol bruges ikke. ≈100 MB hukommelse hver.</td><td>ingen</td>
+      <td>zitadel_db, zitadel_key</td></tr>
     <tr><td><b>speech-model</b></td><td><code>tools/speech-model/Dockerfile</code> (PyTorch, Hugging Face-værktøj)</td>
       <td>Byggeagent: bygger talemodellen til appens tale-indtastning (CoRal → ONNX int8) på kommando fra Admin → Drift.
       Hviler mellem byggerier; bruger under et byggeri op til ca. 6 GB hukommelse.</td><td>ingen</td><td>models, speech_work</td></tr>
@@ -142,6 +146,26 @@
   Filerne flyttes over én gang med <code>tools/minio-to-rustfs.sh</code>. Appen taler almindelig S3, så en anden tjeneste (Garage, SeaweedFS, Backblaze B2 …) kan overtage ved at ændre
   <code>S3_ENDPOINT</code>, <code>S3_ACCESS_KEY</code>, <code>S3_SECRET_KEY</code> og <code>S3_BUCKET</code>.</div>
 
+<h2>Login og passkeys</h2>
+<p>Første login sker med obserkode og DOFbasen-adgangskode (kontrolleret hos DOFbasen og ikke gemt). Det forbinder DOFbasen-brugeren
+  med kontoen. Derefter kan brugeren oprette en <b>passkey</b> (Face ID, fingeraftryk, skærmlås) og logge ind med obserkoden og
+  passkeyen alene. Alt går gennem api'ets egne endpoints (<code>/api/auth/passkey/*</code>, <code>/api/me/passkeys</code>); der åbnes
+  ingen fremmede vinduer, og browseren og appen ser aldrig Zitadel.</p>
+<ul>
+  <li><b>Zitadel</b> gemmer de offentlige nøgler og kontrollerer signatur, tæller og brugerbekræftelse. Api'et kalder den med
+    servicekontoens token (<code>services/zitadel.py</code>). Brugeren oprettes i Zitadel ved første passkey med obserkoden som
+    brugernavn; id'et står i <code>users.zitadel_id</code>.</li>
+  <li><b>Api'ets egne kontroller</b> (<code>services/passkeys.py</code>): Zitadel kontrollerer ikke sidens oprindelse, så api'et
+    kontrollerer selv <code>clientDataJSON</code> (type, origin = <code>PUBLIC_URL</code>, challenge), før svaret sendes videre.
+    Udfordringer ligger i Valkey i 3–5 minutter og bruges én gang. En passkey kan kun tilføjes inden for 15 minutter efter et login,
+    og login med passkey kræver en DOFbasen-bekræftelse inden for <code>PASSKEY_DOF_MAX_DAYS</code> (180 dage).</li>
+  <li><b>Appen:</b> Android slår WebAuthn til i WebView'en (<code>androidx.webkit</code>), iOS har Associated Domains
+    (<code>webcredentials:</code>). Serveren leverer <code>/.well-known/assetlinks.json</code> og
+    <code>/.well-known/apple-app-site-association</code> ud fra <code>ANDROID_CERT_SHA256</code> og <code>IOS_TEAM_ID</code>.
+    Passkeys er bundet til domænet – skifter portalen domæne, skal brugerne oprette nye.</li>
+  <li>Sletning af kontoen sletter også brugeren og nøglerne i Zitadel.</li>
+</ul>
+
 <h2>Tale-indtastning og talemodel</h2>
 <p>Under en tur kan observationer indtales i appen. Talen genkendes <b>på telefonen</b>: pluginnet <code>DofAsr</code> optager
   16 kHz mono og kører en dansk wav2vec2-model (CoRal <code>roest-v3</code>, ONNX int8) med ONNX Runtime. Lyden sendes aldrig til
@@ -192,7 +216,8 @@
 <h2>Sikkerhed</h2>
 <div class="cols">
 <ul>
-  <li><b>Login</b> kontrolleres hos DOFbasen ved hvert login; adgangskoden gemmes ikke. Grænse for forsøg pr. IP og højst
+  <li><b>Login</b> kontrolleres hos DOFbasen ved hvert login med adgangskode; adgangskoden gemmes ikke. Passkeys: se
+    «Login og passkeys». Grænse for forsøg pr. IP og højst
     30 pr. obserkode i timen.</li>
   <li><b>Sessioner</b> i Valkey (<code>sess:h:&lt;sha256 af cookien&gt;</code> – kun hashen gemmes), cookie <code>HttpOnly</code>, <code>SameSite=Lax</code>, altid
     <code>Secure</code> når <code>PUBLIC_URL</code> er https. Alle en brugers sessioner kan lukkes på én gang.
@@ -209,7 +234,7 @@
     Ændringer af rettigheder skrives i en audit-log.</li>
   <li><b>Afhængigheder</b> er låst (<code>server/constraints.txt</code>); der er loft over åbne SSE-strømme pr. bruger.</li>
   <li><b>Showcase-API'er</b>: token gemt som hash, kun læsning, egne grænser pr. minut.</li>
-  <li><b>Netværk</b>: db-admin, databasenoder og RustFS har ingen offentlige porte; db-admin har eget kodeord og
+  <li><b>Netværk</b>: db-admin, databasenoder, RustFS og Zitadel har ingen offentlige porte; db-admin har eget kodeord og
     begrænsning af forsøg. db-admin har adgang til Docker og skal aldrig udstilles mod internettet.</li>
 </ul>
 </div>
@@ -239,6 +264,10 @@
     <tr><td><code>DOF_ARCHIVE_DIR</code>, <code>DOF_MIN_INTERVAL</code>, <code>DOF_ENABLED</code></td>
       <td>DOFbasen-arkivet og gatewayens interval (mindst 60 s).</td></tr>
     <tr><td><code>FCM_SERVICE_ACCOUNT_B64</code>, <code>VAPID_SUBJECT</code></td><td>Push.</td></tr>
+    <tr><td><code>ZITADEL_MASTERKEY</code>, <code>ZITADEL_DB_PASSWORD</code></td><td>Passkeys: Zitadels hovednøgle (32 tegn – kopi uden
+      for serveren) og databasens kodeord.</td></tr>
+    <tr><td><code>ANDROID_CERT_SHA256</code>, <code>IOS_TEAM_ID</code>, <code>PASSKEY_DOF_MAX_DAYS</code></td><td>Passkeys i appen
+      (domænets tilknytning) og dage mellem DOFbasen-bekræftelser.</td></tr>
   </tbody>
 </table>
 <p class="muted">Android-appen bygges med <code>app/build.sh</code> (signeret APK). iOS kan kun bygges på macOS; kildepakken
@@ -249,7 +278,9 @@
   filer på disken og Valkey). db-admin viser hver nodes status og svartid. Sundhedstjek: <code>GET /api/health</code>.</p>
 <h3>Backup</h3>
 <p>Replikaer beskytter mod nedbrud af en node, ikke mod fejl i data eller tab af hele serveren. Brug derudover et
-  natligt <code>pg_dump</code> af hver gruppe og en kopi af bucket'en, krypteret og gemt uden for serveren.</p>
+  natligt <code>pg_dump</code> af hver gruppe og en kopi af bucket'en, krypteret og gemt uden for serveren. Zitadel: <code>pg_dump</code>
+  af <code>zitadel-db</code> plus <code>ZITADEL_MASTERKEY</code> (uden nøglen kan dumpet ikke bruges). Mistes Zitadel, logger brugerne
+  ind med DOFbasen igen og opretter nye passkeys.</p>
 
 </body>
 </html>

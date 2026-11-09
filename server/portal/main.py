@@ -271,6 +271,29 @@ async def versioned(build: str, path: str):
     return FileResponse(target, headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
+# ---------------------------------------------------------------- appens tilknytning til domænet (passkeys i appen)
+# Android og iOS lader kun appen bruge passkeys for portalens domæne, når domænet selv peger på appen.
+APP_ID = "com.chfotofilm.doftool"
+
+
+@app.get("/.well-known/assetlinks.json", include_in_schema=False)
+async def assetlinks():
+    certs = [c.strip().upper() for c in get_settings().android_cert_sha256.split(",") if c.strip()]
+    if not certs:
+        raise HTTPException(404)
+    return JSONResponse([{"relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
+                          "target": {"namespace": "android_app", "package_name": APP_ID, "sha256_cert_fingerprints": certs}}],
+                        headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/.well-known/apple-app-site-association", include_in_schema=False)
+async def apple_app_site_association():
+    team = get_settings().ios_team_id.strip()
+    if not team:
+        raise HTTPException(404)
+    return JSONResponse({"webcredentials": {"apps": [f"{team}.{APP_ID}"]}}, headers={"Cache-Control": "public, max-age=3600"})
+
+
 media = Path(get_settings().media_dir)
 media.mkdir(parents=True, exist_ok=True)
 app.mount("/media", StaticFiles(directory=media), name="media")

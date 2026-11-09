@@ -32,6 +32,9 @@ x-app: &app
     S3_ACCESS_KEY: ${S3_ACCESS_KEY:-${RUSTFS_ACCESS_KEY:-doftool}}
     S3_SECRET_KEY: ${S3_SECRET_KEY:-${RUSTFS_SECRET_KEY:?sæt RUSTFS_SECRET_KEY i .env (mindst 8 tegn)}}
     S3_BUCKET: ${S3_BUCKET:-doftool-media}
+    # Passkeys: Zitadel kun i Docker-netværket; servicekontoens token ligger i volumen zitadel_key (services/zitadel.py)
+    ZITADEL_URL: ${ZITADEL_URL:-http://zitadel:8080}
+    ZITADEL_PAT_FILE: /zitadel/pat.txt
   volumes:
     - media:/data/media
     - weather:/data/weather
@@ -41,6 +44,7 @@ x-app: &app
     - article_imports:/data/article-imports  # artikel-zip'en uploades via api og importeres af workeren: skal deles
     - ${DOF_PHOTO_IMPORT_DIR:-./data/photo-imports}:/data/photo-imports  # fotoarkivet (Fotos/ eller Fotos-*.zip): rsync'es hertil, eller uploades som zip
     - ./web:/app/web:ro
+    - zitadel_key:/zitadel:ro
   depends_on:
     dbadmin:
       condition: service_started
@@ -169,6 +173,77 @@ services:
       valkey:
         condition: service_healthy
 
+  # Passkeys: Zitadel gemmer brugernes passkeys (offentlige nøgler) og kontrollerer signaturerne. Ingen port på værten og
+  # ingen login-sider i brug – kun api'et kalder dens v2-API med servicekontoens token. Egen lille database.
+  zitadel-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 256m
+    environment:
+      POSTGRES_PASSWORD: ${ZITADEL_DB_PASSWORD:?sæt ZITADEL_DB_PASSWORD i .env (tilfældig streng)}
+      TZ: Europe/Copenhagen
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=50"]
+    volumes:
+      - zitadel_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Volumenet til servicekontoens token skal kunne skrives af Zitadel (kører som uid 1000)
+  zitadel-key-init:
+    image: postgres:17-alpine
+    command: ["chown", "1000:1000", "/key"]
+    volumes:
+      - zitadel_key:/key
+    restart: "no"
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v4.20.2
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 512m
+    command: start-from-init --masterkeyFromEnv --tlsMode disabled
+    environment:
+      ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY:?sæt ZITADEL_MASTERKEY i .env (præcis 32 tegn)}
+      # Navnet api'et kalder den med (Host-headeren skal passe)
+      ZITADEL_EXTERNALDOMAIN: zitadel
+      ZITADEL_EXTERNALPORT: 8080
+      ZITADEL_EXTERNALSECURE: "false"
+      ZITADEL_TLS_ENABLED: "false"  # TLS ender ved proxyen; Zitadel har ingen port udadtil
+      ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_FIRSTINSTANCE_INSTANCENAME: DOF.tool
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: DOF.tool
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: doftool-api
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: DOF.tool api
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
+      ZITADEL_FIRSTINSTANCE_PATPATH: /key/pat.txt
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "false"
+      ZITADEL_TELEMETRY_ENABLED: "false"
+    volumes:
+      - zitadel_key:/key
+    depends_on:
+      zitadel-db:
+        condition: service_healthy
+      zitadel-key-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
   # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 kald/minut)
   worker:
     <<: *app
@@ -187,3 +262,5 @@ volumes:
   weather:
   archive_upload:
   article_imports:
+  zitadel_db:
+  zitadel_key:

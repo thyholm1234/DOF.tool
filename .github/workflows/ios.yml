@@ -28,6 +28,10 @@ jobs:
       - name: Firebase-konfiguration (valgfri)
         env: { PLIST_B64: "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}" }
         run: if [ -n "$PLIST_B64" ]; then echo "$PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist; fi
+      - name: Passkey-domæne fra DOF_SERVER_URL
+        run: |
+          HOST=$(echo "$DOF_SERVER_URL" | sed -E 's#^https?://([^/:]+).*#\1#')
+          sed -i '' "s#webcredentials:[^<]*#webcredentials:$HOST#" ios/App/App/App.entitlements
       - run: npx cap sync ios
       - name: Byg til simulator
         working-directory: app/ios/App
@@ -69,6 +73,8 @@ jobs:
           UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' $RUNNER_TEMP/profile.plist)
           echo "PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' $RUNNER_TEMP/profile.plist)" >> $GITHUB_ENV
           cp $RUNNER_TEMP/app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          HOST=$(echo "$DOF_SERVER_URL" | sed -E 's#^https?://([^/:]+).*#\1#')
+          sed -i '' "s#webcredentials:[^<]*#webcredentials:$HOST#" ios/App/App/App.entitlements
           npx cap sync ios
       - name: Arkivér og eksportér .ipa
         if: env.HAS_CERT == 'true'

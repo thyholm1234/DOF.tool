@@ -45,6 +45,9 @@ async def privacy() -> HTMLResponse:
             <li><b>Position</b> – kun hvis du slår deling til: din seneste position, afrundet til ca. 100 m (ikke en historik). Portalen viser den kun for dig selv – heller ikke for administratorer.</li>
             <li><b>Push:</b> adressen på din enheds push-abonnement, hvis du slår notifikationer til.</li>
             <li><b>Teknisk:</b> en login-cookie, en aktivitetslog (sidevisninger og handlinger) og serverlogs med IP-adresse.</li>
+            <li><b>Passkeys</b> (hvis du opretter en): den offentlige del af nøglen og det navn, du giver den. Den hemmelige del og
+              dit fingeraftryk eller ansigt forlader aldrig din enhed. Nøglerne ligger på DOF.tools egen server og slettes med
+              kontoen.</li>
             <li><b>Observationer fra DOFbasen:</b> art, sted, tid og antal med observatørens navn og obserkode – også for
             observatører, der ikke bruger DOF.tool. Hemmelige observationer vises ikke.</li>
             </ul>
