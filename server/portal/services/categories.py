@@ -46,6 +46,23 @@ def countable_sql(o: str = "o", s: str = "s") -> str:
             f"THEN bird_category({s}.artnr, {s}.list_artnr, {o}.loknr, {o}.dato) IN ('A', 'B', 'C') ELSE TRUE END)")
 
 
+def alive_sql(o: str = "o") -> str:
+    """WHERE-udtryk: observationen er ikke en død fugl (adfærdskode … DØD). Døde fugle tæller ikke på personlige lister
+    (årslister, livslister, krydslister, ranglister), men gerne på DK-listen og i områdernes artslister."""
+    return f"coalesce({o}.adfkode, '') NOT LIKE '%DØD'"
+
+
+# DOFbasens «Kvalitet» på en observation (ikke dokumenteret af DOFbasen; aflæst af data): 1 = ikke vurderet endnu, 2 = godkendt,
+# 3 = (sjælden, uklar), 4 = ikke godkendt. Kun godkendte SU-fund giver automatiske kryds.
+SU_GODKENDT = 2
+
+
+def approved_su_sql(o: str = "o") -> str:
+    """WHERE-udtryk: observationen er ikke et SU-fund – eller et SU-fund, som SU har godkendt. Ikke vurderede og afviste SU-fund
+    (og DOF.tool's egne SU-indtastninger, der ikke er vurderet) tæller ikke automatisk på krydslisterne; deltageren kan selv krydse arten af."""
+    return f"(coalesce({o}.kategori, '') <> 'SU' OR {o}.kvalitet = {SU_GODKENDT})"
+
+
 # Startliste over ikke-krydsbare arter (D og nedefter). Dværgsnegås har godkendte A-fund fra 17.11.2021 –
 # de sættes som overstyring på den enkelte serie; alle fund før den dato er ikke krydsbare.
 SEED_NOT_COUNTABLE = [

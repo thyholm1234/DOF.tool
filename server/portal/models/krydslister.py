@@ -94,6 +94,7 @@ class KlKryds(Base):
     lokalitet: Mapped[str | None] = mapped_column(String(250))
     land: Mapped[str | None] = mapped_column(String(80))
     note: Mapped[str | None] = mapped_column(String(500))
+    obsid: Mapped[int | None] = mapped_column(BigInteger)  # observationen krydset bygger på (ædelarter markeret fra en årsliste)
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(10), default="ok", server_default="ok")
     behandlet_af: Mapped[int | None] = mapped_column(Integer)

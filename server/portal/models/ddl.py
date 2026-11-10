@@ -59,6 +59,8 @@ EXTRA_DDL = [
     " UPDATE roles SET modules = array_append(modules, 'fotos') WHERE key = 'admin' AND NOT ('fotos' = ANY(modules));"
     " INSERT INTO settings (key, value) VALUES ('module_added_fotos', 'true'); END IF; END $$",
     "CREATE INDEX IF NOT EXISTS ix_kl_taxa_latin ON kl_taxa (lower(latin))",
+    # Ædelarter markeret fra en årsliste/livsliste: observationen i DOFbasen/DOF.tool, krydset bygger på
+    "ALTER TABLE kl_kryds ADD COLUMN IF NOT EXISTS obsid bigint",
     "ALTER TABLE art_articles ADD COLUMN IF NOT EXISTS sprog varchar(5) NOT NULL DEFAULT 'da'",
     "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM settings WHERE key = 'module_added_krydslister') THEN"
     " UPDATE roles SET modules = array_append(modules, 'krydslister') WHERE key = 'admin' AND NOT ('krydslister' = ANY(modules));"
@@ -103,6 +105,8 @@ EXTRA_DDL = [
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS spontan boolean NOT NULL DEFAULT false",
     # Spontan- og FiNN-tællinger (metode 98/99): FiNN-området (services/finn.py)
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS finn_site_id integer",
+    # Afslut tur: komplet / besvaret / ikke_komplet (spørgeskemaet med lokalitetens almindelige arter – web/js/tur-quick.js)
+    "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS afslutning varchar(12)",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS lat double precision",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS lon double precision",
     "ALTER TABLE field_trips ADD COLUMN IF NOT EXISTS temperatur smallint",

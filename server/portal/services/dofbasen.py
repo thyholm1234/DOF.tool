@@ -663,7 +663,8 @@ VISNING = {"fugle": "o.kategori <> 'alm'", "allfugle": "TRUE", "sufugle": "o.kat
 # Fænologi og lokale hits (som i feedet, se services/feed.py): joinene ph og lc ligger altid på dagslisten
 PHENO_SQL = ("(s.art_type IN ('art', 'underart') AND ph.artnr IS NOT NULL AND (CASE WHEN ph.start_doy <= ph.end_doy "
              "THEN (:doy < ph.start_doy OR :doy > ph.end_doy) ELSE (:doy > ph.end_doy AND :doy < ph.start_doy) END))")
-LOCAL_COND = "(coalesce(lc.n_finds, 0) < :lmax AND s.art_type IN ('art', 'underart'))"
+# SU- og SUB-arter er sjældne overalt og får derfor ikke også et LOK-mærke
+LOCAL_COND = "(coalesce(lc.n_finds, 0) < :lmax AND s.art_type IN ('art', 'underart') AND o.kategori NOT IN ('SU', 'SUB'))"
 MATRIX_LEVELS = ("SU", "SUB", "bemaerk", "all", "pheno", "local")
 LOCAL_MAX = 10  # lokale hits: færre end så mange estimerede fund af arten på lokaliteten (som i feedet)
 
@@ -683,8 +684,8 @@ def parse_matrix(raw: str) -> dict[int, list[str]]:
 def _matrix_where(matrix: dict[int, list[str]], d: date, args: dict[str, Any]) -> str:
     """Afdeling × niveau-matrix: en observation vises, hvis dens afdeling har mindst ét markeret niveau, den opfylder.
     Fænologi og Lokale hits som i feedet (se services/feed.py), men uden SU/SUB-tilføjelsen."""
-    # Hvert felt rummer kun sig selv: SUB er kun SUB (ikke SU), Alle er de almindelige observationer, og Fænologi og Lokale hits
-    # gælder uanset kategori
+    # Hvert felt rummer kun sig selv: SUB er kun SUB (ikke SU), Alle er de almindelige observationer, Fænologi gælder
+    # uanset kategori, og Lokale hits gælder alle andre end SU og SUB
     cond = {"SU": "o.kategori = 'SU'", "SUB": "o.kategori = 'SUB'", "bemaerk": "o.kategori = 'bemaerk'", "all": "o.kategori = 'alm'",
             "local": LOCAL_COND, "pheno": PHENO_SQL}
     parts = []

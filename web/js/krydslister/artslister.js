@@ -8,7 +8,8 @@ export async function page(parts, q) {
   const lists = await api("/api/krydslister/artslister");
   const key = q.liste && lists.some(l => l.key === q.liste) ? q.liste : lists[0]?.key;
   const body = h("div", {}, loadingBox());
-  const tabs = h("div", { class: "seg" }, ...lists.map(l => h("a", { href: `${BASE}/artslister?liste=${l.key}`, class: l.key === key ? "on" : "" }, `${l.navn} (${l.antal})`)));
+  const tabs = h("nav", { class: "kl-subtabs" }, ...lists.map(l => h("a", { href: `${BASE}/artslister?liste=${l.key}`, class: l.key === key ? "on" : "" }, `${l.navn} (${l.antal})`)),
+    h("a", { href: `${BASE}/wbl` }, "World Bird List"));
   if (key) api(`/api/krydslister/artslister/${key}`).then(d => {
     body.replaceChildren(d.liste.beskrivelse ? h("p", {}, d.liste.beskrivelse) : null, table(["#", "SU", "Navn", "Latinsk navn", "Kategori", "Sjældenhed"], d.rows.map((r, i) => ({ text: `${r.navn} ${r.latin} ${r.engelsk || ""}`,
       cells: [i + 1, r.su ? h("b", { class: "kl-su" }, "*") : "", link(`/art/${r.id}`, r.navn), h("i", {}, r.latin), r.kategorier.join(", "), SJ[r.sjaeldenhed] || r.sjaeldenhed] })), { name: key }));

@@ -5,7 +5,8 @@ export const state = { user: null, afdelinger: [], kommuner: [], unread: 0 };
 export const can = (module) => !!state.user?.modules?.includes(module);
 // Admin-sidens faner i rækkefølge: [modul, fanetekst]
 export const ADMIN_TABS = [["drift", "Drift"], ["data", "Data"], ["vejr", "Vejr"], ["aktivitet", "Aktivitet"], ["support", "Support"],
-  ["brugere", "Brugere"], ["roller", "Roller"], ["lokaliteter", "Lokaliteter"], ["funktioner", "Funktioner"]];
+  ["brugere", "Brugere"], ["roller", "Roller"], ["lokaliteter", "Lokaliteter"], ["taellinger", "Tællinger"],
+  ["funktioner", "Funktioner"]];
 // Moderationssidens faner (eget menupunkt): [modul, fanetekst]. Arter rummer også listekategorierne (modul "kategorier").
 export const MOD_TABS = [["moderation", "Kommentarer"], ["indhold", "Nyheder"], ["ture", "Ture"], ["arter", "Arter"]];
 /** Må den indloggede se fanen? Roller og Funktioner er kun for superadmin (ikke moduler, der kan tildeles). */
@@ -77,12 +78,21 @@ export function h(tag, attrs = {}, ...children) {
     else if (k === "style" && typeof v === "object") for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith("--")) el.style.setProperty(sk, sv); else el.style[sk] = sv; }
     else el.setAttribute(k, v === true ? "" : v);
   }
+  const plain = NO_WBR.has(tag);
   for (const c of children.flat(Infinity)) {
     if (c === null || c === undefined || c === false) continue;
-    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    if (c instanceof Node) { el.append(c); continue; }
+    const s = String(c);
+    if (plain || !SLASH_WORD.test(s)) { el.append(s); continue; }
+    // Lange sammensatte navne (fx «Turkestantornskade/Isabellatornskade») må ombrydes efter skråstregen. <wbr> og ikke et
+    // nulbredt mellemrum, så teksten er uændret, når den kopieres.
+    s.split(SLASH_SPLIT).forEach((part, i) => { if (i) el.append(document.createElement("wbr")); if (part) el.append(part); });
   }
   return el;
 }
+const NO_WBR = new Set(["option", "textarea", "title", "script", "style"]);
+const SLASH_WORD = /\p{L}\/\p{L}/u;
+const SLASH_SPLIT = /(?<=\p{L}\/)(?=\p{L})/u;
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -234,6 +244,7 @@ const P = {
   now: '<path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/>',
   map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
   list: '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" stroke-width="3"/>',
+  star: '<path d="m12 3.2 2.7 5.5 6 .9-4.35 4.25 1.03 6L12 17l-5.38 2.85 1.03-6L3.3 9.6l6-.9z"/>',
   chart: '<path d="M4 20h16"/><path d="M7 16v-5M12 16V6M17 16v-8"/>',
   trend: '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
   learn: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/>',

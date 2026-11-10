@@ -1,7 +1,7 @@
 // Tur: kun denne turs observationer. Her tilføjes og rettes observationer (+1 / +10 på hver), og ynglepar.
 // Selve turens oplysninger redigeres på sin egen side (tur-form.js).
 import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT, todayISO } from "../core.js";
-import { tracker, nowHM, finishTrack, isCount, countLeft, FINN, COUNT_MIN } from "../tur-data.js";
+import { tracker, nowHM, finishTrack, isCount, countLeft, FINN, COUNT_MIN, AFSLUTNING } from "../tur-data.js";
 import { quickSpecies } from "../tur-quick.js";
 import { isApp } from "../native.js";
 import { newId } from "../offline.js";
@@ -79,17 +79,27 @@ export function view(page, ref, store_, recent) {
       h("small", { class: "muted" }, [d.antal != null ? ` · ${d.antal} stk.` : "", d.noter ? ` · ${d.noter}` : ""].join(""))))) : null;
 
   // Afslut tur: sluttid (nu, hvis den mangler), ruten stoppes og beskæres til turens tidsrum, turen gemmes – og så tilbydes
-  // de almindelige arter på lokaliteten, som endnu ikke står på turen
-  const finishBtn = h("button", { class: "btn danger solid tur-finish", type: "button", onclick: async () => {
-    if (!T.turtidtil && T.dato === todayISO()) T.turtidtil = nowHM();
-    finishTrack(T);
-    finishBtn.disabled = true;
-    const status = await store_.saveNow();
-    finishBtn.disabled = false;
-    if (status === "fejl") return;
-    if (status === "offline") toast("Ingen forbindelse – turen er gemt på enheden og sendes automatisk", "ok");
-    await quickSpecies(T, ref, (added) => { T.observations.push(...added); store_.save(); drawRows(); });
-  } }, "Afslut tur");
+  // de almindelige arter på lokaliteten, som endnu ikke står på turen. Bagefter gemmes turen med sin afslutning
+  // (komplet / besvaret / ikke_komplet – tur-quick.js), og man kommer til Mine indtastninger. En afsluttet tur kan ikke
+  // afsluttes igen: knappen er væk og erstattet af et mærke.
+  const finishBtn = T.afslutning ? h("span", { class: `tag ${T.afslutning === "ikke_komplet" ? "plain" : "ok"} tur-finished`,
+    title: "Turen er afsluttet" }, `Afsluttet · ${AFSLUTNING[T.afslutning] || T.afslutning}`)
+    : h("button", { class: "btn danger solid tur-finish", type: "button", onclick: async () => {
+      if (finishBtn.disabled) return;
+      finishBtn.disabled = true;
+      if (!T.turtidtil && T.dato === todayISO()) T.turtidtil = nowHM();
+      finishTrack(T);
+      const status = await store_.saveNow();
+      if (status === "fejl") { finishBtn.disabled = false; return; }
+      const { status: afslutning, added } = await quickSpecies(T, ref);
+      T.observations.push(...added);
+      T.afslutning = afslutning;
+      const saved = await store_.saveNow();
+      if (saved === "fejl") { finishBtn.disabled = false; drawRows(); return; }
+      toast(saved === "offline" ? "Turen er afsluttet – ingen forbindelse, så den gemmes på enheden og sendes automatisk"
+        : `Turen er afsluttet (${AFSLUTNING[afslutning]})`, "ok");
+      location.hash = "#/indtast";
+    } }, "Afslut tur");
   // GPS-ruten styres under turens data (tur-form.js); mens den optages, gemmes turen her mindst hvert minut
   if (tracker.cid === T.client_id) T.gps_track = tracker.points;
   let lastSave = 0;

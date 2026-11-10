@@ -49,6 +49,9 @@ class FieldTrip(Base):
     spontan: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # FiNN-tælling (metode 99): FiNN-området, tællingen er lavet i (DOFbasens id, services/finn.py)
     finn_site_id: Mapped[int | None] = mapped_column(Integer)
+    # Sat, når turen er afsluttet (tur-quick.js): "komplet" = alle lokalitetens almindelige arter stod allerede på turen,
+    # "besvaret" = spørgeskemaet med de manglende arter blev besvaret, "ikke_komplet" = sprunget over (eller ikke vist uden net)
+    afslutning: Mapped[str | None] = mapped_column(String(12))
     lat: Mapped[float | None] = mapped_column(Float)
     lon: Mapped[float | None] = mapped_column(Float)
     temperatur: Mapped[int | None] = mapped_column(SmallInteger)

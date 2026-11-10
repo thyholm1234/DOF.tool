@@ -1,7 +1,7 @@
 // Krydslister: fælles hjælpere (CSS, adgang, datoer, tabeller med søgning/CSV/print, artsvælger).
 import { api, h, fmtN, state, searchSpecies } from "../core.js";
 
-export const BASE = "#/krydslister";
+export const BASE = "#/lister";  // krydslisterne er en del af Lister-modulet
 export const cleanups = [];
 export const ctx = () => state.user?.krydslister || { features: {}, can_admin: false };
 export const on = (f) => !!ctx().features?.[f];

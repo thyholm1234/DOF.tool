@@ -6,7 +6,12 @@ import { state, h, fmtN, icon } from "./core.js";
 
 /** Artsnavn som link; for SU/SUB-arter er selve navnet et mærkat (hvid fed skrift på kategoriens farve).
  *  Bemærk-kategorien vises ikke. */
-export const artName = (artnr, navn, kat) => h("a", { href: `#/art/${artnr}`, class: kat === "SU" || kat === "SUB" ? `dl-rare ${kat}` : null, title: kat === "SU" || kat === "SUB" ? kat : null }, navn);
+/** Artsnavnet: rødt (SU) / grønt (SUB) mærke for de sjældne arter, lyseblåt for fænologi (arten ses uden for sin normale periode). */
+export const artName = (artnr, navn, kat, pheno = false) => {
+  const rare = kat === "SU" || kat === "SUB";
+  return h("a", { href: `#/art/${artnr}`, class: rare ? `dl-rare ${kat}` : pheno ? "dl-rare pheno" : null,
+    title: rare ? kat : pheno ? "Fænologi: arten ses uden for sin normale periode" : null }, navn);
+};
 
 export const sexSign = (k) => !k ? "" : k.includes("M") && k.includes("F") ? " ♂♀" : k.includes("M") ? " ♂" : k.includes("F") ? " ♀" : "";
 // Trækkende: flere retninger (N, S, SØ …) på samme linje samles til ét «T»; øvrige adfærdskoder bevares
@@ -84,19 +89,17 @@ export const dkuBadge = (r) => r.dku_status ? h("span", { class: `dl-dku ${r.dku
 /** Gyldent SU-mærke: observationen af en SU-art er godkendt af SU (ingen mærke, før den er godkendt). */
 export const suBadge = (r) => r.su_ok ? h("span", { class: "dl-dku su-ok", title: "Godkendt af SU (Sjældenhedsudvalget)" }, "SU") : null;
 
-/** Fænologi: arten ses uden for sin normale periode (lyseblåt mærke efter antallet). */
-export const phenoBadge = (r) => r.pheno ? h("span", { class: "dl-dku pheno", title: "Fænologi: arten ses uden for sin normale periode" }, "FÆN") : null;
 /** Lokalt hit: få fund af arten på lokaliteten gennem alle år (lilla mærke efter antallet; hover viser antal fund). */
-export const localBadge = (r) => r.local ? h("span", { class: "dl-dku local", title: `Lokalt hit: ${r.lok_fund === 0 ? "ingen tidligere" : `kun ${fmtN(r.lok_fund)}`} fund af arten på lokaliteten gennem alle år` }, "LOK") : null;
+export const localBadge = (r) => r.local && !["SU", "SUB"].includes(r.kat) ? h("span", { class: "dl-dku local", title: `Lokalt hit: ${r.lok_fund === 0 ? "ingen tidligere" : `kun ${fmtN(r.lok_fund)}`} fund af arten på lokaliteten gennem alle år` }, "LOK") : null;
 
 /** Én række. what: "art" (gruppen er en lokalitet), "lok" (gruppen er en art) eller "begge" (art · lokalitet);
  *  pre: tekst foran (fx datoen, når listen ikke er grupperet efter dato). */
 export const obsRow = (r, what, pre = null) => h("tr", {},
   notes(r),
-  h("td", { class: "num" }, h("a", { href: obsHref(r), title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)), suBadge(r), dkuBadge(r), phenoBadge(r), localBadge(r)),
+  h("td", { class: "num" }, h("a", { href: obsHref(r), title: r.n_obs > 1 ? `Summeret af ${r.n_obs} observationer` : "Se observationen" }, fmtN(r.antal)), suBadge(r), dkuBadge(r), localBadge(r)),
   h("td", {}, ald(r)), h("td", {}, adf(r.adfkode)), extra(r), posCell(r), timeCell(r),
   h("td", {}, pre ? h("span", { class: "muted" }, pre, " · ") : null,
-    what === "art" ? artName(r.artnr, r.art, r.kat) : what === "lok" ? lokLink(r) : [artName(r.artnr, r.art, r.kat), h("span", { class: "muted" }, " · "), lokLink(r)],
+    what === "art" ? artName(r.artnr, r.art, r.kat, r.pheno) : what === "lok" ? lokLink(r) : [artName(r.artnr, r.art, r.kat, r.pheno), h("span", { class: "muted" }, " · "), lokLink(r)],
     h("span", { class: "dl-obs-m" }, obsLink(r))),  // på smalle skærme står observatøren under lokaliteten
   h("td", { class: "dl-obs" }, obsLink(r)));
 

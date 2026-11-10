@@ -91,7 +91,12 @@ async def save_species_list(session: AsyncSession, data: dict, lid: int | None =
         l = KlSpeciesList(key=key)
         session.add(l)
     l.navn, l.beskrivelse, l.sort = data["navn"].strip()[:120], data.get("beskrivelse") or None, int(data.get("sort") or 0)
+    if not lid and data.get("kopier_fra"):  # ny liste som kopi af en anden (fx en særskilt artsliste til Falsk VP)
+        await session.flush()
+        await session.execute(text("""INSERT INTO kl_species_list_entries (list_id, taxon_id, kategorier, sjaeldenhed, sort)
+            SELECT :ny, taxon_id, kategorier, sjaeldenhed, sort FROM kl_species_list_entries WHERE list_id = :fra"""), {"ny": l.id, "fra": int(data["kopier_fra"])})
     await session.commit()
+    await bump(VERSION)
     return l
 
 
@@ -115,8 +120,64 @@ async def save_entry(session: AsyncSession, list_id: int, taxon_id: int, data: d
     e.kategorier, e.sjaeldenhed = cats, sj
     if data.get("sort") is not None:
         e.sort = int(data["sort"])
+    _names(await session.get(KlTaxon, taxon_id), data)
+    await session.commit()
+    if data.get("placering"):
+        await move_entry(session, list_id, taxon_id, int(data["placering"]))
+    await bump(VERSION)
+
+
+def _names(t: KlTaxon, data: dict) -> bool:
+    """Ret artens danske/engelske navn (gælder arten overalt, fx på både DK- og VP-listen). Returnerer True, hvis noget blev ændret."""
+    changed = False
+    for field in ("dansk", "engelsk"):
+        if field in data and data[field] is not None:
+            v = str(data[field]).strip()[:200] or None
+            if v != getattr(t, field):
+                setattr(t, field, v)
+                changed = True
+    return changed
+
+
+async def move_entry(session: AsyncSession, list_id: int, taxon_id: int, position: int) -> None:
+    """Flyt arten til plads nr. position (1 = først) og nummerér listen fortløbende."""
+    ids = [r[0] for r in (await session.execute(text("SELECT taxon_id FROM kl_species_list_entries WHERE list_id = :l ORDER BY sort, taxon_id"), {"l": list_id})).all()]
+    if taxon_id not in ids:
+        raise KlError(404, "Arten er ikke på listen")
+    ids.remove(taxon_id)
+    ids.insert(max(0, min(len(ids), position - 1)), taxon_id)
+    await session.execute(text("UPDATE kl_species_list_entries SET sort = :s WHERE list_id = :l AND taxon_id = :t"),
+                          [{"s": i, "l": list_id, "t": t} for i, t in enumerate(ids, start=1)])
     await session.commit()
     await bump(VERSION)
+
+
+async def new_taxon_entry(session: AsyncSession, list_id: int, data: dict) -> int:
+    """Tilføj en art, der ikke findes i World Bird List (fx en ny split på VP-listen): opretter arten og sætter den på listen. Findes det latinske navn
+    allerede, bruges den eksisterende art. Returnerer artens id."""
+    if await session.get(KlSpeciesList, list_id) is None:
+        raise KlError(404, "Listen findes ikke")
+    latin = re.sub(r"\s+", " ", str(data.get("latin") or "")).strip()
+    if not re.fullmatch(r"[A-Za-z][A-Za-z .()×-]{2,199}", latin):
+        raise KlError(400, "Skriv et gyldigt latinsk navn")
+    tid = (await session.execute(text("SELECT id FROM kl_taxa WHERE lower(latin) = lower(:la) ORDER BY aktiv DESC, id LIMIT 1"), {"la": latin})).scalar()
+    t = await session.get(KlTaxon, tid) if tid else None
+    if t is None:
+        mx = (await session.execute(text("SELECT coalesce(max(sort), 0) FROM kl_taxa"))).scalar() or 0
+        t = KlTaxon(latin=latin, rang="art", version="manuel", sort=mx + 1, aktiv=True)
+        sp = (await session.execute(text("SELECT artnr FROM species WHERE lower(latin) = lower(:la) ORDER BY art_type = 'art' DESC LIMIT 1"), {"la": latin})).scalar()
+        t.artnr = sp
+        session.add(t)
+        await session.flush()
+    elif not t.aktiv:
+        t.aktiv = True
+    _names(t, data)
+    if not (t.dansk or t.engelsk):
+        raise KlError(400, "Skriv et dansk eller engelsk navn")
+    await session.commit()
+    await save_entry(session, list_id, t.id, {"kategorier": data.get("kategorier") or [], "sjaeldenhed": data.get("sjaeldenhed") or "almindelig",
+                                             "placering": data.get("placering")})
+    return t.id
 
 
 async def remove_entry(session: AsyncSession, list_id: int, taxon_id: int) -> None:
@@ -153,7 +214,7 @@ async def import_diff(session: AsyncSession, list_id: int, raw: bytes, apply: bo
     if not rows or "latin" not in rows[0]:
         raise KlError(400, "CSV-filen skal have en kolonne «latin» (brug eksporten som skabelon)")
     cur = {r["latin"].lower(): r for r in (await session.execute(text("""
-        SELECT t.id, t.latin, e.kategorier, e.sjaeldenhed, e.sort FROM kl_species_list_entries e JOIN kl_taxa t ON t.id = e.taxon_id WHERE e.list_id = :l"""), {"l": list_id})).mappings()}
+        SELECT t.id, t.latin, t.dansk, t.engelsk, e.kategorier, e.sjaeldenhed, e.sort FROM kl_species_list_entries e JOIN kl_taxa t ON t.id = e.taxon_id WHERE e.list_id = :l"""), {"l": list_id})).mappings()}
     taxa = {r["latin"].lower(): r["id"] for r in (await session.execute(text("SELECT id, latin FROM kl_taxa WHERE aktiv"))).mappings()}
     diff = {"nye": [], "aendrede": [], "ukendte": [], "uaendret": 0, "fejl": []}
     seen = set()
@@ -176,10 +237,13 @@ async def import_diff(session: AsyncSession, list_id: int, raw: bytes, apply: bo
                 await save_entry(session, list_id, taxa[key], {"kategorier": cats, "sjaeldenhed": sj, "sort": sort})
         else:
             c = cur[key]
-            if sorted(c["kategorier"] or []) != cats or c["sjaeldenhed"] != sj or (sort is not None and sort != c["sort"]):
-                diff["aendrede"].append({"latin": r["latin"], "foer": {"kategorier": c["kategorier"], "sjaeldenhed": c["sjaeldenhed"], "sort": c["sort"]}, "efter": {"kategorier": cats, "sjaeldenhed": sj, "sort": sort}})
+            # Navnekolonnerne (dansk, engelsk) retter artens navn, når de er udfyldt; tomme felter rører ikke navnet
+            names = {f: r[f] for f in ("dansk", "engelsk") if r.get(f) and r[f] != (c[f] or "")}
+            if sorted(c["kategorier"] or []) != cats or c["sjaeldenhed"] != sj or (sort is not None and sort != c["sort"]) or names:
+                diff["aendrede"].append({"latin": r["latin"], "foer": {"kategorier": c["kategorier"], "sjaeldenhed": c["sjaeldenhed"], "sort": c["sort"], **{f: c[f] for f in names}},
+                                         "efter": {"kategorier": cats, "sjaeldenhed": sj, "sort": sort, **names}})
                 if apply:
-                    await save_entry(session, list_id, c["id"], {"kategorier": cats, "sjaeldenhed": sj, "sort": sort})
+                    await save_entry(session, list_id, c["id"], {"kategorier": cats, "sjaeldenhed": sj, "sort": sort, **names})
             else:
                 diff["uaendret"] += 1
     diff["mangler_i_filen"] = [cur[k]["latin"] for k in cur if k not in seen]
@@ -351,4 +415,4 @@ async def decide(session: AsyncSession, mod: User, kid: int, approve: bool, reas
     owner = (await session.execute(select(User).where(User.obserkode == k.obserkode))).scalar_one_or_none()
     if owner is not None and owner.id != mod.id:
         await moderation.send_message(session, target_id=owner.id, mod_id=mod.id, subject=f"Dit kryds på {k.liste}: {k.navn} er {'godkendt' if approve else 'afvist'}",
-                                      body=(reason.strip() or ("Krydset er godkendt og tæller nu på listen." if approve else "Krydset blev ikke godkendt.")), link="#/krydslister/mine")
+                                      body=(reason.strip() or ("Krydset er godkendt og tæller nu på listen." if approve else "Krydset blev ikke godkendt.")), link="#/lister/mine")

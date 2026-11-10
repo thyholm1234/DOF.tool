@@ -1,7 +1,7 @@
 """Områder: afdeling, kommune, lokalitet, tegnet polygon eller radius om et punkt.
 
 Al rumlig logik sker i PostGIS. Et område oversættes til et SQL-prædikat på observations-aliaset
-`o` (og evt. lokalitets-aliaset `l`), som feed, lister, scoreboards og notifikationer deler.
+`o` (og evt. lokalitets-aliaset `l`), som feed, lister, ranglister og notifikationer deler.
 """
 
 from __future__ import annotations

@@ -1,0 +1,123 @@
+/* Lister-modulet (#/lister): mine lister (kort), listevisning med ædelarter, ranglister og faner. Bygger på .kl (krydslister.css) og portalens tokens. */
+.lister { --star: var(--accent); }
+.lister .page-head { margin-bottom: 10px; }
+.lister .small { font-size: .82rem; }
+.lister .spacer { flex: 1; }
+
+/* Faner: vandret rullende bjælke på mobil, ombrudt på brede skærme */
+.lister-tabs { display: flex; gap: 4px; margin: 0 0 18px; padding: 4px; background: var(--bg-2); border-radius: 12px; overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+.lister-tabs::-webkit-scrollbar { display: none; }
+.kl .lister-tabs a { flex: none; scroll-snap-align: start; padding: 8px 14px; border-radius: 9px; font-size: .88rem; font-weight: 600; color: var(--text-2); text-decoration: none; white-space: nowrap; }
+.kl .lister-tabs a:hover { color: var(--text); }
+.kl .lister-tabs a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+@media (min-width: 900px) { .lister-tabs { flex-wrap: wrap; width: fit-content; max-width: 100%; } }
+
+.lister-crumb { margin: 0 0 10px; font-size: .88rem; }
+.lister-switch { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
+
+/* Filterkort: vælgerne fylder bredden på mobil */
+.lister-filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lister-filter-row select { width: auto; min-width: 180px; max-width: 100%; }
+.lister-filter-row .spacer { flex: 1; }
+@media (max-width: 600px) {
+  .lister-filter-row select { flex: 1 1 100%; min-width: 0; }
+  .lister-filter-row .spacer { display: none; }
+  .lister-filter-row .btn, .lister-filter-row > a { flex: 1 1 auto; justify-content: center; text-align: center; }
+}
+
+/* Mine lister: sektioner med kort */
+.lister-hub-head { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
+.lister-hub-head h2 { margin: 0; font-size: 1.25rem; }
+.lister-year-label { display: inline-flex; align-items: center; gap: 8px; }
+.lister-year { width: auto; min-width: 96px; }
+.lister-sections { display: grid; gap: 26px; }
+.lister-section-head { display: flex; align-items: baseline; gap: 4px 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.lister-section-head h2 { margin: 0; font-size: 1.05rem; }
+.lister-section-head p { margin: 0; font-size: .84rem; }
+.lister-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+@media (max-width: 520px) { .lister-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
+
+.kl .lister-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; transition: box-shadow .15s, border-color .15s, transform .15s; }
+.kl .lister-card:hover { box-shadow: var(--shadow); border-color: var(--line-strong); transform: translateY(-1px); }
+.kl .lister-card:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+.lister-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.lister-card-ic { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 8px; background: var(--brand-soft); color: var(--brand); }
+.lister-card-ic .ic { width: 16px; height: 16px; }
+.lister-card-title { flex: 1 1 7em; font-weight: 650; font-size: .92rem; min-width: 0; overflow-wrap: break-word; hyphens: auto; line-height: 1.25; }
+.lister-badge { margin-left: auto; flex: none; font-size: .72rem; font-weight: 650; color: var(--brand); background: var(--brand-soft); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.lister-badge:empty { display: none; }
+.lister-card-count { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; margin-top: 4px; }
+.lister-card-count small { font-size: .85rem; font-weight: 600; color: var(--text-3); letter-spacing: 0; }
+.lister-card-sub { font-size: .8rem; color: var(--text-3); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.kl .lister-card.hero { background: linear-gradient(135deg, var(--brand-soft), var(--surface) 70%); border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
+.kl .lister-card.hero .lister-card-count { font-size: 2.5rem; }
+.kl .lister-card.aedel .lister-card-ic { background: color-mix(in srgb, var(--star) 18%, transparent); color: var(--star); }
+.kl .lister-card.aedel .lister-badge { color: var(--star); background: color-mix(in srgb, var(--star) 14%, transparent); }
+.kl .lister-card.manual .lister-card-ic { background: var(--bg-2); color: var(--text-2); }
+.kl .lister-card.add { flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 92px; border-style: dashed; background: transparent;
+  color: var(--text-2); font-weight: 600; font-size: .88rem; text-align: center; }
+.kl .lister-card.add:hover { color: var(--brand); border-color: var(--brand); transform: none; }
+.lister-card.add .ic { width: 18px; height: 18px; flex: none; }
+@media (max-width: 520px) {
+  .kl .lister-card { padding: 12px; }
+  .lister-card-count { font-size: 1.5rem; }
+  .kl .lister-card.hero .lister-card-count { font-size: 1.9rem; }
+  .lister-badge { position: static; margin-left: 0; }
+  .lister-card-top { flex-wrap: wrap; }
+  .lister-card-ic { width: 24px; height: 24px; }
+}
+.skeleton-text { color: var(--text-3); }
+
+/* Listevisning */
+.lister-hero-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lister-big { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.lister-big span { font-size: 1rem; font-weight: 600; color: var(--text-3); letter-spacing: 0; }
+.lister-latest { display: flex; flex-direction: column; align-items: flex-end; text-align: right; font-size: .88rem; min-width: 0; }
+@media (max-width: 520px) { .lister-big { font-size: 1.9rem; } .lister-latest { align-items: flex-start; text-align: left; } }
+
+.lister-aedel-stat { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding: 8px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--star) 10%, var(--surface)); font-size: .9rem; }
+.lister-aedel-stat label { margin-left: auto; }
+@media (max-width: 520px) { .lister-aedel-stat label { margin-left: 0; flex-basis: 100%; } }
+
+/* Ædelstjernen: tom kontur – fyldt, når arten er ædel. Knappen er stor nok til en finger. */
+.lister-star { display: inline-grid; place-items: center; color: var(--text-3); line-height: 0; }
+.lister-star .ic { width: 18px; height: 18px; }
+.lister-star.on { color: var(--star); }
+.lister-star.on .ic { fill: currentColor; }
+button.lister-star { width: 36px; height: 36px; margin: -8px -6px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: transform .12s, background .12s; }
+button.lister-star:hover { background: var(--bg-2); color: var(--star); }
+button.lister-star:active { transform: scale(.88); }
+button.lister-star:disabled { opacity: .5; cursor: progress; }
+.lister-star-cell { width: 36px; text-align: center; }
+.list-table tr.is-aedel td { background: color-mix(in srgb, var(--star) 7%, transparent); }
+.list-table .lister-art { min-width: 0; }
+.list-table .lister-lok { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  /* Mobil (app.css stabler listen): med ædelstjernen er der en kolonne mere – lokaliteten står under artsnavnet */
+  table.data.list-table.has-aedel tr { grid-template-columns: 30px 36px minmax(0, 1fr) auto; }
+  table.data.list-table.has-aedel thead tr th:nth-child(4) { display: revert; }
+  table.data.list-table.has-aedel thead tr th:nth-child(5) { display: none; }
+  table.data.list-table.has-aedel td:nth-child(4) { grid-column: auto; padding-top: 6px; font-size: inherit; color: inherit; }
+  table.data.list-table.has-aedel td:nth-child(5) { grid-column: 3 / -1; padding-top: 0; font-size: .8rem; color: var(--text-2); }
+  table.data.list-table.has-aedel td:nth-child(-n+4) { border-bottom: 0; }
+  table.data.list-table.has-aedel td:nth-child(5) { border-bottom: 0; }
+  .list-table { font-size: .86rem; }
+  .list-table th, .list-table td { padding-left: 5px; padding-right: 5px; }
+  .list-table .lister-lok { font-size: .8rem; color: var(--text-2); }
+}
+
+/* Krydslister i modulet */
+.kl-only-sm { display: none; }
+@media (max-width: 600px) { .kl .kl-hide-sm { display: none; } .kl .kl-only-sm { display: block; } }
+.kl a.rank-row { color: inherit; text-decoration: none; }
+.lister-kl-tabs { margin-bottom: 4px; }
+.lister details > summary { cursor: pointer; }
+@media (max-width: 600px) {
+  .kl .kl-tools select, .kl .kl-tools input { min-width: 0; flex: 1 1 100%; }
+  .kl .kl-form { grid-template-columns: 1fr; }
+  .kl .kl-pick { min-width: 0; }
+}
+@media print { .lister-tabs, .lister-switch, .lister-filter, .lister-crumb, button.lister-star { display: none; } }

@@ -61,7 +61,7 @@ CLUSTERS = [
         ("valkey", "valkey 8.1 :6379", [
             ("vsess", "Sessioner", "sess:*, usess:*"),
             ("vq", "Køer", "gateway, opslag, kommandoer"),
-            ("vcache", "Cache + versioner", "scoreboards, feed"),
+            ("vcache", "Cache + versioner", "ranglister, feed"),
             ("vps", "Pub/sub", "kanal «feed» m.fl."),
             ("vlim", "Låse + grænser", "login, kald-interval"),
         ]),

@@ -7,45 +7,111 @@ const dayOfYear = (iso) => { const d = new Date(iso + "T12:00:00"); return Math.
 const monthTicks = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
 const monthName = (doy) => ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"][monthTicks.findLastIndex(t => t <= doy)] || "";
 
-export async function render(view) {
+// Lister-modulet (#/lister/…): mine lister, ranglister, huller og grupper – samlet med krydslisterne (krydslister, mine kryds med manuel
+// indtastning, ædelarter, artslister, World Bird List, regler og admin). Krydslisternes sider ligger i ../krydslister/ og vises her.
+const TABS = [["", "Mine lister"], ["rangliste", "Ranglister"], ["huller", "Huller"], ["grupper", "Grupper"]];
+const KL_PAGES = { alle: ["alle", "page"], regler: ["sider", "regler"], om: ["sider", "om"], mine: ["mine", "page"], artslister: ["artslister", "page"],
+  wbl: ["wbl", "page"], art: ["art", "page"], admin: ["admin", "page"], kryds: ["liste", "page"], nyt: ["oversigt", "page"] };
+const KL_FILES = { alle: () => import("../krydslister/alle.js"), sider: () => import("../krydslister/sider.js"), mine: () => import("../krydslister/mine.js"),
+  artslister: () => import("../krydslister/artslister.js"), wbl: () => import("../krydslister/wbl.js"), art: () => import("../krydslister/art.js"),
+  admin: () => import("../krydslister/admin.js"), liste: () => import("../krydslister/liste.js"), oversigt: () => import("../krydslister/oversigt.js") };
+const kl = () => state.user?.krydslister || { features: {}, can_admin: false };
+const klOn = (f = "krydslister") => !!kl().features?.[f];
+
+export async function render(view, [sub] = []) {
   const p = params();
-  const tab = p.tab || "mine";
-  // Matrikler er flyttet til eget modul
-  if (tab === "matrikler") { location.hash = "#/matrikel?tab=matrikler"; return; }
-  // Arter pr. år ligger i Statistik-modulet, når det er synligt for brugeren
+  const parts = (sub || "").split("/").filter(Boolean);
+  // Gamle adresser (?tab=…) fra før modulerne blev samlet
   const stats = !!state.user?.statistik;
-  if (tab === "regioner" && stats) { location.hash = `#/statistik?${new URLSearchParams({ ...p, tab: "arter" })}`; return; }
-  view.append(h("div", { class: "page-head" },
-    h("div", {}, h("h1", {}, "Lister & scoreboards"), h("p", { class: "lead" }, `Årslister, kommuner, egne områder${stats ? "" : " og arter pr. år"} – beregnet direkte fra DOFbasen-data. Matrikelbirding har sit eget modul.`)),
-    h("span", { class: "spacer" }),
-    seg([["mine", "Mine"], ["huller", "Huller"], ["score", "Scoreboard"], ...(stats ? [] : [["regioner", "Arter pr. år"]]), ["grupper", "Grupper"]], tab, (v) => { setParams({ tab: v }); body.replaceChildren(); draw(v); })));
-  const body = h("div", {});
-  view.append(body);
-  const draw = (t) => t === "score" ? scoreboard(body) : t === "regioner" ? regionsTab(body, "regioner") : t === "grupper" ? groups(body) : t === "huller" ? gaps(body) : mine(body);
-  await draw(tab);
+  if (!parts.length && p.tab) {
+    const { tab, ...rest } = p, q = new URLSearchParams(rest).toString();
+    if (tab === "matrikler") { location.replace("#/matrikel?tab=matrikler"); return; }
+    if (tab === "regioner" && stats) { location.replace(`#/statistik?${new URLSearchParams({ ...rest, tab: "arter" })}`); return; }
+    const to = { score: "rangliste", huller: "huller", grupper: "grupper", regioner: "arter-pr-aar", mine: "liste" }[tab];
+    if (to) { location.replace(`#/lister/${to}${q ? `?${q}` : ""}`); return; }
+  }
+  if (!parts.length && (p.scope || p.year)) { location.replace(`#/lister/liste?${new URLSearchParams(p)}`); return; }  // fx «Min liste» fra Alarmer → Områder
+  const first = parts[0] || "";
+  loadCss("krydslister", "lister");
+  const isKl = Object.hasOwn(KL_PAGES, first);
+  if (isKl && !klOn()) { view.append(h("div", { class: "notice" }, "Krydslisterne er ikke slået til.")); return; }
+  const active = first === "liste" ? "" : first === "kryds" || first === "alle" || first === "nyt" ? "rangliste" : first === "wbl" || first === "art" ? "artslister" : first === "om" ? "regler" : first === "mine" ? "" : first;
+  const tabs = [...TABS, ...(stats ? [] : [["arter-pr-aar", "Arter pr. år"]]),
+    ...(klOn() && klOn("krydslister_wbl") ? [["artslister", "Artslister"]] : []), ...(klOn() ? [["regler", "Regler"]] : []), ...(klOn() && kl().can_admin ? [["admin", "Admin"]] : [])];
+  const body = h("div", { class: "lister-body" });
+  view.append(h("div", { class: "kl lister" },
+    h("header", { class: "page-head" }, h("div", {}, h("h1", {}, h("a", { href: "#/lister" }, "Lister")),
+      h("p", { class: "lead" }, "Dine årslister, livslister, ædelarter og krydslister – og hvordan du ligger på ranglisterne."))),
+    h("nav", { class: "lister-tabs", "aria-label": "Lister" }, ...tabs.map(([k, t]) => h("a", { href: k ? `#/lister/${k}` : "#/lister", class: k === active ? "on" : "", "aria-current": k === active ? "page" : null }, t))),
+    body));
+  document.title = "Lister – DOF.tool";
+  const cleanups = [];
+  try {
+    if (isKl) {
+      const { cleanups: klClean } = await import("../krydslister/common.js");
+      klClean.length = 0;
+      const [file, fn] = first === "kryds" && parts[2] === "art" ? ["liste", "hvem"] : KL_PAGES[first];
+      body.append(h("div", {}, h("div", { class: "muted" }, "Henter …")));
+      body.replaceChildren(await (await KL_FILES[file]())[fn](parts, p));
+      cleanups.push(() => { for (const f of klClean.splice(0)) { try { f(); } catch { /* ignorér */ } } });
+    } else if (first === "liste") await myList(body);
+    else if (first === "rangliste") await rankPage(body);
+    else if (first === "huller") await gaps(body);
+    else if (first === "grupper") await groups(body);
+    else if (first === "arter-pr-aar") await regionsTab(body, "regioner");
+    else if (!first) await (await import("../lister/oversigt.js")).page(body);
+    else body.append(h("div", { class: "notice err" }, "Siden findes ikke."));
+  } catch (err) {
+    console.error(err);
+    body.replaceChildren(err.status === 404 ? h("div", { class: "notice err" }, "Siden findes ikke, eller du har ikke adgang til den.") : errorBox(err));
+  }
+  return () => { for (const f of cleanups) f(); document.title = "DOF.tool"; };
 }
 
-// ---------------------------------------------------------------- mine lister
+const cssLoaded = new Set();
+function loadCss(...names) {
+  for (const name of names) {
+    if (cssLoaded.has(name) || document.querySelector(`link[data-css="${name}"]`)) continue;
+    const path = new URL(import.meta.url).pathname;
+    const href = path.startsWith("/v/") ? `/v/${path.split("/")[2]}/css/${name}.css` : `/css/${name}.css`;
+    document.head.append(h("link", { rel: "stylesheet", href, "data-css": name }));
+    cssLoaded.add(name);
+  }
+}
 
-async function mine(body) {
+/** Ranglister: årslisterne fra DOFbasen (Danmark, afdelinger, kommuner, grupper) eller krydslisterne (Danske Arter, Ædelarter, VP …). */
+async function rankPage(body) {
+  if (!klOn()) { await scoreboard(body); return; }
+  const out = h("div", {});
+  body.append(h("div", { class: "lister-switch" }, h("span", { class: "muted" }, "Vis:"),
+    h("div", { class: "seg" }, h("button", { type: "button", class: "on" }, "Årslister fra DOFbasen"),
+      h("button", { type: "button", onclick: () => { location.hash = "#/lister/kryds/dk"; } }, "Krydslister"))), out);
+  await scoreboard(out);
+}
+
+// ---------------------------------------------------------------- min liste (årsliste/livsliste for et område) med ædelarter
+
+async function myList(body) {
   if (requireLogin(body)) return;
   const meta = await api("/api/lists/meta");
   const p = params();
-  const st = { scope: p.scope || "dk", year: p.year || String(YEAR), sort: "dato" };
-  const scopeSel = h("select", { style: { width: "auto" } });
+  const st = { scope: p.scope || "dk", year: p.year || String(YEAR) };
+  const scopeSel = h("select", { "aria-label": "Område" });
   for (const sc of meta.scopes) scopeSel.append(h("option", { value: sc.scope }, sc.label));
+  if (![...scopeSel.options].some(o => o.value === st.scope)) st.scope = "dk";
   scopeSel.value = st.scope;
-  const yearSel = h("select", { style: { width: "auto" } }, h("option", { value: "all" }, "Livsliste (alle år)"),
+  const yearSel = h("select", { "aria-label": "År" }, h("option", { value: "all" }, "Livsliste (alle år)"),
     ...[...new Set([YEAR, ...meta.years])].sort((a, b) => b - a).map(y => h("option", { value: y }, y)));
   yearSel.value = st.year;
   const out = h("div", { class: "stack mt" });
-  const addArea = h("a", { class: "btn sm ghost", href: "#/alarmer?tab=omraader", html: `${icon("plus")} Nyt område` });
-  body.append(h("div", { class: "card" },
-    h("div", { class: "row" }, scopeSel, yearSel, h("span", { class: "spacer", style: { flex: 1 } }), addArea,
-      h("button", { class: "btn sm", onclick: compare, html: `${icon("users")} Sammenlign` })),
-    h("p", { class: "muted mt", style: { marginBottom: 0, fontSize: ".85rem" } },
-      "Matrikellister finder du under ", h("a", { href: "#/matrikel" }, "Matrikel"), ". ",
-      "Afdelinger og kommuner vælges under ", h("a", { href: "#/profil?fane=omraader" }, "profil"), ", egne områder (polygon/radius) under ", h("a", { href: "#/alarmer?tab=omraader" }, "Alarmer → Områder"), ".")),
+  body.append(h("div", { class: "lister-crumb" }, h("a", { href: "#/lister" }, "← Mine lister")),
+    h("div", { class: "card lister-filter" },
+      h("div", { class: "lister-filter-row" }, scopeSel, yearSel, h("span", { class: "spacer" }),
+        h("a", { class: "btn sm ghost", href: "#/alarmer?tab=omraader", html: `${icon("plus")} Nyt område` }),
+        h("button", { class: "btn sm", type: "button", onclick: compare, html: `${icon("users")} Sammenlign` })),
+      h("p", { class: "muted small", style: { margin: "8px 0 0" } },
+        "Døde fugle tæller ikke på dine lister. Afdelinger og kommuner vælges under ", h("a", { href: "#/profil?fane=omraader" }, "profil"),
+        ", egne områder under ", h("a", { href: "#/alarmer?tab=omraader" }, "Alarmer → Områder"), ". Matrikellister finder du under ", h("a", { href: "#/matrikel" }, "Matrikel"), ".")),
     out);
 
   const load = async () => {
@@ -55,7 +121,10 @@ async function mine(body) {
     out.replaceChildren(h("div", { class: "skeleton", style: { height: "220px" } }));
     try {
       const q = new URLSearchParams({ scope: st.scope, year: st.year });
-      drawList(out, await api(`/api/lists/user/${state.user.obserkode}?${q}`), st.year);
+      // Ædelarter hører til DK-listen: på årslisten for året, på livslisten for ædel-livslisten
+      const [data, aedel] = await Promise.all([api(`/api/lists/user/${state.user.obserkode}?${q}`),
+        st.scope === "dk" && klOn() ? api("/api/krydslister/aedel").catch(() => null) : null]);
+      drawList(out, data, st.year, aedel?.on ? { aedel: { ...aedel, year: st.year === "all" ? null : +st.year } } : {});
     } catch (err) { out.replaceChildren(errorBox(err)); }
   };
   scopeSel.onchange = load; yearSel.onchange = load;
@@ -78,11 +147,15 @@ async function mine(body) {
   }
 }
 
-export function drawList(out, data, year) {
+/** En liste (årsliste eller livsliste) med graf og sortérbar tabel. opts.aedel: {marks, year, kan_markere} – så vises ædelarterne med ★,
+ *  og man kan markere dem (på årslisten for året; på livslisten for ædel-livslisten). */
+export function drawList(out, data, year, opts = {}) {
   const items = data.items;
   const isYear = year && year !== "all";
   const pts = items.map((it, i) => [isYear ? dayOfYear(it.dato) : new Date(it.dato).getFullYear(), i + 1]);
   const sort = store("listsort") || { key: "dato", dir: 1 };
+  const ae = opts.aedel || null;
+  let onlyAedel = false;
   const tbody = h("tbody");
   const cmp = {
     dato: (a, b) => a.dato.localeCompare(b.dato) || a.obsid - b.obsid,
@@ -90,25 +163,67 @@ export function drawList(out, data, year) {
     sys: (a, b) => (a.sortering || 0) - (b.sortering || 0),
     lok: (a, b) => (a.lok || "").localeCompare(b.lok || "", "da"),
   };
+  // Ædelkryds pr. art: artnr eller latinsk navn (krydslisternes arter kobles til DOFbasen via begge)
+  const marksFor = (it) => !ae ? [] : ae.marks.filter(m => (m.artnr && m.artnr === it.artnr) || (m.latin && it.latin && m.latin.toLowerCase() === it.latin.toLowerCase()));
+  const isAedel = (it) => { const ms = marksFor(it); return ae?.year ? ms.some(m => m.dato?.startsWith(String(ae.year))) : ms.length > 0; };
+  const aedelCount = () => items.filter(isAedel).length;
+  const aedelStat = h("div", { class: "lister-aedel-stat" });
+  const drawStat = () => {
+    if (!ae) return;
+    const n = aedelCount();
+    aedelStat.replaceChildren(h("span", { class: "lister-star on", html: icon("star") }), h("b", {}, fmtN(n)), ` ${n === 1 ? "ædelart" : "ædelarter"} ${ae.year ? `i ${ae.year}` : "på ædel-livslisten"}`,
+      h("label", { class: "check small" }, h("input", { type: "checkbox", checked: onlyAedel, onchange: (e) => { onlyAedel = e.target.checked; drawRows(); } }), h("span", {}, "Vis kun ædelarter")));
+  };
+  const toggle = async (it, btn) => {
+    const on = !isAedel(it);
+    const ms = marksFor(it);
+    if (!on && !ae.year && ms.some(m => m.dato) && !confirm(`Fjern ${it.art} som ædelart i alle år (${[...new Set(ms.filter(m => m.dato).map(m => m.dato.slice(0, 4)))].join(", ")})?`)) return;
+    btn.disabled = true;
+    try {
+      await api("/api/krydslister/aedel", { method: "PUT", body: { artnr: it.artnr, aar: ae.year, aedel: on, dato: ae.year ? it.dato : null, lokalitet: it.lok || "", obsid: it.obsid || null } });
+      const fresh = await api("/api/krydslister/aedel");
+      ae.marks = fresh.marks;
+      toast(on ? `${it.art} er markeret som ædelart${ae.year ? ` i ${ae.year}` : ""}` : `${it.art} er ikke længere ædelart${ae.year ? ` i ${ae.year}` : ""}`);
+      drawRows(); drawStat();
+    } catch (err) { toast(err.message, "err"); btn.disabled = false; }
+  };
+  const star = (it) => {
+    const on = isAedel(it), ms = marksFor(it);
+    const years = ms.filter(m => m.dato).map(m => m.dato.slice(0, 4));
+    const title = on ? `Ædelart${ae.year ? ` i ${ae.year}` : years.length ? ` (${[...new Set(years)].join(", ")})` : " på livslisten"}${ae.kan_markere ? " – klik for at fjerne" : ""}`
+      : ae.kan_markere ? `Markér som ædelart${ae.year ? ` i ${ae.year}` : " på livslisten"}` : "Ikke ædelart";
+    if (!ae.kan_markere) return h("span", { class: `lister-star ${on ? "on" : ""}`, title, html: icon("star") });
+    const b = h("button", { type: "button", class: `lister-star ${on ? "on" : ""}`, title, "aria-label": title, "aria-pressed": on ? "true" : "false", html: icon("star") });
+    b.onclick = () => toggle(it, b);
+    return b;
+  };
   const drawRows = () => {
-    const sorted = [...items].sort((a, b) => sort.dir * (cmp[sort.key] || cmp.dato)(a, b));
-    tbody.replaceChildren(...sorted.map((it) => h("tr", {},
+    const sorted = [...items].filter(it => !onlyAedel || isAedel(it)).sort((a, b) => sort.dir * (cmp[sort.key] || cmp.dato)(a, b));
+    tbody.replaceChildren(...sorted.map((it) => h("tr", { class: ae && isAedel(it) ? "is-aedel" : "" },
       h("td", { class: "num muted" }, items.indexOf(it) + 1),
-      h("td", {}, h("a", { href: `#/art/${it.artnr}` }, it.art), it.klass !== "Alm" ? [" ", tag(it.klass)] : null),
+      ae ? h("td", { class: "lister-star-cell" }, star(it)) : null,
+      h("td", { class: "lister-art" }, h("a", { href: `#/art/${it.artnr}` }, it.art), it.klass !== "Alm" ? [" ", tag(it.klass)] : null),
       h("td", { class: "nowrap" }, fmtDate(it.dato, !isYear)),
-      h("td", {}, it.loknr ? h("a", { href: `#/lok/${it.loknr}` }, it.lok) : "–"))));
+      h("td", { class: "lister-lok" }, it.loknr ? h("a", { href: `#/lok/${it.loknr}` }, it.lok) : "–"))));
   };
   drawRows();
+  drawStat();
   const th = (label, key) => h("th", { style: { cursor: "pointer" }, onclick: () => { sort.dir = sort.key === key ? -sort.dir : 1; sort.key = key; store("listsort", sort); drawRows(); } }, label);
   const bar = sortBar([["dato", "Dato"], ["navn", "Navn"], ["sys", "Systematik"], ["lok", "Lokalitet"]], sort, () => { store("listsort", sort); drawRows(); });
+  const last = items[items.length - 1];
   out.replaceChildren(
-    h("div", { class: "card" },
-      h("div", { class: "row between" }, h("div", {}, h("div", { class: "muted" }, data.navn), h("div", { style: { fontSize: "2.4rem", fontWeight: 800, letterSpacing: "-0.03em" } }, fmtN(data.count), h("span", { class: "muted", style: { fontSize: "1rem", fontWeight: 600 } }, " arter"))),
-        items.length ? h("div", { class: "right muted" }, "Seneste: ", h("b", {}, items[items.length - 1].art), h("br"), fmtDate(items[items.length - 1].dato)) : null),
+    h("div", { class: "card lister-hero" },
+      h("div", { class: "lister-hero-head" },
+        h("div", {}, h("div", { class: "muted" }, data.navn), h("div", { class: "lister-big" }, fmtN(data.count), h("span", {}, " arter"))),
+        last ? h("div", { class: "lister-latest" }, h("span", { class: "muted" }, "Seneste"), h("b", {}, last.art), h("span", { class: "muted" }, fmtDate(last.dato))) : null),
+      ae ? aedelStat : null,
+      ae?.kan_markere ? h("p", { class: "muted small", style: { margin: "6px 0 0" } }, ae.year
+        ? `Tryk på ★ for at markere en art som ædelart i ${ae.year}. Den kommer på Ædelårslisten ${ae.year} og på din ædel-livsliste.`
+        : "Tryk på ★ for at markere en art som ædelart på din ædel-livsliste (uden at den kommer på en bestemt ædelårsliste).") : null,
       items.length > 1 ? lineChart({ series: [{ name: "Arter", points: pts, color: PALETTE[0] }], step: true, height: 200,
         xFormat: isYear ? monthName : String, xTicks: isYear ? monthTicks : undefined, yFormat: (v) => fmtN(Math.round(v)) }) : null),
-    items.length ? h("div", { class: "card table-wrap" }, h("div", { class: "mb" }, bar), h("table", { class: "data list-table" },
-      h("thead", {}, h("tr", {}, h("th", {}, "#"), th("Art", "navn"), th("Første dato", "dato"), h("th", {}, "Lokalitet"))), tbody))
+    items.length ? h("div", { class: "card table-wrap" }, h("div", { class: "mb" }, bar), h("table", { class: `data list-table ${ae ? "has-aedel" : ""}` },
+      h("thead", {}, h("tr", {}, h("th", {}, "#"), ae ? h("th", { title: "Ædelart" }, h("span", { class: "lister-star on", html: icon("star") })) : null, th("Art", "navn"), th("Første dato", "dato"), h("th", {}, "Lokalitet"))), tbody))
       : empty("Ingen arter på denne liste endnu", "Data kommer fra DOFbasen – nye observationer tæller med inden for få minutter."));
 }
 
@@ -135,7 +250,7 @@ async function gaps(body) {
     h("div", { class: "row" }, scopeSel, yearSel, h("span", { style: { flex: 1 } }), metric),
     note), out);
   let data = null;
-  const save = () => setParams({ tab: "huller", scope: st.scope === "dk" ? "" : st.scope, year: st.year, by: st.by === "trips" ? "" : st.by });
+  const save = () => setParams({ scope: st.scope === "dk" ? "" : st.scope, year: st.year, by: st.by === "trips" ? "" : st.by });
   // Livslisten tæller observatør-år (se regions.refresh_reach), så observatørmålet er en andel – ikke et antal personer
   const obsShare = () => st.year === "all" && data?.scope && /^(dk|afd:|kom:)/.test(data.scope);
   const value = (it) => st.by === "trips" ? it.share : obsShare() ? it.obs_share : it.n_observers;
@@ -199,7 +314,7 @@ async function gaps(body) {
   await load();
 }
 
-// ---------------------------------------------------------------- scoreboard
+// ---------------------------------------------------------------- ranglister (årslister fra DOFbasen)
 
 async function scoreboard(body) {
   await loadRef();
@@ -219,12 +334,12 @@ async function scoreboard(body) {
   const view = seg([["rank", "Rangliste"], ["race", "Kapløb"], ["matrix", "Matrix"], ["unique", "Unikke"]], store("sbview") || "rank", (v) => { store("sbview", v); draw(); });
   const out = h("div", { class: "mt" });
   body.append(h("div", { class: "card" }, h("div", { class: "row" }, scopeSel, yearSel, groupSel, h("span", { style: { flex: 1 } }), view),
-    h("p", { class: "muted mt", style: { fontSize: ".85rem", marginBottom: 0 } }, "Afdelings- og kommuneboards viser brugere, der har valgt området under profil. Grupper kan indeholde alle obserkoder.")), out);
+    h("p", { class: "muted mt", style: { fontSize: ".85rem", marginBottom: 0 } }, "Afdelings- og kommuneranglister viser brugere, der har valgt området under profil. Grupper kan indeholde alle obserkoder. Døde fugle tæller ikke.")), out);
   let data = null;
   const load = async () => {
     st.scope = scopeSel.value;
     st.year = yearSel.value; st.group = groupSel.value;
-    setParams({ tab: "score", scope: st.scope === "dk" ? "" : st.scope, year: st.year, group: st.group });
+    setParams({ scope: st.scope === "dk" ? "" : st.scope, year: st.year, group: st.group });
     out.replaceChildren(h("div", { class: "skeleton", style: { height: "300px" } }));
     try {
       const q = new URLSearchParams({ scope: st.scope, year: st.year });
@@ -307,7 +422,7 @@ export async function groups(body, board = "#/lister") {
   const code = h("input", { placeholder: "Invitationskode", style: { textTransform: "uppercase" } });
   body.append(h("div", { class: "grid-2" },
     h("form", { class: "card stack", onsubmit: async (e) => { e.preventDefault(); try { await api("/api/lists/groups", { method: "POST", body: { name: name.value } }); name.value = ""; load(); } catch (err) { toast(err.message, "err"); } } },
-      h("h3", {}, "Opret gruppe"), h("p", { class: "muted" }, "En gruppe får sit eget scoreboard. Du kan tilføje alle obserkoder – også folk der ikke bruger portalen."), name, h("button", { class: "btn primary" }, "Opret")),
+      h("h3", {}, "Opret gruppe"), h("p", { class: "muted" }, "En gruppe får sin egen rangliste. Du kan tilføje alle obserkoder – også folk der ikke bruger portalen."), name, h("button", { class: "btn primary" }, "Opret")),
     h("form", { class: "card stack", onsubmit: async (e) => { e.preventDefault(); try { const g = await api("/api/lists/groups/join", { method: "POST", body: { code: code.value } }); toast(`Du er nu med i ${g.name}`); code.value = ""; load(); } catch (err) { toast(err.message, "err"); } } },
       h("h3", {}, "Deltag med kode"), h("p", { class: "muted" }, "Få koden af gruppens ejer."), code, h("button", { class: "btn" }, "Deltag"))),
     h("h2", { class: "mt2" }, "Mine grupper"), list);
@@ -324,7 +439,7 @@ function groupCard(g, reload, board) {
   const card = h("div", { class: "card" },
     h("div", { class: "card-head" }, h("h3", {}, g.name), h("span", { class: "spacer" }),
       g.invite_code ? h("span", { class: "muted" }, "Kode: ", h("b", { class: "kbd" }, g.invite_code)) : null,
-      h("a", { class: "btn sm", href: `${board}?tab=score&group=${g.id}` }, "Scoreboard")),
+      h("a", { class: "btn sm", href: board === "#/lister" ? `#/lister/rangliste?group=${g.id}` : `${board}?tab=score&group=${g.id}` }, "Rangliste")),
     members,
     g.owner ? h("form", { class: "row mt", onsubmit: async (e) => { e.preventDefault(); try { await api(`/api/lists/groups/${g.id}/members`, { method: "POST", body: { obserkode: add.value } }); add.value = ""; loadMembers(); } catch (err) { toast(err.message, "err"); } } },
       add, h("button", { class: "btn sm" }, "Tilføj"), h("span", { style: { flex: 1 } }),

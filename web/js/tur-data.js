@@ -129,12 +129,12 @@ export function finishTrack(T) {
 
 // ---------------------------------------------------------------- tur-modellen
 
-const TRIP_FIELDS = ["dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "finn_site_id", "medobser", "turnoter", "on_behalf_of", "lat", "lon",
+const TRIP_FIELDS = ["dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "finn_site_id", "afslutning", "medobser", "turnoter", "on_behalf_of", "lat", "lon",
   "temperatur", "skydaekke", "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv"];
 
 export function blankTrip() {
   return { client_id: newId(), server_id: null, dato: todayISO(), loknr: null, lok: null, turtidfra: nowHM(), turtidtil: "", metode_id: 1, komplet: null,
-    spontan: false, finn_site_id: null, medobser: "", turnoter: "", on_behalf_of: "", lat: null, lon: null, temperatur: null, skydaekke: null, vindretning: null,
+    spontan: false, finn_site_id: null, afslutning: null, medobser: "", turnoter: "", on_behalf_of: "", lat: null, lon: null, temperatur: null, skydaekke: null, vindretning: null,
     vindstyrke: null, nedboer: null, nedboertype: null, sigtbarhed: null, gps_aktiv: false, gps_track: [], observations: [], breeding_pairs: [],
     disturbances: [], speech: [] };  // speech: indtalte poster (kun på enheden; summen står i observations)
 }
@@ -186,6 +186,8 @@ export async function openTrip(which, ref) {
 
 export const SPONTAN = 98, FINN = 99;
 export const COUNT_MIN = 5;  // en tælling varer fem minutter
+// Turens afslutning ved «Afslut tur» (models/field.py · afslutning; tur-quick.js)
+export const AFSLUTNING = { komplet: "komplet", besvaret: "spørgeskema besvaret", ikke_komplet: "ikke komplet" };
 export const isCount = (T) => T.metode_id === SPONTAN || T.metode_id === FINN;
 export const addMinutes = (hm, min) => {
   const [hh, mm] = hm.split(":").map(Number), t = (hh * 60 + mm + min) % 1440;
@@ -209,10 +211,11 @@ export function countLeft(T) {
 }
 
 /** Indtastninger, der ikke er afsluttet: ture uden sluttid fra de seneste dage – og tællinger, der stadig kører.
+ *  En tur, der er afsluttet med «Afslut tur» (afslutning sat), er aldrig aktuel.
  *  Både ture på enheden (ikke sendt) og på serveren. [{ T-lignende: client_id/server_id, lok, dato, turtidfra, metode_id, n_obs }] */
 export async function openEntries() {
   const since = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
-  const open = (t) => t.dato >= since && (!t.turtidtil || (isCount(t) && (countLeft(t) ?? -1) > 0));
+  const open = (t) => !t.afslutning && t.dato >= since && (!t.turtidtil || (isCount(t) && (countLeft(t) ?? -1) > 0));
   const local = (await listLocal().catch(() => [])).map(r => ({ ...r.draft, server_id: r.server_id ?? r.draft?.server_id })).filter(t => t?.dato && open(t));
   let server = [];
   try { server = await cachedApi("tripsmine", "/api/trips/mine"); } catch { /* uden net og uden kopi */ }

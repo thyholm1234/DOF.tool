@@ -1,10 +1,10 @@
-"""Årslister og scoreboards (Boligbirding/Fugleliga), beregnet direkte i PostgreSQL.
+"""Årslister og ranglister (Boligbirding/Fugleliga), beregnet direkte i PostgreSQL.
 
 Lister: DK, lokalafdeling, kommune, matrikel (#BB-tag i tur-/fuglenoter), lokalitet og
 brugerens egne områder (polygon/radius). År kan være et årstal eller 'all' (livsliste).
-Scoreboards caches i Valkey og invalideres når nye observationer for deltagere kommer ind.
+Ranglister caches i Valkey og invalideres når nye observationer for deltagere kommer ind.
 
-Matrikler (som i Boligbirding): matrikel 1 tæller på scoreboards (#BB26 eller #BB26-1), matrikel 2+
+Matrikler (som i Boligbirding): matrikel 1 tæller på ranglisterne (#BB26 eller #BB26-1), matrikel 2+
 er private (#BB26-2 ...). Hver matrikel kan have perioder (adresse, start, evt. slut). Flytter man,
 afsluttes den gamle periode og en ny starter; listen tæller kun den aktive periode, så fremgangen
 nulstilles ved flytning, mens tidligere perioder kan vælges (eller 'alle perioder' som historik).
@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import cached, version
 from portal.services import dataset
 from portal.services.areas import Scope, parse_scope
-from portal.services.categories import countable_sql
+from portal.services.categories import alive_sql, countable_sql
 from portal.timeutil import dk_today
 from portal.services.setting_store import get_setting
 
@@ -130,7 +130,7 @@ async def load_periods(session: AsyncSession, codes: list[str], nummer: int) -> 
 async def _where(session: AsyncSession, spec: ListSpec, prefix: str, windows: list[tuple[date, date]] | None = None
                  ) -> tuple[str, dict]:
     pred, params = (await spec.scope.with_geom(session)).predicate("o")
-    parts = [pred, "s.list_artnr IS NOT NULL", "NOT ls.excluded", "o.antal > 0", countable_sql()]
+    parts = [pred, "s.list_artnr IS NOT NULL", "NOT ls.excluded", "o.antal > 0", countable_sql(), alive_sql()]  # døde fugle tæller ikke på personlige lister
     if spec.year:
         parts.append("o.dato BETWEEN :y0 AND :y1")
         params.update({"y0": date(spec.year, 1, 1), "y1": date(spec.year, 12, 31)})
@@ -170,7 +170,7 @@ async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
     prefix = await matrikel_prefix(session)
     where, params = await _where(session, spec, prefix, windows)
     sql = f"""
-        SELECT DISTINCT ON (s.list_artnr) s.list_artnr AS artnr, ls.navn AS art, ls.klass, ls.sortering,
+        SELECT DISTINCT ON (s.list_artnr) s.list_artnr AS artnr, ls.navn AS art, ls.latin, ls.klass, ls.sortering,
                o.dato, o.loknr, l.navn AS lok, o.obsid
         FROM observations o
         JOIN species s ON s.artnr = o.artnr
@@ -184,6 +184,24 @@ async def year_list(session: AsyncSession, obserkode: str, spec: ListSpec,
                                   secret_for=obserkode if own else None)).mappings().all()
     out = [{**dict(r), "dato": r["dato"].isoformat()} for r in rows]
     out.sort(key=lambda r: (r["dato"], r["obsid"]))
+    return out
+
+
+async def counts(session: AsyncSession, obserkode: str, scope_keys: list[str], year: int) -> dict[str, dict]:
+    """Til «Mine lister»: antal arter i året og i alt (livslisten) for hvert område – én forespørgsel pr. område. Kun til
+    observatøren selv (egne hemmelige DOF.tool-observationer tæller med) og må derfor ikke caches på tværs af brugere."""
+    prefix = await matrikel_prefix(session)
+    out: dict[str, dict] = {}
+    for key in scope_keys:
+        where, params = await _where(session, ListSpec(parse_scope(key), None), prefix)
+        row = (await dataset.execute(session, f"""
+            SELECT count(DISTINCT s.list_artnr) AS life,
+                   count(DISTINCT s.list_artnr) FILTER (WHERE o.dato BETWEEN :cy0 AND :cy1) AS year
+            FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
+            WHERE o.obserkode = :kode AND {where}
+        """, {"kode": obserkode, "cy0": date(year, 1, 1), "cy1": date(year, 12, 31), **params},
+            obserkode=obserkode, secret_for=obserkode)).mappings().first()
+        out[key] = {"life": row["life"] if row else 0, "year": row["year"] if row else 0}
     return out
 
 
@@ -257,7 +275,7 @@ async def scoreboard(session: AsyncSession, spec: ListSpec, group_id: int | None
     async def produce() -> dict:
         people = await participants(session, group_id)
         if spec.scope.kind == "afdeling" and not group_id:
-            # Afdelingsboards: kun deltagere der har valgt afdelingen (som i Boligbirding)
+            # Afdelingsranglister: kun deltagere der har valgt afdelingen (som i Boligbirding)
             opted = await _opted(session, "afdelinger", spec.scope.ref)
             people = [p for p in people if p["obserkode"] in opted]
         if spec.scope.kind == "kommune" and not group_id:
@@ -366,8 +384,8 @@ def rerank(rows: list[dict]) -> list[dict]:
 
 
 async def matrikel_board(session: AsyncSession, year: int | None, scope: str = "dk", group_id: int | None = None) -> dict:
-    """Boligbirding-scoreboard (matrikel 1). Afdelingsboards er deltagerne der har valgt afdelingen under profil;
-    kommuneboards er deltagerne hvis matrikel ligger i kommunen (uanset hvilke kommuner de følger)."""
+    """Boligbirding-ranglisten (matrikel 1). Afdelingsranglister er deltagerne der har valgt afdelingen under profil;
+    kommuneranglister er deltagerne hvis matrikel ligger i kommunen (uanset hvilke kommuner de følger)."""
     spec = ListSpec(parse_scope("dk"), year, 1)
     board = await scoreboard(session, spec, group_id)
     kind, _, ref = scope.partition(":")
@@ -388,7 +406,7 @@ def _standing(label: str, kind: str, ref: str, rows: list[dict], me: str, my_cou
     place = mine["placering"] if mine else 1 + sum(1 for r in lean if r["antal"] > my_count)
     above = next((r for r in reversed(lean) if r["antal"] > my_count), None)
     below = next((r for r in lean if r["antal"] < my_count), None)
-    # Har man selv ingen matrikelobservationer, er man ikke med på boardet og tæller heller ikke med i antallet
+    # Har man selv ingen matrikelobservationer, er man ikke med på ranglisten og tæller heller ikke med i antallet
     return {"label": label, "kind": kind, "ref": ref, "n": len(lean) + (0 if mine or not my_count else 1), "placering": place,
             "public": mine is not None, "leader": lean[0] if lean else None,
             "above": {**above, "gap": above["antal"] - my_count} if above else None,

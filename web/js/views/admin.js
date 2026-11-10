@@ -20,6 +20,7 @@ const TABS = {
   indhold: () => import("./admin/indhold.js").then(m => (body) => m.content(body)),
   funktioner: () => import("./admin/funktioner.js").then(m => (body) => m.featuresPanel(body)),
   lokaliteter: () => import("./admin/lokaliteter.js").then(m => (body, every) => m.renderLocations(body, every)),
+  taellinger: () => import("./admin/taellinger.js").then(m => (body) => m.renderCounts(body)),
 };
 
 export const render = (view) => shell(view, ADMIN_TABS, "Administration");

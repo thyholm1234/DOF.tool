@@ -97,12 +97,25 @@ class ListIn(BaseModel):
     navn: str = Field(max_length=120)
     beskrivelse: str | None = None
     sort: int = 0
+    kopier_fra: int | None = None  # kun ved oprettelse: kopiér arterne fra en anden artsliste
 
 
 class EntryIn(BaseModel):
     kategorier: list[str] = Field(default_factory=list, max_length=6)
     sjaeldenhed: str = "almindelig"
     sort: int | None = None
+    dansk: str | None = Field(None, max_length=200)  # navnene gælder arten overalt
+    engelsk: str | None = Field(None, max_length=200)
+    placering: int | None = Field(None, ge=1)  # flyt arten til plads nr.
+
+
+class NewTaxonIn(BaseModel):
+    latin: str = Field(min_length=3, max_length=200)
+    dansk: str | None = Field(None, max_length=200)
+    engelsk: str | None = Field(None, max_length=200)
+    kategorier: list[str] = Field(default_factory=list, max_length=6)
+    sjaeldenhed: str = "almindelig"
+    placering: int | None = Field(None, ge=1)
 
 
 @router.post("/artslister")
@@ -131,6 +144,17 @@ async def gem_art(lid: int, tid: int, body: EntryIn, user: User = Depends(requir
         raise _err(exc) from exc
     await activity.track(user.id, "kl_art", "/krydslister/admin", {"liste": lid, "taxon": tid})
     return {"ok": True}
+
+
+@router.post("/artslister/{lid}/ny-art")
+async def ny_art(lid: int, body: NewTaxonIn, user: User = Depends(require_user), acc: kl_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Tilføj en art, der ikke findes i World Bird List (fx en ny split på VP-listen)."""
+    try:
+        tid = await kl_admin.new_taxon_entry(db, lid, body.model_dump())
+    except krydslister.KlError as exc:
+        raise _err(exc) from exc
+    await activity.track(user.id, "kl_ny_art", "/lister/admin", {"liste": lid, "taxon": tid})
+    return {"id": tid}
 
 
 @router.delete("/artslister/{lid}/arter/{tid}")

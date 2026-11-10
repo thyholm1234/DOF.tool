@@ -147,6 +147,42 @@ async def slet(kid: int, user: User = Depends(require_user), acc: kl_access.Acce
     return {"ok": True}
 
 
+# ---------------------------------------------------------------- ædelarter og «Mine lister»
+
+class AedelIn(BaseModel):
+    artnr: int
+    aar: int | None = Field(None, ge=1900, le=2100)  # None: livslisten
+    aedel: bool = True
+    dato: date | None = None
+    lokalitet: str = Field("", max_length=250)
+    obsid: int | None = None
+
+
+@router.get("/aedel")
+async def aedel(user: User = Depends(require_user), acc: kl_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """Mine ædelarter (til stjernerne på års- og livslisten)."""
+    return {**await krydslister.aedel_marks(db, user), "kan_markere": acc.on("krydslister_manuel")}
+
+
+@router.put("/aedel")
+async def saet_aedel(body: AedelIn, user: User = Depends(require_user), acc: kl_access.Access = Depends(need("krydslister_manuel")),
+                     db: AsyncSession = Depends(get_session)):
+    """Markér en art fra årslisten (aar) eller livslisten som ædelart – eller fjern markeringen."""
+    try:
+        await krydslister.set_aedel(db, user, artnr=body.artnr, year=body.aar, on=body.aedel, dato=body.dato, lokalitet=body.lokalitet.strip(),
+                                    obsid=body.obsid, privileged=acc.admin)
+    except krydslister.KlError as exc:
+        raise _err(exc) from exc
+    return {"ok": True}
+
+
+@router.get("/mine-lister")
+async def mine_lister(aar: int | None = Query(None, ge=1900, le=2100), user: User = Depends(require_user), acc: kl_access.Access = Depends(need()),
+                      db: AsyncSession = Depends(get_session)):
+    """Mine krydslister med antal og placering (til «Mine lister»)."""
+    return {"lister": await krydslister.my_overview(db, user, aar or dk_today().year), "kan_krydse": acc.on("krydslister_manuel")}
+
+
 # ---------------------------------------------------------------- artslister, World Bird List og artssider
 
 @router.get("/artslister")

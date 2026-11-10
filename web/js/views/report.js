@@ -4,6 +4,7 @@ import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg
 import { baseMap, locationOutlines } from "../maps.js";
 import { statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
 import { listLocal, syncAll, cachedApi } from "../offline.js";
+import { AFSLUTNING } from "../tur-data.js";
 
 let CODES = null;
 let SPECIES = null;
@@ -94,6 +95,7 @@ function drawTrips(el, trips, local, reload, err = null) {
       h("div", { class: "muted myobs-sub" }, [`${fmtN(t.n_obs)} observationer`, `${fmtN(t.n_arter)} arter`, t.n_ynglepar ? `${t.n_ynglepar} ynglepar` : null,
         t.n_forstyrrelser ? `${t.n_forstyrrelser} forstyrrelser` : null, t.kommune].filter(Boolean).join(" · "))),
     h("div", { class: "myobs-side" }, h("span", { class: "tag plain", title: "Indtastet i DOF.tool – ikke sendt til DOFbasen" }, "DOF.tool"),
+      t.afslutning ? h("span", { class: `tag ${t.afslutning === "ikke_komplet" ? "plain" : "ok"}`, title: "Turen er afsluttet" }, AFSLUTNING[t.afslutning] || t.afslutning) : null,
       t.gps_aktiv ? h("small", { class: "muted" }, "rute") : null))))));
   el.replaceChildren(...rows);
 }

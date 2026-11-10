@@ -1,11 +1,11 @@
 // World Bird List: orden → familie → art, med søgning. Arter linker til artssiden.
 import { api, h } from "../core.js";
-import { link, loadingBox } from "./common.js";
+import { BASE, link, loadingBox } from "./common.js";
 
 export async function page(parts, q) {
   const box = h("div", {}, loadingBox());
   let t;
-  const filter = h("input", { type: "search", placeholder: "Søg art, familie eller orden …", value: q.q || "", style: { width: "300px" } });
+  const filter = h("input", { type: "search", placeholder: "Søg art, familie eller orden …", value: q.q || "", style: { width: "300px", maxWidth: "100%" } });
   async function load() {
     const d = await api("/api/krydslister/wbl?q=" + encodeURIComponent(filter.value.trim()));
     const groups = [];
@@ -24,5 +24,6 @@ export async function page(parts, q) {
   }
   filter.oninput = () => { clearTimeout(t); t = setTimeout(load, 250); };
   await load();
-  return h("div", { class: "stack" }, h("p", {}, "World Bird List (AviList) som artsregister. Familie og orden vises, når AviList er indlæst under Admin → World Bird List."), filter, box);
+  return h("div", { class: "stack" }, h("nav", { class: "kl-subtabs" }, h("a", { href: `${BASE}/artslister` }, "Artslister"), h("a", { href: `${BASE}/wbl`, class: "on" }, "World Bird List")),
+    h("p", {}, "World Bird List (AviList) som artsregister. Familie og orden vises, når AviList er indlæst under Admin → World Bird List."), filter, box);
 }

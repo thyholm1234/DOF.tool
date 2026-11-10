@@ -167,7 +167,7 @@ export async function mine(parts, q) {
         h("button", { class: "btn primary", type: "submit" }, "Tilføj")),
       h("p", { class: "small muted", style: { margin: 0 } }, ref === "dk" ? "SU-arter kræver dato og lokalitet." : "Arter markeret med * (VP-blockers) kræver land, lokalitet og dato.")));
     out.replaceChildren(
-      d.participant ? null : notice("Du er ikke med på krydslisterne, fordi du har valgt ikke at blive vist på scoreboards. Slå det til under Profil → Lister og privatliv.", "info"),
+      d.participant ? null : notice("Du er ikke med på krydslisterne, fordi du har valgt ikke at blive vist på ranglister. Slå det til under Profil → Lister og privatliv.", "info"),
       l === "dk" ? notice("Dine DK-kryds kommer automatisk fra dine observationer i DOFbasen (første fund pr. art). Tilføj arter fra før DOFbasen manuelt, og skjul et automatisk kryds, hvis det bygger på en fejl.", "info") : null,
       add,
       title(`${d.name}: ${d.rows.length} kryds`),

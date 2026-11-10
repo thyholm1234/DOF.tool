@@ -1,4 +1,7 @@
-"""FiNN (Fugle i Ny Natur): områderne og punkterne til FiNN-tællinger, fra DOFbasens offentlige API.
+"""FiNN (Fugle i Ny Natur): områderne og punkterne til FiNN-tællinger.
+
+De ligger i portalens tabeller finn_sites/finn_points (models/finn.py), hvor de rettes og synkroniseres med DOFbasen i
+Admin → Tællinger (services/finn_admin.py). Indtil den første synkronisering er anvendt, hentes de direkte fra DOFbasen:
 
 api.dofbasen.dk/api/v1.0/public/gis/finn/sites (~170 områder, WKT-polygoner) og /public/finn/points (~250 punkter) er
 offentlige og små. De hentes højst én gang i døgnet (TTL) og gemmes også som «sidst kendte», så tællinger kan laves,
@@ -13,8 +16,10 @@ import logging
 import re
 
 import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import get_json, set_json
+from portal.cache import bump, cached, get_json, set_json, version
 
 log = logging.getLogger("portal.finn")
 
@@ -60,6 +65,11 @@ def build(raw_sites: list[dict], raw_points: list[dict]) -> dict:
     return {"sites": sorted(sites, key=lambda s: s["title"]), "points": points}
 
 
+async def fetch() -> dict:
+    """Hent og byg DOFbasens aktuelle områder og punkter (fejl kastes videre)."""
+    return await _fetch()
+
+
 async def _fetch() -> dict:
     async with httpx.AsyncClient(timeout=TIMEOUT, headers={"Accept": "application/json", "User-Agent": "DOF.tool"}) as c:
         sites = (await c.get(f"{BASE}/gis/finn/sites")).raise_for_status().json()
@@ -67,8 +77,33 @@ async def _fetch() -> dict:
     return build(sites, points)
 
 
-async def data() -> dict:
-    """FiNN-områder og -punkter (cachet et døgn; ved fejl den sidst kendte kopi, ellers tomt)."""
+async def data(db: AsyncSession | None = None) -> dict:
+    """FiNN-områder og -punkter til appen: portalens egne (aktive) fra databasen, når de findes; ellers DOFbasens."""
+    if db is not None:
+        local = await cached(f"finn:local:{await version('finn')}", 86400, lambda: _local(db))
+        if local["sites"]:
+            return local
+    return await _remote()
+
+
+async def _local(db: AsyncSession) -> dict:
+    from portal.models import FinnPoint, FinnSite
+
+    sites = (await db.execute(select(FinnSite).where(FinnSite.aktiv, FinnSite.removed_at.is_(None))
+                              .order_by(FinnSite.title))).scalars().all()
+    points = (await db.execute(select(FinnPoint).where(FinnPoint.aktiv, FinnPoint.removed_at.is_(None))
+                               .order_by(FinnPoint.id))).scalars().all()
+    return {"sites": [{"id": s.id, "title": s.title, "loknr": s.loknr, "ring": s.ring} for s in sites if len(s.ring or []) >= 3],
+            "points": [{"id": p.id, "site": p.site_id, "lat": p.lat, "lon": p.lon, "source": p.source, "type": p.type} for p in points]}
+
+
+async def changed() -> None:
+    """Portalens FiNN-data er rettet: appen får den nye version ved næste hentning."""
+    await bump("finn")
+
+
+async def _remote() -> dict:
+    """DOFbasens områder og punkter (cachet et døgn; ved fejl den sidst kendte kopi, ellers tomt)."""
     hit = await get_json(KEY)
     if hit is not None:
         return hit

@@ -95,7 +95,7 @@ const SECTIONS = {
     const navn = h("input", { autocomplete: "name", maxlength: 160, value: u.navn || "" });
     const phone = h("input", { type: "tel", inputmode: "tel", value: p.phone || "", placeholder: "Fx 20 30 40 50", maxlength: 20, autocomplete: "tel" });
     panel.append(
-      card("Profil", "Navnet vises på lister, scoreboards, kommentarer og kalenderbesøg.",
+      card("Profil", "Navnet vises på lister, ranglister, kommentarer og kalenderbesøg.",
         h("label", { class: "field" }, h("span", {}, "Navn"), navn),
         saveRow(() => patch({ navn: navn.value.trim() }))),
       card("Kontaktoplysninger", null,
@@ -218,8 +218,8 @@ const SECTIONS = {
     komSel.onchange = () => { if (komSel.value && !p.kommuner.includes(komSel.value)) p.kommuner = [...p.kommuner, komSel.value].slice(-3); komSel.value = ""; drawKom(); };
     drawKom();
     panel.append(
-      card("Lokalafdelinger", "Op til 3 – bruges i feed, scoreboards og som standard i quizzer.", afd),
-      card("Kommuner", "Op til 3 – giver kommunelister og -scoreboards.", komSel, komChips),
+      card("Lokalafdelinger", "Op til 3 – bruges i feed, ranglister og som standard i quizzer.", afd),
+      card("Kommuner", "Op til 3 – giver kommunelister og -ranglister.", komSel, komChips),
       saveRow(() => patch({ afdelinger: p.afdelinger, kommuner: p.kommuner }), "Gem områder"),
       card("Egne områder og matrikler", null,
         h("p", { class: "muted", style: { margin: 0 } }, "Egne polygoner og radier oprettes under ", h("a", { href: "#/alarmer?tab=omraader" }, "Alarmer → Områder"),
@@ -232,7 +232,7 @@ const SECTIONS = {
     const pub = h("input", { type: "checkbox", checked: p.lists_public });
     const profilePub = h("input", { type: "checkbox", checked: p.profile_public !== false });
     panel.append(card("Synlighed", "Hvad andre brugere kan se om dig.",
-      h("label", { class: "check" }, pub, "Vis mig på scoreboards og lad andre se mine lister"),
+      h("label", { class: "check" }, pub, "Vis mig på ranglister og lad andre se mine lister"),
       u.profiler ? h("label", { class: "check" }, profilePub, "Vis min observatørside for andre brugere (tal og fund fra DOFbasen, uden hemmelige observationer)") : null,
       saveRow(() => patch({ lists_public: pub.checked, ...(u.profiler ? { profile_public: profilePub.checked } : {}) }))));
     if (u.position) {

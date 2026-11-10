@@ -10,6 +10,7 @@ import json
 import logging
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -82,6 +83,7 @@ class TripIn(BaseModel):
     komplet: bool | None = None
     spontan: bool = False
     finn_site_id: int | None = Field(None, ge=1, le=10_000_000)  # FiNN-tælling: FiNN-området (services/finn.py)
+    afslutning: Literal["komplet", "besvaret", "ikke_komplet"] | None = None  # sat ved «Afslut tur» (models/field.py)
     medobser: str | None = Field(None, max_length=300)
     turnoter: str | None = Field(None, max_length=4000)
     # Kun til ture indtastet på vegne af en anden før funktionen blev fjernet (se _observer_code); nye ture afvises
@@ -152,11 +154,11 @@ async def lookups():
 
 
 @router.get("/finn")
-async def finn_areas(user: User = Depends(require_user)):
-    """FiNN-områder og -punkter til FiNN-tællinger (fra DOFbasens offentlige API, cachet et døgn – services/finn.py)."""
+async def finn_areas(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """FiNN-områder og -punkter til FiNN-tællinger (portalens, rettet i Admin → Tællinger; ellers DOFbasens – services/finn.py)."""
     from portal.services import finn
 
-    return await finn.data()
+    return await finn.data(db)
 
 
 @router.get("/weather")
@@ -202,7 +204,7 @@ async def common(loknr: int, n: int = Query(30, ge=1, le=100), user: User = Depe
 async def mine(user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
     rows = (await db.execute(text("""
         SELECT t.id, t.dato, t.turtidfra, t.turtidtil, t.loknr, l.navn AS lok, k.navn AS kommune, t.obserkode,
-               t.metode_id, t.komplet, t.spontan, t.finn_site_id, t.gps_aktiv, t.created_at,
+               t.metode_id, t.komplet, t.spontan, t.finn_site_id, t.afslutning, t.gps_aktiv, t.created_at,
                (SELECT count(*) FROM field_reports r WHERE r.trip_id = t.id) AS n_obs,
                (SELECT count(DISTINCT r.artnr) FROM field_reports r WHERE r.trip_id = t.id) AS n_arter,
                (SELECT count(*) FROM field_breeding_pairs p WHERE p.trip_id = t.id) AS n_ynglepar,
@@ -234,7 +236,7 @@ async def trip_out(db: AsyncSession, t: FieldTrip, user: User, hide_route: bool 
     dist = (await db.execute(select(FieldDisturbance).where(FieldDisturbance.trip_id == t.id)
                              .order_by(FieldDisturbance.id))).scalars().all()
     head = {k: getattr(t, k) for k in ("id", "obserkode", "client_id", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet",
-                                        "spontan", "finn_site_id", "medobser", "turnoter", "lat", "lon", "temperatur", "skydaekke",
+                                        "spontan", "finn_site_id", "afslutning", "medobser", "turnoter", "lat", "lon", "temperatur", "skydaekke",
                                         "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv",
                                         "gps_track")}
     if hide_route:
@@ -307,6 +309,8 @@ async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> 
     for k in ("dato", "loknr", "turtidfra", "turtidtil", "metode_id", "komplet", "spontan", "finn_site_id", "medobser", "turnoter", "lat", "lon",
               "temperatur", "skydaekke", "vindretning", "vindstyrke", "nedboer", "nedboertype", "sigtbarhed", "gps_aktiv"):
         setattr(trip, k, _hhmm(getattr(body, k)) if k in ("turtidfra", "turtidtil") else getattr(body, k))
+    if body.afslutning:  # en afsluttet tur forbliver afsluttet – ældre kopier uden feltet nulstiller det ikke
+        trip.afslutning = body.afslutning
     if body.gps_track is not None or not trip.id:
         trip.gps_track = body.gps_track
     trip.updated_at = datetime.now(timezone.utc)

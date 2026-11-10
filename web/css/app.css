@@ -163,6 +163,8 @@ main#view { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 24px +
 .grid-2 { display: grid; gap: 12px; grid-template-columns: 1fr; }
 .grid-3 { display: grid; gap: 12px; grid-template-columns: 1fr; }
 @media (min-width: 720px) { .grid-2 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: repeat(3, 1fr); } }
+/* tråden: højre kolonne (kort, vejr, kommentarer) følger med – top sættes af thread.js, så bunden af kolonnen nås først */
+@media (min-width: 720px) { .thread-side { position: sticky; top: var(--side-top, calc(var(--top-h) + 16px)); align-self: start; } }
 .stack > * + * { margin-top: 12px; }
 .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .row.between { justify-content: space-between; }
@@ -203,6 +205,8 @@ main#view { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 24px +
 .tag.bemaerk { background: var(--bem-soft); color: var(--bem); }
 .tag.local { background: var(--local-soft); color: var(--local); }
 .tag.alm, .tag.plain { background: var(--bg-2); color: var(--text-2); }
+.tag.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.tur-finished { height: 40px; padding: 0 12px; font-size: .85rem; }
 
 input, select, textarea {
   font: inherit; font-family: var(--font); color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
@@ -1089,7 +1093,7 @@ body.is-viewas .topbar { top: 34px; }
 /* SU/SUB-arter: artsnavnet er selv mærkatet – hvid fed skrift på kategoriens farve */
 a.dl-rare { display: inline-block; padding: 0 6px; border-radius: 5px; color: #fff; font-weight: 700; text-decoration: none; line-height: 1.45; }
 /* faste, mørke farver, så den hvide skrift kan læses i begge temaer */
-a.dl-rare.SU { background: #d32f2f; } a.dl-rare.SUB { background: #2e7d32; } a.dl-rare:hover { filter: brightness(.9); }
+a.dl-rare.SU { background: #d32f2f; } a.dl-rare.SUB { background: #2e7d32; } a.dl-rare.pheno { background: #bfe3f7; color: #0b3a5c; } a.dl-rare:hover { filter: brightness(.9); }
 a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brightness(.8); }
 .dl-pop { position: fixed; z-index: 1100; max-width: min(360px, calc(100vw - 16px)); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 22px rgb(0 0 0 / 22%); padding: 8px 11px; font-size: .84rem; line-height: 1.35; pointer-events: none; }
 .dl-pop b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); } .dl-pop div { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1147,7 +1151,6 @@ tr.click { cursor: pointer; }
 .dl-dku.dku, .tag.dku-status.dku { background: #1e7fc4; color: #fff; }
 .dl-dku.su, .tag.dku-status.su { background: #2e7d32; color: #fff; }
 /* guld: observationen af en SU-art er godkendt af SU */
-.dl-dku.pheno { background: #bfe3f7; color: #0b3a5c; }
 .dl-dku.local { background: var(--local); color: #fff; }
 .dl-dku.su-ok, .tag.su-ok { background: linear-gradient(135deg, #f3d36b, #c9971c); color: #3d2a00; border: 1px solid #b8860b; }
 /* SU: fund samlet i kasser pr. art × lokalitet, datoerne som linjer med flueben til højre */
@@ -1287,7 +1290,6 @@ tr.click { cursor: pointer; }
 .dl-box .dl-filters { margin: 12px 0 0; }
 .dl-matrix { margin: 14px 0 0; padding: 0; }
 .dl-matrix[hidden] { display: none; }
-.mx-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 8px; }
 .dl-mx { border-collapse: separate; border-spacing: 4px; margin: 0 -4px; }
 .dl-mx th { font-weight: 600; padding: 0; text-align: center; }
 .dl-mx th[scope=row] { text-align: left; }
@@ -1298,12 +1300,13 @@ tr.click { cursor: pointer; }
 .mx-grip:hover, .mx-grip:focus-visible { background: var(--bg-2); color: var(--text); outline: none; }
 .dl-mx tr.has .mx-grip { color: var(--text); font-weight: 700; }
 .dl-mx.dragging { cursor: grabbing; user-select: none; }
-.dl-mx tr.drag { background: var(--bg-2); box-shadow: var(--shadow); position: relative; z-index: 2; }
+.dl-mx tr.drag > * { background: var(--bg-2); position: relative; z-index: 2; box-shadow: 0 6px 14px -6px rgba(0,0,0,.35); }
+.dl-mx tr.drag > :first-child { border-radius: 8px 0 0 8px; }
+.dl-mx tr.drag > :last-child { border-radius: 0 8px 8px 0; }
 .dl-mx tr.drag .mx-grip { cursor: grabbing; }
 .mx-all-row { border: 0; background: transparent; color: var(--text-3); cursor: pointer; border-radius: 6px; padding: 4px 6px; font-size: .8rem; }
 .mx-all-row:hover { background: var(--bg-2); color: var(--text); }
 .dl-mx th[scope=row] { white-space: nowrap; }
-.dl-mod td { padding: 10px 6px 2px; font-size: .86rem; }
 .mx-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .mx-head, .mx-row { border: 0; background: transparent; font: inherit; font-size: .8rem; color: var(--text-2); cursor: pointer; border-radius: 8px; padding: 6px 8px; white-space: nowrap; }
 .mx-head { font-weight: 700; text-transform: uppercase; letter-spacing: .03em; font-size: .72rem; }

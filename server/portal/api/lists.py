@@ -1,4 +1,4 @@
-"""Årslister, scoreboards og listegrupper."""
+"""Årslister, ranglister og listegrupper."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from portal.models import Area, ListGroup, ListGroupMember, Matrikel, MatrikelPe
 from portal.services import lists, position_privacy, regions
 from portal.services.areas import scope_for_area
 from portal.services.auth import normalize
+from portal.timeutil import dk_today
 
 router = APIRouter(prefix="/api/lists", tags=["lists"])
 
@@ -51,6 +52,15 @@ async def meta(user: User = Depends(require_user), db: AsyncSession = Depends(ge
             "matrikler": [{"nummer": m["nummer"], "navn": m["navn"], "tag": m["tag"], "scoreboard": m["scoreboard"]}
                           for m in overview["matrikler"]],
             "scopes": scopes, "matrikel_prefix": await lists.matrikel_prefix(db)}
+
+
+@router.get("/overview")
+async def overview(year: int | None = None, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    """«Mine lister»: antal arter i året og på livslisten for Danmark, mine lokalafdelinger/kommuner og egne områder."""
+    m = await meta(user, db)
+    y = year or dk_today().year
+    c = await lists.counts(db, user.obserkode, [sc["scope"] for sc in m["scopes"]], y)
+    return {"year": y, "years": m["years"], "scopes": [{**sc, **c.get(sc["scope"], {"life": 0, "year": 0})} for sc in m["scopes"]]}
 
 
 @router.get("/user/{obserkode}")
@@ -89,7 +99,7 @@ async def scoreboard(scope: str | None = None, year: str | None = None, matrikel
                      group: int | None = None, user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)):
     spec = await _spec(db, scope, year, matrikel, user)
     if spec.scope.kind == "area":
-        raise HTTPException(400, "Egne områder har ingen fælles scoreboard – brug en gruppe")
+        raise HTTPException(400, "Egne områder har ingen fælles rangliste – brug en gruppe")
     if spec.matrikel and spec.matrikel > 1:
         raise HTTPException(400, "Kun matrikel 1 har en rangliste – matrikel 2 og op er private")
     if group:
@@ -98,7 +108,7 @@ async def scoreboard(scope: str | None = None, year: str | None = None, matrikel
 
 
 async def _group_access(db: AsyncSession, group_id: int, user: User | None) -> ListGroup:
-    """Grupper er private: kun ejeren og medlemmerne (og administratorer) kan se deres scoreboard."""
+    """Grupper er private: kun ejeren og medlemmerne (og administratorer) kan se deres rangliste."""
     g = await db.get(ListGroup, group_id)
     if g is None or user is None:
         raise HTTPException(404)

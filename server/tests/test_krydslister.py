@@ -9,7 +9,7 @@ import redis.asyncio as aioredis
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from portal.services import kl_admin, krydslister
+from portal.services import kl_admin, kl_species, krydslister
 
 DSN = os.environ.get("ARTICLES_TEST_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="ARTICLES_TEST_DSN er ikke sat")
@@ -168,6 +168,52 @@ async def test_manuelle_kryds_godkendelse_og_skjul(s):
     await krydslister.delete_kryds(s, mod, k.id, True)
 
 
+async def test_doede_fugle_tæller_ikke_på_personlige_lister(s):
+    """En død fugl (adfærdskode … DØD) giver ikke kryds på de automatiske lister – den tæller kun på DK-listen."""
+    await s.execute(text("INSERT INTO observations (obsid, dato, artnr, antal, loknr, obserkode, hemmelig, kategori, afdelinger, adfkode) "
+                         "VALUES (11, :d, 104, 1, 1, 'LB', 0, 'alm', '{5}', 'DØD')"), {"d": date(Y, 6, 1)})
+    await s.commit()
+    await krydslister.seed(s)
+    await krydslister.refresh_auto(s)
+    for key in ("dk", f"aar:{Y}", "afd:5", "kom:0101"):
+        assert "Fasan" not in {r["navn"] for r in (await krydslister.load_kryds(s, key))["rows"] if r["kode"] == "LB"}, key
+    from portal.services.categories import alive_sql
+    from portal.services import lists
+
+    where, _ = await lists._where(s, lists.parse_list_spec("dk", Y), "#BB")
+    assert alive_sql() in where  # års- og livslister og ranglisterne fra DOFbasen bruger samme betingelse
+
+
+async def test_aedelarter_pr_aar_og_paa_livslisten(s):
+    from portal.models import User
+
+    await krydslister.seed(s)
+    lb = await s.get(User, 1)
+    # Urfugl er SU, men markeret fra årslisten bygger krydset på observationen, så dato/lokalitet er nok
+    await krydslister.set_aedel(s, lb, artnr=101, year=Y, on=True, dato=date(Y, 5, 1), lokalitet="Sted A", obsid=1)
+    await krydslister.set_aedel(s, lb, artnr=101, year=Y - 1, on=True, dato=date(Y - 1, 5, 3), obsid=4)
+    await krydslister.set_aedel(s, lb, artnr=101, year=Y, on=True, dato=date(Y, 5, 9), obsid=2)  # samme år igen: erstatter årets kryds
+    await krydslister.set_aedel(s, lb, artnr=102, year=None, on=True, obsid=3)  # kun livslisten
+    names = lambda key: krydslister.load_kryds(s, key)  # noqa: E731
+    aar, forrige, liv = await names(f"aedelaar:{Y}"), await names(f"aedelaar:{Y - 1}"), await names("aedel")
+    assert [(r["navn"], r["dato"]) for r in aar["rows"]] == [("Urfugl", date(Y, 5, 9).isoformat())]
+    assert [r["navn"] for r in forrige["rows"]] == ["Urfugl"]
+    assert sorted((r["navn"], r["dato"]) for r in liv["rows"]) == [("Agerhøne", None), ("Urfugl", date(Y - 1, 5, 3).isoformat())]  # første ædelkryds pr. art
+    marks = (await krydslister.aedel_marks(s, lb))["marks"]
+    assert len(marks) == 3 and {m["obsid"] for m in marks} == {2, 3, 4}
+    ov = {r["key"]: r for r in await krydslister.my_overview(s, lb, Y)}
+    assert ov["aedel"]["antal"] == 2 and ov[f"aedelaar:{Y}"]["antal"] == 1 and ov[f"aedelaar:{Y}"]["placering"] == 1
+    with pytest.raises(krydslister.KlError):  # datoen skal ligge i året
+        await krydslister.set_aedel(s, lb, artnr=103, year=Y, on=True, dato=date(Y - 1, 1, 1))
+    with pytest.raises(krydslister.KlError):  # arten skal findes på DK-listen
+        await krydslister.set_aedel(s, lb, artnr=999999, year=None, on=True)
+    # fjern fra årslisten: kun årets kryds; fra livslisten: alle artens ædelkryds
+    await krydslister.set_aedel(s, lb, artnr=101, year=Y, on=False)
+    assert (await names(f"aedelaar:{Y}"))["rows"] == [] and "Urfugl" in {r["navn"] for r in (await names("aedel"))["rows"]}
+    await krydslister.set_aedel(s, lb, artnr=101, year=None, on=False)
+    assert [r["navn"] for r in (await names("aedel"))["rows"]] == ["Agerhøne"]
+
+
 async def test_visninger(s):
     await krydslister.seed(s)
     await krydslister.refresh_auto(s)
@@ -196,6 +242,54 @@ async def test_artsliste_csv_diff(s):
     assert bad["fejl"] and bad["ukendte"] == ["Ikke Kendt"]
     with pytest.raises(krydslister.KlError):
         await kl_admin.import_diff(s, lid, b"navn\nx\n")
+
+
+async def test_admin_retter_arterne_paa_vp_listen(s):
+    await krydslister.seed(s)
+    vp = (await s.execute(text("SELECT id FROM kl_species_lists WHERE key = 'vp'"))).scalar()
+    masai = (await s.execute(text("SELECT id FROM kl_taxa WHERE latin = 'Struthio camelus'"))).scalar()
+    # navne, * (SU) og placering
+    await kl_admin.save_entry(s, vp, masai, {"kategorier": [], "sjaeldenhed": "su", "dansk": "Struds", "engelsk": "Common Ostrich", "placering": 3})
+    rows = (await kl_species.species_list(s, "vp"))["rows"]
+    assert rows[2]["id"] == masai and rows[2]["navn"] == "Struds" and rows[2]["su"] and rows[2]["engelsk"] == "Common Ostrich"
+    assert [r["sort"] for r in rows[:5]] == [1, 2, 3, 4, 5]  # listen er nummereret fortløbende efter flytningen
+    # en art, der ikke findes i World Bird List (fx en ny split), og som får plads nr. 1
+    tid = await kl_admin.new_taxon_entry(s, vp, {"latin": "Testus splittus", "dansk": "Splitfugl", "sjaeldenhed": "su", "placering": 1})
+    rows = (await kl_species.species_list(s, "vp"))["rows"]
+    assert rows[0]["id"] == tid and rows[0]["navn"] == "Splitfugl"
+    assert await kl_admin.new_taxon_entry(s, vp, {"latin": "testus  splittus", "engelsk": "Split Bird"}) == tid  # samme latinske navn = samme art
+    with pytest.raises(krydslister.KlError):
+        await kl_admin.new_taxon_entry(s, vp, {"latin": "x"})
+    with pytest.raises(krydslister.KlError):
+        await kl_admin.new_taxon_entry(s, vp, {"latin": "Testus nomen"})  # navn mangler
+    # CSV-importen retter også navnene
+    csv = (await kl_admin.export_csv(s, vp)).replace(";Splitfugl;", ";Nyt navn;")
+    diff = await kl_admin.import_diff(s, vp, csv.encode(), apply=True)
+    assert [a["latin"] for a in diff["aendrede"]] == ["Testus splittus"]
+    assert (await s.execute(text("SELECT dansk FROM kl_taxa WHERE id = :t"), {"t": tid})).scalar() == "Nyt navn"
+    # en særskilt artsliste til Falsk VP som kopi af VP-listen
+    falsk = await kl_admin.save_species_list(s, {"key": "falskvp", "navn": "Falsk VP-listen", "kopier_fra": vp})
+    n = lambda lid: s.execute(text("SELECT count(*) FROM kl_species_list_entries WHERE list_id = :l"), {"l": lid})  # noqa: E731
+    assert (await n(falsk.id)).scalar() == (await n(vp)).scalar() > 1000
+
+
+async def test_kun_godkendte_su_fund_giver_automatiske_kryds(s):
+    """Et SU-fund tæller kun automatisk, når SU har godkendt det (DOFbasens kvalitet 2); ellers kan deltageren selv krydse arten af."""
+    from portal.models import User
+
+    await s.execute(text("INSERT INTO observations (obsid, dato, artnr, antal, loknr, obserkode, hemmelig, kategori, afdelinger, kvalitet) VALUES "
+                         "(21, :d, 104, 1, 1, 'A2', 0, 'SU', '{5}', 1), (22, :d, 102, 1, 1, 'A2', 0, 'SU', '{5}', 2), (23, :d, 105, 1, 1, 'A2', 0, 'SU', '{5}', 2)"),
+                    {"d": date(Y, 9, 1)})
+    await s.commit()
+    await krydslister.seed(s)
+    await krydslister.refresh_auto(s)
+    a2 = {r["navn"] for r in (await krydslister.load_kryds(s, "dk"))["rows"] if r["kode"] == "A2"}
+    assert "Agerhøne" in a2  # godkendt SU-fund
+    assert "Fasan" not in a2  # ikke vurderet endnu
+    assert "Klyde" not in a2  # godkendt, men kategori D tæller ikke
+    fasan = (await s.execute(text("SELECT id FROM kl_taxa WHERE latin = 'Phasianus colchicus'"))).scalar()
+    await krydslister.add_kryds(s, await s.get(User, 3), liste="dk", taxon_id=fasan, dato=date(Y, 9, 1), lokalitet="Sted A", land="", note="", privileged=False)
+    assert "Fasan" in {r["navn"] for r in (await krydslister.load_kryds(s, "dk"))["rows"] if r["kode"] == "A2"}  # selv skrevet på
 
 
 def avilist(n=60, rename=False, new=True) -> bytes:

@@ -27,6 +27,7 @@ def test_minimal_trip_and_children():
     {"gps_track": [[10.0, 10.0, 1, 5]]},
     {"disturbances": [{"type_id": 9999}]},
     {"observations": [{"artnr": 1, "maerker": ["findes_ikke"]}]},
+    {"afslutning": "halvt"},
 ])
 def test_invalid_trip_is_rejected(patch):
     with pytest.raises(ValidationError):
@@ -35,3 +36,9 @@ def test_invalid_trip_is_rejected(patch):
 
 def test_end_time_may_equal_start():
     TripIn(**BASE, turtidfra="10:00", turtidtil="10:00", gps_track=[[57.1, 8.6, 1, 5]])
+
+
+@pytest.mark.parametrize("value", [None, "komplet", "besvaret", "ikke_komplet"])
+def test_afslutning(value):
+    """Afslut tur: komplet / spørgeskema besvaret / ikke komplet (tur-quick.js); uden feltet er turen ikke afsluttet."""
+    assert TripIn(**BASE, afslutning=value).afslutning == value

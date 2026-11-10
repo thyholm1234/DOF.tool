@@ -52,6 +52,7 @@ MODULES = {
     "dku": "DKU: udpege DKU-ansvarlige pr. lokalafdeling og se alle DKU-sager",
     "su": "SU (Sjældenhedsudvalget): behandle SU-sager, afgøre dem og uploade årsrapporter",
     "lokaliteter": "Lokaliteter: importér grænser og detaljer fra DOFbasen",
+    "taellinger": "Tællinger: spontan- og FiNN-tællinger – status, statistik, udtræk, FiNN-områder og gridceller",
 }
 _MOD = {"moderation", "ture", "kategorier"}
 

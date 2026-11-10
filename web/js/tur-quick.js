@@ -5,19 +5,25 @@ import { newId } from "./offline.js";
 
 const TOP = 30;
 
-/** Henter lokalitetens mest almindelige arter uden dem, der allerede er på turen. Tom liste uden forbindelse. */
+/** Henter lokalitetens mest almindelige arter uden dem, der allerede er på turen. null uden forbindelse. */
 async function missingCommon(T) {
-  if (!T.loknr) return [];
+  if (!T.loknr) return null;
   try {
     const have = new Set(T.observations.filter(o => o.antal > 0).map(o => o.artnr));
     return (await api(`/api/trips/common?loknr=${T.loknr}&n=${TOP}`)).filter(s => !have.has(s.artnr));
-  } catch { return []; }
+  } catch { return null; }
 }
 
-/** Viser popup'en, hvis der er arter at spørge om. onAdd(observationer) kaldes med de arter, brugeren markerede som set. */
-export async function quickSpecies(T, ref, onAdd) {
-  const rows = (await missingCommon(T)).map(s => ({ ...s, seen: false, antal: 1 }));
-  if (!rows.length) return;
+/** Viser popup'en, hvis der er arter at spørge om. Giver { status, added }: added = de arter, brugeren markerede som set,
+ *  status = turens afslutning (models/field.py): "komplet" (ingen almindelige arter mangler – intet at spørge om),
+ *  "besvaret" (Gem arter) eller "ikke_komplet" (Spring over / lukket – eller listen kunne ikke hentes uden net). */
+export async function quickSpecies(T, ref) {
+  const missing = await missingCommon(T);
+  if (!missing) return { status: "ikke_komplet", added: [] };
+  if (!missing.length) return { status: "komplet", added: [] };
+  const rows = missing.map(s => ({ ...s, seen: false, antal: 1 }));
+  let done;
+  const result = new Promise((res) => { done = res; });
   const list = h("div", { class: "quick-list" });
   const summary = h("small", { class: "muted" });
   const draw = () => {
@@ -39,13 +45,15 @@ export async function quickSpecies(T, ref, onAdd) {
       return { client_id: newId(), artnr: r.artnr, art: sp?.navn || r.navn, klass: sp?.klass, antal: r.antal, antalmetode: 1, maerker: [], grundlag: ["set"],
         sikkerhed: "sikker", status: "ukendt", obstidfra: null, adfkode: "", retningslinjer: false, hemmelig: false, skjul_position: false };
     });
+    done({ status: "besvaret", added: picked });
     dlg.close();
-    if (picked.length) onAdd(picked);
   };
   const dlg = modal("Noget du har glemt?", h("div", { class: "stack" },
     h("p", { class: "muted", style: { margin: 0 } }, `De ${rows.length > 1 ? rows.length : ""} mest almindelige arter på ${T.lok || "lokaliteten"}, som ikke står på turen. Markér dem, du har set, og ret antallet.`),
     list, summary,
     h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onclick: save }, "Gem arter"),
-      h("button", { class: "btn ghost", type: "button", onclick: () => dlg.close() }, "Spring over"))), { wide: true });
+      h("button", { class: "btn ghost", type: "button", onclick: () => dlg.close() }, "Spring over"))),
+    { wide: true, onClose: () => done({ status: "ikke_komplet", added: [] }) });  // Spring over, ✕, Esc og tilbage
   draw();
+  return result;
 }

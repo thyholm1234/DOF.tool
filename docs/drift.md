@@ -31,7 +31,7 @@ automatisk og gemmes i databasen. På iPhone skal appen føjes til hjemmeskærme
 ```
 docker compose
 ├── postgres  (PostGIS 17)  – al data: observationer (1960'erne →), lokaliteter, kommunepolygoner, brugere …
-├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, scoreboards, pub/sub til live-opdateringer
+├── valkey    (open source-afløseren for Redis) – sessioner, gateway-kø, cache, ranglister, pub/sub til live-opdateringer
 ├── api       (FastAPI)  – REST + server-sent events + statisk PWA (web/)
 ├── worker    – DOFbasen-gateway, planlagte opgaver, arkivimport, fænologi-beregninger
 ├── rustfs    – objektlager (S3) til fotos og lyd i observationer og artiklernes medier; leveres med login via /media/obs/ og /media/art/
@@ -118,7 +118,7 @@ artslisten eller SU/SUB-listerne ellers hentes, for de arter hvis klassifikation
 på SU-listen. Appens offline-artsliste hentes igen ved næste start.
 
 Hvad sparer kald:
-* Én dagsliste dækker *alle* moduler: notifikationer, lister, scoreboards og fænologi læser samme data.
+* Én dagsliste dækker *alle* moduler: notifikationer, lister, ranglister og fænologi læser samme data.
 * Historik kommer fra det lokale arkiv (`dofbasen_ÅÅÅÅ_MM.csv`), der importeres automatisk.
 * Kommunetilhørsforhold beregnes med kommunepolygoner i PostGIS, ikke med opslag hos DOFbasen.
 

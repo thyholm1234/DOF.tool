@@ -25,7 +25,7 @@ export async function users(body) {
         h("span", { class: "muted" }, " – en ny bruger oprettes, når koden er gyldig hos DOFbasen, men får først adgang, når en administrator har godkendt kontoen. Er den slået fra, får nye brugere adgang med det samme."))),
       pendingBox),
     h("div", { class: "card row between", style: { marginBottom: "12px" } },
-      h("span", {}, h("b", {}, "Testbrugere"), h("span", { class: "muted" }, " – konti med lokal adgangskode, til at afprøve appen uden en DOFbasen-konto. De vises ikke på scoreboards.")),
+      h("span", {}, h("b", {}, "Testbrugere"), h("span", { class: "muted" }, " – konti med lokal adgangskode, til at afprøve appen uden en DOFbasen-konto. De vises ikke på ranglister.")),
       h("button", { class: "btn sm primary", onclick: () => testUserModal(null, load) }, "Opret testbruger")),
     h("p", { class: "muted", style: { marginTop: 0 } }, "Rollen giver et standardsæt af admin-moduler. Under Rettigheder kan den enkelte bruger i stedet få præcis de moduler, der er krydset af."), q, out);
   const isSuper = state.user.role === "superadmin";

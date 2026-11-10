@@ -1,4 +1,4 @@
-/* Krydslistemodulet (#/krydslister). Afgrænset til .kl og portalens designtokens. */
+/* Krydslisterne i Lister-modulet (#/lister). Afgrænset til .kl og portalens designtokens. */
 .kl { max-width: 1180px; margin: 0 auto; padding: 0 0 48px; }
 .kl a { color: var(--brand); } .kl .muted { color: var(--text-3); }
 .kl h1 a { color: inherit; text-decoration: none; }

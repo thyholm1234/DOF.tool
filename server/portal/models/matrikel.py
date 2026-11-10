@@ -20,7 +20,7 @@ from portal.db import Base
 
 
 class Matrikel(Base):
-    """En brugers matrikel. Nummer 1 tæller på scoreboards (#BB26 / #BB26-1), 2+ er private (#BB26-2 ...)."""
+    """En brugers matrikel. Nummer 1 tæller på ranglisterne (#BB26 / #BB26-1), 2+ er private (#BB26-2 ...)."""
 
     __tablename__ = "matrikler"
 

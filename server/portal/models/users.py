@@ -111,7 +111,7 @@ class Area(Base):
     ref: Mapped[str | None] = mapped_column(String(40))
     radius_m: Mapped[int | None] = mapped_column(Integer)
     geom = deferred(mapped_column(Geometry("Geometry")))
-    # Indgår i årslister og scoreboards
+    # Indgår i årslister og ranglister
     use_for_lists: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

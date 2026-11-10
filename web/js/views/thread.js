@@ -1,7 +1,7 @@
 import { obsPhotoStrip } from "../fotos/obsfotos.js";
 import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can, observerLink, backLink } from "../core.js";
 import { live } from "../live.js";
-import { baseMap, katColor } from "../maps.js";
+import { baseMap, katColor, navButton } from "../maps.js";
 import { reportCard, statusBadge, threadStatusCard } from "../reportui.js";
 import { likeWidget } from "../likes.js";
 import { banForm } from "../moderation.js";
@@ -53,6 +53,13 @@ export async function render(view, [date, artnr, loknr]) {
   // Én samlet linje, mens billeder/lyd hentes hos DOFbasen – ikke én pr. observation
   const mediaStatus = h("small", { class: "muted", style: { display: "none", margin: "-4px 0 8px" } });  // «n. fund i året» for SU/SUB – hentes efter tråden (/find)
   const mapEl = h("div", { class: "map small" });
+  // Naviger til det mest præcise sted: en portalindtastnings eller DOFbasen-observations egen position, ellers lokaliteten
+  const navEl = () => {
+    const p = [...reps].reverse().find(r => r.obs_lat) || obs.find(o => o.obs_lat);
+    const [lat, lon] = p ? [p.obs_lat, p.obs_lon] : [t.lat, t.lon];
+    return lat ? h("div", { class: "row", style: { justifyContent: "flex-end", marginTop: "8px" } },
+      navButton(lat, lon, t.lok, p ? "Naviger til fuglens position" : "Naviger til lokaliteten")) : null;
+  };
   const commentsEl = h("div", { class: "stack" });
   // Delelinket kan også åbnes af folk uden bruger (server-renderet side med fundet); indloggede sendes videre hertil
   const share = async () => {
@@ -81,7 +88,7 @@ export async function render(view, [date, artnr, loknr]) {
         h("div", { class: "card" }, h("h3", {}, obs.length ? `${obs.length} observation${obs.length === 1 ? "" : "er"} i DOFbasen` : "DOFbasen"),
           mediaStatus,
           obs.length ? h("div", { class: "stack" }, ...obs.map(o => obsRow(o, mediaRows, allRows))) : h("p", { class: "muted" }, "Endnu ikke indtastet i DOFbasen."))),
-      h("div", { class: "stack" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl),
+      h("div", { class: "stack thread-side" }, h("div", { class: "card", style: { padding: "8px" } }, mapEl, navEl()),
         weatherEl,
         h("div", { class: "card" }, h("h3", {}, "Kommentarer"), commentsEl))));
   api(`/api/weather/day?loknr=${loknr}&date=${date}`).then(w => { if (w) weatherEl.replaceChildren(weatherCard(w)); }).catch(() => {});
@@ -137,6 +144,16 @@ export async function render(view, [date, artnr, loknr]) {
   const offStatus = live.onStatus((on) => { if (on) refreshComments(); });  // genopkoblet: hent det, vi kan have misset
 
   const map = baseMap(mapEl, { zoom: 11, center: t.lat ? [t.lat, t.lon] : [56, 10.5] });
+  // Kort, vejr og kommentarer følger med, når man ruller: kolonnen ruller normalt, indtil bunden af kommentarboksen er synlig,
+  // og bliver så stående (er den lavere end skærmen, står den fast lige under topbjælken). Kun med to kolonner (se CSS).
+  const sideEl = view.querySelector(".thread-side");
+  const fitSide = () => {
+    const top = (document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0) + 16;
+    sideEl.style.setProperty("--side-top", `${Math.min(top, window.innerHeight - sideEl.offsetHeight - 16)}px`);
+  };
+  const sideObs = new ResizeObserver(fitSide);
+  sideObs.observe(sideEl);
+  window.addEventListener("resize", fitSide);
   if (t.lat) L.circleMarker([t.lat, t.lon], { radius: 9, color: "#fff", weight: 2, fillColor: katColor(best), fillOpacity: 1 }).addTo(map).bindPopup(esc(t.lok));
   for (const o of obs) if (o.obs_lat) L.circleMarker([o.obs_lat, o.obs_lon], { radius: 5, weight: 1, color: "#333", fillOpacity: .8 }).addTo(map).bindPopup(`${esc(o.antal)} · ${esc(o.observer)}`);
   for (const r of reps) if (r.obs_lat) {
@@ -198,7 +215,7 @@ export async function render(view, [date, artnr, loknr]) {
     if (!e.portal || !reps.length) return;
     try { const fresh = await api(`/api/thread/${date}/${artnr}/${loknr}`); reps.splice(0, reps.length, ...(fresh.reports || [])); drawReports(); } catch { /* ignore */ }
   });
-  return () => { closed = true; off(); offFeed(); offMedia(); offLike(); offStatus(); clearTimeout(pending); clearTimeout(mediaTimer); document.removeEventListener("visibilitychange", onVisible); map.remove(); };
+  return () => { closed = true; off(); offFeed(); offMedia(); offLike(); offStatus(); clearTimeout(pending); clearTimeout(mediaTimer); document.removeEventListener("visibilitychange", onVisible); sideObs.disconnect(); window.removeEventListener("resize", fitSide); map.remove(); };
 }
 
 const SEX = { M: "han", F: "hun", MF: "han og hun", FM: "han og hun" };
@@ -242,7 +259,7 @@ function obsRow(o, mediaRows, allRows) {
     o.turnoter ? h("p", { class: "muted", style: { margin: "4px 0 0", fontSize: ".85rem" } }, "Tur: ", o.turnoter) : null,
     h("div", { class: "row mt" },
       // Én observation (#/obs/<obsid>): alle felter og resten af turlisten – kræver Observationer (dagslisten)
-      state.user?.dagsliste ? h("a", { class: "btn sm", href: `#/obs/${o.obsid}` }, "Se observationen") : null,
+      state.user?.dagsliste ? h("a", { class: "btn sm ghost", href: `#/obs/${o.obsid}` }, "Se observationen") : null,
       h("a", { class: "btn sm ghost", target: "_blank", rel: "noopener", href: `https://dofbasen.dk/popobs.php?obsid=${o.obsid}&summering=tur&obs=obs`, html: `${icon("external")} DOFbasen` }),
       tipButton("dofbasen", o.obsid, { own: !!state.user && o.obserkode === state.user.obserkode,
         label: `${fmtN(o.antal)} · ${o.observer || o.obserkode || ""} · ${o.dato || ""}` })),

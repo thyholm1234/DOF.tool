@@ -83,11 +83,24 @@ lokaliteten vælges i en liste med de fem nærmeste (den, man står i, er valgt 
 kortet). FiNN-tællingen viser i stedet en liste med de fem nærmeste FiNN-områder (det, man står i, er valgt; tryk for at
 vælge et andet og se det på kortet) og de fem nærmeste referencepunkter (inden for 25 m vælges det nærmeste; vælg i
 listen eller på kortet – det valgte noteres i turnoterne). Der er ingen liste med DOFbasen-lokaliteter: lokaliteten, man
-står i, bruges og vises under kortet. Kortet viser FiNN-områderne og referencepunkterne (fra DOFbasens offentlige API, cachet et
-døgn – `services/finn.py`, `GET /api/trips/finn`), gemmer området i `field_trips.finn_site_id` og advarer, hvis man står
+står i, bruges og vises under kortet. Kortet viser FiNN-områderne og referencepunkterne (portalens version fra Admin →
+Tællinger; indtil den første synkronisering DOFbasens offentlige API, cachet et døgn – `services/finn.py`, `GET /api/trips/finn`), gemmer området i `field_trips.finn_site_id` og advarer, hvis man står
 uden for et område. Talt på papir: dato og præcist
 starttidspunkt. Turens side viser en nedtælling (det præcise starttidspunkt gemmes på enheden) og bagefter en påmindelse
 om den komplette liste. DOFbasens point/spiltilstand for spontantællinger er ikke med.
+
+**Admin → Tællinger** (modulet `taellinger`; `api/admin/taellinger.py`, `services/taellinger.py`, `services/finn_admin.py`,
+`views/admin/taellinger*.js`). Fire underfaner med et fælles filter (type, periode, FiNN-område, observatør, art – gemt i adressen):
+*Oversigt* – status (i dag/7/30 dage/år, tællinger i gang lige nu, datakvalitet som FiNN-tællinger uden område eller uden for
+deres område, tællinger uden observationer/position) og statistik (pr. måned, starttidspunkt, arter med frekvens, flest tællinger,
+FiNN-områder med og uden tællinger). *Udtræk* – CSV/XLSX/ODS med én række pr. tælling eller pr. observation (med gridceller på
+1 og 10 km) og en bladrebar liste, hvor hver tælling kan åbnes. *FiNN-områder* – områderne og punkterne gemmes i portalen
+(`finn_sites`, `finn_points`) og kan rettes på kortet (grænse med Geoman, navn, lokalitet, note, skjul i appen, nye områder og
+punkter, flyt punkt); hver række husker DOFbasens seneste version, så rettelser kan gendannes. *Hent fra DOFbasen* laver en
+ændringsrapport (nye, ændrede, konflikter med portalens rettelser, fjernede – `finn_syncs`); intet ændres, før grupperne er valgt
+og anvendt, og fjernede områder skjules i stedet for at slettes. *Gridceller* – tællingerne samlet pr. kvadrat i Det Danske
+Kvadratnet (UTM 32/ETRS89, 1/2/5/10 km, `domain/geo.grid_cell`) med farve efter tællinger, arter, arter pr. tælling eller
+observatører; en celle viser arternes frekvens og tællingerne i den.
 
 **Konti uden DOFbasen** (`services/dofbinding.py`). En konto kan være uden forbindelse til en obserkode: oprettet med
 *Opret konto uden DOFbasen* (navn, e-mail, adgangskode, kode på mail – `POST /api/auth/konto/opret-lokal`, samme
@@ -118,7 +131,7 @@ kræver adgangskoden og fjerner også koderne; mistet telefon uden koder: log in
 Brugere → *Fjern 2FA* (mærket *2FA*).
 
 **Testbrugere.** Admin → Brugere → *Opret testbruger* laver en konto (`TEST0001`, …) med lokal adgangskode (scrypt-hash i
-`users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på scoreboards, og
+`users.test_pw_hash`), der logger ind uden DOFbasen – til at afprøve appen. Testbrugere vises ikke på ranglister, og
 adgangskoden vises kun ved oprettelse/nulstilling.
 
 **Fænologi-filter.** Niveauet *Fænologi* i feedet (og som valg i alarmregler) viser arter, der ses uden for deres normale
@@ -187,15 +200,20 @@ Nye observationer i en eksisterende tråd går kun til dem der følger den. Egne
 man selv har observeret i, giver aldrig besked. Alt lander i indbakken (klokken), push respekterer
 stille timer.
 
-**Lister.** Første fund pr. art (underarter tæller som nominatarten; sp./hybrider/tamformer tæller ikke).
+**Lister** (`#/lister`, samlet med krydslisterne). Første fund pr. art (underarter tæller som nominatarten; sp./hybrider/tamformer tæller ikke).
 Scopes: Danmark, matrikel 1/2 (tag i tur- eller fuglenoter med årets to cifre), lokalafdeling,
-kommune, egne områder; år eller livsliste. Scoreboards caches i Valkey og invalideres når nye
-observationer fra deltagere kommer ind.
+kommune, egne områder; år eller livsliste. Ranglister caches i Valkey og invalideres når nye
+observationer fra deltagere kommer ind. **Døde fugle** (adfærdskode … DØD) tæller ikke på personlige lister (årslister, livslister,
+matrikler, krydslister og ranglister), men gerne på DK-listen og i områdernes artslister. «Mine lister» viser alle ens lister som kort
+(årsliste, livsliste, områder, krydslister med placering); fanerne er Mine lister, Ranglister, Huller, Grupper, Alle krydslister,
+Artslister, Regler og Admin. **Ædelarter** markeres med stjernen på DK-årslisten (krydset får observationens dato og tæller på årets
+Ædelårsliste og på Ædel-livslisten) eller på livslisten (kun Ædel-livslisten). En art kan være ædel i flere år.
+Manuelle lister (VP, ringmærkning, Falsk VP m.fl.) indtastes under Mine lister → listen.
 
 **Matrikler** (Lister → Matrikler, som i Boligbirding). Matrikel 1 (#BB26 / #BB26-1) tæller på
-scoreboards; matrikel 2+ (#BB26-2 …) er private. Matrikler kan navngives og have perioder (adresse,
+ranglisterne; matrikel 2+ (#BB26-2 …) er private. Matrikler kan navngives og have perioder (adresse,
 fra, evt. til). *Flyt matrikel* afslutter perioden dagen før flyttedatoen og starter en ny – listen og
-scoreboardet tæller kun den aktive periode, så fremgangen nulstilles ved flytning; tidligere perioder og
+ranglisten tæller kun den aktive periode, så fremgangen nulstilles ved flytning; tidligere perioder og
 "alle perioder" kan vælges på listen. Uden perioder tæller alle fund med tagget.
 
 **Træk & fænologi.** Indsatskorrigeret rapporteringsrate pr. dag (andel af alle ture med arten),
@@ -272,15 +290,18 @@ Selvstændigt fotogalleri bag funktionsflaget `fotos` (standard: forhåndsvisnin
   (fotografen får en besked i Feedback og support; godkendelse giver en notifikation), afpublicér, lås, gruppér, interne noter, privilegier, fotografer
   (kobl, fjern, flet), kodelister, indstillinger og kommentarmoderation.
 
-## Krydslister (`#/krydslister`)
+## Krydslister (`#/lister`, tidligere `#/krydslister`)
 
-Selvstændigt modul bag funktionsflaget `krydslister` (standard: forhåndsvisning) som afløser for krydslisterne i Netfugl-showcasen; showcasen og dens `nf_*`-tabeller røres ikke.
+En del af Lister-modulet bag funktionsflaget `krydslister` (standard: forhåndsvisning) som afløser for krydslisterne i Netfugl-showcasen; showcasen og dens `nf_*`-tabeller røres ikke.
 
 * **Redigerbare listetyper** (Admin → Listetyper): de ti fra Netfugl (Danske Arter, Årsarter, Månedsarter, Lokalarter pr. afdeling/kommune, ringmærkning, ædelarter, VP, Falsk VP)
   er seedet fra showcasen og kan ændres eller suppleres uden kodeændring (navn med `{p}`, referenceliste, automatisk/manuel, parameter, regler som kategorier A–F, godkendelse).
 * **Automatiske kryds** beregnes af workeren hver 6. time fra deltagernes DOFbasen-observationer (første fund pr. art); manuelle kryds supplerer og kan skjule et automatisk kryds.
+  Kun krydsbare kategorier tæller automatisk (standard A, B og C – D, E, F og [klammer] ikke; listetypens regler kan ændre det), døde fugle tæller ikke, og et
+  SU-fund tæller kun, når SU har godkendt det (DOFbasens «Kvalitet» = 2; 1 = ikke vurderet, 4 = ikke godkendt – aflæst af data, ikke dokumenteret af DOFbasen).
+  Ikke godkendte SU-arter kan deltageren selv krydse af.
 * **Visninger:** krydsliste, seneste kryds, hvem har set hvad, blockers, blockers-statistik, årstophits, alle lister, hvem har krydset arten; CSV og Print.
-* **Artslister** (DK, VP …) med kategorier og sjældenhed, redigerbare med CSV-eksport/-import med diff, og **World Bird List** (orden → familie → art) med artssider (fund fra
+* **Artslister** (DK, VP …) med kategorier og sjældenhed. Admin retter arterne (dansk/engelsk navn, * (SU), sjældenhed, kategorier, placering), tilføjer fra World Bird List eller som ny art (fx en split, der ikke er i AviList), opretter lister som kopi af en anden (fx en særskilt Falsk VP-liste) og bruger CSV-eksport/-import med diff (også navne), og **World Bird List** (orden → familie → art) med artssider (fund fra
   DOFbasen, kryds og fotos fra galleriet).
 * **AviList** (World Bird List) indlæses under Admin → World Bird List med en diff (nye, omdøbte/split-lump, ændrede, forsvundne), før noget anvendes.
   AviList udgives under CC BY 4.0 (kildeangivelse påkrævet) – bekræft den gældende licens på avilist.org, før en fil lægges ind.

@@ -1,7 +1,7 @@
 // Leaflet-hjælpere: grundkort, farver og tegneværktøj (polygon og radius).
 // Leaflet (JS + CSS fra /vendor) hentes først, når et modul med kort importerer denne fil – forsiden og de fleste andre
 // sider indlæser det aldrig. Top-level await: når importen er færdig, er det globale L klar til brug.
-import { h, api } from "./core.js";
+import { h, api, esc, icon } from "./core.js";
 
 let loading = null;
 /** Hent Leaflet én gang (genbruges af alle kort). */
@@ -156,4 +156,14 @@ export function locationOutlines(map, { onChange, highlight, selectedOnly = fals
     select(loknr) { selected = loknr || null; restyle(); },
     remove() { clearTimeout(timer); map.off("moveend", later); layer.remove(); hint.remove(); },
   };
+}
+
+/** «Naviger hertil»: på Android et geo:-link, der åbner systemets egen appvælger (Google Maps, Waze, …); andre steder
+ *  (iOS, computer) et almindeligt Google Maps-link, der åbner appen, hvis den er installeret, og ellers browseren. */
+export function navButton(lat, lon, label = "", text = "Naviger hertil") {
+  const ll = `${(+lat).toFixed(6)},${(+lon).toFixed(6)}`;
+  const attrs = /Android/i.test(navigator.userAgent)
+    ? { href: `geo:${ll}?q=${ll}${label ? `(${encodeURIComponent(label)})` : ""}` }  // i samme fane, så der ikke står en tom fane tilbage
+    : { href: `https://www.google.com/maps/dir/?api=1&destination=${ll}`, target: "_blank", rel: "noopener" };
+  return h("a", { class: "btn sm ghost", ...attrs, html: `${icon("pin")} ${esc(text)}` });
 }

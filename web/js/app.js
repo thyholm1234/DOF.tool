@@ -11,8 +11,8 @@ applyTheme();  // straks, så siden ikke blinker i det forkerte tema
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
   ["Nu og her", [["#/", "now", "Mit overblik"]]],
-  ["Ud i felten", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
-  ["Statistik", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
+  ["Planlæg", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
+  ["Data", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
   ["Viden", [["#/laer", "learn", "Læring"]]],
   ["Værktøjer", [["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
@@ -22,7 +22,6 @@ const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
 const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
 const ARTIKLER = ["#/artikler", "news", "Artikler"];
 const FOTOS = ["#/fotos", "camera", "Fotos"];
-const KRYDS = ["#/krydslister", "list", "Krydslister"];
 const DAGSLISTE = ["#/dagsliste", "list", "Observationer"];
 const SEARCH = ["#/soeg", "search", "Søg"];
 const STATS = ["#/statistik", "chart", "Statistik"];
@@ -33,11 +32,10 @@ const showcases = () => [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : n
 /** Menuens grupper for den indloggede: modulerne bag funktionsflag vises kun, når de er slået til (eller forhåndsvisning). */
 function sections() {
   const extra = [state.user?.artikler?.features?.artikler ? ARTIKLER : null, state.user?.fotos?.features?.fotos ? FOTOS : null].filter(Boolean);
-  const kryds = state.user?.krydslister?.features?.krydslister ? KRYDS : null;  // Krydslister står under Lister, sammen med Lister og Matrikel
   // DKU (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
-  // Statistik-modulet og Søg under Statistik, når funktionerne er synlige for brugeren
-  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler && !state.user?.statistik ? OBSERVERS : null].filter(Boolean);  // Observatører er en fane under Statistik
+  // Statistik-modulet og Søg under Data, når funktionerne er synlige for brugeren
+  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler && !state.user?.statistik ? OBSERVERS : null].filter(Boolean);  // Observatører er en fane under Statistik-modulet
   const dl = state.user?.dagsliste ? DAGSLISTE : null;  // Observationer (dagslisten) står lige under Mit overblik
   // SU (med antal ulæste sager) og DKU samles under overskriften Kvalitetssikring, når modulerne er synlige for brugeren
   const su = state.user?.su?.visible ? ["#/su", "flag", `SU${state.user.su.unread ? ` <span class="badge-inline">${+state.user.su.unread}</span>` : ""}`] : null;
@@ -46,13 +44,13 @@ function sections() {
   const modUnread = adminLink() && hasTab("support") ? 0 : state.adminSupportUnread;
   const mod = modl ? [modl.href, "check", `${modl.label}${modUnread ? ` <span class="badge-inline">${+modUnread}</span>` : ""}`] : null;
   const qa = [mod, dku, su].filter(Boolean);
-  if (!extra.length && !kryds && !qa.length && !stat.length && !dl) return SECTIONS;
+  if (!extra.length && !qa.length && !stat.length && !dl) return SECTIONS;
   const out = SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Viden" ? [...items, ...extra]
-    : t === "Statistik" ? [...items, ...stat] : t === "Lister" && kryds ? [...items, kryds] : items]);
+    : t === "Data" ? [...items, ...stat] : items]);  // krydslisterne er en del af Lister
   if (qa.length) out.splice(out.findIndex(([t]) => t === "Mit"), 0, ["Kvalitetssikring", qa]);  // lige før Mit
   return out;
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, KRYDS, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"], SU];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"], SU];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 

@@ -196,7 +196,8 @@ def auto_queries(defs_: dict[str, dict]) -> list[tuple[str, dict]]:
             continue
         key, countable = d["key"], _countable(d["regler"])
         base = f"""FROM observations o JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
-            WHERE o.obserkode = ANY(:codes) AND s.list_artnr IS NOT NULL AND NOT ls.excluded AND o.antal > 0 AND o.dato <= current_date AND {countable}"""
+            WHERE o.obserkode = ANY(:codes) AND s.list_artnr IS NOT NULL AND NOT ls.excluded AND o.antal > 0 AND o.dato <= current_date AND {countable}
+            AND {categories.alive_sql()} AND {categories.approved_su_sql()}"""
         if d["param"] is None:
             out.append((f"""SELECT DISTINCT ON (o.obserkode, s.list_artnr) o.obserkode, '{key}', s.list_artnr, o.dato, o.obsid, o.loknr {base}
                 ORDER BY o.obserkode, s.list_artnr, o.dato, o.obsid""", d))
@@ -293,7 +294,7 @@ async def load_kryds(session: AsyncSession, key: str) -> dict:
                 if m["hidden"]:
                     continue
                 rows.append({"kode": m["obserkode"], "key": _skey(by_artnr, m["artnr"], m["latin"]), "artnr": m["artnr"], "navn": m["navn"], "latin": m["latin"],
-                             "dato": m["dato"].isoformat() if m["dato"] else None, "lok": m["lokalitet"], "land": m["land"], "obsid": None, "kilde": "manuel",
+                             "dato": m["dato"].isoformat() if m["dato"] else None, "lok": m["lokalitet"], "land": m["land"], "obsid": m.get("obsid"), "kilde": "manuel",
                              "id": m["id"], "note": m["note"]})
         best: dict[tuple[str, str], dict] = {}
         for r in rows:
@@ -436,7 +437,15 @@ async def my_kryds(session: AsyncSession, user: User, key: str) -> dict:
             "godkendelse": bool((d["regler"] or {}).get("godkendelse")), "ref": d["ref"], "kan_skjule": d["auto"] or bool((d["regler"] or {}).get("auto_fra"))}
 
 
-async def add_kryds(session: AsyncSession, user: User, *, liste: str, taxon_id: int, dato: date | None, lokalitet: str, land: str, note: str, privileged: bool) -> KlKryds:
+def per_year(ds: dict[str, dict], key: str) -> bool:
+    """Er listen kilde til en årsliste (fx Ædelarter → Ædelårsarter)? Så kan en art krydses én gang pr. år, og livslisten tager det første."""
+    return any((v["regler"] or {}).get("kilde_liste") == key for v in ds.values())
+
+
+async def add_kryds(session: AsyncSession, user: User, *, liste: str, taxon_id: int, dato: date | None, lokalitet: str, land: str, note: str, privileged: bool,
+                    obsid: int | None = None) -> KlKryds:
+    """Manuelt kryds. obsid: krydset bygger på en observation i DOFbasen/DOF.tool (ædelart markeret fra en årsliste) – så er arten dokumenteret,
+    og SU-arter kræver ikke dato og lokalitet."""
     d, _ = await parse_list(session, liste)
     if not d["manuel"]:
         raise KlError(400, "Listen tillader ikke manuelle kryds")
@@ -448,14 +457,19 @@ async def add_kryds(session: AsyncSession, user: User, *, liste: str, taxon_id: 
     if dato and dato > dk_today():
         raise KlError(400, "Datoen ligger i fremtiden")
     su = t["sjaeldenhed"] == "su"
-    if d["ref"] == "vp" and su and not (dato and lokalitet and land):
+    if d["ref"] == "vp" and su and not obsid and not (dato and lokalitet and land):
         raise KlError(400, "Sjældne arter (*) kræver land, lokalitet og dato")
-    if d["ref"] == "dk" and su and not (dato and lokalitet):
+    if d["ref"] == "dk" and su and not obsid and not (dato and lokalitet):
         raise KlError(400, "SU-arter kræver dato og lokalitet")
-    await session.execute(text("DELETE FROM kl_kryds WHERE obserkode = :k AND liste = :l AND latin = :la"), {"k": user.obserkode, "l": d["key"], "la": t["latin"]})
+    same = "obserkode = :k AND liste = :l AND latin = :la"
+    args = {"k": user.obserkode, "l": d["key"], "la": t["latin"]}
+    if per_year(await defs(session), d["key"]):  # ét kryds pr. art pr. år (og ét uden dato)
+        same += " AND CAST(extract(year FROM dato) AS integer) IS NOT DISTINCT FROM CAST(:y AS integer)"
+        args["y"] = dato.year if dato else None
+    await session.execute(text(f"DELETE FROM kl_kryds WHERE {same}"), args)
     status = "afventer" if (d["regler"] or {}).get("godkendelse") and not privileged else "ok"
     row = KlKryds(obserkode=user.obserkode, liste=d["key"], taxon_id=t["id"], artnr=t["artnr"], latin=t["latin"], navn=t["dansk"] or t["engelsk"] or t["latin"], dato=dato,
-                  lokalitet=lokalitet or None, land=land or ("Danmark" if d["ref"] == "dk" else None), note=note or None, status=status)
+                  lokalitet=lokalitet or None, land=land or ("Danmark" if d["ref"] == "dk" else None), note=note or None, status=status, obsid=obsid)
     session.add(row)
     await session.commit()
     await bump(VERSION)
@@ -482,3 +496,77 @@ async def delete_kryds(session: AsyncSession, user: User, kid: int, privileged: 
     await session.commit()
     await bump(VERSION)
     return k
+
+
+# ---------------------------------------------------------------- ædelarter markeret fra årslisten/livslisten
+
+AEDEL = "aedel"
+
+
+async def aedel_marks(session: AsyncSession, user: User) -> dict:
+    """Brugerens ædelarter (kryds på listen «aedel»): ét pr. art pr. år, og evt. ét uden dato (kun livslisten).
+    Ædelårslisten for et år er krydsene med dato i året; ædel-livslisten er alle arterne."""
+    d = (await defs(session)).get(AEDEL)
+    if d is None or not d["manuel"]:
+        return {"on": False, "marks": []}
+    rows = (await session.execute(text("""
+        SELECT id, artnr, latin, navn, dato, lokalitet, obsid FROM kl_kryds
+        WHERE obserkode = :k AND liste = :l AND status = 'ok' AND NOT hidden ORDER BY dato NULLS LAST, id"""), {"k": user.obserkode, "l": AEDEL})).mappings().all()
+    return {"on": True, "name": d["navn"], "marks": [{**dict(r), "dato": r["dato"].isoformat() if r["dato"] else None} for r in rows]}
+
+
+async def _aedel_taxon(session: AsyncSession, d: dict, artnr: int) -> dict:
+    """Arten på ædellistens referenceliste (DK): via artnr, ellers via det latinske navn."""
+    q = """SELECT t.id, t.latin FROM kl_taxa t JOIN kl_species_list_entries e ON e.taxon_id = t.id AND e.list_id = :l
+           WHERE t.aktiv AND {cond} ORDER BY t.rang = 'art' DESC, t.id LIMIT 1"""
+    t = (await session.execute(text(q.format(cond="t.artnr = :a")), {"l": d["ref_list_id"], "a": artnr})).mappings().first()
+    if t is None:
+        latin = (await session.execute(text("SELECT latin FROM species WHERE artnr = :a"), {"a": artnr})).scalar()
+        if latin:
+            t = (await session.execute(text(q.format(cond="lower(t.latin) = lower(:la)")), {"l": d["ref_list_id"], "la": latin})).mappings().first()
+    if t is None:
+        raise KlError(400, "Arten findes ikke på DK-listen og kan ikke markeres som ædelart")
+    return dict(t)
+
+
+async def set_aedel(session: AsyncSession, user: User, *, artnr: int, year: int | None, on: bool, dato: date | None = None, lokalitet: str = "",
+                    obsid: int | None = None, privileged: bool = False) -> None:
+    """Markér (on) eller fjern en ædelart. year: årslisten (krydset får observationens dato i året); None: livslisten (kryds uden dato).
+    Fjernes en art fra livslisten, fjernes alle dens ædelkryds; fra en årsliste kun årets."""
+    d = (await defs(session)).get(AEDEL)
+    if d is None or not d["manuel"]:
+        raise KlError(400, "Ædelarter er ikke slået til")
+    t = await _aedel_taxon(session, d, artnr)
+    if on:
+        if year is not None and (dato is None or dato.year != year):
+            raise KlError(400, f"Datoen skal ligge i {year}")
+        await add_kryds(session, user, liste=AEDEL, taxon_id=t["id"], dato=dato if year is not None else None, lokalitet=lokalitet, land="Danmark",
+                        note="", privileged=privileged, obsid=obsid)
+        return
+    q = "DELETE FROM kl_kryds WHERE obserkode = :k AND liste = :l AND latin = :la AND NOT hidden"
+    args: dict = {"k": user.obserkode, "l": AEDEL, "la": t["latin"]}
+    if year is not None:
+        q += " AND dato BETWEEN :a AND :b"
+        args.update(a=date(year, 1, 1), b=date(year, 12, 31))
+    await session.execute(text(q), args)
+    await session.commit()
+    await bump(VERSION)
+
+
+async def my_overview(session: AsyncSession, user: User, year: int) -> list[dict]:
+    """Til «Mine lister»: brugerens antal og placering på krydslisterne uden parameter og på årets årslister (fx Ædelårsarter)."""
+    out = []
+    for key, d in (await defs(session)).items():
+        if d["param"] not in (None, "year") or not (d["auto"] or d["manuel"] or (d["regler"] or {}).get("kilde_liste")):
+            continue
+        lkey = key if d["param"] is None else f"{key}:{year}"
+        try:
+            data = await load_kryds(session, lkey)
+        except KlError:
+            continue
+        rank = ranking(data)
+        me = next((r for r in rank if r["kode"] == user.obserkode), None)
+        out.append({"key": lkey, "base": key, "name": data["name"], "param": d["param"], "auto": d["auto"] or bool((d["regler"] or {}).get("auto_fra")),
+                    "manuel": d["manuel"], "ref": d["ref"], "antal": me["antal"] if me else 0, "placering": me["placering"] if me else None,
+                    "deltagere": len(rank), "seneste": me["seneste"] if me else None, "participant": user.obserkode in data["people"]})
+    return out

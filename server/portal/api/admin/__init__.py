@@ -1,7 +1,8 @@
 """Administration og moderation – ét modul pr. panel; routerne samles her i den oprindelige rækkefølge.
 
 drift (lager, overblik, gateway, worker, planer, arkiv, talemodel, job) · indstillinger (indstillinger, funktioner, FCM) ·
-backup · brugere · roller · moderation (kommentarer, udelukkelser, beskeder) · indhold (nyheder) · data (DOFbasen, vejr)
+backup · brugere · roller · moderation (kommentarer, udelukkelser, beskeder) · indhold (nyheder) · data (DOFbasen, vejr) ·
+taellinger (spontan- og FiNN-tællinger, FiNN-områder, gridceller)
 """
 
 from fastapi import APIRouter
@@ -21,8 +22,9 @@ from portal.api.admin import (
     moderation,
     roller,
     se_som,
+    taellinger,
 )
 
 router = APIRouter()
-for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler, lokaliteter, fotos, krydslister, lydquiz, se_som):
+for module in (drift, indstillinger, backup, brugere, moderation, indhold, data, roller, artikler, lokaliteter, fotos, krydslister, lydquiz, se_som, taellinger):
     router.include_router(module.router)

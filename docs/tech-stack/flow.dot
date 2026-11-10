@@ -51,7 +51,7 @@ digraph DOFtool {
     subgraph cluster_valkey { label=<<b>valkey 8.1 :6379</b>>; style="rounded,filled"; fillcolor="#ffffff"; color="#7fa287"; fontsize=11;
       vsess [label=<<b>Sessioner</b><br/><font point-size="8" color="#555555">sess:*, usess:*</font>>];
       vq [label=<<b>Køer</b><br/><font point-size="8" color="#555555">gateway, opslag, kommandoer</font>>];
-      vcache [label=<<b>Cache + versioner</b><br/><font point-size="8" color="#555555">scoreboards, feed</font>>];
+      vcache [label=<<b>Cache + versioner</b><br/><font point-size="8" color="#555555">ranglister, feed</font>>];
       vps [label=<<b>Pub/sub</b><br/><font point-size="8" color="#555555">kanal «feed» m.fl.</font>>];
       vlim [label=<<b>Låse + grænser</b><br/><font point-size="8" color="#555555">login, kald-interval</font>>];
     }

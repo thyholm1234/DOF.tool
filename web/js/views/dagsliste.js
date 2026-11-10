@@ -13,7 +13,6 @@ const LEVELS = [["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"], ["all", "A
 const LEVEL_HINT = { SU: "Kun SU-arter", SUB: "Kun SUB-arter", bemaerk: "Kun bemærkelsesværdige (uden SU og SUB)", all: "Almindelige observationer (uden SU, SUB og bemærk)",
   pheno: "Arter uden for deres normale periode", local: "Arter med få fund på lokaliteten" };
 /** Hører observationen (en række fra serveren) til modulet? Samme regler som serveren (services/dofbasen.py). */
-const IN_LEVEL = { SU: r => r.kat === "SU", SUB: r => r.kat === "SUB", bemaerk: r => r.kat === "bemaerk", all: r => !r.kat, pheno: r => !!r.pheno, local: r => !!r.local };
 const parseMatrix = (raw) => {
   const m = {};
   for (const part of String(raw || "").split(",")) {
@@ -101,12 +100,6 @@ export async function render(view) {
     go();
   }
 
-  const PRESETS = [
-    ["Bemærk og derover", (ids) => Object.fromEntries(ids.map(a => [a, ["SU", "SUB", "bemaerk"]]))],
-    ["SU og SUB", (ids) => Object.fromEntries(ids.map(a => [a, ["SU", "SUB"]]))],
-    ["Fænologi og lokale hits", (ids) => Object.fromEntries(ids.map(a => [a, ["pheno", "local"]]))],
-  ];
-
   function drawMatrix() {
     mbox.hidden = !advanced();
     if (!advanced()) return;
@@ -123,9 +116,7 @@ export async function render(view) {
       h("div", { class: "row between", style: { alignItems: "flex-start" } },
         h("p", { class: "muted small", style: { margin: 0 } }, "Markér, hvad du vil se fra hver afdeling. Klik på en overskrift for at markere hele kolonnen eller rækken. Tag fat i en afdelings navn og træk op eller ned for at ændre rækkefølgen."),
         n ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { st.matrix = {}; go(); } }, `Ryd (${n})`) : null),
-      h("div", { class: "mx-presets" }, h("span", { class: "muted small" }, "Hurtigvalg:"),
-        ...PRESETS.map(([t, fn]) => h("button", { class: "chip", type: "button", onclick: () => { st.matrix = fn(ids); go(); } }, t))),
-      h("div", { class: "table-wrap" }, h("table", { class: "dl-mx" },
+      h("div", { class: "table-wrap", style: { marginTop: "10px" } }, h("table", { class: "dl-mx" },
         h("thead", {}, h("tr", {}, h("th", {}, ""), ...levels().map(([k, t]) => h("th", {},
           h("button", { class: `mx-head mx-${k}`, type: "button", title: `${LEVEL_HINT[k]} – alle afdelinger`, onclick: () => toggleCells(ids, [k]) }, t))))),
         h("tbody", {}, ...afdSorted().map(a => {
@@ -150,25 +141,65 @@ export async function render(view) {
       const tr = grip.closest("tr");
       grip.addEventListener("pointerdown", (e) => {
         if (e.button) return;
-        const y0 = e.clientY; let moved = false;
+        // Under trækket bliver DOM'en liggende (ellers mister grebet sin pointer capture): den trukne række følger
+        // markøren med transform, de andre glider til side, og rækkefølgen skiftes først, når man slipper.
+        const rows = [...body.rows], from = rows.indexOf(tr);
+        const doc = () => window.scrollY;
+        const y0 = e.clientY + doc();
+        const tops = rows.map(r => r.getBoundingClientRect().top + doc());
+        const hts = rows.map(r => r.getBoundingClientRect().height);
+        const step = rows.length > 1 ? tops[1] - tops[0] - hts[0] + hts[from] : hts[from];  // egen højde + border-spacing
+        let moved = false, to = from, lastY = e.clientY, raf = 0;
+        const setY = (r, y, anim) => { for (const c of r.cells) { c.style.transition = anim ? "transform .18s ease" : "none"; c.style.transform = y ? `translateY(${y}px)` : ""; } };
+        const place = () => {
+          const dy = lastY + doc() - y0;
+          setY(tr, dy, false);
+          const mid = tops[from] + hts[from] / 2 + dy;
+          to = from;
+          for (let i = 0; i < rows.length; i++) {
+            if (i === from) continue;
+            const m = tops[i] + hts[i] / 2;
+            if (i < from && mid < m) { to = Math.min(to, i); }
+            if (i > from && mid > m) { to = Math.max(to, i); }
+          }
+          rows.forEach((r, i) => { if (i !== from) setY(r, from < i && i <= to ? -step : to <= i && i < from ? step : 0, true); });
+        };
+        const autoScroll = () => {
+          raf = 0;
+          const edge = 60, vh = window.innerHeight;
+          const v = lastY < edge ? -(edge - lastY) / 4 : lastY > vh - edge ? (lastY - (vh - edge)) / 4 : 0;
+          if (!v) return;
+          window.scrollBy(0, v); place();
+          raf = requestAnimationFrame(autoScroll);
+        };
         grip.setPointerCapture?.(e.pointerId);
         const onMove = (ev) => {
-          if (!moved && Math.abs(ev.clientY - y0) < 5) return;
+          lastY = ev.clientY;
+          if (!moved && Math.abs(lastY + doc() - y0) < 5) return;
           if (!moved) { moved = true; table.classList.add("dragging"); tr.classList.add("drag"); }
           ev.preventDefault();
-          const rows = [...body.rows];
-          const over = rows.find(r => { const b = r.getBoundingClientRect(); return ev.clientY >= b.top && ev.clientY <= b.bottom; });
-          const target = over || (ev.clientY < rows[0].getBoundingClientRect().top ? rows[0] : rows[rows.length - 1]);
-          if (target === tr) return;
-          const from = rows.indexOf(tr), to = rows.indexOf(target);
-          body.insertBefore(tr, to > from ? target.nextSibling : target);
+          place();
+          if (!raf) raf = requestAnimationFrame(autoScroll);
         };
         const onEnd = () => {
-          grip.removeEventListener("pointermove", onMove); grip.removeEventListener("pointerup", onEnd); grip.removeEventListener("pointercancel", onEnd);
-          table.classList.remove("dragging"); tr.classList.remove("drag");
-          if (moved && keys().join() !== afdSorted().map(a => String(a.id)).join()) commit();
+          window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onEnd); window.removeEventListener("pointercancel", onEnd);
+          if (raf) cancelAnimationFrame(raf);
+          if (!moved) return;
+          // Glid den trukne række på plads (FLIP): byt i DOM'en, og animér fra den aktuelle position til den nye.
+          const before = tr.cells[0].getBoundingClientRect().top;
+          rows.forEach(r => setY(r, 0, false));
+          if (to !== from) body.insertBefore(tr, to > from ? rows[to].nextSibling : rows[to]);
+          const after = tr.cells[0].getBoundingClientRect().top;
+          setY(tr, before - after, false);
+          tr.getBoundingClientRect();
+          setY(tr, 0, true);
+          setTimeout(() => {
+            table.classList.remove("dragging"); tr.classList.remove("drag");
+            rows.forEach(r => { for (const c of r.cells) c.style.transition = ""; });
+            if (keys().join() !== afdSorted().map(a => String(a.id)).join()) commit();
+          }, 190);
         };
-        grip.addEventListener("pointermove", onMove); grip.addEventListener("pointerup", onEnd); grip.addEventListener("pointercancel", onEnd);
+        window.addEventListener("pointermove", onMove, { passive: false }); window.addEventListener("pointerup", onEnd); window.addEventListener("pointercancel", onEnd);
       });
       grip.addEventListener("keydown", (e) => {
         if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
@@ -230,21 +261,11 @@ export async function render(view) {
     for (const g of list) {
       const f = g[0];
       out.push(st.sort === "art"
-        ? head([h("b", {}, artName(f.artnr, f.art, ["SU", "SUB"].find(k => g.some(r => r.kat === k)))), " ", h("span", { class: "muted" }, "(", h("i", {}, f.latin || ""), ")"),
-          ":"])
+        ? head([h("b", {}, artName(f.artnr, f.art, ["SU", "SUB"].find(k => g.some(r => r.kat === k)), g.some(r => r.pheno))), " ", h("span", { class: "muted" }, "(", h("i", {}, f.latin || ""), ")")])
         : head([h("a", { href: `#/lok/${f.loknr}` }, h("b", {}, f.lokalitet || String(f.loknr))), ":"]));
       out.push(...g.map(r => obsRow(r, st.sort !== "art" ? "art" : "lok")));
     }
     return out;
-  }
-
-  /** Avanceret: afdelingens observationer delt i de valgte moduler i brugerens rækkefølge (hver observation under det første modul, den hører til). */
-  function modules(afdId, rows) {
-    const chosen = order.filter(k => st.matrix[String(afdId)]?.includes(k));
-    const buckets = new Map(chosen.map(k => [k, []]));
-    for (const r of rows) { const k = chosen.find(k => IN_LEVEL[k](r)); if (k) buckets.get(k).push(r); }
-    return chosen.flatMap(k => buckets.get(k).length ? [h("tr", { class: "dl-mod" }, h("td", { colspan: 9 },
-      h("span", { class: `mx-dot mx-${k}` }), " ", h("b", {}, LEVELS.find(l => l[0] === k)[1]), h("span", { class: "muted" }, ` · ${buckets.get(k).length}`))), ...groups(buckets.get(k), st.dato)] : []);
   }
 
   async function load() {
@@ -265,7 +286,7 @@ export async function render(view) {
       d.note ? h("div", { class: "notice" }, d.note) : null,
       !d.rows.length && !d.note ? empty("Ingen observationer", "Prøv en anden visning, dato eller afdeling") : null,
       d.rows.length ? timeLegend() : null,
-      d.rows.length ? sheet([...byAfd].sort((x, y) => afdRank(x[0]) - afdRank(y[0])).flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...(hasMatrix() ? modules(id, rows) : groups(rows, st.dato))])) : null);
+      d.rows.length ? sheet([...byAfd].sort((x, y) => afdRank(x[0]) - afdRank(y[0])).flatMap(([id, rows]) => [head([afdName[id] || "Uden afdeling"], "dl-afd"), ...groups(rows, st.dato)])) : null);
   }
 
   view.append(h("h1", {}, "Observationer"), h("p", { class: "muted dl-intro" }, "Dagens observationer som en klassisk liste. Klik på antallet for at se observationen og resten af turlisten."), box, mbox, out);

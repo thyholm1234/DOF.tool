@@ -1,32 +1,41 @@
 // En krydsliste og dens visninger: krydsliste, seneste kryds, hvem har set hvad, blockers, blockers-statistik og årstophits; samt «hvem har krydset arten».
-import { api, h } from "../core.js";
+import { api, h, fmtN, state } from "../core.js";
 import { BASE, link, table, title, loadingBox, notice, dkDate } from "./common.js";
 
-const VIEWS = [["ranking", "Krydsliste"], ["seneste", "Seneste kryds"], ["hvem", "Hvem har set hvad?"], ["blockers", "Blockers"], ["blockerstat", "Blockers statistik"], ["tophits", "Årstophits"]];
+const VIEWS = [["ranking", "Rangliste"], ["seneste", "Seneste kryds"], ["hvem", "Hvem har set hvad?"], ["blockers", "Blockers"], ["blockerstat", "Blockers statistik"], ["tophits", "Årstophits"]];
 const person = (r) => h("a", { href: `#/observator/${r.kode}` }, r.navn || r.person);
 
 export async function page(parts, q) {
   const key = decodeURIComponent(parts[1]), view = parts[2] || "ranking";
   const [meta, d] = await Promise.all([api("/api/krydslister/lister"), api(`/api/krydslister/kryds/${encodeURIComponent(key)}/${view}${q.aar ? `?aar=${q.aar}` : ""}`).catch(e => ({ error: e.message }))]);
-  const opts = [];
+  const groups = [];  // [label, [[værdi, navn]]] – vælgeren grupperes, så de mange lister er til at finde rundt i
   for (const l of meta.lister) {
-    if (!l.param) opts.push([l.key, l.name]);
-    else if (l.param === "year") for (const y of (l.key === "aedelaar" ? meta.aedel_years : meta.years)) opts.push([`${l.key}:${y}`, l.name.replace("{p}", y)]);
-    else if (l.param === "month") meta.months.forEach((n, i) => opts.push([`${l.key}:${i + 1}`, l.name.replace("{p}", n)]));
-    else if (l.param === "afdeling") for (const a of meta.afdelinger) opts.push([`${l.key}:${a.id}`, l.name.replace("{p}", a.navn)]);
-    else if (l.param === "kommune") for (const k of meta.kommuner) opts.push([`${l.key}:${k.kode}`, l.name.replace("{p}", k.navn)]);
+    const add = (label, items) => groups.push([label, items]);
+    if (!l.param) { (groups.find(g => g[0] === "Lister") || (groups.push(["Lister", []]), groups.at(-1)))[1].push([l.key, l.name]); continue; }
+    const title = l.name.replace(/[:\s]*\{p\}/, "").trim();
+    if (l.param === "year") add(title, (l.key === "aedelaar" ? meta.aedel_years : meta.years).map(y => [`${l.key}:${y}`, l.name.replace("{p}", y)]));
+    else if (l.param === "month") add(title, meta.months.map((n, i) => [`${l.key}:${i + 1}`, l.name.replace("{p}", n)]));
+    else if (l.param === "afdeling") add(`${title} – lokalafdelinger`, meta.afdelinger.map(a => [`${l.key}:${a.id}`, a.navn]));
+    else if (l.param === "kommune") add(`${title} – kommuner`, meta.kommuner.map(k => [`${l.key}:${k.kode}`, k.navn]));
   }
   const go = () => { location.hash = `${BASE}/kryds/${encodeURIComponent(listSel.value)}/${viewSel.value}`; };
-  const listSel = h("select", { "aria-label": "Krydsliste", onchange: go }, ...opts.map(([v, t]) => h("option", { value: v, selected: v === key }, t)));
+  const listSel = h("select", { "aria-label": "Krydsliste", onchange: go }, ...groups.map(([label, items]) => h("optgroup", { label }, ...items.map(([v, t]) => h("option", { value: v, selected: v === key }, t)))));
   const viewSel = h("select", { "aria-label": "Visning", onchange: go }, ...VIEWS.map(([v, t]) => h("option", { value: v, selected: v === view }, t)));
-  const head = h("div", { class: "kl-tools" }, listSel, viewSel);
+  const head = h("div", {}, h("div", { class: "lister-switch" }, h("span", { class: "muted" }, "Vis:"),
+    h("div", { class: "seg" }, h("button", { type: "button", onclick: () => { location.hash = "#/lister/rangliste"; } }, "Årslister fra DOFbasen"), h("button", { type: "button", class: "on" }, "Krydslister"))),
+    h("div", { class: "card lister-filter" }, h("div", { class: "lister-filter-row" }, listSel, viewSel, h("span", { class: "spacer" }), link("/nyt", "Seneste kryds"), link("/alle", "Alle krydslister"))));
   if (d.error) return h("div", {}, head, notice(d.error, "err"));
   const artLink = (r) => link(`/kryds/${encodeURIComponent(key)}/art/${encodeURIComponent(r.key)}`, h("span", {}, r.su ? h("b", { class: "kl-su" }, "* ") : null, r.navn, r.latin ? [" (", h("i", {}, r.latin), ")"] : null));
   const vp = key === "vp" || key === "falskvp";
   let body;
   if (view === "ranking") {
-    body = [h("p", {}, `Nedenstående ses en liste over personer, som har krydset deres arter af for krydslisten: ${d.name}`),
-      table(["#", "Navn", ...(vp ? ["Land"] : []), "#X", "Opdateret", "Seneste kryds"], d.rows.map(r => ({ text: r.navn, cells: [r.placering, person(r), ...(vp ? [r.seneste_land || ""] : []), h("b", {}, String(r.antal)), r.opdateret || "", r.seneste || ""] })), { name: key })];
+    const top = d.rows[0]?.antal || 1;
+    body = [d.rows.length ? h("div", { class: "rank" }, ...d.rows.map(r => h("a", { class: `rank-row ${state.user?.obserkode === r.kode ? "me" : ""}`, href: `#/observator/${r.kode}` },
+      h("div", { class: "place" }, r.placering),
+      h("div", {}, h("div", { class: "who" }, r.navn), h("div", { class: "last" }, r.seneste ? `Seneste: ${r.seneste}${r.opdateret ? ` · ${dkDate(r.opdateret)}` : ""}${vp && r.seneste_land ? ` · ${r.seneste_land}` : ""}` : ""),
+        h("div", { class: "bar-inline" }, h("i", { style: { width: `${(r.antal / top) * 100}%` } }))),
+      h("div", { class: "score" }, fmtN(r.antal))))) : notice("Ingen deltagere har kryds på listen endnu."),
+    h("details", { class: "mt" }, h("summary", { class: "muted" }, "Vis som tabel (CSV og print)"), table(["#", "Navn", ...(vp ? ["Land"] : []), "#X", "Opdateret", "Seneste kryds"], d.rows.map(r => ({ text: r.navn, cells: [r.placering, person(r), ...(vp ? [r.seneste_land || ""] : []), h("b", {}, String(r.antal)), r.opdateret || "", r.seneste || ""] })), { name: key }))];
   } else if (view === "seneste") {
     body = [h("p", {}, `Nedenfor ses de seneste 100 nye kryds på ${d.name}.`), table(["#", "Navn", "#X", "Seneste nye kryds", "Lokation", "Dato", ""], d.rows.map((r, i) => ({ text: `${r.person} ${r.navn} ${r.lok || ""}`,
       cells: [i + 1, person(r), h("b", {}, r.x), artLink(r), r.lok || "", r.dato, r.kilde === "dofbasen" ? h("span", { class: "kl-chip ok", title: "Beregnet fra DOFbasen" }, "DOFbasen") : h("span", { class: "kl-chip" }, "manuel")] })), { name: `${key}-seneste` })];
