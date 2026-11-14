@@ -1,5 +1,6 @@
 // Observatørsider (#/observator/KODE) og søgning efter observatører (#/observator) – services/observers.py.
-// Tal fra DOFbasen-observationerne uden hemmelige; portalbrugere kan skjule deres side under Profil.
+// Tal fra DOFbasen-observationerne uden hemmelige; portalbrugere kan skjule deres side under Profil. Krydslisterne (antal, placering) linker til
+// observatørens kryds pr. liste (#/lister/person/KODE/LISTE), som linker tilbage hertil.
 import { api, state, h, fmtN, fmtDate, tag, errorBox, empty, busyBlock, KAT, requireLogin } from "../core.js";
 import { barChart } from "../charts.js";
 
@@ -15,6 +16,8 @@ export async function render(view, [kode]) {
   kode = decodeURIComponent(kode);
   view.replaceChildren(busyBlock("Henter observatøren…", 5));
   let d;
+  const klOn = !!state.user?.krydslister?.features?.krydslister;
+  const krydsP = klOn ? api(`/api/krydslister/person/${encodeURIComponent(kode)}`).catch(() => null) : Promise.resolve(null);
   try { d = await api(`/api/observers/${encodeURIComponent(kode)}`); } catch (err) { view.replaceChildren(errorBox(err)); return; }
   view.replaceChildren(
     h("p", {}, h("a", { href: state.user?.statistik ? "#/statistik?tab=observatorer" : "#/observator" }, "← Søg observatør")),
@@ -24,8 +27,10 @@ export async function render(view, [kode]) {
   if (d.skjult) { view.append(empty("Observatøren har valgt ikke at vise sin side", "")); return; }
   if (d.mig) view.append(h("div", { class: "notice mb" }, d.portal?.offentlig === false
     ? "Din side er skjult for andre brugere – du kan vise den under Profil." : "Sådan ser andre brugere din side. Du kan skjule den under Profil."));
+  const kryds = await krydsP;
+  const krydsCard = krydslisterCard(d, kryds);
   const t = d.tal;
-  if (!t || !t.n_obs) { view.append(empty("Ingen observationer i DOFbasen endnu", "")); return; }
+  if (!t || !t.n_obs) { view.append(empty("Ingen observationer i DOFbasen endnu", ""), krydsCard || ""); return; }
   const stat = (v, l, title) => h("div", { class: "stat", title }, h("b", {}, v), h("span", {}, l));
   const thisYear = d.aar.find(y => y.aar === YEAR);
   view.append(
@@ -37,6 +42,7 @@ export async function render(view, [kode]) {
     d.aar.length > 1 ? h("div", { class: "card mt" }, h("h3", { style: { marginTop: 0 } }, "Arter år for år"),
       barChart({ bars: d.aar.map(y => ({ v: y.n_arter, hl: y.aar === YEAR, tip: `${y.aar}: ${fmtN(y.n_arter)} arter · ${fmtN(y.n_obs)} obs. · ${fmtN(y.n_dage)} dage` })),
         xTicks: d.aar.map((y, i) => [i, y.aar]).filter(([, y]) => y % 5 === 0).map(([i, y]) => [i, String(y)]), yFormat: (v) => fmtN(Math.round(v)), height: 200 })) : null,
+    krydsCard,
     h("div", { class: "grid-2 mt" },
       h("div", { class: "card" }, h("h3", { style: { marginTop: 0 } }, "Bemærkelsesværdige fund det seneste år"),
         d.fund.length ? h("ul", { class: "mini-list" }, ...d.fund.map(f => h("li", {},
@@ -51,6 +57,22 @@ export async function render(view, [kode]) {
         h("tbody", {}, ...d.ture.map(r => h("tr", {}, h("td", { class: "nowrap" }, fmtDate(r.dato)), h("td", {}, h("a", { href: `#/lok/${r.loknr}` }, r.lok)),
           h("td", { class: "right num" }, fmtN(r.arter)), h("td", { class: "right num" }, fmtN(r.obs)))))))),
     h("p", { class: "muted", style: { fontSize: ".82rem" } }, "Tallene kommer fra DOFbasen og opdateres løbende. Hemmelige observationer indgår ikke."));
+}
+
+/** Krydslisterne (antal og placering) med links til observatørens kryds pr. liste og til ranglisten. */
+function krydslisterCard(d, kryds) {
+  if (!kryds) return null;
+  const head = h("h3", { style: { marginTop: 0 } }, "Krydslister");
+  if (!kryds.participant) return d.mig ? h("div", { class: "card mt" }, head, h("p", { class: "muted" }, "Du er ikke med på krydslisterne, fordi du har valgt ikke at vise dine lister. Slå det til under ",
+    h("a", { href: "#/profil" }, "Profil → Lister og privatliv"), ".")) : null;
+  if (!kryds.lister.length) return null;
+  const k = encodeURIComponent(d.obserkode);
+  return h("div", { class: "card mt" }, head,
+    h("ul", { class: "mini-list" }, ...kryds.lister.map(l => h("li", {},
+      h("a", { href: `#/lister/person/${k}/${encodeURIComponent(l.key)}` }, l.name),
+      h("span", {}, h("b", { class: "num" }, fmtN(l.antal)), " arter",
+        l.placering ? [" · ", h("a", { class: "muted", href: `#/lister/kryds/${encodeURIComponent(l.key)}`, title: "Se ranglisten" }, `nr. ${fmtN(l.placering)} af ${fmtN(l.deltagere)}`)] : null)))),
+    h("p", { class: "small", style: { marginBottom: 0 } }, d.mig ? h("a", { href: "#/lister" }, "Mine lister →") : h("a", { href: "#/lister/alle" }, "Alle krydslister →")));
 }
 
 /** Søgefeltet og træffene (fanen Observatører under Statistik og den selvstændige side). */

@@ -203,6 +203,13 @@ async def test_aedelarter_pr_aar_og_paa_livslisten(s):
     assert len(marks) == 3 and {m["obsid"] for m in marks} == {2, 3, 4}
     ov = {r["key"]: r for r in await krydslister.my_overview(s, lb, Y)}
     assert ov["aedel"]["antal"] == 2 and ov[f"aedelaar:{Y}"]["antal"] == 1 and ov[f"aedelaar:{Y}"]["placering"] == 1
+    # observatørens krydslister (observatørsiden) og kryds på én liste – samme tal som «Mine lister»
+    assert {r["key"]: r["antal"] for r in await krydslister.person_overview(s, "LB", Y)} == {k: v["antal"] for k, v in ov.items()}
+    pk = await krydslister.person_kryds(s, "LB", "aedel")  # udaterede først, som på «Mine kryds»
+    assert pk["navn"] and pk["placering"] == 1 and [r["navn"] for r in pk["rows"]] == ["Agerhøne", "Urfugl"] and "note" not in pk["rows"][0]
+    with pytest.raises(krydslister.KlError) as e:  # ikke med på krydslisterne
+        await krydslister.person_kryds(s, "UKENDT", "aedel")
+    assert e.value.status == 404
     with pytest.raises(krydslister.KlError):  # datoen skal ligge i året
         await krydslister.set_aedel(s, lb, artnr=103, year=Y, on=True, dato=date(Y - 1, 1, 1))
     with pytest.raises(krydslister.KlError):  # arten skal findes på DK-listen

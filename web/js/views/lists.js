@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, tag, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store, sortBar } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, tag, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store, sortBar, ask } from "../core.js";
 import { lineChart, seriesLegend, PALETTE } from "../charts.js";
 import { regionsTab } from "./stats.js";
 
@@ -11,10 +11,10 @@ const monthName = (doy) => ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "au
 // indtastning, ædelarter, artslister, World Bird List, regler og admin). Krydslisternes sider ligger i ../krydslister/ og vises her.
 const TABS = [["", "Mine lister"], ["rangliste", "Ranglister"], ["huller", "Huller"], ["grupper", "Grupper"]];
 const KL_PAGES = { alle: ["alle", "page"], regler: ["sider", "regler"], om: ["sider", "om"], mine: ["mine", "page"], artslister: ["artslister", "page"],
-  wbl: ["wbl", "page"], art: ["art", "page"], admin: ["admin", "page"], kryds: ["liste", "page"], nyt: ["oversigt", "page"] };
+  wbl: ["wbl", "page"], art: ["art", "page"], admin: ["admin", "page"], kryds: ["liste", "page"], nyt: ["oversigt", "page"], person: ["person", "page"] };
 const KL_FILES = { alle: () => import("../krydslister/alle.js"), sider: () => import("../krydslister/sider.js"), mine: () => import("../krydslister/mine.js"),
   artslister: () => import("../krydslister/artslister.js"), wbl: () => import("../krydslister/wbl.js"), art: () => import("../krydslister/art.js"),
-  admin: () => import("../krydslister/admin.js"), liste: () => import("../krydslister/liste.js"), oversigt: () => import("../krydslister/oversigt.js") };
+  admin: () => import("../krydslister/admin.js"), liste: () => import("../krydslister/liste.js"), oversigt: () => import("../krydslister/oversigt.js"), person: () => import("../krydslister/person.js") };
 const kl = () => state.user?.krydslister || { features: {}, can_admin: false };
 const klOn = (f = "krydslister") => !!kl().features?.[f];
 
@@ -35,7 +35,7 @@ export async function render(view, [sub] = []) {
   loadCss("krydslister", "lister");
   const isKl = Object.hasOwn(KL_PAGES, first);
   if (isKl && !klOn()) { view.append(h("div", { class: "notice" }, "Krydslisterne er ikke slået til.")); return; }
-  const active = first === "liste" ? "" : first === "kryds" || first === "alle" || first === "nyt" ? "rangliste" : first === "wbl" || first === "art" ? "artslister" : first === "om" ? "regler" : first === "mine" ? "" : first;
+  const active = first === "liste" ? "" : first === "kryds" || first === "alle" || first === "nyt" || first === "person" ? "rangliste" : first === "wbl" || first === "art" ? "artslister" : first === "om" ? "regler" : first === "mine" ? "" : first;
   const tabs = [...TABS, ...(stats ? [] : [["arter-pr-aar", "Arter pr. år"]]),
     ...(klOn() && klOn("krydslister_wbl") ? [["artslister", "Artslister"]] : []), ...(klOn() ? [["regler", "Regler"]] : []), ...(klOn() && kl().can_admin ? [["admin", "Admin"]] : [])];
   const body = h("div", { class: "lister-body" });
@@ -177,7 +177,7 @@ export function drawList(out, data, year, opts = {}) {
   const toggle = async (it, btn) => {
     const on = !isAedel(it);
     const ms = marksFor(it);
-    if (!on && !ae.year && ms.some(m => m.dato) && !confirm(`Fjern ${it.art} som ædelart i alle år (${[...new Set(ms.filter(m => m.dato).map(m => m.dato.slice(0, 4)))].join(", ")})?`)) return;
+    if (!on && !ae.year && ms.some(m => m.dato) && !(await ask(`Fjern ${it.art} som ædelart i alle år (${[...new Set(ms.filter(m => m.dato).map(m => m.dato.slice(0, 4)))].join(", ")})?`))) return;
     btn.disabled = true;
     try {
       await api("/api/krydslister/aedel", { method: "PUT", body: { artnr: it.artnr, aar: ae.year, aedel: on, dato: ae.year ? it.dato : null, lokalitet: it.lok || "", obsid: it.obsid || null } });
@@ -443,7 +443,7 @@ function groupCard(g, reload, board) {
     members,
     g.owner ? h("form", { class: "row mt", onsubmit: async (e) => { e.preventDefault(); try { await api(`/api/lists/groups/${g.id}/members`, { method: "POST", body: { obserkode: add.value } }); add.value = ""; loadMembers(); } catch (err) { toast(err.message, "err"); } } },
       add, h("button", { class: "btn sm" }, "Tilføj"), h("span", { style: { flex: 1 } }),
-      h("button", { type: "button", class: "btn sm ghost danger", onclick: async () => { if (confirm("Slet gruppen?")) { await api(`/api/lists/groups/${g.id}`, { method: "DELETE" }); reload(); } } }, "Slet gruppe"))
+      h("button", { type: "button", class: "btn sm ghost danger", onclick: async () => { if ((await ask("Slet gruppen?"))) { await api(`/api/lists/groups/${g.id}`, { method: "DELETE" }); reload(); } } }, "Slet gruppe"))
       : h("button", { class: "btn sm ghost danger mt", onclick: async () => { await api(`/api/lists/groups/${g.id}/members/${state.user.obserkode}`, { method: "DELETE" }); reload(); } }, "Forlad gruppen"));
   const loadMembers = async () => {
     const d = await api(`/api/lists/groups/${g.id}`);

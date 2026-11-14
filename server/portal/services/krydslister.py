@@ -555,6 +555,11 @@ async def set_aedel(session: AsyncSession, user: User, *, artnr: int, year: int 
 
 async def my_overview(session: AsyncSession, user: User, year: int) -> list[dict]:
     """Til «Mine lister»: brugerens antal og placering på krydslisterne uden parameter og på årets årslister (fx Ædelårsarter)."""
+    return await person_overview(session, user.obserkode, year)
+
+
+async def person_overview(session: AsyncSession, kode: str, year: int) -> list[dict]:
+    """En deltagers antal og placering på krydslisterne uden parameter og på årets årslister (Mine lister og observatørsiden)."""
     out = []
     for key, d in (await defs(session)).items():
         if d["param"] not in (None, "year") or not (d["auto"] or d["manuel"] or (d["regler"] or {}).get("kilde_liste")):
@@ -565,8 +570,20 @@ async def my_overview(session: AsyncSession, user: User, year: int) -> list[dict
         except KlError:
             continue
         rank = ranking(data)
-        me = next((r for r in rank if r["kode"] == user.obserkode), None)
+        me = next((r for r in rank if r["kode"] == kode), None)
         out.append({"key": lkey, "base": key, "name": data["name"], "param": d["param"], "auto": d["auto"] or bool((d["regler"] or {}).get("auto_fra")),
                     "manuel": d["manuel"], "ref": d["ref"], "antal": me["antal"] if me else 0, "placering": me["placering"] if me else None,
-                    "deltagere": len(rank), "seneste": me["seneste"] if me else None, "participant": user.obserkode in data["people"]})
+                    "deltagere": len(rank), "seneste": me["seneste"] if me else None, "participant": kode in data["people"]})
     return out
+
+
+async def person_kryds(session: AsyncSession, kode: str, key: str) -> dict:
+    """En deltagers kryds på en liste (skrivebeskyttet; til «observatørens krydsliste»). KlError 404, hvis personen ikke er med på krydslisterne."""
+    data = await load_kryds(session, key)
+    if kode not in data["people"]:
+        raise KlError(404, "Observatøren er ikke med på krydslisterne")
+    me = next((r for r in ranking(data) if r["kode"] == kode), None)
+    rows = sorted((r for r in data["rows"] if r["kode"] == kode), key=lambda r: r["dato"] or "")
+    return {"key": key, "name": data["name"], "kode": kode, "navn": data["people"][kode], "placering": me["placering"] if me else None,
+            "deltagere": len({r["kode"] for r in data["rows"]}),
+            "rows": [{k: r.get(k) for k in ("key", "artnr", "navn", "latin", "dato", "lok", "land", "obsid", "kilde")} for r in rows]}

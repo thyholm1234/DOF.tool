@@ -183,6 +183,24 @@ async def mine_lister(aar: int | None = Query(None, ge=1900, le=2100), user: Use
     return {"lister": await krydslister.my_overview(db, user, aar or dk_today().year), "kan_krydse": acc.on("krydslister_manuel")}
 
 
+@router.get("/person/{kode}")
+async def person(kode: str, aar: int | None = Query(None, ge=1900, le=2100), acc: kl_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """En deltagers krydslister med antal og placering (til observatørsiden). Tom, hvis personen ikke er med på krydslisterne."""
+    kode = kode.strip().upper()[:16]
+    rows = await krydslister.person_overview(db, kode, aar or dk_today().year)
+    part = any(r["participant"] for r in rows)
+    return {"kode": kode, "participant": part, "lister": [r for r in rows if r["antal"]] if part else []}
+
+
+@router.get("/person/{kode}/{key}")
+async def person_liste(kode: str, key: str, acc: kl_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    """En deltagers kryds på én krydsliste (skrivebeskyttet)."""
+    try:
+        return await krydslister.person_kryds(db, kode.strip().upper()[:16], key)
+    except krydslister.KlError as exc:
+        raise _err(exc) from exc
+
+
 # ---------------------------------------------------------------- artslister, World Bird List og artssider
 
 @router.get("/artslister")

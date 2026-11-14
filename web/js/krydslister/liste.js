@@ -3,7 +3,9 @@ import { api, h, fmtN, state } from "../core.js";
 import { BASE, link, table, title, loadingBox, notice, dkDate } from "./common.js";
 
 const VIEWS = [["ranking", "Rangliste"], ["seneste", "Seneste kryds"], ["hvem", "Hvem har set hvad?"], ["blockers", "Blockers"], ["blockerstat", "Blockers statistik"], ["tophits", "Årstophits"]];
-const person = (r) => h("a", { href: `#/observator/${r.kode}` }, r.navn || r.person);
+// En deltager fører til vedkommendes kryds på listen (og derfra videre til observatørsiden)
+const personHref = (kode, key) => `${BASE}/person/${encodeURIComponent(kode)}/${encodeURIComponent(key)}`;
+const person = (r, key) => h("a", { href: personHref(r.kode, key) }, r.navn || r.person);
 
 export async function page(parts, q) {
   const key = decodeURIComponent(parts[1]), view = parts[2] || "ranking";
@@ -30,15 +32,15 @@ export async function page(parts, q) {
   let body;
   if (view === "ranking") {
     const top = d.rows[0]?.antal || 1;
-    body = [d.rows.length ? h("div", { class: "rank" }, ...d.rows.map(r => h("a", { class: `rank-row ${state.user?.obserkode === r.kode ? "me" : ""}`, href: `#/observator/${r.kode}` },
+    body = [d.rows.length ? h("div", { class: "rank" }, ...d.rows.map(r => h("a", { class: `rank-row ${state.user?.obserkode === r.kode ? "me" : ""}`, href: personHref(r.kode, key) },
       h("div", { class: "place" }, r.placering),
       h("div", {}, h("div", { class: "who" }, r.navn), h("div", { class: "last" }, r.seneste ? `Seneste: ${r.seneste}${r.opdateret ? ` · ${dkDate(r.opdateret)}` : ""}${vp && r.seneste_land ? ` · ${r.seneste_land}` : ""}` : ""),
         h("div", { class: "bar-inline" }, h("i", { style: { width: `${(r.antal / top) * 100}%` } }))),
       h("div", { class: "score" }, fmtN(r.antal))))) : notice("Ingen deltagere har kryds på listen endnu."),
-    h("details", { class: "mt" }, h("summary", { class: "muted" }, "Vis som tabel (CSV og print)"), table(["#", "Navn", ...(vp ? ["Land"] : []), "#X", "Opdateret", "Seneste kryds"], d.rows.map(r => ({ text: r.navn, cells: [r.placering, person(r), ...(vp ? [r.seneste_land || ""] : []), h("b", {}, String(r.antal)), r.opdateret || "", r.seneste || ""] })), { name: key }))];
+    h("details", { class: "mt" }, h("summary", { class: "muted" }, "Vis som tabel (CSV og print)"), table(["#", "Navn", ...(vp ? ["Land"] : []), "#X", "Opdateret", "Seneste kryds"], d.rows.map(r => ({ text: r.navn, cells: [r.placering, person(r, key), ...(vp ? [r.seneste_land || ""] : []), h("b", {}, String(r.antal)), r.opdateret || "", r.seneste || ""] })), { name: key }))];
   } else if (view === "seneste") {
     body = [h("p", {}, `Nedenfor ses de seneste 100 nye kryds på ${d.name}.`), table(["#", "Navn", "#X", "Seneste nye kryds", "Lokation", "Dato", ""], d.rows.map((r, i) => ({ text: `${r.person} ${r.navn} ${r.lok || ""}`,
-      cells: [i + 1, person(r), h("b", {}, r.x), artLink(r), r.lok || "", r.dato, r.kilde === "dofbasen" ? h("span", { class: "kl-chip ok", title: "Beregnet fra DOFbasen" }, "DOFbasen") : h("span", { class: "kl-chip" }, "manuel")] })), { name: `${key}-seneste` })];
+      cells: [i + 1, person(r, key), h("b", {}, r.x), artLink(r), r.lok || "", r.dato, r.kilde === "dofbasen" ? h("span", { class: "kl-chip ok", title: "Beregnet fra DOFbasen" }, "DOFbasen") : h("span", { class: "kl-chip" }, "manuel")] })), { name: `${key}-seneste` })];
   } else if (view === "hvem") {
     body = [h("p", {}, "Nedenstående ses den fulde liste over arter, som 'må' krydses. Arter der er set af en eller flere deltagere er markeret med et kryds (X). Sjældne arter er markeret med *."),
       table(["#", "X", "*", "Navn", `Set af (ud af ${d.total})`], d.rows.map((r, i) => ({ text: `${r.navn} ${r.latin}`, cls: r.antal ? "" : "kl-none", cells: [i + 1, r.antal ? "X" : "", r.su ? "*" : "", artLink(r), r.antal] })), { name: `${key}-hvem` })];
@@ -47,7 +49,7 @@ export async function page(parts, q) {
       table(["#", "Navn", `Set af (ud af ${d.total})`], d.rows.map((r, i) => ({ text: r.navn, cells: [i + 1, artLink(r), r.antal] })), { name: `${key}-blockers` })];
   } else if (view === "blockerstat") {
     body = [h("p", {}, "Statistik over 'blockers'. ", link(`/kryds/${key}/blockers`, "Se listen med blockers"), "."),
-      table(["#", "Navn", "#X", "#Blockers"], d.stat.map((r, i) => ({ text: r.navn, cells: [i + 1, person(r), r.antal, r.blockers] })), { name: `${key}-blockerstat` })];
+      table(["#", "Navn", "#X", "#Blockers"], d.stat.map((r, i) => ({ text: r.navn, cells: [i + 1, person(r, key), r.antal, r.blockers] })), { name: `${key}-blockerstat` })];
   } else {
     const y = h("select", { onchange: () => { location.hash = `${BASE}/kryds/${encodeURIComponent(key)}/tophits?aar=${y.value}`; } }, ...Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(v => h("option", { value: v, selected: v === d.aar }, v)));
     body = [h("p", {}, "Årets Tophits: de 50 mest krydsede arter for et givent år."), h("div", { class: "kl-tools" }, "År: ", y),
@@ -64,6 +66,6 @@ export async function hvem(parts) {
   const d = await api(`/api/krydslister/kryds/${encodeURIComponent(key)}/art/${encodeURIComponent(skey)}`);
   const obs = (r) => r.obsid ? h("a", { href: `#/dofbasen/obs/${r.obsid}` }, "Se observationen") : "";
   return h("div", { class: "stack" }, link(`/kryds/${key}/hvem`, `← ${d.name}`), h("h2", {}, `Hvem har krydset ${d.art || "arten"}?`),
-    d.rows.length ? table(["#", "Navn", "Dato", "Lokalitet", "Land", "Kilde"], d.rows.map((r, i) => ({ text: r.person, cells: [i + 1, person(r), r.dato || "", r.lok || "", r.land || "",
+    d.rows.length ? table(["#", "Navn", "Dato", "Lokalitet", "Land", "Kilde"], d.rows.map((r, i) => ({ text: r.person, cells: [i + 1, person(r, key), r.dato || "", r.lok || "", r.land || "",
       r.kilde === "dofbasen" ? h("span", {}, h("span", { class: "kl-chip ok" }, "DOFbasen"), " ", obs(r)) : h("span", { class: "kl-chip" }, "manuel")] })), { name: "art" }) : notice("Ingen deltagere har krydset arten."));
 }
