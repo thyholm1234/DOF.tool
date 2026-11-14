@@ -192,13 +192,12 @@ button.lr-chip { cursor: pointer; } button.lr-chip.on, button.lr-chip[aria-check
 /* Knappen om et foto (åbner lysboksen) skal ikke ligne en knap */
 .lr-zoom { display: block; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: zoom-in; border-radius: 12px; }
 .lr-zoom:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
-/* Lysboksen er en modal <dialog> over hele skærmen (UA-stilen for dialog nulstilles); baggrunden ligger på selve dialogen */
-.lr-lightbox { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; color: #fff;
-  overflow: hidden; overscroll-behavior: contain; background: rgba(0,0,0,.88); flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; cursor: zoom-out; }
-.lr-lightbox[open] { display: flex; }
-.lr-lightbox::backdrop { background: transparent; overflow: hidden; overscroll-behavior: contain; }
+/* Lysboksen er en modal <dialog> på fotoets størrelse; baggrunden er ::backdrop (tryk lukker, closedby="any") */
+.lr-lightbox { padding: 0; border: 0; background: transparent; color: #fff; max-width: calc(100vw - 32px); max-height: 100dvh; overflow: visible; cursor: zoom-out; }
+.lr-lightbox[open] { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lr-lightbox::backdrop { background: rgba(0,0,0,.88); overflow: hidden; overscroll-behavior: contain; }
 .lr-lightbox img { max-width: 100%; max-height: calc(100dvh - 80px); object-fit: contain; border-radius: 4px; }
 .lr-lightbox p { color: #ddd; margin: 0; font-size: .9rem; }
-.lr-lightbox-x { position: absolute; top: 10px; right: 14px; background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; }
+.lr-lightbox-x { position: fixed; top: 10px; right: 14px; background: none; border: 0; color: #fff; font-size: 1.6rem; cursor: pointer; }
 .lr-player .lr-media { margin: 10px 0; }
 .lr-unit > div > p.muted { margin: 4px 0 0; }

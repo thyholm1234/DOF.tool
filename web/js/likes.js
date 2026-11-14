@@ -1,5 +1,5 @@
 // Likes på fugle (tråde) og kommentarer – med visning af hvem der synes godt om.
-import { api, state, h, icon, ago, modal, toast } from "./core.js";
+import { api, state, h, icon, ago, modal, toast, trustedHTML } from "./core.js";
 
 const fmtNames = (names, count) => {
   if (!count) return "";
@@ -29,7 +29,7 @@ export function likeWidget(kind, key, likes, { small = false, names = !small, ti
     btn.setAttribute("aria-pressed", String(st.liked));
     btn.setAttribute("aria-label", st.liked ? "Fjern tommel op" : "Giv tommel op");
     // Stor variant: tal i knappen + "X og Y" ved siden af. Lille variant (kommentarer): tallet er selv linket til listen.
-    btn.innerHTML = `${icon("thumb")}<span>${names && st.count ? st.count : ""}</span>`;
+    btn.innerHTML = trustedHTML(`${icon("thumb")}<span>${names && st.count ? st.count : ""}</span>`);
     who.textContent = !st.count ? "" : names ? fmtNames(st.names, st.count) : String(st.count);
     who.title = st.count ? "Se hvem der synes godt om" : "";
     who.classList.toggle("hide", !st.count);

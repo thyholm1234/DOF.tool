@@ -62,6 +62,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Filfelterne (image/*, audio/*) til fotos og lyd ved observationer tilbyder «Tag foto eller video» i WKWebView:
+	     uden disse tekster lukker iOS appen, når kameraet åbnes. -->
+	<key>NSCameraUsageDescription</key>
+	<string>DOF.tool bruger kameraet, når du tager et foto til en observation.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DOF.tool bruger mikrofonen, når du optager video eller lyd til en observation.</string>
+	<!-- Kun standard-HTTPS (undtaget eksportreglerne), så App Store Connect ikke spørger om kryptering ved hver upload -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>DOF.tool bruger din position til ruter på ture, til Nær mig i feedet og til alarmer om fugle omkring dig.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

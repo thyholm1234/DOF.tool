@@ -2,7 +2,7 @@
 // Her vælges sted (GPS eller kortet), lokalitet og tidspunkt; tællingen gemmes som en tur med DOFbasens metode
 // 98 (Spontantælling) / 99 (FiNN-tælling) og åbnes på turens observationsside med nedtælling (tur-view.js).
 // FiNN-områderne og -punkterne kommer fra DOFbasen (server/portal/services/finn.py) og gemmes på enheden.
-import { api, h, icon, toast, todayISO, state, requireLogin } from "../core.js";
+import { api, h, icon, toast, todayISO, state, requireLogin, ask, trustedHTML } from "../core.js";
 import { baseMap, leaflet } from "../maps.js";
 import { blankTrip, tripStore, tripHash, nowHM, addMinutes, nearestLocations, findLocations, loadRecent, meters, markCountStart, SPONTAN, FINN, COUNT_MIN } from "../tur-data.js";
 import { cachedApi } from "../offline.js";
@@ -200,15 +200,15 @@ export async function render(page, [kind]) {
   // --- start
   const startBtn = h("button", { class: "btn primary", type: "button", style: { height: "48px", fontSize: "1.05rem" },
     html: `${icon("play")} ${S.paper ? "Indtast tællingen" : "Start tællingen"}` });
-  paper.addEventListener("change", () => { startBtn.innerHTML = `${icon("play")} ${S.paper ? "Indtast tællingen" : `Start tællingen (${COUNT_MIN} min.)`}`; });
-  startBtn.innerHTML = `${icon("play")} Start tællingen (${COUNT_MIN} min.)`;
+  paper.addEventListener("change", () => { startBtn.innerHTML = trustedHTML(`${icon("play")} ${S.paper ? "Indtast tællingen" : `Start tællingen (${COUNT_MIN} min.)`}`); });
+  startBtn.innerHTML = trustedHTML(`${icon("play")} Start tællingen (${COUNT_MIN} min.)`);
   startBtn.onclick = async () => {
     if (!S.pos) return fail("Find din position, eller tryk på kortet, hvor du står", mapEl);
     if (!S.loknr) return fail(isFinn ? "Lokaliteten i DOFbasen er ikke fundet endnu – vent et øjeblik, eller tryk på kortet" : "Vælg en lokalitet", isFinn ? mapEl : lokSel);
     const start = S.paper ? S.fra : nowHM();
     const day = S.paper ? S.dato : todayISO();
     if (!day || !start) return fail("Angiv dato og præcist starttidspunkt", S.paper ? fra : null);
-    if (isFinn && !(S.site && siteDist(S.pos, S.site) === 0) && !confirm("Du er tilsyneladende ved at starte en FiNN-tælling uden for et FiNN-område.\n\nØnsker du alligevel at starte en FiNN-tælling her?")) return;
+    if (isFinn && !(S.site && siteDist(S.pos, S.site) === 0) && !(await ask("Du er tilsyneladende ved at starte en FiNN-tælling uden for et FiNN-område.\n\nØnsker du alligevel at starte en FiNN-tælling her?"))) return;
     const T = blankTrip();
     Object.assign(T, {
       dato: day, loknr: S.loknr, lok: S.lok, turtidfra: start, turtidtil: addMinutes(start, COUNT_MIN),

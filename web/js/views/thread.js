@@ -1,5 +1,5 @@
 import { obsPhotoStrip } from "../fotos/obsfotos.js";
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can, observerLink, backLink } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, tag, toast, esc, errorBox, windArrow, compass, KAT, can, observerLink, backLink, trustedHTML } from "../core.js";
 import { live } from "../live.js";
 import { baseMap, katColor, navButton } from "../maps.js";
 import { reportCard, statusBadge, threadStatusCard } from "../reportui.js";
@@ -34,7 +34,7 @@ export async function render(view, [date, artnr, loknr]) {
   };
   drawStatus();
   const followBtn = h("button", { class: `btn ${t.following ? "primary" : ""}` });
-  const drawFollow = () => { followBtn.innerHTML = `${icon("bell")} ${t.following ? "Følger tråden" : "Følg tråden"}`; followBtn.className = `btn ${t.following ? "primary" : ""}`; };
+  const drawFollow = () => { followBtn.innerHTML = trustedHTML(`${icon("bell")} ${t.following ? "Følger tråden" : "Følg tråden"}`); followBtn.className = `btn ${t.following ? "primary" : ""}`; };
   drawFollow();
   followBtn.onclick = async () => {
     if (!state.user) { location.hash = "#/login?next=" + encodeURIComponent(location.hash); return; }

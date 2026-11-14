@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Appens FileProvider (${applicationId}.fileprovider) bruges kun af Capacitors filvælger, når man tager et foto til et
+     filfelt: billedet lægges i getExternalFilesDir(Pictures) (BridgeWebChromeClient). Kun de mapper deles – ikke hele det
+     eksterne lager (path="." på external-path). -->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="my_images" path="." />
+    <external-files-path name="my_images" path="Pictures/" />
     <cache-path name="my_cache_images" path="." />
 </paths>

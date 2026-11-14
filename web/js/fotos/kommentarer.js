@@ -1,5 +1,5 @@
 // Kommentarer under et foto: arkivet fra netfugl.dk (kun til læsning), portalens egne (svar, ret, slet, anmeld), moderation og interne noter.
-import { api, h, toast, modal, seg, state } from "../core.js";
+import { api, h, toast, modal, seg, state, ask, askText } from "../core.js";
 import { live } from "../live.js";
 import { banForm } from "../moderation.js";
 import { dkDate, cleanups, on } from "./common.js";
@@ -44,7 +44,7 @@ export function commentsBox(pid, { open = true, canModerate = false, isMod = fal
   async function moderate(c, action) {
     let reason = "";
     if (action === "skjul" || action === "slet") {
-      reason = prompt(action === "skjul" ? "Årsag til at skjule kommentaren (vises for forfatteren):" : "Årsag til at slette kommentaren:", "") ?? null;
+      reason = (await askText(action === "skjul" ? "Årsag til at skjule kommentaren (vises for forfatteren):" : "Årsag til at slette kommentaren:", "")) ?? null;
       if (reason === null) return;
     }
     try { await api(`/api/admin/fotos/kommentarer/${c.id}/${action}`, { method: "POST", body: { reason } }); await load(); } catch (err) { toast(err.message, "err"); }
@@ -61,7 +61,7 @@ export function commentsBox(pid, { open = true, canModerate = false, isMod = fal
       !c.archive && !gone ? h("div", { class: "acts" },
         open && c.status === "synlig" && !reply && !c.intern ? act("Svar", () => { replyTo = replyTo === c.id ? null : c.id; draw(); }) : null,
         c.mine && c.status === "synlig" ? act("Ret", () => edit(c)) : null,
-        c.mine ? act("Slet", async () => { if (confirm("Slet din kommentar?")) { try { await api(`/api/fotos/kommentarer/${c.id}`, { method: "DELETE" }); await load(); } catch (e) { toast(e.message, "err"); } } }) : null,
+        c.mine ? act("Slet", async () => { if ((await ask("Slet din kommentar?"))) { try { await api(`/api/fotos/kommentarer/${c.id}`, { method: "DELETE" }); await load(); } catch (e) { toast(e.message, "err"); } } }) : null,
         !c.mine && c.status === "synlig" && !c.intern ? act(c.reported ? "Anmeldt" : "Anmeld", () => { if (!c.reported) report(c); }) : null,
         canModerate && c.status === "synlig" ? act("Skjul", () => moderate(c, "skjul")) : null,
         canModerate && hidden ? act("Gendan", () => moderate(c, "gendan")) : null,

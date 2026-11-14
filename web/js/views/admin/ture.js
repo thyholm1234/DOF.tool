@@ -1,5 +1,5 @@
 // Moderation → Ture: portalens egne arrangementer.
-import { api, h, icon, fmtDate, empty } from "../../core.js";
+import { api, h, icon, fmtDate, empty, ask } from "../../core.js";
 import { eventForm } from "../events.js";
 
 export async function portalEvents(body) {
@@ -15,7 +15,7 @@ export async function portalEvents(body) {
       h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
         h("button", { class: "btn sm ghost", html: icon("edit"), "aria-label": "Ret", onclick: async () => eventForm(await api(`/api/events/${e.id}`), () => load()) }),
         h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Slet", onclick: async () => {
-          if (!confirm(`Slet "${e.title}"?`)) return; await api(`/api/events/${e.id}`, { method: "DELETE" }); load();
+          if (!(await ask(`Slet "${e.title}"?`))) return; await api(`/api/events/${e.id}`, { method: "DELETE" }); load();
         } })))) : [empty("Ingen egne ture endnu")]));
   };
   await load();

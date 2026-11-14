@@ -1,6 +1,6 @@
 // Artikler → Admin → Forfattere: forfatterregisteret. Rettelser samles og gemmes med én knap; omdøbning til et eksisterende navn fletter de to;
 // «Del op» deler en sammensat forfatter («A og B»); eksport/import som CSV (rettelser fra importen lægges i tabellen som ugemte ændringer).
-import { api, h, toast } from "../core.js";
+import { api, h, toast, askText } from "../core.js";
 import { nowrap } from "./common.js";
 
 export async function page() {
@@ -44,13 +44,13 @@ export async function page() {
   }
   async function split(r) {
     const guess = r.navn.split(/\s+og\s+|\s*,\s*|\s*&\s*|\s*\/\s*/i).map(x => x.trim()).filter(Boolean);
-    const txt = prompt(`Del «${r.navn}» op i flere forfattere (ét navn pr. linje). Artiklerne får alle navnene i samme rækkefølge.`, guess.join("\n"));
+    const txt = (await askText(`Del «${r.navn}» op i flere forfattere (ét navn pr. linje). Artiklerne får alle navnene i samme rækkefølge.`, guess.join("\n")));
     if (txt === null) return;
     try { await api(`/api/admin/artikler/forfattere/${r.id}/del`, { method: "POST", body: { navne: txt.split("\n").map(x => x.trim()).filter(Boolean) } }); toast("Delt"); rows = await api("/api/admin/artikler/forfattere"); draw(); }
     catch (e) { toast(e.message, "err"); }
   }
   async function merge(r) {
-    const into = prompt(`Flet «${r.navn}» (id ${r.id}) ind i hvilken forfatter? Skriv id'et (se eksporten eller søg).`, "");
+    const into = (await askText(`Flet «${r.navn}» (id ${r.id}) ind i hvilken forfatter? Skriv id'et (se eksporten eller søg).`, ""));
     if (!into) return;
     try { const x = await api(`/api/admin/artikler/forfattere/${r.id}/flet`, { method: "POST", body: { into: +into } }); toast(`${x.flyttet} artikler flyttet`); rows = await api("/api/admin/artikler/forfattere"); draw(); }
     catch (e) { toast(e.message, "err"); }

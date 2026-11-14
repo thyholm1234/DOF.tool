@@ -1,7 +1,7 @@
 // Profil og indstillinger – opdelt som på andre sider: en menu med faner til venstre (vandret øverst på mobilen) og ét
 // emne pr. fane. Hver fane gemmer sine egne felter (PATCH /api/me tager delvise ændringer). Fanen står i adressen
 // (#/profil?fane=sikkerhed), så der kan linkes direkte til den.
-import { api, state, h, icon, fmtN, fmtDate, loadRef, requireLogin, toast, seg, params, setParams } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, loadRef, requireLogin, toast, seg, params, setParams, ask } from "../core.js";
 import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
 import { isApp, isPositionDevice, takeOverPosition } from "../native.js";
@@ -176,7 +176,7 @@ const SECTIONS = {
       pkBox,
       card("Enheder", "Er du logget ind på en telefon eller computer, du ikke længere har, kan du logge ud alle andre steder. Telefonens positionsdeling stopper også.",
         h("div", { class: "row" }, h("button", { type: "button", class: "btn", onclick: async () => {
-          if (!confirm("Log ud på alle andre enheder? Du forbliver logget ind her.")) return;
+          if (!(await ask("Log ud på alle andre enheder? Du forbliver logget ind her."))) return;
           try { await api("/api/me/logout-all", { method: "POST" }); toast("Du er logget ud på alle andre enheder"); } catch (err) { toast(err.message, "err"); }
         } }, "Log ud på alle andre enheder"))));
     passkeys(pkBox);
@@ -241,7 +241,7 @@ const SECTIONS = {
       const share = h("input", { type: "checkbox", checked: !!dev && isPositionDevice(), disabled: !isApp(), onchange: async () => {
         try {
           if (share.checked) {
-            if (dev && !confirm(`Din position følges nu af «${dev.name}». Skift til denne enhed?`)) { share.checked = false; return; }
+            if (dev && !(await ask(`Din position følges nu af «${dev.name}». Skift til denne enhed?`))) { share.checked = false; return; }
             const d = await takeOverPosition();
             toast(`Nær mig følger nu ${d.name}`);
           } else {
@@ -265,7 +265,7 @@ const SECTIONS = {
   praeferencer(panel) {
     const p = prefs();
     let gps = p.trip_gps || "ask";
-    const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], localStorage.getItem("theme") || "auto", (v) => { localStorage.setItem("theme", v); applyTheme(); });
+    const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], localStorage.getItem("theme") || "auto", (v) => { try { if (v === "auto") localStorage.removeItem("theme"); else localStorage.setItem("theme", v); } catch { /* blokeret */ } applyTheme(); });
     panel.append(
       card("Udseende", "Gemmes straks og kun på denne enhed.", theme),
       card("Ture", "Optag GPS-rute, når du opretter en tur med dags dato. Ruten kan altid startes og stoppes på turen.",
@@ -314,7 +314,7 @@ const SECTIONS = {
         h("h3", { style: { margin: 0 } }, "Slet konto"),
         h("p", { class: "muted", style: { margin: 0 } }, "Alt, hvad du har lavet i DOF.tool, slettes – områder, regler, grupper, feltmeldinger, fotos og kommentarer. Dine data i DOFbasen påvirkes ikke."),
         h("div", { class: "row" }, h("button", { class: "btn danger solid", onclick: async () => {
-          if (!confirm("Slet din konto i DOF.tool? Det kan ikke fortrydes.")) return;
+          if (!(await ask("Slet din konto i DOF.tool? Det kan ikke fortrydes."))) return;
           await api("/api/me", { method: "DELETE" });
           await forgetUser();
           location.hash = "#/"; location.reload();
@@ -339,7 +339,7 @@ async function passkeys(box) {
     d.passkeys.length ? h("ul", { class: "stack", style: { margin: 0, paddingLeft: "1.1em" } }, ...d.passkeys.map(p => h("li", { class: "row between" },
       h("span", {}, p.name),
       h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => {
-        if (!confirm(`Slet passkeyen "${p.name}"? Du kan stadig logge ind med din adgangskode.`)) return;
+        if (!(await ask(`Slet passkeyen "${p.name}"? Du kan stadig logge ind med din adgangskode.`))) return;
         try { await api(`/api/me/passkeys/${p.id}`, { method: "DELETE" }); toast("Passkeyen er slettet"); passkeys(box); }
         catch (err) { toast(err.message, "err"); }
       } }, "Slet")))) : h("p", { style: { margin: 0 } }, "Du har ingen passkeys endnu."),
@@ -356,7 +356,7 @@ function dofbasenCard(u) {
     const btn = h("button", { class: "btn danger" }, "Fjern forbindelsen");
     const form = h("form", { class: "stack hide", onsubmit: async (e) => {
       e.preventDefault();
-      if (!confirm(`Fjern forbindelsen til obserkoden ${u.obserkode}?\n\nDine observationer fra DOFbasen vises ikke længere på din konto, og obserkoden kan bruges af en anden konto. Det, du har lavet i DOF.tool, følger med kontoen.`)) return;
+      if (!(await ask(`Fjern forbindelsen til obserkoden ${u.obserkode}?\n\nDine observationer fra DOFbasen vises ikke længere på din konto, og obserkoden kan bruges af en anden konto. Det, du har lavet i DOF.tool, følger med kontoen.`))) return;
       btn.disabled = true;
       try { await after(await api("/api/me/dofbasen/unbind", { method: "POST", body: { password: pw.value } }), "Forbindelsen til DOFbasen er fjernet"); }
       catch (err) { toast(err.message, "err"); pw.select(); btn.disabled = false; }
@@ -528,7 +528,7 @@ async function apiTokens(box, mod, label) {
         h("td", {}, t.name), h("td", { "data-label": "Nøgle" }, h("code", {}, `${t.prefix}…`)), h("td", { "data-label": "Oprettet" }, fmtDate(t.created_at)),
         h("td", { "data-label": "Kald" }, fmtN(t.uses)),
         h("td", {}, t.revoked_at ? "slettet" : h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => {
-          if (!confirm(`Slet nøglen "${t.name}"? Apps, der bruger den, holder op med at virke.`)) return;
+          if (!(await ask(`Slet nøglen "${t.name}"? Apps, der bruger den, holder op med at virke.`))) return;
           await api(`/api/${mod}/me/api/tokens/${t.id}`, { method: "DELETE" }); toast("Nøglen er slettet"); apiTokens(box, mod, label);
         } }, "Slet"))))))) : null);
   fresh.className = "api-fresh";

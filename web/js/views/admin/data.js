@@ -1,5 +1,5 @@
 // Admin → Data og Vejr: månedsoversigt, planer og kørsler for DOFbasen og vejrarkivet.
-import { api, h, fmtN, ago, toast, errorBox, empty, modal } from "../../core.js";
+import { api, h, fmtN, ago, toast, errorBox, empty, modal, ask } from "../../core.js";
 import { st } from "./common.js";
 
 const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
@@ -106,8 +106,8 @@ function monthGrid(d, source, refresh) {
         } catch (err) { toast(err.message, "err"); }
       };
       const remove = async () => {
-        if (!confirm(isDof ? `Slet alle observationer og ture fra ${label} i portalens database? DOFbasen røres ikke – måneden kan hentes igen bagefter.`
-          : `Slet vejrdata for ${label}? Måneden kan hentes igen fra DMI bagefter.`)) return;
+        if (!(await ask(isDof ? `Slet alle observationer og ture fra ${label} i portalens database? DOFbasen røres ikke – måneden kan hentes igen bagefter.`
+          : `Slet vejrdata for ${label}? Måneden kan hentes igen fra DMI bagefter.`))) return;
         try {
           const r = await api(`/api/admin/data/${source}/month/${y}/${m}`, { method: "DELETE" });
           dlg.close(); toast(`${label} slettet (${fmtN(r.deleted)} rækker)`); refresh();
@@ -157,7 +157,7 @@ function planEditor(d, source, onDirty, onSaved) {
       h("td", { class: "right" }, isDof && key === "today" ? h("button", { class: "btn sm", title: "Henter dagens liste med det samme – springer gatewayens ventetid over én gang", onclick: async () => {
         try { await api("/api/admin/data/dof/run/today", { method: "POST" }); toast("Dagen hentes nu – uden ventetid"); } catch (err) { toast(err.message, "err"); }
       } }, "Hent nu") : h("button", { class: "btn sm", onclick: async () => {
-        if (key === "all" && !confirm(isDof ? `Hent alle måneder fra DOFbasen igen? Det er ca. 790 kald og tager mindst ${Math.round(790 * (d.min_interval || 120) / 3600)} timer (ét kald pr. ${d.min_interval || 120} s).` : "Hent alle manglende vejrmåneder? Hver er ca. 0,5 GB.")) return;
+        if (key === "all" && !(await ask(isDof ? `Hent alle måneder fra DOFbasen igen? Det er ca. 790 kald og tager mindst ${Math.round(790 * (d.min_interval || 120) / 3600)} timer (ét kald pr. ${d.min_interval || 120} s).` : "Hent alle manglende vejrmåneder? Hver er ca. 0,5 GB."))) return;
         await api(`/api/admin/data/${source}/run/${key}`, { method: "POST" }); toast(`${label}: lagt i kø`);
       } }, "Kør nu")));
   });

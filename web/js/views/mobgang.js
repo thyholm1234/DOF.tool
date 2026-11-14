@@ -1,7 +1,7 @@
 // Mobgang-generator: blandede flokke af loopede optagelser, så man kan træne at høre en targetart i mængden.
 // Al lyd mixes i browseren med Web Audio. Presets: officielle (alle kan se, redaktører vedligeholder) og
 // brugerens egne private (/api/mobgang/presets).
-import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can, modal, esc } from "../core.js";
+import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can, modal, esc, ask, askText, trustedHTML } from "../core.js";
 
 // Arter og optagelser (xeno-canto) kommer fra serveren (/api/mobgang/status), der også har hver arts lukkeperiode
 // i ynglesæsonen. Brugeren kan desuden tilføje egne xeno-canto-optagelser (cfg.custom), som gemmes i presettet og
@@ -475,7 +475,7 @@ async function generator(view, st, rerender) {
   // -------- afspilning
   const playBtn = h("button", { class: "btn primary", style: { minWidth: "130px" } });
   const clock = h("span", { class: "muted", style: { fontVariantNumeric: "tabular-nums" } }, "0:00");
-  const drawPlay = () => { playBtn.innerHTML = mixer.playing ? `${icon("x")} Stop` : `${icon("play")} Afspil`; };
+  const drawPlay = () => { playBtn.innerHTML = trustedHTML(mixer.playing ? `${icon("x")} Stop` : `${icon("play")} Afspil`); };
   const tick = () => {
     clock.textContent = mmss(mixer.elapsed());
     if (!cfg.steps || !mixer.playing) return;
@@ -526,10 +526,10 @@ async function generator(view, st, rerender) {
       cur?.editable ? h("button", { class: "btn ghost danger", onclick: () => remove(cur), html: icon("trash"), "aria-label": "Slet" }) : null,
       dirty && cur ? h("span", { class: "muted", style: { fontSize: ".85rem" } }, "Ændret") : null);
   }
-  function loadPreset(id) {
+  async function loadPreset(id) {
     const p = presets.find(x => String(x.id) === String(id));
     if (!p) return;
-    if (dirty && !confirm("Kassér dine ændringer og indlæs presettet?")) { drawPresetBar(); return; }
+    if (dirty && !(await ask("Kassér dine ændringer og indlæs presettet?"))) { drawPresetBar(); return; }
     current = p.id; cfg = normalize(p.config); dirty = false; sel = 0; stepStart = mixer.elapsed();
     setParams({ preset: p.id });
     master.value = cfg.master;
@@ -539,7 +539,7 @@ async function generator(view, st, rerender) {
   }
   const sortPresets = (list) => list.sort((a, b) => (b.official - a.official) || a.name.localeCompare(b.name, "da"));
   async function save(p, official = false) {
-    const name = p ? p.name : prompt(official ? "Navn på officielt preset (synligt for alle)" : "Navn på dit preset (kun for dig)", "Ny mobgang");
+    const name = p ? p.name : (await askText(official ? "Navn på officielt preset (synligt for alle)" : "Navn på dit preset (kun for dig)", "Ny mobgang"));
     if (!name?.trim()) return;
     try {
       const saved = await api(p ? `/api/mobgang/presets/${p.id}` : "/api/mobgang/presets",
@@ -550,7 +550,7 @@ async function generator(view, st, rerender) {
     } catch (err) { toast(err.message, "err"); }
   }
   async function rename(p) {
-    const name = prompt("Nyt navn", p.name);
+    const name = (await askText("Nyt navn", p.name));
     if (!name?.trim() || name === p.name) return;
     try {
       const saved = await api(`/api/mobgang/presets/${p.id}`, { method: "PUT", body: { name, config: p.config, official: p.official } });
@@ -558,7 +558,7 @@ async function generator(view, st, rerender) {
     } catch (err) { toast(err.message, "err"); }
   }
   async function remove(p) {
-    if (!confirm(p.official ? `Slet det officielle preset '${p.name}' for alle brugere?` : `Slet presettet '${p.name}'?`)) return;
+    if (!(await ask(p.official ? `Slet det officielle preset '${p.name}' for alle brugere?` : `Slet presettet '${p.name}'?`))) return;
     try {
       await api(`/api/mobgang/presets/${p.id}`, { method: "DELETE" });
       presets = presets.filter(x => x.id !== p.id); current = null; dirty = true; setParams({ preset: "" }); drawPresetBar();
@@ -580,10 +580,10 @@ async function generator(view, st, rerender) {
   const clone = (c) => ({ species: JSON.parse(JSON.stringify(c.species)), target: c.target });
   function drawChase() {
     const on = !!cfg.steps;
-    const toggle = h("input", { type: "checkbox", checked: on, onchange: (e) => {
+    const toggle = h("input", { type: "checkbox", checked: on, onchange: async (e) => {
       if (e.target.checked) { cfg.steps = [{ name: "Trin 1", secs: 60, fade: "", ...clone(cfg) }]; sel = 0; }
       else {
-        if (cfg.steps.length > 1 && !confirm("Slå chase fra? Kun det viste trin bevares.")) { e.target.checked = true; return; }
+        if (cfg.steps.length > 1 && !(await ask("Slå chase fra? Kun det viste trin bevares."))) { e.target.checked = true; return; }
         Object.assign(cfg, clone(comp())); delete cfg.steps; sel = 0;
         if (mixer.playing) mixer.fade("", 1);
       }

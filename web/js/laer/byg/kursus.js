@@ -1,5 +1,5 @@
 // Læring 2.0 – bygger: kursuseditoren (struktur, redigering, advarsler, publicering) – spec §8.2.
-import { api, h, toast, errorBox, modal } from "../../core.js";
+import { api, h, toast, errorBox, modal, ask, trustedHTML } from "../../core.js";
 import { BASE, backLink, loadingBox } from "../common.js";
 import { activityForm } from "./aktivitet.js";
 import { blocksEditor, refText } from "./blokke.js";
@@ -134,13 +134,13 @@ export async function render(view, [slug]) {
       h("div", { class: "lr-two" }, f("Forventet tid (min.)", h("input", { type: "number", min: 0, value: u.est_minutes ?? "", oninput: (e) => { u.est_minutes = e.target.value ? +e.target.value : null; saveUnit(u); } })),
         f("Krav for at åbne næste lektion (% rigtige)", h("input", { type: "number", min: 0, max: 100, value: u.min_score_pct ?? "", placeholder: "intet krav", oninput: (e) => { u.min_score_pct = e.target.value ? +e.target.value : null; saveUnit(u); } }))),
       h("div", { class: "lr-f" }, h("span", {}, "Læsetekst (markdown: **fed**, *kursiv*, - lister, ## overskrifter, [[art:123]] artschip)"), ta, pv,
-        h("button", { type: "button", class: "btn sm", onclick: async (e) => { if (pv.hidden) { try { pv.innerHTML = (await api("/api/learn/byg/forhaandsvis", { method: "POST", body: { md: ta.value } })).html; } catch (er) { toast(er.message, "err"); return; } } pv.hidden = !pv.hidden; ta.hidden = !pv.hidden; e.target.textContent = pv.hidden ? "Forhåndsvis" : "Redigér"; } }, "Forhåndsvis")),
+        h("button", { type: "button", class: "btn sm", onclick: async (e) => { if (pv.hidden) { try { pv.innerHTML = trustedHTML((await api("/api/learn/byg/forhaandsvis", { method: "POST", body: { md: ta.value } })).html); } catch (er) { toast(er.message, "err"); return; } } pv.hidden = !pv.hidden; ta.hidden = !pv.hidden; e.target.textContent = pv.hidden ? "Forhåndsvis" : "Redigér"; } }, "Forhåndsvis")),
       h("div", { class: "lr-f" }, h("span", {}, "Indholdsblokke (vises efter læseteksten)"), blocksEditor(u.blocks, () => saveUnit(u))),
-      h("div", { class: "lr-actions" }, h("button", { class: "btn sm ghost danger", onclick: async () => { if (!confirm("Slet lektionen og alle dens aktiviteter?")) return; const r = await api(P(`/enheder/${u.id}`), { method: "DELETE" }); data.course.updated_at = r.updated_at; data.units.splice(data.units.indexOf(u), 1); sel = { kind: "course" }; draw(); } }, "Slet lektion")));
+      h("div", { class: "lr-actions" }, h("button", { class: "btn sm ghost danger", onclick: async () => { if (!(await ask("Slet lektionen og alle dens aktiviteter?"))) return; const r = await api(P(`/enheder/${u.id}`), { method: "DELETE" }); data.course.updated_at = r.updated_at; data.units.splice(data.units.indexOf(u), 1); sel = { kind: "course" }; draw(); } }, "Slet lektion")));
   }
   function actForm(u, a) {
     main.replaceChildren(h("h3", {}, "Aktivitet"), activityForm(a, { groups, onChange: () => { saveAct(a, u.id); drawTree(); }, onType: () => actForm(u, a) }),
-      h("div", { class: "lr-actions" }, h("button", { class: "btn sm ghost danger", onclick: async () => { if (!confirm("Slet aktiviteten?")) return; const r = await api(P(`/aktiviteter/${a.id}`), { method: "DELETE" }); data.course.updated_at = r.updated_at; u.acts.splice(u.acts.indexOf(a), 1); sel = { kind: "unit", id: u.id }; draw(); } }, "Slet aktivitet")));
+      h("div", { class: "lr-actions" }, h("button", { class: "btn sm ghost danger", onclick: async () => { if (!(await ask("Slet aktiviteten?"))) return; const r = await api(P(`/aktiviteter/${a.id}`), { method: "DELETE" }); data.course.updated_at = r.updated_at; u.acts.splice(u.acts.indexOf(a), 1); sel = { kind: "unit", id: u.id }; draw(); } }, "Slet aktivitet")));
   }
 
   // ---- advarsler og hoved
@@ -169,10 +169,10 @@ export async function render(view, [slug]) {
       const d = e.detail?.warnings; const m = modal("Kan ikke publicere endnu", h("div", { class: "stack" }, h("p", {}, e.message), d ? h("ul", {}, ...d.map(w => h("li", {}, w.msg))) : null, h("button", { class: "btn", onclick: () => m.close() }, "Luk")));
     }
   }
-  async function revert() { if (!confirm("Kassér alle ændringer siden sidste publicering?")) return; await api(P("/fortryd"), { method: "POST" }); await reload(); toast("Ændringer fortrudt"); }
+  async function revert() { if (!(await ask("Kassér alle ændringer siden sidste publicering?"))) return; await api(P("/fortryd"), { method: "POST" }); await reload(); toast("Ændringer fortrudt"); }
   async function unpublish() { await api(P("/afpublicer"), { method: "POST" }); await reload(); }
   async function dup() { const r = await api(P("/kopi"), { method: "POST" }); location.hash = `${B}/kursus/${r.slug}`; }
-  async function del() { if (!confirm("Slet hele kurset?")) return; await api(P(""), { method: "DELETE" }); location.hash = B; }
+  async function del() { if (!(await ask("Slet hele kurset?"))) return; await api(P(""), { method: "DELETE" }); location.hash = B; }
   async function reload() { data = await api(P("")); draw(); }
   function draw() {
     drawHead(); drawTree(); drawWarn();

@@ -3,6 +3,7 @@
 // eller DMI-stationer ([{lat, lon, speed, dir}]), som så interpoleres (IDW) til et gitter.
 // Partiklerne har geografiske positioner og flyttes i skærmpixels, så de følger kortet ved panorering.
 import "./maps.js";  // Leaflet (L) skal være hentet
+import { trustedHTML } from "./core.js";
 
 const STATION_GRID = { lat0: 54.3, lon0: 7.3, step: 0.1, ny: 38, nx: 83 };
 
@@ -23,8 +24,8 @@ export function speedLegend() {
   const grad = SPEED_STOPS.map(([v, c]) => `rgb(${c.join(",")}) ${(v / max * 100).toFixed(0)}%`).join(", ");
   const el = document.createElement("div");
   el.className = "wind-legend";
-  el.innerHTML = `<span>Vind m/s</span><span class="scale"><i style="background: linear-gradient(90deg, ${grad})"></i>` +
-    `<span class="ticks">${[0, 5, 10, 15, 20, 25].map(v => `<b style="left:${v / max * 100}%">${v}</b>`).join("")}</span></span>`;
+  el.innerHTML = trustedHTML(`<span>Vind m/s</span><span class="scale"><i style="background: linear-gradient(90deg, ${grad})"></i>` +
+    `<span class="ticks">${[0, 5, 10, 15, 20, 25].map(v => `<b style="left:${v / max * 100}%">${v}</b>`).join("")}</span></span>`);
   return el;
 }
 

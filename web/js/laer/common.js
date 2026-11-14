@@ -1,5 +1,5 @@
 // Læring 2.0: fælles hjælpere (CSS, medier, kort, procenter).
-import { h } from "../core.js";
+import { h, trustedHTML, lightDismiss } from "../core.js";
 import { silhouette, hueOf } from "./silhouettes.js";
 
 export const BASE = "#/laer";
@@ -24,7 +24,7 @@ export const KINDS = { kursus: "Kursus", ovelse: "Øvelse", quiz: "Quiz", spil: 
 /** SVG-silhuet som element. */
 export function silEl(key, { label = "" } = {}) {
   const d = h("span", { class: "lr-sil-wrap" });
-  d.innerHTML = silhouette(key, { label });
+  d.innerHTML = trustedHTML(silhouette(key, { label }));
   return d;
 }
 
@@ -62,6 +62,7 @@ function initLightbox() {
       h("button", { type: "button", class: "lr-lightbox-x", "aria-label": "Luk", onclick: close }, "✕"),
       h("img", { src: img.currentSrc || img.src, alt: img.alt }), cap ? h("p", {}, cap) : null);
     box.addEventListener("close", () => box.remove());
+    lightDismiss(box);
     document.body.append(box);
     box.showModal();
   });

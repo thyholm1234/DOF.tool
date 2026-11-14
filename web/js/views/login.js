@@ -9,7 +9,7 @@
 //   4. Klar (tilbud om passkey på enheden)
 // Uden DOFbasen: navn, e-mail og adgangskode → koden på mail → kontoen med en lokal kode (kan bindes senere under Profil).
 // Glemt adgangskode: en kode til den bekræftede e-mail (#/login?nulstil=…&kode=…) – eller DOFbasen-vejen ovenfor.
-import { api, state, h, icon, params, toast } from "../core.js";
+import { api, state, h, icon, params, toast, trustedHTML } from "../core.js";
 import { refreshUser } from "../app.js";
 import { live } from "../live.js";
 import * as passkey from "../passkey.js";
@@ -68,7 +68,7 @@ const big = (cls, text, attrs = {}) => h("button", { class: `btn ${cls}`, style:
 function busy(btn, text) {
   const label = btn.textContent;
   btn.disabled = true;
-  btn.innerHTML = `<span class="spinner"></span> ${text}`;
+  btn.innerHTML = trustedHTML(`<span class="spinner"></span> ${text}`);
   return () => { btn.disabled = false; btn.textContent = label; };
 }
 

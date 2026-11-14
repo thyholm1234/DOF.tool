@@ -1,5 +1,5 @@
 // Admin → Listetyper: opret, ret og deaktivér listetyper (navn med {p}, referenceliste, auto/manuel, parameter, regler). En ændring genberegner de automatiske lister.
-import { api, h, toast, modal } from "../core.js";
+import { api, h, toast, modal, ask } from "../core.js";
 
 const PARAMS = [["", "Ingen"], ["year", "År"], ["month", "Måned"], ["afdeling", "Lokalafdeling"], ["kommune", "Kommune"]];
 
@@ -30,7 +30,7 @@ export async function page() {
     h("tbody", {}, ...d.defs.map(x => h("tr", { class: x.aktiv ? "" : "kl-none" }, h("td", {}, x.key), h("td", {}, x.navn), h("td", {}, d.artslister.find(a => a.id === x.ref_list_id)?.key || ""), h("td", {}, x.auto ? "ja" : ""),
       h("td", {}, x.manuel ? "ja" : ""), h("td", {}, x.param || ""), h("td", {}, h("code", {}, JSON.stringify(x.regler))),
       h("td", {}, h("button", { class: "btn sm", type: "button", onclick: () => edit(x) }, "Ret"), " ", h("button", { class: "btn sm danger", type: "button", onclick: async () => {
-        if (!confirm(`Slet listetypen «${x.navn}»? De automatiske kryds på listen fjernes (manuelle kryds beholdes).`)) return;
+        if (!(await ask(`Slet listetypen «${x.navn}»? De automatiske kryds på listen fjernes (manuelle kryds beholdes).`))) return;
         try { await api(`/api/admin/krydslister/listetyper/${x.id}`, { method: "DELETE" }); location.reload(); } catch (e) { toast(e.message, "err"); } } }, "Slet")))))));
   draw();
   return h("div", { class: "stack" }, h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onclick: () => edit(null) }, "+ Ny listetype"),

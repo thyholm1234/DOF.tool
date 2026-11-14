@@ -1,9 +1,9 @@
 // Admin → Brugere: brugerliste, godkendelse, testbrugere, roller og individuelle rettigheder.
-import { api, state, h, ago, toast, errorBox, modal } from "../../core.js";
+import { api, state, h, ago, toast, errorBox, modal, ask, askText } from "../../core.js";
 import { roleSelect } from "./common.js";
 
 async function viewAs(u) {
-  const grund = prompt(`Se appen som ${u.navn || u.obserkode} (${u.obserkode}) i 15 minutter – kun læsning, og det logges.\n\nGrund (fx supportsag):`, "");
+  const grund = (await askText(`Se appen som ${u.navn || u.obserkode} (${u.obserkode}) i 15 minutter – kun læsning, og det logges.\n\nGrund (fx supportsag):`, ""));
   if (!grund || grund.trim().length < 3) return;
   try { await api("/api/admin/se-som", { method: "POST", body: { user_id: u.id, grund: grund.trim() } }); location.hash = "#/"; location.reload(); }
   catch (e) { toast(e.message, "err"); }
@@ -43,7 +43,7 @@ export async function users(body) {
         h("span", {}, h("b", {}, u.navn || u.obserkode), h("small", { class: "muted" }, ` ${u.obserkode} · oprettet ${ago(u.created_at)}`)),
         h("span", { class: "row", style: { gap: "6px" } },
           h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
-          h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Afvis og slet ${u.obserkode}? Personen kan søge igen ved at oprette en konto.`)) { try { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); toast("Afvist"); load(); } catch (err) { toast(err.message, "err"); } } } }, "Afvis"))))) : h("small", { class: "muted" }, "Ingen venter på godkendelse."));
+          h("button", { class: "btn sm ghost danger", onclick: async () => { if ((await ask(`Afvis og slet ${u.obserkode}? Personen kan søge igen ved at oprette en konto.`))) { try { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); toast("Afvist"); load(); } catch (err) { toast(err.message, "err"); } } } }, "Afvis"))))) : h("small", { class: "muted" }, "Ingen venter på godkendelse."));
     out.replaceChildren(h("table", { class: "data stack-sm", style: { "--cols": 3 } },
       h("thead", {}, h("tr", {}, h("th", {}, "Bruger"), h("th", {}, "Rolle"), h("th", {}, "Admin-moduler"), h("th", {}, "Sidst set"), h("th", { class: "right" }, "Enheder/regler"), h("th", {}))),
       h("tbody", {}, ...rows.map(u => h("tr", {},
@@ -65,12 +65,12 @@ export async function users(body) {
           u.approved ? null : h("button", { class: "btn sm primary", onclick: () => approve(u) }, "Godkend"),
           u.is_test ? h("button", { class: "btn sm", onclick: () => testUserModal(u, load) }, "Ny kode") : null,
           u.totp ? h("button", { class: "btn sm ghost", title: "Fx ved mistet telefon – brugeren logger derefter ind med adgangskoden alene", onclick: async () => {
-            if (!confirm(`Fjern totrinslogin for ${u.obserkode}? Gør det kun, når du er sikker på, at det er brugeren selv, der beder om det.`)) return;
+            if (!(await ask(`Fjern totrinslogin for ${u.obserkode}? Gør det kun, når du er sikker på, at det er brugeren selv, der beder om det.`))) return;
             try { await api(`/api/admin/users/${u.id}/totp`, { method: "DELETE" }); toast("Totrinslogin er fjernet"); load(); } catch (err) { toast(err.message, "err"); }
           } }, "Fjern 2FA") : null,
           h("button", { class: "btn sm", onclick: async () => { await api(`/api/admin/users/${u.id}`, { method: "PATCH", body: { blocked: !u.blocked } }); load(); } }, u.blocked ? "Ophæv spærring" : "Spær"),
           isSuper && !u.blocked ? h("button", { class: "btn sm ghost", title: "Se appen som brugeren (kun læsning, 15 minutter, logges)", onclick: () => viewAs(u) }, "Se som") : null,
-          isSuper || u.is_test ? h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm(`Slet ${u.obserkode}?`)) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
+          isSuper || u.is_test ? h("button", { class: "btn sm ghost danger", onclick: async () => { if ((await ask(`Slet ${u.obserkode}?`))) { await api(`/api/admin/users/${u.id}`, { method: "DELETE" }); load(); } } }, "Slet") : null] : null))))));
   };
   let t; q.oninput = () => { clearTimeout(t); t = setTimeout(load, 250); };
   await load();

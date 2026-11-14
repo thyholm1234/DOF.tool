@@ -1,7 +1,7 @@
 // Lokaliteter: indgang til alle lokaliteters sider – søg, vælg år (indeværende, et tidligere eller alle år), filtrér på kommune,
 // afdeling og SU/SUB/Bemærk og sortér efter aktivitet, tal eller afstand. Filtrering og sider sker på serveren, så listen er
 // hurtig på telefonen. Indeværende år er live (med seneste 30 dage); øvrige år er forudberegnet.
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, tag, empty, errorBox, seg, store, loadRef, todayISO, KAT, busyBlock } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, tag, empty, errorBox, seg, store, loadRef, todayISO, KAT, busyBlock, trustedHTML } from "../core.js";
 
 const YEAR = new Date().getFullYear();
 const KATS = [["", "Alle"], ["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"]];
@@ -55,7 +55,7 @@ export async function render(view) {
     drawYears();
     activeBtn.classList.toggle("on", st.active);
     nearBtn.classList.toggle("on", st.sort === "afstand");
-    nearBtn.innerHTML = `${icon("pin")} Nær mig`;
+    nearBtn.innerHTML = trustedHTML(`${icon("pin")} Nær mig`);
     sortBox.replaceChildren(sortSeg());
   };
 

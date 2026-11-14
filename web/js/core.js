@@ -68,16 +68,27 @@ async function request(path, { method = "GET", body, form } = {}) {
   return data;
 }
 
+// Trusted Types: alle HTML-sinks i appens egen kode går gennem policyen «dof-html». Den er KUN til markup, der bygges i koden
+// af konstanter og esc()-escapede værdier (ikoner, mærker) eller er renset på serveren (Markdown via content_render) –
+// aldrig til rå brugerdata. Håndhævelsen kører foreløbig som report-only (se csp() i server/portal/main.py).
+const ttPolicy = globalThis.trustedTypes?.createPolicy?.("dof-html", { createHTML: (s) => s });
+/** Gør en appbygget/serverrenset HTML-streng klar til innerHTML under Trusted Types. */
+export const trustedHTML = (s) => ttPolicy ? ttPolicy.createHTML(String(s ?? "")) : String(s ?? "");
+
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === null || v === undefined || v === false) continue;
     if (k === "class") el.className = v;
-    else if (k === "html") el.innerHTML = v;
+    else if (k === "html") el.innerHTML = trustedHTML(v);
     else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
     else if (k === "style" && typeof v === "object") for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith("--")) el.style.setProperty(sk, sv); else el.style[sk] = sv; }
     else el.setAttribute(k, v === true ? "" : v);
   }
+  // Et felt, hvis eneste tekst er placeholderen, har intet tilgængeligt navn (placeholderen forsvinder, når man skriver, og
+  // er ikke et label). Ligger feltet ikke i et <label> og har det intet aria-navn, bruges placeholderen som aria-label.
+  // Tjekkes i en microtask, så feltet først kan nå at blive lagt i sit label (field(), h("label") …).
+  if (attrs?.placeholder && NAMEABLE.has(tag) && !attrs["aria-label"] && !attrs["aria-labelledby"] && !attrs.id) queueMicrotask(() => nameFromPlaceholder(el));
   const plain = NO_WBR.has(tag);
   for (const c of children.flat(Infinity)) {
     if (c === null || c === undefined || c === false) continue;
@@ -91,6 +102,11 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 const NO_WBR = new Set(["option", "textarea", "title", "script", "style"]);
+const NAMEABLE = new Set(["input", "textarea"]);
+function nameFromPlaceholder(el) {
+  if (el.labels?.length || el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby") || !el.placeholder) return;
+  el.setAttribute("aria-label", el.placeholder.replace(/\s*(…|\.\.\.)\s*$/, "").trim());
+}
 const SLASH_WORD = /\p{L}\/\p{L}/u;
 const SLASH_SPLIT = /(?<=\p{L}\/)(?=\p{L})/u;
 
@@ -189,19 +205,18 @@ let uidN = 0;
 export const uid = (prefix = "id") => `${prefix}-${++uidN}`;
 
 /** Modal dialog: native <dialog> åbnet med showModal(). Browseren sørger for fokus ind i dialogen og tilbage bagefter,
- *  inert side bag den, top layer og Esc/tilbage-gestus. Dialogen dækker hele skærmen (baggrunden er ::backdrop), og et
- *  tryk uden for kortet lukker den. */
+ *  inert side bag den, top layer og Esc/tilbage-gestus. Kortet er selve dialogen, baggrunden er ::backdrop, og et tryk
+ *  på baggrunden lukker den (closedby="any", se lightDismiss). */
 export function modal(title, content, { wide = false, onClose } = {}) {
   const titleId = uid("modal-t");
   let done = false;
   // Lukket på enhver måde (knap, Esc, tryk udenfor, sideskift): ryd op én gang
   const finish = () => { if (done) return; done = true; window.removeEventListener("hashchange", close); bg.remove(); onClose?.(); };
   const close = () => { if (bg.open) bg.close(); finish(); };
-  const bg = h("dialog", { class: "modal-bg", "aria-labelledby": titleId },
-    h("div", { class: `modal ${wide ? "wide" : ""}` },
-      h("div", { class: "modal-head" }, h("h2", { id: titleId }, title), h("button", { type: "button", class: "icon-btn", onclick: close, "aria-label": "Luk", html: icon("x") })),
-      content));
-  lightDismiss(bg, close);
+  const bg = h("dialog", { class: `modal ${wide ? "wide" : ""}`, "aria-labelledby": titleId },
+    h("div", { class: "modal-head" }, h("h2", { id: titleId }, title), h("button", { type: "button", class: "icon-btn", onclick: close, "aria-label": "Luk", html: icon("x") })),
+    content);
+  lightDismiss(bg);
   bg.addEventListener("close", finish);
   document.body.append(bg);
   bg.showModal();
@@ -211,12 +226,60 @@ export function modal(title, content, { wide = false, onClose } = {}) {
   return { close, el: bg };
 }
 
-/** Luk en fuldskærms-<dialog>, når man trykker uden for dens indhold (på selve dialogen = baggrunden). Både tryk og slip
- *  skal ske udenfor, så en tekstmarkering, der slutter på baggrunden, ikke lukker den. */
-export function lightDismiss(dlg, close) {
-  let downOutside = false;
-  dlg.addEventListener("pointerdown", (e) => { downOutside = e.target === dlg; });
-  dlg.addEventListener("click", (e) => { if (downOutside && e.target === dlg) close(); downOutside = false; });
+/** Bekræftelse i en modal <dialog> i stedet for window.confirm(): løser til true (bekræftet) eller false. Fokus starter på
+ *  den sikre knap (Annullér), så Enter ikke kommer til at slette noget. Esc og tryk udenfor = Annullér. */
+export function ask(message, { ok = "OK", cancel = "Annullér", danger = /slet|fjern|nulstil|fortryd|afvis|kassér/i.test(message) } = {}) {
+  return dialogPrompt(message, { ok, cancel, danger });
+}
+
+/** Tekstfelt i en modal <dialog> i stedet for window.prompt(): løser til teksten eller null (annulleret). */
+export function askText(message, value = "", { ok = "OK", cancel = "Annullér" } = {}) {
+  return dialogPrompt(message, { ok, cancel, input: String(value ?? "") });
+}
+
+function dialogPrompt(message, { ok, cancel, danger = false, input = null }) {
+  return new Promise((resolve) => {
+    const msgId = uid("ask-m");
+    const multiline = input !== null && input.includes("\n");
+    const field = input === null ? null : h(multiline ? "textarea" : "input", { class: "ask-input", "aria-labelledby": msgId, autofocus: true, rows: multiline ? 6 : null });
+    if (field) field.value = input;
+    const form = h("form", { method: "dialog", class: "ask-form" },
+      h("p", { id: msgId, class: "ask-msg" }, message), field,
+      h("div", { class: "ask-actions" },
+        h("button", { type: "submit", class: "btn", value: "cancel", autofocus: field ? null : true, formnovalidate: true }, cancel),
+        h("button", { type: "submit", class: `btn ${danger ? "danger solid" : "primary"}`, value: "ok" }, ok)));
+    const dlg = h("dialog", { class: "modal ask", "aria-labelledby": msgId }, form);
+    // Enter i tekstfeltet = OK (i et flerlinjet felt: Ctrl/Cmd+Enter); ikke mens IME-komposition bekræftes (keyCode 229 = Safari)
+    field?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229) && (!multiline || e.ctrlKey || e.metaKey)) { e.preventDefault(); dlg.close("ok"); }
+    });
+    lightDismiss(dlg);
+    dlg.addEventListener("close", () => {
+      const yes = dlg.returnValue === "ok";
+      dlg.returnValue = "";
+      dlg.remove();
+      resolve(field ? (yes ? field.value : null) : yes);
+    });
+    document.body.append(dlg);
+    dlg.showModal();
+    backLayer(dlg, () => dlg.close("cancel"));
+  });
+}
+
+/** Lys afvisning af en modal <dialog>: et tryk på baggrunden (::backdrop) lukker den. Deklarativt med closedby="any"; hvor
+ *  browseren ikke kender closedby (Safari), lukkes den, når både tryk og slip sker uden for dialogens kasse – positionen
+ *  testes, ikke event.target alene, og et tryk på et svævende lag inde i dialogen (menu, tooltip) tæller ikke. */
+export function lightDismiss(dlg) {
+  dlg.setAttribute("closedby", "any");
+  if ("closedBy" in HTMLDialogElement.prototype) return;
+  const outside = (e) => {
+    if (e.target !== dlg) return false;
+    const r = dlg.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  let pressedOutside = false;
+  dlg.addEventListener("pointerdown", (e) => { pressedOutside = outside(e); });
+  dlg.addEventListener("pointerup", (e) => { if (pressedOutside && outside(e)) dlg.close(); pressedOutside = false; });
 }
 
 export function loading(el, rows = 4) {

@@ -1,5 +1,5 @@
 // Matrikelbirding (Boligbirding): eget modul med oversigt over placeringer, liste, ranglister og matrikler.
-import { api, state, h, icon, fmtN, fmtDate, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, params, setParams, loadRef, requireLogin, empty, errorBox, modal, toast, seg, store, ask } from "../core.js";
 import { lineChart, PALETTE } from "../charts.js";
 import { drawList, ranking, race, matrix, unique, groups } from "./lists.js";
 
@@ -208,14 +208,14 @@ export async function matrikler(body) {
           h("div", { class: "row", style: { gap: "4px", flexWrap: "nowrap" } },
             h("button", { class: "btn sm ghost", onclick: () => periodModal(m, p), html: icon("edit"), "aria-label": "Redigér" }),
             h("button", { class: "btn sm ghost danger", "aria-label": "Slet", html: icon("trash"), onclick: async () => {
-              if (confirm(`Slet perioden '${p.navn}'?`)) await call(`/api/lists/perioder/${p.id}`, "DELETE");
+              if ((await ask(`Slet perioden '${p.navn}'?`))) await call(`/api/lists/perioder/${p.id}`, "DELETE");
             } })))))
           : h("p", { class: "muted", style: { margin: 0 } }, "Ingen perioder – alle fund med tagget tæller. Tilføj perioder, hvis matriklen har ligget flere steder.")),
       h("div", { class: "row" },
         h("button", { class: "btn primary", onclick: () => moveModal(m), html: `${icon("pin")} Flyt matrikel…` }),
         h("button", { class: "btn", onclick: () => periodModal(m, null), html: `${icon("plus")} Tilføj periode` }),
         m.defined ? h("button", { class: "btn ghost danger", style: { marginLeft: "auto" }, onclick: async () => {
-          if (confirm(`Nulstil navn og perioder for ${mName(m)}? Dine tags i DOFbasen røres ikke.`)) await call(`/api/lists/matrikler/${m.nummer}`, "DELETE");
+          if ((await ask(`Nulstil navn og perioder for ${mName(m)}? Dine tags i DOFbasen røres ikke.`))) await call(`/api/lists/matrikler/${m.nummer}`, "DELETE");
         } }, "Nulstil") : null));
   }));
 

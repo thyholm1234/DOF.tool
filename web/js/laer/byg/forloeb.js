@@ -1,5 +1,5 @@
 // Læring 2.0 – bygger: forløbsbyggeren (sektioner, punkter, oplåsning, feltopgaver) – spec §9.1.
-import { api, h, toast, modal, errorBox, empty } from "../../core.js";
+import { api, h, toast, modal, errorBox, empty, ask } from "../../core.js";
 import { BASE, backLink, chip, loadingBox } from "../common.js";
 import { speciesPicker } from "../pickers.js";
 
@@ -38,7 +38,7 @@ export async function render(view, [slug]) {
     list.replaceChildren(...d.items.map((it, i) => h("div", { class: "lr-pitem" }, h("div", { class: "lr-pbody" }, h("div", { class: "lr-kicker" }, `${it.section || "Uden sektion"} · ${KINDS.find(k => k[0] === it.kind)?.[1]}${it.required ? "" : " · valgfri"}`), h("b", {}, it.title || it.course?.title || it.field_task?.titel || "Punkt"),
       it.unlock?.after && it.unlock.after !== "none" ? h("small", { class: "muted" }, ` 🔒 ${Array.isArray(it.unlock.after) ? "efter udvalgte punkter" : "efter forrige"}${it.unlock.days_after_start != null ? ` · dag ${it.unlock.days_after_start}` : ""}`) : null),
       h("span", { class: "lr-meta" }, h("button", { class: "btn sm ghost", "aria-label": "Op", disabled: i === 0, onclick: () => move(i, -1) }, "↑"), h("button", { class: "btn sm ghost", "aria-label": "Ned", disabled: i === d.items.length - 1, onclick: () => move(i, 1) }, "↓"),
-        h("button", { class: "btn sm", onclick: () => edit(it) }, "Redigér"), h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm("Fjern punktet?")) { await api(P(`/punkter/${it.id}`), { method: "DELETE" }); await reload(); } } }, "×")))));
+        h("button", { class: "btn sm", onclick: () => edit(it) }, "Redigér"), h("button", { class: "btn sm ghost danger", onclick: async () => { if ((await ask("Fjern punktet?"))) { await api(P(`/punkter/${it.id}`), { method: "DELETE" }); await reload(); } } }, "×")))));
     if (!d.items.length) list.append(empty("Ingen punkter endnu"));
   }
   async function move(i, dir) {
@@ -89,7 +89,7 @@ export async function render(view, [slug]) {
       h("div", { class: "lr-actions" }, h("a", { class: "btn", href: `${BASE}/forloeb/${slug}` }, "Se som deltager"),
         h("button", { class: "btn primary", onclick: async () => { try { await api(P("/publicer"), { method: "POST" }); toast("Publiceret"); await reload(); } catch (e) { const w = e.detail?.warnings; const m = modal("Kan ikke publicere endnu", h("div", { class: "stack" }, h("p", {}, e.message), w ? h("ul", {}, ...w.map(x => h("li", {}, x.msg))) : null)); } } }, d.path.published ? "Publicér igen" : "Publicér"),
         d.path.published ? h("button", { class: "btn", onclick: async () => { await api(P("/afpublicer"), { method: "POST" }); await reload(); } }, "Afpublicér") : null,
-        h("button", { class: "btn ghost danger", onclick: async () => { if (confirm("Slet forløbet?")) { await api(P(), { method: "DELETE" }); location.hash = `${BASE}/byg/forloeb`; } } }, "Slet")));
+        h("button", { class: "btn ghost danger", onclick: async () => { if ((await ask("Slet forløbet?"))) { await api(P(), { method: "DELETE" }); location.hash = `${BASE}/byg/forloeb`; } } }, "Slet")));
   }
   const meta = h("div", {}, f("Titel", h("input", { value: d.path.title, oninput: (e) => { d.path.title = e.target.value; saveMeta(); } })), f("Kort beskrivelse", h("textarea", { rows: 2, oninput: (e) => { d.path.summary = e.target.value; saveMeta(); } }, d.path.summary || "")),
     f("Introduktion", h("textarea", { rows: 3, oninput: (e) => { d.path.intro_md = e.target.value; saveMeta(); } }, d.path.intro_md || "")),

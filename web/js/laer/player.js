@@ -23,7 +23,7 @@ export function runPlayer(root, opts) {
     const n = Number(e.key);
     const choices = root.querySelectorAll(".lr-choice:not([disabled])");
     if (n >= 1 && n <= 8 && choices[n - 1]) choices[n - 1].click();
-    if (e.key === "Enter") root.querySelector("[data-primary]:not([disabled])")?.click();
+    if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) root.querySelector("[data-primary]:not([disabled])")?.click();
     if (e.key === " " && e.target === document.body) { const a = root.querySelector("audio"); if (a) { e.preventDefault(); a.paused ? a.play() : a.pause(); } }
   };
   document.addEventListener("keydown", keys);

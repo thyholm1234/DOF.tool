@@ -1,5 +1,5 @@
 // Fotos → Admin → Kommentarer: anmeldte, skjulte og seneste kommentarer på fotos.
-import { api, h, toast } from "../core.js";
+import { api, h, toast, askText } from "../core.js";
 import { BASE, dkDate, loadingBox } from "./common.js";
 
 export async function page() {
@@ -10,7 +10,7 @@ export async function page() {
     const rows = await api(`/api/admin/fotos/kommentarer?tab=${tab}`);
     const act = async (r, action) => {
       let reason = "";
-      if (action === "skjul" || action === "slet") { reason = prompt("Årsag:", "") ?? null; if (reason === null) return; }
+      if (action === "skjul" || action === "slet") { reason = (await askText("Årsag:", "")) ?? null; if (reason === null) return; }
       try { await api(`/api/admin/fotos/kommentarer/${r.id}/${action}`, { method: "POST", body: { reason } }); load(); } catch (e) { toast(e.message, "err"); }
     };
     body.replaceChildren(...(rows.length ? rows.map(r => h("div", { class: "card stack" },

@@ -1,5 +1,5 @@
 // Fælles visning af feltmeldinger (egne indtastninger): status, sikkerhed og medier – og statusknapperne på SU/SUB-tråde.
-import { api, state, h, icon, fmtN, fmtTime, ago, tag, toast, KAT } from "./core.js";
+import { api, state, h, icon, fmtN, fmtTime, ago, tag, toast, KAT, ask } from "./core.js";
 
 export const STATUS = { til_stede: "Under observation", "fløjet": "Fløjet/forsvundet", ikke_genfundet: "Ikke genfundet", ukendt: "Ikke angivet" };
 export const SIKKERHED = { sikker: "Sikker", sandsynlig: "Sandsynlig", mulig: "Mulig" };
@@ -54,12 +54,12 @@ export function threadStatusCard(st, { date, artnr, loknr, art, onChange }) {
   const send = async (path, opts) => {
     try { onChange(await api(path, opts)); } catch (err) { toast(err.message, "err"); }
   };
-  const report = (status, label) => {
-    if (!confirm(`Meld "${label}" for ${art}?\n\nAlle kan se meldingen, og følgere af tråden får besked.`)) return;
+  const report = async (status, label) => {
+    if (!(await ask(`Meld "${label}" for ${art}?\n\nAlle kan se meldingen, og følgere af tråden får besked.`))) return;
     send(base, { method: "POST", body: { status } }).then(() => toast(`Meldt: ${label}`));
   };
-  const withdraw = (u) => {
-    if (!confirm(`Træk din melding "${STATUS[u.status]}" fra ${fmtTime(u.at)} tilbage?`)) return;
+  const withdraw = async (u) => {
+    if (!(await ask(`Træk din melding "${STATUS[u.status]}" fra ${fmtTime(u.at)} tilbage?`))) return;
     send(`${base}/${u.id}`, { method: "DELETE" }).then(() => toast("Meldingen er trukket tilbage"));
   };
   const cur = st.current;

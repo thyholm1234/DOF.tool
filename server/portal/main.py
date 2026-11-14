@@ -176,6 +176,10 @@ async def guard(request: Request, call_next):
         response.headers.setdefault("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; sandbox")
     elif not path.startswith("/api/"):
         response.headers.setdefault("Content-Security-Policy", csp(await article_settings.frame_hosts()))
+        # Trusted Types, første udrulningstrin: overtrædelser vises kun i konsollen (blokeres ikke). Appens egen kode skriver
+        # HTML via policyen «dof-html» (web/js/core.js); tilbage er bl.a. Leaflet. Når konsollen er tom, flyttes direktivet
+        # over i csp() og håndhæves.
+        response.headers.setdefault("Content-Security-Policy-Report-Only", TRUSTED_TYPES)
     return response
 
 
@@ -198,6 +202,7 @@ def csp(frame_hosts: list[str] | None = None) -> str:
 
 
 _csp = {"at": None, "value": ""}
+TRUSTED_TYPES = "require-trusted-types-for 'script'; trusted-types dof-html"
 
 
 class SelectiveGZip:

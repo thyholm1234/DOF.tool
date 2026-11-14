@@ -1,5 +1,5 @@
 // Læring 2.0: egne trænings­sessioner med foto og lyd (docs/laering-spec.md §6). Afløser #/laer/arter og #/laer/lyd.
-import { api, h, toast, errorBox, can, state } from "../core.js";
+import { api, h, toast, errorBox, can, state, ask, askText } from "../core.js";
 import { BASE, loadingBox, backLink } from "./common.js";
 import { runPlayer } from "./player.js";
 import { speciesPicker, locationPicker, afdelingSelect } from "./pickers.js";
@@ -52,14 +52,14 @@ export async function render(view, parts, info) {
         h("button", { class: "btn", onclick: save }, "Gem som træning")),
       mine.length ? [h("h3", {}, "Mine træninger"), h("div", { class: "lr-list" }, ...mine.map(t => h("div", { class: "lr-listrow" }, h("b", {}, t.title),
         h("span", { class: "lr-meta" }, h("button", { class: "btn sm", onclick: () => { Object.assign(cfg, t.config); picked.clear(); (cfg.arter || []).forEach(x => picked.add(x)); setup(); } }, "Åbn"),
-          h("button", { class: "btn sm", onclick: async () => { const r = await api(`/api/learn/traeninger/${t.id}/del`, { method: "POST" }); const url = `${location.origin}${location.pathname}#/laer/traen/delt/${r.token}`; try { await navigator.clipboard.writeText(url); toast("Link kopieret"); } catch { prompt("Del dette link", url); } } }, "Del"),
-          h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm("Slet træningen?")) { await api(`/api/learn/traeninger/${t.id}`, { method: "DELETE" }); setup(); } } }, "Slet"))))) ] : null,
+          h("button", { class: "btn sm", onclick: async () => { const r = await api(`/api/learn/traeninger/${t.id}/del`, { method: "POST" }); const url = `${location.origin}${location.pathname}#/laer/traen/delt/${r.token}`; try { await navigator.clipboard.writeText(url); toast("Link kopieret"); } catch { (await askText("Del dette link", url)); } } }, "Del"),
+          h("button", { class: "btn sm ghost danger", onclick: async () => { if ((await ask("Slet træningen?"))) { await api(`/api/learn/traeninger/${t.id}`, { method: "DELETE" }); setup(); } } }, "Slet"))))) ] : null,
       cfg.m !== "foto" && can("laering") ? await mlPanel() : null);
     await drawDetail();
   }
 
   async function save() {
-    const title = prompt("Navn på træningen", cfg.kilde === "gruppe" ? `Træning: ${cfg.gruppe}` : "Min træning");
+    const title = (await askText("Navn på træningen", cfg.kilde === "gruppe" ? `Træning: ${cfg.gruppe}` : "Min træning"));
     if (!title) return;
     try { await api("/api/learn/traeninger", { method: "POST", body: { ...cfg, title } }); toast("Gemt"); setup(); } catch (e) { toast(e.message, "err"); }
   }

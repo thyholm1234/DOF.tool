@@ -222,7 +222,21 @@ textarea { padding: 10px 12px; height: auto; min-height: 90px; resize: vertical;
 select:not([multiple]) { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer; text-overflow: ellipsis;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%237f8a84' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 8px; }
-/* Egen menu til select i Android-appen (js/select-menu.js) */
+/* Android-appen med customizable select (Chromium 135+, klassen sættes af js/select-menu.js): browserens egen picker i
+   samme stil som den egne menu nedenfor. Showcases (.dofb, .nfu) beholder systemets select. */
+.base-select select:not([multiple], [size]):not(.dofb select, .nfu select),
+.base-select select:not([multiple], [size]):not(.dofb select, .nfu select)::picker(select) { appearance: base-select; }
+.base-select select:not([multiple], [size]):not(.dofb select, .nfu select) { background-image: none; padding-right: 12px; }
+.base-select select::picker-icon { color: var(--text-3); }
+.base-select select::picker(select) { background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-radius: 12px;
+  box-shadow: var(--shadow-lg); padding: 4px; max-height: 70dvh; overscroll-behavior: contain; }
+.base-select select option { padding: 10px 12px; border-radius: 8px; overflow-wrap: anywhere; }
+.base-select select option:hover, .base-select select option:focus-visible { background: var(--bg-2); }
+.base-select select option:checked { background: var(--brand-soft); color: var(--brand); font-weight: 650; }
+.base-select select option:disabled { opacity: .45; }
+.base-select select option::checkmark { color: var(--brand); }
+.base-select select optgroup { font-size: .75rem; font-weight: 700; color: var(--text-3); }
+/* Egen menu til select i Android-appen (js/select-menu.js) – fallback uden customizable select */
 .sel-back { position: fixed; inset: 0; z-index: 1000; }
 .sel-menu { position: fixed; z-index: 1001; overflow-y: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px;
   box-shadow: var(--shadow-lg); padding: 4px; display: grid; gap: 1px; align-content: start; max-width: calc(100vw - 16px); overscroll-behavior: contain; }
@@ -425,21 +439,27 @@ table.month-heat td i { display: block; height: 100%; border-radius: 3px; backgr
 .result-big { font-size: 3rem; font-weight: 800; text-align: center; letter-spacing: -0.03em; }
 
 /* ---------- modal / toast ---------- */
-/* Modaler og ark er native <dialog> åbnet med showModal(): dialogen dækker hele skærmen og centrerer kortet (.modal),
-   baggrunden er ::backdrop. overflow + overscroll-behavior: contain, så rul over baggrunden ikke ruller siden bag. */
-dialog.modal-bg { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0;
-  background: transparent; color: var(--text); overflow: hidden; overscroll-behavior: contain;
-  padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left)); }
-dialog.modal-bg[open] { display: grid; place-items: center; }
-dialog.modal-bg::backdrop { background: rgb(10 15 12 / 45%); overflow: hidden; overscroll-behavior: contain; }
+/* Modaler og ark er native <dialog class="modal"> åbnet med showModal(): kortet er selve dialogen (centreret af browserens
+   margin: auto), baggrunden er ::backdrop, og et tryk på den lukker (closedby="any"). overflow + overscroll-behavior: contain
+   på dialog og ::backdrop, så rul over baggrunden eller i dialogen ikke ruller siden bag. */
+dialog.modal { border: 0; color: var(--text); max-width: calc(100% - 32px - var(--safe-left) - var(--safe-right)); }
+dialog.modal:modal { overscroll-behavior: contain; }
+dialog.modal::backdrop { background: rgb(10 15 12 / 45%); overflow: hidden; overscroll-behavior: contain; }
 /* Indgang: tonet ind (ingen bevægelse, så også ved reduceret bevægelse) */
-dialog.modal-bg[open], dialog.modal-bg[open]::backdrop { opacity: 1; transition: opacity .15s ease-out; }
-@starting-style { dialog.modal-bg[open], dialog.modal-bg[open]::backdrop { opacity: 0; } }
+dialog.modal[open], dialog.modal[open]::backdrop { opacity: 1; transition: opacity .15s ease-out; }
+@starting-style { dialog.modal[open], dialog.modal[open]::backdrop { opacity: 0; } }
 .modal { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow-lg); width: min(560px, 100%); max-height: calc(var(--avail-h) - 32px); overflow: auto; padding: 18px; overscroll-behavior: contain; }
 .modal.wide { width: min(920px, 100%); }
 .modal-head { display: flex; align-items: center; gap: .5rem; margin-bottom: 12px; }
 .modal-head h2 { margin: 0; flex: 1; }
 @keyframes fade { from { opacity: 0; } }
+/* ask()/askText(): bekræftelse og tekstfelt i stedet for window.confirm/prompt */
+dialog.modal.ask { width: min(440px, 100%); }
+.ask-form { display: grid; gap: 14px; }
+.ask-msg { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.ask-input { width: 100%; box-sizing: border-box; }
+textarea.ask-input { resize: vertical; }
+.ask-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 /* Beholderen er en popover="manual" (top layer, så beskeder også ses over en modal); UA-stilen for [popover] nulstilles */
 .toasts { position: fixed; inset: auto; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; overflow: visible; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 16px + var(--safe-bottom)); display: grid; gap: 8px; width: min(440px, calc(100% - 32px)); }
 @media (min-width: 900px) { .toasts { bottom: 24px; } }
@@ -619,7 +639,8 @@ i.mg-key { display: inline-block; min-width: 14px; width: 14px; height: 14px; bo
 
 /* Indtastning: påkrævede felter, art-dropdown, liste over egne fugle */
 .req { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 99px; background: var(--su-soft); color: var(--su); font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; vertical-align: 1px; }
-.report-form select.required:invalid, .report-form select.required[value=""] { border-color: color-mix(in srgb, var(--su) 40%, var(--line-strong)); }
+/* :user-invalid: først markeret, når man har været i feltet (eller forsøgt at gemme) – ikke fra start */
+.report-form select.required:user-invalid, .report-form select.required[value=""] { border-color: color-mix(in srgb, var(--su) 40%, var(--line-strong)); }
 .report-form .invalid { border-color: var(--su) !important; box-shadow: 0 0 0 3px var(--su-soft); }
 .report-form label.check.guide { align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
 .report-form label.check.guide { gap: .75rem; }
@@ -644,10 +665,8 @@ i.mg-key { display: inline-block; min-width: 14px; width: 14px; height: 14px; bo
 body.anon .sidenav, body.anon .bottomnav { display: none !important; }
 body.anon main#view { padding-bottom: 32px; max-width: 1080px; }
 /* "Mere"-ark på mobil */
-/* Native modal <dialog> over hele skærmen; panelet lægger sig nederst, baggrunden er ::backdrop */
-dialog.more-sheet { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
-  background: transparent; color: var(--text); overflow: hidden; overscroll-behavior: contain; }
-dialog.more-sheet[open] { display: flex; align-items: flex-end; }
+/* Panelet er selve den modale <dialog>: lagt nederst (margin-top: auto), baggrunden er ::backdrop og lukker ved tryk */
+dialog.more-sheet { margin: auto 0 0; max-width: none; border: 0; color: var(--text); }
 dialog.more-sheet::backdrop { background: rgb(0 0 0 / 35%); overflow: hidden; overscroll-behavior: contain; }
 .more-panel { width: 100%; background: var(--surface); border-radius: 18px 18px 0 0; box-shadow: var(--shadow-lg);
   padding: 14px calc(14px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(14px + var(--safe-left));
@@ -941,7 +960,8 @@ progress { accent-color: var(--brand); height: 10px; }
 .tab-panel.hide { display: none; }
 .sheet-foot { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; padding: 12px 20px 16px; border-top: 1px solid var(--line); background: var(--surface); }
 .sheet-foot .btn { height: 46px; font-size: 1rem; justify-content: center; }
-.modal.sheet { padding: 0; display: flex; flex-direction: column; width: min(520px, 100%); max-height: calc(var(--avail-h) - 16px); overflow: hidden; }
+.modal.sheet[open] { display: flex; }
+.modal.sheet { padding: 0; flex-direction: column; width: min(520px, 100%); max-height: calc(var(--avail-h) - 16px); overflow: hidden; }
 .modal.sheet .sheet-body { overflow: auto; flex: 1; min-height: 0; }
 /* Arket har samme højde på alle faner (ellers hopper hoved, faner og knapper, når man skifter), og kun indholdet ruller */
 .modal.sheet { height: min(780px, calc(var(--avail-h) - 16px)); }
@@ -956,7 +976,7 @@ progress { accent-color: var(--brand); height: 10px; }
 
 /* Mobil: modaler og ark bruger skærmen bedre (mindre luft rundt om, mindre indvendig margen) */
 @media (max-width: 599px) {
-  dialog.modal-bg { padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(8px + var(--safe-left)); }
+  dialog.modal { max-width: calc(100% - 16px - var(--safe-left) - var(--safe-right)); }
   .modal { padding: 14px; border-radius: 14px; max-height: calc(var(--avail-h) - 16px); }
   .modal-head { margin-bottom: 8px; }
   .modal-head h2 { font-size: 1.1rem; }

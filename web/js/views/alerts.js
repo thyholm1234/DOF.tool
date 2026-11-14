@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtN, fmtDate, params, setParams, seg, loadRef, requireLogin, empty, errorBox, modal, toast, ago, searchSpecies } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, params, setParams, seg, loadRef, requireLogin, empty, errorBox, modal, toast, ago, searchSpecies, ask } from "../core.js";
 import { isApp, isPositionDevice, appPushStatus, enableAppPush, pushError, currentPosition } from "../native.js";
 import { refreshUser } from "../app.js";
 import { baseMap, drawTool, cssVar } from "../maps.js";
@@ -76,7 +76,7 @@ async function rules(body) {
     h("div", { class: "row" },
       h("label", { class: "check" }, h("input", { type: "checkbox", checked: r.enabled, onchange: async (e) => { await api(`/api/alerts/rules/${r.id}`, { method: "PUT", body: { ...strip(r), enabled: e.target.checked } }); r.enabled = e.target.checked; e.target.closest(".card").style.opacity = r.enabled ? 1 : .55; } }), "Aktiv"),
       h("button", { class: "btn sm", onclick: () => editRule(r, areasList, () => { body.replaceChildren(); rules(body); }, list) }, "Redigér"),
-      h("button", { class: "btn sm ghost danger", onclick: async () => { if (!confirm("Slet reglen?")) return; await api(`/api/alerts/rules/${r.id}`, { method: "DELETE" }); body.replaceChildren(); rules(body); } }, "Slet"))))));
+      h("button", { class: "btn sm ghost danger", onclick: async () => { if (!(await ask("Slet reglen?"))) return; await api(`/api/alerts/rules/${r.id}`, { method: "DELETE" }); body.replaceChildren(); rules(body); } }, "Slet"))))));
 }
 
 // Hvilken enhed en Nær mig-regel følger
@@ -174,7 +174,7 @@ async function editRule(rule, areasList, done, rulesList = []) {
  *  en anden enhed efter bekræftelse), så området – og dermed reglen – følger med. Returnerer områdets id. */
 async function followMe(km) {
   const dev = state.user?.prefs?.share_location === true ? state.user.prefs.position_device : null;
-  if (isApp() && !isPositionDevice() && dev && !confirm(`Din position følges nu af «${dev.name}». Skal reglen følge denne enhed i stedet?`)) {
+  if (isApp() && !isPositionDevice() && dev && !(await ask(`Din position følges nu af «${dev.name}». Skal reglen følge denne enhed i stedet?`))) {
     throw new Error("Reglen er ikke gemt");
   }
   const where = await api("/api/me/location").catch(() => ({ location: null }));
@@ -208,7 +208,7 @@ function regionPicker(kommuner, afdelinger) {
       h("span", {}, i.label), h("i", { class: "muted" }, i.sub))));
   };
   input.addEventListener("input", show);
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); results.querySelector("button")?.click(); } });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); results.querySelector("button")?.click(); } });
   draw();
   return {
     el: h("div", { class: "field" }, h("span", { class: "label" }, "Lokalafdelinger og kommuner (reglen gælder i dem alle)"), input, results, chosen),
@@ -231,7 +231,7 @@ export function speciesPicker(initial, label) {
       h("span", {}, s.navn), s.latin ? h("i", { class: "muted" }, s.latin) : null)));
   };
   input.addEventListener("input", () => ready.then(show));
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); results.querySelector("button")?.click(); } });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); results.querySelector("button")?.click(); } });
   return { el: h("div", { class: "field" }, h("span", { class: "label" }, label), input, results, chosen), value: () => [...selected.keys()] };
 }
 
@@ -252,7 +252,7 @@ async function areas(body) {
         a.use_for_lists ? h("a", { class: "btn sm", href: `#/lister?scope=${a.scope.startsWith("area:") ? "area:" + a.id : a.scope}` }, "Min liste") : null,
         h("button", { class: "btn sm", onclick: () => areaSpecies(a) }, "Arter"),
         h("span", { style: { flex: 1 } }),
-        h("button", { class: "btn sm ghost danger", onclick: async () => { if (!confirm(`Slet området '${a.name}'? Regler der bruger det slettes også.`)) return; await api(`/api/areas/${a.id}`, { method: "DELETE" }); body.replaceChildren(); areas(body); } }, "Slet")));
+        h("button", { class: "btn sm ghost danger", onclick: async () => { if (!(await ask(`Slet området '${a.name}'? Regler der bruger det slettes også.`))) return; await api(`/api/areas/${a.id}`, { method: "DELETE" }); body.replaceChildren(); areas(body); } }, "Slet")));
     setTimeout(() => {
       const map = baseMap(mapEl);
       if (a.geojson) { const g = L.geoJSON(a.geojson, { style: { color: cssVar("--brand"), weight: 2, fillOpacity: .15 } }).addTo(map); map.fitBounds(g.getBounds(), { padding: [10, 10] }); }

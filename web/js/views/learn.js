@@ -1,4 +1,4 @@
-import { api, state, h, icon, empty, errorBox, modal, toast, loadRef, compressImage, can } from "../core.js";
+import { api, state, h, icon, empty, errorBox, modal, toast, loadRef, compressImage, can, ask } from "../core.js";
 
 const TOPIC = { id: "Artsbestemmelse", kald: "Kald og stemmer", saeson: "Årstid og træk", andet: "Andet" };
 const isEditor = () => can("laering");
@@ -160,7 +160,7 @@ async function editor(view, slug) {
       h("div", { class: "form-grid two" }, h("label", { class: "field" }, h("span", {}, "Emne"), f.topic), h("label", { class: "field" }, h("span", {}, "Niveau"), f.level)),
       h("label", { class: "check" }, f.published, "Publiceret (synlig for alle)"),
       h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem kursus"), h("span", { style: { flex: 1 } }),
-        h("button", { type: "button", class: "btn ghost danger", onclick: async () => { if (confirm("Slet kurset og alle spørgsmål?")) { await api(`/api/learn/courses/${slug}`, { method: "DELETE" }); location.hash = "#/laer"; } } }, "Slet kursus"))),
+        h("button", { type: "button", class: "btn ghost danger", onclick: async () => { if ((await ask("Slet kurset og alle spørgsmål?"))) { await api(`/api/learn/courses/${slug}`, { method: "DELETE" }); location.hash = "#/laer"; } } }, "Slet kursus"))),
     h("div", { class: "row mt2 mb" }, h("h2", { style: { margin: 0 } }, `Spørgsmål (${c.questions.length})`), h("span", { style: { flex: 1 } }),
       h("button", { class: "btn primary", onclick: () => editQuestion(slug, null, reload), html: `${icon("plus")} Nyt spørgsmål` })), qlist);
   function drawQs(qs) {
@@ -168,7 +168,7 @@ async function editor(view, slug) {
       h("div", { style: { flex: 1, minWidth: 0 } }, h("b", {}, `${i + 1}. ${q.prompt}`), h("div", { class: "muted" }, q.choices.map(ch => (ch.correct ? "✓ " : "") + ch.text).join(" · ")),
         q.media_url ? h("small", { class: "muted" }, q.media_kind === "audio" ? "🔊 lyd" : "🖼 billede") : null),
       h("div", { class: "row" }, h("button", { class: "btn sm", onclick: () => editQuestion(slug, q, reload) }, "Redigér"),
-        h("button", { class: "btn sm ghost danger", onclick: async () => { if (confirm("Slet spørgsmålet?")) { await api(`/api/learn/questions/${q.id}`, { method: "DELETE" }); reload(); } } }, "Slet")))) : [empty("Ingen spørgsmål endnu")]));
+        h("button", { class: "btn sm ghost danger", onclick: async () => { if ((await ask("Slet spørgsmålet?"))) { await api(`/api/learn/questions/${q.id}`, { method: "DELETE" }); reload(); } } }, "Slet")))) : [empty("Ingen spørgsmål endnu")]));
   }
   async function reload() { drawQs((await api(`/api/learn/courses/${slug}`)).questions); }
   drawQs(c.questions);

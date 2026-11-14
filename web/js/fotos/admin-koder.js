@@ -1,5 +1,5 @@
 // Fotos → Admin → Koder: redigér adfærd, køn, alder og dragt (tekst, sortering, DOFbasen-kode), tilføj nye og flet to koder.
-import { api, h, toast } from "../core.js";
+import { api, h, toast, askText } from "../core.js";
 
 const KINDS = [["adfaerd", "Adfærd"], ["koen", "Køn"], ["alder", "Alder"], ["dragt", "Dragt"]];
 
@@ -25,7 +25,7 @@ export async function page() {
   }
   async function merge(r) {
     const others = items.filter(i => i.kind === kind && i.code && i.code !== r.code);
-    const to = prompt(`Flet «${r.text}» (${r.brugt} fugle) ind i hvilken kode?\n` + others.map(o => `${o.code} = ${o.text}`).join("\n"), others[0]?.code || "");
+    const to = (await askText(`Flet «${r.text}» (${r.brugt} fugle) ind i hvilken kode?\n` + others.map(o => `${o.code} = ${o.text}`).join("\n"), others[0]?.code || ""));
     if (!to) return;
     try { const x = await api("/api/admin/fotos/koder/flet", { method: "POST", body: { kind, from_code: r.code, into_code: to.trim() } }); toast(`${x.fugle} fugle flyttet`); items = await api("/api/admin/fotos/koder"); draw(); } catch (e) { toast(e.message, "err"); }
   }

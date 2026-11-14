@@ -1,5 +1,5 @@
 // Import af fotoarkivet: vælg en mappe/zip på serveren, eller upload en zip i dele (genoptagelig); følg importen og læs rapporten.
-import { api, h, toast } from "../core.js";
+import { api, h, toast, ask } from "../core.js";
 import { dkDate, nowrap, bytes } from "./common.js";
 
 const PARALLEL = 3, RETRIES = 4;
@@ -56,7 +56,7 @@ export async function page() {
     window.addEventListener("hashchange", () => clearInterval(timer), { once: true });
   }
   async function startFolder(sti) {
-    if (!confirm(`Start importen af «${sti}»?`)) return;
+    if (!(await ask(`Start importen af «${sti}»?`))) return;
     try { const s = await api("/api/admin/fotos/import/mappe", { method: "POST", body: { sti, ...options() } }); toast("Importen er sat i gang"); follow(s.id); } catch (e) { toast(e.message, "err"); }
   }
   async function loadFolders() {
@@ -102,11 +102,11 @@ export async function page() {
     const list = await api("/api/admin/fotos/import").catch(() => []);
     history.replaceChildren(h("h3", {}, "Tidligere importer"),
       h("button", { class: "btn sm danger", type: "button", onclick: async () => {
-        if (!confirm("Slet midlertidige zip-uploads, som ingen import bruger lige nu? Fotos og importlog beholdes.")) return;
+        if (!(await ask("Slet midlertidige zip-uploads, som ingen import bruger lige nu? Fotos og importlog beholdes."))) return;
         try { const r = await api("/api/admin/fotos/import/uploads", { method: "DELETE" }); toast(`Slettede ${r.filer} filer (${(r.bytes / 1048576).toFixed(0)} MB)`); } catch (e) { toast(e.message, "err"); } } }, "Slet midlertidige zip-uploads"), ...(list.length ? list.map(i => h("details", { class: "card" },
       h("summary", {}, `#${i.id} · ${i.filename || i.sti} · ${i.status} · ${dkDate(i.created_at, { time: true })}`), statGrid(i.stats), logBox(i.log),
       ["klar", "uploader", "faerdig", "fejl"].includes(i.status) ? h("button", { class: "btn sm danger", type: "button", onclick: async () => {
-        if (!confirm("Fjern importen og dens log? Fotos beholdes.")) return;
+        if (!(await ask("Fjern importen og dens log? Fotos beholdes."))) return;
         try { await api(`/api/admin/fotos/import/${i.id}`, { method: "DELETE" }); refresh(); } catch (e) { toast(e.message, "err"); } } }, "Fjern") : null)) : [h("p", { class: "muted" }, "Ingen importer endnu.")]));
     const running = list.find(i => ["klar", "koerer"].includes(i.status));
     if (running && !timer) follow(running.id);

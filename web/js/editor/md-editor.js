@@ -1,7 +1,7 @@
 // Markdown-editor til artikler og nyheder: værktøjslinje, genveje, træk-og-slip/indsæt af billeder, tabeller, gallerier, faktabokse,
 // indlejring, arter og artikellinks, forhåndsvisning renderet af serveren (så den er identisk med resultatet), ord/tegn/læsetid og
 // kladde i browseren. Ingen afhængigheder. Formatet er CommonMark + tabeller + ::: galleri / ::: boks (se services/content_render.py).
-import { api, h, modal, toast, seg } from "../core.js";
+import { api, h, modal, toast, seg, trustedHTML } from "../core.js";
 import { describeDialog, mediaPicker, uploadFile } from "./media-picker.js";
 
 const mq = () => matchMedia("(min-width: 1000px)").matches;
@@ -147,7 +147,7 @@ export function mdEditor({ value = "", ownerKind = "artikel", getOwnerId = () =>
     try {
       const r = await api("/api/content/render", { method: "POST", body: { md: ta.value, profile } });
       if (my !== seq || destroyed) return;
-      preview.innerHTML = r.html || '<p class="muted">Intet at vise endnu.</p>';
+      preview.innerHTML = trustedHTML(r.html || '<p class="muted">Intet at vise endnu.</p>');
       stats(r);
     } catch (e) { if (my === seq) preview.replaceChildren(h("div", { class: "notice err" }, e.message)); }
   }
@@ -173,7 +173,7 @@ export function mdEditor({ value = "", ownerKind = "artikel", getOwnerId = () =>
     else if (e.key === "Tab") {
       const ls = ta.value.slice(0, ta.selectionStart).split("\n").pop();
       if (/^\s*([-*]|\d+\.) /.test(ls) || selected(ta).includes("\n")) { e.preventDefault(); lines(arr => arr.map(l => e.shiftKey ? l.replace(/^( {1,2}|\t)/, "") : "  " + l)); }
-    } else if (e.key === "Enter" && !e.shiftKey && !mod && ta.selectionStart === ta.selectionEnd) {
+    } else if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229) && !e.shiftKey && !mod && ta.selectionStart === ta.selectionEnd) {
       const cur = ta.value.slice(0, ta.selectionStart).split("\n").pop();
       const m = cur.match(/^(\s*)([-*]|\d+\.|>) (.*)$/);
       if (m) {

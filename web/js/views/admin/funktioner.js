@@ -1,5 +1,5 @@
 // Admin → Funktioner (superadmin): funktionsflag og FCM-konto.
-import { api, h, seg, toast, errorBox } from "../../core.js";
+import { api, h, seg, toast, errorBox, ask } from "../../core.js";
 import { refreshUser } from "../../app.js";
 
 /** Funktioner (kun superadmin): nye moduler kan slås fra, vises som forhåndsvisning eller slås til for alle. */
@@ -40,7 +40,7 @@ function fcmCard() {
       d.last_error ? h("p", { class: "muted", style: { margin: 0, wordBreak: "break-word" } }, "Seneste fejl fra Firebase: " + d.last_error) : null,
       d.source === "env" ? null : h("label", { class: "field" }, h("span", {}, "Upload servicekontoens JSON-fil (Firebase → Projektindstillinger → Tjenestekonti → Generér ny privat nøgle)"), file),
       d.source === "admin" ? h("button", { class: "btn sm ghost danger", style: { alignSelf: "flex-start" }, onclick: async () => {
-        if (confirm("Fjern Firebase-nøglen? Appen får så ikke push.")) draw(await api("/api/admin/fcm", { method: "DELETE" }));
+        if ((await ask("Fjern Firebase-nøglen? Appen får så ikke push."))) draw(await api("/api/admin/fcm", { method: "DELETE" }));
       } }, "Fjern nøgle") : null);
   };
   api("/api/admin/fcm").then(draw).catch((err) => box.replaceChildren(errorBox(err)));
@@ -75,9 +75,9 @@ function lydquizCard() {
             result.textContent = r.ok ? `✅ ${r.antal} optagelser af ${r.art} passer til filtrene (søgning: ${r.soegning})` : `❌ ${r.fejl} (søgning: ${r.soegning})`; }
           catch (err) { result.textContent = err.message; }
         } }, "Gem og afprøv (Rødhals)"),
-        d.has_key ? h("button", { class: "btn ghost danger", onclick: () => { if (confirm("Fjern nøglen?")) save({ clear_key: true, xc_key: "" }); } }, "Fjern nøgle") : null,
+        d.has_key ? h("button", { class: "btn ghost danger", onclick: async () => { if ((await ask("Fjern nøglen?"))) save({ clear_key: true, xc_key: "" }); } }, "Fjern nøgle") : null,
         h("button", { class: "btn ghost", title: "Glem de hentede xeno-canto-optagelser, så de hentes igen med de aktuelle filtre", onclick: async () => {
-          if (!confirm("Slet alle hentede xeno-canto-optagelser? (Macaulay-optagelser beholdes)")) return;
+          if (!(await ask("Slet alle hentede xeno-canto-optagelser? (Macaulay-optagelser beholdes)"))) return;
           const r = await api("/api/admin/lydquiz/cache", { method: "DELETE" }); toast(`${r.slettet} optagelser slettet`); draw(await api("/api/admin/lydquiz"));
         } }, "Ryd hentede optagelser")),
       result);

@@ -1,7 +1,7 @@
 // Læring → Artsquiz (#/laer/arter, fotos fra galleriet) og Lydquiz (#/laer/lyd, optagelser fra xeno-canto og Macaulay Library): 20 spørgsmål, hvor arten
 // skal gættes. Arterne vælges fra artsgrupper og/eller enkeltvis (mindst to); der svares med multiple choice eller ved at skrive artens navn
 // (forslag fra hele artslisten, som ved indtastning). De to quizzer deler al kode; forskellene ligger i MODES.
-import { api, h, store, searchSpecies, toast, errorBox, state, can } from "../core.js";
+import { api, h, store, searchSpecies, toast, errorBox, state, can, ask } from "../core.js";
 
 const MODES = {
   arter: {
@@ -61,7 +61,7 @@ export async function render(view, mode = "arter") {
     const add = (s) => { picked.add(s.artnr); draw(); root.querySelector(".aq-add input")?.focus(); };
     input.oninput = () => sugg.replaceChildren(...searchSpecies(species, input.value, 8).map(s =>
       h("button", { type: "button", onclick: () => add(s) }, s.navn, h("small", { class: "muted" }, ` · ${s.latin || ""}${photos(s.artnr) ? "" : ` · ingen ${M.unit}`}`))));
-    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); const s = searchSpecies(species, input.value, 1)[0]; if (s) add(s); } };
+    input.onkeydown = (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); const s = searchSpecies(species, input.value, 1)[0]; if (s) add(s); } };
 
     const chips = [...picked].map(a => byNr.get(a)).sort((x, y) => x.navn.localeCompare(y.navn, "da"));
     root.replaceChildren(
@@ -108,7 +108,7 @@ export async function render(view, mode = "arter") {
       if (e.target.closest?.("input, textarea")) return;
       const n = Number(e.key);
       if (n >= 1 && n <= 4) wrap.querySelectorAll(".choice")[n - 1]?.click();
-      if (e.key === "Enter") wrap.querySelector(".next")?.click();
+      if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) wrap.querySelector(".next")?.click();
     };
     document.addEventListener("keydown", keyHandler);
     cleanup = () => document.removeEventListener("keydown", keyHandler);
@@ -209,7 +209,7 @@ function mlPanel(species) {
         catch (err) { toast(err.message, "err"); }
       } }, ref, h("div", { class: "aq-add field" }, art, sugg), type, rec, h("button", { class: "btn primary" }, "Læg ind")),
       rows.length ? h("ul", {}, ...rows.map(r => h("li", {}, h("a", { href: r.page_url, target: "_blank", rel: "noopener" }, `ML${r.ext_id}`), ` · ${r.navn || r.latin}${r.rtype ? ` · ${r.rtype}` : ""}${r.recordist ? ` · ${r.recordist}` : ""} `,
-        h("button", { type: "button", class: "btn sm ghost danger", onclick: async () => { if (confirm("Fjern optagelsen?")) { await api(`/api/learn/lyd/ml/${r.id}`, { method: "DELETE" }); draw(); } } }, "Fjern")))) : h("p", { class: "muted" }, "Ingen Macaulay-optagelser endnu."));
+        h("button", { type: "button", class: "btn sm ghost danger", onclick: async () => { if ((await ask("Fjern optagelsen?"))) { await api(`/api/learn/lyd/ml/${r.id}`, { method: "DELETE" }); draw(); } } }, "Fjern")))) : h("p", { class: "muted" }, "Ingen Macaulay-optagelser endnu."));
   };
   draw();
   return h("details", { class: "card mt2" }, h("summary", {}, "Redaktør: Macaulay Library-optagelser"), box);

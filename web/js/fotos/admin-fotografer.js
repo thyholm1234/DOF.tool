@@ -1,5 +1,5 @@
 // Fotos → Admin → Fotografer: alle fotografer med antal fotos og match-status (auto/manuel/tvetydig/ingen); kobl til bruger/obserkode, fjern kobling eller flet.
-import { api, h, toast, modal } from "../core.js";
+import { api, h, toast, modal, ask } from "../core.js";
 import { BASE, loadingBox, nowrap, pager } from "./common.js";
 
 export async function page() {
@@ -33,7 +33,7 @@ export async function page() {
     const id = h("input", { type: "number", placeholder: "Fotograf-id at flette ind i" });
     const m = modal(`Flet «${r.navn}» (id ${r.id})`, h("form", { class: "stack", onsubmit: async (e) => {
       e.preventDefault();
-      if (!confirm("Fotos og grupper flyttes til den valgte fotograf. Fortsæt?")) return;
+      if (!(await ask("Fotos og grupper flyttes til den valgte fotograf. Fortsæt?"))) return;
       try { await api("/api/admin/fotos/fotografer/flet", { method: "POST", body: { from_id: r.id, into_id: +id.value } }); m.close(); toast("Flettet"); load(); } catch (x) { toast(x.message, "err"); }
     } }, h("p", { class: "muted" }, "Find id'et i kolonnen Fotograf (adressen #/fotos/fotograf/<id>). Brugerkoblingen følger med den, der lever videre."), id, h("div", { class: "row" }, h("button", { class: "btn primary" }, "Flet"))));
   }

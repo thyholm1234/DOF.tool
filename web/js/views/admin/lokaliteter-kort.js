@@ -1,7 +1,7 @@
 // Admin → Lokaliteter → Kort: se og ret lokaliteternes grænser (services/location_edit.py).
 // Grænserne hentes pr. kortudsnit, forenklet til zoom; den valgte lokalitet hentes i fuld opløsning, så det er den rigtige
 // form, der rettes. Redigering med Leaflet-Geoman: hjørner fastgøres til nabogrænser (snapping), selvskæring er ikke tilladt.
-import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, modal, esc } from "../../core.js";
+import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, modal, esc, ask, askText } from "../../core.js";
 import { baseMap, cssVar, geoman } from "../../maps.js";
 
 const BASE = "/api/admin/locations";
@@ -82,7 +82,7 @@ export async function renderLocationMap(body) {
     if (mode === "merge" && selected) {
       mode = null; mapEl.style.cursor = "";
       if (loknr === selected.d.loknr) return;
-      if (!confirm(`Læg ${loknr} sammen med ${selected.d.navn}? ${loknr} peger derefter videre til ${selected.d.loknr}, og grænserne forenes.`)) return;
+      if (!(await ask(`Læg ${loknr} sammen med ${selected.d.navn}? ${loknr} peger derefter videre til ${selected.d.loknr}, og grænserne forenes.`))) return;
       return act(() => api(`${BASE}/${selected.d.loknr}/merge`, { method: "POST", body: { other: loknr, base_id: selected.d.graense?.id ?? null } }), "Lagt sammen");
     }
     select(loknr, false);
@@ -217,7 +217,7 @@ export async function renderLocationMap(body) {
     const { d } = selected;
     const line = await draw("Line", "Tegn en linje tværs over lokaliteten; dobbeltklik for at afslutte");
     if (!line) return;
-    const names = prompt("Navne på de nye dele, adskilt af komma (tomt = automatiske navne). Den oprindelige bliver forælder og beholder sine observationer.", "");
+    const names = (await askText("Navne på de nye dele, adskilt af komma (tomt = automatiske navne). Den oprindelige bliver forælder og beholder sine observationer.", ""));
     if (names === null) return;
     await act(() => api(`${BASE}/${d.loknr}/split`, { method: "POST", body: { line, names: names.split(",").map(x => x.trim()).filter(Boolean), base_id: d.graense.id } }), "Lokaliteten er delt");
   }
@@ -246,17 +246,17 @@ export async function renderLocationMap(body) {
   }
 
   async function restore(id) {
-    if (!confirm("Gendan denne version? Den bliver en ny version – intet slettes.")) return;
+    if (!(await ask("Gendan denne version? Den bliver en ny version – intet slettes."))) return;
     await act(() => api(`${BASE}/${selected.d.loknr}/revert`, { method: "POST", body: { shape_id: id, base_id: selected.d.graense?.id ?? null } }), "Versionen er gendannet");
   }
 
   async function trim(loknrs) {
-    if (!confirm("Skær denne lokalitets areal ud af naboerne? Hver nabo får en ny version, som kan gendannes.")) return;
+    if (!(await ask("Skær denne lokalitets areal ud af naboerne? Hver nabo får en ny version, som kan gendannes."))) return;
     await act(() => api(`${BASE}/${selected.d.loknr}/trim-neighbours`, { method: "POST", body: { loknrs } }), "Overlap fjernet");
   }
 
   async function remove() {
-    if (!confirm(`Slet ${selected.d.navn}? Det kan kun gøres for portalens egne lokaliteter uden observationer.`)) return;
+    if (!(await ask(`Slet ${selected.d.navn}? Det kan kun gøres for portalens egne lokaliteter uden observationer.`))) return;
     busy = true;
     try { await api(`${BASE}/${selected.d.loknr}`, { method: "DELETE" }); toast("Slettet"); if (selected.layer) map.removeLayer(selected.layer); selected = null; drawSide(); load(); }
     catch (err) { toast(err.message, "err"); } finally { busy = false; }

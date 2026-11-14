@@ -1,6 +1,6 @@
 // Indtastning: én fugl ad gangen med dato, koordinat og DOFbasens felter + status (under observation) og sikkerhed.
 // Lokaliteten foreslås ud fra fuglens position (nærmeste i DOFbasen) og kan skiftes.
-import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, compressImage, params, setParams, store, sortBar, KAT } from "../core.js";
+import { api, h, icon, fmtN, fmtDate, todayISO, tag, toast, empty, errorBox, seg, requireLogin, compressImage, params, setParams, store, sortBar, KAT, ask } from "../core.js";
 import { baseMap, locationOutlines } from "../maps.js";
 import { statusBadge, certaintyTag, SIKKERHED, GRUNDLAG } from "../reportui.js";
 import { listLocal, syncAll, cachedApi } from "../offline.js";
@@ -154,7 +154,7 @@ async function editPage(view, id) {
         h("p", { class: "lead" }, [fmtDate(r.dato), r.lok, r.kommune].filter(Boolean).join(" · "))),
       h("span", { class: "spacer" }),
       h("button", { class: "btn danger solid", html: `${icon("trash")} Slet observation`, onclick: async () => {
-        if (!confirm(`Slet ${r.antal} ${r.art}?`)) return;
+        if (!(await ask(`Slet ${r.antal} ${r.art}?`))) return;
         try { await api(`/api/reports/${r.id}`, { method: "DELETE" }); toast("Observationen er slettet"); back(); } catch (err) { toast(err.message, "err"); }
       } })),
     h("div", { class: "card" }, reportForm({ recent, initial: r, submitLabel: "Gem ændringer", onSaved: (upd) => { location.hash = threadHash(upd); } })));
@@ -192,7 +192,7 @@ function reportForm({ recent, initial = null, submitLabel, onSaved }) {
   spInput.onfocus = showSuggest;
   spInput.oninput = showSuggest;
   spInput.onblur = () => setTimeout(() => suggest.replaceChildren(), 150);
-  spInput.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape" && suggest.children.length) { e.preventDefault(); suggest.replaceChildren(); } };
+  spInput.onkeydown = (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape" && suggest.children.length) { e.preventDefault(); suggest.replaceChildren(); } };
   const pick = (sp) => {
     spInput.classList.remove("invalid");
     v.artnr = sp?.artnr ?? null;

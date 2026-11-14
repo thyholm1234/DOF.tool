@@ -1,5 +1,5 @@
 // Import af artikelarkivet: vælg zip, upload i dele (genoptagelig, 3 ad gangen), vælg indstillinger, følg importen og læs rapporten.
-import { api, h, toast } from "../core.js";
+import { api, h, toast, ask } from "../core.js";
 import { dkDate, nowrap, loadingBox } from "./common.js";
 
 const PARALLEL = 3, RETRIES = 4;
@@ -119,7 +119,7 @@ export async function page() {
     history.replaceChildren(h("h3", {}, "Tidligere importer"), ...(list.length ? list.map(i => h("details", { class: "card" },
       h("summary", {}, `#${i.id} · ${i.filename} · ${bytes(i.size)} · ${i.status} · ${dkDate(i.created_at, { time: true })}`),
       statGrid(i.stats), logBox(i.log), i.status === "klar" || i.status === "uploader" || i.status === "faerdig" || i.status === "fejl" ? h("button", { class: "btn sm danger", type: "button", onclick: async () => {
-        if (!confirm("Fjern importen og dens log? Artiklerne beholdes.")) return;
+        if (!(await ask("Fjern importen og dens log? Artiklerne beholdes."))) return;
         try { await api(`/api/admin/artikler/import/${i.id}`, { method: "DELETE" }); refresh(); } catch (e) { toast(e.message, "err"); } } }, "Fjern") : null)) : [h("p", { class: "muted" }, "Ingen importer endnu.")]));
     const running = list.find(i => ["klar", "koerer"].includes(i.status));
     if (running && !timer) follow(running.id);

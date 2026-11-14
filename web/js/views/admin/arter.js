@@ -1,5 +1,5 @@
 // Moderation → Arter: bemærk-grænser, fænologivinduer, artslisten, listekategorier og manuelle fund.
-import { api, h, icon, fmtN, fmtDate, seg, params, setParams, toast, errorBox, empty, modal, can, searchSpecies } from "../../core.js";
+import { api, h, icon, fmtN, fmtDate, seg, params, setParams, toast, errorBox, empty, modal, can, searchSpecies, ask, askText } from "../../core.js";
 
 // Moderation → Arter: arternes klassifikation, bemærk-filtre pr. lokalafdeling og fænologiens perioder
 export function species(body) {
@@ -20,7 +20,7 @@ function speciesInput(all, onPick, placeholder = "Art …") {
   const pick = (sp) => { input.value = sp.navn; suggest.replaceChildren(); onPick(sp); };
   input.oninput = () => { onPick(null); suggest.replaceChildren(...searchSpecies(all, input.value).map(sp => h("button", { type: "button", onmousedown: (e) => e.preventDefault(), onclick: () => pick(sp) }, h("span", {}, sp.navn)))); };
   input.onblur = () => setTimeout(() => suggest.replaceChildren(), 150);
-  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } };
+  input.onkeydown = (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); suggest.querySelector("button")?.click(); } };
   return { el: h("div", { class: "dd-wrap", style: { flex: "1 1 220px" } }, input, suggest), clear: () => { input.value = ""; onPick(null); } };
 }
 
@@ -61,8 +61,8 @@ async function bemaerkPanel(body) {
           return h("tr", {}, h("td", {}, r.artnavn), h("td", {}, inp),
             h("td", { class: "muted" }, r.edit_id ? h("span", {}, h("span", { class: "tag local" }, "ændret"), ` DOFbasen: ${r.dof_antal ?? "ingen"} `,
               h("button", { class: "link-btn", type: "button", onclick: () => call(`/api/admin/reference-edits/${r.edit_id}`, { method: "DELETE" }, "Fortrudt") }, "Fortryd")) : ""),
-            h("td", { class: "right" }, h("button", { class: "btn sm ghost danger", type: "button", onclick: () => {
-              if (confirm(`Fjern bemærk-filteret for ${r.artnavn}?`)) call(`/api/admin/bemaerk/${afd}?artnavn=${encodeURIComponent(r.artnavn)}`, { method: "DELETE" }, "Fjernet");
+            h("td", { class: "right" }, h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => {
+              if ((await ask(`Fjern bemærk-filteret for ${r.artnavn}?`))) call(`/api/admin/bemaerk/${afd}?artnavn=${encodeURIComponent(r.artnavn)}`, { method: "DELETE" }, "Fjernet");
             } }, "Fjern")));
         }))),
       shown.length ? null : h("p", { class: "muted" }, "Ingen arter."),
@@ -118,8 +118,8 @@ async function phenoPanel(body) {
               h("button", { class: "link-btn", type: "button", onclick: () => call(`/api/admin/reference-edits/${r.edit_id}`, { method: "DELETE" }, "Fortrudt") }, "Fortryd")) : ""),
             h("td", { class: "right" }, h("div", { class: "row", style: { gap: "4px", justifyContent: "flex-end" } },
               h("button", { class: "btn sm", type: "button", onclick: () => call("/api/admin/phenology", { method: "PUT", body: { artnavn: r.artnavn, windows: ed.value() } }, "Gemt") }, "Gem"),
-              h("button", { class: "btn sm ghost danger", type: "button", onclick: () => {
-                if (confirm(`Fjern ${r.artnavn} fra fænologien?`)) call(`/api/admin/phenology?artnavn=${encodeURIComponent(r.artnavn)}`, { method: "DELETE" }, "Fjernet");
+              h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => {
+                if ((await ask(`Fjern ${r.artnavn} fra fænologien?`))) call(`/api/admin/phenology?artnavn=${encodeURIComponent(r.artnavn)}`, { method: "DELETE" }, "Fjernet");
               } }, "Fjern"))));
         }))),
       shown.length ? null : h("p", { class: "muted" }, "Ingen arter."),
@@ -205,7 +205,7 @@ function editSpecies(s, all, done) {
     h("label", { class: "check" }, excluded, " Udeluk fra lister og notifikationer", s.edited.includes("excluded") ? h("small", { class: "muted" }, ` (DOFbasen: ${dof.excluded ? "ja" : "nej"})`) : null),
     h("div", { class: "row" }, h("button", { class: "btn primary" }, "Gem"),
       s.edited.length ? h("button", { class: "btn", type: "button", onclick: async () => {
-        if (!confirm(`Fortryd alle portalens rettelser af ${s.navn}?`)) return;
+        if (!(await ask(`Fortryd alle portalens rettelser af ${s.navn}?`))) return;
         try { await api(`/api/admin/species/${s.artnr}/edits`, { method: "DELETE" }); close(); toast("Fortrudt"); done(); } catch (err) { toast(err.message, "err"); }
       } }, "Fortryd rettelser") : null)));
 }
@@ -262,7 +262,7 @@ async function categoriesPanel(body) {
       h("div", {}, katTag(r.kategori), " ", h("b", {}, r.valid_from ? `fra ${fmtDate(r.valid_from)}` : "altid"),
         r.note ? h("div", { style: { fontSize: ".9rem" } }, r.note) : null, h("small", { class: "muted" }, who(r)), removed(r)),
       r.removed_at ? null : h("button", { class: "btn sm ghost danger", onclick: async () => {
-        if (!confirm("Fjern kategorien? Den bevares i historikken.")) return;
+        if (!(await ask("Fjern kategorien? Den bevares i historikken."))) return;
         await api(`/api/categories/periods/${r.id}`, { method: "DELETE" }); toast("Fjernet"); reload();
       } }, "Fjern"));
     const periodsCard = h("div", { class: "card stack" },
@@ -282,7 +282,7 @@ async function categoriesPanel(body) {
     const year = h("select", { style: { width: "auto" }, onchange: () => { setParams({ y: year.value }); loadDetail(); } },
       h("option", { value: "" }, "Alle år"), ...d.years.map(y => h("option", { value: y, selected: String(y) === String(d.year) }, y)));
     const setSeries = async (sr, k) => {
-      const n = prompt(`Sæt kategori ${k} for ${d.navn} på ${sr.lok || sr.loknr} ${fmtDate(sr.first)}–${fmtDate(sr.last)}.\nNote / kilde (fx DKU-godkendelse):`, "");
+      const n = (await askText(`Sæt kategori ${k} for ${d.navn} på ${sr.lok || sr.loknr} ${fmtDate(sr.first)}–${fmtDate(sr.last)}.\nNote / kilde (fx DKU-godkendelse):`, ""));
       if (n === null) return false;
       try {
         await api("/api/categories/overrides", { method: "POST", body: { artnr: d.artnr, loknr: sr.loknr, date_from: sr.first, date_to: sr.last, kategori: k, note: n } });
@@ -312,7 +312,7 @@ async function categoriesPanel(body) {
         h("span", { class: "nowrap" }, v.date_from === v.date_to ? fmtDate(v.date_from) : `${fmtDate(v.date_from)} – ${fmtDate(v.date_to)}`),
         v.note ? h("div", { style: { fontSize: ".9rem" } }, v.note) : null, h("small", { class: "muted" }, who(v)), removed(v)),
       v.removed_at ? null : h("button", { class: "btn sm ghost danger", onclick: async () => {
-        if (!confirm("Fjern overstyringen? Serien får igen artens kategori. Overstyringen bevares i historikken.")) return;
+        if (!(await ask("Fjern overstyringen? Serien får igen artens kategori. Overstyringen bevares i historikken."))) return;
         await api(`/api/categories/overrides/${v.id}`, { method: "DELETE" }); toast("Fjernet"); reload();
       } }, "Fjern"));
     const ovActive = d.overrides.filter(v => !v.removed_at), ovOld = d.overrides.filter(v => v.removed_at);
@@ -344,7 +344,7 @@ async function manualFinds(box) {
           h("td", { "data-label": "Sted" }, f.lok ? h("a", { href: `#/lok/${f.loknr}` }, f.lok) : null, f.lok && f.sted ? " · " : null, f.sted || null),
           h("td", { class: "muted", "data-label": "Note" }, f.note || "", h("small", { style: { display: "block" } }, `${f.created_by || "Indlæst automatisk"} · ${fmtDate(f.created_at)}`)),
           h("td", { class: "right" }, d.can_edit ? h("button", { class: "btn sm ghost danger", onclick: async () => {
-            if (!confirm(`Slet fundet af ${f.art} ${fmtDate(f.dato)}?`)) return;
+            if (!(await ask(`Slet fundet af ${f.art} ${fmtDate(f.dato)}?`))) return;
             try { await api(`/api/categories/finds/${f.id}`, { method: "DELETE" }); toast("Fundet er slettet"); load(); } catch (err) { toast(err.message, "err"); }
           } }, "Slet") : null)))))) : h("small", { class: "muted" }, "Ingen manuelle fund endnu."));
   };
@@ -416,7 +416,7 @@ function renderListReport(box, r, done) {
     r.bracket_off_list.length ? h("small", { class: "muted" }, `Står med [klammer] i DOFbasen, men ikke på listen (beholder kategori D): ${r.bracket_off_list.map(x => x.navn).join(", ")}`) : null,
     r.n_changes ? h("details", {}, h("summary", {}, `Vis ændringerne${r.n_changes > r.changes.length ? ` (de første ${r.changes.length})` : ""}`), h("ul", { class: "stack-sm", style: { columns: "2 260px" } }, ...r.changes.map(row))) : null,
     r.n_changes ? h("button", { class: "btn primary", style: { alignSelf: "flex-start" }, onclick: async (e) => {
-      if (!confirm(`Læg ${r.n_changes} kategoriændringer ind fra Den Danske Liste?`)) return;
+      if (!(await ask(`Læg ${r.n_changes} kategoriændringer ind fra Den Danske Liste?`))) return;
       e.currentTarget.disabled = true;
       try { const w = await api("/api/categories/danish-list", { method: "POST" }); toast(`${w.written} kategorier lagt ind`); rep.remove(); done(); }
       catch (err) { toast(err.message, "err"); e.currentTarget.disabled = false; }

@@ -1,5 +1,5 @@
 // Moderatorens boks på fotosiden: godkend/afvis, afpublicér, lås, gruppér, ret, slet og bannere.
-import { api, h, toast, modal } from "../core.js";
+import { api, h, toast, modal, ask, askText } from "../core.js";
 import { BASE } from "./common.js";
 
 /** Afvis/afpublicér med standardgrunde + fritekst. onDone(grund) kaldes med den valgte tekst. */
@@ -22,7 +22,7 @@ export function adminBox(p, reload) {
   const run = async (fn, msg) => { try { await fn(); toast(msg); reload(); } catch (e) { toast(e.message, "err"); } };
   async function group() {
     const { ids } = await api(`/api/admin/fotos/${p.id}/gruppeforslag`);
-    const extra = prompt(`Foto-id'er der skal grupperes med dette (komma-adskilt)${ids.length ? `. Forslag fra samme fotograf og fund: ${ids.join(", ")}` : ""}`, ids.join(", "));
+    const extra = (await askText(`Foto-id'er der skal grupperes med dette (komma-adskilt)${ids.length ? `. Forslag fra samme fotograf og fund: ${ids.join(", ")}` : ""}`, ids.join(", ")));
     if (extra === null) return;
     const list = extra.split(/[,\s]+/).map(Number).filter(Boolean);
     if (!list.length) return;
@@ -38,5 +38,5 @@ export function adminBox(p, reload) {
       p.gruppe.length > 1 ? act("Fjern fra gruppe", () => run(() => api(`/api/fotos/${p.id}/gruppe`, { method: "DELETE" }), "Fjernet fra gruppen")) : null,
       act("Ret", () => { location.hash = `${BASE}/${p.id}/ret`; }),
       p.kan.bannere ? act("Brug som banner…", async () => (await import("./bannere.js")).bannerDialog(p)) : null,
-      act("Slet", async () => { if (confirm("Slet fotoet for altid?")) { try { await api(`/api/fotos/${p.id}`, { method: "DELETE" }); toast("Slettet"); location.hash = BASE; } catch (e) { toast(e.message, "err"); } } }, "btn sm danger")));
+      act("Slet", async () => { if ((await ask("Slet fotoet for altid?"))) { try { await api(`/api/fotos/${p.id}`, { method: "DELETE" }); toast("Slettet"); location.hash = BASE; } catch (e) { toast(e.message, "err"); } } }, "btn sm danger")));
 }

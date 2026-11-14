@@ -22,18 +22,22 @@ android {
     }
     signingConfigs {
         release {
-            // Nøglen oprettes af build.sh (app/signing/, ikke i git)
+            // Nøglen oprettes af build.sh (app/signing/, ikke i git). Ingen standardadgangskode: mangler DOF_KEYSTORE_PASS,
+            // fejler release-bygget i stedet for at signere med en gætbar adgangskode.
             storeFile file(System.getenv("DOF_KEYSTORE") ?: "../../signing/dof-tool.jks")
-            storePassword System.getenv("DOF_KEYSTORE_PASS") ?: "android"
+            storePassword System.getenv("DOF_KEYSTORE_PASS")
             keyAlias "dof-tool"
-            keyPassword System.getenv("DOF_KEYSTORE_PASS") ?: "android"
+            keyPassword System.getenv("DOF_KEYSTORE_PASS")
         }
     }
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8: fjerner ubrugt native kode og ressourcer og slører navne (påvirker ikke portalen, som hentes fra serveren).
+            // Capacitor-plugins (også DofAsr/DofPosition) bevares af Capacitors egne regler; ONNX Runtime af proguard-rules.pro.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

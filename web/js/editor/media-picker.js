@@ -1,6 +1,6 @@
 // Medievælger til editoren: upload (med skalering i browseren), vælg et eller flere medier, ret alt-tekst/billedtekst/kreditering, slet.
 // Medier hører til en artikel eller nyhed (ownerKind/ownerId); før indlægget er gemt har de ingen ejer og tilhører den, der uploadede dem.
-import { api, h, modal, toast, compressImage } from "../core.js";
+import { api, h, modal, toast, compressImage, ask } from "../core.js";
 
 const sizeLabel = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(n / 1e3))} kB`;
 
@@ -50,7 +50,7 @@ export function mediaPicker({ ownerKind, ownerId, multi = false, kinds = ["bille
         m.thumb ? h("img", { src: m.thumb, alt: m.alt || "", loading: "lazy", style: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: "4px" } })
           : h("div", { style: { aspectRatio: "4 / 3", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-2)", borderRadius: "4px", fontSize: "1.6rem" } }, m.kind === "lyd" ? "🔊" : "📎"),
         h("div", { class: "small", style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, m.filename), h("div", { class: "muted small" }, sizeLabel(m.size)),
-        h("button", { class: "btn sm ghost danger", type: "button", onclick: async (e) => { e.stopPropagation(); if (!confirm("Slet filen?")) return;
+        h("button", { class: "btn sm ghost danger", type: "button", onclick: async (e) => { e.stopPropagation(); if (!(await ask("Slet filen?"))) return;
           try { await api(`/api/content/media/${m.id}`, { method: "DELETE" }); chosen.delete(m.id); load(); } catch (err) { toast(err.message, "err"); } } }, "Slet"));
     }) : [h("p", { class: "muted" }, "Ingen medier endnu – upload nogle.")]));
   };

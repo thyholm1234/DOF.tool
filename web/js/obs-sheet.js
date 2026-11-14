@@ -1,5 +1,5 @@
 // Popups til observationer og ynglepar på en tur (ny/ret). Faner: Påkrævet · Valgfrit · Medier.
-import { h, icon, seg, fmtDate, compressImage } from "./core.js";
+import { h, icon, seg, fmtDate, compressImage, ask } from "./core.js";
 import { SIKKERHED, GRUNDLAG } from "./reportui.js";
 import { newId } from "./offline.js";
 import { nowHM } from "./tur-data.js";
@@ -74,7 +74,7 @@ export function openObsSheet({ ref, recent, T, obs = null, adfDefault = "", guid
   if (obs) picker.pick(find(obs.artnr) || { artnr: obs.artnr, navn: obs.art });
   const s = sheet({
     kicker: obs ? "Ret observation" : "Ny observation", title: T.lok || "Tur", sub: sub(T),
-    onDelete: obs ? () => { if (!confirm(`Slet ${obs.antal} ${obs.art}?`)) return false; onDelete(); } : null,
+    onDelete: obs ? async () => { if (!(await ask(`Slet ${obs.antal} ${obs.art}?`))) return false; onDelete(); } : null,
     confirmLabel: obs ? "Gem rettelser" : "Gem observation",
     tabList: [
       ["krav", "Påkrævet", [artF.el, warn, adfF.el, antalF.el, guideBox]],
@@ -126,7 +126,7 @@ export function openPairSheet({ ref, recent, T, pair = null, onSave, onDelete })
   if (pair) picker.pick(find(pair.artnr) || { artnr: pair.artnr, navn: pair.art });
   const s = sheet({
     kicker: pair ? "Ret ynglepar" : "Nyt ynglepar", title: T.lok || "Tur", sub: sub(T),
-    onDelete: pair ? () => { if (!confirm("Slet ynglepar?")) return false; onDelete(); } : null,
+    onDelete: pair ? async () => { if (!(await ask("Slet ynglepar?"))) return false; onDelete(); } : null,
     confirmLabel: pair ? "Gem rettelser" : "Gem ynglepar",
     tabList: [
       ["krav", "Påkrævet", [artF.el, adfF.el, h("div", { class: "field" }, h("span", { class: "label" }, "Antal par"), h("div", { class: "stack", style: { gap: "8px" } }, antal, bumpButtons(antal)))]],

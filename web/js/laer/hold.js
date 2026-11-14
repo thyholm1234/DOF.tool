@@ -1,5 +1,5 @@
 // Læring 2.0: hold – mine hold, tilmelding, holdside og undervisernes oversigt (docs/laering-spec.md §9.2).
-import { api, h, toast, errorBox, empty, modal } from "../core.js";
+import { api, h, toast, errorBox, empty, modal, ask } from "../core.js";
 import { BASE, backLink, chip, loadingBox } from "./common.js";
 
 export async function render(view, [id], info) {
@@ -9,7 +9,7 @@ export async function render(view, [id], info) {
   const head = h("section", { class: "lr-course-head" }, h("div", {}, h("div", { class: "lr-kicker" }, "Hold"), h("h2", {}, d.title), h("p", {}, "Forløb: ", h("a", { href: `${BASE}/forloeb/${d.path.slug}?hold=${d.id}` }, d.path.title)),
     h("div", { class: "lr-meta" }, d.archived ? chip("arkiveret", "warn") : null, d.teacher ? chip(`Holdkode: ${d.join_code}`, "soft") : null),
     h("div", { class: "lr-actions" }, h("a", { class: "btn primary", href: `${BASE}/forloeb/${d.path.slug}?hold=${d.id}` }, "Åbn forløbet"),
-      h("button", { class: "btn ghost", onclick: async () => { if (confirm("Forlad holdet?")) { try { await api(`/api/learn/hold/${id}/forlad`, { method: "POST" }); location.hash = `${BASE}/hold`; } catch (e) { toast(e.message, "err"); } } } }, "Forlad holdet"))));
+      h("button", { class: "btn ghost", onclick: async () => { if ((await ask("Forlad holdet?"))) { try { await api(`/api/learn/hold/${id}/forlad`, { method: "POST" }); location.hash = `${BASE}/hold`; } catch (e) { toast(e.message, "err"); } } } }, "Forlad holdet"))));
   const members = h("div", {}, h("h3", {}, `Deltagere (${d.members.length})`), h("div", { class: "lr-chips" }, ...d.members.map(m => chip(m.navn + (m.role === "underviser" ? " · underviser" : ""), m.role === "underviser" ? "soft" : ""))));
   view.append(backLink(`${BASE}/hold`, "Hold"), head, members);
   if (!d.teacher) return;

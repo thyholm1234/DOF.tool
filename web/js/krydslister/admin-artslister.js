@@ -1,6 +1,6 @@
 // Admin → Artslister: ret arterne på en artsliste (DK, VP …). Tilføj fra World Bird List eller som ny art (fx en split, der ikke er i AviList),
 // ret dansk/engelsk navn, * (SU), sjældenhed, kategorier og placering, fjern; ny liste (evt. som kopi af en anden); CSV-eksport og -import med diff.
-import { api, h, toast, modal, fmtN, icon } from "../core.js";
+import { api, h, toast, modal, fmtN, icon, ask } from "../core.js";
 import { loadingBox, taxonPicker } from "./common.js";
 
 const SJ = [["almindelig", "Almindelig"], ["relativ_almindelig", "Relativ almindelig"], ["ualmindelig", "Ualmindelig"], ["sjaelden", "Sjælden"], ["su", "SU / * (sjælden)"]];
@@ -65,7 +65,7 @@ export async function page(parts, q) {
         h("td", { class: "nowrap right" },
           h("button", { class: "btn sm", type: "button", "aria-label": `Ret ${r.navn}`, onclick: () => edit({ ...r, placering: i + 1 }, hasCats), html: `${icon("edit")}<span class="kl-hide-sm"> Ret</span>` }), " ",
           h("button", { class: "btn sm ghost danger", type: "button", "aria-label": `Fjern ${r.navn}`, html: icon("trash"), onclick: async () => {
-            if (!confirm(`Fjern ${r.navn} fra ${cur.navn}?`)) return;
+            if (!(await ask(`Fjern ${r.navn} fra ${cur.navn}?`))) return;
             try { await api(`/api/admin/krydslister/artslister/${cur.id}/arter/${r.id}`, { method: "DELETE" }); toast("Fjernet"); reload(); } catch (e) { toast(e.message, "err"); } } })))));
       more.replaceChildren(hits.length > st.shown ? h("button", { class: "btn", type: "button", onclick: () => { st.shown += STEP * 3; drawRows(); } }, `Vis flere (${fmtN(hits.length - st.shown)} tilbage)`) : "");
     };
@@ -114,7 +114,7 @@ export async function page(parts, q) {
       try {
         const d = await send(false);
         const txt = `Nye: ${d.nye.length} · Ændrede: ${d.aendrede.length} · Uændrede: ${d.uaendret} · Ukendte arter: ${d.ukendte.length} · Mangler i filen (røres ikke): ${d.mangler_i_filen.length}\n${d.fejl.join("\n")}${d.ukendte.length ? `\nUkendte (tilføj dem med «Ny art»): ${d.ukendte.slice(0, 10).join(", ")}${d.ukendte.length > 10 ? " …" : ""}` : ""}\n\nAnvend ændringerne?`;
-        if ((d.nye.length || d.aendrede.length) && confirm(txt)) { await send(true); toast("Importeret"); reload(); } else if (!d.nye.length && !d.aendrede.length) alert(txt.replace("\n\nAnvend ændringerne?", "\n\nIntet at ændre."));
+        if ((d.nye.length || d.aendrede.length) && (await ask(txt))) { await send(true); toast("Importeret"); reload(); } else if (!d.nye.length && !d.aendrede.length) alert(txt.replace("\n\nAnvend ændringerne?", "\n\nIntet at ændre."));
       } catch (e) { toast(e.message, "err"); }
       file.value = "";
     } });

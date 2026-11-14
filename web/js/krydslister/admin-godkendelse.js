@@ -1,11 +1,11 @@
 // Admin → Godkendelse: manuelle kryds på lister med regler.godkendelse (fx Falsk VP). Godkend eller afvis med besked til deltageren.
-import { api, h, toast } from "../core.js";
+import { api, h, toast, askText } from "../core.js";
 import { dkDate } from "./common.js";
 
 export async function page() {
   const rows = await api("/api/admin/krydslister/godkendelse");
   const act = async (r, action) => {
-    const reason = prompt(action === "afvis" ? "Begrundelse (sendes til deltageren):" : "Evt. besked til deltageren:", "");
+    const reason = (await askText(action === "afvis" ? "Begrundelse (sendes til deltageren):" : "Evt. besked til deltageren:", ""));
     if (reason === null) return;
     try { await api(`/api/admin/krydslister/godkendelse/${r.id}/${action}`, { method: "POST", body: { reason } }); toast("Behandlet"); location.reload(); } catch (e) { toast(e.message, "err"); }
   };

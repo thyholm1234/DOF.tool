@@ -1,5 +1,5 @@
 // Mine fotos: status (afventer/afvist med grund/publiceret), ret og slet, uploadprivilegium og indstillinger (standard-rettighed og samtykke).
-import { api, h, toast } from "../core.js";
+import { api, h, toast, ask } from "../core.js";
 import { BASE, STATUS, photoCard, nowrap } from "./common.js";
 
 export async function page() {
@@ -15,7 +15,7 @@ export async function page() {
     f.status === "afvist" ? h("div", { class: "notice err small" }, "Afvist: ", f.afvist_grund || "ingen begrundelse") : null,
     h("div", { class: "row" }, !f.laast ? h("a", { class: "btn sm", href: `${BASE}/${f.id}/ret` }, "Ret") : h("span", { class: "muted small" }, "Låst af moderator"),
       !f.laast ? h("button", { class: "btn sm danger", type: "button", onclick: async (e) => {
-        if (!confirm("Slet fotoet? Det kan ikke fortrydes.")) return;
+        if (!(await ask("Slet fotoet? Det kan ikke fortrydes."))) return;
         try { await api(`/api/fotos/${f.id}`, { method: "DELETE" }); e.target.closest(".fot-mine").remove(); toast("Fotoet er slettet"); } catch (x) { toast(x.message, "err"); }
       } }, "Slet") : null));
   return h("div", { class: "stack" },

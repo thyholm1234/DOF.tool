@@ -1,5 +1,5 @@
 // Kalendere for lokaliteter: planlæg indsatsen på trækposter – hvem kommer hvornår, trækvejr og typisk træk.
-import { api, state, h, icon, fmtN, fmtDate, todayISO, params, setParams, empty, errorBox, seg, store, toast, modal, windArrow, compass, esc } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, todayISO, params, setParams, empty, errorBox, seg, store, toast, modal, windArrow, compass, esc, ask, askText } from "../core.js";
 import { refreshUser } from "../app.js";
 import { baseMap, cssVar } from "../maps.js";
 
@@ -309,7 +309,7 @@ function editCalendar(c, done) {
     h("label", { class: "field" }, h("span", {}, "Beskrivelse"), desc),
     h("div", { class: "row between" },
       h("button", { type: "button", class: "btn ghost danger", onclick: async () => {
-        if (!confirm("Slet kalenderen og alle planlagte besøg?")) return;
+        if (!(await ask("Slet kalenderen og alle planlagte besøg?"))) return;
         await api(`/api/calendars/${c.id}`, { method: "DELETE" }); m.close(); location.hash = "#/kalender";
       } }, "Slet kalender"),
       h("button", { class: "btn primary" }, "Gem"))));
@@ -319,7 +319,7 @@ async function subscribe(c) {
   const info = await api("/api/me/ics");
   const url = c ? info.calendar.replace("{id}", c.id) : info.mine;
   const webcal = url.replace(/^https?:/, "webcal:");
-  const copy = async () => { try { await navigator.clipboard.writeText(url); toast("Adressen er kopieret"); } catch { prompt("Kopiér adressen:", url); } };
+  const copy = async () => { try { await navigator.clipboard.writeText(url); toast("Adressen er kopieret"); } catch { (await askText("Kopiér adressen:", url)); } };
   modal(c ? `Abonnér på ${c.title}` : "Abonnér på mine planer", h("div", { class: "stack" },
     h("p", { style: { margin: 0 } }, c ? "Få kalenderens offentlige besøg (og dine egne private) samt DOF-ture på stedet ind i din egen kalender. Den opdateres automatisk."
       : "Få alle dine planlagte besøg ind i din egen kalender. Den opdateres automatisk, når du melder dig til eller fra."),
@@ -330,7 +330,7 @@ async function subscribe(c) {
     h("input", { value: url, readonly: true, onclick: (e) => e.target.select() }),
     h("small", { class: "muted" }, "Adressen er personlig – del den ikke. Gmail: Google Kalender → Andre kalendere → Fra webadresse. Google opdaterer typisk et par gange i døgnet."),
     h("button", { class: "btn sm ghost", style: { alignSelf: "flex-start" }, onclick: async () => {
-      if (!confirm("Lav en ny adresse? Gamle abonnementer holder op med at virke.")) return;
+      if (!(await ask("Lav en ny adresse? Gamle abonnementer holder op med at virke."))) return;
       await api("/api/me/ics/reset", { method: "POST" }); await refreshUser(); toast("Ny adresse lavet – åbn dialogen igen");
     } }, "Lav ny adresse")));
 }

@@ -1,5 +1,5 @@
 // Kommentarer under en artikel: arkivet fra netfugl.dk (kun til læsning), portalens egne (svar, ret, slet, anmeld) og moderation.
-import { api, h, toast, modal, seg, state } from "../core.js";
+import { api, h, toast, modal, seg, state, ask, askText } from "../core.js";
 import { live } from "../live.js";
 import { banForm } from "../moderation.js";
 import { dkDate, cleanups, params } from "./common.js";
@@ -46,9 +46,9 @@ export function commentsBox(aid, { open = true, canModerate = false } = {}) {
   async function moderate(c, action) {
     let reason = "", notify = false;
     if (action === "skjul" || action === "slet") {
-      reason = prompt(action === "skjul" ? "Årsag til at skjule kommentaren (vises for forfatteren):" : "Årsag til at slette kommentaren:", "") ?? null;
+      reason = (await askText(action === "skjul" ? "Årsag til at skjule kommentaren (vises for forfatteren):" : "Årsag til at slette kommentaren:", "")) ?? null;
       if (reason === null) return;
-      if (action === "skjul" && c.author.user_id) notify = confirm("Giv forfatteren besked om, at kommentaren er skjult?");
+      if (action === "skjul" && c.author.user_id) notify = (await ask("Giv forfatteren besked om, at kommentaren er skjult?"));
     }
     try { await api(`/api/admin/artikler/kommentarer/${c.id}/${action}`, { method: "POST", body: { reason, notify } }); await load(); } catch (err) { toast(err.message, "err"); }
   }
@@ -64,7 +64,7 @@ export function commentsBox(aid, { open = true, canModerate = false } = {}) {
       !c.archive && !gone ? h("div", { class: "acts" },
         open && c.status === "synlig" && !reply ? act("Svar", () => { replyTo = replyTo === c.id ? null : c.id; draw(); }) : null,
         c.mine && c.status === "synlig" ? act("Ret", () => edit(c)) : null,
-        c.mine ? act("Slet", async () => { if (confirm("Slet din kommentar?")) { try { await api(`/api/artikler/kommentarer/${c.id}`, { method: "DELETE" }); await load(); } catch (e) { toast(e.message, "err"); } } }) : null,
+        c.mine ? act("Slet", async () => { if ((await ask("Slet din kommentar?"))) { try { await api(`/api/artikler/kommentarer/${c.id}`, { method: "DELETE" }); await load(); } catch (e) { toast(e.message, "err"); } } }) : null,
         !c.mine && c.status === "synlig" ? act(c.reported ? "Anmeldt" : "Anmeld", () => { if (!c.reported) report(c); }) : null,
         canModerate && c.status === "synlig" ? act("Skjul", () => moderate(c, "skjul")) : null,
         canModerate && hidden ? act("Gendan", () => moderate(c, "gendan")) : null,

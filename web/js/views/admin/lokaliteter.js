@@ -1,7 +1,7 @@
 // Admin → Lokaliteter: importér zip'en fra tools/dofbasen_lokaliteter (grænser, typer, beskrivelser, kommuner, IBA),
 // se ændringsrapporten og vælg, hvad der skal anvendes (services/location_import.py). Portalens egne grænser
 // overskrives aldrig uden at admin vælger det.
-import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, empty, seg, params, setParams } from "../../core.js";
+import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, empty, seg, params, setParams, ask } from "../../core.js";
 
 const BASE = "/api/admin/locations/imports";
 const STATUS = { uploader: ["plain", "uploader"], validerer: ["bemaerk", "validerer"], klar: ["SUB", "klar til at anvende"],
@@ -83,7 +83,7 @@ function reportView(imp, reload) {
   const apply = h("button", { class: "btn primary", type: "button", onclick: async () => {
     const groups = GROUPS.map(([k]) => k).filter(k => checks[k].checked);
     if (!groups.length) { toast("Vælg mindst én gruppe"); return; }
-    if (!confirm(`Anvend ${groups.length} gruppe(r) fra ${imp.filename}?`)) return;
+    if (!(await ask(`Anvend ${groups.length} gruppe(r) fra ${imp.filename}?`))) return;
     apply.disabled = true;
     try { await api(`${BASE}/${imp.id}/apply`, { method: "POST", body: { groups, conflicts: conflict.value } }); toast("Workeren anvender importen"); reload(); }
     catch (err) { toast(err.message, "err"); apply.disabled = false; }
@@ -116,7 +116,7 @@ function reportView(imp, reload) {
 function importCard(imp, reload) {
   const [k, label] = STATUS[imp.status] || ["plain", imp.status];
   const del = imp.status !== "anvendt" && !busy(imp.status) ? h("button", { class: "btn sm ghost", type: "button", onclick: async () => {
-    if (!confirm("Slet importen? Intet i portalen ændres.")) return;
+    if (!(await ask("Slet importen? Intet i portalen ændres."))) return;
     try { await api(`${BASE}/${imp.id}`, { method: "DELETE" }); reload(); } catch (err) { toast(err.message, "err"); }
   } }, "Slet") : null;
   const applied = imp.applied ? h("div", { class: "muted" }, "Anvendt: ", Object.entries(imp.applied).map(([g, n]) => `${g.replace(/_/g, " ")} ${fmtN(n)}`).join(" · ")) : null;

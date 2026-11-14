@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ONNX Runtime (talemodellen i DofAsr): den native kode slår Java-klasser, felter og metoder op via JNI, så navnene skal
+# bevares – bibliotekets egne regler dækker kun telemetrien.
+-keep class ai.onnxruntime.** { *; }

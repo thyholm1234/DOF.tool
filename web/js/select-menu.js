@@ -51,6 +51,9 @@ function show(sel) {
 
 export function initSelectMenu() {
   if (!isApp()) return;
+  // Nyere Android-WebView (Chromium 135+) har customizable select: browserens egen picker kan styles (appearance: base-select,
+  // se app.css) og klarer selv fokus, tastatur, top layer og tilgængelighed – så den egne menu nedenfor bruges kun som fallback
+  if (CSS.supports("appearance", "base-select")) { document.documentElement.classList.add("base-select"); return; }
   document.addEventListener("mousedown", (e) => {
     const sel = e.target.closest?.("select");
     if (!sel || sel.multiple || sel.size > 1 || sel.disabled) return;

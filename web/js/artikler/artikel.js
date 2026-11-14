@@ -1,7 +1,7 @@
 // Artikelsiden: titel, manchet, byline, forsidebillede, brødtekst (renset HTML fra serveren), PDF-visning, galleri med lysboks,
 // kommentarer lige under artiklen, derefter emneord og relaterede artikler. Redaktører får redigér/slet og kan rette arterne
 // (arterne vises ikke på siden).
-import { api, h, toast, modal, state, backLayer, lightDismiss } from "../core.js";
+import { api, h, toast, modal, state, backLayer, lightDismiss, ask } from "../core.js";
 import { BASE, cover, dkDate, nowrap, tagChips, listCard, ctx, on, cleanups } from "./common.js";
 import { commentsBox } from "./kommentarer.js";
 
@@ -28,7 +28,7 @@ function lightbox(images, start) {
     h("button", { class: "x", type: "button", "aria-label": "Luk", onclick: close }, "×"),
     images.length > 1 ? [h("button", { class: "p", type: "button", "aria-label": "Forrige", onclick: () => go(-1) }, "‹"), h("button", { class: "n", type: "button", "aria-label": "Næste", onclick: () => go(1) }, "›")] : null,
     img, cap);
-  lightDismiss(box, close);
+  lightDismiss(box);
   box.addEventListener("close", () => box.remove());
   document.body.append(box);
   box.showModal();
@@ -76,7 +76,7 @@ export async function side(parts) {
     h("a", { class: "btn sm", href: `${BASE}/${id}/rediger` }, "Redigér"),
     h("button", { class: "btn sm", type: "button", onclick: () => speciesEditor(a, reload) }, "Ret arter"),
     h("button", { class: "btn sm danger", type: "button", onclick: async () => {
-      if (!confirm(`Slet «${a.title}» med alle medier og kommentarer?`)) return;
+      if (!(await ask(`Slet «${a.title}» med alle medier og kommentarer?`))) return;
       try { await api(`/api/admin/artikler/${id}`, { method: "DELETE" }); toast("Slettet"); location.hash = BASE; } catch (e) { toast(e.message, "err"); } } }, "Slet"),
     a.status !== "publiceret" ? h("span", { class: "art-chip warn" }, a.status === "planlagt" ? `Planlagt ${dkDate(a.publish_at, { time: true })}` : a.status) : null,
     a.locally_edited ? h("span", { class: "art-chip" }, "rettet i portalen") : null) : null;

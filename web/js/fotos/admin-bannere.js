@@ -1,5 +1,5 @@
 // Fotos → Admin → Bannere: liste, rækkefølge, aktiv/inaktiv, datointerval og slet. Nye bannere laves fra et fotos side ("Brug som banner").
-import { api, h, toast } from "../core.js";
+import { api, h, toast, ask } from "../core.js";
 import { BASE } from "./common.js";
 
 export async function page() {
@@ -14,5 +14,5 @@ export async function page() {
         h("label", { class: "field inline" }, h("span", {}, "Til"), h("input", { type: "date", value: b.til || "", onchange: (e) => patch(b, { til: e.target.value || null }) })),
         h("label", { class: "field inline" }, h("span", {}, "Rækkefølge"), h("input", { type: "number", value: b.sort, style: { width: "70px" }, onchange: (e) => patch(b, { sort: +e.target.value }) })),
         h("label", { class: "check" }, h("input", { type: "checkbox", checked: b.active, onchange: (e) => patch(b, { active: e.target.checked }) }), h("span", {}, "Aktivt")),
-        h("button", { class: "btn sm danger", type: "button", onclick: async () => { if (confirm("Slet banneret?")) { await api(`/api/admin/fotos/bannere/${b.id}`, { method: "DELETE" }); location.reload(); } } }, "Slet")))) : h("p", { class: "muted" }, "Ingen bannere endnu."));
+        h("button", { class: "btn sm danger", type: "button", onclick: async () => { if ((await ask("Slet banneret?"))) { await api(`/api/admin/fotos/bannere/${b.id}`, { method: "DELETE" }); location.reload(); } } }, "Slet")))) : h("p", { class: "muted" }, "Ingen bannere endnu."));
 }

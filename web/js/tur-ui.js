@@ -1,5 +1,5 @@
 // Fælles byggeklodser til tur-siderne: faner, bund-ark (popup), felter med "Udfyldt"-mærke, artsvælger og kortvalg.
-import { h, icon, tag, toast, searchSpecies, modal, state, backLayer, uid } from "./core.js";
+import { h, icon, tag, toast, searchSpecies, modal, state, backLayer, uid, ask, trustedHTML } from "./core.js";
 import { baseMap, cssVar, locationOutlines } from "./maps.js";
 import { tracker, trackStart, trackPause, trackStop, trackLength } from "./tur-data.js";
 import { isApp } from "./native.js";
@@ -10,7 +10,7 @@ export const field = (label, el, required) => h("label", { class: "field" }, h("
 /** Felt med navn til venstre og "✓ Udfyldt" til højre. isFilled() kaldes, når refresh() kaldes (fx fra input-hændelser). */
 export function reqField(label, content, isFilled) {
   const badge = h("span", { class: "filled-badge" });
-  const refresh = () => { const ok = isFilled(); badge.className = `filled-badge ${ok ? "ok" : ""}`; badge.innerHTML = ok ? `${icon("check")} Udfyldt` : "Påkrævet"; };
+  const refresh = () => { const ok = isFilled(); badge.className = `filled-badge ${ok ? "ok" : ""}`; badge.innerHTML = trustedHTML(ok ? `${icon("check")} Udfyldt` : "Påkrævet"); };
   refresh();
   return { el: h("div", { class: "field" }, h("div", { class: "row between" }, h("span", { class: "label", style: { margin: 0 } }, label), badge), content), refresh };
 }
@@ -60,14 +60,15 @@ export function sheet({ kicker, title, sub, onDelete, tabList, confirmLabel, onC
   const cancel = () => { close(); onCancel?.(); };
   const confirm = h("button", { class: "btn primary", type: "button", onclick: async () => { if (await onConfirm() !== false) close(); } }, confirmLabel);
   // Native modal <dialog>: fokus ind og tilbage, inert side og intet rul bag arket klares af browseren
-  const bg = h("dialog", { class: "modal-bg sheet-bg", "aria-labelledby": titleId }, h("div", { class: "modal sheet" },
+  // closedby="none": et tryk ved siden af arket må ikke smide indtastningen væk (Esc spørges der om nedenfor, hvor closedby mangler)
+  const bg = h("dialog", { class: "modal sheet", closedby: "none", "aria-labelledby": titleId },
     h("div", { class: "sheet-head" },
       h("div", {}, h("small", { class: "kicker" }, kicker), h("h2", { id: titleId }, title), h("div", { class: "sheet-sub", html: `${icon("calendar")} ` }, sub)),
       onDelete ? h("button", { class: "btn sm danger solid", type: "button", html: `${icon("trash")} Slet`, onclick: async () => { if (await onDelete() !== false) close(); } }) : null),
     t.bar, body,
-    h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: cancel }, "Annullér"), confirm)));
+    h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: cancel }, "Annullér"), confirm));
   // Esc må ikke smide en halvt udfyldt indtastning væk uden at spørge
-  bg.addEventListener("cancel", (e) => { e.preventDefault(); if (window.confirm("Luk uden at gemme?")) cancel(); });
+  bg.addEventListener("cancel", async (e) => { e.preventDefault(); if ((await ask("Luk uden at gemme?"))) cancel(); });
   bg.addEventListener("close", () => { if (!closing) cancel(); });
   document.body.append(bg);
   bg.showModal();
@@ -93,7 +94,7 @@ export function speciesPicker(ref, recent, onPick) {
     h("span", {}, s.navn), s.klass !== "Alm" ? tag(s.klass) : null, s.latin ? h("i", { class: "muted" }, s.latin) : null);
   input.oninput = () => { const q = input.value.trim(); suggest.replaceChildren(...(q.length >= 2 ? searchSpecies(ref.species, q).map(option) : [])); };
   input.onblur = () => setTimeout(() => suggest.replaceChildren(), 150);
-  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape" && suggest.children.length) { e.preventDefault(); suggest.replaceChildren(); } };
+  input.onkeydown = (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape" && suggest.children.length) { e.preventDefault(); suggest.replaceChildren(); } };
   const pick = (s) => {
     input.classList.remove("invalid"); suggest.replaceChildren(); input.value = ""; input.classList.toggle("hide", !!s); chips.classList.toggle("hide", !!s);
     chosen.replaceChildren(...(s ? [h("span", { class: "chosen-sp" }, h("b", {}, s.navn), s.latin ? h("i", { class: "muted" }, ` ${s.latin}`) : null,
@@ -211,9 +212,9 @@ export function gpsControl(T, onChange = () => {}) {
   const rmap = routeMap(T);
   const el = h("div", { class: "stack", style: { gap: "8px" } }, row, rmap.el);
   const changed = () => { onChange(); draw(); };
-  const start = () => {
+  const start = async () => {
     if (!navigator.geolocation) return toast("Enheden understøtter ikke positionsbestemmelse", "err");
-    if (!T.gps_aktiv && state.user?.prefs?.trip_gps !== "on" && !confirm("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. " + (isApp() ? "I appen optages ruten også med slukket skærm." : "Hold appen åben under turen."))) return;
+    if (!T.gps_aktiv && state.user?.prefs?.trip_gps !== "on" && !(await ask("Aktivér tracking for denne tur?\n\nRuten gemmes på din enhed og sendes med turen til portalen. Sporingen stopper, når du pauser eller stopper den. " + (isApp() ? "I appen optages ruten også med slukket skærm." : "Hold appen åben under turen.")))) return;
     T.gps_aktiv = true;
     trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
     changed();
@@ -229,7 +230,7 @@ export function gpsControl(T, onChange = () => {}) {
       n || active ? h("button", { class: "btn sm", type: "button", onclick: () => { trackPause(); T.gps_aktiv = n > 0; changed(); } }, "Stop") : null,
       n ? h("button", { class: `btn sm${rmap.open ? " accent" : ""}`, type: "button", "aria-expanded": String(rmap.open), html: `${icon("map")} ${rmap.open ? "Skjul kort" : "Se på kort"}`,
         onclick: () => { rmap.open = !rmap.open; draw(); } }) : null,
-      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { if (confirm("Slet den optagede rute?")) { trackStop(); T.gps_track = []; T.gps_aktiv = false; rmap.open = false; changed(); } } }, "Slet rute") : null);
+      n && !active ? h("button", { class: "btn sm ghost", type: "button", onclick: async () => { if ((await ask("Slet den optagede rute?"))) { trackStop(); T.gps_track = []; T.gps_aktiv = false; rmap.open = false; changed(); } } }, "Slet rute") : null);
   }
   if (tracker.cid === T.client_id) T.gps_track = tracker.points;
   tracker.listeners.add(draw);

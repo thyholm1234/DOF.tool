@@ -1,7 +1,7 @@
 // SU (Sjældenhedsudvalget): årsrapporter (forrest), åbent arkiv over godkendte SU-beskrivelser, egne sager med
 // indsendelse i fire trin som på su.dof.dk, og SU's sagsbehandling med beskeder frem og tilbage (server/portal/services/su.py).
 //   #/su?tab=rapporter|arkiv|mine|sager   #/su/ny[/<kladde>]   #/su/sag/<id>
-import { api, state, h, icon, fmtN, fmtDate, ago, toast, errorBox, empty, busyBlock, seg, params, setParams, backLink } from "../core.js";
+import { api, state, h, icon, fmtN, fmtDate, ago, toast, errorBox, empty, busyBlock, seg, params, setParams, backLink, ask, askText } from "../core.js";
 import { renderNav } from "../app.js";
 
 /** Opdatér SU-badget i menuen (ulæste sager) uden at hente hele brugeren igen. */
@@ -63,7 +63,7 @@ async function reportsTab(out) {
       member ? h("div", { class: "row", style: { gap: "4px" } },
         h("button", { class: "btn sm" + (r.published ? "" : " primary"), onclick: async () => { await api(`/api/su/reports/${r.id}`, { method: "PATCH", body: { published: !r.published } }); toast(r.published ? "Skjult" : "Publiceret"); draw(); } },
           r.published ? "Skjul" : "Publicér"),
-        h("button", { class: "btn sm ghost", onclick: async () => { if (!confirm(`Slet årsrapporten ${r.label}?`)) return; await api(`/api/su/reports/${r.id}`, { method: "DELETE" }); draw(); } }, "Slet")) : null);
+        h("button", { class: "btn sm ghost", onclick: async () => { if (!(await ask(`Slet årsrapporten ${r.label}?`))) return; await api(`/api/su/reports/${r.id}`, { method: "DELETE" }); draw(); } }, "Slet")) : null);
     out.replaceChildren(
       member ? uploadReport(draw) : null,
       rows.length ? h("div", { class: "stack" }, ...rows.map(card)) : empty("Ingen årsrapporter endnu", member ? "Upload den første ovenfor." : "SU har ikke lagt årsrapporter her endnu."));
@@ -272,7 +272,7 @@ async function wizard(view, draftId) {
     body.replaceChildren([null, step1, step2, step3, step4][step]());
   };
   const abort = async () => {
-    if (caseId && !confirm("Afbryd og slet kladden med de uploadede filer?")) return;
+    if (caseId && !(await ask("Afbryd og slet kladden med de uploadede filer?"))) return;
     if (caseId) { try { await api(`/api/su/cases/${caseId}`, { method: "DELETE" }); } catch (err) { toast(err.message, "err"); return; } }
     location.hash = "#/su?tab=mine";
   };
@@ -455,7 +455,7 @@ async function caseView(view, id) {
     : x.content_type.startsWith("video/") ? h("video", { controls: true, preload: "metadata", src: x.url, style: { width: "100%", maxHeight: "420px" } }) : null;
   const fileBlock = (x) => h("div", { class: "su-fileblock" }, media(x),
     h("div", { class: "row" }, h("a", { href: x.url, target: "_blank", rel: "noopener" }, x.name), h("span", { class: "muted small" }, `${x.kind_label} · ${MB(x.size)}`),
-      c.can.manage ? h("button", { class: "btn sm ghost", onclick: async () => { if (!confirm(`Slet ${x.name}?`)) return; await api(`/api/su/cases/${id}/files/${x.id}`, { method: "DELETE" }); reload(); } }, "Slet") : null),
+      c.can.manage ? h("button", { class: "btn sm ghost", onclick: async () => { if (!(await ask(`Slet ${x.name}?`))) return; await api(`/api/su/cases/${id}/files/${x.id}`, { method: "DELETE" }); reload(); } }, "Slet") : null),
     x.info ? h("div", { class: "muted small" }, x.info) : null);
 
   view.replaceChildren(
@@ -492,7 +492,7 @@ async function caseView(view, id) {
 function actionsCard(c, reload) {
   const act = async (body) => { try { await api(`/api/su/cases/${c.id}/actions`, { method: "POST", body }); toast("Gemt"); reload(); } catch (err) { toast(err.message, "err"); } };
   if (c.status === "afgjort") return h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "SU"),
-    h("div", {}, h("button", { class: "btn", onclick: () => { const note = prompt("Genåbn sagen – evt. besked til indsenderen:", ""); if (note !== null) act({ action: "reopen", note }); } }, "Genåbn sagen")));
+    h("div", {}, h("button", { class: "btn", onclick: async () => { const note = (await askText("Genåbn sagen – evt. besked til indsenderen:", "")); if (note !== null) act({ action: "reopen", note }); } }, "Genåbn sagen")));
   const outcome = h("select", {}, h("option", { value: "" }, "Vælg afgørelse …"), ...Object.entries(META.outcomes).map(([k, v]) => h("option", { value: k }, v)));
   const note = h("textarea", { maxlength: 8000, placeholder: "Begrundelse (ses af indsenderen og – ved godkendelse – i arkivet)", style: { minHeight: "80px" } });
   return h("div", { class: "card stack" }, h("h3", { style: { margin: 0 } }, "SU"),

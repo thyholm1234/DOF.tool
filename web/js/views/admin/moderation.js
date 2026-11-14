@@ -1,5 +1,5 @@
 // Moderation → Kommentarer, beskeder og udelukkelser.
-import { api, state, h, icon, fmtDate, ago, seg, params, setParams, toast, errorBox, empty, modal } from "../../core.js";
+import { api, state, h, icon, fmtDate, ago, seg, params, setParams, toast, errorBox, empty, modal, ask } from "../../core.js";
 import { conversation } from "../support.js";
 import { banForm } from "../../moderation.js";
 import { refreshUnread } from "../../app.js";
@@ -115,7 +115,7 @@ async function modBans(body) {
         h("div", { class: "mod-actions" },
           h("button", { class: "btn sm", html: `${icon("chat")} Skriv`, onclick: () => messageForm({ user_id: b.user_id, navn: b.navn, obserkode: b.obserkode }) }),
           h("button", { class: "btn sm", onclick: async () => {
-            if (!confirm(b.active ? "Ophæv udelukkelsen?" : "Fjern fra historikken?")) return;
+            if (!(await ask(b.active ? "Ophæv udelukkelsen?" : "Fjern fra historikken?"))) return;
             await api(`/api/admin/bans/${b.user_id}`, { method: "DELETE" }); toast(b.active ? "Udelukkelsen er ophævet" : "Fjernet"); load();
           } }, b.active ? "Ophæv" : "Fjern")))) : [empty("Ingen udelukkede brugere")]));
     } catch (err) { list.replaceChildren(errorBox(err)); }

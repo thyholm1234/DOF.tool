@@ -1,5 +1,5 @@
 // Moderation → Nyheder: nyheder på forsiden (« Nyt fra portalen »), skrevet i den fælles markdown-editor med billeder, manchet og planlagt publicering.
-import { api, h, fmtDate, toast, modal } from "../../core.js";
+import { api, h, fmtDate, toast, modal, ask } from "../../core.js";
 
 const STATUS = { kladde: "Kladde", planlagt: "Planlagt", publiceret: "Publiceret" };
 const local = (iso) => { if (!iso) return ""; const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
@@ -48,7 +48,7 @@ export async function content(body) {
     list.replaceChildren(...(rows.length ? rows.map(x => h("div", { class: "row between card" }, h("div", {}, h("b", {}, x.title), h("small", { class: "muted" }, ` ${fmtDate(x.created_at)} · ${STATUS[x.status] || x.status}${x.status === "planlagt" ? " " + fmtDate(x.publish_at) : ""}`),
       h("div", { class: "muted small" }, x.teaser)),
       h("div", { class: "row" }, h("a", { class: "btn sm ghost", href: `#/nyheder/${x.id}` }, "Vis"), h("button", { class: "btn sm", type: "button", onclick: () => open(x.id) }, "Redigér"),
-        h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => { if (!confirm(`Slet «${x.title}»?`)) return; await api(`/api/admin/news/${x.id}`, { method: "DELETE" }); load(); } }, "Slet")))) : [h("p", { class: "muted" }, "Ingen nyheder endnu.")]));
+        h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => { if (!(await ask(`Slet «${x.title}»?`))) return; await api(`/api/admin/news/${x.id}`, { method: "DELETE" }); load(); } }, "Slet")))) : [h("p", { class: "muted" }, "Ingen nyheder endnu.")]));
   }
   await load();
   void modal;

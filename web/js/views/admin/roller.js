@@ -1,5 +1,5 @@
 // Admin → Roller (superadmin): roller og deres moduler.
-import { api, h, icon, fmtN, ago, toast, errorBox, empty } from "../../core.js";
+import { api, h, icon, fmtN, ago, toast, errorBox, empty, ask, askText } from "../../core.js";
 import { roleSelect } from "./common.js";
 
 /** Roller (kun superadmin): rollerne vandret, modulerne lodret – og nederst alle med en tildelt rolle. */
@@ -14,13 +14,13 @@ export async function rolesPanel(body) {
     load();
   };
   const addRole = async () => {
-    const name = prompt("Navn på den nye rolle:");
+    const name = (await askText("Navn på den nye rolle:"));
     if (!name?.trim()) return;
     try { await api("/api/admin/roles", { method: "POST", body: { name: name.trim(), modules: [] } }); toast(`Rollen ${name.trim()} er oprettet`); } catch (err) { toast(err.message, "err"); }
     load();
   };
   const removeRole = async (r) => {
-    if (!confirm(`Slet rollen ${r.name}?${r.users ? ` ${r.users} ${r.users === 1 ? "bruger" : "brugere"} med rollen bliver almindelige brugere.` : ""}`)) return;
+    if (!(await ask(`Slet rollen ${r.name}?${r.users ? ` ${r.users} ${r.users === 1 ? "bruger" : "brugere"} med rollen bliver almindelige brugere.` : ""}`))) return;
     try { await api(`/api/admin/roles/${r.key}`, { method: "DELETE" }); toast(`Rollen ${r.name} er slettet`); } catch (err) { toast(err.message, "err"); }
     load();
   };

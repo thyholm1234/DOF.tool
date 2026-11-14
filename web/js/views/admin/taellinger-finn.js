@@ -1,6 +1,6 @@
 // Admin → Tællinger → FiNN-områder: kortet med områder og punkter, redigering (Leaflet-Geoman) og synkronisering med
 // DOFbasen (services/finn_admin.py). En hentning fra DOFbasen ændrer intet, før ændringsrapporten er set og anvendt.
-import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, empty, modal, esc } from "../../core.js";
+import { api, h, fmtN, fmtDate, fmtTime, toast, errorBox, empty, modal, esc, ask } from "../../core.js";
 import { baseMap, geoman } from "../../maps.js";
 import { BASE } from "./taellinger.js";
 
@@ -144,7 +144,7 @@ export async function renderFinn(body) {
       D.kilde === "portal" ? h("div", { class: "row wrap", style: { gap: "6px" } },
         btn("Flyt", () => movePoint(p)), btn("Ret oplysninger", () => editPoint(p)),
         btn(p.aktiv ? "Skjul i appen" : "Vis i appen", () => act(() => api(`${BASE}/finn/points/${p.id}`, { method: "PATCH", body: { aktiv: !p.aktiv } }), p.aktiv ? "Skjult" : "Vises")),
-        p.origin === "portal" ? btn("Slet", async () => { if (confirm(`Slet punkt ${p.id}?`)) { await act(() => api(`${BASE}/finn/points/${p.id}`, { method: "DELETE" }), "Slettet"); close(); } }, "btn sm ghost danger") : null) : null,
+        p.origin === "portal" ? btn("Slet", async () => { if ((await ask(`Slet punkt ${p.id}?`))) { await act(() => api(`${BASE}/finn/points/${p.id}`, { method: "DELETE" }), "Slettet"); close(); } }, "btn sm ghost danger") : null) : null,
       btn("Luk", close, "btn sm ghost"));
   }
 
@@ -184,7 +184,7 @@ export async function renderFinn(body) {
   }
 
   async function revert(kind, x) {
-    if (!confirm("Gendan DOFbasens version? Portalens rettelser af navn, lokalitet og grænse/position forsvinder.")) return;
+    if (!(await ask("Gendan DOFbasens version? Portalens rettelser af navn, lokalitet og grænse/position forsvinder."))) return;
     await act(() => api(`${BASE}/finn/${kind}/${x.id}/revert`, { method: "POST" }), "DOFbasens version er gendannet");
   }
 
@@ -257,7 +257,7 @@ export async function renderFinn(body) {
   }
 
   async function removeSite(s) {
-    if (!confirm(`Slet ${s.title}? Kun portalens egne områder uden tællinger kan slettes.`)) return;
+    if (!(await ask(`Slet ${s.title}? Kun portalens egne områder uden tællinger kan slettes.`))) return;
     await act(() => api(`${BASE}/finn/sites/${s.id}`, { method: "DELETE" }), "Slettet");
     close();
   }

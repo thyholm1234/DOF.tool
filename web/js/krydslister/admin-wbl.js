@@ -1,5 +1,5 @@
 // Admin → World Bird List: indlæs AviList-CSV med diff før anvendelse, ret danske navne og kobl arter uden artnr til DOFbasen.
-import { api, h, toast } from "../core.js";
+import { api, h, toast, ask } from "../core.js";
 
 export async function page() {
   const out = h("div", { class: "stack" });
@@ -17,7 +17,7 @@ export async function page() {
       d.forsvundet.length ? h("details", {}, h("summary", {}, "Forsvundne (findes ikke i filen)"), list(d.forsvundet, x => h("li", {}, x.latin))) : null,
       h("label", { class: "check" }, deact, h("span", {}, "Deaktivér arter, der ikke findes i filen")),
       h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onclick: async () => {
-        if (!confirm("Anvend AviList-importen? Det sker i én transaktion.")) return;
+        if (!(await ask("Anvend AviList-importen? Det sker i én transaktion."))) return;
         try { const r = await api(`/api/admin/krydslister/wbl/import/${imp.id}/anvend?deaktiver_forsvundne=${deact.checked}`, { method: "POST" }); toast(`Anvendt: ${r.nye} nye, ${r.omdoebt} omdøbt, ${r.opdateret} opdateret`); diffBox.replaceChildren(); loadUnlinked(); }
         catch (e) { toast(e.message, "err"); } } }, "Anvend"))));
   }

@@ -1,5 +1,5 @@
 // Admin → Drift: overblik, lager, arkivupload, talemodel, backup, job og planlagte opgaver.
-import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, params, toast, errorBox, modal } from "../../core.js";
+import { api, state, h, icon, fmtN, fmtDate, fmtTime, ago, params, toast, errorBox, modal, ask } from "../../core.js";
 import { st } from "./common.js";
 
 export async function ops(body) {
@@ -32,7 +32,7 @@ export async function ops(body) {
         h("div", { class: "row between" },
           h("p", { class: "muted", style: { margin: 0 } }, `Kald i dag: ${g[`calls:${today}`] || 0} · i kø: ${g.queue_length} · opslag i dag: ${g[`lookups:${today}`] || 0}${g.lookup_queue || g.lookups_running ? ` (${(g.lookup_queue || 0) + (g.lookups_running || 0)} i gang)` : ""}`, g.queue_length > d.queue.length ? ` (viser de første ${d.queue.length})` : ""),
           g.queue_length ? h("button", { class: "btn sm ghost danger", onclick: async () => {
-            if (!confirm(`Fjern alle ${g.queue_length} ventende kald til DOFbasen? Kaldet, der kører nu, gøres færdigt, og login-forsøg bevares.`)) return;
+            if (!(await ask(`Fjern alle ${g.queue_length} ventende kald til DOFbasen? Kaldet, der kører nu, gøres færdigt, og login-forsøg bevares.`))) return;
             try { const r = await api("/api/admin/gateway/queue", { method: "DELETE" }); toast(`${r.removed} job fjernet fra køen`); body.replaceChildren(); ops(body); } catch (err) { toast(err.message, "err"); }
           } }, "Tøm kø") : null),
         g.running ? h("p", {}, h("span", { class: "tag local" }, "kører"), " ", h("b", {}, g.running.kind), " ", h("span", { class: "muted" }, JSON.stringify(g.running.params))) : null,
@@ -174,7 +174,7 @@ export async function archiveUpload(box) {
           h("td", {}, f.pending ? h("span", { class: "tag bemaerk" }, "venter") : h("span", { class: "tag plain" }, "importeret"), " ",
             h("span", { class: "muted", style: { fontSize: ".8rem" } }, f.uploaded ? "upload" : "arkiv")),
           h("td", { class: "right" }, f.uploaded ? h("button", { class: "btn sm ghost danger", html: icon("trash"), "aria-label": "Fjern", onclick: async () => {
-            if (!confirm(`Fjern den uploadede ${f.name}, før den importeres?`)) return;
+            if (!(await ask(`Fjern den uploadede ${f.name}, før den importeres?`))) return;
             try { await api(`/api/admin/archive/upload/${f.name}`, { method: "DELETE" }); loadList(); } catch (err) { toast(err.message, "err"); }
           } }) : null))))))));
   };
@@ -236,7 +236,7 @@ export async function speechCard(box) {
   try { d = await api("/api/admin/speech-model"); } catch (err) { box.replaceChildren(errorBox(err)); return; }
   const m = d.manifest;
   const build = (force) => async () => {
-    if (force && !confirm("Bygge modellen forfra? Det henter 1,3 GB fra Hugging Face og tager ca. 5 minutter.")) return;
+    if (force && !(await ask("Bygge modellen forfra? Det henter 1,3 GB fra Hugging Face og tager ca. 5 minutter."))) return;
     try { await api("/api/admin/worker/speech_model", { method: "POST", body: { force } }); toast("Talemodellen lægges i kø"); speechCard(box); } catch (err) { toast(err.message, "err"); }
   };
   const pick = h("input", { type: "file", accept: ".tar", class: "hide" });
@@ -284,12 +284,12 @@ export async function backupCard(box) {
     await api("/api/admin/backup", { method: "PUT", body });
     backupCard(box);
   }, "Gemt");
-  const clear = (k, label) => h("button", { class: "btn sm ghost danger", type: "button", onclick: () => confirm(`Fjern ${label}?`) && call(async () => {
+  const clear = (k, label) => h("button", { class: "btn sm ghost danger", type: "button", onclick: async () => (await ask(`Fjern ${label}?`)) && call(async () => {
     await api("/api/admin/backup", { method: "PUT", body: { host: d.host, port: d.port, user: d.user, path: d.path, keep: d.keep, [k]: "" } }); backupCard(box);
   }, "Fjernet") }, `Fjern ${label}`);
   const trust = () => call(async () => {
     const k = await api("/api/admin/backup/host-key");
-    if (!confirm(`Serverens værtsnøgle har fingeraftrykket\n\n${k.fingerprint}\n\nPasser det med serverens (ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub)? Så godkendes den.`)) return;
+    if (!(await ask(`Serverens værtsnøgle har fingeraftrykket\n\n${k.fingerprint}\n\nPasser det med serverens (ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub)? Så godkendes den.`))) return;
     await api("/api/admin/backup/host-key", { method: "POST", body: { key: k.key } });
     backupCard(box);
   }, null);
@@ -446,7 +446,7 @@ async function locfindsModal(onSaved) {
       h("thead", {}, h("tr", {}, h("th", {}, "Lokalafdeling"), h("th", { class: "right" }, "Lokaliteter"), h("th", {}, "Dag"), h("th", {}, "Seneste beregning"), h("th", {}))),
       h("tbody", {}, ...rows))),
     h("div", { class: "row between" },
-      h("button", { class: "btn", type: "button", onclick: () => { if (confirm("Genberegn alle lokalafdelinger nu? Det kan tage lang tid.")) runOne(null, "Alle lokalafdelinger"); } }, "Kør alle nu"),
+      h("button", { class: "btn", type: "button", onclick: async () => { if ((await ask("Genberegn alle lokalafdelinger nu? Det kan tage lang tid."))) runOne(null, "Alle lokalafdelinger"); } }, "Kør alle nu"),
       h("button", { class: "btn primary", type: "button", onclick: async () => {
         try {
           await api("/api/admin/locfinds", { method: "PUT", body: { on: on.checked, at: at.value, days } });

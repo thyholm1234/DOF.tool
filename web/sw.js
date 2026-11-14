@@ -17,6 +17,16 @@ self.addEventListener("activate", (e) => {
     .then(() => self.clients.claim()));
 });
 
+// Kortflise-cachen må ikke vokse uden loft (hver zoom/panorering henter nye fliser): de ældste fjernes, når der er for mange.
+// Cachens nøgler kommer i den rækkefølge, de blev lagt ind. Tjekkes højst hvert 50. gemte flise.
+const TILE_MAX = 3000;
+let tilePuts = 0;
+async function trimTiles(c) {
+  if (++tilePuts % 50) return;
+  const keys = await c.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - TILE_MAX)).map((k) => c.delete(k)));
+}
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
@@ -28,7 +38,10 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== location.origin) {
     // Kortfliser: cache-først
     if (url.hostname.endsWith("tile.openstreetmap.org")) {
-      e.respondWith(caches.open("doftool-tiles").then(async (c) => (await c.match(e.request)) || fetch(e.request).then((r) => { if (r.ok) c.put(e.request, r.clone()); return r; })));
+      e.respondWith(caches.open("doftool-tiles").then(async (c) => (await c.match(e.request)) || fetch(e.request).then((r) => {
+        if (r.ok) e.waitUntil(c.put(e.request, r.clone()).then(() => trimTiles(c)));
+        return r;
+      })));
     }
     return;
   }

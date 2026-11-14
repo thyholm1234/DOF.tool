@@ -1,4 +1,4 @@
-import { api, prefetch, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer, lightDismiss, hasPopover } from "./core.js";
+import { api, prefetch, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer, lightDismiss, hasPopover, trustedHTML } from "./core.js";
 import { live } from "./live.js";
 import { syncSharing, syncPush, stopAppPush } from "./native.js";
 import { initSelectMenu } from "./select-menu.js";
@@ -142,8 +142,7 @@ function openMore() {
   const close = () => { if (sheet.open) sheet.close(); sheet.remove(); };
   const tile = (href, ic, label, badge) => h("a", { href, class: "more-tile", onclick: close, html: `${icon(ic)}<span>${label}${badge ? ` <span class="badge-inline">${badge}</span>` : ""}</span>` });
   const u = state.user;
-  const sheet = h("dialog", { class: "more-sheet", "aria-label": "Alle menupunkter" },
-    h("div", { class: "more-panel" },
+  const sheet = h("dialog", { class: "more-sheet more-panel", "aria-label": "Alle menupunkter" },
       // Samme grupper og moduler som sidepanelet – også dem, der står i bundmenuen
       ...sections()
         .map(([title, items]) => items.length ? [h("div", { class: "more-h" }, title), h("div", { class: "more-grid" }, ...items.map(([href, ic, label]) => tile(href, ic, label)))] : [])
@@ -154,8 +153,8 @@ function openMore() {
         u && adminLink() ? tile(adminLink().href, "shield", adminLink().label, hasTab("support") ? state.adminSupportUnread : 0) : null),
       // Showcases nederst
       ...(showcases().length ? [h("div", { class: "more-h" }, "Showcases"), h("div", { class: "more-grid" }, ...showcases().map(([href, ic, label]) => tile(href, ic, label)))] : []),
-      h("button", { type: "button", class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
-  lightDismiss(sheet, close);
+      h("button", { type: "button", class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk"));
+  lightDismiss(sheet);
   sheet.addEventListener("close", () => sheet.remove());
   document.body.append(sheet);
   sheet.showModal();
@@ -170,7 +169,7 @@ function renderUser() {
   if (!u) return;
   const initials = (u.navn || u.obserkode).split(/\s+/).map(s => s[0]).join("").slice(0, 2).toUpperCase();
   $("#userbtn").textContent = initials;
-  $("#bell").innerHTML = icon("bell") + (state.unread ? `<span class="badge">${state.unread > 99 ? "99+" : state.unread}</span>` : "");
+  $("#bell").innerHTML = trustedHTML(icon("bell") + (state.unread ? `<span class="badge">${state.unread > 99 ? "99+" : state.unread}</span>` : ""));
 }
 
 let viewAsTimer = null;
@@ -222,12 +221,19 @@ export async function refreshUnread() {
   try { const s = await api("/api/support/unread"); state.supportUnread = s.user || 0; state.adminSupportUnread = s.admin || 0; renderNav(); } catch { /* ignore */ }
 }
 
-/** Udseendet (auto/lys/mørk) gemmes pr. enhed i localStorage – ikke på kontoen. */
+/** Udseendet (auto/lys/mørk) gemmes pr. enhed i localStorage – ikke på kontoen. «Automatisk» = ingen gemt værdi.
+ *  Valget afspejles i <meta name="color-scheme"> (browserens egne kontroller, rullebjælker, formularfelter) og i
+ *  data-theme (appens farvetokens). Det inline script i index.html gør det samme før første visning. */
 function applyTheme() {
-  const t = localStorage.getItem("theme") || "auto";
-  if (t === "auto") document.documentElement.removeAttribute("data-theme");
-  else document.documentElement.setAttribute("data-theme", t);
+  let t = null;
+  try { t = localStorage.getItem("theme"); } catch { /* lager blokeret: følg systemet */ }
+  if (t !== "light" && t !== "dark") t = null;
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", t || "light dark");
+  if (t) document.documentElement.setAttribute("data-theme", t);
+  else document.documentElement.removeAttribute("data-theme");
 }
+// Valget kan ændres i en anden fane
+addEventListener("storage", (e) => { if (e.key === "theme" || e.key === null) applyTheme(); });
 
 /** Brugermenuen er en popover="auto" (#usermenu i index.html) styret af #userbtn via popovertarget: browseren giver
  *  lys afvisning, Esc, aria-expanded på knappen og fokus tilbage. Indholdet bygges, hver gang den åbnes. */

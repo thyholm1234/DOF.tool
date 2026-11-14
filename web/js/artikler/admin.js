@@ -1,5 +1,5 @@
 // Artikler → Admin: artikler (alle statusser), import, emneord, kommentarer til moderation, indstillinger og vedligehold.
-import { api, h, toast, seg } from "../core.js";
+import { api, h, toast, seg, ask, askText } from "../core.js";
 import { BASE, ctx, dkDate, nowrap, loadingBox, cleanups } from "./common.js";
 import { results, readState } from "./soeg.js";
 
@@ -77,7 +77,7 @@ export async function commentQueue() {
     const rows = await api(`/api/admin/artikler/kommentarer?tab=${tabK}`);
     const act = async (r, action) => {
       let reason = "";
-      if (action === "skjul" || action === "slet") { reason = prompt("Årsag (vises for forfatteren):", "") ?? null; if (reason === null) return; }
+      if (action === "skjul" || action === "slet") { reason = (await askText("Årsag (vises for forfatteren):", "")) ?? null; if (reason === null) return; }
       try { await api(`/api/admin/artikler/kommentarer/${r.id}/${action}`, { method: "POST", body: { reason, notify: false } }); draw(); } catch (e) { toast(e.message, "err"); }
     };
     out.replaceChildren(...(rows.length ? rows.map(r => h("div", { class: "card stack" },
@@ -125,7 +125,7 @@ async function tagAdmin() {
   const body = h("tbody");
   const count = h("span", { class: "muted small" });
   const saveBtn = h("button", { class: "btn primary", type: "button", onclick: () => save() }, "Gem");
-  const undoBtn = h("button", { class: "btn", type: "button", onclick: () => { if (confirm("Fortryd alle ugemte ændringer?")) { pending.clear(); updateBar(); draw(); } } }, "Fortryd");
+  const undoBtn = h("button", { class: "btn", type: "button", onclick: async () => { if ((await ask("Fortryd alle ugemte ændringer?"))) { pending.clear(); updateBar(); draw(); } } }, "Fortryd");
   const barText = h("span", {});
   const bar = h("div", { class: "row art-tagbar" }, barText, saveBtn, undoBtn);
   const warnBox = h("div", {});
@@ -162,11 +162,11 @@ async function tagAdmin() {
   };
 
   async function merge(t) {
-    if (pending.size && !confirm("Du har ugemte ændringer. Flet gemmes med det samme – de ugemte ændringer bevares. Fortsæt?")) return;
-    const to = prompt(`Flet «${t.navn}» ind i hvilket emneord? Skriv det nøjagtige navn:`);
+    if (pending.size && !(await ask("Du har ugemte ændringer. Flet gemmes med det samme – de ugemte ændringer bevares. Fortsæt?"))) return;
+    const to = (await askText(`Flet «${t.navn}» ind i hvilket emneord? Skriv det nøjagtige navn:`));
     const target = tags.find(x => x.id !== t.id && x.navn.toLowerCase() === (to || "").trim().toLowerCase());
     if (!target) { if (to) toast("Emneordet findes ikke", "err"); return; }
-    if (!confirm(`Flyt ${t.n} artikler fra «${t.navn}» til «${target.navn}» og slet «${t.navn}»?`)) return;
+    if (!(await ask(`Flyt ${t.n} artikler fra «${t.navn}» til «${target.navn}» og slet «${t.navn}»?`))) return;
     try {
       const r = await api(`/api/admin/artikler/emneord/${t.id}/flet`, { method: "POST", body: { into: target.id } });
       toast(`${r.flyttet} artikler flyttet`);

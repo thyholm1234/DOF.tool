@@ -1,5 +1,5 @@
 // Opret/redigér tur på sin egen side: Turens data · Vejret · Forstyrrelser. Gemmer og går derefter til turens observationer.
-import { api, h, icon, fmtDate, todayISO, toast, state } from "../core.js";
+import { api, h, icon, fmtDate, todayISO, toast, state, ask } from "../core.js";
 import { nowHM, tripHash, tracker, trackStart, trackStop, finishTrack, trimTrack, findLocations, nearestLocations } from "../tur-data.js";
 import { forgetTrip } from "../offline.js";
 import { isApp } from "../native.js";
@@ -53,7 +53,7 @@ export function form(page, ref, store_, recent, isNew) {
     }, 200);
   };
   lokQ.onblur = () => setTimeout(() => lokSug.replaceChildren(), 150);
-  lokQ.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); lokSug.querySelector("button")?.click(); } if (e.key === "Escape" && lokSug.children.length) { e.preventDefault(); lokSug.replaceChildren(); } };
+  lokQ.onkeydown = (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); lokSug.querySelector("button")?.click(); } if (e.key === "Escape" && lokSug.children.length) { e.preventDefault(); lokSug.replaceChildren(); } };
   const nearTo = async (lat, lon) => {
     try {
       const rows = await nearestLocations(lat, lon, 12);
@@ -176,10 +176,10 @@ export function form(page, ref, store_, recent, isNew) {
     if (status === "offline") toast("Ingen forbindelse – turen er gemt på enheden og sendes automatisk", "ok");
     // GPS-rute på en ny tur i dag: efter brugerens valg i profilen (spørg / altid / aldrig)
     const gpsPref = state.user?.prefs?.trip_gps || "ask";
-    if (isNew && !T.gps_aktiv && T.dato === todayISO() && navigator.geolocation && (gpsPref === "on" || (gpsPref === "ask" && confirm(
+    if (isNew && !T.gps_aktiv && T.dato === todayISO() && navigator.geolocation && (gpsPref === "on" || (gpsPref === "ask" && (await ask(
       "Vil du optage din rute med GPS på turen?\n\nRuten gemmes på din enhed og sendes med turen. " +
       (isApp() ? "I appen optages den også med slukket skærm. " : "Hold siden åben under turen. ") +
-      "Du kan stoppe den på turen, og under Min profil kan du vælge, om der skal spørges næste gang.")))) {
+      "Du kan stoppe den på turen, og under Min profil kan du vælge, om der skal spørges næste gang."))))) {
       T.gps_aktiv = true;
       trackStart(T.client_id, T.gps_track); T.gps_track = tracker.points;
       store_.save();
@@ -190,7 +190,7 @@ export function form(page, ref, store_, recent, isNew) {
   page.replaceChildren(h("div", { class: "card sheet-page" },
     h("div", { class: "sheet-head" }, h("div", {}, h("small", { class: "kicker" }, isNew ? "Ny tur" : "Ret tur"), titleEl, h("div", { class: "sheet-sub", html: `${icon("calendar")} ` }, sub)),
       !isNew ? h("button", { class: "btn sm danger solid", type: "button", html: `${icon("trash")} Slet tur`, onclick: async () => {
-        if (!confirm("Er du sikker på at du vil slette turen og alle dens observationer?")) return;
+        if (!(await ask("Er du sikker på at du vil slette turen og alle dens observationer?"))) return;
         try { if (T.server_id) { await api(`/api/trips/${T.server_id}`, { method: "DELETE" }); await forgetTrip(T.server_id); } await store_.discard(); toast("Turen er slettet"); location.hash = "#/indtast"; } catch (err) { toast(err.message, "err"); }
       } }) : null),
     t.bar, h("div", { class: "sheet-body" }, t.panels),

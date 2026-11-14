@@ -1,5 +1,5 @@
 // Nyt foto (#/fotos/ny) og ret foto (#/fotos/<id>/ret): billede, dato, sted, fugle (1–10), emneord, kamera, rettighed og valgfri kobling til egen observation.
-import { api, h, state, todayISO, toast, searchSpecies, modal } from "../core.js";
+import { api, h, state, todayISO, toast, searchSpecies, modal, ask } from "../core.js";
 import { BASE, on, ctx, notice, loadingBox, bytes } from "./common.js";
 
 const KAMERA = [["model", "Kameramodel"], ["linse", "Objektiv"], ["braendvidde", "Brændvidde (mm)"], ["blaende", "Blænde"], ["lukkertid", "Lukkertid"], ["iso", "ISO"], ["flash", "Flash"]];
@@ -149,7 +149,7 @@ async function form(editId) {
         fd.append("data", JSON.stringify(payload()));
         res = await api("/api/fotos", { method: "POST", form: fd });
       }
-      if (res.gruppe_forslag?.length && confirm(`Skal fotoet grupperes med dine ${res.gruppe_forslag.length} andre fotos fra samme fund?`)) {
+      if (res.gruppe_forslag?.length && (await ask(`Skal fotoet grupperes med dine ${res.gruppe_forslag.length} andre fotos fra samme fund?`))) {
         await api(`/api/fotos/${res.id}/gruppe`, { method: "POST", body: { ids: res.gruppe_forslag } }).catch(x => toast(x.message, "err"));
       }
       if (res.status === "afventer") toast(existing ? "Gemt – fotoet afventer godkendelse" : "Dit foto afventer godkendelse");

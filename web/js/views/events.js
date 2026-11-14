@@ -1,5 +1,5 @@
 // DOF's ture og aktiviteter (fra dof.dk), kodet med lokalafdeling, kommune og lokalitet.
-import { api, state, h, icon, fmtDate, params, setParams, loadRef, empty, errorBox, seg, store, toast, modal, todayISO, esc, can } from "../core.js";
+import { api, state, h, icon, fmtDate, params, setParams, loadRef, empty, errorBox, seg, store, toast, modal, todayISO, esc, can, ask } from "../core.js";
 
 export const isModerator = () => can("ture");
 import { baseMap, cssVar } from "../maps.js";
@@ -142,7 +142,7 @@ async function detail(view, id) {
           h("a", { class: "btn", href: `/api/events/${id}/ics`, html: `${icon("calendar")} Tilføj til kalender` }),
           e.source === "portal" && isModerator() ? h("button", { class: "btn ghost", html: `${icon("edit")} Ret`, onclick: () => eventForm(e, () => { view.replaceChildren(); detail(view, id); }) }) : null,
           e.source === "portal" && isModerator() ? h("button", { class: "btn ghost danger", html: `${icon("trash")} Slet`, onclick: async () => {
-            if (!confirm("Slet turen?")) return;
+            if (!(await ask("Slet turen?"))) return;
             await api(`/api/events/${id}`, { method: "DELETE" }); toast("Turen er slettet"); location.hash = "#/ture";
           } }) : null)),
       h("div", { class: "stack" },

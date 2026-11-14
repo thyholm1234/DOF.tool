@@ -1,4 +1,4 @@
-import { api, state, h, icon, fmtDate, ago, toast, errorBox, empty, modal, seg, params, setParams, requireLogin } from "../core.js";
+import { api, state, h, icon, fmtDate, ago, toast, errorBox, empty, modal, seg, params, setParams, requireLogin, ask } from "../core.js";
 import { refreshUser } from "../app.js";
 
 // DKU: tip om tvivlsomme observationer og sagsbehandling (se server/portal/services/dku.py)
@@ -205,7 +205,7 @@ async function membersPanel(body) {
         return h("tr", {}, h("td", {}, h("b", {}, a.navn)),
           h("td", {}, a.members.length ? h("div", { class: "row", style: { gap: "6px" } }, ...a.members.map(m => h("span", { class: "tag plain" }, `${m.navn} (${m.obserkode})`,
             d.can_edit ? h("button", { class: "btn sm ghost", type: "button", title: "Fjern", style: { padding: "0 4px" }, html: icon("x"), onclick: async () => {
-              if (!confirm(`Fjern ${m.navn} som DKU-ansvarlig for ${a.navn}?`)) return;
+              if (!(await ask(`Fjern ${m.navn} som DKU-ansvarlig for ${a.navn}?`))) return;
               try { await api(`/api/dku/members/${a.id}/${m.user_id}`, { method: "DELETE" }); redraw(); } catch (err) { toast(err.message, "err"); }
             } }) : null))) : h("span", { class: "muted" }, "ingen")),
           d.can_edit ? h("td", {}, h("form", { class: "row", style: { gap: "4px", flexWrap: "nowrap" }, onsubmit: async (e) => {

@@ -143,7 +143,7 @@ public class DofPositionService extends Service {
             route = false;
             share = prefs.getBoolean("share", false);
             url = prefs.getString("url", null);
-            headers = prefs.getString("headers", null);
+            headers = DofSecret.decrypt(prefs.getString("headers", null));  // tokenet ligger krypteret (Android Keystore)
             title = prefs.getString("title", "DOF.tool");
             message = prefs.getString("message", "");
         } else {
@@ -153,7 +153,7 @@ public class DofPositionService extends Service {
             headers = intent.getStringExtra("headers");
             title = intent.getStringExtra("title");
             message = intent.getStringExtra("message");
-            prefs.edit().putBoolean("share", share && url != null).putString("url", url).putString("headers", headers)
+            prefs.edit().putBoolean("share", share && url != null).putString("url", url).putString("headers", DofSecret.encrypt(headers))
                 .putString("title", title).putString("message", message).apply();
         }
         boolean shareNative = share && url != null;

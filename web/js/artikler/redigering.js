@@ -1,6 +1,6 @@
 // Redigering af en artikel: titel + markdown-editor til venstre, metadata-panel til højre (manchet, forfattere, dato, emneord, forsidebillede,
 // status/planlagt publicering, fremhævning, kommentarer, kilde). Optimistisk låsning, revisioner og kladde i browseren.
-import { api, h, toast, modal } from "../core.js";
+import { api, h, toast, modal, ask } from "../core.js";
 import { BASE, cleanups, dkDate, ctx, loadCss, loadingBox } from "./common.js";
 import { mdEditor } from "../editor/md-editor.js";
 import { mediaPicker } from "../editor/media-picker.js";
@@ -55,7 +55,7 @@ async function form(id) {
     const box = h("div", { class: "art-chips" }), inp = h("input", { type: "text", placeholder: ph, list: listId, autocomplete: "off" });
     const draw = () => box.replaceChildren(...S[key].map((t, i) => h("button", { type: "button", class: "art-chip", title: "Fjern", onclick: () => { S[key].splice(i, 1); draw(); touch(); } }, `${t} ×`)));
     const add = () => { const v = inp.value.trim(); if (v && !S[key].some(x => x.toLowerCase() === v.toLowerCase())) { S[key].push(v); draw(); touch(); } inp.value = ""; };
-    inp.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } });
+    inp.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === ",") && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); add(); } });
     inp.addEventListener("change", add);
     draw();
     return h("div", { class: "stack" }, box, inp, options ? h("datalist", { id: listId }, ...options.map(o => h("option", { value: o }))) : null);
@@ -113,7 +113,7 @@ async function form(id) {
     const m = modal("Tidligere versioner", h("div", { class: "stack" }, list.length ? h("ul", {}, ...list.map(r => h("li", {}, h("a", { href: "javascript:void 0", onclick: async () => {
       const v = await api(`/api/admin/artikler/${S.id}/revisioner/${r.id}`);
       pane.replaceChildren(h("h4", {}, `Version ${v.version}: ${v.title}`), h("div", { class: "art-body", style: { maxHeight: "40vh", overflow: "auto", border: "1px solid var(--line)", padding: "8px 12px" }, html: v.html }),
-        h("button", { class: "btn danger", type: "button", onclick: async () => { if (!confirm("Gendan denne version? Den nuværende bliver gemt som en revision.")) return;
+        h("button", { class: "btn danger", type: "button", onclick: async () => { if (!(await ask("Gendan denne version? Den nuværende bliver gemt som en revision."))) return;
           try { await api(`/api/admin/artikler/${S.id}/revisioner/${r.id}/gendan`, { method: "POST" }); m.close(); ed.markClean(); location.reload(); } catch (e) { toast(e.message, "err"); } } }, "Gendan denne version"));
     } }, `Version ${r.version} – ${r.title}`), ` · ${dkDate(r.created_at, { time: true })}${r.af ? " · " + r.af : ""}`))) : h("p", { class: "muted" }, "Der er ingen tidligere versioner endnu."), pane), { wide: true });
   }

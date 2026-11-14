@@ -57,7 +57,11 @@ export async function page(parts, query) {
   }
 
   const img = h("img", { src: p.medium, alt: p.titel || p.fugle[0]?.navn || "Foto", class: "fot-main" });
-  if (p.w && p.h) { img.width = p.w; img.height = p.h; }
+  // Pladsen reserveres, før billedet er hentet (ingen layoutskift): CSS'ens width/height: auto overskriver ellers attributterne
+  if (p.w && p.h) {
+    img.width = p.w; img.height = p.h;
+    Object.assign(img.style, { aspectRatio: `${p.w} / ${p.h}`, width: `min(100%, calc(78vh * ${(p.w / p.h).toFixed(4)}))` });
+  }
   const obsBox = h("div", {});
   const mapBox = p.lat != null ? h("div", { class: "fot-map" }) : null;
   if (mapBox) setTimeout(() => map(p, mapBox), 0);
