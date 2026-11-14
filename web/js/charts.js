@@ -1,5 +1,5 @@
 // Små, afhængighedsfri SVG-grafer med tooltip.
-import { h, esc } from "./core.js";
+import { h, esc, layerRoot } from "./core.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const s = (tag, attrs = {}) => { const el = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); return el; };
@@ -78,7 +78,7 @@ export function lineChart({ series, band, height = 260, xFormat = String, yForma
       for (const p of se.points) { if (step ? p[0] <= x : true) { if (!best || Math.abs(p[0] - x) < Math.abs(best[0] - x) || (step && p[0] <= x)) best = p; } }
       return best ? `<span style="color:${se.color || PALETTE[i % PALETTE.length]}">●</span> ${esc(se.name)}: <b>${yFormat(best[1])}</b>` : null;
     }).filter(Boolean);
-    if (!tip) { tip = h("div", { class: "chart-tip" }); document.body.append(tip); }
+    if (!tip) { tip = h("div", { class: "chart-tip" }); layerRoot(svg).append(tip); }
     tip.innerHTML = `<div style="opacity:.7">${xFormat(Math.round(x))}</div>` + rows.slice(0, 12).join("<br>");
     tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
     tip.style.top = (e.clientY + 14) + "px";
@@ -89,7 +89,7 @@ export function lineChart({ series, band, height = 260, xFormat = String, yForma
 
 /** Vis den fælles tooltip ved musen (til grafer, der tegner deres egne mærker). */
 export function showTip(e, html) {
-  if (!tip) { tip = h("div", { class: "chart-tip" }); document.body.append(tip); }
+  if (!tip) { tip = h("div", { class: "chart-tip" }); layerRoot(e.target).append(tip); }
   tip.innerHTML = html;
   tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
   tip.style.top = (e.clientY + 14) + "px";

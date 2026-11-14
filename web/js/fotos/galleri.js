@@ -127,7 +127,7 @@ export async function page(parts, query, fixed = {}) {
   };
   q.oninput = q.onfocus = showQ;
   q.onblur = () => setTimeout(() => qList.replaceChildren(), 150);
-  q.onkeydown = (e) => { if (e.key === "Escape") qList.replaceChildren(); };
+  q.onkeydown = (e) => { if (e.key === "Escape" && qList.children.length) { e.preventDefault(); qList.replaceChildren(); } };
 
   const adv = h("details", { class: "fot-adv", open: advOpen },
     h("summary", {}, "Avanceret søgning"),

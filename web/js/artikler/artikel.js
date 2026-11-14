@@ -1,7 +1,7 @@
 // Artikelsiden: titel, manchet, byline, forsidebillede, brødtekst (renset HTML fra serveren), PDF-visning, galleri med lysboks,
 // kommentarer lige under artiklen, derefter emneord og relaterede artikler. Redaktører får redigér/slet og kan rette arterne
 // (arterne vises ikke på siden).
-import { api, h, toast, modal, state, backLayer } from "../core.js";
+import { api, h, toast, modal, state, backLayer, lightDismiss } from "../core.js";
 import { BASE, cover, dkDate, nowrap, tagChips, listCard, ctx, on, cleanups } from "./common.js";
 import { commentsBox } from "./kommentarer.js";
 
@@ -14,21 +14,24 @@ export async function fraNetfugl(parts) {
   return h("p", { class: "muted" }, "Åbner artiklen …");
 }
 
+/** Lysboks til galleriet: modal <dialog> (fokus ind og tilbage og Esc klares af browseren), piletaster og swipe skifter. */
 function lightbox(images, start) {
   let i = start;
   const img = h("img", { alt: "" }), cap = h("div", { class: "cap" });
   const show = () => { const m = images[i]; img.src = m.url; img.alt = m.alt || ""; cap.textContent = [m.caption, m.credit].filter(Boolean).join(" · ") || m.alt || ""; };
-  const close = () => { box.remove(); document.removeEventListener("keydown", key); };
+  const close = () => { if (box.open) box.close(); box.remove(); };
   const go = (d) => { i = (i + d + images.length) % images.length; show(); };
-  const key = (e) => { if (e.key === "Escape") close(); else if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); };
+  const key = (e) => { if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); };
   let x0 = null;
-  const box = h("div", { class: "art-lightbox", role: "dialog", "aria-modal": "true", onclick: (e) => { if (e.target === box) close(); },
+  const box = h("dialog", { class: "art-lightbox", "aria-label": "Billede i stort format", onkeydown: key,
     ontouchstart: (e) => { x0 = e.touches[0].clientX; }, ontouchend: (e) => { if (x0 !== null && Math.abs(e.changedTouches[0].clientX - x0) > 50) go(e.changedTouches[0].clientX < x0 ? 1 : -1); x0 = null; } },
     h("button", { class: "x", type: "button", "aria-label": "Luk", onclick: close }, "×"),
     images.length > 1 ? [h("button", { class: "p", type: "button", "aria-label": "Forrige", onclick: () => go(-1) }, "‹"), h("button", { class: "n", type: "button", "aria-label": "Næste", onclick: () => go(1) }, "›")] : null,
     img, cap);
+  lightDismiss(box, close);
+  box.addEventListener("close", () => box.remove());
   document.body.append(box);
-  document.addEventListener("keydown", key);
+  box.showModal();
   backLayer(box, close);
   cleanups.push(close);
   show();

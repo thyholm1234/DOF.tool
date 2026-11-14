@@ -129,16 +129,40 @@ export const tag = (k, text) => h("span", { class: `tag ${k}` }, text ?? KAT[k] 
 export const observerLink = (kode, navn) => kode && state.user?.profiler
   ? h("a", { href: `#/observator/${encodeURIComponent(kode)}` }, navn || kode) : (navn || kode || "");
 
+/** Understøtter browseren Popover API'et? Ellers vises lagene som almindelige faste elementer (som før). */
+export const hasPopover = Object.hasOwn(HTMLElement.prototype, "popover");
+/** Den øverste åbne modal (<dialog>), eller null. */
+export const openModal = () => [...document.querySelectorAll("dialog[open]")].filter(d => d.matches(":modal")).pop() || null;
+/** Hvor et svævende lag (menu, tooltip …) skal ligge: inde i den åbne modal, ellers bliver det inert og dækket af den. */
+export const layerRoot = (near) => near?.closest?.("dialog[open]") || openModal() || document.body;
+
+/** Kortvarig besked nederst. Beholderen er en popover="manual" (top layer), så beskeden også ses over en åben modal; den
+ *  hentes øverst igen ved hver ny besked. Har man fokus i beskeden (luk-knappen), venter den med at forsvinde. */
 export function toast(msg, kind = "") {
-  const t = h("div", { class: `toast ${kind}`, onclick: () => t.remove() }, msg);
-  $("#toasts").append(t);
-  setTimeout(() => t.remove(), kind === "err" ? 7000 : 4000);
+  const box = $("#toasts");
+  const t = h("div", { class: `toast ${kind}` }, h("span", {}, msg),
+    h("button", { type: "button", class: "toast-x", "aria-label": "Luk besked", onclick: () => dismiss(true), html: icon("x") }));
+  const dismiss = (byUser = false) => {
+    if (!t.isConnected) return;
+    const hadFocus = t.contains(document.activeElement);
+    const next = t.nextElementSibling || t.previousElementSibling;
+    t.remove();
+    if (hadFocus && byUser) (next?.querySelector("button") || $("#view"))?.focus({ preventScroll: true });
+    if (!box.children.length && hasPopover && box.matches(":popover-open")) box.hidePopover();
+  };
+  box.append(t);
+  if (hasPopover) { if (box.matches(":popover-open")) box.hidePopover(); box.showPopover(); }
+  // Uden for en åben modal er siden inert, så beholderens live-region læses ikke op – meddel beskeden fra modalen i stedet
+  openModal()?.ariaNotify?.(msg);
+  const later = (ms) => setTimeout(() => { if (t.contains(document.activeElement)) later(2000); else dismiss(); }, ms);
+  later(kind === "err" ? 7000 : 4000);
 }
 
 // Androids tilbageknap (appen): åbne lag (modal, ark, menu …) lukkes ét ad gangen, før der gås tilbage i historikken.
 // Et lag, der er fjernet fra siden på anden vis, springes over, så lagene ikke skal afmelde sig selv.
-const layers = [];   // [{ el, close }], det øverste sidst
-export function backLayer(el, close) { layers.push({ el, close }); }
+const layers = [];   // [{ isOpen, close }], det øverste sidst
+/** isOpen: er laget stadig åbent? Standard: elementet er stadig på siden (lag, der fjernes, når de lukkes). */
+export function backLayer(el, close, isOpen = () => el.isConnected && (!el.matches("dialog") || el.open)) { layers.push({ isOpen, close }); }
 
 /** «← Forrige side»-link: fører tilbage til siden man kom fra (gemt af routeren i history.state.from), ellers til
  *  fallback. Tilbage sker via historikken, så rullepositionen på forrige side genskabes. */
@@ -151,8 +175,8 @@ export function backLink(fallbackHref = "#/", fallbackLabel = "Mit overblik") {
 /** Kaldes af appen (MainActivity) ved tilbagetryk. false: intet at gå tilbage til – appen lægges i baggrunden. */
 window.dofBack = (canGoBack) => {
   while (layers.length) {
-    const { el, close } = layers.pop();
-    if (el.isConnected) { close(); return true; }
+    const { isOpen, close } = layers.pop();
+    if (isOpen()) { close(); return true; }
   }
   if (canGoBack) { history.back(); return true; }
   // Åbnet direkte på en underside (fx fra en notifikation): tilbage fører til forsiden
@@ -160,19 +184,39 @@ window.dofBack = (canGoBack) => {
   return false;
 };
 
+let uidN = 0;
+/** Unikt id til aria-labelledby o.l. */
+export const uid = (prefix = "id") => `${prefix}-${++uidN}`;
+
+/** Modal dialog: native <dialog> åbnet med showModal(). Browseren sørger for fokus ind i dialogen og tilbage bagefter,
+ *  inert side bag den, top layer og Esc/tilbage-gestus. Dialogen dækker hele skærmen (baggrunden er ::backdrop), og et
+ *  tryk uden for kortet lukker den. */
 export function modal(title, content, { wide = false, onClose } = {}) {
-  // Sideskift (fx Androids tilbageknap) lukker også modalen, så den ikke bliver hængende over en anden side
-  const close = () => { if (!bg.isConnected) return; bg.remove(); document.removeEventListener("keydown", key); window.removeEventListener("hashchange", close); onClose?.(); };
-  const key = (e) => { if (e.key === "Escape") close(); };
-  const bg = h("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) close(); } },
-    h("div", { class: `modal ${wide ? "wide" : ""}`, role: "dialog", "aria-modal": "true" },
-      h("div", { class: "modal-head" }, h("h2", {}, title), h("button", { class: "icon-btn", onclick: close, "aria-label": "Luk", html: icon("x") })),
+  const titleId = uid("modal-t");
+  let done = false;
+  // Lukket på enhver måde (knap, Esc, tryk udenfor, sideskift): ryd op én gang
+  const finish = () => { if (done) return; done = true; window.removeEventListener("hashchange", close); bg.remove(); onClose?.(); };
+  const close = () => { if (bg.open) bg.close(); finish(); };
+  const bg = h("dialog", { class: "modal-bg", "aria-labelledby": titleId },
+    h("div", { class: `modal ${wide ? "wide" : ""}` },
+      h("div", { class: "modal-head" }, h("h2", { id: titleId }, title), h("button", { type: "button", class: "icon-btn", onclick: close, "aria-label": "Luk", html: icon("x") })),
       content));
+  lightDismiss(bg, close);
+  bg.addEventListener("close", finish);
   document.body.append(bg);
-  document.addEventListener("keydown", key);
+  bg.showModal();
+  // Sideskift (fx Androids tilbageknap) lukker også modalen, så den ikke bliver hængende over en anden side
   window.addEventListener("hashchange", close);
   backLayer(bg, close);
   return { close, el: bg };
+}
+
+/** Luk en fuldskærms-<dialog>, når man trykker uden for dens indhold (på selve dialogen = baggrunden). Både tryk og slip
+ *  skal ske udenfor, så en tekstmarkering, der slutter på baggrunden, ikke lukker den. */
+export function lightDismiss(dlg, close) {
+  let downOutside = false;
+  dlg.addEventListener("pointerdown", (e) => { downOutside = e.target === dlg; });
+  dlg.addEventListener("click", (e) => { if (downOutside && e.target === dlg) close(); downOutside = false; });
 }
 
 export function loading(el, rows = 4) {
@@ -195,15 +239,14 @@ export function errorBox(err) {
   return h("div", { class: "notice err" }, err.message || String(err));
 }
 
+/** Segmentvælger: en gruppe trykknapper (aria-pressed), hvor præcis én er valgt. */
 export function seg(options, value, onChange) {
-  const wrap = h("div", { class: "seg", role: "tablist" });
+  const wrap = h("div", { class: "seg", role: "group" });
+  const mark = (on) => [...wrap.children].forEach((b, i) => { b.classList.toggle("on", i === on); b.setAttribute("aria-pressed", String(i === on)); });
   for (const [v, label] of options) {
-    wrap.append(h("button", { class: v === value ? "on" : "", type: "button", onclick: () => {
-      wrap.querySelectorAll("button").forEach(b => b.classList.remove("on"));
-      wrap.children[options.findIndex(o => o[0] === v)].classList.add("on");
-      onChange(v);
-    } }, label));
+    wrap.append(h("button", { type: "button", onclick: () => { mark(options.findIndex(o => o[0] === v)); onChange(v); } }, label));
   }
+  mark(options.findIndex(o => o[0] === value));
   return wrap;
 }
 

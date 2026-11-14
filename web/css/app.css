@@ -91,6 +91,8 @@ small, .muted { color: var(--text-3); }
 .num { font-variant-numeric: tabular-nums; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
 :focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; border-radius: 4px; }
+/* <main> får fokus ved sideskift (så skærmlæsere begynder på den nye side) – det skal ikke tegne en ramme om hele siden */
+main#view:focus { outline: none; }
 
 /* ---------- shell ---------- */
 .topbar {
@@ -106,7 +108,8 @@ svg.ic { width: 1.2em; height: 1.2em; flex: none; vertical-align: -.2em; }
 .topbar .spacer { flex: 1; }
 .live-dot { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; color: var(--text-3); }
 .live-dot i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); display: inline-block; }
-.live-dot.on i { background: var(--ok); box-shadow: 0 0 0 0 rgb(47 138 76 / 60%); animation: pulse 2s infinite; }
+.live-dot.on i { background: var(--ok); box-shadow: 0 0 0 0 rgb(47 138 76 / 60%); }
+@media (prefers-reduced-motion: no-preference) { .live-dot.on i { animation: pulse 2s infinite; } }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgb(47 138 76 / 50%); } 70% { box-shadow: 0 0 0 8px rgb(47 138 76 / 0%); } 100% { box-shadow: 0 0 0 0 rgb(47 138 76 / 0%); } }
 .icon-btn {
   position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
@@ -132,12 +135,14 @@ main#view { flex: 1; min-width: 0; padding: 16px 16px calc(var(--nav-h) + 24px +
   padding-bottom: var(--safe-bottom); display: grid; grid-template-columns: repeat(5, 1fr);
   background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); border-top: 1px solid var(--line);
 }
-.bottomnav a, .sidenav a {
+.bottomnav a, .sidenav a, .bottomnav .nav-more {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-3);
   font-size: .68rem; font-weight: 600; text-decoration: none;
 }
-.bottomnav a svg, .sidenav a svg { width: 23px; height: 23px; }
-.bottomnav a.active, .sidenav a.active { color: var(--brand); }
+.bottomnav a svg, .sidenav a svg, .bottomnav .nav-more svg { width: 23px; height: 23px; }
+.bottomnav a.active, .sidenav a.active, .bottomnav .nav-more.active { color: var(--brand); }
+/* «Mere» er en knap (åbner arket), men ser ud som de andre menupunkter */
+.bottomnav .nav-more { border: 0; background: none; font-family: inherit; padding: 0; cursor: pointer; }
 
 @media (min-width: 900px) {
   .bottomnav { display: none; }
@@ -253,7 +258,8 @@ table.data tr.click:hover td { background: var(--surface-2); }
 
 .empty { text-align: center; color: var(--text-3); padding: 32px 16px; }
 .empty svg { width: 42px; height: 42px; opacity: .5; }
-.skeleton { background: linear-gradient(90deg, var(--bg-2), var(--surface-2), var(--bg-2)); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 10px; height: 64px; }
+.skeleton { background: linear-gradient(90deg, var(--bg-2), var(--surface-2), var(--bg-2)); background-size: 200% 100%; border-radius: 10px; height: 64px; }
+@media (prefers-reduced-motion: no-preference) { .skeleton { animation: sk 1.2s infinite; } }
 @keyframes sk { to { background-position: -200% 0; } }
 .notice { padding: 10px 12px; border-radius: 10px; background: var(--bem-soft); color: var(--text); font-size: .88rem; }
 .notice.warn { background: var(--warn-soft); }
@@ -397,6 +403,7 @@ table.month-heat td i { display: block; height: 100%; border-radius: 3px; backgr
 /* ---------- læring ---------- */
 .course-card { display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
 .course-card:hover { box-shadow: var(--shadow-lg); }
+.course-card h3 a { color: inherit; }
 .course-card .topic { font-size: .72rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
 .progress { height: 6px; background: var(--bg-2); border-radius: 6px; overflow: hidden; }
 .progress i { display: block; height: 100%; background: var(--brand-2); transition: width .3s; }
@@ -418,19 +425,36 @@ table.month-heat td i { display: block; height: 100%; border-radius: 3px; backgr
 .result-big { font-size: 3rem; font-weight: 800; text-align: center; letter-spacing: -0.03em; }
 
 /* ---------- modal / toast ---------- */
-.modal-bg { position: fixed; inset: 0; z-index: 300; background: rgb(10 15 12 / 45%); display: grid; place-items: center; animation: fade .15s;
+/* Modaler og ark er native <dialog> åbnet med showModal(): dialogen dækker hele skærmen og centrerer kortet (.modal),
+   baggrunden er ::backdrop. overflow + overscroll-behavior: contain, så rul over baggrunden ikke ruller siden bag. */
+dialog.modal-bg { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0;
+  background: transparent; color: var(--text); overflow: hidden; overscroll-behavior: contain;
   padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left)); }
+dialog.modal-bg[open] { display: grid; place-items: center; }
+dialog.modal-bg::backdrop { background: rgb(10 15 12 / 45%); overflow: hidden; overscroll-behavior: contain; }
+/* Indgang: tonet ind (ingen bevægelse, så også ved reduceret bevægelse) */
+dialog.modal-bg[open], dialog.modal-bg[open]::backdrop { opacity: 1; transition: opacity .15s ease-out; }
+@starting-style { dialog.modal-bg[open], dialog.modal-bg[open]::backdrop { opacity: 0; } }
 .modal { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow-lg); width: min(560px, 100%); max-height: calc(var(--avail-h) - 32px); overflow: auto; padding: 18px; overscroll-behavior: contain; }
 .modal.wide { width: min(920px, 100%); }
 .modal-head { display: flex; align-items: center; gap: .5rem; margin-bottom: 12px; }
 .modal-head h2 { margin: 0; flex: 1; }
 @keyframes fade { from { opacity: 0; } }
-.toasts { position: fixed; z-index: 400; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 16px + var(--safe-bottom)); display: grid; gap: 8px; width: min(440px, calc(100% - 32px)); }
+/* Beholderen er en popover="manual" (top layer, så beskeder også ses over en modal); UA-stilen for [popover] nulstilles */
+.toasts { position: fixed; inset: auto; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; overflow: visible; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 16px + var(--safe-bottom)); display: grid; gap: 8px; width: min(440px, calc(100% - 32px)); }
 @media (min-width: 900px) { .toasts { bottom: 24px; } }
-.toast { background: var(--text); color: var(--bg); padding: 11px 14px; border-radius: 12px; box-shadow: var(--shadow-lg); font-size: .9rem; animation: up .2s; cursor: pointer; }
+.toasts:not(:popover-open) { display: none; }
+.toast { background: var(--text); color: var(--bg); padding: 11px 14px; border-radius: 12px; box-shadow: var(--shadow-lg); font-size: .9rem; animation: fade .2s;
+  display: flex; align-items: center; gap: 10px; }
+@media (prefers-reduced-motion: no-preference) { .toast { animation-name: up; } }
+.toast > span { flex: 1; min-width: 0; }
+.toast-x { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin: -4px -6px -4px 0; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; opacity: .8; }
+.toast-x:hover { opacity: 1; background: rgb(127 127 127 / 20%); }
+.toast-x svg { width: 18px; height: 18px; }
 .toast.err { background: var(--err); color: #fff; }
 @keyframes up { from { transform: translateY(8px); opacity: 0; } }
-.menu { position: fixed; right: calc(12px + var(--safe-right)); top: calc(var(--top-h) - 4px); z-index: 120; max-height: calc(100dvh - var(--top-h) - var(--safe-bottom) - 12px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); min-width: 230px; padding: 6px; }
+/* Brugermenuen er en popover (top layer); inset/margin nulstiller UA-centreringen for [popover] */
+.menu { position: fixed; inset: auto; margin: 0; color: var(--text); right: calc(12px + var(--safe-right)); top: calc(var(--top-h) - 4px); z-index: 120; max-height: calc(100dvh - var(--top-h) - var(--safe-bottom) - 12px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); min-width: 230px; padding: 6px; }
 .menu a, .menu button { display: flex; width: 100%; gap: .6rem; align-items: center; padding: 9px 10px; border-radius: 9px; color: var(--text); font: inherit; font-size: .92rem; background: none; border: 0; cursor: pointer; text-align: left; }
 .menu a:hover, .menu button:hover { background: var(--bg-2); text-decoration: none; }
 .menu svg { width: 20px; height: 20px; color: var(--text-2); }
@@ -456,6 +480,8 @@ table.month-heat td i { display: block; height: 100%; border-radius: 3px; backgr
 .loadnote .spinner { width: 16px; height: 16px; flex: none; }
 .is-busy { opacity: .5; pointer-events: none; transition: opacity .15s; }
 .spinner { width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; }
+/* Spinneren viser, at der arbejdes – den bliver, men drejer langsommere */
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hide { display: none !important; }
 .right { text-align: right; }
@@ -530,7 +556,8 @@ details.more > summary { cursor: pointer; font-weight: 650; color: var(--text-2)
   font-weight: 700; white-space: nowrap; flex: none; background: var(--bg-2); color: var(--text-2); }
 .status-badge i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .status-badge.live { background: color-mix(in srgb, var(--ok) 16%, var(--surface)); color: var(--ok); }
-.status-badge.live i { animation: pulse 2s infinite; box-shadow: 0 0 0 0 rgb(47 138 76 / 60%); }
+.status-badge.live i { box-shadow: 0 0 0 0 rgb(47 138 76 / 60%); }
+@media (prefers-reduced-motion: no-preference) { .status-badge.live i { animation: pulse 2s infinite; } }
 .status-badge.gone { color: var(--text-3); }
 .tag.certainty { background: var(--local-soft); color: var(--local); }
 .tag.portal { background: var(--brand-soft); color: var(--brand); }
@@ -577,7 +604,8 @@ table.month-grid tbody th { text-align: right; font-variant-numeric: tabular-num
 .mg-cell.error { background: color-mix(in srgb, var(--su) 45%, var(--surface)); color: #fff; }
 .mg-cell.unavailable { background: repeating-linear-gradient(45deg, var(--bg-2) 0 4px, transparent 4px 8px); color: var(--text-3); }
 .mg-cell.queued { box-shadow: inset 0 0 0 2px var(--bem); }
-.mg-cell.live { box-shadow: inset 0 0 0 2px var(--accent); animation: pulse 1.6s infinite; }
+.mg-cell.live { box-shadow: inset 0 0 0 2px var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .mg-cell.live { animation: pulse 1.6s infinite; } }
 .mg-cell:hover:not(.future) { outline: 2px solid var(--brand-2); }
 i.mg-key { display: inline-block; min-width: 14px; width: 14px; height: 14px; border-radius: 4px; cursor: default; }
 /* Support */
@@ -616,7 +644,11 @@ i.mg-key { display: inline-block; min-width: 14px; width: 14px; height: 14px; bo
 body.anon .sidenav, body.anon .bottomnav { display: none !important; }
 body.anon main#view { padding-bottom: 32px; max-width: 1080px; }
 /* "Mere"-ark på mobil */
-.more-sheet { position: fixed; inset: 0; z-index: 150; background: rgb(0 0 0 / 35%); display: flex; align-items: flex-end; }
+/* Native modal <dialog> over hele skærmen; panelet lægger sig nederst, baggrunden er ::backdrop */
+dialog.more-sheet { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+  background: transparent; color: var(--text); overflow: hidden; overscroll-behavior: contain; }
+dialog.more-sheet[open] { display: flex; align-items: flex-end; }
+dialog.more-sheet::backdrop { background: rgb(0 0 0 / 35%); overflow: hidden; overscroll-behavior: contain; }
 .more-panel { width: 100%; background: var(--surface); border-radius: 18px 18px 0 0; box-shadow: var(--shadow-lg);
   padding: 14px calc(14px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(14px + var(--safe-left));
   max-height: calc(100dvh - var(--safe-top) - 24px); overflow: auto; overscroll-behavior: contain; }
@@ -921,11 +953,10 @@ progress { accent-color: var(--brand); height: 10px; }
 @media (max-width: 899px) { .sheet-page .sheet-foot { bottom: calc(var(--nav-h) + var(--safe-bottom)); } }
 .filled-badge { font-size: .8rem; font-weight: 650; color: var(--text-3); display: inline-flex; align-items: center; gap: 4px; }
 .filled-badge.ok { color: var(--ok); } .filled-badge svg { width: 15px; height: 15px; }
-body.sheet-open { overflow: hidden; }
 
 /* Mobil: modaler og ark bruger skærmen bedre (mindre luft rundt om, mindre indvendig margen) */
 @media (max-width: 599px) {
-  .modal-bg { padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(8px + var(--safe-left)); }
+  dialog.modal-bg { padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(8px + var(--safe-left)); }
   .modal { padding: 14px; border-radius: 14px; max-height: calc(var(--avail-h) - 16px); }
   .modal-head { margin-bottom: 8px; }
   .modal-head h2 { font-size: 1.1rem; }

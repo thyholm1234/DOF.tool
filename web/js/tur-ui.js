@@ -1,5 +1,5 @@
 // Fælles byggeklodser til tur-siderne: faner, bund-ark (popup), felter med "Udfyldt"-mærke, artsvælger og kortvalg.
-import { h, icon, tag, toast, searchSpecies, modal, state, backLayer } from "./core.js";
+import { h, icon, tag, toast, searchSpecies, modal, state, backLayer, uid } from "./core.js";
 import { baseMap, cssVar, locationOutlines } from "./maps.js";
 import { tracker, trackStart, trackPause, trackStop, trackLength } from "./tur-data.js";
 import { isApp } from "./native.js";
@@ -15,19 +15,33 @@ export function reqField(label, content, isFilled) {
   return { el: h("div", { class: "field" }, h("div", { class: "row between" }, h("span", { class: "label", style: { margin: 0 } }, label), badge), content), refresh };
 }
 
-/** Fanestribe + paneler. tabs = [[nøgle, titel, node], ...]. */
+/** Fanestribe + paneler (ARIA tabs: tablist/tab/tabpanel, aria-selected, roving tabindex og piletaster/Home/End).
+ *  tabs = [[nøgle, titel, node], ...]. */
 export function tabs(list, { onChange } = {}) {
   const bar = h("div", { class: "tabs", role: "tablist" });
   const panels = h("div", { class: "tab-panels" });
-  const show = (key) => {
-    [...bar.children].forEach(b => b.classList.toggle("on", b.dataset.key === key));
+  const base = uid("tab");
+  const show = (key, focus = false) => {
+    [...bar.children].forEach(b => {
+      const on = b.dataset.key === key;
+      b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1;
+      if (on && focus) b.focus();
+    });
     [...panels.children].forEach(p => p.classList.toggle("hide", p.dataset.key !== key));
     onChange?.(key);
   };
-  for (const [key, label, node] of list) {
-    bar.append(h("button", { type: "button", class: "tab", role: "tab", "data-key": key, onclick: () => show(key) }, label));
-    panels.append(h("div", { class: "tab-panel stack", "data-key": key }, node));
-  }
+  list.forEach(([key, label, node], i) => {
+    bar.append(h("button", { type: "button", class: "tab", role: "tab", id: `${base}-${i}`, "aria-controls": `${base}-p${i}`, "data-key": key, onclick: () => show(key) }, label));
+    panels.append(h("div", { class: "tab-panel stack", role: "tabpanel", id: `${base}-p${i}`, "aria-labelledby": `${base}-${i}`, "data-key": key }, node));
+  });
+  bar.addEventListener("keydown", (e) => {
+    const btns = [...bar.children], i = btns.indexOf(document.activeElement);
+    if (i < 0) return;
+    const j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: btns.length - 1 }[e.key];
+    if (j === undefined) return;
+    e.preventDefault();
+    show(btns[(j + btns.length) % btns.length].dataset.key, true);
+  });
   show(list[0][0]);
   return { bar, panels, show };
 }
@@ -38,17 +52,25 @@ export function sheet({ kicker, title, sub, onDelete, tabList, confirmLabel, onC
   const body = h("div", { class: "sheet-body" });
   const t = tabs(tabList, { onChange: () => { body.scrollTop = 0; } });  // hver fane begynder øverst
   body.append(t.panels);
-  const close = () => { bg.remove(); document.body.classList.remove("sheet-open"); };
+  const titleId = uid("sheet-t");
+  // Første fokus på den valgte fane – ikke på «Slet», som ellers er det første fokuserbare i arket
+  t.bar.querySelector('[aria-selected="true"]')?.setAttribute("autofocus", "");
+  let closing = false;
+  const close = () => { closing = true; if (bg.open) bg.close(); bg.remove(); };
   const cancel = () => { close(); onCancel?.(); };
   const confirm = h("button", { class: "btn primary", type: "button", onclick: async () => { if (await onConfirm() !== false) close(); } }, confirmLabel);
-  const bg = h("div", { class: "modal-bg sheet-bg" }, h("div", { class: "modal sheet", role: "dialog", "aria-modal": "true" },
+  // Native modal <dialog>: fokus ind og tilbage, inert side og intet rul bag arket klares af browseren
+  const bg = h("dialog", { class: "modal-bg sheet-bg", "aria-labelledby": titleId }, h("div", { class: "modal sheet" },
     h("div", { class: "sheet-head" },
-      h("div", {}, h("small", { class: "kicker" }, kicker), h("h2", {}, title), h("div", { class: "sheet-sub", html: `${icon("calendar")} ` }, sub)),
+      h("div", {}, h("small", { class: "kicker" }, kicker), h("h2", { id: titleId }, title), h("div", { class: "sheet-sub", html: `${icon("calendar")} ` }, sub)),
       onDelete ? h("button", { class: "btn sm danger solid", type: "button", html: `${icon("trash")} Slet`, onclick: async () => { if (await onDelete() !== false) close(); } }) : null),
     t.bar, body,
     h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: cancel }, "Annullér"), confirm)));
+  // Esc må ikke smide en halvt udfyldt indtastning væk uden at spørge
+  bg.addEventListener("cancel", (e) => { e.preventDefault(); if (window.confirm("Luk uden at gemme?")) cancel(); });
+  bg.addEventListener("close", () => { if (!closing) cancel(); });
   document.body.append(bg);
-  document.body.classList.add("sheet-open");
+  bg.showModal();
   backLayer(bg, cancel);
   return { close, show: t.show, el: bg };
 }
@@ -71,7 +93,7 @@ export function speciesPicker(ref, recent, onPick) {
     h("span", {}, s.navn), s.klass !== "Alm" ? tag(s.klass) : null, s.latin ? h("i", { class: "muted" }, s.latin) : null);
   input.oninput = () => { const q = input.value.trim(); suggest.replaceChildren(...(q.length >= 2 ? searchSpecies(ref.species, q).map(option) : [])); };
   input.onblur = () => setTimeout(() => suggest.replaceChildren(), 150);
-  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape") suggest.replaceChildren(); };
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape" && suggest.children.length) { e.preventDefault(); suggest.replaceChildren(); } };
   const pick = (s) => {
     input.classList.remove("invalid"); suggest.replaceChildren(); input.value = ""; input.classList.toggle("hide", !!s); chips.classList.toggle("hide", !!s);
     chosen.replaceChildren(...(s ? [h("span", { class: "chosen-sp" }, h("b", {}, s.navn), s.latin ? h("i", { class: "muted" }, ` ${s.latin}`) : null,
@@ -113,7 +135,6 @@ export function pickPosition(current, center, done, { locations = false } = {}) 
       h("span", { style: { flex: 1 } }),
       h("button", { class: "btn sm ghost", type: "button", onclick: () => { done(null); m.close(); } }, "Fjern position"),
       h("button", { class: "btn sm primary", type: "button", onclick: () => { if (pos) { done(pos.map(v => Math.round(v * 1e6) / 1e6)); m.close(); } else toast("Tryk på kortet først", "err"); } }, "Brug position"))), { wide: true });
-  m.el.style.zIndex = 400;
   const mp = baseMap(el, { center: pos || center || [56, 10.5], zoom: pos || center ? 15 : 7 });
   const outlines = locations ? locationOutlines(mp, { onChange: () => pos && describe() }) : null;
   const describe = () => {

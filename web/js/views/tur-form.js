@@ -53,7 +53,7 @@ export function form(page, ref, store_, recent, isNew) {
     }, 200);
   };
   lokQ.onblur = () => setTimeout(() => lokSug.replaceChildren(), 150);
-  lokQ.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); lokSug.querySelector("button")?.click(); } if (e.key === "Escape") lokSug.replaceChildren(); };
+  lokQ.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); lokSug.querySelector("button")?.click(); } if (e.key === "Escape" && lokSug.children.length) { e.preventDefault(); lokSug.replaceChildren(); } };
   const nearTo = async (lat, lon) => {
     try {
       const rows = await nearestLocations(lat, lon, 12);

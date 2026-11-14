@@ -192,7 +192,7 @@ function reportForm({ recent, initial = null, submitLabel, onSaved }) {
   spInput.onfocus = showSuggest;
   spInput.oninput = showSuggest;
   spInput.onblur = () => setTimeout(() => suggest.replaceChildren(), 150);
-  spInput.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape") suggest.replaceChildren(); };
+  spInput.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape" && suggest.children.length) { e.preventDefault(); suggest.replaceChildren(); } };
   const pick = (sp) => {
     spInput.classList.remove("invalid");
     v.artnr = sp?.artnr ?? null;
@@ -329,7 +329,7 @@ function reportForm({ recent, initial = null, submitLabel, onSaved }) {
   const fileInput = h("input", { type: "file", accept: "image/*,audio/*", multiple: true, class: "hide" });
   const fileList = h("div", { class: "chips wrap" });
   const drawFiles = () => fileList.replaceChildren(...files.map((f, i) => h("span", { class: "chip on" }, f.name.length > 24 ? f.name.slice(0, 22) + "…" : f.name,
-    h("button", { type: "button", class: "chip-x", html: icon("x"), onclick: () => { files.splice(i, 1); drawFiles(); } }))));
+    h("button", { type: "button", class: "chip-x", "aria-label": "Fjern filen", html: icon("x"), onclick: () => { files.splice(i, 1); drawFiles(); } }))));
   fileInput.onchange = () => { files.push(...fileInput.files); fileInput.value = ""; drawFiles();
     if (files.some(f => f.type.startsWith("image")) && !v.grundlag.includes("foto")) { v.grundlag.push("foto"); drawBasis(); }
     if (files.some(f => f.type.startsWith("audio")) && !v.grundlag.includes("lyd")) { v.grundlag.push("lyd"); drawBasis(); } };

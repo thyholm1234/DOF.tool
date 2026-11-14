@@ -303,7 +303,7 @@ async function wizard(view, draftId) {
     const art = h("input", { type: "search", value: f.art, autocomplete: "off", spellcheck: "false", maxlength: 120, placeholder: "Skriv det danske navn …",
       oninput: () => { f.artnr = null; showSuggest(); }, onfocus: () => showSuggest(),
       onblur: () => setTimeout(() => { suggest.replaceChildren(); if (!f.artnr) art.value = f.art = ""; }, 150),
-      onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape") suggest.replaceChildren(); } });
+      onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); suggest.querySelector("button")?.click(); } if (e.key === "Escape" && suggest.children.length) { e.preventDefault(); suggest.replaceChildren(); } } });
     const pickArt = (sp) => { f.artnr = sp.artnr; f.art = art.value = sp.navn; art.setCustomValidity(""); suggest.replaceChildren(); };
     const showSuggest = () => {
       const q = art.value.trim().toLowerCase();
@@ -319,7 +319,7 @@ async function wizard(view, draftId) {
     const lok = h("input", { type: "search", value: f.lokalitet, autocomplete: "off", spellcheck: "false", maxlength: 200,
       oninput: () => { f.lokalitet = lok.value.trim(); if (f.land !== "Danmark") return; f.loknr = null; clearTimeout(lokTimer); lokTimer = setTimeout(findLok, 200); },
       onblur: () => setTimeout(() => { lokSuggest.replaceChildren(); if (f.land === "Danmark" && !f.loknr) lok.value = f.lokalitet = ""; }, 150),
-      onkeydown: (e) => { if (e.key === "Enter" && f.land === "Danmark") { e.preventDefault(); lokSuggest.querySelector("button")?.click(); } if (e.key === "Escape") lokSuggest.replaceChildren(); } });
+      onkeydown: (e) => { if (e.key === "Enter" && f.land === "Danmark") { e.preventDefault(); lokSuggest.querySelector("button")?.click(); } if (e.key === "Escape" && lokSuggest.children.length) { e.preventDefault(); lokSuggest.replaceChildren(); } } });
     const lokPlaceholder = () => { lok.placeholder = f.land === "Danmark" ? "Søg blandt DOFbasens lokaliteter …" : "Skriv lokaliteten"; };
     lokPlaceholder();
     const findLok = async () => {

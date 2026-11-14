@@ -62,7 +62,7 @@ export function openObsSheet({ ref, recent, T, obs = null, adfDefault = "", guid
   const fileInput = h("input", { type: "file", accept: "image/*,audio/*", multiple: true, class: "hide" });
   const fileList = h("div", { class: "chips wrap" });
   const drawFiles = () => fileList.replaceChildren(...newFiles.map((f, i) => h("span", { class: "chip on" }, f.name.length > 24 ? f.name.slice(0, 22) + "…" : f.name,
-    h("button", { type: "button", class: "chip-x", html: icon("x"), onclick: () => { newFiles.splice(i, 1); drawFiles(); } }))));
+    h("button", { type: "button", class: "chip-x", "aria-label": "Fjern filen", html: icon("x"), onclick: () => { newFiles.splice(i, 1); drawFiles(); } }))));
   drawFiles();
   fileInput.onchange = async () => {
     for (const f of fileInput.files) newFiles.push(await compressImage(f));

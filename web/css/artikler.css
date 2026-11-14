@@ -111,8 +111,12 @@ a.art-chip:hover { background: var(--brand-soft); border-color: var(--brand); co
 .art-block { margin: 22px 0; padding-top: 12px; border-top: 1px solid var(--line-strong); }
 .art-block h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; margin: 0 0 6px; font-family: inherit; color: var(--text-2); }
 .art-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
-.art-lightbox { position: fixed; inset: 0; z-index: 200; background: rgb(0 0 0 / 92%); display: flex; align-items: center; justify-content: center; flex-direction: column; }
-.art-lightbox img { max-width: 94vw; max-height: 82vh; object-fit: contain; }
+/* Modal <dialog> over hele skærmen (UA-stilen for dialog nulstilles) */
+.art-lightbox { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; color: #fff;
+  overflow: hidden; overscroll-behavior: contain; background: rgb(0 0 0 / 92%); align-items: center; justify-content: center; flex-direction: column; }
+.art-lightbox[open] { display: flex; }
+.art-lightbox::backdrop { background: transparent; overflow: hidden; overscroll-behavior: contain; }
+.art-lightbox img { max-width: 94vw; max-height: 82dvh; object-fit: contain; }
 .art-lightbox .cap { color: #ddd; font-size: .9rem; padding: 10px 16px; text-align: center; max-width: 80ch; }
 .art-lightbox button { position: absolute; background: rgb(255 255 255 / 14%); color: #fff; border: 0; font-size: 2rem; width: 52px; height: 52px; border-radius: 50%; cursor: pointer; }
 .art-lightbox .x { top: 14px; right: 14px; } .art-lightbox .p { left: 14px; top: 50%; } .art-lightbox .n { right: 14px; top: 50%; }

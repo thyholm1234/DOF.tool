@@ -45,7 +45,7 @@ async function overview(view) {
       const pct = c.progress && c.n_questions ? Math.round(c.progress.mastered / c.n_questions * 100) : 0;
       return h("div", { class: "card course-card", onclick: () => { location.hash = `#/laer/quiz/${c.slug}`; } },
         h("div", { class: "row between" }, h("span", { class: "topic" }, `${TOPIC[c.topic] || c.topic} · ${c.level}`), c.published ? null : h("span", { class: "tag plain" }, "kladde")),
-        h("h3", {}, c.title), h("span", { class: "muted" }, c.summary),
+        h("h3", {}, h("a", { href: `#/laer/quiz/${c.slug}`, onclick: (e) => e.stopPropagation() }, c.title)), h("span", { class: "muted" }, c.summary),
         h("div", { class: "row between mt" }, h("small", { class: "muted" }, `${c.n_questions} spørgsmål${c.progress ? ` · ${c.progress.due} til repetition` : ""}`),
           isEditor() ? h("a", { class: "btn sm ghost", href: `#/laer/rediger/${c.slug}`, onclick: (e) => e.stopPropagation(), html: `${icon("edit")} Redigér` }) : null),
         state.user ? h("div", { class: "progress", title: `${pct} % mestret` }, h("i", { style: { width: `${pct}%` } })) : null);

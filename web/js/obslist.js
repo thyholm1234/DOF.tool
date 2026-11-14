@@ -2,7 +2,7 @@
 // Ét skema uden kolonnetitler med faste kolonnebredder: noteikoner forrest, så antal, alder/køn/dragt, adfærd,
 // billede/lyd, fuglens position, tidspunkt, art eller lokalitet og observatør. Ikonerne er links til observationen; ved
 // hover vises noten (og for uret tidsrummet). Nålen har ingen boks – den siger kun, at positionen er angivet.
-import { state, h, fmtN, icon } from "./core.js";
+import { state, h, fmtN, icon, layerRoot } from "./core.js";
 
 /** Artsnavn som link; for SU/SUB-arter er selve navnet et mærkat (hvid fed skrift på kategoriens farve).
  *  Bemærk-kategorien vises ikke. */
@@ -38,7 +38,7 @@ export function initPopup(root) {
     hide();
     const t = el.dataset.popT, txt = el.dataset.pop;
     pop = h("div", { class: "dl-pop", role: "tooltip" }, h("b", {}, t), txt ? h("div", {}, txt) : null);
-    document.body.append(pop);
+    layerRoot(el).append(pop);  // i en åben modal ligger den inde i dialogen, ellers dækkes den af den
     const r = el.getBoundingClientRect(), w = pop.offsetWidth, ph = pop.offsetHeight;
     const left = Math.max(8, Math.min(r.left, innerWidth - w - 8));
     pop.style.left = `${left}px`;

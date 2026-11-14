@@ -44,7 +44,7 @@ async function status(body) {
       const tr = x.trend_q50;
       const sig = tr && tr.p < 0.05;
       return h("tr", { class: "click", onclick: () => { location.hash = `#/art/${s.artnr}`; } },
-        h("td", {}, h("b", {}, s.navn), h("div", { class: "muted", style: { fontSize: ".78rem" } }, PROFILE[s.profile] || s.type)),
+        h("td", {}, h("a", { href: `#/art/${s.artnr}`, onclick: (e) => e.stopPropagation() }, h("b", {}, s.navn)), h("div", { class: "muted", style: { fontSize: ".78rem" } }, PROFILE[s.profile] || s.type)),
         h("td", { class: "nowrap wide", "data-label": "Normalt" }, h("span", { class: "tag plain" }, EVENT[x.event] || "Træktop"), " ", h("b", {}, doyLabel(x.normal.q50)),
           h("div", { class: "muted", style: { fontSize: ".78rem" } }, `10–90 %: ${doyLabel(x.normal.q10)} – ${doyLabel(x.normal.q90)}`)),
         h("td", { class: "right", "data-label": "I år" }, x.status ? shiftEl(x.status.lag_days) : x.this_year ? shiftEl(x.this_year.q50 - x.normal.q50) : h("span", { class: "muted" }, "–"),
@@ -81,7 +81,7 @@ async function arrivals(body) {
     out.replaceChildren(h("div", { class: "table-wrap" }, h("table", { class: "data stack-sm", style: { "--cols": 3 } },
       h("thead", {}, h("tr", {}, h("th", {}, "Art"), h("th", {}, "Første fund"), h("th", {}, "Normalt"), h("th", { class: "right" }, "Forskel"))),
       h("tbody", {}, ...rows.map(r => h("tr", { class: "click", onclick: () => { location.hash = `#/art/${r.artnr}`; } },
-        h("td", {}, h("b", {}, r.navn)), h("td", { class: "nowrap", "data-label": "Første fund" }, fmtDate(r.dato, false)), h("td", { class: "nowrap muted", "data-label": "Normalt" }, fmtDate(r.normal, false)),
+        h("td", {}, h("a", { href: `#/art/${r.artnr}`, onclick: (e) => e.stopPropagation() }, h("b", {}, r.navn))), h("td", { class: "nowrap", "data-label": "Første fund" }, fmtDate(r.dato, false)), h("td", { class: "nowrap muted", "data-label": "Normalt" }, fmtDate(r.normal, false)),
         h("td", { class: "right", "data-label": "Forskel" }, shiftEl(r.diff_days))))))));
   } catch (err) { out.replaceChildren(errorBox(err)); }
 }

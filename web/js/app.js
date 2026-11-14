@@ -1,4 +1,4 @@
-import { api, prefetch, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer } from "./core.js";
+import { api, prefetch, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer, lightDismiss, hasPopover } from "./core.js";
 import { live } from "./live.js";
 import { syncSharing, syncPush, stopAppPush } from "./native.js";
 import { initSelectMenu } from "./select-menu.js";
@@ -110,11 +110,12 @@ function renderNav() {
   const path = "#" + (location.hash.slice(1).split("?")[0] || "/");
   const current = activeHref(path, [...NAV.map(n => n[0]), "#/profil", "#/support", "#/admin", "#/moderation"]);
   const link = ([href, ic, label], cls = "") =>
-    h("a", { href, class: `${cls} ${href === current ? "active" : ""}`.trim(), html: `${icon(ic)}<span>${label}</span>` });
+    h("a", { href, class: `${cls} ${href === current ? "active" : ""}`.trim(), "aria-current": href === current ? "page" : null, html: `${icon(ic)}<span>${label}</span>` });
   document.body.classList.toggle("anon", !state.user);
   // Mobil: Nu · Træk · [Indtast] · Kalender · Mere (arket viser alle moduler i samme grupper som sidepanelet)
   const inMore = current && !BOTTOM.includes(current);
-  const more = h("a", { href: "javascript:void 0", class: inMore ? "active" : "", onclick: (e) => { e.preventDefault(); openMore(); }, html: `${icon("more")}<span>Mere</span>` });
+  // En handling (åbner arket), ikke et link
+  const more = h("button", { type: "button", class: `nav-more ${inMore ? "active" : ""}`, "aria-haspopup": "dialog", onclick: openMore, html: `${icon("more")}<span>Mere</span>` });
   $("#bottomnav").replaceChildren(...(state.user
     ? [link(navItem("#/")), link(navItem("#/traek")), link(["#/indtast/ny", "plus", "Indtast"], "cta"), link(navItem("#/kalender")), more]
     : []));
@@ -123,24 +124,25 @@ function renderNav() {
   if (state.user) {
     side.unshift(link(["#/indtast/ny", "plus", "Indtast"], "cta"));
     side.push(h("div", { class: "sep" }));
-    side.push(h("a", { href: "#/profil", class: current === "#/profil" ? "active" : "", html: `${icon("user")}<span>Profil</span>` }));
-    side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
+    side.push(link(["#/profil", "user", "Profil"]));
+    side.push(h("a", { href: "#/support", class: current === "#/support" ? "active" : "", "aria-current": current === "#/support" ? "page" : null, html: `${icon("chat")}<span>Support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}</span>` }));
     // Ulæste samtaler vises på Admin for dem med support-modulet, ellers på Moderation (under Kvalitetssikring)
     const adm = adminLink(), unread = state.adminSupportUnread, onAdmin = adm && hasTab("support");
     const badge = (n) => n ? ` <span class="badge-inline">${n}</span>` : "";
-    if (adm) side.push(h("a", { href: adm.href, class: current === "#/admin" ? "active" : "", html: `${icon("shield")}<span>${adm.label}${badge(onAdmin ? unread : 0)}</span>` }));
+    if (adm) side.push(h("a", { href: adm.href, class: current === "#/admin" ? "active" : "", "aria-current": current === "#/admin" ? "page" : null, html: `${icon("shield")}<span>${adm.label}${badge(onAdmin ? unread : 0)}</span>` }));
   }
   const demo = showcases();
   if (demo.length) side.push(h("div", { class: "nav-h" }, "Showcases"), ...demo.map(n => link(n)));
   $("#sidenav").replaceChildren(...side);
 }
 
+/** «Mere»-arket på mobil: en modal <dialog> (fokus ind og tilbage, Esc og inert side klares af browseren). */
 function openMore() {
   document.querySelector(".more-sheet")?.remove();
-  const close = () => sheet.remove();
+  const close = () => { if (sheet.open) sheet.close(); sheet.remove(); };
   const tile = (href, ic, label, badge) => h("a", { href, class: "more-tile", onclick: close, html: `${icon(ic)}<span>${label}${badge ? ` <span class="badge-inline">${badge}</span>` : ""}</span>` });
   const u = state.user;
-  const sheet = h("div", { class: "more-sheet", onclick: (e) => { if (e.target === sheet) close(); } },
+  const sheet = h("dialog", { class: "more-sheet", "aria-label": "Alle menupunkter" },
     h("div", { class: "more-panel" },
       // Samme grupper og moduler som sidepanelet – også dem, der står i bundmenuen
       ...sections()
@@ -152,8 +154,11 @@ function openMore() {
         u && adminLink() ? tile(adminLink().href, "shield", adminLink().label, hasTab("support") ? state.adminSupportUnread : 0) : null),
       // Showcases nederst
       ...(showcases().length ? [h("div", { class: "more-h" }, "Showcases"), h("div", { class: "more-grid" }, ...showcases().map(([href, ic, label]) => tile(href, ic, label)))] : []),
-      h("button", { class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
+      h("button", { type: "button", class: "btn ghost", style: { width: "100%", marginTop: "8px" }, onclick: close }, "Luk")));
+  lightDismiss(sheet, close);
+  sheet.addEventListener("close", () => sheet.remove());
   document.body.append(sheet);
+  sheet.showModal();
   backLayer(sheet, close);
 }
 
@@ -224,13 +229,17 @@ function applyTheme() {
   else document.documentElement.setAttribute("data-theme", t);
 }
 
-function openMenu() {
-  document.querySelector(".menu")?.remove();
-  const u = state.user;
-  const close = () => { menu.remove(); document.removeEventListener("click", outside, true); };
-  const outside = (e) => { if (!menu.contains(e.target) && e.target !== $("#userbtn")) close(); };
+/** Brugermenuen er en popover="auto" (#usermenu i index.html) styret af #userbtn via popovertarget: browseren giver
+ *  lys afvisning, Esc, aria-expanded på knappen og fokus tilbage. Indholdet bygges, hver gang den åbnes. */
+const userMenu = () => $("#usermenu");
+const closeMenu = () => { const m = userMenu(); if (hasPopover) { if (m.matches(":popover-open")) m.hidePopover(); } else m.classList.add("hide"); };
+
+function fillMenu() {
+  const u = state.user, menu = userMenu();
+  if (!u) return;
+  const close = closeMenu;
   const mod = moderationLink(), adm = adminLink();
-  const menu = h("div", { class: "menu" },
+  menu.replaceChildren(
     h("div", { class: "who" }, h("b", {}, u.navn || u.obserkode), h("div", { class: "muted" }, `${u.obserkode} · ${u.role}`)),
     h("a", { href: "#/indtast", onclick: close, html: `${icon("list")} Mine indtastninger` }),
     h("a", { href: "#/alarmer", onclick: close, html: `${icon("bell")} Alarmer og områder` }),
@@ -239,11 +248,25 @@ function openMenu() {
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
     mod ? h("a", { href: mod.href, onclick: close, html: `${icon("check")} ${mod.long}` }) : null,
     adm ? h("a", { href: adm.href, onclick: close, html: `${icon("shield")} ${adm.long}` }) : null,
-    h("button", { onclick: () => { close(); logout(); }, html: `${icon("logout")} Log ud` }),
+    h("button", { type: "button", onclick: () => { close(); logout(); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
-  document.body.append(menu);
-  backLayer(menu, close);
-  setTimeout(() => document.addEventListener("click", outside, true));
+}
+
+function initMenu() {
+  const menu = userMenu(), btn = $("#userbtn");
+  const isOpen = () => hasPopover ? menu.matches(":popover-open") : !menu.classList.contains("hide");
+  if (hasPopover) {
+    menu.addEventListener("beforetoggle", (e) => { if (e.newState === "open") { fillMenu(); backLayer(menu, closeMenu, isOpen); } });
+    return;
+  }
+  // Uden Popover API: knappen åbner/lukker selv, og et klik udenfor lukker
+  menu.removeAttribute("popover");
+  menu.classList.add("hide");
+  btn.addEventListener("click", () => {
+    if (isOpen()) { closeMenu(); return; }
+    fillMenu(); menu.classList.remove("hide"); backLayer(menu, closeMenu, isOpen);
+  });
+  document.addEventListener("click", (e) => { if (isOpen() && !menu.contains(e.target) && !btn.contains(e.target)) closeMenu(); }, true);
 }
 
 async function logout() {
@@ -347,6 +370,20 @@ function rememberFrom() {
   history.replaceState({ ...history.state, from }, "");
 }
 
+/** Efter et sideskift: fanebladets titel følger sidens overskrift (medmindre siden selv har sat en), og fokus flyttes til
+ *  <main>, så skærmlæsere og tastatur begynder på den nye side – ikke ved første visning, og ikke hvis siden selv har
+ *  sat fokus i et felt. */
+let firstView = true;
+function announceView(view, titleBefore) {
+  if (document.title === titleBefore) {
+    const h1 = view.querySelector("h1")?.textContent.trim();
+    document.title = h1 ? `${h1} – DOF.tool` : "DOF.tool";
+  }
+  if (firstView) { firstView = false; return; }
+  const a = document.activeElement;
+  if (!a || a === document.body || !view.contains(a)) view.focus({ preventScroll: true });
+}
+
 async function show(y) {
   const [path] = (location.hash.slice(1) || "/").split("?");
   rememberFrom();
@@ -359,7 +396,7 @@ async function show(y) {
   renderNav();
   if (state.user) trackView(path);
   if (state.user && state.unread) markSeen("/#" + path);
-  document.querySelector(".menu")?.remove();
+  closeMenu();
   for (const [re, loader] of ROUTES) {
     const m = path.match(re);
     if (!m) continue;
@@ -373,7 +410,9 @@ async function show(y) {
       const mod = await loader();
       clearTimeout(wait);
       view.replaceChildren();
+      const titleBefore = document.title;
       cleanup = await mod.render(view, m.slice(1));
+      announceView(view, titleBefore);
     } catch (err) {
       clearTimeout(wait);
       console.error(err);
@@ -386,7 +425,7 @@ async function show(y) {
 }
 
 async function boot() {
-  $("#userbtn").addEventListener("click", openMenu);
+  initMenu();
   $("#bell").addEventListener("click", openNotifications);
   window.addEventListener("hashchange", route);
   document.addEventListener("pointerdown", prefetchLink, { passive: true });

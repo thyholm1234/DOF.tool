@@ -45,25 +45,28 @@ export function banner(cover, alt = "") {
 }
 
 /** Medie til et spørgsmål eller en blok: foto, lyd, silhuet, to fotos side om side. */
-/** Klik på et foto i læringsmodulet åbner det stort (Esc, klik eller ✕ lukker). Én delegeret lytter dækker alle fotos. */
+/** Et tryk på et foto i læringsmodulet åbner det stort. Fotoet ligger i en <button class="lr-zoom">, så det også kan åbnes
+ *  med tastaturet; lysboksen er en modal <dialog> (Esc, tryk eller ✕ lukker, og fokus vender tilbage til fotoet). Én
+ *  delegeret lytter dækker alle fotos. */
 let lightboxOn = false;
 function initLightbox() {
   if (lightboxOn) return;
   lightboxOn = true;
-  const close = () => { document.querySelector(".lr-lightbox")?.remove(); document.removeEventListener("keydown", onKey); };
-  const onKey = e => { if (e.key === "Escape") close(); };
   document.addEventListener("click", e => {
-    const img = e.target instanceof Element ? e.target.closest(".lr-media img") : null;
+    const btn = e.target instanceof Element ? e.target.closest(".lr-zoom") : null;
+    const img = btn?.querySelector("img");
     if (!img) return;
-    close();
     const cap = img.closest("figure")?.querySelector("figcaption")?.textContent;
-    const box = h("div", { class: "lr-lightbox", role: "dialog", "aria-label": "Foto i stort format", onclick: close },
-      h("button", { class: "lr-lightbox-x", "aria-label": "Luk", onclick: close }, "✕"),
+    const close = () => { if (box.open) box.close(); box.remove(); };
+    const box = h("dialog", { class: "lr-lightbox", "aria-label": "Foto i stort format", onclick: close },
+      h("button", { type: "button", class: "lr-lightbox-x", "aria-label": "Luk", onclick: close }, "✕"),
       h("img", { src: img.currentSrc || img.src, alt: img.alt }), cap ? h("p", {}, cap) : null);
+    box.addEventListener("close", () => box.remove());
     document.body.append(box);
-    document.addEventListener("keydown", onKey);
+    box.showModal();
   });
 }
+const zoomable = (img) => h("button", { type: "button", class: "lr-zoom", "aria-label": `${img.alt} – vis i stort format` }, img);
 
 export function mediaEl(m, { onHidden } = {}) {
   if (!m || !m.kind) return null;
@@ -74,11 +77,11 @@ export function mediaEl(m, { onHidden } = {}) {
     return f;
   }
   if (m.kind === "image") {
-    return h("figure", { class: "lr-media" }, h("img", { src: m.value, alt: "Foto til spørgsmålet", loading: "lazy", "data-photo": m.photo_id || null }),
+    return h("figure", { class: "lr-media" }, zoomable(h("img", { src: m.value, alt: "Foto til spørgsmålet", loading: "lazy", "data-photo": m.photo_id || null })),
       m.credit ? h("figcaption", {}, `Foto: ${m.credit}`) : null);
   }
   if (m.kind === "images") {
-    return h("div", { class: "lr-pair" }, ...m.urls.map((u, i) => h("figure", { class: "lr-media" }, h("img", { src: u.url, alt: `Foto ${i + 1}`, loading: "lazy" }),
+    return h("div", { class: "lr-pair" }, ...m.urls.map((u, i) => h("figure", { class: "lr-media" }, zoomable(h("img", { src: u.url, alt: `Foto ${i + 1}`, loading: "lazy" })),
       h("figcaption", {}, `Foto ${i + 1}${u.credit ? ` · ${u.credit}` : ""}`))));
   }
   if (m.kind === "audio") {

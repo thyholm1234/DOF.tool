@@ -36,16 +36,17 @@
     </a>
     <span class="spacer"></span>
     <span id="live" class="live-dot" title="Live-forbindelse"><i></i><span>live</span></span>
-    <button id="bell" class="icon-btn hide" aria-label="Notifikationer"></button>
-    <button id="userbtn" class="avatar hide" aria-label="Menu"></button>
+    <button id="bell" class="icon-btn hide" type="button" aria-label="Notifikationer"></button>
+    <button id="userbtn" class="avatar hide" type="button" aria-label="Brugermenu" popovertarget="usermenu"></button>
     <a id="loginbtn" class="btn sm primary" href="#/login">Log ind</a>
   </header>
   <div class="layout">
-    <nav class="sidenav" id="sidenav"></nav>
+    <nav class="sidenav" id="sidenav" aria-label="Menu"></nav>
     <main id="view" tabindex="-1"></main>
   </div>
-  <nav class="bottomnav" id="bottomnav"></nav>
-  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <nav class="bottomnav" id="bottomnav" aria-label="Hovedmenu"></nav>
+  <div class="menu" id="usermenu" popover aria-label="Brugermenu"></div>
+  <div class="toasts" id="toasts" popover="manual" role="region" aria-label="Beskeder" aria-live="polite"></div>
   <script type="module" src="/v/__BUILD__/js/app.js"></script>
 </body>
 </html>
