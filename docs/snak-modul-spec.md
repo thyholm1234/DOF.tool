@@ -16,7 +16,7 @@ Det er en blanding af **forum og social medie**:
   have en titel, kan få en **løsning** (fx den rigtige artsbestemmelse), kan fastgøres og låses, og tråden har sin
   egen side (`#/snak/ID`).
 - **Som et socialt medie**: forsiden er et **feed**, man ruller ned over. Hvert opslag er en **åben tråd** direkte i feedet:
-  man ser de **nyeste kommentarer øverst**, kan skrive en kommentar eller svare uden at forlade feedet, og trykke 👍.
+  man ser de **nyeste kommentarer øverst**, kan skrive en kommentar eller svare uden at forlade feedet, og **reagere** (👍 ❤️ 😂 😮 😢 😡, som på Facebook).
   Når en tråd har mange kommentarer, vises kun de nyeste. **«Se mere»** åbner tråden på dens egen side.
 - Det formelle og det uformelle må blandes. En præsentation af en ny artikel står side om side med «Hvad er det for
   en vadefugl?». Diskussioner må gerne opstå.
@@ -30,6 +30,7 @@ CSS-tokens frem for at opfinde nye.
 | Spørgsmål | Beslutning |
 |---|---|
 | Hvad er et opslag? | En forumtråd med kategori, vist som et kort i et feed. Tråden er altid åben for kommentarer, medmindre en moderator låser den. |
+| Reaktioner | De klassiske Facebook-reaktioner på **opslag og kommentarer**: 👍 Synes godt om, ❤️ Elsker, 😂 Haha, 😮 Wow, 😢 Ked af det, 😡 Vred (§2.9). Én reaktion pr. bruger pr. mål; man kan skifte eller fjerne den. Egen tabel `sn_reactions` – ikke `likes`. |
 | Kommentarernes rækkefølge | **Nyeste øverst** (topniveau). Svar under en kommentar står kronologisk, ældste først, så de læses som en samtale – som på Facebook. |
 | Hvor mange kommentarer i feedet? | De **3 nyeste** topniveau-kommentarer, hver med højst det **nyeste svar**. Tallet kan ændres under Admin → Indstillinger. Er der flere, vises «Se alle N kommentarer», der åbner trådsiden. |
 | Svar på svar | Ét indrykningsniveau. Et svar på et svar lægges under samme topniveau-kommentar med «Svar til *Navn*» øverst (`reply_to_user_id`), som på Facebook. |
@@ -47,7 +48,7 @@ CSS-tokens frem for at opfinde nye.
 
 | Nøgle | Forælder | Standard | Tekst |
 |---|---|---|---|
-| `snak` | – | `preview` | «Snak (opslag, kommentarer og diskussioner)»: feed med opslag i kategorier, kommentarer med svar, likes, anmeld og moderation. |
+| `snak` | – | `preview` | «Snak (opslag, kommentarer og diskussioner)»: feed med opslag i kategorier, kommentarer med svar, reaktioner (👍 ❤️ 😂 😮 😢 😡), anmeld og moderation. |
 | `snak_billeder` | `snak` | `on` | Billeder i opslag (op til 10) og i kommentarer (1). |
 | `snak_links` | `snak` | `on` | Forhåndsvisning af eksterne links (titel, beskrivelse og billede hentes af serveren). |
 | `snak_notifikationer` | `snak` | `on` | Notifikationer om svar, kommentarer på egne opslag og fulgte tråde. |
@@ -108,10 +109,10 @@ Mobil først: kortene fylder hele bredden under 720 px; på desktop er der et si
 │ │ Tekst … (klippes efter 6 linjer: «Vis mere»)              │ │ bestemmelser     │
 │ │ [billede][billede][+2]                                    │ │                  │
 │ │ #Sølvmåge #Kaspisk måge · 📍 Kongelunden                  │ │                  │
-│ │ 👍 14 · 💬 23 · 👁 310          [👍 Synes godt om] [💬]   │ │                  │
+│ │ 👍❤️😮 14 · 💬 23 · 👁 310     [👍 Synes godt om] [💬]   │ │                  │
 │ │ ─────────────────────────────────────────────────────── │ │                  │
 │ │ Se alle 23 kommentarer                                   │ │                  │
-│ │ (B) Bo: Vingespidsen taler for kaspisk …     5 min · 👍 3│ │                  │
+│ │ (B) Bo: Vingespidsen taler for kaspisk …     5 min · 👍❤️ 3│ │                  │
 │ │     ↳ (C) Cecilie: Enig, se også …           2 min       │ │                  │
 │ │ (D) Dorte: Kan vi få et billede af …         1 t         │ │                  │
 │ │ (E) Erik: Jeg har set den i …                3 t         │ │                  │
@@ -121,7 +122,7 @@ Mobil først: kortene fylder hele bredden under 720 px; på desktop er der et si
 ```
 
 - **Sortering**: `Seneste aktivitet` (standard; nyt opslag eller ny kommentar løfter tråden), `Nyeste opslag`,
-  `Populære` (likes + kommentarer de seneste 7 dage). Valget huskes med `store("snak")`.
+  `Populære` (reaktioner + kommentarer de seneste 7 dage; reaktionernes `created_at` tæller). Valget huskes med `store("snak")`.
 - **Kategori-chips** (vandret scroll på mobil) og `#/snak/k/<slug>`. Kategorien `Artsbestemmelse` har desuden
   afkrydsningen «Kun uløste».
 - **Fastgjorte** opslag står øverst i «Alle» og i deres kategori (højst 3; admin bestemmer).
@@ -134,7 +135,7 @@ Mobil først: kortene fylder hele bredden under 720 px; på desktop er der et si
   - Titel (valgfri, men påkrævet i kategorier med `kraever_titel`), brødtekst (renderet HTML) klippet efter
     6 linjer med «Vis mere», billedgitter (1 = stort, 2 = side om side, 3+ = gitter med «+N»; klik åbner lysboksen,
     som i Fotos), vedhæftet kort (§5.3), arter som chips (link til `#/art/ARTNR`) og lokalitet (link til `#/lok/LOKNR`).
-  - Tællere og knapper: `likeWidget("snak_post", id, …)` fra `likes.js`, 💬-knap (fokus på kommentarfeltet), 👁 visninger.
+  - Tællere og knapper: `reactionWidget("post", id, …)` fra `snak/reaktioner.js` (§2.9), 💬-knap (fokus på kommentarfeltet), 👁 visninger.
   - **Kommentarblok** (§2.3) med de nyeste kommentarer og et kommentarfelt.
 - **Nyt i feedet live**: SSE-kanalen `snak` (§8.4). Nye opslag giver en knap øverst, «3 nye opslag – vis», så listen
   ikke hopper. Nye kommentarer på synlige kort indsættes øverst i kortets kommentarblok, og tællerne opdateres.
@@ -171,7 +172,8 @@ Byg ud fra `artikler/kommentarer.js` (svar, ret, slet, anmeld, moderatorhandling
 - **Ret**: inden for 24 timer (`ret_minutter` i indstillinger) for brugeren; vises som «redigeret». Moderatorer kan
   ikke rette andres tekst, kun skjule.
 - **Slet egen**: blød sletning. Har kommentaren svar, står «Kommentaren er slettet» tilbage; ellers forsvinder den.
-- **Likes** på kommentarer: `likeWidget("snak_comment", id, …, { small: true })`.
+- **Reaktioner** på kommentarer: `reactionWidget("comment", id, …, { small: true })` (§2.9) – som på Facebook en lille
+  tekstknap «Synes godt om» under kommentaren, med de mest brugte emojis og en tæller til højre.
 - **Låst tråd**: feltet erstattes af «Tråden er låst af en moderator».
 - **Udelukket bruger** (`moderation.active_ban`): feltet erstattes af beskeden fra `comment_bans`, som i dag.
 
@@ -216,6 +218,38 @@ To lister: «Mine opslag» og «Tråde jeg følger» (med antal nye kommentarer 
   grund, `askText`), Vis igen, Afvis anmeldelser, Lås tråd, Skriv til bruger (`messageForm`, genbrug) og Udeluk (`banForm`).
 - Alle handlinger logges i `activity` (som artikelmoderationen).
 
+### 2.9 Reaktioner (`snak/reaktioner.js`)
+
+Sættet er fast og defineres ét sted på serveren (`services/snak_reactions.TYPES`) og ét sted i frontend (`REACTIONS`):
+
+| `type` | Emoji | Dansk navn | Farve (designtoken) |
+|---|---|---|---|
+| `like` | 👍 | Synes godt om | `--accent` |
+| `love` | ❤️ | Elsker | `--danger` |
+| `haha` | 😂 | Haha | `--warn` |
+| `wow` | 😮 | Wow | `--warn` |
+| `sad` | 😢 | Ked af det | `--warn` |
+| `angry` | 😡 | Vred | `--danger` |
+
+**Interaktion** (`reactionWidget(kind, id, state, { small })`, afløser `likeWidget` i Snak):
+
+- **Knappen** viser «👍 Synes godt om». Et **kort tryk** sætter 👍, eller fjerner brugerens reaktion, hvis den allerede er sat.
+  Er en anden reaktion sat, viser knappen den med dens emoji, navn og farve; et kort tryk fjerner den.
+- **Vælgeren** (reaktionsbjælken) åbnes ved **hover i 500 ms** (mus), **langt tryk** (400 ms, touch) eller **piletast ned / Enter
+  på knappen med modifier** – og lukkes med Esc eller ved klik udenfor. Den viser de seks emojis i en række; at vælge én
+  sætter eller **skifter** reaktionen; at vælge den, man allerede har, fjerner den. På touch må et langt tryk ikke udløse
+  tekstmarkering eller kontekstmenu (`touch-callout: none`, `user-select: none`).
+- **Optimistisk opdatering** som i `likes.js`; ruller tilbage med `toast` ved fejl. Ikke logget ind → videre til `#/login`.
+- **Opsummering**: de op til tre mest brugte reaktioners emojis side om side (overlappende) + samlet tal. Ved opslag
+  efterfulgt af «Navn, Navn og 12 andre»; ved kommentarer (`small`) kun emojis og tal.
+- **Hvem reagerede**: tryk på opsummeringen åbner en native `<dialog>` (`modal()`) med faner **Alle · 👍 12 · ❤️ 3 · …**
+  (kun typer med mindst én) og en liste med navn, obserkode, tid og brugerens emoji.
+- **Tilgængelighed**: knappen er en `button` med `aria-haspopup="true"`, `aria-expanded` og `aria-pressed`; vælgeren er en
+  `role="menu"` med `role="menuitemradio"` pr. emoji (`aria-label` = dansk navn, `aria-checked`), piletaster flytter, Enter
+  vælger, Esc lukker og returnerer fokus. Emojis har aldrig farven som eneste signal (navnet vises i knappen).
+  `prefers-reduced-motion`: ingen pop-animation.
+- **Live**: `reaction`-eventen (§8.4) opdaterer opsummeringen på synlige kort uden at ændre den, brugeren selv har sat.
+
 ---
 
 ## 3. Datamodel (`server/portal/models/snak.py`, brugergruppen)
@@ -242,7 +276,7 @@ sn_posts
   hidden_reason text NULL, hidden_by int NULL, hidden_at timestamptz NULL,
   locked bool default false, pinned_at timestamptz NULL,
   solution_comment_id int NULL             -- ingen FK (cirkulær); valideres i service
-  n_comments int default 0, n_likes int default 0, views int default 0,   -- denormaliseret, opdateres i service
+  n_comments int default 0, n_reactions int default 0, views int default 0,   -- denormaliseret, opdateres i service
   last_activity_at timestamptz default now(),
   eksempel bool default false,
   created_at, edited_at NULL, search tsvector GENERATED (titel A, body_text B, 'danish')
@@ -255,7 +289,7 @@ sn_comments
   reply_to_navn varchar(80) NULL,          -- til eksempler og slettede brugere
   body_md text, body_html text, body_text text, media_id FK content_media SET NULL NULL,
   status varchar(10) default 'synlig', hidden_reason, hidden_by, hidden_at,
-  n_likes int default 0, created_at, edited_at NULL,
+  n_reactions int default 0, created_at, edited_at NULL,
   search tsvector GENERATED (body_text, 'danish')
   INDEX (post_id, parent_id, created_at DESC), INDEX (user_id), GIN (search)
 
@@ -263,6 +297,13 @@ sn_reports
   id serial PK, kind varchar(8) ('post' | 'comment'), target_id int, user_id FK users CASCADE,
   reason varchar(20), note varchar(500) default '', created_at, handled_at NULL, handled_by NULL,
   UNIQUE (kind, target_id, user_id)
+
+sn_reactions
+  id serial PK, user_id FK users CASCADE, kind varchar(7) ('post' | 'comment'), target_id int,
+  type varchar(5) ('like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry'),    -- CHECK-constraint på kind og type
+  created_at, changed_at NULL,
+  UNIQUE (user_id, kind, target_id),            -- én reaktion pr. bruger pr. mål
+  INDEX (kind, target_id, type)
 
 sn_follows
   post_id FK sn_posts CASCADE, user_id FK users CASCADE, created_at, last_seen_at timestamptz,
@@ -278,8 +319,14 @@ sn_views
 - **Adgang til medier**: `api/media.py` `/media/art/…` skal for `owner_kind` `snak`/`snakk` kræve login, at
   `snak` er synligt, og at opslaget ikke er skjult (moderatorer og forfatteren undtaget). Følg mønstret for fotos
   (`photos.media_info`, caching 60 s).
-- **Likes** genbruger tabellen `likes` med `kind` = `snak_post` / `snak_comment`. Udvid mønstret i `api/social.py`
-  (`kind: pattern`) og `_validate_target`, og hold `n_likes` opdateret i samme transaktion.
+- **Reaktioner** gemmes i `sn_reactions` (ikke i den fælles `likes`-tabel, som kun kan rumme én slags og bruges af Feedet).
+  `services/snak_reactions.py`: `TYPES`, `set_reaction(user, kind, id, type|None)`, `summary(kind, ids, user)` og `who(kind, id, type?)`.
+  `set_reaction` er en upsert på `(user_id, kind, target_id)`: ny type skifter reaktionen (`changed_at`), `None` eller samme
+  type sletter den. `n_reactions` på opslag/kommentar holdes opdateret i **samme transaktion** (ny +1, skift ±0, fjern −1).
+  Mål skal findes, være synligt og ikke tilhøre et skjult opslag; brugeren må ikke være udelukket. Reaktioner på eget
+  indhold er tilladt. Rate limit: 60 pr. minut pr. bruger.
+- `summary` returnerer pr. mål: `{count, counts: {like: n, …}, mine: type|null, top: [op til 3 typer], names: [første 2 navne]}`
+  fra **én** gruppering pr. kind (`GROUP BY target_id, type`), så feedet henter alle opslag og viste kommentarer i to kald.
 - **Kategorier seedes** ved opstart, hvis tabellen er tom (`services/snak.py:seed_categories`, kaldt fra `bootstrap.py`):
 
 | slug | navn | flag | beskrivelse |
@@ -315,7 +362,7 @@ sn_views
    med en dansk besked.
 5. `parent_id` skal tilhøre samme opslag. Peger det på et svar, erstattes det af svarets `parent_id` (altid topniveau).
 6. Låst eller skjult opslag → ingen nye kommentarer (403). Moderatorer må dog kommentere låste tråde.
-7. `last_activity_at` sættes ved nyt opslag og ny synlig kommentar, ikke ved likes eller rettelser.
+7. `last_activity_at` sættes ved nyt opslag og ny synlig kommentar, ikke ved reaktioner eller rettelser.
    `n_comments` tæller synlige kommentarer.
 8. Skjult indhold: andre brugere ser hverken tekst eller billeder. Forfatteren ser «Skjult af en moderator: *grund*».
    Moderatorer ser alt med markering.
@@ -389,10 +436,10 @@ filtre og søgning. Ingen kobling til observationsdata ud over opslag ved gem.
 - En forespørgsel efter opslagene (15) og derefter **én** forespørgsel efter kommentar-forhåndsvisningen for alle 15
   opslag: de N nyeste synlige topniveau-kommentarer pr. opslag (`ROW_NUMBER() OVER (PARTITION BY post_id ORDER BY
   created_at DESC)`) + de M nyeste svar pr. af dem + antal svar pr. topniveau-kommentar. Ingen N+1.
-- Likes for opslag og viste kommentarer hentes samlet med `like_summary` (`api/social.py`) – to kald i alt.
+- Reaktioner for opslag og viste kommentarer hentes samlet med `snak_reactions.summary` (§3) – to kald i alt.
 - Fastgjorte opslag lægges foran på første side (ikke med i cursoren).
 - Cursor: base64 af `[sort_key, id]`. `populaere` bruger en score beregnet i SQL; cursoren bærer scoren.
-- Svaret caches **ikke** pr. bruger (likes/følg er personlige). Optimér med indekserne i §3; mål < 150 ms ved
+- Svaret caches **ikke** pr. bruger (reaktioner/følg er personlige). Optimér med indekserne i §3; mål < 150 ms ved
   10.000 opslag (testdata i `tests/`).
 
 ---
@@ -423,6 +470,7 @@ følger ikke længere og bliver ikke automatisk tilmeldt igen.
 | Kommentar på mit opslag | opslagets forfatter | «Navn kommenterede dit opslag» | `snak:kom:<kid>` |
 | Ny kommentar i en fulgt tråd | følgere (ikke `muted`, ikke forfatteren selv) – **samles**: højst én besked pr. tråd pr. time | «Nye kommentarer: *titel*» | `snak:foelg:<post>:<time>` |
 | Min kommentar markeret som løsning | kommentarens forfatter | «Din kommentar blev markeret som løsning» | `snak:loes:<kid>` |
+| Reaktion på mit opslag/min kommentar | indholdets forfatter (ikke ved reaktion på eget indhold) – **samles**: højst én besked pr. mål pr. time | «Navn og 3 andre reagerede på dit opslag» (emoji for den mest brugte) | `snak:reak:<kind>:<id>:<time>` |
 | Moderator skjulte mit indhold | forfatteren | «Dit opslag/din kommentar er skjult» + grund | `snak:skjul:<kind>:<id>` |
 
 En bruger får aldrig flere beskeder om samme kommentar (prioritet: svar > kommentar på opslag > fulgt tråd).
@@ -435,7 +483,7 @@ Afkrydsning for hver hændelsestype i §8.2 (gemmes i `users.prefs.snak`) og en 
 ### 8.4 Live
 
 `cache.publish("snak", {...})` ved nyt opslag (`{type: "post", id, category_id}`), ny kommentar
-(`{type: "comment", post_id, id, parent_id}`), like (`{type: "like", kind, key, count}`) og moderation
+(`{type: "comment", post_id, id, parent_id}`), reaktion (`{type: "reaction", kind, id, count, counts}`) og moderation
 (`{type: "mod", kind, id}`). Frontend lytter med `live.on("snak", …)` (som `feed.js`) og henter kun det, der er
 synligt. Eventen indeholder ikke selve teksten; den hentes via API'et, så adgang og skjulte kommentarer respekteres.
 
@@ -603,6 +651,10 @@ Det første opslag (§9.1) **fastgøres** i «Alle», så det står øverst.
 | `POST /{id}/foelg` / `DELETE /{id}/foelg` | snak | Følg / følg ikke |
 | `POST /{id}/visning` | snak | Registrér visning (trådsiden) |
 | `POST /{id}/anmeld` | snak | Anmeld opslag |
+| `PUT /{id}/reaktion` | snak | Sæt eller skift reaktion `{type: like\|love\|haha\|wow\|sad\|angry}`; svar: `summary` for målet |
+| `DELETE /{id}/reaktion` | snak | Fjern egen reaktion; svar: `summary` |
+| `GET /{id}/reaktioner?type=` | snak | Hvem reagerede (side à 50; `type` filtrerer; inkl. `counts` til fanerne) |
+| `PUT\|DELETE /kommentarer/{kid}/reaktion`, `GET /kommentarer/{kid}/reaktioner` | snak | Som ovenfor, for kommentarer |
 | `POST /{id}/moderer` | moderation | `{action: skjul\|vis\|laas\|aabn\|flyt\|afvis_anmeldelser, reason?, category_id?}` |
 | `POST /{id}/fastgoer` | snak (admin) | `{pinned: bool}` |
 | `GET/POST/PATCH/DELETE …/kommentarer…` | | §7 |
@@ -632,13 +684,14 @@ web/js/snak/common.js         BASE, ctx(), on(), loadCss, postCard(), categoryTa
 web/js/snak/feed.js           §2.1
 web/js/snak/opslag.js         §2.2
 web/js/snak/kommentarer.js    §2.3 (ud fra artikler/kommentarer.js)
+web/js/snak/reaktioner.js     §2.9: REACTIONS, reactionWidget(), reactionSummary(), showReactors()
 web/js/snak/composer.js       §2.4 + vedhæft-vælger + billedupload
 web/js/snak/soeg.js, mine.js  §2.5, §2.6
 web/js/snak/admin.js          §2.7 + commentQueue()/postQueue() til Moderation (§2.8)
 web/css/snak.css              afgrænset til .snak; brug designtokens (lys/mørk), ingen hårdkodede farver
 ```
 
-- Brug `h()`, `modal()`, `ask()`, `askText()`, `toast()`, `seg()`, `likeWidget()` og `banForm()`. Brug **ingen** `innerHTML`
+- Brug `h()`, `modal()`, `ask()`, `askText()`, `toast()`, `seg()`, `reactionWidget()` (§2.9) og `banForm()`. Brug **ingen** `innerHTML`
   med brugerdata; server-HTML indsættes via `trustedHTML`.
 - Tilgængelighed som resten af appen (jf. commit 773dfc8): kort er `<article>` med `aria-labelledby`, knapper har
   `aria-label`, lysboksen og modaler er native `<dialog>`, fokus flyttes til nyt kommentarfelt, og `prefers-reduced-motion`
@@ -658,7 +711,9 @@ web/css/snak.css              afgrænset til .snak; brug designtokens (lys/mørk
 7. Link-preview afviser interne adresser (genbrug testene for `egress`) og respekterer størrelse/timeout.
 8. Notifikationer: rigtige modtagere, ingen dubletter pr. kommentar og samling pr. time for følgere.
 9. Seed: idempotent, kun fiktive navne, ingen fotos, og «Slet alle eksempler» rydder alt.
-10. Likes med `kind` `snak_post`/`snak_comment` opdaterer `n_likes`.
+10. Reaktioner: sæt → skift → fjern giver korrekt `n_reactions` og `counts` på opslag og kommentar; én række pr. bruger pr.
+    mål (samtidige kald giver ingen dublet); ugyldig `type` → 422; skjult opslag, ukendt mål og udelukket bruger afvises;
+    `who` filtrerer på type; notifikationen samles pr. time; `mine` er kun sat for den, der kalder.
 11. Rendering: `[[art:…]]` og autolinks i profilen `kommentar`; script/HTML fjernes.
 
 E2E (valgfrit, `tools/e2e`): opret opslag med billede → kommentér → svar → se det live i en anden session.
@@ -669,7 +724,7 @@ E2E (valgfrit, `tools/e2e`): opret opslag med billede → kommentér → svar �
 
 1. **Fundament**: flag, rettigheder, `snak_access`, modeller + `dbgroups`, kategori-seed, opret/vis opslag (tekst),
    feed med sortering og cursor, trådside, kommentarer med svar (nyeste øverst, forhåndsvisning i feedet, «Se mere»),
-   likes, menu og skal. *Accept: §14 punkt 1–6.*
+   reaktioner (§2.9), menu og skal. *Accept: §14 punkt 1–6.*
 2. **Indhold**: billeder (opslag og kommentar), vedhæft fra portalen, link-preview, arter/lokalitet, løsning,
    eksempelopslag (§9). *Accept: punkt 7–10.*
 3. **Fællesskab**: følg, notifikationer, live (SSE), anmeld, Moderation → Snak, moderatorhandlinger i feedet, admin-fanen
@@ -688,7 +743,9 @@ Kør `pytest` og `ruff` før hvert commit. Opdatér `docs/funktioner.md` med mod
 4. Hvert kort viser de 3 nyeste topniveau-kommentarer (nyeste øverst) med højst 1 svar hver. «Se alle N kommentarer»
    vises, når der er flere, og åbner `#/snak/<id>`.
 5. Man kan kommentere og svare direkte i feedet. Svar på svar havner under samme topniveau-kommentar med «Svar til Navn».
-6. 👍 virker på opslag og kommentarer og viser, hvem der har trykket.
+6. Alle seks reaktioner (👍 ❤️ 😂 😮 😢 😡) virker på opslag og kommentarer: kort tryk sætter/fjerner 👍, hover/langt tryk åbner
+   vælgeren, man kan skifte reaktion, opsummeringen viser de mest brugte emojis og tallet, og dialogen viser hvem der
+   reagerede pr. type. Fungerer med tastatur og skærmlæser.
 7. Op til 10 billeder pr. opslag og 1 pr. kommentar; EXIF/GPS fjernes; lysboks.
 8. Et vedhæftet artikel-, foto-, observations-, arts-, lokalitets- og linkkort vises korrekt og respekterer adgang.
 9. I Artsbestemmelse kan forfatteren markere en løsning; kortet får «Løst ✓», og filteret «Kun uløste» virker.
@@ -710,7 +767,7 @@ Kør `pytest` og `ruff` før hvert commit. Opdatér `docs/funktioner.md` med mod
 | Punkt | Standardvalg |
 |---|---|
 | Modulets navn | «Snak» (`#/snak`) |
-| Reaktioner ud over 👍 (❤️ 😮 🤔) | Kun 👍 – genbrug `likes` |
+| Reaktionssæt | De seks klassiske (👍 ❤️ 😂 😮 😢 😡). «Omsorg» 🥰 (Facebooks syvende) og fuglespecifikke reaktioner kan komme senere – `TYPES` er ét sted, og `type` er `varchar(5)` + CHECK, så tilføjelse kræver en migrering |
 | Afstemninger i opslag | Ikke i denne omgang |
 | Video og lyd i opslag | Ikke i denne omgang (lyd kunne komme fra xeno-canto-link som vedhæftning senere) |
 | @-omtaler med notifikation | Ikke i denne omgang; «Svar til Navn» dækker svar |
