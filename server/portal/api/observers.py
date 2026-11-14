@@ -24,6 +24,17 @@ async def search(q: str = Query(min_length=2, max_length=60), user: User = Depen
     return await observers.search(db, q, user)
 
 
+@router.get("/{kode}/indhold")
+async def content(kode: str, user: User = Depends(need_profiles), db: AsyncSession = Depends(get_session)):
+    """Observatørens fotos i galleriet og artikler (koblede fotografer/forfattere)."""
+    if not 2 <= len(kode) <= 16:
+        raise HTTPException(404, "Observatøren findes ikke")
+    c = await observers.content(db, kode, user)
+    if c is None:
+        raise HTTPException(404, "Observatøren findes ikke")
+    return c
+
+
 @router.get("/{kode}")
 async def profile(kode: str, user: User = Depends(need_profiles), db: AsyncSession = Depends(get_session)):
     if not 2 <= len(kode) <= 16:

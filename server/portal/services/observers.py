@@ -8,6 +8,8 @@ kontaktoplysninger vises ikke.
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +18,7 @@ from portal.domain import kategori
 from portal.models import User
 from portal.services.locyear import COUNTED
 from portal.timeutil import dk_today
-from portal.services import dataset, doftool_obs
+from portal.services import article_access, article_authors, articles, dataset, doftool_obs, photo_access, photo_photographers, photos
 
 TTL = 3600
 _FROM = """FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr
@@ -94,6 +96,67 @@ async def profile(session: AsyncSession, kode: str, viewer: User | None) -> dict
                          "afdelinger": [names[i] for i in afd_ids if i in names],
                          "offentlig": (user.get("prefs") or {}).get("profile_public", True)}
     return out
+
+
+async def _names(session: AsyncSession, kode: str, user: dict | None, photographer: str | None) -> set[str]:
+    """Normaliserede navne, observatøren kan stå under som forfatter i artikelregistret. Den koblede galleri-fotografs navn
+    er altid med; observatørens eget navn kun, hvis ingen anden observatør (eller bruger) hedder det samme – som galleriets egen
+    automatiske kobling (photo_photographers.match_all)."""
+    out = {photo_photographers.norm(photographer)} if photographer else set()
+    ob = (await session.execute(text("SELECT fornavn, efternavn FROM observers WHERE obserkode = :k"), {"k": kode})).first()
+    navn = " ".join(x for x in (ob or ()) if x) if ob else (user or {}).get("navn")
+    if not (n := photo_photographers.norm(navn)) or " " not in n:
+        return out
+    like = re.sub(r"\s+", " ", navn.strip())
+    same = (await session.execute(text("""SELECT count(*) FROM observers
+        WHERE lower(regexp_replace(trim(coalesce(fornavn, '') || ' ' || coalesce(efternavn, '')), '\\s+', ' ', 'g')) = lower(:n)"""), {"n": like})).scalar() or 0
+    if not ob:
+        same = (await session.execute(text("SELECT count(*) FROM users WHERE lower(trim(navn)) = lower(:n) AND NOT blocked"), {"n": like})).scalar() or 0
+    if same == 1:
+        out.add(n)
+    return out
+
+
+async def content(session: AsyncSession, kode: str, viewer: User | None, n_photos: int = 12, n_articles: int = 5) -> dict | None:
+    """Observatørens fotos i galleriet og artikler, observatøren har skrevet.
+
+    Koblingen: galleri-fotografer med samme obserkode eller koblet til portalbrugeren (galleriets egen kobling); forfattere koblet til
+    portalbrugeren, ellers på navnet (den koblede fotografs navn, eller observatørens eget, når det er entydigt). Billederne i artiklerne
+    har ingen fotokredit (kun fritekst i brødteksten) og kan derfor ikke kobles. Kun publiceret indhold og kun moduler, der er
+    slået til for viewer. None, hvis siden er skjult."""
+    kode = kode.strip().upper()[:16]
+    user = await _portal_user(session, kode)
+    if not visible_to(user, viewer):
+        return None
+    uid = user["id"] if user else None
+    fon = (await photo_access.context(session, viewer)).on("fotos")
+    acc = await article_access.context(session, viewer)
+    aon, edit = acc.on("artikler"), acc.can_edit
+
+    async def produce():
+        out: dict = {"fotos": None, "artikler": None}
+        ph = (await session.execute(text("""
+            SELECT ph.id, ph.navn, count(p.id) AS n FROM gal_photographers ph LEFT JOIN gal_photos p ON p.photographer_id = ph.id AND p.status = 'publiceret'
+            WHERE ph.merged_into IS NULL AND (ph.obserkode = :k OR (CAST(:u AS integer) IS NOT NULL AND ph.user_id = :u))
+            GROUP BY ph.id, ph.navn ORDER BY n DESC, ph.id LIMIT 1"""), {"k": kode, "u": uid})).mappings().first()
+        if fon and ph and ph["n"]:
+            d = await photos.search(session, {"fotograf": str(ph["id"]), "sort": "dato", "per": photos.PER_PAGES[0]})
+            out["fotos"] = {"fotograf_id": ph["id"], "navn": ph["navn"], "total": d["total"], "rows": d["rows"][:n_photos]}
+        if not aon:
+            return out
+        names = await _names(session, kode, user, ph["navn"] if ph else None)
+        anames = [article_authors.norm(n) for n in names]
+        au = (await session.execute(text(f"""
+            SELECT au.id, au.navn, count(a.id) AS n FROM art_authors au JOIN art_article_authors x ON x.author_id = au.id
+            JOIN art_articles a ON a.id = x.article_id AND {articles.vis(edit)}
+            WHERE NOT au.skjult AND ((CAST(:u AS integer) IS NOT NULL AND au.user_id = :u) OR (au.user_id IS NULL AND au.navn_norm = ANY(:nn)))
+            GROUP BY au.id, au.navn ORDER BY (au.user_id IS NOT NULL) DESC, n DESC, au.id LIMIT 1"""), {"u": uid, "nn": anames})).mappings().first()
+        if au:
+            d = await articles.search(session, forfatter_id=au["id"], sort="nyeste", per=n_articles, can_edit=edit)
+            out["artikler"] = {"forfatter_id": au["id"], "navn": au["navn"], "total": d["total"], "rows": d["rows"]}
+        return out
+    key = f"obsindhold:{kode}:{int(fon)}{int(aon)}{int(edit)}:{await version('photos')}:{await version('articles')}"
+    return await cached(key, 600, produce)
 
 
 async def search(session: AsyncSession, q: str, viewer: User | None, limit: int = 20) -> list[dict]:
