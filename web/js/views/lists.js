@@ -374,7 +374,10 @@ export function ranking(rows, st) {
 
 export async function showUser(r, st) {
   const out = h("div", {}, h("div", { class: "skeleton" }));
-  modal(r.navn, out, { wide: true });
+  // Videre til observatørsiden (modalen lukker selv ved sideskift)
+  const profile = state.user?.profiler && r.obserkode
+    ? h("p", { class: "small", style: { margin: "0 0 10px" } }, h("a", { href: `#/observator/${encodeURIComponent(r.obserkode)}` }, `Se ${r.navn}s observatørside →`)) : null;
+  modal(r.navn, h("div", {}, profile, out), { wide: true });
   try {
     const q = new URLSearchParams({ scope: st.scope, year: st.year });
     if (st.m) q.set("matrikel", st.m);
