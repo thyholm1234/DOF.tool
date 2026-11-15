@@ -63,9 +63,15 @@ export function gallery(images = [], { single = false } = {}) {
     show();
     dlg.showModal();
   };
-  return h("div", { class: `sn-gallery n${Math.min(images.length, 4)} ${single ? "single" : ""}` },
+  // Browseren vælger selv mellem miniaturen (≤400 px) og mellemstørrelsen (≤1200 px) ud fra den viste bredde og skærmens pixeltæthed.
+  // Afledningerne er skaleret til at passe i en kvadrat, så den reelle bredde afhænger af billedets format.
+  const n = Math.min(images.length, 4);
+  const sizes = single ? "260px" : n === 1 ? "(max-width: 760px) 100vw, 730px" : n === 3 ? "(max-width: 760px) 33vw, 240px" : "(max-width: 760px) 50vw, 365px";
+  const w = (im, box) => im.width && im.height ? Math.round(im.width * Math.min(1, box / Math.max(im.width, im.height))) : box;  // forstørres aldrig
+  const srcset = (im) => im.thumb && im.medium && im.thumb !== im.medium ? `${im.thumb} ${w(im, 400)}w, ${im.medium} ${w(im, 1200)}w` : undefined;
+  return h("div", { class: `sn-gallery n${n} ${single ? "single" : ""}` },
     ...images.map((im, i) => h("button", { type: "button", class: "sn-thumb", "aria-label": im.alt || `Åbn billede ${i + 1}`, onclick: () => open(i) },
-      h("img", { src: single ? im.medium : im.thumb, alt: im.alt || "", loading: "lazy", decoding: "async", width: im.width || undefined, height: im.height || undefined }))));
+      h("img", { loading: "lazy", decoding: "async", srcset: srcset(im), sizes: srcset(im) ? sizes : undefined, src: im.medium || im.thumb, alt: im.alt || "", width: im.width || undefined, height: im.height || undefined }))));
 }
 
 const ATT_LABEL = { artikel: "Artikel", foto: "Foto", traad: "Observationer", art: "Art", lokalitet: "Lokalitet", link: "Link" };
