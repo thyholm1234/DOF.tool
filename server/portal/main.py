@@ -178,10 +178,6 @@ async def guard(request: Request, call_next):
         response.headers.setdefault("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; sandbox")
     elif not path.startswith("/api/"):
         response.headers.setdefault("Content-Security-Policy", csp(await article_settings.frame_hosts()))
-        # Trusted Types, første udrulningstrin: overtrædelser vises kun i konsollen (blokeres ikke). Appens egen kode skriver
-        # HTML og script-URL'er via policyen «dof-html» (web/js/core.js); Leaflet går gennem en «default»-policy, der kun
-        # godkender kald fra Leaflets egen fil (web/js/maps.js). Når konsollen er tom, flyttes direktivet over i csp() og håndhæves.
-        response.headers.setdefault("Content-Security-Policy-Report-Only", TRUSTED_TYPES)
     return response
 
 
@@ -200,7 +196,9 @@ def csp(frame_hosts: list[str] | None = None) -> str:
             "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'", "worker-src 'self'", "manifest-src 'self'"]))
     # Indlejringer i artikler (xeno-canto, Vimeo …) og PDF-visning på egen side: frame-src følger tilladelseslisten under Artikler → Admin
     frames = " ".join(["'self'", *(f"https://{h}" for h in sorted({h for h in (frame_hosts or []) if re.fullmatch(r"[a-z0-9.-]+", h)}))])
-    return f"{_csp['value']}; frame-src {frames}"
+    # Trusted Types håndhæves: appens egen kode skriver HTML og script-URL'er via policyen «dof-html» (web/js/core.js);
+    # Leaflet/Geoman går gennem en «default»-policy, der kun godkender kald fra deres egne filer (web/js/maps.js).
+    return f"{_csp['value']}; frame-src {frames}; {TRUSTED_TYPES}"
 
 
 _csp = {"at": None, "value": ""}

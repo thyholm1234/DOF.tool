@@ -70,9 +70,9 @@ async function request(path, { method = "GET", body, form } = {}) {
 
 // Trusted Types: alle HTML-sinks i appens egen kode går gennem policyen «dof-html». Den er KUN til markup, der bygges i koden
 // af konstanter og esc()-escapede værdier (ikoner, mærker) eller er renset på serveren (Markdown via content_render) –
-// aldrig til rå brugerdata. Håndhævelsen kører foreløbig som report-only (se csp() i server/portal/main.py).
-// Script-URL'er (service worker, Leaflet, mp3-koderen) må kun være egne, kendte filer – evt. under /v/<build>/.
-const SCRIPT_URL = /^(\/v\/[^/]+)?\/(sw\.js|vendor\/leaflet\/leaflet\.js|vendor\/lamejs\/lame\.min\.js)$/;
+// aldrig til rå brugerdata. Håndhæves via CSP (se csp() i server/portal/main.py).
+// Script-URL'er (service worker, Leaflet, Geoman, mp3-koderen) må kun være egne, kendte filer – evt. under /v/<build>/.
+const SCRIPT_URL = /^(\/v\/[^/]+)?\/(sw\.js|vendor\/leaflet\/leaflet\.js|vendor\/geoman\/leaflet-geoman\.js|vendor\/lamejs\/lame\.min\.js)$/;
 const scriptURL = (s) => {
   const u = new URL(String(s), location.href);
   if (u.origin === location.origin && SCRIPT_URL.test(u.pathname)) return u.href;

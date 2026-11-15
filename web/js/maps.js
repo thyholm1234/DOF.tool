@@ -5,12 +5,12 @@ import { h, api, esc, icon, trustedScriptURL } from "./core.js";
 
 let loading = null;
 /** Trusted Types: Leaflet skriver selv innerHTML (feature-test, kontroller, popups, divIcon) og kender ikke vores policy.
- *  «default»-policyen kaldes for alle uindpakkede strenge, men godkender KUN kald, der kommer fra Leaflets egen fil – alt
+ *  «default»-policyen kaldes for alle uindpakkede strenge, men godkender KUN kald, der kommer fra Leaflets (og Leaflet-Geomans) egne filer – alt
  *  andet returnerer undefined og er dermed fortsat en overtrædelse. Popup-/ikonindhold fra vores kode er escapet (esc). */
 function leafletPolicy() {
   try {
     globalThis.trustedTypes?.createPolicy?.("default", {
-      createHTML: (s) => /\/vendor\/leaflet\/leaflet\.js/.test(new Error().stack || "") ? s : undefined,
+      createHTML: (s) => /\/vendor\/(leaflet\/leaflet|geoman\/leaflet-geoman)\.js/.test(new Error().stack || "") ? s : undefined,
     });
   } catch { /* allerede oprettet */ }
 }
@@ -41,7 +41,7 @@ export function geoman() {
   });
   geomanLoading ??= Promise.all([
     add("link", { rel: "stylesheet", href: "/vendor/geoman/leaflet-geoman.css" }),
-    add("script", { src: "/vendor/geoman/leaflet-geoman.js" }),
+    add("script", { src: trustedScriptURL("/vendor/geoman/leaflet-geoman.js") }),
   ]).catch((err) => { geomanLoading = null; throw err; });
   return geomanLoading;
 }

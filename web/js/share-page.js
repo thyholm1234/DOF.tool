@@ -1,6 +1,6 @@
 // Delesiden for gæster (/del/…): installér appen (Android/desktop) eller vis vejledning til iPhone.
 (function () {
-  // Trusted Types (report-only, se csp() i server/portal/main.py): siden har ikke core.js, så den laver sin egen «dof-html»
+  // Trusted Types (håndhæves, se csp() i server/portal/main.py): siden har ikke core.js, så den laver sin egen «dof-html»
   var tt = window.trustedTypes && window.trustedTypes.createPolicy
     ? window.trustedTypes.createPolicy("dof-html", { createScriptURL: function (s) { if (s === "/sw.js") return s; throw new TypeError(s); } })
     : null;
