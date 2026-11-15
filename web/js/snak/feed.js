@@ -10,7 +10,7 @@ const SORTS = [["aktivitet", "Seneste aktivitet"], ["nyeste", "Nyeste opslag"], 
 
 export async function page(parts) {
   loadCss("snak");
-  const slug = parts[0] === "k" ? parts[1] : null;
+  let slug = parts[0] === "k" ? parts[1] : null;
   const prefs = store("snak") || {};
   let sort = SORTS.some(([k]) => k === prefs.sort) ? prefs.sort : "aktivitet";
   let uloeste = false, next = null, loading = false, done = false, gen = 0;
@@ -19,12 +19,12 @@ export async function page(parts) {
   const sentinel = h("div", { class: "sn-sentinel", "aria-hidden": "true" });
   const newBtn = h("button", { type: "button", class: "btn primary sn-new", hidden: true });
   const meta = await api("/api/snak/kategorier");
-  const cat = meta.categories.find(c => c.slug === slug);
+  let cat = meta.categories.find(c => c.slug === slug);
   const cfg = { feed: meta.feed };
 
   const chips = h("nav", { class: "sn-chips", "aria-label": "Kategorier" },
-    h("a", { href: BASE, class: !slug ? "on" : "" }, "Alle"),
-    ...meta.categories.map(c => h("a", { href: `${BASE}/k/${c.slug}`, class: c.slug === slug ? "on" : "", style: { "--c": c.farve } }, c.navn)));
+    h("a", { href: BASE }, "Alle"),
+    ...meta.categories.map(c => h("a", { href: `${BASE}/k/${c.slug}`, style: { "--c": c.farve } }, c.navn)));
 
   const compose = h("div", { class: "sn-card sn-start" });
   const showStart = () => compose.replaceChildren(state.user ? h("button", { type: "button", class: "sn-start-btn", onclick: showForm }, "Hvad har du på hjerte?") : "");
@@ -35,10 +35,14 @@ export async function page(parts) {
   showStart();
 
   async function loadPage(reset) {
-    if (loading || (done && !reset)) return;
+    if (!reset && (loading || done)) return;
     loading = true;
     const my = reset ? ++gen : gen;
-    if (reset) { list.replaceChildren(loadingBox()); cards.clear(); next = null; done = false; }
+    if (reset) {
+      // Ved filter/sortering bliver de gamle kort stående (dæmpet), til de nye er hentet – listen blinker ikke
+      if (cards.size) list.classList.add("sn-dim"); else list.replaceChildren(loadingBox());
+      next = null; done = false;
+    }
     try {
       const q = new URLSearchParams({ sort });
       if (slug) q.set("kategori", slug);
@@ -46,7 +50,7 @@ export async function page(parts) {
       if (next) q.set("cursor", next);
       const d = await api(`/api/snak/feed?${q}`);
       if (my !== gen) return;
-      if (reset) list.replaceChildren();
+      if (reset) { list.replaceChildren(); cards.clear(); list.classList.remove("sn-dim"); }
       for (const p of d.posts) {
         if (cards.has(p.id)) continue;
         const card = postCard(p, { inFeed: true, cfg, categories: meta.categories, reload: () => loadPage(true) });
@@ -55,8 +59,8 @@ export async function page(parts) {
       }
       next = d.next; done = !d.next;
       if (!cards.size) list.replaceChildren(empty("Ingen opslag endnu", slug ? "Vær den første i denne kategori." : "Vær den første til at slå noget op."));
-    } catch (err) { if (my === gen) list.replaceChildren(errorBox(err)); }
-    loading = false;
+    } catch (err) { if (my === gen) { list.classList.remove("sn-dim"); list.replaceChildren(errorBox(err)); } }
+    if (my === gen) loading = false;
   }
 
   const io = new IntersectionObserver((es) => { if (es.some(e => e.isIntersecting)) loadPage(false); }, { rootMargin: "600px" });
@@ -84,16 +88,52 @@ export async function page(parts) {
   }));
   cleanups.push(live.on("snak_mod", () => { if (!document.hidden) loadPage(true); }));
 
+  const title = h("h1", {});
+  const lead = h("p", { class: "lead" });
+  const onlyOpen = h("input", { type: "checkbox", onchange: (e) => { uloeste = e.target.checked; loadPage(true); } });
+  const openLabel = h("label", { class: "check" }, onlyOpen, h("span", {}, "Kun uløste"));
   const root = h("div", { class: "sn-feed stack" },
-    h("div", { class: "row between sn-toolbar" }, h("h1", {}, cat ? cat.navn : "Snak"),
+    h("div", { class: "row between sn-toolbar" }, title,
       seg(SORTS, sort, (v) => { sort = v; store("snak", { ...(store("snak") || {}), sort }); loadPage(true); })),
-    cat?.beskrivelse ? h("p", { class: "lead" }, cat.beskrivelse) : null,
-    chips,
-    cat?.har_loesning ? h("label", { class: "check" }, h("input", { type: "checkbox", onchange: (e) => { uloeste = e.target.checked; loadPage(true); } }), h("span", {}, "Kun uløste")) : null,
-    compose, newBtn, list, sentinel);
+    lead, chips, openLabel, compose, newBtn, list, sentinel);
   const side = panel(slug);
   const layout = h("div", { class: "sn-layout" }, root, side);
+
+  // Overskrift, beskrivelse, «Kun uløste» og markeringen af den valgte kategori (chips og sidepanel) følger slug
+  function drawHead() {
+    title.textContent = cat ? cat.navn : "Snak";
+    lead.textContent = cat?.beskrivelse || "";
+    lead.hidden = !cat?.beskrivelse;
+    openLabel.hidden = !cat?.har_loesning;
+    const here = slug ? `${BASE}/k/${slug}` : BASE;
+    layout.querySelectorAll(".sn-chips a, .sn-panel-list a[href^='#/snak/k/']").forEach(a => {
+      const on = a.getAttribute("href") === here;
+      a.classList.toggle("on", on);
+      if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    document.title = `${cat ? cat.navn + " – " : ""}Snak`;
+  }
+  side.addEventListener("snak:panel", drawHead);  // sidepanelet hentes asynkront
+
+  // Skift kategori uden at genopbygge siden: adressen opdateres med pushState (ingen hashchange → routeren kører ikke)
+  layout.addEventListener("click", (e) => {
+    const a = e.target.closest("a");
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const m = (a.getAttribute("href") || "").match(/^#\/snak(?:\/k\/([\w-]+))?$/);
+    if (!m) return;
+    e.preventDefault();
+    const to = m[1] || null;
+    if (to === slug) return;
+    history.pushState(null, "", a.getAttribute("href"));
+    slug = to;
+    cat = meta.categories.find(c => c.slug === slug);
+    uloeste = false; onlyOpen.checked = false;
+    pending = 0; newBtn.hidden = true;
+    drawHead();
+    loadPage(true);
+  });
+
+  drawHead();
   loadPage(true);
-  document.title = `${cat ? cat.navn + " – " : ""}Snak`;
   return layout;
 }

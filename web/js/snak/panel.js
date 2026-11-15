@@ -16,6 +16,7 @@ export function panel(slug) {
           c.nye ? h("small", { class: "sn-new-count" }, `${c.nye} nye`) : null)))),
       list("Uløste bestemmelser", d.uloeste, r => `${BASE}/${r.id}`, r => `${r.n_comments} svar · ${ago(r.created_at)}`),
       list("Mest aktive i ugen", d.aktive, r => `${BASE}/${r.id}`, r => `💬 ${r.n_comments}`));
+    aside.dispatchEvent(new Event("snak:panel"));  // feedet markerer den valgte kategori igen
   }).catch(() => { /* sidepanelet er pynt: feedet virker uden */ });
   return aside;
 }
