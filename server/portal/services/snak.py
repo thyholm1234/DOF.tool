@@ -352,7 +352,7 @@ async def create(session: AsyncSession, user: User, *, staff: bool, category_id:
     await _ban_and_rate(session, user, cfg)
     arter, loknr, lok_navn = await clean_extras(session, user, arter, loknr)
     att = await _attachment(session, user, attachment)
-    rendered = content_render.render(body, "kommentar")
+    rendered = await content_render.render_for(session, body, "kommentar")
     p = SnPost(category_id=cat["id"], user_id=user.id, titel=titel, body_md=body, body_html=rendered.html, body_text=rendered.text, attachment=att,
                arter=arter, loknr=loknr, lok_navn=lok_navn)
     session.add(p)
@@ -391,7 +391,7 @@ async def edit(session: AsyncSession, user: User, post_id: int, *, titel: str | 
     else:
         n_media = (await session.execute(text("SELECT count(*) FROM content_media WHERE owner_kind = 'snak' AND owner_id = :o"), {"o": post_id})).scalar() or 0
         titel, body = _check_text(titel, body, cat, extra=bool(p.attachment) or n_media > 0)
-    rendered = content_render.render(body, "kommentar")
+    rendered = await content_render.render_for(session, body, "kommentar")
     p.titel, p.body_md, p.body_html, p.body_text, p.edited_at = titel, body, rendered.html, rendered.text, datetime.now(timezone.utc)
     await session.commit()
     await publish("snak", {"type": "snak_mod", "kind": "post", "id": post_id})

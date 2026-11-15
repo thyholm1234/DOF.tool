@@ -159,7 +159,7 @@ async def add(session: AsyncSession, user: User, post_id: int, body: str, parent
             parent_id = p["parent_id"]
         else:
             reply_navn = None  # svar direkte på topniveau-kommentaren behøver ikke «Svar til»
-    rendered = content_render.render(body, "kommentar")
+    rendered = await content_render.render_for(session, body, "kommentar")
     c = SnComment(post_id=post_id, parent_id=parent_id, user_id=user.id, body_md=body, body_html=rendered.html, body_text=rendered.text,
                   reply_to_user_id=reply_uid if reply_navn else None, reply_to_navn=reply_navn)
     session.add(c)
@@ -193,7 +193,7 @@ async def edit(session: AsyncSession, user: User, cid: int, body: str) -> SnComm
     body = (body or "").strip()
     if not body or len(body) > MAX_LEN:
         raise CommentError(400, "Ugyldig kommentar")
-    rendered = content_render.render(body, "kommentar")
+    rendered = await content_render.render_for(session, body, "kommentar")
     c.body_md, c.body_html, c.body_text, c.edited_at = body, rendered.html, rendered.text, datetime.now(timezone.utc)
     await session.commit()
     await publish("snak", {"type": "snak_mod", "kind": "comment", "id": c.id, "post_id": c.post_id})

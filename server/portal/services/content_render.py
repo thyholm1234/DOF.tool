@@ -336,6 +336,8 @@ async def load_context(session: AsyncSession, md_text: str) -> tuple[dict[int, M
 async def render_for(session: AsyncSession, md_text: str, profile: str = "artikel") -> Rendered:
     from portal.services import article_settings
 
-    media, species = await load_context(session, md_text) if profile != "kommentar" else ({}, {})
+    media, species = await load_context(session, md_text)
+    if profile == "kommentar":
+        media = {}  # kommentarer viser ikke medier, men artschips slås gerne op
     hosts = set((await article_settings.get(session))["embed_hosts"]) if profile != "kommentar" else set()
     return render(md_text, profile, media=media, species=species, embed_hosts=hosts)

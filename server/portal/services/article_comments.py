@@ -104,7 +104,7 @@ async def add(session: AsyncSession, user: User, article_id: int, body: str, par
         if p is None or p["article_id"] != article_id or p["status"] != "synlig":
             raise CommentError(400, "Kommentaren, du svarer på, findes ikke")
         parent_id = p["parent_id"] or p["id"]  # kun ét niveau, som på netfugl.dk
-    rendered = content_render.render(body, "kommentar")
+    rendered = await content_render.render_for(session, body, "kommentar")
     c = ArtComment(article_id=article_id, parent_id=parent_id, user_id=user.id, body_md=body, body_html=rendered.html)
     session.add(c)
     await session.flush()
@@ -135,7 +135,7 @@ async def edit(session: AsyncSession, user: User, cid: int, body: str) -> ArtCom
     body = (body or "").strip()
     if not body or len(body) > MAX_LEN:
         raise CommentError(400, "Ugyldig kommentar")
-    c.body_md, c.body_html, c.edited_at = body, content_render.render(body, "kommentar").html, datetime.now(timezone.utc)
+    c.body_md, c.body_html, c.edited_at = body, (await content_render.render_for(session, body, "kommentar")).html, datetime.now(timezone.utc)
     await session.commit()
     await moderation.comments_changed(f"art:{c.article_id}", "edit", c.id)
     return c

@@ -27,8 +27,13 @@ async def rerender_all(session: AsyncSession) -> dict:
         await session.execute(text("UPDATE news SET body_html = :h, render_version = :v WHERE id = :i"), {"h": r.html, "v": content_render.RENDER_VERSION, "i": nid})
         out["nyheder"] += 1
     for cid, body in (await session.execute(text("SELECT id, body_md FROM art_comments"))).all():
-        await session.execute(text("UPDATE art_comments SET body_html = :h WHERE id = :i"), {"h": content_render.render(body, "kommentar").html, "i": cid})
+        await session.execute(text("UPDATE art_comments SET body_html = :h WHERE id = :i"), {"h": (await content_render.render_for(session, body, "kommentar")).html, "i": cid})
         out["kommentarer"] += 1
+    for table in ("sn_posts", "sn_comments"):
+        for sid, body in (await session.execute(text(f"SELECT id, body_md FROM {table}"))).all():
+            r = await content_render.render_for(session, body, "kommentar")
+            await session.execute(text(f"UPDATE {table} SET body_html = :h WHERE id = :i"), {"h": r.html, "i": sid})
+            out["kommentarer"] += 1
     await session.commit()
     await bump("articles")
     return out

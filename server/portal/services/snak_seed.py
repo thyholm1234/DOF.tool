@@ -117,8 +117,8 @@ async def _body(session: AsyncSession, md: str) -> str:
     return "".join(out)
 
 
-def _render(md: str):
-    return content_render.render(md, "kommentar")
+async def _render(session: AsyncSession, md: str):
+    return await content_render.render_for(session, md, "kommentar")
 
 
 async def has_examples(session: AsyncSession) -> bool:
@@ -153,7 +153,7 @@ async def seed_examples(session: AsyncSession) -> int:
             if att is None:
                 md = "(Her vises en artikel, når modulet har artikler.)\n\n" + md
         created = min([now - c[1] for c in comments] + [now]) - H(hours=3 + i)
-        r = _render(md)
+        r = await _render(session, md)
         post = SnPost(category_id=cats[cat], user_id=None, eksempel_navn=forfatter, eksempel=True, titel=titel, body_md=md, body_html=r.html, body_text=r.text,
                       attachment=att, arter=nrs, loknr=loknr, lok_navn=lok_navn, created_at=created, last_activity_at=created,
                       pinned_at=now if pin else None)
@@ -161,7 +161,7 @@ async def seed_examples(session: AsyncSession) -> int:
         await session.flush()
         n, last, solution = 0, created, None
         for navn, age, body, replies, wins in comments:
-            cr = _render(body)
+            cr = await _render(session, body)
             c = SnComment(post_id=post.id, user_id=None, eksempel_navn=navn, body_md=body, body_html=cr.html, body_text=cr.text, created_at=now - age)
             session.add(c)
             await session.flush()
@@ -169,7 +169,7 @@ async def seed_examples(session: AsyncSession) -> int:
             last = max(last, c.created_at)
             solution = c.id if wins else solution
             for rnavn, rage, rbody in replies:
-                rr = _render(rbody)
+                rr = await _render(session, rbody)
                 session.add(SnComment(post_id=post.id, parent_id=c.id, user_id=None, eksempel_navn=rnavn, body_md=rbody, body_html=rr.html, body_text=rr.text, created_at=now - rage))
                 n += 1
                 last = max(last, now - rage)
