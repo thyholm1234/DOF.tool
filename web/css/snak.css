@@ -72,6 +72,9 @@
 /* Vælgeren er en native popover (top layer, Esc, klik udenfor); positioneres med JS ud fra knappen */
 .sn-picker { position: fixed; inset: auto; margin: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); overflow: visible; }
 .sn-picker:popover-open { display: flex; gap: 2px; }
+@supports (position-area: block-start) {
+  .sn-picker { position-area: block-start span-inline-end; position-try-fallbacks: flip-block, flip-inline; margin-block: 6px; }
+}
 .sn-pick { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: transparent; border-radius: 50%; font-size: 1.7rem; line-height: 1; cursor: pointer; transition: transform .12s ease; }
 .sn-pick:hover, .sn-pick:focus-visible { transform: scale(1.25) translateY(-4px); background: var(--bg-2); }
 .sn-pick[aria-checked="true"] { background: var(--brand-soft); }
@@ -89,6 +92,14 @@
 .sn-menu-wrap { position: relative; }
 .sn-menu { position: fixed; inset: auto; margin: 0; padding: 4px; min-width: 190px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
 .sn-menu:popover-open { display: flex; flex-direction: column; }
+/* Ankret til knappen (implicit anker fra commandfor/showPopover({source})); flipper, når der ikke er plads */
+@supports (position-area: block-end) {
+  .sn-menu { position-area: block-end span-inline-start; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; margin-block: 4px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sn-menu { opacity: 0; translate: 0 -.25rem; transition: opacity .15s, translate .15s, display .15s allow-discrete, overlay .15s allow-discrete; }
+  .sn-menu:popover-open { opacity: 1; translate: 0 0; transition-duration: .1s; @starting-style { opacity: 0; translate: 0 -.25rem; } }
+}
 .sn-menu button { text-align: left; border: 0; background: none; font: inherit; padding: 8px 12px; border-radius: 6px; color: inherit; cursor: pointer; }
 .sn-menu button:hover, .sn-menu button:focus-visible { background: var(--bg-2); }
 
@@ -231,4 +242,12 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
   .sn-search { order: 5; flex: 1 1 100%; }
   .sn-search input { width: 100%; }
   .sn-tabs .spacer { flex: 1; }
+}
+
+/* Kort langt nede i feedet males først, når de nærmer sig skærmen (modern-web-guidance: defer-rendering-heavy-content) */
+.sn-feed .sn-card:nth-child(n+4) { content-visibility: auto; contain-intrinsic-size: auto 520px; }
+/* Tekstfelter vokser med indholdet; JS-højdejustering bruges kun uden field-sizing */
+@supports (field-sizing: content) {
+  .sn-compose textarea { field-sizing: content; min-height: 38px; max-height: 240px; }
+  .sn-composer textarea { field-sizing: content; min-height: 120px; max-height: 60dvh; }
 }

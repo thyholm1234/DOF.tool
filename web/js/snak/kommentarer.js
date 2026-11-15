@@ -19,7 +19,7 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
   const compose = (parent = null, replyName = null, done = null) => {
     const ta = h("textarea", { rows: parent ? 2 : 1, maxlength: 5000, placeholder: parent ? "Skriv et svar …" : "Skriv en kommentar …", "aria-label": parent ? "Svar" : "Kommentar" });
     const btn = h("button", { class: "btn primary", type: "submit" }, parent ? "Svar" : "Send");
-    const grow = () => { ta.style.height = "auto"; ta.style.height = `${Math.min(ta.scrollHeight, 240)}px`; };
+    const grow = () => { if (CSS.supports("field-sizing", "content")) return; ta.style.height = "auto"; ta.style.height = `${Math.min(ta.scrollHeight, 240)}px`; };
     ta.addEventListener("input", grow);
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); } });
     let img = null;

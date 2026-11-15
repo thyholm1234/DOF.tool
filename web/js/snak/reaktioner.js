@@ -98,13 +98,14 @@ export function reactionWidget(kind, id, st0, { small = false } = {}) {
   function openPicker(focus = false) {
     clearTimeout(hoverT); clearTimeout(leaveT);
     if (picker.matches(":popover-open")) return;
-    const r = btn.getBoundingClientRect();
-    picker.showPopover();
-    // Over knappen (eller under, hvis der ikke er plads), holdt inden for skærmen
-    const pr = picker.getBoundingClientRect();
-    const above = r.top > pr.height + 12;
-    picker.style.top = `${Math.max(8, above ? r.top - pr.height - 6 : r.bottom + 6)}px`;
-    picker.style.left = `${Math.min(Math.max(8, r.left), innerWidth - pr.width - 8)}px`;
+    if (CSS.supports("position-area", "block-start")) picker.showPopover({ source: btn }); // CSS Anchor Positioning
+    else {
+      const r = btn.getBoundingClientRect();
+      picker.showPopover();
+      const pr = picker.getBoundingClientRect();
+      picker.style.top = `${Math.max(8, r.top > pr.height + 12 ? r.top - pr.height - 6 : r.bottom + 6)}px`;
+      picker.style.left = `${Math.min(Math.max(8, r.left), innerWidth - pr.width - 8)}px`;
+    }
     btn.setAttribute("aria-expanded", "true");
     if (focus) (picker.querySelector(`[data-type="${st.mine}"]`) || picker.querySelector(".sn-pick"))?.focus();
   }

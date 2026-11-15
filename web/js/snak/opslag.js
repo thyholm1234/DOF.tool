@@ -32,14 +32,36 @@ function menu(post, { reload, categories }) {
     }]);
   }
   if (c.can_admin) items.push([post.pinned ? "Frigør fra toppen" : "Fastgør øverst", () => call(`/api/snak/${post.id}/fastgoer`, { method: "POST", body: { pinned: !post.pinned } })]);
-  const pop = h("div", { class: "sn-menu", popover: "auto", role: "menu" }, ...items.map(([label, fn]) => h("button", { type: "button", role: "menuitem", onclick: () => { pop.hidePopover(); fn(); } }, label)));
-  const btn = h("button", { type: "button", class: "icon-btn", "aria-label": "Flere handlinger", "aria-haspopup": "true", onclick: () => {
+  // Menuen er en native popover: kommandoknappen (commandfor) åbner/lukker den, CSS Anchor Positioning placerer den ved knappen,
+  // og pile/Home/End flytter mellem punkterne (modern-web-guidance: menu).
+  const popId = `snm${post.id}`;
+  const pop = h("div", { class: "sn-menu", id: popId, popover: "auto", role: "menu", "aria-label": "Handlinger for opslaget" },
+    ...items.map(([label, fn]) => h("button", { type: "button", role: "menuitem", onclick: () => { btn.focus({ focusVisible: false }); pop.hidePopover(); fn(); } }, label)));
+  const btn = h("button", { type: "button", class: "icon-btn", "aria-label": "Flere handlinger", "aria-haspopup": "menu", "aria-expanded": "false", commandfor: popId, command: "toggle-popover" }, "⋯");
+  const native = "command" in HTMLButtonElement.prototype && CSS.supports("position-area", "block-end");
+  if (!native) btn.addEventListener("click", () => { // ældre browsere: åbn og placér med script
     const r = btn.getBoundingClientRect();
-    pop.showPopover();
+    pop.togglePopover();
     pop.style.top = `${r.bottom + 4}px`;
     pop.style.left = `${Math.max(8, Math.min(r.right - pop.offsetWidth, innerWidth - pop.offsetWidth - 8))}px`;
-    pop.querySelector("button")?.focus();
-  } }, "⋯");
+  });
+  let byKey = false;
+  btn.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); byKey = true; if (!pop.matches(":popover-open")) btn.click(); else pop.querySelector("button")?.focus(); }
+    else if (e.key === "Enter" || e.key === " ") byKey = true;
+  });
+  btn.addEventListener("pointerdown", () => { byKey = false; });
+  pop.addEventListener("toggle", (e) => {
+    btn.setAttribute("aria-expanded", String(e.newState === "open"));
+    if (e.newState === "open" && byKey) pop.querySelector("button")?.focus();
+    if (e.newState === "closed" && pop.contains(document.activeElement)) btn.focus();
+    byKey = false;
+  });
+  pop.addEventListener("keydown", (e) => {
+    const els = [...pop.querySelectorAll("button")], i = els.indexOf(document.activeElement);
+    const to = { ArrowDown: (i + 1) % els.length, ArrowUp: (i - 1 + els.length) % els.length, Home: 0, End: els.length - 1 }[e.key];
+    if (to !== undefined) { e.preventDefault(); els[to].focus(); }
+  });
   return h("span", { class: "sn-menu-wrap" }, btn, pop);
 }
 
