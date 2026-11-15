@@ -56,6 +56,7 @@ from portal.api import (
     su,
     trips,
 )
+from portal.admission import AdmissionMiddleware
 from portal.api.deps import COOKIE
 from portal.bootstrap import init_db
 from portal.cache import kv
@@ -225,6 +226,9 @@ class SelectiveGZip:
 
 
 app.add_middleware(SelectiveGZip)
+# Yderst (tilføjes sidst): en afvist forespørgsel skal hverken nå vagten, GZip eller databasen
+app.add_middleware(AdmissionMiddleware, max_inflight=get_settings().api_max_inflight,
+                   queue_wait=get_settings().api_queue_wait_s)
 
 
 @app.exception_handler(AuthError)

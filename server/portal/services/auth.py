@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from portal import admission
 from portal.cache import kv
 from portal.config import get_settings
 from portal.dof import gateway
@@ -217,7 +218,8 @@ async def verify_dofbasen(obserkode: str, password: str) -> None:
     højst 3 minutter i gateway-køen og gemmes ingen steder."""
     job_id = await gateway.enqueue("login", {"obserkode": obserkode}, priority=gateway.INTERACTIVE,
                                    secret={"password": password})
-    result = await gateway.wait_result(job_id, timeout=60)
+    async with admission.idle():  # op til 60 s i workerens kø uden CPU: optag ikke en af api'ets pladser imens
+        result = await gateway.wait_result(job_id, timeout=60)
     if result is None:
         await gateway.cancel(job_id)
         raise AuthError("DOFbasen svarede ikke i tide. Prøv igen om lidt.", 503)

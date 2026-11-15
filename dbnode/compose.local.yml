@@ -8,6 +8,7 @@ x-node: &node
   command: >
     postgres -c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB -c effective_cache_size=4GB
              -c max_wal_size=8GB -c random_page_cost=1.1 -c wal_level=replica -c max_wal_senders=10 -c hot_standby=on
+             -c max_connections=200
   networks: [portal]
 services:
   db-users:

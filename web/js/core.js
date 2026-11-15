@@ -62,7 +62,9 @@ async function request(path, { method = "GET", body, form } = {}) {
   const text = await res.text();
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!res.ok) {
-    const msg = (data && data.detail) ? (typeof data.detail === "string" ? data.detail : data.detail.msg || data.detail.map?.(d => d.msg).join(", ")) : `Fejl ${res.status}`;
+    // 503 uden JSON (proxyen foran) får samme besked som serverens egen afvisning ved overbelastning (portal/admission.py)
+    if (res.status === 503 && !(data && data.detail)) data = { detail: "Serveren har travlt lige nu – prøv igen om lidt." };
+    const msg = (data && data.detail) ?(typeof data.detail === "string" ? data.detail : data.detail.msg || data.detail.map?.(d => d.msg).join(", ")) : `Fejl ${res.status}`;
     const err = new Error(msg || `Fejl ${res.status}`); err.status = res.status; err.detail = data?.detail; throw err;
   }
   return data;

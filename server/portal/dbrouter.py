@@ -167,7 +167,8 @@ class Router:
     def engine_for(self, node: Node) -> AsyncEngine:
         eng = self.engines.get(node.key)
         if eng is None:
-            eng = create_async_engine(node.dsn, pool_size=10, max_overflow=20, pool_pre_ping=True)
+            s = get_settings()  # pr. proces: api'et kører flere uvicorn-processer med hver sin pool (DB_POOL_SIZE/DB_MAX_OVERFLOW)
+            eng = create_async_engine(node.dsn, pool_size=s.db_pool_size, max_overflow=s.db_max_overflow, pool_pre_ping=True)
             event.listen(eng.sync_engine, "handle_error", lambda ctx, n=node: self._failed(n, ctx))
             event.listen(eng.sync_engine, "do_connect", lambda dialect, rec, cargs, cparams, n=node: self._connect(n, dialect, cargs, cparams))
             self.engines[node.key] = eng

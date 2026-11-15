@@ -16,7 +16,7 @@ x-app: &app
   restart: unless-stopped
   logging: *logging
   env_file: .env
-  environment:
+  environment: &app-env
     POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
     REDIS_DSN: redis://valkey:6379/0
     # Registret (dbadmin) afgør, om POSTGRES_DSN bruges til alt (standard) eller om data er delt i bruger- og observationsdatabaser.
@@ -68,6 +68,7 @@ services:
     command: >
       postgres -c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB
                -c effective_cache_size=4GB -c max_wal_size=4GB -c random_page_cost=1.1
+               -c max_connections=200
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -89,8 +90,20 @@ services:
       timeout: 3s
       retries: 20
 
+  # Flere uvicorn-processer (WEB_CONCURRENCY), da én Python-proces kun bruger én kerne. Alt delt mellem processerne ligger i
+  # Valkey (sessioner, rate-limit, SSE, versioner for caches) eller Postgres, og opstarten er beskyttet af advisory locks.
+  # Hver proces har sin egen DB-pool: API_WORKERS × (API_DB_POOL_SIZE + API_DB_MAX_OVERFLOW) + workerens 30 < max_connections.
   api:
     <<: *app
+    environment:
+      <<: *app-env
+      WEB_CONCURRENCY: ${API_WORKERS:-4}
+      DB_POOL_SIZE: ${API_DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${API_DB_MAX_OVERFLOW:-10}
+      # Optagelseskontrol pr. proces (portal/admission.py): højst så mange samtidige API-kald; et kald, der ikke får plads
+      # inden for ventetiden, får straks 503 + Retry-After i stedet for at stå i en kø, der vokser frit under overbelastning
+      API_MAX_INFLIGHT: ${API_MAX_INFLIGHT:-16}
+      API_QUEUE_WAIT_S: ${API_QUEUE_WAIT_S:-0.5}
     ports:
       - "${PORT:-8000}:8000"
     healthcheck:
@@ -244,7 +257,8 @@ services:
       retries: 30
       start_period: 30s
 
-  # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 udtræk hvert andet minut)
+  # Præcis én worker: den er den eneste der taler med dofbasen.dk (maks. 1 udtræk hvert andet minut). Api-processerne
+  # lægger DOFbasen-opgaver i køen i Valkey (dof/gateway.enqueue), og kun workerens gateway afvikler dem. Skalér aldrig workeren.
   worker:
     <<: *app
     command: ["python", "-m", "portal.worker"]

@@ -59,7 +59,11 @@ def _local(key: str) -> Path:
 def _ensure_bucket() -> None:
     c, bucket = _client(), get_settings().s3_bucket
     if not c.bucket_exists(bucket):
-        c.make_bucket(bucket)
+        try:
+            c.make_bucket(bucket)
+        except Exception:
+            if not c.bucket_exists(bucket):  # en anden api-proces (eller workeren) nåede at oprette den først
+                raise
 
 
 async def init() -> None:

@@ -12,7 +12,7 @@ for sig.
 | Services | `services/` | Forretningslogik og SQL: feed, fund, lister, fænologi, alarmer, … Ét modul pr. emne | `domain`, `models`, `cache`, andre services |
 | Integration | `dof/` | DOFbasen: gateway/kø, hentning, parsing, arkiv, referencedata | `domain`, `models`, `services` |
 | API | `api/` | HTTP: validering (Pydantic), adgang (`api/deps.py`) og kald til services. Store paneler er pakker (`api/admin/`) | alt ovenfor |
-| Drift | `worker.py`, `bootstrap.py`, `db*.py`, `cache.py` | Baggrundsjob og planlagte opgaver, opstart, databasegrupper og routing, Valkey | – |
+| Drift | `worker.py`, `bootstrap.py`, `db*.py`, `cache.py`, `admission.py` | Baggrundsjob og planlagte opgaver, opstart, databasegrupper og routing, Valkey, optagelseskontrol (højst `API_MAX_INFLIGHT` samtidige API-kald pr. proces; lang ventetid uden CPU pakkes i `admission.idle()`) | – |
 
 **Regler**
 

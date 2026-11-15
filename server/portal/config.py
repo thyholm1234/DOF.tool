@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     # DOF.tool-gruppen (observationer indtastet i DOF.tool): uden en registreret node i db-admin bruges en egen database
     # med dette navn på observationsgruppens primary – adskilt fra DOFbasens data (se dbgroups.DOFTOOL).
     doftool_dbname: str = "doftool"
+    # Forbindelser pr. proces og pr. databasenode. Api'et kører WEB_CONCURRENCY uvicorn-processer med hver sin pool, så
+    # det samlede antal er processer × (pool + overflow) + workerens – hold det under Postgres' max_connections.
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    # Optagelseskontrol (portal/admission.py): højst så mange samtidige API-forespørgsler pr. proces (0 = slået fra), og
+    # så længe venter en forespørgsel på en plads, før den afvises med 503 og Retry-After
+    api_max_inflight: int = 16  # ≈ DB-poolen pr. proces (5+10): flere samtidige kald venter alligevel på en forbindelse
+    api_queue_wait_s: float = 0.5
 
     # Superadmin er denne obserkode (sættes ved opstart). Den logger ind med sin DOFbasen-adgangskode som alle andre.
     superadmin_obserkode: str = ""
