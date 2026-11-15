@@ -4,14 +4,14 @@ Alt kræver, at funktionen «snak» er synlig for brugeren (Admin → Funktioner
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import snak, snak_access, snak_comments, snak_reactions
+from portal.services import content_media, content_render, snak, snak_access, snak_attach, snak_comments, snak_links, snak_reactions
 
 router = APIRouter(prefix="/api/snak", tags=["snak"])
 ReactionType = Field(pattern="^(like|love|haha|wow|sad|angry)$")
@@ -27,19 +27,53 @@ def need(feature: str = "snak"):
     return dep
 
 
+def _media(acc: snak_access.Access, ids: list[int]) -> list[int]:
+    if ids and not acc.on("snak_billeder"):
+        raise HTTPException(403, "Billeder er slået fra")
+    return ids
+
+
+def _att(acc: snak_access.Access, att: AttachmentIn | None) -> dict | None:
+    if att and att.type == "link" and not acc.on("snak_links"):
+        raise HTTPException(403, "Links med forhåndsvisning er slået fra")
+    return att.model_dump() if att else None
+
+
 def _wrap(exc: Exception) -> HTTPException:
     return HTTPException(exc.status, exc.message)
+
+
+class AttachmentIn(BaseModel):
+    type: str = Field(max_length=12)
+    ref: str = Field(max_length=2000)
 
 
 class PostIn(BaseModel):
     category_id: int
     titel: str | None = Field(None, max_length=200)
     body: str = Field("", max_length=snak.MAX_BODY + 1000)
+    media_ids: list[int] = Field(default_factory=list, max_length=20)
+    attachment: AttachmentIn | None = None
+    arter: list[int] = Field(default_factory=list, max_length=10)
+    loknr: int | None = None
 
 
 class CommentIn(BaseModel):
-    body: str = Field(max_length=snak_comments.MAX_LEN + 1000)
+    body: str = Field("", max_length=snak_comments.MAX_LEN + 1000)
     parent_id: int | None = None
+    media_id: int | None = None
+
+
+class SolutionIn(BaseModel):
+    comment_id: int | None = None
+
+
+class LinkIn(BaseModel):
+    url: str = Field(max_length=2000)
+
+
+class RenderIn(BaseModel):
+    body: str = Field(max_length=snak.MAX_BODY + 1000)
 
 
 class ReactionIn(BaseModel):
@@ -71,7 +105,7 @@ async def kategorier(acc: snak_access.Access = Depends(need()), db: AsyncSession
 async def feed(sort: str = "aktivitet", kategori: str | None = Query(None, max_length=40), uloeste: bool = False, cursor: str | None = Query(None, max_length=200),
                user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     try:
-        return await snak.feed(db, user, staff=acc.can_moderate, sort=sort, category=kategori, uloeste=uloeste, cursor=cursor)
+        return await snak.feed(db, user, staff=acc.can_moderate, sort=sort, category=kategori, uloeste=uloeste, cursor=cursor, flags_on=acc.on)
     except snak.SnakError as e:
         raise _wrap(e) from e
 
@@ -79,7 +113,8 @@ async def feed(sort: str = "aktivitet", kategori: str | None = Query(None, max_l
 @router.post("")
 async def opret(body: PostIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     try:
-        return {"id": await snak.create(db, user, staff=acc.staff, category_id=body.category_id, titel=body.titel, body=body.body)}
+        return {"id": await snak.create(db, user, staff=acc.staff, category_id=body.category_id, titel=body.titel, body=body.body,
+                                                      media_ids=_media(acc, body.media_ids), attachment=_att(acc, body.attachment), arter=body.arter, loknr=body.loknr)}
     except snak.SnakError as e:
         raise _wrap(e) from e
 
@@ -87,7 +122,7 @@ async def opret(body: PostIn, user: User = Depends(require_user), acc: snak_acce
 @router.get("/{post_id}")
 async def opslag(post_id: int, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     try:
-        return await snak.get_post(db, post_id, user, staff=acc.can_moderate)
+        return await snak.get_post(db, post_id, user, staff=acc.can_moderate, flags_on=acc.on)
     except snak.SnakError as e:
         raise _wrap(e) from e
 
@@ -95,7 +130,8 @@ async def opslag(post_id: int, user: User = Depends(require_user), acc: snak_acc
 @router.put("/{post_id}")
 async def ret(post_id: int, body: PostIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     try:
-        await snak.edit(db, user, post_id, titel=body.titel, body=body.body)
+        await snak.edit(db, user, post_id, titel=body.titel, body=body.body, media_ids=_media(acc, body.media_ids), attachment=_att(acc, body.attachment),
+                        arter=body.arter, loknr=body.loknr, fields=True)
     except snak.SnakError as e:
         raise _wrap(e) from e
     return {"ok": True}
@@ -219,7 +255,7 @@ async def kommentarer(post_id: int, sort: str = "nyeste", skip: int = Query(0, g
 @router.post("/{post_id}/kommentarer")
 async def kommenter(post_id: int, body: CommentIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     try:
-        c = await snak_comments.add(db, user, post_id, body.body, body.parent_id, staff=acc.staff)
+        c = await snak_comments.add(db, user, post_id, body.body, body.parent_id, staff=acc.staff, media_id=body.media_id if acc.on('snak_billeder') else None)
     except snak.SnakError as e:
         raise _wrap(e) from e
     return {"id": c.id}
@@ -253,3 +289,58 @@ async def moderer_kommentar(cid: int, body: CommentModerateIn, user: User = Depe
     except snak.SnakError as e:
         raise _wrap(e) from e
     return {"ok": True}
+
+
+@router.post("/{post_id}/loesning")
+async def loesning(post_id: int, body: SolutionIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        await snak.set_solution(db, user, post_id, body.comment_id, staff=acc.can_moderate)
+    except snak.SnakError as e:
+        raise _wrap(e) from e
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- billeder, forhåndsvisning og vedhæftninger
+
+@router.post("/media")
+async def upload(file: UploadFile = File(...), kind: str = Form("post"), user: User = Depends(require_user), acc: snak_access.Access = Depends(need("snak_billeder")),
+                 db: AsyncSession = Depends(get_session)):
+    """Billede til et opslag (kind=post) eller en kommentar (kind=comment). Hører til brugeren, indtil det gemmes sammen med opslaget."""
+    if kind not in snak.MEDIA_KIND:
+        raise HTTPException(400, "Ukendt type")
+    data = await file.read(content_media.MAX_IMAGE + 1)
+    key = f"snak:upload:rate:{user.id}"
+    from portal.cache import kv
+
+    n = await kv().incr(key)
+    if n == 1:
+        await kv().expire(key, 600)
+    if n > 60:
+        raise HTTPException(429, "For mange uploads – vent lidt")
+    try:
+        m = await content_media.store_image(db, data, filename=file.filename or "billede", owner_kind=snak.MEDIA_KIND[kind], owner_id=None, user_id=user.id)
+    except content_media.MediaError as e:
+        raise HTTPException(400, str(e)) from e
+    await db.commit()
+    return snak.media_out({"id": m.id, "storage_key": m.storage_key, "thumb_key": m.thumb_key, "medium_key": m.medium_key, "width": m.width, "height": m.height, "alt": m.alt})
+
+
+@router.post("/render")
+async def render(body: RenderIn, acc: snak_access.Access = Depends(need())):
+    return {"html": content_render.render(body.body, "kommentar").html}
+
+
+@router.post("/link-preview")
+async def link_preview(body: LinkIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need("snak_links"))):
+    try:
+        return await snak_links.preview(user.id, body.url)
+    except snak_links.LinkError as e:
+        raise _wrap(e) from e
+
+
+@router.get("/vedhaeft/soeg")
+async def vedhaeft_soeg(type: str = Query(max_length=12), q: str = Query("", max_length=100), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        return {"rows": await snak_attach.search(db, type, q)}
+    except snak_attach.AttachError as e:
+        raise _wrap(e) from e

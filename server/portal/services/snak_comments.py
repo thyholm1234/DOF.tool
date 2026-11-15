@@ -51,6 +51,9 @@ SHOW = "(c.status = 'synlig' AND " + moderation.VISIBLE + ")"
 
 async def _attach(session: AsyncSession, rows, viewer_id: int, staff: bool) -> list[dict]:
     items = [comment_out({**dict(r)}, viewer_id, staff) for r in rows]
+    media = await snak.media_for(session, "comment", [i["id"] for i in items])
+    for i in items:
+        i["images"] = media.get(i["id"], []) if i["html"] or i["status"] == "synlig" else []
     react = await snak_reactions.summary(session, "comment", [i["id"] for i in items], viewer_id)
     for i in items:
         i["reactions"] = react[i["id"]]
@@ -123,9 +126,9 @@ async def thread(session: AsyncSession, post_id: int, viewer_id: int, staff: boo
     return {"items": top_items, "total": total, "more": skip + limit < total, "next_skip": skip + limit}
 
 
-async def add(session: AsyncSession, user: User, post_id: int, body: str, parent_id: int | None, *, staff: bool) -> SnComment:
+async def add(session: AsyncSession, user: User, post_id: int, body: str, parent_id: int | None, *, staff: bool, media_id: int | None = None) -> SnComment:
     body = (body or "").strip()
-    if not body:
+    if not body and not media_id:
         raise CommentError(400, "Skriv en kommentar")
     if len(body) > MAX_LEN:
         raise CommentError(400, f"Kommentaren er for lang (højst {MAX_LEN} tegn)")
@@ -161,6 +164,8 @@ async def add(session: AsyncSession, user: User, post_id: int, body: str, parent
                   reply_to_user_id=reply_uid if reply_navn else None, reply_to_navn=reply_navn)
     session.add(c)
     await session.flush()
+    if media_id:
+        await snak.adopt_media(session, "comment", c.id, user.id, [media_id], limit=1)
     await session.execute(text("UPDATE sn_posts SET n_comments = n_comments + 1, last_activity_at = now() WHERE id = :p"), {"p": post_id})
     await snak.follow(session, user.id, post_id)
     await session.commit()
@@ -206,6 +211,7 @@ async def remove_own(session: AsyncSession, user: User, cid: int) -> None:
     c.status = "slettet"
     await _hide_count(session, c, was, False)
     await session.commit()
+    await snak.forget_media(session, comment_id=c.id)
     await publish("snak", {"type": "snak_mod", "kind": "comment", "id": c.id, "post_id": c.post_id})
 
 
@@ -222,5 +228,6 @@ async def moderate(session: AsyncSession, moderator: User, cid: int, action: str
         raise CommentError(400, "Ukendt handling")
     await _hide_count(session, c, was, c.status == "synlig")
     await session.commit()
+    await snak.forget_media(session, comment_id=c.id)
     await publish("snak", {"type": "snak_mod", "kind": "comment", "id": c.id, "post_id": c.post_id})
     return c

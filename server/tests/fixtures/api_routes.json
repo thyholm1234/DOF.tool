@@ -9542,6 +9542,47 @@ false,
 ]
 }
 },
+"/api/snak/link-preview": {
+"post": {
+"body": true,
+"op": "link_preview_api_snak_link_preview_post",
+"params": []
+}
+},
+"/api/snak/media": {
+"post": {
+"body": true,
+"op": "upload_api_snak_media_post",
+"params": []
+}
+},
+"/api/snak/render": {
+"post": {
+"body": true,
+"op": "render_api_snak_render_post",
+"params": []
+}
+},
+"/api/snak/vedhaeft/soeg": {
+"get": {
+"body": false,
+"op": "vedhaeft_soeg_api_snak_vedhaeft_soeg_get",
+"params": [
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 100, \"title\": \"Q\", \"type\": \"string\"}"
+],
+[
+"type",
+"query",
+true,
+"{\"maxLength\": 12, \"title\": \"Type\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/snak/{post_id}": {
 "delete": {
 "body": false,
@@ -9654,6 +9695,20 @@ false,
 "post": {
 "body": true,
 "op": "kommenter_api_snak__post_id__kommentarer_post",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/loesning": {
+"post": {
+"body": true,
+"op": "loesning_api_snak__post_id__loesning_post",
 "params": [
 [
 "post_id",

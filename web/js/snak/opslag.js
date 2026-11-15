@@ -1,7 +1,7 @@
 // Opslagskortet (feed og trådside) og trådsiden #/snak/<id> (docs/snak-modul-spec.md §2.1–2.2).
 import { api, h, toast, ask, askText, ago, state, errorBox, params } from "../core.js";
 import { live } from "../live.js";
-import { BASE, avatar, authorLink, categoryTag, cleanups, ctx, loadCss, loadingBox, notice, plain } from "./common.js";
+import { BASE, attachmentCard, avatar, authorLink, categoryTag, cleanups, ctx, extras, gallery, loadCss, loadingBox, notice, plain } from "./common.js";
 import { commentBlock } from "./kommentarer.js";
 import { reactionWidget } from "./reaktioner.js";
 import { composer } from "./composer.js";
@@ -66,6 +66,9 @@ export function postCard(post, { inFeed = false, cfg, categories, reload = () =>
       state.user ? menu(post, { reload, categories }) : null),
     post.titel ? h("h2", { class: "sn-title", id: titleId }, inFeed ? h("a", { href: `${BASE}/${post.id}` }, post.titel) : post.titel) : null,
     post.status === "skjult" && !post.html ? h("p", { class: "muted" }, "Skjult af en moderator.") : text, more,
+    gallery(post.images),
+    attachmentCard(post.attachment),
+    extras(post),
     post.status === "skjult" && post.hidden_reason ? h("p", { class: "muted small" }, `Skjult af en moderator: ${post.hidden_reason}`) : null,
     h("div", { class: "sn-bar" }, react, h("span", { class: "spacer" }), countEl, h("span", { class: "sn-count", title: "Visninger" }, `👁 ${post.views}`)),
     h("div", { class: "sn-actions" }, commentBtn),

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import optional_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import content_media, photo_access, photos, storage
+from portal.services import content_media, photo_access, photos, snak, snak_access, storage
 
 router = APIRouter(include_in_schema=False)
 RANGE = storage.RANGE
@@ -45,6 +45,19 @@ async def art_media(name: str, request: Request, user: User | None = Depends(opt
             raise HTTPException(404)
         if info["status"] != "publiceret" and not (acc.can_moderate or info["user_id"] == user.id):
             raise HTTPException(404)
+    sn = await snak.media_info(db, name)
+    if sn.get("snak"):  # Snak: login, modulet synligt og opslaget/kommentaren ikke skjult (moderator og forfatter undtaget)
+        acc = await snak_access.context(db, user)
+        if user is None or not acc.on("snak"):
+            raise HTTPException(404)
+        if not sn["attached"]:
+            if sn["uploader"] != user.id:  # endnu ikke gemt: kun den, der uploadede
+                raise HTTPException(404)
+        elif not acc.can_moderate:
+            if sn["status"] != "synlig" and sn["owner"] != user.id:
+                raise HTTPException(404)
+            if sn["cstatus"] not in (None, "synlig") and sn["cowner"] != user.id:
+                raise HTTPException(404)
     ext = "." + name.rsplit(".", 1)[1]
     extra = {"X-Content-Type-Options": "nosniff"}
     if ext in content_media.DOWNLOAD_ONLY:  # kunne ellers vises som side i browseren

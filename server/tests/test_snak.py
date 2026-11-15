@@ -22,12 +22,12 @@ async def db(monkeypatch):
     from portal import cache
     from portal.db import Base
     from portal.dbgroups import USER_TABLES
-    from portal.models import EXTRA_DDL, Species, User
+    from portal.models import EXTRA_DDL, User
     from portal.dbops import ddl_groups
     from portal.services import snak
 
     engine = create_async_engine(DSN)
-    tables = [t for t in Base.metadata.sorted_tables if t.name in USER_TABLES or t.name == "species"]
+    tables = [t for t in Base.metadata.sorted_tables if t.name in USER_TABLES or t.name in ("species", "locations", "kommuner")]
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
@@ -260,3 +260,106 @@ async def test_visninger_og_foelg(web):
     assert (await web["a1"].delete(f"/api/snak/{pid}/foelg")).json() == {"following": False}
     await web["a1"].post(f"/api/snak/{pid}/kommentarer", json={"body": "igen"})
     assert not (await web["a1"].get(f"/api/snak/{pid}")).json()["following"]  # «følg ikke» respekteres
+
+
+def png(color=(200, 30, 30)) -> bytes:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 30), color).save(buf, "PNG")
+    return buf.getvalue()
+
+
+async def upload(c, data=None, kind="post", name="a.png"):
+    return await c.post("/api/snak/media", files={"file": (name, data or png(), "image/png")}, data={"kind": kind})
+
+
+async def test_billeder_og_medieadgang(web, db):
+    r = await upload(web["a1"])
+    assert r.status_code == 200, r.text
+    m = r.json()
+    assert (await web["a1"].get(m["url"])).status_code == 200
+    assert (await web["a2"].get(m["url"])).status_code == 404  # endnu ikke gemt: kun uploaderen
+    assert (await upload(web["a1"], b"ikke et billede")).status_code == 400
+    assert (await web["anon"].post("/api/snak/media", files={"file": ("a.png", png(), "image/png")}, headers=H)).status_code == 401
+    pid = await new_post(web["a1"], body="", media_ids=[m["id"]])  # kun billede er nok
+    p = (await web["a2"].get(f"/api/snak/{pid}")).json()
+    assert [i["id"] for i in p["images"]] == [m["id"]]
+    assert (await web["a2"].get(m["url"])).status_code == 200
+    # højst max_billeder_opslag (10)
+    ids = [(await upload(web["a1"], png((i, 5, 5)))).json()["id"] for i in range(11)]
+    assert (await web["a1"].post("/api/snak", json={"category_id": 3, "body": "for mange", "media_ids": ids})).status_code == 400
+    # andres uploads kan ikke bruges
+    other = (await upload(web["a2"], png((9, 9, 9)))).json()["id"]
+    assert (await web["a1"].post("/api/snak", json={"category_id": 3, "body": "x", "media_ids": [other]})).status_code == 400
+    # kommentar med billede (1)
+    c = (await upload(web["a2"], png((1, 2, 3)), kind="comment")).json()
+    cid = (await web["a2"].post(f"/api/snak/{pid}/kommentarer", json={"body": "", "media_id": c["id"]})).json()["id"]
+    items = (await web["a1"].get(f"/api/snak/{pid}/kommentarer")).json()["items"]
+    assert items[0]["id"] == cid and items[0]["images"][0]["id"] == c["id"]
+    # skjult opslag: andre kan ikke hente billedet eller se det i svaret, moderator kan
+    await web["mo"].post(f"/api/snak/{pid}/moderer", json={"action": "skjul", "reason": "test"})
+    assert (await web["a2"].get(m["url"])).status_code == 404
+    assert (await web["mo"].get(m["url"])).status_code == 200
+    assert (await web["a1"].get(m["url"])).status_code == 200  # forfatteren
+
+
+async def test_vedhaeftning_arter_og_loesning(web, db):
+    from portal.models import Species
+
+    async with db() as s:
+        s.add(Species(artnr=100, navn="Sølvmåge", latin="Larus argentatus"))
+        s.add(Species(artnr=101, navn="Kaspisk Måge"))
+        await s.commit()
+    pid = await new_post(web["a1"], cat=1, body="Hvad er det?", attachment={"type": "art", "ref": "100"}, arter=[100, 101, 999])
+    p = (await web["a2"].get(f"/api/snak/{pid}")).json()
+    assert p["attachment"]["title"] == "Sølvmåge" and p["attachment"]["url"] == "#/art/100" and p["arter"] == [100, 101]
+    assert (await web["a1"].post("/api/snak", json={"category_id": 3, "body": "x", "attachment": {"type": "art", "ref": "5"}})).status_code == 400
+    assert (await web["a1"].post("/api/snak", json={"category_id": 3, "body": "x", "attachment": {"type": "artikel", "ref": "5"}})).status_code == 400
+    assert (await web["a1"].post("/api/snak", json={"category_id": 3, "body": "x", "arter": [1, 2, 3, 4, 5, 6]})).status_code == 400
+    found = (await web["a1"].get("/api/snak/vedhaeft/soeg", params={"type": "art", "q": "måge"})).json()["rows"]
+    assert {r["ref"] for r in found} == {"100", "101"}
+    # løsning: kun i kategorier med løsning, kun forfatter/moderator
+    cid = (await web["a2"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Kaspisk"})).json()["id"]
+    assert (await web["a2"].post(f"/api/snak/{pid}/loesning", json={"comment_id": cid})).status_code == 403
+    assert (await web["a1"].post(f"/api/snak/{pid}/loesning", json={"comment_id": cid})).status_code == 200
+    assert (await web["a1"].get(f"/api/snak/{pid}")).json()["solved"]
+    solved = (await web["a1"].get("/api/snak/feed", params={"uloeste": 1})).json()["posts"]
+    assert pid not in [x["id"] for x in solved]
+    assert (await web["a1"].post(f"/api/snak/{pid}/loesning", json={"comment_id": 99999})).status_code == 400
+    await web["a1"].post(f"/api/snak/{pid}/loesning", json={"comment_id": None})
+    assert not (await web["a1"].get(f"/api/snak/{pid}")).json()["solved"]
+    fund = await new_post(web["a1"], cat=3)
+    assert (await web["a1"].post(f"/api/snak/{fund}/loesning", json={"comment_id": None})).status_code == 400
+
+
+async def test_link_preview_afviser_interne_adresser(web):
+    r = await web["a1"].post("/api/snak/link-preview", json={"url": "http://127.0.0.1:1/x"})
+    assert r.status_code == 200 and r.json()["title"] == "" and r.json()["image"] is None  # kun værtsnavnet
+    assert (await web["a1"].post("/api/snak/link-preview", json={"url": "ftp://x.dk/a"})).status_code == 400
+    assert (await web["a1"].post("/api/snak/link-preview", json={"url": "javascript:alert(1)"})).status_code == 400
+    from portal.services import snak_links
+
+    p = snak_links.parse('<title>Side</title><meta property="og:title" content="Titel &amp; co"><meta property="og:image" content="/a.jpg">', "https://x.dk/p")
+    assert p["title"] == "Titel & co" and p["image"] == "https://x.dk/a.jpg"
+    assert snak_links.parse('<meta property="og:image" content="http://x.dk/a.jpg">', "https://x.dk/")["image"] is None
+
+
+async def test_eksempler(web, db):
+    from portal.services import snak_seed
+
+    async with db() as s:
+        assert await snak_seed.seed_examples(s) == 5
+        assert await snak_seed.seed_examples(s) == 0  # idempotent
+    feed = (await web["a1"].get("/api/snak/feed")).json()["posts"]
+    assert len(feed) == 5 and all(p["eksempel"] and p["author"]["eksempel"] for p in feed)
+    assert feed[0]["pinned"]
+    bestem = next(p for p in feed if p["category"]["slug"] == "artsbestemmelse")
+    assert bestem["solved"] and bestem["n_comments"] == 4 and len(bestem["comments"]["items"]) == 3
+    assert all("obserkode" not in p["author"] for p in feed)
+    async with db() as s:
+        assert await snak_seed.delete_examples(s) == 5
+        n = (await s.execute(text("SELECT (SELECT count(*) FROM sn_posts) + (SELECT count(*) FROM sn_comments)"))).scalar()
+    assert n == 0

@@ -1,6 +1,65 @@
-// Opret og ret opslag (docs/snak-modul-spec.md §2.4). Samme komponent bruges inline i feedet og på #/snak/ny og #/snak/<id>/rediger.
-import { api, h, toast, store } from "../core.js";
-import { ctx } from "./common.js";
+// Opret og ret opslag (docs/snak-modul-spec.md §2.4, §5). Samme komponent bruges inline i feedet og på #/snak/ny og #/snak/<id>/rediger.
+import { api, h, modal, seg, toast, store } from "../core.js";
+import { attachmentCard, ctx, on, uploadImage } from "./common.js";
+
+const MAX_IMAGES = 10, MAX_ARTER = 5;
+const ATT_TABS = [["artikel", "Artikel"], ["foto", "Foto"], ["art", "Art"], ["lokalitet", "Lokalitet"], ["traad", "Observationer"], ["link", "Link"]];
+
+/** Søgevælger i en modal: søger på serveren og kalder onPick({ref, title, teaser}). */
+function searchPicker(type, title, onPick) {
+  const q = h("input", { type: "search", placeholder: "Søg …", "aria-label": "Søg" });
+  const out = h("div", { class: "sn-pick-list stack" }, h("p", { class: "muted" }, "Skriv mindst to bogstaver."));
+  let t = 0;
+  const m = modal(title, h("div", { class: "stack" }, q, out));
+  q.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(async () => {
+      try {
+        const { rows } = await api(`/api/snak/vedhaeft/soeg?type=${type}&q=${encodeURIComponent(q.value)}`);
+        out.replaceChildren(...(rows.length ? rows.map(r => h("button", { type: "button", class: "sn-pick", onclick: () => { m.close(); onPick(r); } },
+          h("b", {}, r.title), r.teaser ? h("span", { class: "muted small" }, r.teaser) : null)) : [h("p", { class: "muted" }, "Ingen fundet.")]));
+      } catch (e) { out.replaceChildren(h("p", { class: "muted" }, e.message)); }
+    }, 250);
+  });
+  q.focus();
+}
+
+/** Vedhæft-vælgeren: faner for artikel, foto, art, lokalitet, observationstråd og link. onPick({type, ref}). */
+function attachPicker(onPick) {
+  let tab = "artikel";
+  const body = h("div", { class: "stack" });
+  const content = h("div", { class: "stack" });
+  const m = modal("Vedhæft", content);
+  const pick = (type, ref) => { m.close(); onPick({ type, ref }); };
+  const draw = () => {
+    if (tab === "traad" || tab === "link") {
+      const inp = h("input", { type: "text", placeholder: tab === "link" ? "https://…" : "Indsæt adressen på tråden (…#/traad/2026-05-01/123/456)", "aria-label": "Adresse" });
+      body.replaceChildren(inp, h("button", { type: "button", class: "btn primary", onclick: () => {
+        const v = inp.value.trim();
+        if (tab === "link") return v ? pick("link", v) : toast("Indsæt et link", "err");
+        const mm = v.match(/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)/);
+        mm ? pick("traad", `${mm[1]}/${mm[2]}/${mm[3]}`) : toast("Det ligner ikke en trådadresse", "err");
+      } }, "Vedhæft"));
+      return;
+    }
+    const q = h("input", { type: "search", placeholder: "Søg …", "aria-label": "Søg" });
+    const out = h("div", { class: "sn-pick-list stack" }, h("p", { class: "muted" }, "Skriv mindst to bogstaver."));
+    let t = 0;
+    q.addEventListener("input", () => {
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        try {
+          const { rows } = await api(`/api/snak/vedhaeft/soeg?type=${tab}&q=${encodeURIComponent(q.value)}`);
+          out.replaceChildren(...(rows.length ? rows.map(r => h("button", { type: "button", class: "sn-pick", onclick: () => pick(tab, r.ref) }, h("b", {}, r.title), r.teaser ? h("span", { class: "muted small" }, r.teaser) : null)) : [h("p", { class: "muted" }, "Ingen fundet.")]));
+        } catch (e) { out.replaceChildren(h("p", { class: "muted" }, e.message)); }
+      }, 250);
+    });
+    body.replaceChildren(q, out);
+    q.focus();
+  };
+  content.append(seg(ATT_TABS.filter(([k]) => k !== "link" || on("snak_links")), tab, (v) => { tab = v; draw(); }), body);
+  draw();
+}
 
 /** composer({categories, post?, category?, onDone, onCancel}) → <form>. post: det opslag, der rettes. */
 export function composer({ categories, post = null, category = null, onDone, onCancel }) {
@@ -11,6 +70,8 @@ export function composer({ categories, post = null, category = null, onDone, onC
   const titel = h("input", { type: "text", maxlength: 200, placeholder: "Titel", "aria-label": "Titel" });
   const body = h("textarea", { rows: 5, maxlength: 10000, placeholder: "Hvad har du på hjerte?", "aria-label": "Opslag" });
   const hint = h("small", { class: "muted" });
+  const st = { images: (post?.images || []).map(i => ({ ...i })), attachment: post?.attachment && !post.attachment.unavailable ? { type: post.attachment.type, ref: post.attachment.ref, snapshot: post.attachment } : null,
+    arter: (post?.arter_navn || []).map(a => ({ ...a })), lok: post?.loknr ? { loknr: post.loknr, navn: post.lok_navn } : null, busy: 0 };
   if (post) { titel.value = post.titel || ""; body.value = post.md || ""; }
   const btn = h("button", { class: "btn primary", type: "submit" }, post ? "Gem" : "Slå op");
   const sync = () => {
@@ -21,11 +82,63 @@ export function composer({ categories, post = null, category = null, onDone, onC
   };
   sel.addEventListener("change", sync);
   sync();
+
+  const strip = h("div", { class: "sn-thumbs" });
+  const attBox = h("div", {});
+  const tags = h("div", { class: "sn-extras" });
+  const suggest = h("div", {});
+  const files = h("input", { type: "file", accept: "image/*", multiple: true, hidden: true, onchange: async (e) => { await addFiles([...e.target.files]); e.target.value = ""; } });
+
+  const draw = () => {
+    strip.replaceChildren(...st.images.map((im, i) => h("div", { class: "sn-tw" },
+      h("img", { src: im.thumb, alt: im.alt || "" }),
+      h("div", { class: "sn-tw-bar" },
+        h("button", { type: "button", class: "icon-btn", "aria-label": "Flyt frem", disabled: i === 0, onclick: () => { [st.images[i - 1], st.images[i]] = [st.images[i], st.images[i - 1]]; draw(); } }, "‹"),
+        h("button", { type: "button", class: "icon-btn", "aria-label": "Fjern billede", onclick: () => { st.images.splice(i, 1); draw(); } }, "✕"),
+        h("button", { type: "button", class: "icon-btn", "aria-label": "Flyt tilbage", disabled: i === st.images.length - 1, onclick: () => { [st.images[i + 1], st.images[i]] = [st.images[i], st.images[i + 1]]; draw(); } }, "›")))));
+    attBox.replaceChildren(...(st.attachment ? [attachmentCard(st.attachment.snapshot || { type: st.attachment.type, title: st.attachment.ref }, { onRemove: () => { st.attachment = null; draw(); } })] : []));
+    tags.replaceChildren(...st.arter.map((a, i) => h("span", { class: "sn-chip" }, "🐦 ", a.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": `Fjern ${a.navn}`, onclick: () => { st.arter.splice(i, 1); draw(); } }, "✕"))),
+      st.lok ? h("span", { class: "sn-chip" }, "📍 ", st.lok.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": "Fjern lokalitet", onclick: () => { st.lok = null; draw(); } }, "✕")) : null);
+  };
+
+  async function addFiles(list) {
+    const room = MAX_IMAGES - st.images.length;
+    if (list.length > room) toast(`Højst ${MAX_IMAGES} billeder`, "err");
+    for (const f of list.slice(0, Math.max(0, room))) {
+      st.busy++; btn.disabled = true;
+      try { st.images.push(await uploadImage(f, "post")); draw(); } catch (e) { toast(`${f.name}: ${e.message}`, "err"); }
+      if (!--st.busy) btn.disabled = false;
+    }
+  }
+  async function attach({ type, ref }) {
+    try {
+      const rows = type === "link" ? [await api("/api/snak/link-preview", { method: "POST", body: { url: ref } })] : null;
+      st.attachment = { type, ref, snapshot: rows ? rows[0] : { type, title: "…" } };
+      draw();
+      if (!rows) { const { rows: found } = await api(`/api/snak/vedhaeft/soeg?type=${type}&q=${encodeURIComponent(ref)}`).catch(() => ({ rows: [] })); const hit = found.find(r => r.ref === ref); st.attachment.snapshot = { type, title: hit?.title || ref, teaser: hit?.teaser }; draw(); }
+    } catch (e) { toast(e.message, "err"); }
+  }
+  // Et indsat link i teksten kan blive til et linkkort
+  body.addEventListener("change", () => {
+    suggest.replaceChildren();
+    const m = on("snak_links") && !st.attachment && body.value.match(/https?:\/\/[^\s)]+/);
+    if (m) suggest.append(h("button", { type: "button", class: "sn-suggest", onclick: () => { suggest.replaceChildren(); attach({ type: "link", ref: m[0] }); } }, `Vis et kort for ${new URL(m[0]).hostname}?`));
+  });
+  draw();
+
+  const tools = h("div", { class: "sn-tools row" },
+    on("snak_billeder") ? h("button", { type: "button", class: "btn", onclick: () => files.click() }, "📷 Billeder") : null,
+    h("button", { type: "button", class: "btn", onclick: () => attachPicker(attach) }, "📎 Vedhæft"),
+    h("button", { type: "button", class: "btn", onclick: () => st.arter.length >= MAX_ARTER ? toast(`Højst ${MAX_ARTER} arter`, "err") : searchPicker("art", "Tilføj art", (r) => { if (!st.arter.some(a => a.artnr === +r.ref)) st.arter.push({ artnr: +r.ref, navn: r.title }); draw(); }) }, "🐦 Art"),
+    h("button", { type: "button", class: "btn", onclick: () => searchPicker("lokalitet", "Vælg lokalitet", (r) => { st.lok = { loknr: +r.ref, navn: r.title }; draw(); }) }, "📍 Sted"),
+    files);
+
   return h("form", { class: "sn-composer stack", onsubmit: async (e) => {
     e.preventDefault();
     btn.disabled = true;
     try {
-      const payload = { category_id: +sel.value, titel: titel.value.trim() || null, body: body.value };
+      const payload = { category_id: +sel.value, titel: titel.value.trim() || null, body: body.value, media_ids: st.images.map(i => i.id),
+        attachment: st.attachment ? { type: st.attachment.type, ref: st.attachment.ref } : null, arter: st.arter.map(a => a.artnr), loknr: st.lok?.loknr ?? null };
       const r = post ? await api(`/api/snak/${post.id}`, { method: "PUT", body: payload }) : await api("/api/snak", { method: "POST", body: payload });
       if (!post) store("snak", { ...(store("snak") || {}), kategori: +sel.value });
       toast(post ? "Gemt" : "Dit opslag er lagt op");
@@ -34,7 +147,7 @@ export function composer({ categories, post = null, category = null, onDone, onC
     btn.disabled = false;
   } },
   h("div", { class: "row" }, sel, hint),
-  titel, body,
+  titel, body, suggest, strip, attBox, tags, tools,
   h("div", { class: "row between" }, h("small", { class: "muted" }, "Du kan bruge **fed**, _kursiv_, lister og [links](https://…)."),
     h("span", { class: "row" }, onCancel ? h("button", { class: "btn", type: "button", onclick: onCancel }, "Annullér") : null, btn)));
 }

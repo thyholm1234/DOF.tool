@@ -1,5 +1,5 @@
 // Snak: fælles hjælpere (navn, rettigheder, CSS, avatar, kategori-tag, indlæsning). Navnet «Snak» står kun her og i funktionsflagets tekst.
-import { h, state } from "../core.js";
+import { api, h, state } from "../core.js";
 
 export const NAME = "Snak";
 export const BASE = "#/snak";
@@ -41,3 +41,63 @@ export function authorLink(author) {
 
 /** Titel i fanen: opslagets titel eller de første 60 tegn af teksten. */
 export const plain = (html) => { const d = new DOMParser().parseFromString(html || "", "text/html"); return (d.body.textContent || "").trim(); };
+
+/** Billeder i et opslag eller en kommentar: kontaktark, der åbner en lysboks (native <dialog>). Bredde/højde er sat, så siden ikke hopper. */
+export function gallery(images = [], { single = false } = {}) {
+  if (!images.length) return null;
+  const open = (i) => {
+    let at = i;
+    const img = h("img", { class: "sn-lb-img", alt: images[at].alt || "" });
+    const show = () => { img.src = images[at].url; img.alt = images[at].alt || ""; counter.textContent = images.length > 1 ? `${at + 1} / ${images.length}` : ""; };
+    const step = (d) => { at = (at + d + images.length) % images.length; show(); };
+    const counter = h("span", { class: "muted small" });
+    const dlg = h("dialog", { class: "sn-lightbox", "aria-label": "Billede", onclick: (e) => { if (e.target === dlg) dlg.close(); },
+      onkeydown: (e) => { if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1); } },
+    h("button", { type: "button", class: "icon-btn sn-lb-close", "aria-label": "Luk", onclick: () => dlg.close() }, "✕"),
+    images.length > 1 ? h("button", { type: "button", class: "icon-btn sn-lb-prev", "aria-label": "Forrige billede", onclick: () => step(-1) }, "‹") : null,
+    img, counter,
+    images.length > 1 ? h("button", { type: "button", class: "icon-btn sn-lb-next", "aria-label": "Næste billede", onclick: () => step(1) }, "›") : null);
+    dlg.addEventListener("close", () => dlg.remove());
+    document.body.append(dlg);
+    show();
+    dlg.showModal();
+  };
+  return h("div", { class: `sn-gallery n${Math.min(images.length, 4)} ${single ? "single" : ""}` },
+    ...images.map((im, i) => h("button", { type: "button", class: "sn-thumb", "aria-label": im.alt || `Åbn billede ${i + 1}`, onclick: () => open(i) },
+      h("img", { src: single ? im.medium : im.thumb, alt: im.alt || "", loading: "lazy", decoding: "async", width: im.width || undefined, height: im.height || undefined }))));
+}
+
+const ATT_LABEL = { artikel: "Artikel", foto: "Foto", traad: "Observationer", art: "Art", lokalitet: "Lokalitet", link: "Link" };
+/** Vedhæftet kort (artikel, foto, tråd, art, lokalitet eller eksternt link). Uden url (modul slået fra eller mål væk) vises et neutralt kort. */
+export function attachmentCard(a, { onRemove } = {}) {
+  if (!a) return null;
+  const external = a.type === "link";
+  const body = [
+    a.image ? h("img", { class: "sn-att-img", src: a.image, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" }) : null,
+    h("span", { class: "sn-att-text" },
+      h("span", { class: "sn-att-kind muted small" }, ATT_LABEL[a.type] || "", external && a.host ? ` · ${a.host}` : ""),
+      h("b", {}, a.unavailable ? "Ikke tilgængeligt" : (a.title || a.host || "Link")),
+      a.teaser ? h("span", { class: "muted small" }, a.teaser) : null,
+      a.meta ? h("span", { class: "muted small" }, a.meta) : null)];
+  const card = a.url && !a.unavailable
+    ? h("a", { class: "sn-att", href: a.url, ...(external ? { target: "_blank", rel: "noopener noreferrer nofollow ugc" } : {}) }, ...body)
+    : h("div", { class: "sn-att off" }, ...body);
+  return onRemove ? h("div", { class: "sn-att-wrap" }, card, h("button", { type: "button", class: "icon-btn", "aria-label": "Fjern vedhæftning", onclick: onRemove }, "✕")) : card;
+}
+
+/** Arter og lokalitet som små chips under teksten. */
+export function extras(post) {
+  const arter = post.arter_navn || [];
+  if (!arter.length && !post.lok_navn) return null;
+  return h("div", { class: "sn-extras" },
+    ...arter.map(a => h("a", { class: "sn-chip", href: `#/art/${a.artnr}` }, "🐦 ", a.navn)),
+    post.lok_navn && post.loknr ? h("a", { class: "sn-chip", href: `#/lok/${post.loknr}` }, "📍 ", post.lok_navn) : null);
+}
+
+/** Upload ét billede til opslag (kind «post») eller kommentar («comment»). Giver {id, url, thumb, medium, …}. */
+export async function uploadImage(file, kind = "post") {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("kind", kind);
+  return api("/api/snak/media", { method: "POST", form });
+}

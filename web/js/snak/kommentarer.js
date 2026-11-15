@@ -2,7 +2,7 @@
 import { api, h, toast, ask, askText, ago, state, seg } from "../core.js";
 import { banForm } from "../moderation.js";
 import { reactionWidget } from "./reaktioner.js";
-import { avatar, authorLink, ctx } from "./common.js";
+import { avatar, authorLink, ctx, gallery, on, uploadImage } from "./common.js";
 
 const LIMIT_FEED = { kommentarer: 3, svar: 1 };
 
@@ -21,20 +21,31 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
     const grow = () => { ta.style.height = "auto"; ta.style.height = `${Math.min(ta.scrollHeight, 240)}px`; };
     ta.addEventListener("input", grow);
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); } });
+    let img = null;
+    const preview = h("div", { class: "sn-cimg" });
+    const file = h("input", { type: "file", accept: "image/*", hidden: true, onchange: async (e) => {
+      const f = e.target.files[0]; e.target.value = "";
+      if (!f) return;
+      btn.disabled = true;
+      try { img = await uploadImage(f, "comment"); showImg(); } catch (err) { toast(err.message, "err"); }
+      btn.disabled = false;
+    } });
+    const showImg = () => preview.replaceChildren(...(img ? [h("img", { src: img.thumb, alt: "" }), h("button", { type: "button", class: "icon-btn", "aria-label": "Fjern billede", onclick: () => { img = null; showImg(); } }, "✕")] : []));
+    const photoBtn = on("snak_billeder") ? h("button", { type: "button", class: "icon-btn", "aria-label": "Tilføj billede", title: "Tilføj billede", onclick: () => file.click() }, "📷") : null;
     const form = h("form", { class: "sn-compose", onsubmit: async (e) => {
       e.preventDefault();
-      if (!ta.value.trim()) return;
+      if (!ta.value.trim() && !img) return;
       btn.disabled = true;
       try {
-        await api(`/api/snak/${post.id}/kommentarer`, { method: "POST", body: { body: ta.value, parent_id: parent } });
-        ta.value = ""; grow(); replyTo = null; done?.();
+        await api(`/api/snak/${post.id}/kommentarer`, { method: "POST", body: { body: ta.value, parent_id: parent, media_id: img?.id ?? null } });
+        ta.value = ""; img = null; showImg(); grow(); replyTo = null; done?.();
         if (parent) state_.open.add(parent);
         await load();
       } catch (err) { toast(err.message, "err"); }
       btn.disabled = false;
     } },
       replyName ? h("div", { class: "muted small" }, `Svarer ${replyName}`) : null,
-      h("div", { class: "sn-compose-row" }, ta, btn));
+      h("div", { class: "sn-compose-row" }, ta, photoBtn, file, btn), preview);
     if (parent) queueMicrotask(() => ta.focus());
     return form;
   };
@@ -55,6 +66,11 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
     if (action === "skjul") { reason = await askText("Årsag til at skjule kommentaren (vises for forfatteren):", ""); if (reason === null) return; }
     try { await api(`/api/snak/kommentarer/${c.id}/moderer`, { method: "POST", body: { action, reason } }); await load(); } catch (err) { toast(err.message, "err"); }
   }
+  const canSolve = post.har_loesning && (post.mine || canModerate);
+  async function solve(c, on_) {
+    try { await api(`/api/snak/${post.id}/loesning`, { method: "POST", body: { comment_id: on_ ? c.id : null } }); post.solved = !!on_; post.solution_comment_id = on_ ? c.id : null; toast(on_ ? "Markeret som løsning" : "Markeringen er fjernet"); await load(); }
+    catch (err) { toast(err.message, "err"); }
+  }
   const act = (label, fn) => h("button", { type: "button", class: "sn-act", onclick: fn }, label);
 
   function item(c, reply = false) {
@@ -69,14 +85,17 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
           h("div", { class: "sn-cwho" }, authorLink(c.author), c.author.eksempel ? h("span", { class: "sn-chip" }, "Eksempel") : null),
           h("div", { class: "sn-ctext" }, txt ? h("span", { class: "muted" }, txt) : null,
             !txt && c.reply_to_navn ? h("span", { class: "sn-replyto" }, `Svar til ${c.reply_to_navn} `) : null,
-            !txt ? h("div", { class: "sn-html", html: c.html }) : null,
+            !txt && c.html ? h("div", { class: "sn-html", html: c.html }) : null,
+            !txt ? gallery(c.images, { single: true }) : null,
             hidden && c.hidden_reason ? h("div", { class: "muted small" }, `Skjult: ${c.hidden_reason}`) : null)),
         !gone ? h("div", { class: "sn-cacts" },
+          c.id === post.solution_comment_id ? h("span", { class: "sn-chip ok" }, "Løsning ✓") : null,
           c.status === "synlig" ? reactionWidget("comment", c.id, c.reactions, { small: true }) : null,
           !locked() && c.status === "synlig" && state.user ? act("Svar", () => { replyTo = replyTo === c.id ? null : c.id; draw(); }) : null,
           h("span", { class: "muted small", title: new Date(c.created_at).toLocaleString("da-DK") }, ago(c.created_at), c.edited_at ? " · redigeret" : ""),
           c.mine && c.status === "synlig" ? act("Ret", () => edit(c)) : null,
           c.mine ? act("Slet", async () => { if (await ask("Slet din kommentar?")) { try { await api(`/api/snak/kommentarer/${c.id}`, { method: "DELETE" }); await load(); } catch (e) { toast(e.message, "err"); } } }) : null,
+          canSolve && c.status === "synlig" ? act(c.id === post.solution_comment_id ? "Fjern løsning" : "Marker som løsning", () => solve(c, c.id !== post.solution_comment_id)) : null,
           canModerate && c.status === "synlig" && !c.mine ? act("Skjul", () => moderate(c, "skjul")) : null,
           canModerate && hidden ? act("Vis", () => moderate(c, "vis")) : null,
           canModerate && c.author.user_id && !c.mine ? act("Udeluk", () => banForm({ user_id: c.author.user_id, navn: c.author.navn, obserkode: c.author.obserkode }, load)) : null) : null,
