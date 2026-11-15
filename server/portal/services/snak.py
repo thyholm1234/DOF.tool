@@ -11,13 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv, publish
 from portal.models import SnCategory, SnPost, User
-from portal.services import content_render, moderation, snak_attach, snak_reactions
+from portal.services import content_render, moderation, snak_attach, snak_notify, snak_reactions
 from portal.services.content_media import _url
 from portal.services.setting_store import get_setting_dict, put_setting
 
 KEY = "snak"
 DEFAULTS: dict = {"feed_kommentarer": 3, "feed_svar": 1, "ret_minutter": 1440, "opslag_pr_time": 6, "kommentarer_pr_minut": 5,
-                  "max_billeder_opslag": 10, "max_pinned": 3}
+                  "max_billeder_opslag": 10, "max_pinned": 3, "report_threshold": 3, "link_preview": 1}
 MAX_BODY = 10_000
 SORTS = ("aktivitet", "nyeste", "populaere")
 PER_PAGE = 15
@@ -70,7 +70,7 @@ async def seed_categories(session: AsyncSession) -> None:
 async def categories(session: AsyncSession, user: User | None = None, *, include_archived: bool = False) -> list[dict]:
     """Aktive kategorier med antal opslag og antal opslag med aktivitet siden brugerens sidste besøg i modulet."""
     rows = (await session.execute(text(f"""
-        SELECT c.id, c.slug, c.navn, c.beskrivelse, c.farve, c.sort, c.kraever_titel, c.har_loesning, c.kun_staff, c.arkiveret,
+        SELECT c.id, c.slug, c.navn, c.beskrivelse, c.farve, c.ikon, c.sort, c.kraever_titel, c.har_loesning, c.kun_staff, c.arkiveret,
                (SELECT count(*) FROM sn_posts p WHERE p.category_id = c.id AND p.status = 'synlig') AS antal
         FROM sn_categories c {'' if include_archived else 'WHERE NOT c.arkiveret'} ORDER BY c.sort, c.id"""))).mappings().all()
     return [dict(r) for r in rows]
@@ -411,6 +411,8 @@ async def set_solution(session: AsyncSession, user: User, post_id: int, comment_
     p.solution_comment_id = comment_id
     await session.commit()
     await publish("snak", {"type": "snak_mod", "kind": "post", "id": post_id})
+    if comment_id is not None:
+        await snak_notify.solution_marked(session, user, post_id, comment_id)
 
 
 async def remove_own(session: AsyncSession, user: User, post_id: int, *, staff: bool) -> None:
@@ -435,11 +437,24 @@ async def moderate(session: AsyncSession, moderator: User, post_id: int, action:
         p.locked = False
     elif action == "flyt":
         p.category_id = (await _category(session, category_id or 0, staff=True))["id"]
+    elif action == "afvis_anmeldelser":
+        if p.status == "skjult" and p.hidden_by is None:  # skjult automatisk af anmeldelserne
+            p.status, p.hidden_reason, p.hidden_at = "synlig", None, None
     else:
         raise SnakError(400, "Ukendt handling")
+    if action in ("skjul", "vis", "afvis_anmeldelser"):
+        await resolve_reports(session, "post", post_id, moderator.id)
     await session.commit()
     await forget_media(session, post_id)
     await publish("snak", {"type": "snak_mod", "kind": "post", "id": post_id})
+    if action == "skjul":
+        await snak_notify.hidden(session, "post", post_id, p.hidden_reason)
+
+
+async def resolve_reports(session: AsyncSession, kind: str, target_id: int, moderator_id: int) -> None:
+    """Anmeldelserne af et opslag/en kommentar er behandlet (moderatoren har skjult, vist eller afvist dem)."""
+    await session.execute(text("UPDATE sn_reports SET handled_at = now(), handled_by = :m WHERE kind = :k AND target_id = :t AND handled_at IS NULL"),
+                          {"m": moderator_id, "k": kind, "t": target_id})
 
 
 async def pin(session: AsyncSession, post_id: int, pinned: bool) -> None:

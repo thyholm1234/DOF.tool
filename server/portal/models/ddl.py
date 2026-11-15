@@ -2,6 +2,7 @@
 
 # Ekstra DDL der ikke kan udtrykkes pænt i modellerne
 EXTRA_DDL = [
+    "ALTER TABLE sn_categories ADD COLUMN IF NOT EXISTS ikon varchar(24) NOT NULL DEFAULT 'chat'",
     # Læring 2.0 (docs/laering-spec.md): kurser/øvelser og aktiviteter udvides
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS kind varchar(8) NOT NULL DEFAULT 'kursus'",
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS number integer",

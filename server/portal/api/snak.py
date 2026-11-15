@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import require_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import content_media, content_render, snak, snak_access, snak_attach, snak_comments, snak_links, snak_reactions
+from portal.services import activity, content_media, content_render, snak, snak_access, snak_admin, snak_attach, snak_comments, snak_links, snak_notify, snak_reactions, snak_reports
 
 router = APIRouter(prefix="/api/snak", tags=["snak"])
 ReactionType = Field(pattern="^(like|love|haha|wow|sad|angry)$")
@@ -81,18 +81,66 @@ class ReactionIn(BaseModel):
 
 
 class ModerateIn(BaseModel):
-    action: str = Field(pattern="^(skjul|vis|laas|aabn|flyt)$")
+    action: str = Field(pattern="^(skjul|vis|laas|aabn|flyt|afvis_anmeldelser)$")
     reason: str = Field("", max_length=500)
     category_id: int | None = None
 
 
 class CommentModerateIn(BaseModel):
-    action: str = Field(pattern="^(skjul|vis)$")
+    action: str = Field(pattern="^(skjul|vis|afvis_anmeldelser)$")
     reason: str = Field("", max_length=500)
 
 
 class PinIn(BaseModel):
     pinned: bool
+
+
+class ReportIn(BaseModel):
+    reason: str = Field(max_length=20)
+    note: str = Field("", max_length=500)
+
+
+class PrefsIn(BaseModel):
+    valg: dict[str, bool] = Field(default_factory=dict, max_length=20)
+
+
+class CategoryIn(BaseModel):
+    slug: str | None = Field(None, max_length=40)
+    navn: str | None = Field(None, max_length=60)
+    beskrivelse: str | None = Field(None, max_length=300)
+    farve: str | None = Field(None, max_length=16)
+    ikon: str | None = Field(None, max_length=24)
+    sort: int | None = Field(None, ge=0, le=100_000)
+    kraever_titel: bool | None = None
+    har_loesning: bool | None = None
+    kun_staff: bool | None = None
+    arkiveret: bool | None = None
+
+
+class MoveIn(BaseModel):
+    to: int
+
+
+class SettingsIn(BaseModel):
+    values: dict[str, int] = Field(max_length=30)
+
+
+def admin_only():
+    async def dep(acc: snak_access.Access = Depends(need())) -> snak_access.Access:
+        if not acc.admin:
+            raise HTTPException(403, "Kun administratorer af Snak kan det")
+        return acc
+
+    return dep
+
+
+def mod_only():
+    async def dep(acc: snak_access.Access = Depends(need())) -> snak_access.Access:
+        if not acc.can_moderate:
+            raise HTTPException(403, "Kun moderatorer kan det")
+        return acc
+
+    return dep
 
 
 @router.get("/kategorier")
@@ -117,6 +165,108 @@ async def opret(body: PostIn, user: User = Depends(require_user), acc: snak_acce
                                                       media_ids=_media(acc, body.media_ids), attachment=_att(acc, body.attachment), arter=body.arter, loknr=body.loknr)}
     except snak.SnakError as e:
         raise _wrap(e) from e
+
+
+# ---------------------------------------------------------------- notifikationsvalg, moderationskø og admin (faste adresser før /{post_id})
+
+@router.get("/notifikationer")
+async def notifikationer(user: User = Depends(require_user), acc: snak_access.Access = Depends(need("snak_notifikationer")), db: AsyncSession = Depends(get_session)):
+    return await snak_notify.get_prefs(db, user.id)
+
+
+@router.put("/notifikationer")
+async def sæt_notifikationer(body: PrefsIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need("snak_notifikationer")), db: AsyncSession = Depends(get_session)):
+    await snak_notify.set_prefs(db, user.id, body.valg)
+    return await snak_notify.get_prefs(db, user.id)
+
+
+@router.get("/admin/koe")
+async def koe(tab: str = Query("anmeldte", max_length=12), side: int = Query(1, ge=1, le=1000), acc: snak_access.Access = Depends(mod_only()), db: AsyncSession = Depends(get_session)):
+    try:
+        return {"rows": await snak_reports.queue(db, tab, snak_reports.PAGE, (side - 1) * snak_reports.PAGE)}
+    except snak.SnakError as e:
+        raise _wrap(e) from e
+
+
+@router.get("/admin/kategorier")
+async def admin_kategorier(acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    return {"categories": await snak.categories(db, include_archived=True)}
+
+
+@router.post("/admin/kategorier")
+async def admin_ny_kategori(body: CategoryIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    try:
+        cid = await snak_admin.create_category(db, body.model_dump(exclude_none=True))
+    except snak.SnakError as e:
+        raise _wrap(e) from e
+    await activity.track(user.id, "snak_kategori", "/snak/admin", {"handling": "opret", "id": cid})
+    return {"id": cid}
+
+
+@router.patch("/admin/kategorier/{cid}")
+async def admin_ret_kategori(cid: int, body: CategoryIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    try:
+        await snak_admin.update_category(db, cid, body.model_dump(exclude_none=True))
+    except snak.SnakError as e:
+        raise _wrap(e) from e
+    await activity.track(user.id, "snak_kategori", "/snak/admin", {"handling": "ret", "id": cid})
+    return {"ok": True}
+
+
+@router.delete("/admin/kategorier/{cid}")
+async def admin_slet_kategori(cid: int, user: User = Depends(require_user), acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    try:
+        await snak_admin.delete_category(db, cid)
+    except snak.SnakError as e:
+        raise _wrap(e) from e
+    await activity.track(user.id, "snak_kategori", "/snak/admin", {"handling": "slet", "id": cid})
+    return {"ok": True}
+
+
+@router.post("/admin/kategorier/{cid}/flyt")
+async def admin_flyt_kategori(cid: int, body: MoveIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    try:
+        n = await snak_admin.move_posts(db, cid, body.to)
+    except snak.SnakError as e:
+        raise _wrap(e) from e
+    await activity.track(user.id, "snak_kategori", "/snak/admin", {"handling": "flyt", "id": cid, "til": body.to, "antal": n})
+    return {"moved": n}
+
+
+@router.get("/admin/indstillinger")
+async def admin_indstillinger(acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    return {"values": await snak.settings(db), "defaults": snak.DEFAULTS}
+
+
+@router.put("/admin/indstillinger")
+async def admin_gem_indstillinger(body: SettingsIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    values = await snak.save_settings(db, body.values)
+    await activity.track(user.id, "snak_indstillinger", "/snak/admin", {"values": body.values})
+    return {"values": values, "defaults": snak.DEFAULTS}
+
+
+@router.get("/admin/eksempler")
+async def admin_eksempler(acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    return await snak_admin.examples(db)
+
+
+@router.post("/admin/eksempler")
+async def admin_gendan_eksempler(user: User = Depends(require_user), acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    n = await snak_admin.restore_examples(db)
+    await activity.track(user.id, "snak_eksempler", "/snak/admin", {"handling": "gendan", "antal": n})
+    return {"created": n}
+
+
+@router.delete("/admin/eksempler")
+async def admin_slet_eksempler(user: User = Depends(require_user), acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    n = await snak_admin.delete_examples(db)
+    await activity.track(user.id, "snak_eksempler", "/snak/admin", {"handling": "slet", "antal": n})
+    return {"deleted": n}
+
+
+@router.get("/admin/statistik")
+async def admin_statistik(acc: snak_access.Access = Depends(admin_only()), db: AsyncSession = Depends(get_session)):
+    return await snak_admin.stats(db)
 
 
 @router.get("/{post_id}")
@@ -178,7 +328,16 @@ async def moderer(post_id: int, body: ModerateIn, user: User = Depends(require_u
         await snak.moderate(db, user, post_id, body.action, reason=body.reason, category_id=body.category_id)
     except snak.SnakError as e:
         raise _wrap(e) from e
+    await activity.track(user.id, "snak_moderation", f"/snak/{post_id}", {"kind": "post", "id": post_id, "handling": body.action})
     return {"ok": True}
+
+
+@router.post("/{post_id}/anmeld")
+async def anmeld_opslag(post_id: int, body: ReportIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        return {"hidden": await snak_reports.report(db, user, "post", post_id, body.reason, body.note)}
+    except snak.SnakError as e:
+        raise _wrap(e) from e
 
 
 @router.post("/{post_id}/fastgoer")
@@ -288,7 +447,16 @@ async def moderer_kommentar(cid: int, body: CommentModerateIn, user: User = Depe
         await snak_comments.moderate(db, user, cid, body.action, body.reason)
     except snak.SnakError as e:
         raise _wrap(e) from e
+    await activity.track(user.id, "snak_moderation", "/snak", {"kind": "comment", "id": cid, "handling": body.action})
     return {"ok": True}
+
+
+@router.post("/kommentarer/{cid}/anmeld")
+async def anmeld_kommentar(cid: int, body: ReportIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        return {"hidden": await snak_reports.report(db, user, "comment", cid, body.reason, body.note)}
+    except snak.SnakError as e:
+        raise _wrap(e) from e
 
 
 @router.post("/{post_id}/loesning")
@@ -331,7 +499,9 @@ async def render(body: RenderIn, acc: snak_access.Access = Depends(need())):
 
 
 @router.post("/link-preview")
-async def link_preview(body: LinkIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need("snak_links"))):
+async def link_preview(body: LinkIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need("snak_links")), db: AsyncSession = Depends(get_session)):
+    if not (await snak.settings(db))["link_preview"]:
+        raise HTTPException(403, "Forhåndsvisning af links er slået fra")
     try:
         return await snak_links.preview(user.id, body.url)
     except snak_links.LinkError as e:

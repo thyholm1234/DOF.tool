@@ -64,16 +64,17 @@ async def _target(session: AsyncSession, kind: str, target_id: int, *, staff: bo
     if kind not in KINDS:
         raise ReactionError(400, "Ugyldigt mål")
     if kind == "post":
-        row = (await session.execute(text("SELECT id, status FROM sn_posts WHERE id = :i"), {"i": target_id})).mappings().first()
-        post_id, status = (row["id"], row["status"]) if row else (None, None)
+        row = (await session.execute(text("SELECT id, status, user_id FROM sn_posts WHERE id = :i"), {"i": target_id})).mappings().first()
+        post_id, status, owner = (row["id"], row["status"], row["user_id"]) if row else (None, None, None)
     else:
-        row = (await session.execute(text("""SELECT c.id, c.status, p.id AS post_id, p.status AS pstatus FROM sn_comments c
+        row = (await session.execute(text("""SELECT c.id, c.status, c.user_id, p.id AS post_id, p.status AS pstatus FROM sn_comments c
                                               JOIN sn_posts p ON p.id = c.post_id WHERE c.id = :i"""), {"i": target_id})).mappings().first()
         post_id = row["post_id"] if row else None
+        owner = row["user_id"] if row else None
         status = "synlig" if row and row["status"] == "synlig" and row["pstatus"] == "synlig" else "skjult"
     if row is None or status != "synlig":
         raise ReactionError(404, "Opslaget eller kommentaren findes ikke")
-    return {"post_id": post_id}
+    return {"post_id": post_id, "owner": owner}
 
 
 async def set_reaction(session: AsyncSession, user: User, kind: str, target_id: int, rtype: str | None, *, staff: bool = False) -> dict:
@@ -114,6 +115,10 @@ async def set_reaction(session: AsyncSession, user: User, kind: str, target_id: 
     await session.commit()
     s = (await summary(session, kind, [target_id], user.id))[target_id]
     await publish("snak", {"type": "snak_reaction", "kind": kind, "id": target_id, "post_id": t["post_id"], "count": s["count"], "counts": s["counts"]})
+    if delta == 1 and rtype:
+        from portal.services import snak_notify
+
+        await snak_notify.reaction_added(session, user, kind, target_id, t["post_id"], t["owner"], rtype)
     return s
 
 

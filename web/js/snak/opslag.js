@@ -5,6 +5,7 @@ import { BASE, attachmentCard, avatar, authorLink, categoryTag, cleanups, ctx, e
 import { commentBlock } from "./kommentarer.js";
 import { reactionWidget } from "./reaktioner.js";
 import { composer } from "./composer.js";
+import { reportDialog } from "./anmeld.js";
 
 const CLAMP_CHARS = 700;
 
@@ -13,6 +14,7 @@ function menu(post, { reload, categories }) {
   const call = async (path, opts, msg) => { try { await api(path, opts); if (msg) toast(msg); await reload(); } catch (e) { toast(e.message, "err"); } };
   items.push(post.following ? ["Følg ikke", () => call(`/api/snak/${post.id}/foelg`, { method: "DELETE" })] : ["Følg", () => call(`/api/snak/${post.id}/foelg`, { method: "POST" })]);
   items.push(["Kopiér link", async () => { try { await navigator.clipboard.writeText(`${location.origin}/${BASE}/${post.id}`); toast("Link kopieret"); } catch { toast("Kunne ikke kopiere", "err"); } }]);
+  if (!post.mine && !post.eksempel) items.push(["Anmeld", () => reportDialog("post", post.id, reload)]);
   if (post.mine) {
     items.push(["Ret", () => { location.hash = `${BASE}/${post.id}/rediger`; }]);
     items.push(["Slet", async () => { if (await ask("Slet dit opslag?")) await call(`/api/snak/${post.id}`, { method: "DELETE" }, "Opslaget er slettet"); }]);

@@ -36,6 +36,7 @@ class SnCategory(Base):
     navn: Mapped[str] = mapped_column(String(80))
     beskrivelse: Mapped[str] = mapped_column(String(300), default="", server_default="")
     farve: Mapped[str] = mapped_column(String(7), default="#3b6ea5", server_default="#3b6ea5")
+    ikon: Mapped[str] = mapped_column(String(24), default="chat", server_default="chat")
     sort: Mapped[int] = mapped_column(Integer, default=100, server_default="100")
     kraever_titel: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     har_loesning: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

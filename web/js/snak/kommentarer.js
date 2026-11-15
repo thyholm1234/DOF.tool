@@ -2,6 +2,7 @@
 import { api, h, toast, ask, askText, ago, state, seg } from "../core.js";
 import { banForm } from "../moderation.js";
 import { reactionWidget } from "./reaktioner.js";
+import { reportDialog } from "./anmeld.js";
 import { avatar, authorLink, ctx, gallery, on, uploadImage } from "./common.js";
 
 const LIMIT_FEED = { kommentarer: 3, svar: 1 };
@@ -94,6 +95,7 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
           !locked() && c.status === "synlig" && state.user ? act("Svar", () => { replyTo = replyTo === c.id ? null : c.id; draw(); }) : null,
           h("span", { class: "muted small", title: new Date(c.created_at).toLocaleString("da-DK") }, ago(c.created_at), c.edited_at ? " · redigeret" : ""),
           c.mine && c.status === "synlig" ? act("Ret", () => edit(c)) : null,
+          !c.mine && c.status === "synlig" && state.user && !c.author.eksempel ? act("Anmeld", () => reportDialog("comment", c.id, load)) : null,
           c.mine ? act("Slet", async () => { if (await ask("Slet din kommentar?")) { try { await api(`/api/snak/kommentarer/${c.id}`, { method: "DELETE" }); await load(); } catch (e) { toast(e.message, "err"); } } }) : null,
           canSolve && c.status === "synlig" ? act(c.id === post.solution_comment_id ? "Fjern løsning" : "Marker som løsning", () => solve(c, c.id !== post.solution_comment_id)) : null,
           canModerate && c.status === "synlig" && !c.mine ? act("Skjul", () => moderate(c, "skjul")) : null,

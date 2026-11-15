@@ -363,3 +363,131 @@ async def test_eksempler(web, db):
         assert await snak_seed.delete_examples(s) == 5
         n = (await s.execute(text("SELECT (SELECT count(*) FROM sn_posts) + (SELECT count(*) FROM sn_comments)"))).scalar()
     assert n == 0
+
+
+async def _inbox(db, uid):
+    async with db() as s:
+        return [dict(r) for r in (await s.execute(text("SELECT title, url, dedup_key FROM notifications WHERE user_id = :u ORDER BY id"), {"u": uid})).mappings().all()]
+
+
+async def test_notifikationer(web, db):
+    pid = await new_post(web["a1"], titel="Tur")  # a1 følger automatisk sit eget opslag
+    a2c = (await web["a2"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Flot"})).json()["id"]
+    inbox = await _inbox(db, 1)
+    assert [n["dedup_key"] for n in inbox] == [f"snak:kom:{a2c}"] and "kommenterede dit opslag" in inbox[0]["title"] and inbox[0]["url"].endswith(f"?k={a2c}")
+    # svar på a2's kommentar: a2 får «svarede», a1 (følger, ejer) får kun én besked pr. kommentar
+    r = (await web["a1"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Tak", "parent_id": a2c})).json()["id"]
+    assert [n["dedup_key"] for n in await _inbox(db, 2)] == [f"snak:svar:{r}"]
+    assert len(await _inbox(db, 1)) == 1  # ingen besked til forfatteren selv
+    # ed kommenterer: a1 ejer (kommentar-besked), a2 følger (samlet pr. time) – og a1 ikke også som følger
+    e = (await web["ed"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Fint"})).json()["id"]
+    assert [n["dedup_key"] for n in await _inbox(db, 1)][-1] == f"snak:kom:{e}"
+    assert len(await _inbox(db, 1)) == 2
+    f2 = [n for n in await _inbox(db, 2) if n["dedup_key"].startswith("snak:foelg:")]
+    assert len(f2) == 1
+    await web["ed"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Endnu en"})
+    assert len([n for n in await _inbox(db, 2) if n["dedup_key"].startswith("snak:foelg:")]) == 1  # samlet: højst én pr. tråd pr. time
+    # fravalg og følg ikke
+    r = await web["a2"].put("/api/snak/notifikationer", json={"valg": {"foelg": False}})
+    assert r.status_code == 200 and r.json()["valg"]["foelg"] is False and r.json()["valg"]["svar"] is True and r.json()["foelger"][0]["id"] == pid
+    other = await new_post(web["a1"])
+    await web["a2"].post(f"/api/snak/{other}/kommentarer", json={"body": "hej"})
+    await web["ed"].post(f"/api/snak/{other}/kommentarer", json={"body": "hej"})
+    assert not [n for n in await _inbox(db, 2) if n["dedup_key"].startswith(f"snak:foelg:{other}:")]
+    # reaktion: samlet pr. mål pr. time, ikke på eget indhold
+    n0 = len(await _inbox(db, 1))
+    await web["a2"].put(f"/api/snak/{other}/reaktion", json={"type": "love"})
+    await web["ed"].put(f"/api/snak/{other}/reaktion", json={"type": "like"})
+    await web["a1"].put(f"/api/snak/{other}/reaktion", json={"type": "like"})
+    rea = [n for n in await _inbox(db, 1) if n["dedup_key"].startswith("snak:reak:")]
+    assert len(rea) == 1 and "reagerede på dit opslag" in rea[0]["title"] and len(await _inbox(db, 1)) == n0 + 1
+    # løsning og skjul
+    sp = await new_post(web["a1"], cat=1, titel="Hvad er det?")
+    sc = (await web["a2"].post(f"/api/snak/{sp}/kommentarer", json={"body": "Sølvmåge"})).json()["id"]
+    assert (await web["a1"].post(f"/api/snak/{sp}/loesning", json={"comment_id": sc})).status_code == 200
+    assert f"snak:loes:{sc}" in [n["dedup_key"] for n in await _inbox(db, 2)]
+    await web["mo"].post(f"/api/snak/kommentarer/{sc}/moderer", json={"action": "skjul", "reason": "test"})
+    assert f"snak:skjul:comment:{sc}" in [n["dedup_key"] for n in await _inbox(db, 2)]
+    # funktionsflaget slår notifikationer fra
+    from portal.services import features
+
+    async with db() as s:
+        await features.save(s, {"snak": "on", "snak_notifikationer": "off"})
+    before = len(await _inbox(db, 1))
+    await web["a2"].post(f"/api/snak/{pid}/kommentarer", json={"body": "stille"})
+    assert len(await _inbox(db, 1)) == before
+    assert (await web["a1"].get("/api/snak/notifikationer")).status_code == 404
+
+
+async def test_anmeld_og_moderationskoe(web, db):
+    pid = await new_post(web["a1"])
+    cid = (await web["a2"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Spam her"})).json()["id"]
+    assert (await web["a2"].post(f"/api/snak/kommentarer/{cid}/anmeld", json={"reason": "spam"})).status_code == 400  # egen kommentar
+    assert (await web["a1"].post(f"/api/snak/kommentarer/{cid}/anmeld", json={"reason": "ukendt"})).status_code == 400
+    assert (await web["a1"].post(f"/api/snak/kommentarer/{cid}/anmeld", json={"reason": "spam", "note": "reklame"})).json() == {"hidden": False}
+    assert (await web["a1"].post(f"/api/snak/kommentarer/{cid}/anmeld", json={"reason": "spam"})).json() == {"hidden": False}  # samme bruger igen: én anmeldelse
+    # kø: kun moderatorer
+    assert (await web["a1"].get("/api/snak/admin/koe")).status_code == 403
+    q = (await web["mo"].get("/api/snak/admin/koe?tab=anmeldte")).json()["rows"]
+    assert len(q) == 1 and q[0]["kind"] == "comment" and q[0]["id"] == cid and q[0]["n_reports"] == 1 and q[0]["reports"][0]["note"] == "reklame"
+    # tærsklen (3) skjuler automatisk
+    await web["ed"].post(f"/api/snak/kommentarer/{cid}/anmeld", json={"reason": "spam"})
+    assert (await web["su"].post(f"/api/snak/kommentarer/{cid}/anmeld", json={"reason": "andet"})).json() == {"hidden": True}
+    assert (await web["a1"].get(f"/api/snak/{pid}")).json()["n_comments"] == 0
+    sk = (await web["mo"].get("/api/snak/admin/koe?tab=skjulte")).json()["rows"]
+    assert sk[0]["id"] == cid and sk[0]["auto"] is True
+    # afvis anmeldelser viser automatisk skjult indhold igen og rydder køen
+    assert (await web["mo"].post(f"/api/snak/kommentarer/{cid}/moderer", json={"action": "afvis_anmeldelser"})).status_code == 200
+    assert (await web["a1"].get(f"/api/snak/{pid}")).json()["n_comments"] == 1
+    assert (await web["mo"].get("/api/snak/admin/koe?tab=anmeldte")).json()["rows"] == []
+    # opslag: anmeld, skjul manuelt (anmeldelserne er dermed behandlet), og fanen «seneste» viser både opslag og kommentarer
+    assert (await web["a2"].post(f"/api/snak/{pid}/anmeld", json={"reason": "chikane"})).json() == {"hidden": False}
+    q = (await web["mo"].get("/api/snak/admin/koe?tab=anmeldte")).json()["rows"]
+    assert q[0]["kind"] == "post" and q[0]["kategori"]
+    assert (await web["mo"].post(f"/api/snak/{pid}/moderer", json={"action": "skjul", "reason": "regler"})).status_code == 200
+    assert (await web["mo"].get("/api/snak/admin/koe?tab=anmeldte")).json()["rows"] == []
+    assert {r["kind"] for r in (await web["mo"].get("/api/snak/admin/koe?tab=seneste")).json()["rows"]} == {"post", "comment"}
+    assert (await web["mo"].get("/api/snak/admin/koe?tab=xx")).status_code == 400
+    # manuelt skjult indhold vises ikke igen af «afvis»
+    assert (await web["mo"].post(f"/api/snak/{pid}/moderer", json={"action": "afvis_anmeldelser"})).status_code == 200
+    assert (await web["a2"].get(f"/api/snak/{pid}")).status_code == 404
+
+
+async def test_admin_kategorier_indstillinger_eksempler(web, db):
+    assert (await web["a1"].get("/api/snak/admin/kategorier")).status_code == 403
+    assert (await web["mo"].get("/api/snak/admin/kategorier")).status_code == 403  # moderation er ikke modulet snak
+    cats = (await web["ed"].get("/api/snak/admin/kategorier")).json()["categories"]
+    assert len(cats) == 8 and "ikon" in cats[0]
+    r = await web["ed"].post("/api/snak/admin/kategorier", json={"slug": "fuglekasser", "navn": "Fuglekasser", "farve": "#336699", "har_loesning": True})
+    assert r.status_code == 200
+    new_id = r.json()["id"]
+    assert (await web["ed"].post("/api/snak/admin/kategorier", json={"slug": "fuglekasser", "navn": "Dublet"})).status_code == 409
+    assert (await web["ed"].post("/api/snak/admin/kategorier", json={"slug": "Stort Navn", "navn": "Dårlig"})).status_code == 400
+    assert (await web["ed"].patch(f"/api/snak/admin/kategorier/{new_id}", json={"beskrivelse": "Opsætning og pleje", "sort": 5})).status_code == 200
+    first = (await web["a1"].get("/api/snak/kategorier")).json()["categories"][0]
+    assert first["slug"] == "fuglekasser" and first["beskrivelse"] == "Opsætning og pleje"
+    pid = await new_post(web["a1"], cat=new_id)
+    assert (await web["ed"].delete(f"/api/snak/admin/kategorier/{new_id}")).status_code == 409  # har opslag
+    assert (await web["ed"].post(f"/api/snak/admin/kategorier/{new_id}/flyt", json={"to": 3})).json() == {"moved": 1}
+    assert (await web["a1"].get(f"/api/snak/{pid}")).json()["category"]["id"] == 3
+    assert (await web["ed"].post(f"/api/snak/admin/kategorier/{new_id}/flyt", json={"to": new_id})).status_code == 400
+    assert (await web["ed"].patch(f"/api/snak/admin/kategorier/{new_id}", json={"arkiveret": True})).status_code == 200
+    assert new_id not in [c["id"] for c in (await web["a1"].get("/api/snak/kategorier")).json()["categories"]]
+    assert (await web["a1"].post("/api/snak", json={"category_id": new_id, "body": "x"})).status_code == 400  # arkiveret
+    assert (await web["ed"].delete(f"/api/snak/admin/kategorier/{new_id}")).status_code == 200
+    # indstillinger: 3 → 5 kommentarer i feedet
+    s = (await web["ed"].get("/api/snak/admin/indstillinger")).json()
+    assert s["values"]["feed_kommentarer"] == 3
+    r = await web["ed"].put("/api/snak/admin/indstillinger", json={"values": {"feed_kommentarer": 5, "ukendt": 1}})
+    assert r.json()["values"]["feed_kommentarer"] == 5 and "ukendt" not in r.json()["values"]
+    assert (await web["a1"].get("/api/snak/kategorier")).json()["feed"]["kommentarer"] == 5
+    # link-preview kan slås fra
+    await web["ed"].put("/api/snak/admin/indstillinger", json={"values": {"link_preview": 0}})
+    assert (await web["a1"].post("/api/snak/link-preview", json={"url": "https://example.org"})).status_code == 403
+    # eksempler: gendan og slet
+    assert (await web["ed"].delete("/api/snak/admin/eksempler")).json() == {"deleted": 0}
+    assert (await web["ed"].post("/api/snak/admin/eksempler")).json() == {"created": 5}
+    assert len((await web["ed"].get("/api/snak/admin/eksempler")).json()["rows"]) == 5
+    assert (await web["ed"].delete("/api/snak/admin/eksempler")).json() == {"deleted": 5}
+    st = (await web["ed"].get("/api/snak/admin/statistik")).json()
+    assert len(st["uger"]) == 12 and st["total"]["opslag"] == 1 and st["aktive_30d"] >= 1 and st["kategorier"]

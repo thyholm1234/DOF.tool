@@ -9411,6 +9411,114 @@ true,
 "params": []
 }
 },
+"/api/snak/admin/eksempler": {
+"delete": {
+"body": false,
+"op": "admin_slet_eksempler_api_snak_admin_eksempler_delete",
+"params": []
+},
+"get": {
+"body": false,
+"op": "admin_eksempler_api_snak_admin_eksempler_get",
+"params": []
+},
+"post": {
+"body": false,
+"op": "admin_gendan_eksempler_api_snak_admin_eksempler_post",
+"params": []
+}
+},
+"/api/snak/admin/indstillinger": {
+"get": {
+"body": false,
+"op": "admin_indstillinger_api_snak_admin_indstillinger_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "admin_gem_indstillinger_api_snak_admin_indstillinger_put",
+"params": []
+}
+},
+"/api/snak/admin/kategorier": {
+"get": {
+"body": false,
+"op": "admin_kategorier_api_snak_admin_kategorier_get",
+"params": []
+},
+"post": {
+"body": true,
+"op": "admin_ny_kategori_api_snak_admin_kategorier_post",
+"params": []
+}
+},
+"/api/snak/admin/kategorier/{cid}": {
+"delete": {
+"body": false,
+"op": "admin_slet_kategori_api_snak_admin_kategorier__cid__delete",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+},
+"patch": {
+"body": true,
+"op": "admin_ret_kategori_api_snak_admin_kategorier__cid__patch",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/admin/kategorier/{cid}/flyt": {
+"post": {
+"body": true,
+"op": "admin_flyt_kategori_api_snak_admin_kategorier__cid__flyt_post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/admin/koe": {
+"get": {
+"body": false,
+"op": "koe_api_snak_admin_koe_get",
+"params": [
+[
+"side",
+"query",
+false,
+"{\"default\": 1, \"maximum\": 1000, \"minimum\": 1, \"title\": \"Side\", \"type\": \"integer\"}"
+],
+[
+"tab",
+"query",
+false,
+"{\"default\": \"anmeldte\", \"maxLength\": 12, \"title\": \"Tab\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/snak/admin/statistik": {
+"get": {
+"body": false,
+"op": "admin_statistik_api_snak_admin_statistik_get",
+"params": []
+}
+},
 "/api/snak/feed": {
 "get": {
 "body": false,
@@ -9466,6 +9574,20 @@ true,
 "patch": {
 "body": true,
 "op": "ret_kommentar_api_snak_kommentarer__cid__patch",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/kommentarer/{cid}/anmeld": {
+"post": {
+"body": true,
+"op": "anmeld_kommentar_api_snak_kommentarer__cid__anmeld_post",
 "params": [
 [
 "cid",
@@ -9556,6 +9678,18 @@ false,
 "params": []
 }
 },
+"/api/snak/notifikationer": {
+"get": {
+"body": false,
+"op": "notifikationer_api_snak_notifikationer_get",
+"params": []
+},
+"put": {
+"body": true,
+"op": "sæt_notifikationer_api_snak_notifikationer_put",
+"params": []
+}
+},
 "/api/snak/render": {
 "post": {
 "body": true,
@@ -9611,6 +9745,20 @@ true,
 "put": {
 "body": true,
 "op": "ret_api_snak__post_id__put",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/anmeld": {
+"post": {
+"body": true,
+"op": "anmeld_opslag_api_snak__post_id__anmeld_post",
 "params": [
 [
 "post_id",

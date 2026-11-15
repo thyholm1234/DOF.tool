@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv, publish
 from portal.models import SnComment, User
-from portal.services import content_render, moderation, snak, snak_reactions
+from portal.services import content_render, moderation, snak, snak_notify, snak_reactions
 
 MAX_LEN = 5000
 PAGE = 50
@@ -132,7 +132,7 @@ async def add(session: AsyncSession, user: User, post_id: int, body: str, parent
         raise CommentError(400, "Skriv en kommentar")
     if len(body) > MAX_LEN:
         raise CommentError(400, f"Kommentaren er for lang (højst {MAX_LEN} tegn)")
-    post = (await session.execute(text("SELECT id, status, locked FROM sn_posts WHERE id = :i"), {"i": post_id})).mappings().first()
+    post = (await session.execute(text("SELECT id, status, locked, user_id, titel FROM sn_posts WHERE id = :i"), {"i": post_id})).mappings().first()
     if post is None or post["status"] != "synlig":
         raise CommentError(404, "Opslaget findes ikke")
     if post["locked"] and not staff:
@@ -170,6 +170,7 @@ async def add(session: AsyncSession, user: User, post_id: int, body: str, parent
     await snak.follow(session, user.id, post_id)
     await session.commit()
     await publish("snak", {"type": "snak_comment", "post_id": post_id, "id": c.id, "parent_id": parent_id})
+    await snak_notify.comment_added(session, user, c, {"id": post_id, "user_id": post["user_id"], "titel": post["titel"]})
     return c
 
 
@@ -224,10 +225,16 @@ async def moderate(session: AsyncSession, moderator: User, cid: int, action: str
         c.status, c.hidden_reason, c.hidden_by, c.hidden_at = "skjult", (reason or "").strip()[:500] or "Skjult af en moderator", moderator.id, datetime.now(timezone.utc)
     elif action == "vis":
         c.status, c.hidden_reason, c.hidden_by, c.hidden_at = "synlig", None, None, None
+    elif action == "afvis_anmeldelser":
+        if c.status == "skjult" and c.hidden_by is None:  # skjult automatisk af anmeldelserne
+            c.status, c.hidden_reason, c.hidden_at = "synlig", None, None
     else:
         raise CommentError(400, "Ukendt handling")
+    await snak.resolve_reports(session, "comment", cid, moderator.id)
     await _hide_count(session, c, was, c.status == "synlig")
     await session.commit()
     await snak.forget_media(session, comment_id=c.id)
     await publish("snak", {"type": "snak_mod", "kind": "comment", "id": c.id, "post_id": c.post_id})
+    if action == "skjul":
+        await snak_notify.hidden(session, "comment", c.id, c.hidden_reason)
     return c

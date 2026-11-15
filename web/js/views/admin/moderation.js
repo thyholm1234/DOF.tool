@@ -7,8 +7,8 @@ import { refreshUnread } from "../../app.js";
 export async function moderation(body) {
   let vis = params().vis || "kommentarer";
   const inner = h("div", {});
-  const draw = () => { inner.replaceChildren(); setParams({ vis: vis === "kommentarer" ? "" : vis }); ({ kommentarer: modComments, artikler: modArticles, beskeder: modMessages, udelukkede: modBans }[vis] || modComments)(inner); };
-  body.append(h("div", { class: "row mb" }, seg([["kommentarer", "Kommentarer"], ...(state.user?.artikler?.can_moderate ? [["artikler", "Artikelkommentarer"]] : []), ["beskeder", `Beskeder${state.adminSupportUnread ? ` (${state.adminSupportUnread})` : ""}`], ["udelukkede", "Udelukkede"]],
+  const draw = () => { inner.replaceChildren(); setParams({ vis: vis === "kommentarer" ? "" : vis }); ({ kommentarer: modComments, artikler: modArticles, snak: modSnak, beskeder: modMessages, udelukkede: modBans }[vis] || modComments)(inner); };
+  body.append(h("div", { class: "row mb" }, seg([["kommentarer", "Kommentarer"], ...(state.user?.artikler?.can_moderate ? [["artikler", "Artikelkommentarer"]] : []), ...(state.user?.snak?.can_moderate ? [["snak", "Snak"]] : []), ["beskeder", `Beskeder${state.adminSupportUnread ? ` (${state.adminSupportUnread})` : ""}`], ["udelukkede", "Udelukkede"]],
     vis, (v) => { vis = v; setParams({ t: "" }); draw(); })), inner);
   draw();
 }
@@ -18,6 +18,13 @@ async function modArticles(body) {
   const { loadCss } = await import("../../artikler/common.js");
   loadCss("artikler");
   body.append(await (await import("../../artikler/admin.js")).commentQueue());
+}
+
+/** Anmeldte og skjulte opslag og kommentarer i Snak (samme kø som i modulet). */
+async function modSnak(body) {
+  const { loadCss } = await import("../../snak/common.js");
+  loadCss("snak");
+  body.append(h("div", { class: "snak" }, await (await import("../../snak/admin.js")).commentQueue()));
 }
 
 async function modComments(body) {
@@ -54,7 +61,7 @@ async function modComments(body) {
 }
 
 /** Skriv til en bruger – samtalen lander i brugerens 'Feedback og support', svar ses under Moderation → Beskeder. */
-function messageForm(x) {
+export function messageForm(x) {
   const subject = h("input", { maxlength: 160, required: true, value: x.body ? `Din kommentar om ${x.art || "en observation"}` : "" });
   const text = h("textarea", { maxlength: 5000, required: true, placeholder: "Skriv venligt og konkret – hvad er problemet, og hvad ønsker vi?", style: { minHeight: "120px" } });
   const m = modal(`Skriv til ${x.navn || x.obserkode}`, h("form", { class: "stack", onsubmit: async (e) => {

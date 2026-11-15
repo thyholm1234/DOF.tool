@@ -173,3 +173,22 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 .sn-compose-row .icon-btn { align-self: flex-end; }
 @media (max-width: 480px) { .sn-att-img { width: 80px; } }
 @media (prefers-reduced-motion: reduce) { .sn-lightbox { scroll-behavior: auto; } }
+
+/* faner og 🔔 */
+.sn-tabs { display: flex; gap: 8px; align-items: center; margin: 4px 0 14px; }
+.sn-tabs .seg { flex: 0 1 auto; }
+.sn-tabs .seg a { font-size: .84rem; font-weight: 600; color: var(--text-2); padding: 6px 12px; border-radius: 8px; white-space: nowrap; flex: none; text-decoration: none; }
+.sn-tabs .seg a:hover { color: var(--text); }
+.sn-tabs .seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.sn-tabs .icon-btn { margin-left: auto; font-size: 1.1rem; }
+
+/* admin og moderationskø */
+.sn-admin-cat.arch { opacity: .65; }
+.sn-admin-cat input[type="text"] { min-width: 0; }
+.sn-q-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.sn-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.sn-stat { display: flex; flex-direction: column; gap: 2px; padding: 12px; }
+.sn-stat b { font-size: 1.5rem; }
+.sn-bar-row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr auto; gap: 10px; align-items: center; }
+.sn-bar-track { background: var(--bg-2); border-radius: 99px; height: 10px; overflow: hidden; }
+.sn-bar-fill { display: block; height: 100%; border-radius: 99px; min-width: 2px; }

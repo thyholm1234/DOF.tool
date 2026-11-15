@@ -273,6 +273,25 @@ Selvstændigt modul bag funktionsflaget `artikler` (standard: forhåndsvisning).
 * **Markdown-editor** med overskrifter, tabeller, billeder, gallerier, faktabokse, PDF-vedhæftning, indlejring fra godkendte værter, arter,
   planlagt publicering og revisioner. Samme editor bruges til **portalens nyheder** (Admin → Indhold).
 
+## Snak (`#/snak`)
+
+Socialt modul – fuglekiggerens Facebook – bag funktionsflaget `snak` (standard: forhåndsvisning; underflag `snak_billeder`, `snak_links`, `snak_notifikationer`).
+Beskrivelse og beslutninger: `docs/snak-modul-spec.md`.
+
+* **Feed** af opslag i kategorier (Artsbestemmelse, Fund, Diskussion …). Hvert opslag er en åben tråd: de nyeste kommentarer øverst, svar under dem,
+  og man kan kommentere, svare og reagere uden at forlade feedet. Sortering: seneste aktivitet, nyeste, populære. Uendelig rulning, fastgjorte opslag øverst,
+  «Kun uløste» i kategorier med løsning. Nye opslag, kommentarer og reaktioner dukker op live (SSE).
+* **Reaktioner** 👍 ❤️ 😂 😮 😢 😡 på opslag og kommentarer (hover/langt tryk åbner vælgeren; tastaturbetjent). «Hvem reagerede» i en dialog.
+* **Opret opslag** med let markdown, op til 10 billeder (EXIF/GPS fjernes), vedhæftet kort fra portalen (artikel, foto, observationstråd, art, lokalitet) eller et
+  eksternt link med forhåndsvisning (serveren henter titel og billede; SSRF-beskyttet), op til 5 arter og en lokalitet. Kladde gemmes lokalt.
+* **Løsning**: forfatteren (eller en moderator) markerer en kommentar som løsning i kategorier med løsning; opslaget får «Løst ✓».
+* **Notifikationer** (🔔): svar på ens kommentarer, kommentarer på egne opslag, nye kommentarer i fulgte tråde, reaktioner (samlet pr. mål pr. time),
+  løsning og skjult indhold. Hver type kan slås fra; man følger automatisk egne opslag og tråde, man kommenterer.
+* **Anmeld og moderation**: efter-moderation. Brugere anmelder opslag og kommentarer; når antallet når tærsklen (standard 3), skjules indholdet, til en moderator
+  har set på det. Moderation → Snak har køen (anmeldte, skjulte, nye) med skjul/vis, afvis anmeldelser, lås tråd, skriv til bruger og udeluk. Alt logges under Aktivitet.
+* **Admin** (modulet `snak`): kategorier (opret, ret, sortér, arkivér, flyt opslag), indstillinger (fx kommentarer i feedet), eksempelopslag (slet/gendan) og statistik.
+* **Eksempelopslag**: fem opdigtede opslag med kommentarer seedes ved første opstart og er mærket «Eksempel».
+
 ## Fotos (`#/fotos`)
 
 Selvstændigt fotogalleri bag funktionsflaget `fotos` (standard: forhåndsvisning). Specifikation og beslutninger: `docs/netfugl-afloesning-spec.md`.
