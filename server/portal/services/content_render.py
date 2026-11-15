@@ -125,6 +125,7 @@ def host_allowed(url: str, hosts: set[str]) -> bool:
 def _build(profile: str) -> MarkdownIt:
     if profile == "kommentar":
         md = MarkdownIt("commonmark", {"html": False, "breaks": True}).disable(["image", "table", "heading", "lheading", "html_block", "html_inline"])
+        md.inline.ruler.before("link", "art_ref", _art_ref_rule)
         return md
     md = MarkdownIt("commonmark", {"html": True, "breaks": False}).enable(["table", "strikethrough"])
     md.use(footnote_plugin)
@@ -250,8 +251,8 @@ _AUDIO_NO_SRC = re.compile(r"<audio(?![^>]*\ssrc=)[^>]*>\s*</audio>", re.I)
 def sanitize(html: str, profile: str, embed_hosts: set[str], warnings: list[str] | None = None) -> str:
     warnings = warnings if warnings is not None else []
     if profile == "kommentar":
-        return nh3.clean(html, tags=COMMENT_TAGS, attributes={"a": {"href", "target"}}, url_schemes={"http", "https", "mailto"},
-                         link_rel="noopener noreferrer nofollow ugc")
+        return nh3.clean(html, tags=COMMENT_TAGS, attributes={"a": {"href", "target"}}, allowed_classes={"a": {"art-chip"}},
+                         url_schemes={"http", "https", "mailto"}, link_rel="noopener noreferrer nofollow ugc")
 
     def attr_filter(tag: str, attr: str, value: str) -> str | None:
         if tag == "iframe" and attr == "src":
