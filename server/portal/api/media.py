@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import optional_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import content_media, photo_access, photos, snak, snak_access, storage
+from portal.services import avatar, content_media, photo_access, photos, snak, snak_access, storage
 
 router = APIRouter(include_in_schema=False)
 RANGE = storage.RANGE
@@ -32,6 +32,10 @@ ART_NAME = re.compile(r"^[0-9a-f]{2}/[0-9a-f]{64}(-[tm])?\.[a-z0-9]{2,5}$")
 async def art_media(name: str, request: Request, user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)) -> Response:
     """Artikelmodulets medier. Navnene er indholdets SHA-256 og kan ikke gættes. Cache-Control sættes af vagten i main.py (private, 24 timer).
     Fotos (owner_kind «foto») ses kun, når fotomodulet er synligt for brugeren og fotoet er publiceret – eller brugeren ejer det eller er moderator."""
+    if avatar.MEDIA_NAME.match(name):  # profilbilleder: kun for indloggede (services/avatar.py)
+        if user is None:
+            raise HTTPException(404)
+        return await _serve(request, name, storage.ART_PREFIX, {"X-Content-Type-Options": "nosniff"})
     if not ART_NAME.match(name):
         raise HTTPException(404)
     info = await photos.media_info(db, name)

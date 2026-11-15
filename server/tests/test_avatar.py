@@ -66,3 +66,13 @@ def test_urls():
     u = avatar.urls(sha)
     assert u == {"l": f"/media/art/avatar/ab/{sha}-l.webp", "s": f"/media/art/avatar/ab/{sha}-s.webp"}
     assert avatar.urls(None) is None and avatar.urls("../../etc/passwd") is None
+
+
+def test_urls_are_served_by_media_route():
+    # Medieruten (/media/art/{name}) skal genkende de adresser, urls() laver – ellers giver billedet 404 overalt
+    sha = "ab" + "0" * 62
+    for url in avatar.urls(sha).values():
+        name = url.removeprefix("/media/art/")
+        assert avatar.MEDIA_NAME.match(name)
+    assert not avatar.MEDIA_NAME.match(f"avatar/ab/{sha}-x.webp")
+    assert not avatar.MEDIA_NAME.match(f"avatar/cd/{sha}-l.webp")  # mappen skal passe med sha'en

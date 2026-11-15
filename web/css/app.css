@@ -123,8 +123,9 @@ svg.ic { width: 1.2em; height: 1.2em; flex: none; vertical-align: -.2em; }
 }
 .avatar {
   width: 34px; height: 34px; border-radius: 50%; background: var(--brand); color: var(--brand-ink); display: grid;
-  place-items: center; font-weight: 700; font-size: .8rem; border: 0; cursor: pointer;
+  place-items: center; font-weight: 700; font-size: .8rem; border: 0; cursor: pointer; padding: 0; overflow: hidden;
 }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .layout { display: flex; min-height: calc(100dvh - var(--top-h)); }
 .sidenav { display: none; }

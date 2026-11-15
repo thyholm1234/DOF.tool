@@ -25,6 +25,8 @@ from portal.services import content_media, storage
 LARGE, SMALL = 512, 96
 MAX_BYTES = content_media.MAX_IMAGE
 SHA = re.compile(r"^[0-9a-f]{64}$")
+# Navnet under /media/art/ (se _key): mappen er sha'ens to første tegn
+MEDIA_NAME = re.compile(r"^avatar/([0-9a-f]{2})/(\1[0-9a-f]{62})-[ls]\.webp$")
 
 
 class AvatarError(ValueError):

@@ -170,7 +170,10 @@ function renderUser() {
   $("#bell").classList.toggle("hide", !u);
   if (!u) return;
   const initials = (u.navn || u.obserkode).split(/\s+/).map(s => s[0]).join("").slice(0, 2).toUpperCase();
-  $("#userbtn").textContent = initials;
+  // Profilbillede i knappen (lille variant, 96 px), ellers initialer
+  const btn = $("#userbtn"), src = u.avatar?.s;
+  if (src) { if (btn.querySelector("img")?.getAttribute("src") !== src) btn.replaceChildren(h("img", { src, alt: "", width: 34, height: 34, decoding: "async" })); }
+  else btn.textContent = initials;
   $("#bell").innerHTML = trustedHTML(icon("bell") + (state.unread ? `<span class="badge">${state.unread > 99 ? "99+" : state.unread}</span>` : ""));
 }
 
