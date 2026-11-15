@@ -114,6 +114,60 @@ async def test_opret_regler(web):
     assert "<script" not in p["html"] and "<strong>fed</strong>" in p["html"]
 
 
+async def test_profilbillede_i_feed_kommentar_og_me(web, tmp_path, monkeypatch):
+    import io
+
+    from PIL import Image
+
+    from portal.config import get_settings
+    from portal.services import storage
+
+    monkeypatch.setattr(get_settings(), "media_dir", str(tmp_path), raising=False)
+    monkeypatch.setattr(storage, "enabled", lambda: False)
+    monkeypatch.setattr(storage, "_local", lambda key: tmp_path / key)
+    buf = io.BytesIO()
+    Image.new("RGB", (900, 600), (10, 120, 60)).save(buf, "JPEG")
+    cats = {c["slug"]: c for c in (await web["a1"].get("/api/snak/kategorier")).json()["categories"]}
+    r = await web["a1"].post("/api/snak", json={"category_id": cats["fund"]["id"], "body": "med billede"})
+    pid = r.json()["id"]
+    assert (await web["a1"].post("/api/me/avatar", files={"file": ("x.pdf", b"%PDF-1.4 hej", "application/pdf")})).status_code == 400
+    r = await web["a1"].post("/api/me/avatar", files={"file": ("p.jpg", buf.getvalue(), "image/jpeg")})
+    assert r.status_code == 200, r.text
+    urls = r.json()["avatar"]
+    assert urls["s"].endswith("-s.webp") and urls["l"].endswith("-l.webp")
+    assert (await web["a1"].get("/api/me")).json()["user"]["avatar"] == urls
+    assert (await web["a2"].get(f"/api/snak/{pid}")).json()["author"]["avatar"] == urls["s"]
+    assert (await web["a2"].get("/api/me")).json()["user"]["avatar"] is None
+    assert (await web["a1"].delete("/api/me/avatar")).json() == {"avatar": None}
+    assert (await web["a2"].get(f"/api/snak/{pid}")).json()["author"]["avatar"] is None
+
+
+async def test_artstag_i_tekst_bliver_vedhaeftning(web, db):
+    from portal.models import Species
+
+    async with db() as s:
+        s.add_all([Species(artnr=n, navn=f"Art {n}", latin=f"Testus {n}", sortering=n, art_type="art") for n in (101, 102, 103)])
+        await s.commit()
+    cat = {c["slug"]: c for c in (await web["a1"].get("/api/snak/kategorier")).json()["categories"]}["fund"]["id"]
+    a1 = web["a1"]
+    # første art bliver kortet, de øvrige art-chips; ukendt artsnummer og dubletter ignoreres
+    r = await a1.post("/api/snak", json={"category_id": cat, "body": "Så [[art:101]] og [[art:102]] og [[art:101]] og [[art:999]]"})
+    p = (await a1.get(f"/api/snak/{r.json()['id']}")).json()
+    assert p["attachment"]["type"] == "art" and p["attachment"]["ref"] == "101"
+    assert p["arter"] == [102]
+    # et selvvalgt kort bevares; alle taggede arter kommer på chipsene
+    r = await a1.post("/api/snak", json={"category_id": cat, "body": "[[art:101]] [[art:102]]", "attachment": {"type": "art", "ref": "103"}, "arter": [101]})
+    p = (await a1.get(f"/api/snak/{r.json()['id']}")).json()
+    assert p["attachment"]["ref"] == "103" and p["arter"] == [101, 102]
+    # uden tags sker der intet; ved ret tæller kun nye tags, så et fjernet kort ikke kommer igen
+    r = await a1.post("/api/snak", json={"category_id": cat, "body": "[[art:101]]"})
+    pid = r.json()["id"]
+    r = await a1.put(f"/api/snak/{pid}", json={"category_id": cat, "body": "[[art:101]] nu også [[art:102]]", "attachment": None, "arter": [], "media_ids": []})
+    assert r.status_code == 200, r.text
+    p = (await a1.get(f"/api/snak/{pid}")).json()
+    assert p["attachment"]["ref"] == "102" and p["arter"] == []  # 101 var tagget før og kom ikke tilbage; 102 er ny og bliver kortet
+
+
 async def test_feed_sortering_cursor_og_fastgjort(web, db):
     from portal.services import snak
 

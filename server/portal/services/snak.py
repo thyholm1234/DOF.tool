@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv, publish
 from portal.models import SnCategory, SnPost, User
-from portal.services import content_render, moderation, snak_attach, snak_notify, snak_reactions
+from portal.services import avatar, content_render, moderation, snak_attach, snak_notify, snak_reactions
 from portal.services.content_media import _url
 from portal.services.setting_store import get_setting_dict, put_setting
 
@@ -186,7 +187,7 @@ async def clean_extras(session: AsyncSession, user: User, arter: list[int] | Non
 def _author(r) -> dict:
     if r["user_id"] is None:
         return {"navn": r["eksempel_navn"] or "Slettet bruger", "eksempel": True}
-    return {"navn": r["navn"] or r["obserkode"], "obserkode": r["obserkode"], "user_id": r["user_id"]}
+    return {"navn": r["navn"] or r["obserkode"], "obserkode": r["obserkode"], "user_id": r["user_id"], "avatar": (avatar.urls(r["avatar"]) or {}).get("s")}
 
 
 def post_out(r, viewer_id: int, staff: bool) -> dict:
@@ -207,7 +208,7 @@ def post_out(r, viewer_id: int, staff: bool) -> dict:
 _SELECT = """
     SELECT p.id, p.category_id, p.user_id, p.eksempel_navn, p.titel, p.body_md, p.body_html, p.attachment, p.arter, p.loknr, p.lok_navn, p.status, p.hidden_reason, p.locked,
            p.pinned_at, p.solution_comment_id, p.n_comments, p.n_reactions, p.views, p.last_activity_at, p.eksempel, p.created_at, p.edited_at,
-           c.slug AS cat_slug, c.navn AS cat_navn, c.farve AS cat_farve, c.har_loesning AS cat_loesning, u.navn, u.obserkode,
+           c.slug AS cat_slug, c.navn AS cat_navn, c.farve AS cat_farve, c.har_loesning AS cat_loesning, u.navn, u.obserkode, u.avatar,
            EXISTS (SELECT 1 FROM sn_follows f WHERE f.post_id = p.id AND f.user_id = :viewer AND NOT f.muted) AS following{extra}
     FROM sn_posts p JOIN sn_categories c ON c.id = p.category_id LEFT JOIN users u ON u.id = p.user_id"""
 
@@ -343,6 +344,34 @@ async def _attachment(session: AsyncSession, user: User, att: dict | None, flags
         raise SnakError(e.status, e.message) from e
 
 
+_ART_TAG = re.compile(r"\[\[art:(\d+)\]\]")
+MAX_ARTER = 5
+
+
+def tagged_species(body: str | None) -> list[int]:
+    """Arter, der er tagget med @ i teksten ([[art:N]]), i den rækkefølge de står, uden dubletter."""
+    return list(dict.fromkeys(int(n) for n in _ART_TAG.findall(body or "")))
+
+
+async def add_tagged(session: AsyncSession, user: User, body: str, arter: list[int], att: dict | None, *, old_body: str | None = None) -> tuple[list[int], dict | None]:
+    """Arter tagget i teksten kommer med på opslaget: den første bliver det vedhæftede kort, hvis opslaget ikke har et (et kort, forfatteren selv
+    har valgt, bevares); de øvrige kommer på art-chipsene (højst 5). Ved ret tæller kun arter, der ikke stod i den gamle tekst, så et kort eller
+    en chip, forfatteren har fjernet med vilje, ikke kommer tilbage. Ukendte artsnumre ignoreres."""
+    tags = tagged_species(body)
+    if old_body is not None:
+        old = set(tagged_species(old_body))
+        tags = [t for t in tags if t not in old]
+    if tags:
+        known = {r[0] for r in (await session.execute(text("SELECT artnr FROM species WHERE artnr = ANY(:a)"), {"a": tags})).all()}
+        tags = [t for t in tags if t in known]
+    if not tags:
+        return arter, att
+    if att is None:
+        att = await _attachment(session, user, {"type": "art", "ref": str(tags[0])})
+    card = int(att["ref"]) if att.get("type") == "art" and str(att.get("ref", "")).isdigit() else None
+    return list(dict.fromkeys([*arter, *(t for t in tags if t != card)]))[:MAX_ARTER], att
+
+
 async def create(session: AsyncSession, user: User, *, staff: bool, category_id: int, titel: str | None, body: str, media_ids: list[int] | None = None,
                  attachment: dict | None = None, arter: list[int] | None = None, loknr: int | None = None) -> int:
     cfg = await settings(session)
@@ -352,6 +381,7 @@ async def create(session: AsyncSession, user: User, *, staff: bool, category_id:
     await _ban_and_rate(session, user, cfg)
     arter, loknr, lok_navn = await clean_extras(session, user, arter, loknr)
     att = await _attachment(session, user, attachment)
+    arter, att = await add_tagged(session, user, body, arter, att)
     rendered = await content_render.render_for(session, body, "kommentar")
     p = SnPost(category_id=cat["id"], user_id=user.id, titel=titel, body_md=body, body_html=rendered.html, body_text=rendered.text, attachment=att,
                arter=arter, loknr=loknr, lok_navn=lok_navn)
@@ -384,13 +414,15 @@ async def edit(session: AsyncSession, user: User, post_id: int, *, titel: str | 
     if fields:
         ids = media_ids or []
         titel, body = _check_text(titel, body, cat, extra=bool(ids or attachment))
-        p.arter, p.loknr, p.lok_navn = await clean_extras(session, user, arter, loknr)
-        if (attachment or None) != ({"type": p.attachment.get("type"), "ref": p.attachment.get("ref")} if p.attachment else None):
-            p.attachment = await _attachment(session, user, attachment)
+        arter, p_loknr, p.lok_navn = await clean_extras(session, user, arter, loknr)
+        p.loknr = p_loknr
+        att = await _attachment(session, user, attachment) if (attachment or None) != ({"type": p.attachment.get("type"), "ref": p.attachment.get("ref")} if p.attachment else None) else p.attachment
+        p.arter, p.attachment = await add_tagged(session, user, body, arter, att, old_body=p.body_md)
         await adopt_media(session, "post", p.id, user.id, ids, limit=cfg["max_billeder_opslag"])
     else:
         n_media = (await session.execute(text("SELECT count(*) FROM content_media WHERE owner_kind = 'snak' AND owner_id = :o"), {"o": post_id})).scalar() or 0
         titel, body = _check_text(titel, body, cat, extra=bool(p.attachment) or n_media > 0)
+        p.arter, p.attachment = await add_tagged(session, user, body, list(p.arter or []), p.attachment, old_body=p.body_md)
     rendered = await content_render.render_for(session, body, "kommentar")
     p.titel, p.body_md, p.body_html, p.body_text, p.edited_at = titel, body, rendered.html, rendered.text, datetime.now(timezone.utc)
     await session.commit()

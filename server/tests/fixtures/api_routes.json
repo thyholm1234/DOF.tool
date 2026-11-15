@@ -7635,6 +7635,18 @@ false,
 "params": []
 }
 },
+"/api/me/avatar": {
+"delete": {
+"body": false,
+"op": "remove_api_me_avatar_delete",
+"params": []
+},
+"post": {
+"body": true,
+"op": "upload_api_me_avatar_post",
+"params": []
+}
+},
 "/api/me/dofbasen/bind": {
 "post": {
 "body": true,

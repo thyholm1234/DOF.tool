@@ -3,8 +3,8 @@ import { api, h } from "../core.js";
 
 const TRIGGER = /(^|\s)@([^\n@\[\]]{1,30})$/;
 
-/** Kobl @-forslag på et tekstfelt. */
-export function artMention(ta) {
+/** Kobl @-forslag på et tekstfelt. onPick(række) kaldes, når en art er valgt (række: {ref, title, teaser}). */
+export function artMention(ta, onPick) {
   const list = h("div", { class: "sn-mention", role: "listbox", hidden: true });
   document.body.append(list);
   let rows = [], active = 0, start = -1, seq = 0, timer = 0;
@@ -26,6 +26,7 @@ export function artMention(ta) {
     const ins = `[[art:${r.ref}]] `;
     ta.setRangeText(ins, start, end, "end");
     close();
+    onPick?.(r);
     ta.dispatchEvent(new Event("input", { bubbles: true }));
     ta.focus();
   }

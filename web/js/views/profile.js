@@ -7,6 +7,7 @@ import { enablePush } from "./alerts.js";
 import { isApp, isPositionDevice, takeOverPosition } from "../native.js";
 import { forgetUser } from "../offline.js";
 import * as passkey from "../passkey.js";
+import { openAvatarDialog } from "./avatar-dialog.js";
 
 const ROLE = { user: "Bruger", moderator: "Moderator", editor: "Redaktør", admin: "Administrator", superadmin: "Superadmin" };
 
@@ -43,11 +44,15 @@ export async function render(view) {
   nav.append(...TABS.map(([key, label, ic]) => h("button", { type: "button", "data-tab": key, onclick: () => show(key), html: `${icon(ic)}<span>${label}</span>` })));
 
   const initials = (u.navn || u.obserkode).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const again = () => openAvatarDialog(u, () => { view.replaceChildren(); render(view); });
   view.append(
     h("div", { class: "profile-head" },
-      h("span", { class: "profile-avatar", "aria-hidden": "true" }, initials),
+      viewAs ? h("span", { class: "profile-avatar", "aria-hidden": "true" }, u.avatar?.l ? h("img", { src: u.avatar.l, alt: "", width: 72, height: 72 }) : initials)
+        : h("button", { type: "button", class: "profile-avatar", "aria-label": "Skift profilbillede", title: "Skift profilbillede", onclick: again },
+          u.avatar?.l ? h("img", { src: u.avatar.l, alt: "", width: 72, height: 72 }) : initials),
       h("div", { style: { minWidth: 0 } }, h("h1", {}, u.navn || u.obserkode),
-        h("p", { class: "lead" }, [u.obserkode, u.email, u.role !== "user" ? ROLE[u.role] || u.role : null].filter(Boolean).join(" · ")))),
+        h("p", { class: "lead" }, [u.obserkode, u.email, u.role !== "user" ? ROLE[u.role] || u.role : null].filter(Boolean).join(" · ")),
+        viewAs ? null : h("button", { type: "button", class: "linkbtn", onclick: again }, u.avatar ? "Skift eller fjern billede" : "Tilføj profilbillede"))),
     h("div", { class: "settings" }, nav, panel));
   show(tab);
 }

@@ -30,9 +30,11 @@ en konto, som bindes til deres eksisterende bruger – alle data bliver liggende
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import re
 import secrets
 from datetime import datetime, timezone
@@ -46,6 +48,8 @@ from portal.config import get_settings
 from portal.models import User
 from portal.services import auth, mail
 from portal.services.auth import AuthError
+
+log = logging.getLogger("portal.konto")
 
 BIND_TTL = 20 * 60  # bindingsbeviset gælder i 20 minutter
 MAIL_TTL = 30 * 60  # e-mailkoden gælder i 30 minutter
@@ -544,6 +548,22 @@ async def request_email_change(db: AsyncSession, user: User, current: str, email
     return {"email": email, "expires_in": MAIL_TTL}
 
 
+_bg: set[asyncio.Task] = set()
+
+
+def _notify_later(to: str, subject: str, text: str, html_body: str) -> None:
+    """Send en bedst-muligt-besked i baggrunden, så svaret til brugeren ikke venter på SMTP-serveren."""
+    async def run() -> None:
+        try:
+            await mail.send(to, subject, text, html_body)
+        except mail.MailError:
+            pass  # er allerede logget i mail.send
+
+    t = asyncio.create_task(run())
+    _bg.add(t)
+    t.add_done_callback(_bg.discard)
+
+
 async def confirm_email_change(db: AsyncSession, user: User, code: str, ip: str) -> None:
     """Skift e-mail, trin 2: koden fra mailen. Den gamle adresse får besked (bedst muligt)."""
     key = _change_key(user.id)
@@ -575,13 +595,13 @@ async def confirm_email_change(db: AsyncSession, user: User, code: str, ip: str)
                             "DOFbasen-adgangskode – og skift derefter e-mailen tilbage under Profil."],
                 button=("Vælg ny adgangskode", link),
                 notes=["Var det dig, behøver du ikke gøre noget."])
-            await mail.send(old, f"Din e-mailadresse i {app} er ændret",
+            _notify_later(old, f"Din e-mailadresse i {app} er ændret",
                             f"Hej {navn}\n\nE-mailadressen på din {app}-konto ({user.obserkode}) er "
                             f"ændret til {mask_email(user.email)}.\n\nVar det ikke dig, så vælg en ny adgangskode via "
                             f"«Glemt adgangskode» på {link} – det kræver din DOFbasen-adgangskode – og "
                             f"skift e-mailen tilbage under Profil.\n\nVenlig hilsen\n{app}\n", html_body)
-        except mail.MailError:
-            pass
+        except Exception:  # besked er bedst muligt og må aldrig vælte skiftet
+            log.exception("Besked om ny e-mail kunne ikke forberedes")
 
 
 # ---------------------------------------------------------------- log ud

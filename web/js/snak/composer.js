@@ -69,7 +69,14 @@ export function composer({ categories, post = null, category = null, onDone, onC
   const start = post?.category?.id || usable.find(c => c.slug === category)?.id || usable.find(c => c.id === remembered)?.id || usable.find(c => c.slug === "fund")?.id || usable[0]?.id;
   const sel = h("select", { "aria-label": "Kategori", disabled: !!post }, ...usable.map(c => h("option", { value: c.id, selected: c.id === start }, c.navn)));
   const titel = h("input", { type: "text", maxlength: 200, placeholder: "Titel", "aria-label": "Titel" });
-  const body = artMention(h("textarea", { rows: 5, maxlength: 10000, placeholder: "Hvad har du på hjerte?", "aria-label": "Opslag" }));
+  // En art tagget i teksten kommer med på opslaget (som serveren også sørger for, services/snak.add_tagged): den første bliver det vedhæftede
+  // kort, hvis der ikke er et, de øvrige kommer på art-chipsene.
+  const body = artMention(h("textarea", { rows: 5, maxlength: 10000, placeholder: "Hvad har du på hjerte?", "aria-label": "Opslag" }), (r) => {
+    const ref = String(r.ref);
+    if (!st.attachment) st.attachment = { type: "art", ref, snapshot: { type: "art", title: r.title, teaser: r.teaser || "", url: `#/art/${ref}` } };
+    else if (!(st.attachment.type === "art" && st.attachment.ref === ref) && !st.arter.some(a => a.artnr === +ref) && st.arter.length < MAX_ARTER) st.arter.push({ artnr: +ref, navn: r.title });
+    draw();
+  });
   const hint = h("small", { class: "muted" });
   const st = { images: (post?.images || []).map(i => ({ ...i })), attachment: post?.attachment && !post.attachment.unavailable ? { type: post.attachment.type, ref: post.attachment.ref, snapshot: post.attachment } : null,
     arter: (post?.arter_navn || []).map(a => ({ ...a })), lok: post?.loknr ? { loknr: post.loknr, navn: post.lok_navn } : null, busy: 0 };

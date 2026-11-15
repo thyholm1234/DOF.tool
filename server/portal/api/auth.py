@@ -17,7 +17,7 @@ from portal.db import get_session
 from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
-from portal.services import dofbinding, konto, passkeys, totp, zitadel
+from portal.services import avatar, dofbinding, konto, passkeys, totp, zitadel
 from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, snak_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
 from portal.services import dataset
@@ -102,7 +102,7 @@ def user_out(user: User, view_as: bool = False) -> dict:
         prefs = {k: v for k, v in prefs.items() if k not in VIEW_AS_HIDDEN_PREFS}
     return {"id": user.id, "obserkode": user.obserkode, "navn": user.navn, "role": user.role,
             "email": None if view_as else user.email, "account": bool(user.pw_hash),
-            "email_verified": bool(user.email_verified_at), "bound": dofbinding.is_bound(user),
+            "email_verified": bool(user.email_verified_at), "avatar": avatar.urls(user.avatar), "bound": dofbinding.is_bound(user),
             "modules": sorted(auth.modules(user)), "prefs": prefs, "history_synced_at": user.history_synced_at}
 
 

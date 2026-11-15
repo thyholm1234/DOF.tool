@@ -18,7 +18,7 @@ from portal.domain import kategori
 from portal.models import User
 from portal.services.locyear import COUNTED
 from portal.timeutil import dk_today
-from portal.services import article_access, article_authors, articles, dataset, doftool_obs, photo_access, photo_photographers, photos
+from portal.services import avatar, article_access, article_authors, articles, dataset, doftool_obs, photo_access, photo_photographers, photos
 
 TTL = 3600
 _FROM = """FROM observations o JOIN species s ON s.artnr = o.artnr LEFT JOIN species ls ON ls.artnr = s.list_artnr
@@ -33,7 +33,7 @@ def visible_to(user_row: dict | None, viewer: User | None) -> bool:
 
 
 async def _portal_user(session: AsyncSession, kode: str) -> dict | None:
-    row = (await session.execute(text("SELECT id, navn, created_at, prefs FROM users WHERE obserkode = :k AND NOT blocked"),
+    row = (await session.execute(text("SELECT id, navn, created_at, prefs, avatar FROM users WHERE obserkode = :k AND NOT blocked"),
                                  {"k": kode})).mappings().first()
     return dict(row) if row else None
 
@@ -92,6 +92,7 @@ async def profile(session: AsyncSession, kode: str, viewer: User | None) -> dict
     if user:
         afd_ids = [int(x) for x in (user.get("prefs") or {}).get("afdelinger") or [] if str(x).isdigit()]
         names = dict((await session.execute(text("SELECT id, navn FROM afdelinger WHERE id = ANY(:i)"), {"i": afd_ids})).all()) if afd_ids else {}
+        out["avatar"] = (avatar.urls(user.get("avatar")) or {}).get("l")
         out["portal"] = {"siden": user["created_at"].date().isoformat() if user["created_at"] else None,
                          "afdelinger": [names[i] for i in afd_ids if i in names],
                          "offentlig": (user.get("prefs") or {}).get("profile_public", True)}

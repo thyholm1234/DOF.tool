@@ -66,6 +66,8 @@ class User(Base):
     # ved oprettelsen. Brugere uden pw_hash har ingen konto endnu og kan ikke logge ind, før de opretter den.
     email: Mapped[str | None] = mapped_column(String(254))
     pw_hash: Mapped[str | None] = mapped_column(String(200))
+    # Profilbilledet: sha256 af den store WebP-variant (services/avatar.py); None = initialer
+    avatar: Mapped[str | None] = mapped_column(String(64))
     account_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Hvornår e-mailen sidst blev bekræftet med en kode sendt til den (None = endnu ikke bekræftet)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

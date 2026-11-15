@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import kv, publish
 from portal.models import SnComment, User
-from portal.services import content_render, moderation, snak, snak_notify, snak_reactions
+from portal.services import avatar, content_render, moderation, snak, snak_notify, snak_reactions
 
 MAX_LEN = 5000
 PAGE = 50
@@ -26,7 +26,7 @@ class CommentError(snak.SnakError):
 def _author(r) -> dict:
     if r["user_id"] is None:
         return {"navn": r["eksempel_navn"] or "Slettet bruger", "eksempel": True}
-    return {"navn": r["navn"] or r["obserkode"], "obserkode": r["obserkode"], "user_id": r["user_id"]}
+    return {"navn": r["navn"] or r["obserkode"], "obserkode": r["obserkode"], "user_id": r["user_id"], "avatar": (avatar.urls(r["avatar"]) or {}).get("s")}
 
 
 def comment_out(r, viewer_id: int, staff: bool) -> dict:
@@ -42,7 +42,7 @@ def comment_out(r, viewer_id: int, staff: bool) -> dict:
 
 
 BASE = """SELECT c.id, c.post_id, c.parent_id, c.user_id, c.eksempel_navn, c.reply_to_navn, c.body_md, c.body_html, c.status, c.hidden_reason, c.n_reactions,
-                 c.created_at, c.edited_at, u.navn, u.obserkode
+                 c.created_at, c.edited_at, u.navn, u.obserkode, u.avatar
           FROM sn_comments c LEFT JOIN users u ON u.id = c.user_id"""
 TOP_BASE = BASE.replace("c.edited_at,", "c.edited_at, (SELECT count(*) FROM sn_comments s WHERE s.parent_id = c.id AND s.status = 'synlig') AS n_svar,", 1)
 # Synlig for andre: ikke skjult/slettet og ikke fra udelukket bruger med skjulte kommentarer. Forfatter og moderator ser mere.
@@ -65,7 +65,7 @@ async def previews(session: AsyncSession, post_ids: list[int], viewer_id: int, s
     out = {pid: {"items": [], "total_top": 0} for pid in post_ids}
     tops = (await session.execute(text(f"""
         SELECT * FROM (SELECT c.id, c.post_id, c.parent_id, c.user_id, c.eksempel_navn, c.reply_to_navn, c.body_md, c.body_html, c.status, c.hidden_reason,
-                              c.n_reactions, c.created_at, c.edited_at, u.navn, u.obserkode,
+                              c.n_reactions, c.created_at, c.edited_at, u.navn, u.obserkode, u.avatar,
                               row_number() OVER (PARTITION BY c.post_id ORDER BY c.created_at DESC, c.id DESC) AS rn,
                               count(*) OVER (PARTITION BY c.post_id) AS total_top,
                               (SELECT count(*) FROM sn_comments s WHERE s.parent_id = c.id AND s.status = 'synlig') AS n_svar
@@ -78,7 +78,7 @@ async def previews(session: AsyncSession, post_ids: list[int], viewer_id: int, s
         out[r["post_id"]]["total_top"] = r["total_top"]
     replies = (await session.execute(text(f"""
         SELECT * FROM (SELECT c.id, c.post_id, c.parent_id, c.user_id, c.eksempel_navn, c.reply_to_navn, c.body_md, c.body_html, c.status, c.hidden_reason,
-                              c.n_reactions, c.created_at, c.edited_at, u.navn, u.obserkode,
+                              c.n_reactions, c.created_at, c.edited_at, u.navn, u.obserkode, u.avatar,
                               row_number() OVER (PARTITION BY c.parent_id ORDER BY c.created_at DESC, c.id DESC) AS rn
                FROM sn_comments c LEFT JOIN users u ON u.id = c.user_id
                WHERE c.parent_id = ANY(:tops) AND {SHOW}) t WHERE rn <= :m ORDER BY created_at, id"""),

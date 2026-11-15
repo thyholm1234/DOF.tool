@@ -20,7 +20,7 @@ from portal.config import get_settings
 from portal.db import Base
 from portal.dbgroups import USER_TABLES
 from portal.models import User
-from portal.services import storage
+from portal.services import avatar, storage
 
 log = logging.getLogger("portal.account")
 
@@ -83,13 +83,14 @@ def _media_path(url: str | None) -> Path | None:
 
 async def delete(db: AsyncSession, user: User) -> None:
     """Slet kontoen med alt tilknyttet: rækker (kaskade), aktivitetslog, uploadede filer, sessioner og passkeys."""
-    zid = user.zitadel_id  # læses før sletningen (objektet kan ikke genindlæses bagefter)
+    zid, pic = user.zitadel_id, user.avatar  # læses før sletningen (objektet kan ikke genindlæses bagefter)
     urls = [m.get("url") for (media,) in (await db.execute(text("SELECT media FROM field_reports WHERE user_id = :u"),
                                                              {"u": user.id})).all() for m in (media or [])]
     urls += list((await db.execute(text("SELECT url FROM nf_photos WHERE user_id = :u"), {"u": user.id})).scalars())
     await db.execute(text("DELETE FROM activity WHERE user_id = :u"), {"u": user.id})
     await db.execute(sql_delete(User).where(User.id == user.id))
     await db.commit()
+    await avatar.forget(db, pic)  # profilbilledets filer (hvis ingen anden bruger har det samme)
     await storage.delete_urls(urls)  # filer fra observationer ligger i objektlageret
     for url in urls:
         p = None if storage.name_of(url) else _media_path(url)

@@ -177,6 +177,7 @@ EXTRA_DDL = [
     # DOF.tool-konti (services/konto.py): e-mail (unik uden hensyn til store/små bogstaver) og egen adgangskode
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email varchar(254)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS pw_hash varchar(200)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar varchar(64)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS account_at timestamptz",
     "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email ON users (lower(email)) WHERE email IS NOT NULL",
     # E-mailen bekræftes med en kode sendt til den (services/konto.py)

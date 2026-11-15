@@ -24,8 +24,9 @@ export const loadingBox = () => h("div", { class: "skeleton", style: { height: "
 export const notice = (text, kind = "") => h("div", { class: `notice ${kind}` }, text);
 
 export const initials = (navn = "?") => navn.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || "").join("") || "?";
-/** Rund avatar med initialer; farven følger navnet, så den er stabil. */
+/** Rund avatar: profilbilledet (lille variant), ellers initialer; farven følger navnet, så den er stabil. */
 export function avatar(author, size = 40) {
+  if (author.avatar) return h("img", { class: "sn-avatar", src: author.avatar, alt: "", width: size, height: size, loading: "lazy", decoding: "async" });
   const hue = [...(author.navn || "?")].reduce((s, c) => s + c.charCodeAt(0), 0) % 360;
   return h("span", { class: "sn-avatar", style: { "--h": String(hue), width: `${size}px`, height: `${size}px`, fontSize: `${Math.round(size * 0.4)}px` }, "aria-hidden": "true" }, initials(author.navn));
 }

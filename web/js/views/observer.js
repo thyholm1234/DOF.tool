@@ -24,7 +24,9 @@ export async function render(view, [kode]) {
   try { d = await api(`/api/observers/${encodeURIComponent(kode)}`); } catch (err) { view.replaceChildren(errorBox(err)); return; }
   view.replaceChildren(
     h("p", {}, h("a", { href: state.user?.statistik ? "#/statistik?tab=observatorer" : "#/observator" }, "← Søg observatør")),
-    h("div", { class: "page-head" }, h("div", {}, h("h1", {}, d.navn),
+    h("div", { class: "page-head", style: d.avatar ? { alignItems: "center", gap: "16px", justifyContent: "flex-start" } : null },
+      d.avatar ? h("img", { class: "obs-avatar", src: d.avatar, alt: "", width: 96, height: 96, decoding: "async" }) : null,
+      h("div", {}, h("h1", {}, d.navn),
       h("p", { class: "lead" }, d.obserkode, d.portalbruger ? " · bruger DOF.tool" : "", d.portal?.siden ? ` siden ${fmtDate(d.portal.siden)}` : "",
         d.portal?.afdelinger?.length ? ` · ${d.portal.afdelinger.join(", ")}` : ""))));
   if (d.skjult) { view.append(empty("Observatøren har valgt ikke at vise sin side", "")); return; }
