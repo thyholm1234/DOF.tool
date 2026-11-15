@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import cached, version
+from portal.cache import cached
 from portal.models import Species
 from portal.services import finds
 from portal.timeutil import dk_today
@@ -21,6 +21,9 @@ async def search(session: AsyncSession, q: str, limit: int) -> list[dict]:
         ORDER BY (navn ILIKE :p) DESC, art_type <> 'art', navn LIMIT :n
     """), {"q": q, "like": f"%{q}%", "p": f"{q}%", "n": limit})).mappings().all()
     return [dict(r) for r in rows]
+
+
+INDEX_TTL = 6 * 3600
 
 
 async def index(session: AsyncSession) -> list[dict]:
@@ -44,7 +47,8 @@ async def index(session: AsyncSession) -> list[dict]:
         return [{**dict(r), "last_date": r["last_date"].isoformat() if r["last_date"] else None,
                  "first_year": r["first_year"].isoformat() if r["first_year"] else None} for r in rows]
 
-    return await cached(f"species:index:{await version('feed')}", 900, produce)
+    # Genberegnes hver 6. time (ikke ved hver synkronisering); datoen i nøglen giver et frisk indeks ved midnat
+    return await cached(f"species:index:{dk_today().isoformat()}", INDEX_TTL, produce)
 
 
 async def detail(session: AsyncSession, artnr: int) -> dict | None:
