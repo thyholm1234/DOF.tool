@@ -1,5 +1,5 @@
 // Snak: fælles hjælpere (navn, rettigheder, CSS, avatar, kategori-tag, indlæsning). Navnet «Snak» står kun her og i funktionsflagets tekst.
-import { api, h, state } from "../core.js";
+import { api, h, state, trustedHTML } from "../core.js";
 
 export const NAME = "Snak";
 export const BASE = "#/snak";
@@ -41,7 +41,7 @@ export function authorLink(author) {
 }
 
 /** Titel i fanen: opslagets titel eller de første 60 tegn af teksten. */
-export const plain = (html) => { const d = new DOMParser().parseFromString(html || "", "text/html"); return (d.body.textContent || "").trim(); };
+export const plain = (html) => { const d = new DOMParser().parseFromString(trustedHTML(html), "text/html"); return (d.body.textContent || "").trim(); };
 
 /** Billeder i et opslag eller en kommentar: kontaktark, der åbner en lysboks (native <dialog>). Bredde/højde er sat, så siden ikke hopper. */
 export function gallery(images = [], { single = false } = {}) {
