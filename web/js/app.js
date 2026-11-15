@@ -1,4 +1,4 @@
-import { api, prefetch, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer, lightDismiss, hasPopover, trustedHTML } from "./core.js";
+import { api, prefetch, state, h, $, icon, toast, ago, trackView, adminLink, moderationLink, hasTab, backLayer, lightDismiss, hasPopover, trustedHTML, trustedScriptURL } from "./core.js";
 import { live } from "./live.js";
 import { syncSharing, syncPush, stopAppPush } from "./native.js";
 import { initSelectMenu } from "./select-menu.js";
@@ -449,7 +449,7 @@ async function boot() {
   const splash = $("#splash");
   if (splash) { splash.classList.add("out"); setTimeout(() => splash.remove(), 300); }
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").then((reg) => reg.update()).catch(() => {});
+    navigator.serviceWorker.register(trustedScriptURL("/sw.js")).then((reg) => reg.update()).catch(() => {});
     // Ny version installeret: genindlæs én gang, så man ikke kører på gammel kode fra cachen
     if (navigator.serviceWorker.controller) {
       let reloaded = false;

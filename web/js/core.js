@@ -71,9 +71,18 @@ async function request(path, { method = "GET", body, form } = {}) {
 // Trusted Types: alle HTML-sinks i appens egen kode går gennem policyen «dof-html». Den er KUN til markup, der bygges i koden
 // af konstanter og esc()-escapede værdier (ikoner, mærker) eller er renset på serveren (Markdown via content_render) –
 // aldrig til rå brugerdata. Håndhævelsen kører foreløbig som report-only (se csp() i server/portal/main.py).
-const ttPolicy = globalThis.trustedTypes?.createPolicy?.("dof-html", { createHTML: (s) => s });
+// Script-URL'er (service worker, Leaflet, mp3-koderen) må kun være egne, kendte filer – evt. under /v/<build>/.
+const SCRIPT_URL = /^(\/v\/[^/]+)?\/(sw\.js|vendor\/leaflet\/leaflet\.js|vendor\/lamejs\/lame\.min\.js)$/;
+const scriptURL = (s) => {
+  const u = new URL(String(s), location.href);
+  if (u.origin === location.origin && SCRIPT_URL.test(u.pathname)) return u.href;
+  throw new TypeError(`Trusted Types: script-URL ikke tilladt: ${s}`);
+};
+const ttPolicy = globalThis.trustedTypes?.createPolicy?.("dof-html", { createHTML: (s) => s, createScriptURL: scriptURL });
 /** Gør en appbygget/serverrenset HTML-streng klar til innerHTML under Trusted Types. */
 export const trustedHTML = (s) => ttPolicy ? ttPolicy.createHTML(String(s ?? "")) : String(s ?? "");
+/** Script-URL til <script src>/serviceWorker.register under Trusted Types (kun egne filer, se SCRIPT_URL). */
+export const trustedScriptURL = (s) => ttPolicy ? ttPolicy.createScriptURL(s) : String(s);
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);

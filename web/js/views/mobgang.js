@@ -1,7 +1,7 @@
 // Mobgang-generator: blandede flokke af loopede optagelser, så man kan træne at høre en targetart i mængden.
 // Al lyd mixes i browseren med Web Audio. Presets: officielle (alle kan se, redaktører vedligeholder) og
 // brugerens egne private (/api/mobgang/presets).
-import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can, modal, esc, ask, askText, trustedHTML } from "../core.js";
+import { api, state, h, icon, params, setParams, requireLogin, errorBox, toast, fmtDate, can, modal, esc, ask, askText, trustedHTML, trustedScriptURL } from "../core.js";
 
 // Arter og optagelser (xeno-canto) kommer fra serveren (/api/mobgang/status), der også har hver arts lukkeperiode
 // i ynglesæsonen. Brugeren kan desuden tilføje egne xeno-canto-optagelser (cfg.custom), som gemmes i presettet og
@@ -322,7 +322,7 @@ let lamePromise = null;
 const loadLame = () => lamePromise ||= new Promise((resolve, reject) => {
   if (window.lamejs) { resolve(window.lamejs); return; }
   const el = document.createElement("script");
-  el.src = new URL("../../vendor/lamejs/lame.min.js", import.meta.url).href;
+  el.src = trustedScriptURL(new URL("../../vendor/lamejs/lame.min.js", import.meta.url).href);
   el.onload = () => resolve(window.lamejs);
   el.onerror = () => { lamePromise = null; reject(new Error("Kunne ikke hente mp3-koderen")); };
   document.head.append(el);

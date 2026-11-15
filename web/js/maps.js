@@ -1,9 +1,19 @@
 // Leaflet-hjælpere: grundkort, farver og tegneværktøj (polygon og radius).
 // Leaflet (JS + CSS fra /vendor) hentes først, når et modul med kort importerer denne fil – forsiden og de fleste andre
 // sider indlæser det aldrig. Top-level await: når importen er færdig, er det globale L klar til brug.
-import { h, api, esc, icon } from "./core.js";
+import { h, api, esc, icon, trustedScriptURL } from "./core.js";
 
 let loading = null;
+/** Trusted Types: Leaflet skriver selv innerHTML (feature-test, kontroller, popups, divIcon) og kender ikke vores policy.
+ *  «default»-policyen kaldes for alle uindpakkede strenge, men godkender KUN kald, der kommer fra Leaflets egen fil – alt
+ *  andet returnerer undefined og er dermed fortsat en overtrædelse. Popup-/ikonindhold fra vores kode er escapet (esc). */
+function leafletPolicy() {
+  try {
+    globalThis.trustedTypes?.createPolicy?.("default", {
+      createHTML: (s) => /\/vendor\/leaflet\/leaflet\.js/.test(new Error().stack || "") ? s : undefined,
+    });
+  } catch { /* allerede oprettet */ }
+}
 /** Hent Leaflet én gang (genbruges af alle kort). */
 export function leaflet() {
   if (window.L) return Promise.resolve(window.L);
@@ -11,9 +21,10 @@ export function leaflet() {
     const el = Object.assign(document.createElement(tag), attrs, { onload: resolve, onerror: () => reject(new Error(`Kunne ikke hente ${attrs.src || attrs.href}`)) });
     document.head.append(el);
   });
+  leafletPolicy();
   loading ??= Promise.all([
     add("link", { rel: "stylesheet", href: "/vendor/leaflet/leaflet.css" }),
-    add("script", { src: "/vendor/leaflet/leaflet.js" }),
+    add("script", { src: trustedScriptURL("/vendor/leaflet/leaflet.js") }),
   ]).then(() => window.L).catch((err) => { loading = null; throw err; });
   return loading;
 }
