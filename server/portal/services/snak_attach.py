@@ -70,6 +70,13 @@ async def resolve(session: AsyncSession, user_id: int, typ: str, ref: str, *, fl
                                                JOIN species s ON s.artnr = o.artnr LEFT JOIN locations l ON l.loknr = o.loknr
                                                WHERE o.dato = :d AND o.artnr = :a AND o.loknr = :l AND o.hemmelig = 0 GROUP BY s.navn, l.navn""",
                                    {"d": d, "a": int(m[2]), "l": int(m[3])})).mappings().first()
+        if not r:
+            # En frisk indtastning i DOF.tool er først med i datasættet efter næste afstemning (services/doftool_obs) – slå den op i
+            # feltmeldingerne, så den kan vedhæftes med det samme. Hemmelige tæller ikke med (som ovenfor).
+            r = (await session.execute(text("""SELECT s.navn AS art, l.navn AS lokalitet, count(*) AS n, sum(r.antal) AS antal FROM field_reports r
+                                                JOIN species s ON s.artnr = r.artnr LEFT JOIN locations l ON l.loknr = r.loknr
+                                                WHERE r.dato = :d AND r.artnr = :a AND r.loknr = :l AND NOT r.hemmelig GROUP BY s.navn, l.navn"""),
+                                       {"d": d, "a": int(m[2]), "l": int(m[3])})).mappings().first()
         if r:
             return {"type": typ, "ref": ref, "title": f"{r['art']} · {r['lokalitet'] or ''}".strip(" ·"), "teaser": f"{r['antal'] or 0} ex. · {d.strftime('%d.%m.%Y')}",
                     "image": None, "url": f"#/traad/{ref}"}

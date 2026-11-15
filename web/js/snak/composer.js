@@ -1,5 +1,5 @@
 // Opret og ret opslag (docs/snak-modul-spec.md §2.4, §5). Samme komponent bruges inline i feedet og på #/snak/ny og #/snak/<id>/rediger.
-import { api, h, modal, seg, toast, store } from "../core.js";
+import { api, fmtDate, h, modal, seg, toast, store } from "../core.js";
 import { attachmentCard, ctx, on, uploadImage } from "./common.js";
 import { artMention } from "./artnavn.js";
 
@@ -25,6 +25,39 @@ export function searchPicker(type, title, onPick) {
   q.focus();
 }
 
+/** Observationer: brugerens egne ture → turens indtastninger. Valget giver trådens ref «dato/artnr/loknr» (tråden samler dagens fund af
+ *  arten på lokaliteten). Hemmelige indtastninger kan ikke vedhæftes. Under listen kan en trådadresse stadig indsættes. */
+function tripPicker(body, onPick) {
+  const list = h("div", { class: "sn-pick-list stack" }, h("p", { class: "muted" }, "Henter dine ture …"));
+  const inp = h("input", { type: "text", placeholder: "…eller indsæt adressen på en tråd (#/traad/2026-05-01/123/456)", "aria-label": "Trådadresse" });
+  const byAddress = h("div", { class: "row" }, inp, h("button", { type: "button", class: "btn", onclick: () => {
+    const mm = inp.value.trim().match(/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)/);
+    mm ? onPick(`${mm[1]}/${mm[2]}/${mm[3]}`) : toast("Det ligner ikke en trådadresse", "err");
+  } }, "Vedhæft"));
+  body.replaceChildren(list, byAddress);
+  const fail = (e) => list.replaceChildren(h("p", { class: "muted" }, e.message));
+  const showTrips = (trips) => list.replaceChildren(...(trips.length
+    ? trips.map(t => h("button", { type: "button", class: "sn-pick", onclick: () => showTrip(t, trips) },
+        h("b", {}, `${fmtDate(t.dato)} · ${t.lok}`),
+        h("span", { class: "muted small" }, [t.turtidfra ? `${t.turtidfra.slice(0, 5)}${t.turtidtil ? "–" + t.turtidtil.slice(0, 5) : ""}` : null,
+          `${t.n_arter} ${t.n_arter === 1 ? "art" : "arter"}`, t.for_andre ? `for ${t.obserkode}` : null].filter(Boolean).join(" · "))))
+    : [h("p", { class: "muted" }, "Du har ingen ture endnu.")]));
+  const showTrip = async (t, trips) => {
+    const back = h("button", { type: "button", class: "btn", onclick: () => showTrips(trips) }, "‹ Alle ture");
+    list.replaceChildren(back, h("p", { class: "muted" }, "Henter turen …"));
+    try {
+      const { observations: obs = [] } = await api(`/api/trips/${t.id}`);
+      list.replaceChildren(back, h("b", {}, `${fmtDate(t.dato)} · ${t.lok}`), ...(obs.length ? obs.map(o => h("button", {
+        type: "button", class: "sn-pick", disabled: o.hemmelig, onclick: () => onPick(`${o.dato}/${o.artnr}/${o.loknr}`) },
+      h("b", {}, `${o.antal ? o.antal + " " : ""}${o.art}`),
+      h("span", { class: "muted small" }, o.hemmelig ? "Hemmelig – kan ikke vedhæftes"
+        : [o.obstidfra?.slice(0, 5), o.adf, o.loknr !== t.loknr ? o.lok : null].filter(Boolean).join(" · ") || " ")))
+        : [h("p", { class: "muted" }, "Turen har ingen observationer.")]));
+    } catch (e) { fail(e); }
+  };
+  api("/api/trips/mine").then(showTrips, fail);
+}
+
 /** Vedhæft-vælgeren: faner for artikel, foto, art, lokalitet, observationstråd og link. onPick({type, ref}). */
 function attachPicker(onPick) {
   let tab = "artikel";
@@ -33,13 +66,12 @@ function attachPicker(onPick) {
   const m = modal("Vedhæft", content);
   const pick = (type, ref) => { m.close(); onPick({ type, ref }); };
   const draw = () => {
-    if (tab === "traad" || tab === "link") {
-      const inp = h("input", { type: "text", placeholder: tab === "link" ? "https://…" : "Indsæt adressen på tråden (…#/traad/2026-05-01/123/456)", "aria-label": "Adresse" });
+    if (tab === "traad") return tripPicker(body, (ref) => pick("traad", ref));
+    if (tab === "link") {
+      const inp = h("input", { type: "text", placeholder: "https://…", "aria-label": "Adresse" });
       body.replaceChildren(inp, h("button", { type: "button", class: "btn primary", onclick: () => {
         const v = inp.value.trim();
-        if (tab === "link") return v ? pick("link", v) : toast("Indsæt et link", "err");
-        const mm = v.match(/traad\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)/);
-        mm ? pick("traad", `${mm[1]}/${mm[2]}/${mm[3]}`) : toast("Det ligner ikke en trådadresse", "err");
+        v ? pick("link", v) : toast("Indsæt et link", "err");
       } }, "Vedhæft"));
       return;
     }
