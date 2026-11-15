@@ -262,3 +262,9 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 /* Artschip i opslag og kommentarer ([[art:N]]) – samme udtryk som i artiklerne */
 a.art-chip { display: inline-block; font-size: .8em; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-strong); text-decoration: none; color: var(--text-2); background: var(--surface); white-space: nowrap; }
 a.art-chip:hover { background: var(--brand-soft); }
+
+/* @-forslag til arter i tekstfelter */
+.sn-mention { position: fixed; z-index: 60; display: flex; flex-direction: column; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-lg); max-height: 260px; overflow: auto; }
+.sn-mention[hidden] { display: none; }
+.sn-mention-item { text-align: left; padding: 6px 10px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--text); font: inherit; cursor: pointer; }
+.sn-mention-item[aria-selected="true"], .sn-mention-item:hover { background: var(--brand-soft); }

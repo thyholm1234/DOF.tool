@@ -3,6 +3,7 @@ import { api, h, toast, ask, askText, ago, state, seg } from "../core.js";
 import { banForm } from "../moderation.js";
 import { reactionWidget } from "./reaktioner.js";
 import { reportDialog } from "./anmeld.js";
+import { artMention } from "./artnavn.js";
 import { avatar, authorLink, ctx, gallery, on, uploadImage } from "./common.js";
 
 const LIMIT_FEED = { kommentarer: 3, svar: 1 };
@@ -17,7 +18,7 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
   let replyTo = null;
 
   const compose = (parent = null, replyName = null, done = null) => {
-    const ta = h("textarea", { rows: parent ? 2 : 1, maxlength: 5000, placeholder: parent ? "Skriv et svar …" : "Skriv en kommentar …", "aria-label": parent ? "Svar" : "Kommentar" });
+    const ta = artMention(h("textarea", { rows: parent ? 2 : 1, maxlength: 5000, placeholder: parent ? "Skriv et svar …" : "Skriv en kommentar …", "aria-label": parent ? "Svar" : "Kommentar" }));
     const btn = h("button", { class: "btn primary", type: "submit" }, parent ? "Svar" : "Send");
     const grow = () => { if (CSS.supports("field-sizing", "content")) return; ta.style.height = "auto"; ta.style.height = `${Math.min(ta.scrollHeight, 240)}px`; };
     ta.addEventListener("input", grow);
@@ -52,7 +53,7 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
   };
 
   function edit(c) {
-    const ta = h("textarea", { rows: 4, maxlength: 5000, "aria-label": "Ret kommentar" });
+    const ta = artMention(h("textarea", { rows: 4, maxlength: 5000, "aria-label": "Ret kommentar" }));
     ta.value = c.md || "";
     const form = h("form", { class: "sn-compose", onsubmit: async (e) => {
       e.preventDefault();

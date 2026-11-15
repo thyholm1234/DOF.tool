@@ -1,6 +1,7 @@
 // Opret og ret opslag (docs/snak-modul-spec.md §2.4, §5). Samme komponent bruges inline i feedet og på #/snak/ny og #/snak/<id>/rediger.
 import { api, h, modal, seg, toast, store } from "../core.js";
 import { attachmentCard, ctx, on, uploadImage } from "./common.js";
+import { artMention } from "./artnavn.js";
 
 const MAX_IMAGES = 10, MAX_ARTER = 5;
 const ATT_TABS = [["artikel", "Artikel"], ["foto", "Foto"], ["art", "Art"], ["lokalitet", "Lokalitet"], ["traad", "Observationer"], ["link", "Link"]];
@@ -68,7 +69,7 @@ export function composer({ categories, post = null, category = null, onDone, onC
   const start = post?.category?.id || usable.find(c => c.slug === category)?.id || usable.find(c => c.id === remembered)?.id || usable.find(c => c.slug === "fund")?.id || usable[0]?.id;
   const sel = h("select", { "aria-label": "Kategori", disabled: !!post }, ...usable.map(c => h("option", { value: c.id, selected: c.id === start }, c.navn)));
   const titel = h("input", { type: "text", maxlength: 200, placeholder: "Titel", "aria-label": "Titel" });
-  const body = h("textarea", { rows: 5, maxlength: 10000, placeholder: "Hvad har du på hjerte?", "aria-label": "Opslag" });
+  const body = artMention(h("textarea", { rows: 5, maxlength: 10000, placeholder: "Hvad har du på hjerte?", "aria-label": "Opslag" }));
   const hint = h("small", { class: "muted" });
   const st = { images: (post?.images || []).map(i => ({ ...i })), attachment: post?.attachment && !post.attachment.unavailable ? { type: post.attachment.type, ref: post.attachment.ref, snapshot: post.attachment } : null,
     arter: (post?.arter_navn || []).map(a => ({ ...a })), lok: post?.loknr ? { loknr: post.loknr, navn: post.lok_navn } : null, busy: 0 };
