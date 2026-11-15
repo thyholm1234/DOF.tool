@@ -333,7 +333,7 @@ async def opslag(post_id: int, user: User = Depends(require_user), acc: snak_acc
 async def ret(post_id: int, body: PostIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
     try:
         await snak.edit(db, user, post_id, titel=body.titel, body=body.body, media_ids=_media(acc, body.media_ids), attachment=_att(acc, body.attachment),
-                        arter=body.arter, loknr=body.loknr, fields=True)
+                        arter=body.arter, loknr=body.loknr, fields=True, category_id=body.category_id, staff=acc.staff)
     except snak.SnakError as e:
         raise _wrap(e) from e
     return {"ok": True}

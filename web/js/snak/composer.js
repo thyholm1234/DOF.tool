@@ -97,9 +97,11 @@ function attachPicker(onPick) {
 /** composer({categories, post?, category?, onDone, onCancel}) → <form>. post: det opslag, der rettes. */
 export function composer({ categories, post = null, category = null, onDone, onCancel }) {
   const usable = categories.filter(c => !c.arkiveret && (!c.kun_staff || ctx().can_moderate || ctx().can_admin));
+  // Et opslag i en kategori, der ikke længere kan vælges (arkiveret/kun redaktionen), kan blive stående i den
+  if (post?.category && !usable.some(c => c.id === post.category.id)) usable.unshift(categories.find(c => c.id === post.category.id) || post.category);
   const remembered = store("snak")?.kategori;
   const start = post?.category?.id || usable.find(c => c.slug === category)?.id || usable.find(c => c.id === remembered)?.id || usable.find(c => c.slug === "fund")?.id || usable[0]?.id;
-  const sel = h("select", { "aria-label": "Kategori", disabled: !!post }, ...usable.map(c => h("option", { value: c.id, selected: c.id === start }, c.navn)));
+  const sel = h("select", { "aria-label": "Kategori" }, ...usable.map(c => h("option", { value: c.id, selected: c.id === start }, c.navn)));
   const titel = h("input", { type: "text", maxlength: 200, placeholder: "Titel", "aria-label": "Titel" });
   // En art tagget i teksten kommer med på opslaget (som serveren også sørger for, services/snak.add_tagged): den første bliver det vedhæftede
   // kort, hvis der ikke er et, de øvrige kommer på art-chipsene.

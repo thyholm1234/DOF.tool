@@ -71,21 +71,35 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
 .sn-react-sum.sm, .sn-comment .sn-react-sum { font-size: .78rem; }
 
 /* Vælgeren er en native popover (top layer, Esc, klik udenfor); positioneres med JS ud fra knappen */
-.sn-picker { position: fixed; inset: auto; margin: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); overflow: visible; }
-.sn-picker:popover-open { display: flex; gap: 2px; }
+/* Reaktionsvælgeren: emojierne svæver frit over knappen – ingen boks, ingen cirkler; en blød skygge holder dem læsbare på alle baggrunde */
+.sn-picker { position: fixed; inset: auto; margin: 0; padding: 6px 2px; border: 0; background: transparent; box-shadow: none; color: var(--text); overflow: visible; }
+.sn-picker:popover-open { display: flex; gap: 0; }
 @supports (position-area: block-start) {
-  .sn-picker { position-area: block-start span-inline-end; position-try-fallbacks: flip-block, flip-inline; margin-block: 6px; }
+  .sn-picker { position-area: block-start span-inline-end; position-try-fallbacks: flip-block, flip-inline; margin-block: 2px; }
 }
-.sn-pick { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: transparent; border-radius: 50%; font-size: 1.7rem; line-height: 1; cursor: pointer; transition: transform .12s ease; }
-.sn-pick:hover, .sn-pick:focus-visible { transform: scale(1.25) translateY(-4px); background: var(--bg-2); }
-.sn-pick[aria-checked="true"] { background: var(--brand-soft); }
+.sn-picker .sn-pick { position: relative; width: 46px; height: 50px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; border-radius: 0; font-size: 2rem; line-height: 1; cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / .28)) drop-shadow(0 0 1px rgb(0 0 0 / .18)); transition: transform .16s cubic-bezier(.3, 1.6, .5, 1), filter .16s ease; -webkit-tap-highlight-color: transparent; }
+.sn-picker .sn-pick:hover, .sn-picker .sn-pick:focus-visible { transform: scale(1.4) translateY(-6px); filter: drop-shadow(0 6px 6px rgb(0 0 0 / .3)); background: transparent; z-index: 1; }
+.sn-picker .sn-pick:focus-visible { outline: none; }
+.sn-picker .sn-pick:focus-visible > span { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 6px; }
+.sn-picker .sn-pick:active { transform: scale(1.15); }
+/* Den valgte reaktion: en lille prik under emojien */
+.sn-picker .sn-pick[aria-checked="true"]::after { content: ""; position: absolute; bottom: 1px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 2px var(--surface); }
 @media (prefers-reduced-motion: no-preference) {
-  .sn-picker { transition: opacity .15s ease, transform .15s ease, display .15s allow-discrete, overlay .15s allow-discrete; }
-  .sn-picker:popover-open { opacity: 1; transform: none; }
-  @starting-style { .sn-picker:popover-open { opacity: 0; transform: translateY(6px) scale(.96); } }
-  .sn-picker:not(:popover-open) { opacity: 0; transform: translateY(6px) scale(.96); }
+  .sn-picker { transition: opacity .15s ease, display .15s allow-discrete, overlay .15s allow-discrete; }
+  .sn-picker:popover-open { opacity: 1; }
+  @starting-style { .sn-picker:popover-open { opacity: 0; } }
+  .sn-picker:not(:popover-open) { opacity: 0; }
+  /* Emojierne hopper op én efter én */
+  .sn-picker:popover-open .sn-pick > span { display: block; animation: sn-pop .32s cubic-bezier(.3, 1.6, .5, 1) both; }
+  .sn-picker .sn-pick:nth-child(2) > span { animation-delay: .03s; }
+  .sn-picker .sn-pick:nth-child(3) > span { animation-delay: .06s; }
+  .sn-picker .sn-pick:nth-child(4) > span { animation-delay: .09s; }
+  .sn-picker .sn-pick:nth-child(5) > span { animation-delay: .12s; }
+  .sn-picker .sn-pick:nth-child(6) > span { animation-delay: .15s; }
 }
-@media (prefers-reduced-motion: reduce) { .sn-pick { transition: none; } .sn-pick:hover, .sn-pick:focus-visible { transform: none; } }
+@keyframes sn-pop { from { opacity: 0; transform: translateY(14px) scale(.4); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sn-picker .sn-pick { transition: none; } .sn-picker .sn-pick:hover, .sn-picker .sn-pick:focus-visible { transform: none; } }
 .sn-reactors { display: flex; flex-direction: column; gap: 8px; max-height: 50dvh; overflow-y: auto; }
 .sn-reactors + .btn { align-self: center; }
 

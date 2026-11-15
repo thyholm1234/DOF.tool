@@ -114,6 +114,22 @@ async def test_opret_regler(web):
     assert "<script" not in p["html"] and "<strong>fed</strong>" in p["html"]
 
 
+async def test_ret_kategori(web):
+    """Forfatteren kan flytte sit opslag under «Ret» (fx Artsbestemmelse → Fund og oplevelser) med samme regler som ved opret."""
+    cats = {c["slug"]: c["id"] for c in (await web["a1"].get("/api/snak/kategorier")).json()["categories"]}
+    pid = await new_post(web["a1"], cat=cats["artsbestemmelse"], body="Hvad er det?")
+    cid = (await web["a2"].post(f"/api/snak/{pid}/kommentarer", json={"body": "En musvåge"})).json()["id"]
+    assert (await web["a1"].post(f"/api/snak/{pid}/loesning", json={"comment_id": cid})).status_code == 200
+    ret = lambda c, cat, **kw: c.put(f"/api/snak/{pid}", json={"category_id": cat, "body": "Hvad er det?", **kw})  # noqa: E731
+    assert (await ret(web["a1"], cats["meddelelser"])).status_code == 403  # kun redaktionen
+    assert (await ret(web["a1"], cats["diskussion"])).status_code == 400  # kræver titel
+    assert (await ret(web["a2"], cats["fund"])).status_code == 403  # ikke ens eget
+    assert (await ret(web["a1"], cats["fund"])).status_code == 200
+    p = (await web["a1"].get(f"/api/snak/{pid}")).json()
+    assert p["category"]["slug"] == "fund" and not p["solved"]  # Fund har ingen løsninger
+    assert (await ret(web["a1"], cats["fund"], titel="Rettet")).status_code == 200  # uændret kategori går fint
+
+
 async def test_profilbillede_i_feed_kommentar_og_me(web, tmp_path, monkeypatch):
     import io
 
@@ -566,6 +582,13 @@ async def test_soeg_mine_panel_og_del(web, db):
     # skjult og slettet indhold findes ikke
     pid = await new_post(web["a1"], titel="Unik nøgleformulering")
     assert (await web["a2"].get("/api/snak/soeg", params={"q": "nøgleformulering"})).json()["rows"][0]["post_id"] == pid
+    # ordbegyndelser er nok: «rubin» finder Rubinnattergal, også i kombination med et andet ord; tegn som & og : er ufarlige
+    rubin = await new_post(web["a1"], body="En Rubinnattergal på Christiansø")
+    for q in ("rubin", "Rubinnat christians", "rubin & : '!"):
+        assert rubin in [x["post_id"] for x in (await web["a2"].get("/api/snak/soeg", params={"q": q})).json()["rows"]], q
+    assert (await web["a2"].get("/api/snak/soeg", params={"q": "rubin bornholm"})).json()["rows"] == []
+    assert (await web["a2"].get("/api/snak/soeg", params={"q": "&&"})).json()["rows"] == []
+    assert (await web["a1"].delete(f"/api/snak/{rubin}")).status_code == 200
     await web["mo"].post(f"/api/snak/{pid}/moderer", json={"action": "skjul"})
     assert (await web["a2"].get("/api/snak/soeg", params={"q": "nøgleformulering"})).json()["rows"] == []
     # mine + nye kommentarer siden sidst

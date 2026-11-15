@@ -190,7 +190,7 @@ rettelser (`#/snak/<id>/rediger`). Se §5 for felterne og validering.
 
 ### 2.5 Søg (`snak/soeg.js`)
 
-Fritekst i titel, tekst og kommentarer (dansk tsvector, som Artikler §5.1), filtre: kategori, art, periode, «kun
+Fritekst i titel, tekst og kommentarer (dansk tsvector, som Artikler §5.1; hvert ord matcher ordbegyndelser, så «rubin» finder Rubinnattergal), filtre: kategori, art, periode, «kun
 uløste», «med billeder». Resultater som kompakte kort med fremhævet uddrag (`ts_headline`). Træf i en kommentar linker
 til `#/snak/<id>?k=<kid>`.
 
@@ -645,7 +645,7 @@ Det første opslag (§9.1) **fastgøres** i «Alle», så det står øverst.
 | `GET /feed` | snak | §6 |
 | `GET /{id}` | snak | Opslag (fuldt) |
 | `POST /` | snak | Opret `{category_id, titel?, body, media_ids[], attachment?, arter[], loknr?}` |
-| `PUT /{id}` | forfatter | Ret (samme felter; kategori kun af moderator) |
+| `PUT /{id}` | forfatter | Ret (samme felter, også kategori – samme regler som ved opret; en løsning fjernes, hvis den nye kategori ikke har løsninger) |
 | `DELETE /{id}` | forfatter / moderator | Slet (blødt) |
 | `POST /{id}/loesning` | forfatter / moderator | `{comment_id\|null, artnr?}` |
 | `POST /{id}/foelg` / `DELETE /{id}/foelg` | snak | Følg / følg ikke |

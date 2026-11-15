@@ -405,15 +405,23 @@ async def _own_or_none(session: AsyncSession, post_id: int) -> SnPost:
 
 
 async def edit(session: AsyncSession, user: User, post_id: int, *, titel: str | None, body: str, media_ids: list[int] | None = None,
-               attachment: dict | None = None, arter: list[int] | None = None, loknr: int | None = None, fields: bool = False) -> None:
-    """fields=True: billeder, kort, arter og lokalitet rettes også (ellers kun tekst og titel)."""
+               attachment: dict | None = None, arter: list[int] | None = None, loknr: int | None = None, fields: bool = False,
+               category_id: int | None = None, staff: bool = False) -> None:
+    """fields=True: billeder, kort, arter og lokalitet rettes også (ellers kun tekst og titel). category_id flytter opslaget
+    (samme regler som ved oprettelse); en markeret løsning fjernes, hvis den nye kategori ikke har løsninger."""
     p = await _own_or_none(session, post_id)
     if p.user_id != user.id:
         raise SnakError(403, "Du kan kun rette dine egne opslag")
     cfg = await settings(session)
     if datetime.now(timezone.utc) - p.created_at > timedelta(minutes=cfg["ret_minutter"]):
         raise SnakError(403, "Opslaget kan ikke længere rettes")
-    cat = await _category(session, p.category_id, staff=True)
+    if category_id is not None and category_id != p.category_id:
+        cat = await _category(session, category_id, staff=staff)
+        p.category_id = cat["id"]
+        if not cat["har_loesning"]:
+            p.solution_comment_id = None
+    else:
+        cat = await _category(session, p.category_id, staff=True)
     if fields:
         ids = media_ids or []
         titel, body = _check_text(titel, body, cat, extra=bool(ids or attachment))
@@ -527,13 +535,21 @@ async def register_view(session: AsyncSession, user_id: int, post_id: int) -> No
 HL = ("\x02", "\x03")  # markering af træf i uddraget; frontend bygger <mark> selv, så brugerens tekst aldrig tolkes som HTML
 
 
+def prefix_query(q: str) -> str:
+    """Søgeteksten som tsquery, hvor hvert ord matcher ordbegyndelser: «rubin» finder Rubinnattergal. Kun bogstaver og tal kommer med."""
+    words = re.findall(r"[^\W_]+", q.lower())[:12]
+    return " & ".join(f"{w}:*" for w in words)
+
+
 async def search(session: AsyncSession, *, q: str, category: str | None = None, art: int | None = None, days: int | None = None, uloeste: bool = False,
                  billeder: bool = False, offset: int = 0, limit: int = 20) -> dict:
-    """Fritekst i titel, tekst og kommentarer (dansk tsvector). Kun synlige opslag/kommentarer; træf i en kommentar peger på kommentaren."""
+    """Fritekst i titel, tekst og kommentarer (dansk tsvector, ordbegyndelser). Kun synlige opslag/kommentarer; træf i en kommentar peger på kommentaren."""
     q = (q or "").strip()
     if len(q) < 2:
         raise SnakError(400, "Skriv mindst to bogstaver")
-    where, args = ["p.status = 'synlig'"], {"q": q[:200], "lim": limit + 1, "off": offset, "a": HL[0], "b": HL[1]}
+    if not (tsq := prefix_query(q)):
+        return {"rows": [], "more": False}
+    where, args = ["p.status = 'synlig'"], {"q": tsq, "lim": limit + 1, "off": offset, "a": HL[0], "b": HL[1]}
     if category:
         where.append("c.slug = :cat")
         args["cat"] = category
@@ -549,7 +565,7 @@ async def search(session: AsyncSession, *, q: str, category: str | None = None, 
         where.append("EXISTS (SELECT 1 FROM content_media m WHERE m.owner_kind = 'snak' AND m.owner_id = p.id)")
     w = " AND ".join(where)
     rows = (await session.execute(text(f"""
-        WITH query AS (SELECT websearch_to_tsquery('danish', :q) AS q), hits AS (
+        WITH query AS (SELECT to_tsquery('danish', :q) AS q), hits AS (
           SELECT 'post' AS kind, p.id AS post_id, NULL::int AS comment_id, ts_rank(p.search, query.q) AS rank, p.created_at, p.user_id, p.eksempel_navn,
                  coalesce(p.titel, '') || ' ' || coalesce(p.body_text, '') AS txt
           FROM sn_posts p JOIN sn_categories c ON c.id = p.category_id, query WHERE {w} AND p.search @@ query.q

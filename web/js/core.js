@@ -140,7 +140,7 @@ export function ago(iso) {
   if (s < 60) return "lige nu";
   if (s < 3600) return `${Math.floor(s / 60)} min. siden`;
   if (s < 86400) return `${Math.floor(s / 3600)} t. siden`;
-  return fmtDate(iso, false);
+  return fmtDate(iso, new Date(iso).getFullYear() !== new Date().getFullYear()); // årstal på alt, der ikke er fra i år
 }
 export const todayISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 export function doyToDate(doy, year = 2025) { const d = new Date(year, 0, 1); d.setDate(Math.round(doy)); return d; }
