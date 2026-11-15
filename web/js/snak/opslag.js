@@ -73,7 +73,7 @@ export function postCard(post, { inFeed = false, cfg, categories, reload = () =>
   const countEl = h("span", { class: "sn-count", title: "Kommentarer" }, `💬 ${post.n_comments}`);
   const comments = commentBlock(post, { inFeed, feed: cfg?.feed, highlight, onCount: () => {} });
   const commentBtn = h("button", { type: "button", class: "sn-act-btn", onclick: () => { if (inFeed) { location.hash = `${BASE}/${post.id}`; } else comments.querySelector("textarea")?.focus(); } },
-    h("span", { "aria-hidden": "true" }, "💬"), h("span", {}, "Kommentér"));
+    h("span", { "aria-hidden": "true" }, "💬"), h("span", {}, inFeed ? "Se alle" : "Kommentér"));
   const react = reactionWidget("post", post.id, post.reactions);
   const titleId = `sp${post.id}`;
   const card = h("article", { class: `sn-card ${post.status === "skjult" ? "hidden" : ""}`, "aria-labelledby": post.titel ? titleId : undefined, "data-id": post.id },

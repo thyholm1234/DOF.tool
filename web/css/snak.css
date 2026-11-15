@@ -251,3 +251,10 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
   .sn-compose textarea { field-sizing: content; min-height: 38px; max-height: 240px; }
   .sn-composer textarea { field-sizing: content; min-height: 120px; max-height: 60dvh; }
 }
+
+/* Mobil: tekstfeltet får hele bredden, og knapperne ligger under det i stedet for at klemme det */
+@media (max-width: 640px) {
+  .sn-compose-row { flex-wrap: wrap; align-items: center; }
+  .sn-compose-row textarea { flex: 1 1 100%; }
+  .sn-compose-row .btn { margin-inline-start: auto; }
+}
