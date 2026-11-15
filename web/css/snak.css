@@ -258,3 +258,7 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
   .sn-compose-row textarea { flex: 1 1 100%; }
   .sn-compose-row .btn { margin-inline-start: auto; }
 }
+
+/* Artschip i opslag og kommentarer ([[art:N]]) – samme udtryk som i artiklerne */
+a.art-chip { display: inline-block; font-size: .8em; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-strong); text-decoration: none; color: var(--text-2); background: var(--surface); white-space: nowrap; }
+a.art-chip:hover { background: var(--brand-soft); }
