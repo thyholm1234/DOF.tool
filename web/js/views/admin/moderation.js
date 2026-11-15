@@ -24,7 +24,7 @@ async function modArticles(body) {
 async function modSnak(body) {
   const { loadCss } = await import("../../snak/common.js");
   loadCss("snak");
-  body.append(h("div", { class: "snak" }, await (await import("../../snak/admin.js")).commentQueue()));
+  body.append(h("div", { class: "snak sn-embed" }, await (await import("../../snak/admin.js")).commentQueue()));
 }
 
 async function modComments(body) {

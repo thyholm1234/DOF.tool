@@ -9678,6 +9678,13 @@ false,
 "params": []
 }
 },
+"/api/snak/mine": {
+"get": {
+"body": false,
+"op": "mine_api_snak_mine_get",
+"params": []
+}
+},
 "/api/snak/notifikationer": {
 "get": {
 "body": false,
@@ -9690,11 +9697,75 @@ false,
 "params": []
 }
 },
+"/api/snak/panel": {
+"get": {
+"body": false,
+"op": "panel_api_snak_panel_get",
+"params": [
+[
+"since",
+"query",
+false,
+"{\"anyOf\": [{\"format\": \"date-time\", \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Since\"}"
+]
+]
+}
+},
 "/api/snak/render": {
 "post": {
 "body": true,
 "op": "render_api_snak_render_post",
 "params": []
+}
+},
+"/api/snak/soeg": {
+"get": {
+"body": false,
+"op": "soeg_api_snak_soeg_get",
+"params": [
+[
+"art",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Art\"}"
+],
+[
+"billeder",
+"query",
+false,
+"{\"default\": false, \"title\": \"Billeder\", \"type\": \"boolean\"}"
+],
+[
+"dage",
+"query",
+false,
+"{\"anyOf\": [{\"maximum\": 3650, \"minimum\": 1, \"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Dage\"}"
+],
+[
+"kategori",
+"query",
+false,
+"{\"anyOf\": [{\"maxLength\": 40, \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Kategori\"}"
+],
+[
+"offset",
+"query",
+false,
+"{\"default\": 0, \"maximum\": 10000, \"minimum\": 0, \"title\": \"Offset\", \"type\": \"integer\"}"
+],
+[
+"q",
+"query",
+false,
+"{\"default\": \"\", \"maxLength\": 200, \"title\": \"Q\", \"type\": \"string\"}"
+],
+[
+"uloeste",
+"query",
+false,
+"{\"default\": false, \"title\": \"Uloeste\", \"type\": \"boolean\"}"
+]
+]
 }
 },
 "/api/snak/vedhaeft/soeg": {

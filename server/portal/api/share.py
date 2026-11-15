@@ -116,6 +116,24 @@ async def share_thread(day: date, artnr: int, loknr: int, request: Request, db: 
     return HTMLResponse(_page(title, og, body, login_url), headers={"Cache-Control": "no-cache"})
 
 
+@router.get("/del/snak/{post_id}")
+async def share_snak(post_id: int, request: Request):
+    """Delelink til et Snak-opslag. Snak kræver login, så gæster får aldrig indholdet at se – kun en opfordring til at logge ind
+    (samme side, uanset om opslaget findes, så linket ikke afslører noget)."""
+    app_url = f"/#/snak/{post_id}"
+    if await auth_service.session_user_id(request.cookies.get(COOKIE)):
+        return RedirectResponse(app_url, status_code=302)
+    login_url = escape(f"/#/login?next={quote('#' + app_url[2:], safe='')}")
+    body = f"""
+      <section class="card share-cta">
+        <h1>Et opslag i Snak</h1>
+        <p>Snak er fuglekiggernes sted i DOF.tool til opslag, spørgsmål og diskussioner. Log ind med din obserkode fra DOFbasen for at se opslaget – det er gratis.</p>
+        <div class="share-actions"><a class="btn primary" href="{login_url}">Log ind og se opslaget</a></div>
+      </section>"""
+    og = '<meta property="og:site_name" content="DOF.tool"><meta property="og:title" content="Et opslag i Snak"><meta name="robots" content="noindex">'
+    return HTMLResponse(_page("Et opslag i Snak", og, body, login_url), headers={"Cache-Control": "no-cache"})
+
+
 def _page(title: str, head: str, body: str, login_url: str) -> str:
     return f"""<!doctype html>
 <html lang="da">

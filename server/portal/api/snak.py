@@ -4,6 +4,8 @@ Alt kræver, at funktionen «snak» er synlig for brugeren (Admin → Funktioner
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -178,6 +180,26 @@ async def notifikationer(user: User = Depends(require_user), acc: snak_access.Ac
 async def sæt_notifikationer(body: PrefsIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need("snak_notifikationer")), db: AsyncSession = Depends(get_session)):
     await snak_notify.set_prefs(db, user.id, body.valg)
     return await snak_notify.get_prefs(db, user.id)
+
+
+@router.get("/soeg")
+async def soeg(q: str = Query("", max_length=200), kategori: str | None = Query(None, max_length=40), art: int | None = None, dage: int | None = Query(None, ge=1, le=3650),
+               uloeste: bool = False, billeder: bool = False, offset: int = Query(0, ge=0, le=10000),
+               acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    try:
+        return await snak.search(db, q=q, category=kategori, art=art, days=dage, uloeste=uloeste, billeder=billeder, offset=offset)
+    except snak.SnakError as e:
+        raise _wrap(e) from e
+
+
+@router.get("/mine")
+async def mine(user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    return await snak.mine(db, user)
+
+
+@router.get("/panel")
+async def panel(since: datetime | None = None, acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+    return await snak.panel(db, since)
 
 
 @router.get("/admin/koe")

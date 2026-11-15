@@ -6,7 +6,7 @@ const MAX_IMAGES = 10, MAX_ARTER = 5;
 const ATT_TABS = [["artikel", "Artikel"], ["foto", "Foto"], ["art", "Art"], ["lokalitet", "Lokalitet"], ["traad", "Observationer"], ["link", "Link"]];
 
 /** Søgevælger i en modal: søger på serveren og kalder onPick({ref, title, teaser}). */
-function searchPicker(type, title, onPick) {
+export function searchPicker(type, title, onPick) {
   const q = h("input", { type: "search", placeholder: "Søg …", "aria-label": "Søg" });
   const out = h("div", { class: "sn-pick-list stack" }, h("p", { class: "muted" }, "Skriv mindst to bogstaver."));
   let t = 0;
@@ -118,11 +118,17 @@ export function composer({ categories, post = null, category = null, onDone, onC
       if (!rows) { const { rows: found } = await api(`/api/snak/vedhaeft/soeg?type=${type}&q=${encodeURIComponent(ref)}`).catch(() => ({ rows: [] })); const hit = found.find(r => r.ref === ref); st.attachment.snapshot = { type, title: hit?.title || ref, teaser: hit?.teaser }; draw(); }
     } catch (e) { toast(e.message, "err"); }
   }
-  // Et indsat link i teksten kan blive til et linkkort
-  body.addEventListener("change", () => {
-    suggest.replaceChildren();
-    const m = on("snak_links") && !st.attachment && body.value.match(/https?:\/\/[^\s)]+/);
-    if (m) suggest.append(h("button", { type: "button", class: "sn-suggest", onclick: () => { suggest.replaceChildren(); attach({ type: "link", ref: m[0] }); } }, `Vis et kort for ${new URL(m[0]).hostname}?`));
+  // Et indsat link i teksten kan blive til et linkkort. Forslaget vises under skrivningen (ikke ved blur), så layoutet ikke flytter sig lige før et klik på «Slå op».
+  let suggestTimer = 0;
+  body.addEventListener("input", () => {
+    clearTimeout(suggestTimer);
+    suggestTimer = setTimeout(() => {
+      suggest.replaceChildren();
+      const m = on("snak_links") && !st.attachment && body.value.match(/https?:\/\/[^\s)]+/);
+      let host = "";
+      try { host = m ? new URL(m[0]).hostname : ""; } catch { /* ugyldigt link: intet forslag */ }
+      if (host) suggest.append(h("button", { type: "button", class: "sn-suggest", onclick: () => { suggest.replaceChildren(); attach({ type: "link", ref: m[0] }); } }, `Vis et kort for ${host}?`));
+    }, 700);
   });
   draw();
 

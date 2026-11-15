@@ -90,6 +90,7 @@ class SnComment(Base):
     __table_args__ = (
         Index("ix_sn_comments_post", "post_id", "parent_id", "created_at"),
         Index("ix_sn_comments_user", "user_id"),
+        Index("ix_sn_comments_parent", "parent_id", "status"),  # n_svar og svar pr. topniveau-kommentar (feedets forhåndsvisning)
         Index("ix_sn_comments_search", "search", postgresql_using="gin"),
     )
 

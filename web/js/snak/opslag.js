@@ -13,7 +13,7 @@ function menu(post, { reload, categories }) {
   const items = [];
   const call = async (path, opts, msg) => { try { await api(path, opts); if (msg) toast(msg); await reload(); } catch (e) { toast(e.message, "err"); } };
   items.push(post.following ? ["Følg ikke", () => call(`/api/snak/${post.id}/foelg`, { method: "DELETE" })] : ["Følg", () => call(`/api/snak/${post.id}/foelg`, { method: "POST" })]);
-  items.push(["Kopiér link", async () => { try { await navigator.clipboard.writeText(`${location.origin}/${BASE}/${post.id}`); toast("Link kopieret"); } catch { toast("Kunne ikke kopiere", "err"); } }]);
+  items.push(["Kopiér link", async () => { try { await navigator.clipboard.writeText(`${location.origin}/del/snak/${post.id}`); toast("Link kopieret"); } catch { toast("Kunne ikke kopiere", "err"); } }]);
   if (!post.mine && !post.eksempel) items.push(["Anmeld", () => reportDialog("post", post.id, reload)]);
   if (post.mine) {
     items.push(["Ret", () => { location.hash = `${BASE}/${post.id}/rediger`; }]);

@@ -2,7 +2,7 @@
 import { h, errorBox, requireLogin, state } from "../core.js";
 import { BASE, NAME, cleanups, ctx, loadCss, loadingBox, notice, on } from "../snak/common.js";
 
-const MODULES = { feed: () => import("../snak/feed.js"), opslag: () => import("../snak/opslag.js"), admin: () => import("../snak/admin.js") };
+const MODULES = { feed: () => import("../snak/feed.js"), opslag: () => import("../snak/opslag.js"), admin: () => import("../snak/admin.js"), soeg: () => import("../snak/soeg.js"), mine: () => import("../snak/mine.js") };
 
 function route(parts) {
   const [a, b] = parts;
@@ -10,6 +10,8 @@ function route(parts) {
   if (a === "k" && b) return ["feed", "page", ""];
   if (a === "ny") return ["opslag", "ny", ""];
   if (a === "admin") return ["admin", "page", "admin"];
+  if (a === "soeg") return ["soeg", "page", "soeg"];
+  if (a === "mine") return ["mine", "page", "mine"];
   if (/^\d+$/.test(a)) return ["opslag", b === "rediger" ? "ret" : "page", ""];
   return null;
 }
@@ -30,10 +32,14 @@ export async function render(view, [sub]) {
   }
   const parts = (sub || "").split("/").filter(Boolean);
   const spec = route(parts);
-  const tabs = [["", "Feed"], ...(ctx().can_admin ? [["admin", "Admin"]] : [])];
+  const tabs = [["", "Feed"], ["soeg", "Søg"], ["mine", "Mine"], ...(ctx().can_admin ? [["admin", "Admin"]] : [])];
   const content = h("div", {}, loadingBox());
   view.replaceChildren(h("div", { class: "snak" },
     h("nav", { class: "sn-tabs", "aria-label": NAME }, h("div", { class: "seg" }, ...tabs.map(([k, t]) => h("a", { href: k ? `${BASE}/${k}` : BASE, class: spec?.[2] === k ? "on" : "", "aria-current": spec?.[2] === k ? "page" : undefined }, t))),
+      h("span", { class: "spacer" }),
+      h("form", { class: "sn-search", role: "search", onsubmit: (e) => { e.preventDefault(); const v = e.target.q.value.trim(); location.hash = `${BASE}/soeg${v ? `?q=${encodeURIComponent(v)}` : ""}`; } },
+        h("input", { type: "search", name: "q", placeholder: `Søg i ${NAME} …`, "aria-label": `Søg i ${NAME}` })),
+      h("a", { class: "btn primary sm", href: `${BASE}/ny` }, "+ Nyt opslag"),
       on("snak_notifikationer") ? h("button", { type: "button", class: "icon-btn", "aria-label": "Notifikationer fra Snak", title: "Notifikationer", onclick: bell }, "🔔") : null),
     content));
   try {

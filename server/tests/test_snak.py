@@ -491,3 +491,87 @@ async def test_admin_kategorier_indstillinger_eksempler(web, db):
     assert (await web["ed"].delete("/api/snak/admin/eksempler")).json() == {"deleted": 5}
     st = (await web["ed"].get("/api/snak/admin/statistik")).json()
     assert len(st["uger"]) == 12 and st["total"]["opslag"] == 1 and st["aktive_30d"] >= 1 and st["kategorier"]
+
+
+async def test_soeg_mine_panel_og_del(web, db):
+    from portal.services import snak_seed
+
+    async with db() as s:
+        await snak_seed.seed_examples(s)
+    # fritekst i titel, tekst og kommentarer; træf i kommentar peger på kommentaren; uddraget markerer træffet uden HTML
+    r = (await web["a1"].get("/api/snak/soeg", params={"q": "kaspisk"})).json()
+    assert r["rows"] and any(x["kind"] == "comment" and x["comment_id"] for x in r["rows"]) and any(x["kind"] == "post" for x in r["rows"])
+    assert all("\x02" in x["uddrag"] and "<mark" not in x["uddrag"] for x in r["rows"])
+    assert (await web["a1"].get("/api/snak/soeg", params={"q": "k"})).status_code == 400
+    assert (await web["anon"].get("/api/snak/soeg", params={"q": "kaspisk"})).status_code == 401
+    only = (await web["a1"].get("/api/snak/soeg", params={"q": "kaspisk", "kategori": "diskussion"})).json()
+    assert only["rows"] == []
+    assert (await web["a1"].get("/api/snak/soeg", params={"q": "måge", "uloeste": "true"})).json()["rows"] == []  # den eneste bestemmelse er løst
+    assert (await web["a1"].get("/api/snak/soeg", params={"q": "vejlerne", "billeder": "true"})).json()["rows"] == []
+    assert (await web["a1"].get("/api/snak/soeg", params={"q": "vejlerne", "dage": 30})).json()["rows"]
+    # skjult og slettet indhold findes ikke
+    pid = await new_post(web["a1"], titel="Unik nøgleformulering")
+    assert (await web["a2"].get("/api/snak/soeg", params={"q": "nøgleformulering"})).json()["rows"][0]["post_id"] == pid
+    await web["mo"].post(f"/api/snak/{pid}/moderer", json={"action": "skjul"})
+    assert (await web["a2"].get("/api/snak/soeg", params={"q": "nøgleformulering"})).json()["rows"] == []
+    # mine + nye kommentarer siden sidst
+    await web["mo"].post(f"/api/snak/{pid}/moderer", json={"action": "vis"})
+    other = await new_post(web["a2"], titel="Fælles tråd")
+    await web["a1"].post(f"/api/snak/{other}/kommentarer", json={"body": "første"})  # a1 følger nu
+    await web["a2"].post(f"/api/snak/{other}/kommentarer", json={"body": "svar fra ejeren"})
+    m = (await web["a1"].get("/api/snak/mine")).json()
+    assert [p["id"] for p in m["opslag"]] == [pid] and m["foelger"][0]["id"] == other and m["foelger"][0]["nye"] == 1
+    await web["a1"].post(f"/api/snak/{other}/visning")
+    assert (await web["a1"].get("/api/snak/mine")).json()["foelger"][0]["nye"] == 0
+    # sidepanel
+    p = (await web["a1"].get("/api/snak/panel")).json()
+    assert len(p["kategorier"]) == 8 and all(c["nye"] == 0 for c in p["kategorier"]) and p["aktive"] and isinstance(p["uloeste"], list)
+    p = (await web["a1"].get("/api/snak/panel", params={"since": "2020-01-01T00:00:00Z"})).json()
+    assert sum(c["nye"] for c in p["kategorier"]) >= 6
+    # delelink: indloggede sendes videre, gæster ser aldrig indholdet
+    r = await web["a1"].get(f"/del/snak/{pid}", follow_redirects=False)
+    assert r.status_code == 302 and r.headers["location"] == f"/#/snak/{pid}"
+    r = await web["anon"].get(f"/del/snak/{pid}")
+    assert r.status_code == 200 and "Unik nøgleformulering" not in r.text and "Log ind" in r.text
+
+
+async def test_feed_ydelse(web, db):
+    """Acceptkriterie 17: feedet svarer < 150 ms ved 10.000 opslag og 100.000 kommentarer (første side og en side langt nede)."""
+    import time
+
+    async with db() as s:
+        await s.execute(text("""
+            INSERT INTO sn_posts (category_id, user_id, titel, body_md, body_html, body_text, n_comments, last_activity_at, created_at)
+            SELECT 1 + g % 5, 1 + g % 5, 'Opslag ' || g, 'Tekst ' || g, '<p>Tekst ' || g || '</p>', 'Tekst ' || g, 10,
+                   now() - make_interval(mins => g), now() - make_interval(mins => g)
+            FROM generate_series(1, 10000) g"""))
+        await s.execute(text("""
+            INSERT INTO sn_comments (post_id, user_id, body_md, body_html, body_text, created_at)
+            SELECT p.id, 1 + c % 5, 'Kommentar ' || c, '<p>Kommentar ' || c || '</p>', 'Kommentar ' || c, p.created_at + make_interval(secs => c)
+            FROM sn_posts p, generate_series(1, 10) c"""))
+        await s.execute(text("""
+            INSERT INTO sn_comments (post_id, parent_id, user_id, body_md, body_html, body_text, created_at)
+            SELECT post_id, id, 1, 'Svar', '<p>Svar</p>', 'Svar', created_at + interval '1 minute' FROM sn_comments WHERE id % 2 = 0"""))
+        await s.execute(text("""INSERT INTO sn_reactions (user_id, kind, target_id, type) SELECT 1 + g % 5, 'post', 1 + (g / 5) % 10000, 'like' FROM generate_series(1, 30000) g ON CONFLICT DO NOTHING"""))
+        await s.commit()
+        for t in ("sn_posts", "sn_comments", "sn_reactions"):
+            await s.execute(text(f"ANALYZE {t}"))
+        await s.commit()
+    for params in ({}, {"sort": "nyeste"}, {"sort": "populaere"}, {"kategori": "fund"}):
+        r = await web["a1"].get("/api/snak/feed", params=params)
+        assert r.status_code == 200 and len(r.json()["posts"]) == 15 and r.json()["next"]
+        times = []
+        for _ in range(5):
+            t0 = time.perf_counter()
+            r = await web["a1"].get("/api/snak/feed", params=params)
+            times.append(time.perf_counter() - t0)
+        times.sort()
+        print(f"feed {params}: median {times[2] * 1000:.0f} ms, max {times[-1] * 1000:.0f} ms")
+        assert times[2] < 0.15, f"feedet er for langsomt ({params}): {times[2] * 1000:.0f} ms"
+    cur = (await web["a1"].get("/api/snak/feed")).json()["next"]
+    for _ in range(100):  # en side langt nede
+        d = (await web["a1"].get("/api/snak/feed", params={"cursor": cur})).json()
+        cur = d["next"]
+    t0 = time.perf_counter()
+    assert (await web["a1"].get("/api/snak/feed", params={"cursor": cur})).status_code == 200
+    assert time.perf_counter() - t0 < 0.15

@@ -4,6 +4,7 @@ import { live } from "../live.js";
 import { BASE, cleanups, loadCss, loadingBox } from "./common.js";
 import { postCard } from "./opslag.js";
 import { composer } from "./composer.js";
+import { panel } from "./panel.js";
 
 const SORTS = [["aktivitet", "Seneste aktivitet"], ["nyeste", "Nyeste opslag"], ["populaere", "Populære"]];
 
@@ -90,7 +91,9 @@ export async function page(parts) {
     chips,
     cat?.har_loesning ? h("label", { class: "check" }, h("input", { type: "checkbox", onchange: (e) => { uloeste = e.target.checked; loadPage(true); } }), h("span", {}, "Kun uløste")) : null,
     compose, newBtn, list, sentinel);
+  const side = panel(slug);
+  const layout = h("div", { class: "sn-layout" }, root, side);
   loadPage(true);
   document.title = `${cat ? cat.navn + " – " : ""}Snak`;
-  return root;
+  return layout;
 }

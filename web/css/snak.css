@@ -192,3 +192,43 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 .sn-bar-row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr auto; gap: 10px; align-items: center; }
 .sn-bar-track { background: var(--bg-2); border-radius: 99px; height: 10px; overflow: hidden; }
 .sn-bar-fill { display: block; height: 100%; border-radius: 99px; min-width: 2px; }
+
+/* nav: søgefelt og «Nyt opslag» */
+.sn-tabs { flex-wrap: wrap; }
+.sn-tabs .icon-btn { margin-left: 0; }
+.sn-search input { width: 190px; max-width: 100%; }
+
+/* sidepanel (desktop) */
+.snak:has(.sn-layout) { max-width: 1060px; }
+.sn-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.sn-panel { display: none; }
+@media (min-width: 960px) {
+  .sn-layout { grid-template-columns: minmax(0, 1fr) 270px; }
+  .sn-panel { display: flex; flex-direction: column; gap: 14px; position: sticky; top: calc(var(--top-h, 56px) + 12px); }
+}
+.sn-panel-h { margin: 0 0 6px; font-size: .95rem; }
+.sn-panel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sn-panel-list li { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.sn-panel-list a { color: var(--text); font-size: .88rem; overflow-wrap: anywhere; }
+.sn-panel-list a.on { font-weight: 700; }
+.sn-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+.sn-new-count { color: var(--brand); font-weight: 650; margin-left: 16px; }
+
+/* søgeresultater og Mine */
+.sn-hit { gap: 6px; }
+.sn-hit .sn-title { font-size: 1.05rem; font-weight: 650; margin: 0; }
+.sn-snip { margin: 0; overflow-wrap: anywhere; }
+.sn-snip mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+
+/* skjulte elementer forbliver skjulte, selv når en knap-klasse sætter display */
+.snak [hidden] { display: none !important; }
+/* tomme pladsholdere i composeren må ikke give mellemrum i stakken */
+.sn-composer > div:empty { display: none; }
+
+.sn-admin-cat input[type="color"] { width: 44px; height: 36px; padding: 2px; flex: none; }
+.snak.sn-embed { max-width: none; padding: 0; margin: 0; }
+@media (max-width: 640px) {
+  .sn-search { order: 5; flex: 1 1 100%; }
+  .sn-search input { width: 100%; }
+  .sn-tabs .spacer { flex: 1; }
+}

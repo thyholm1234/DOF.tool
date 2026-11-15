@@ -1,6 +1,6 @@
 # Snak – specifikation af nyt modul (til implementering)
 
-Status: specifikation, 14. november 2026. Skrevet til at blive bygget trin for trin (fase 1–4, §13) af en anden model.
+Status: implementeret (fase 1–4), 15. november 2026. Oprindelig status: specifikation, 14. november 2026. Skrevet til at blive bygget trin for trin (fase 1–4, §13) af en anden model.
 Læs `docs/arkitektur.md` først – alle regler dér gælder. Denne fil siger *hvad* der skal bygges og *hvor*; den
 gentager ikke arkitekturreglerne. Arbejdsnavnet er **Snak** (`#/snak`); navnet står ét sted i frontend (`snak/common.js`)
 og i funktionsflagets tekst, så det er nemt at ændre (§15).

@@ -236,9 +236,10 @@ async def feed(session: AsyncSession, user: User, *, staff: bool, sort: str = "a
     if sort not in SORTS:
         raise SnakError(400, "Ukendt sortering")
     cfg = await settings(session)
-    key = {"aktivitet": "p.last_activity_at", "nyeste": "p.created_at",
-           "populaere": """(SELECT count(*) FROM sn_reactions r WHERE r.kind = 'post' AND r.target_id = p.id AND r.created_at > now() - interval '7 days')
-                           + (SELECT count(*) FROM sn_comments k WHERE k.post_id = p.id AND k.status = 'synlig' AND k.created_at > now() - interval '7 days')"""}[sort]
+    key = {"aktivitet": "p.last_activity_at", "nyeste": "p.created_at", "populaere": "(coalesce(rr.n, 0) + coalesce(kk.n, 0))"}[sort]
+    # Populære: reaktioner + kommentarer de seneste 7 dage – to aggregeringer i stedet for en korreleret delforespørgsel pr. opslag
+    joins = """ LEFT JOIN (SELECT target_id, count(*) AS n FROM sn_reactions WHERE kind = 'post' AND created_at > now() - interval '7 days' GROUP BY target_id) rr ON rr.target_id = p.id
+                LEFT JOIN (SELECT post_id, count(*) AS n FROM sn_comments WHERE status = 'synlig' AND created_at > now() - interval '7 days' GROUP BY post_id) kk ON kk.post_id = p.id""" if sort == "populaere" else ""
     where = ["p.status = 'synlig'", "p.pinned_at IS NULL"]
     args: dict = {"viewer": user.id, "lim": limit + 1}
     if category:
@@ -254,7 +255,7 @@ async def feed(session: AsyncSession, user: User, *, staff: bool, sort: str = "a
         else:
             where.append(f"({key}, p.id) < (:ck, :ci)")
             args.update(ck=datetime.fromisoformat(str(k)), ci=int(i))
-    rows = (await session.execute(text(f"{select(f', ({key}) AS sort_key')} WHERE {' AND '.join(w for w in where if w)} ORDER BY sort_key DESC, p.id DESC LIMIT :lim"),
+    rows = (await session.execute(text(f"{select(f', ({key}) AS sort_key')}{joins} WHERE {' AND '.join(w for w in where if w)} ORDER BY sort_key DESC, p.id DESC LIMIT :lim"),
                                   args)).mappings().all()
     more = len(rows) > limit
     rows = rows[:limit]
@@ -477,9 +478,84 @@ async def set_follow(session: AsyncSession, user_id: int, post_id: int, on: bool
 
 
 async def register_view(session: AsyncSession, user_id: int, post_id: int) -> None:
-    """En visning tælles én gang pr. bruger pr. døgn."""
+    """En visning tælles én gang pr. bruger pr. døgn. At åbne tråden tæller også som «set» for dem, der følger den (nye kommentarer i Mine)."""
+    await session.execute(text("UPDATE sn_follows SET last_seen_at = now() WHERE post_id = :p AND user_id = :u"), {"p": post_id, "u": user_id})
     ins = (await session.execute(text("""INSERT INTO sn_views (post_id, user_id, dag) SELECT :p, :u, current_date WHERE EXISTS (SELECT 1 FROM sn_posts WHERE id = :p AND status = 'synlig')
                                           ON CONFLICT DO NOTHING RETURNING 1"""), {"p": post_id, "u": user_id})).first()
     if ins:
         await session.execute(text("UPDATE sn_posts SET views = views + 1 WHERE id = :p"), {"p": post_id})
     await session.commit()
+
+
+# ---------------------------------------------------------------- søg, mine og sidepanel (fase 4)
+
+HL = ("\x02", "\x03")  # markering af træf i uddraget; frontend bygger <mark> selv, så brugerens tekst aldrig tolkes som HTML
+
+
+async def search(session: AsyncSession, *, q: str, category: str | None = None, art: int | None = None, days: int | None = None, uloeste: bool = False,
+                 billeder: bool = False, offset: int = 0, limit: int = 20) -> dict:
+    """Fritekst i titel, tekst og kommentarer (dansk tsvector). Kun synlige opslag/kommentarer; træf i en kommentar peger på kommentaren."""
+    q = (q or "").strip()
+    if len(q) < 2:
+        raise SnakError(400, "Skriv mindst to bogstaver")
+    where, args = ["p.status = 'synlig'"], {"q": q[:200], "lim": limit + 1, "off": offset, "a": HL[0], "b": HL[1]}
+    if category:
+        where.append("c.slug = :cat")
+        args["cat"] = category
+    if art:
+        where.append("p.arter @> ARRAY[CAST(:art AS int)]")
+        args["art"] = art
+    if days:
+        where.append("p.created_at > now() - make_interval(days => :days)")
+        args["days"] = days
+    if uloeste:
+        where.append("c.har_loesning AND p.solution_comment_id IS NULL")
+    if billeder:
+        where.append("EXISTS (SELECT 1 FROM content_media m WHERE m.owner_kind = 'snak' AND m.owner_id = p.id)")
+    w = " AND ".join(where)
+    rows = (await session.execute(text(f"""
+        WITH query AS (SELECT websearch_to_tsquery('danish', :q) AS q), hits AS (
+          SELECT 'post' AS kind, p.id AS post_id, NULL::int AS comment_id, ts_rank(p.search, query.q) AS rank, p.created_at, p.user_id, p.eksempel_navn,
+                 coalesce(p.titel, '') || ' ' || coalesce(p.body_text, '') AS txt
+          FROM sn_posts p JOIN sn_categories c ON c.id = p.category_id, query WHERE {w} AND p.search @@ query.q
+          UNION ALL
+          SELECT 'comment', p.id, k.id, ts_rank(k.search, query.q), k.created_at, k.user_id, k.eksempel_navn, coalesce(k.body_text, '')
+          FROM sn_comments k JOIN sn_posts p ON p.id = k.post_id JOIN sn_categories c ON c.id = p.category_id, query WHERE {w} AND k.status = 'synlig' AND k.search @@ query.q)
+        SELECT h.kind, h.post_id, h.comment_id, h.created_at, p.titel, c.navn AS kategori, c.slug, c.farve, coalesce(u.navn, u.obserkode, h.eksempel_navn) AS navn,
+               ts_headline('danish', h.txt, query.q, 'MaxWords=34, MinWords=14, ShortWord=2, StartSel=' || :a || ', StopSel=' || :b) AS uddrag
+        FROM (SELECT * FROM hits ORDER BY rank DESC, created_at DESC LIMIT :lim OFFSET :off) h
+        JOIN sn_posts p ON p.id = h.post_id JOIN sn_categories c ON c.id = p.category_id LEFT JOIN users u ON u.id = h.user_id, query
+        ORDER BY h.rank DESC, h.created_at DESC"""), args)).mappings().all()
+    return {"rows": [{**dict(r), "created_at": _iso(r["created_at"])} for r in rows[:limit]], "more": len(rows) > limit}
+
+
+async def mine(session: AsyncSession, user: User) -> dict:
+    """«Mine opslag» og «Tråde jeg følger» med antal nye kommentarer siden brugeren sidst åbnede tråden."""
+    own = (await session.execute(text("""
+        SELECT p.id, p.titel, left(p.body_text, 120) AS uddrag, p.status, p.n_comments, p.n_reactions, p.created_at, c.navn AS kategori, c.slug, c.farve
+        FROM sn_posts p JOIN sn_categories c ON c.id = p.category_id WHERE p.user_id = :u AND p.status IN ('synlig', 'skjult') ORDER BY p.created_at DESC LIMIT 50"""), {"u": user.id})).mappings().all()
+    followed = (await session.execute(text("""
+        SELECT p.id, p.titel, left(p.body_text, 120) AS uddrag, p.n_comments, p.last_activity_at, c.navn AS kategori, c.slug, c.farve,
+               (SELECT count(*) FROM sn_comments k WHERE k.post_id = p.id AND k.status = 'synlig' AND k.user_id IS DISTINCT FROM :u
+                AND k.created_at > coalesce(f.last_seen_at, f.created_at)) AS nye
+        FROM sn_follows f JOIN sn_posts p ON p.id = f.post_id JOIN sn_categories c ON c.id = p.category_id
+        WHERE f.user_id = :u AND NOT f.muted AND p.status = 'synlig' AND p.user_id IS DISTINCT FROM :u ORDER BY nye DESC, p.last_activity_at DESC LIMIT 50"""), {"u": user.id})).mappings().all()
+    fix = lambda rows, *cols: [{**dict(r), **{c: _iso(r[c]) for c in cols}} for r in rows]  # noqa: E731
+    return {"opslag": fix(own, "created_at"), "foelger": fix(followed, "last_activity_at")}
+
+
+async def panel(session: AsyncSession, since: datetime | None) -> dict:
+    """Sidepanelet: kategorier med antal opslag med aktivitet siden sidste besøg, uløste bestemmelser og de mest aktive tråde i ugen."""
+    cats = (await session.execute(text("""
+        SELECT c.id, c.slug, c.navn, c.farve,
+               (SELECT count(*) FROM sn_posts p WHERE p.category_id = c.id AND p.status = 'synlig' AND CAST(:since AS timestamptz) IS NOT NULL AND p.last_activity_at > CAST(:since AS timestamptz)) AS nye
+        FROM sn_categories c WHERE NOT c.arkiveret ORDER BY c.sort, c.id"""), {"since": since})).mappings().all()
+    open_ = (await session.execute(text("""
+        SELECT p.id, coalesce(p.titel, left(p.body_text, 70)) AS titel, p.n_comments, p.created_at FROM sn_posts p JOIN sn_categories c ON c.id = p.category_id
+        WHERE p.status = 'synlig' AND c.har_loesning AND p.solution_comment_id IS NULL ORDER BY p.created_at DESC LIMIT 5"""))).mappings().all()
+    active = (await session.execute(text("""
+        SELECT * FROM (SELECT p.id, coalesce(p.titel, left(p.body_text, 70)) AS titel, p.n_comments,
+               (SELECT count(*) FROM sn_comments k WHERE k.post_id = p.id AND k.status = 'synlig' AND k.created_at > now() - interval '7 days')
+               + (SELECT count(*) FROM sn_reactions r WHERE r.kind = 'post' AND r.target_id = p.id AND r.created_at > now() - interval '7 days') AS score
+               FROM sn_posts p WHERE p.status = 'synlig' AND p.last_activity_at > now() - interval '7 days') t WHERE score > 0 ORDER BY score DESC, id DESC LIMIT 5"""))).mappings().all()
+    return {"kategorier": [dict(r) for r in cats], "uloeste": [{**dict(r), "created_at": _iso(r["created_at"])} for r in open_], "aktive": [dict(r) for r in active]}

@@ -290,6 +290,9 @@ Beskrivelse og beslutninger: `docs/snak-modul-spec.md`.
 * **Anmeld og moderation**: efter-moderation. Brugere anmelder opslag og kommentarer; når antallet når tærsklen (standard 3), skjules indholdet, til en moderator
   har set på det. Moderation → Snak har køen (anmeldte, skjulte, nye) med skjul/vis, afvis anmeldelser, lås tråd, skriv til bruger og udeluk. Alt logges under Aktivitet.
 * **Admin** (modulet `snak`): kategorier (opret, ret, sortér, arkivér, flyt opslag), indstillinger (fx kommentarer i feedet), eksempelopslag (slet/gendan) og statistik.
+* **Søg** i titel, tekst og kommentarer (dansk fuldtekst) med filtre på kategori, art, periode, uløste og billeder; træf i en kommentar fører til kommentaren. **Mine**: egne opslag og fulgte tråde med antal nye kommentarer.
+* **Sidepanel** (desktop): kategorier med nyt siden sidste besøg, uløste bestemmelser og mest aktive tråde i ugen. **Delelink** `/del/snak/<id>` sender indloggede til opslaget; gæster ser aldrig indholdet.
+* **Ydelse**: feedet svarer på ca. 30 ms (populære: ca. 120 ms) ved 10.000 opslag og 100.000 kommentarer (måles i `tests/test_snak.py`).
 * **Eksempelopslag**: fem opdigtede opslag med kommentarer seedes ved første opstart og er mærket «Eksempel».
 
 ## Fotos (`#/fotos`)
