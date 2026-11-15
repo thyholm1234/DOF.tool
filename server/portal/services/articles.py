@@ -31,11 +31,14 @@ LEFT JOIN LATERAL (
 # Forfatterne læses fra registret (art_authors); art_articles.authors er kun en kopi til tilbagerulning
 AUTHORS_SQL = """(SELECT coalesce(jsonb_agg(jsonb_build_object('navn', au.navn, 'id', au.id, 'user_id', au.user_id) ORDER BY x.sort, au.id), '[]'::jsonb)
     FROM art_article_authors x JOIN art_authors au ON au.id = x.author_id WHERE x.article_id = a.id)"""
+# Kommentarer: arkivets (art_comments, netfugl.dk) + artiklens Snak-opslag (services/snak_articles)
+COMMENTS_SQL = """((SELECT count(*) FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig')
+    + coalesce((SELECT sp.n_comments FROM sn_posts sp WHERE sp.article_id = a.id AND sp.status = 'synlig'), 0))"""
 CARD = f"""
     a.id, a.title, a.kind, a.sprog, a.source_url, a.dato, a.published_at, {AUTHORS_SQL} AS authors, a.lead, a.status, a.featured_until,
     left(a.body_text, 700) AS body_start, CASE WHEN a.body_text = '' THEN left(a.ocr_text, 700) END AS ocr_start,
     a.views_imported + a.views AS views,
-    (SELECT count(*) FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig') AS kommentarer,
+    {COMMENTS_SQL} AS kommentarer,
     c.cover_id, c.cover_kind, c.cover_thumb, c.cover_medium, c.cover_w, c.cover_h, c.cover_alt"""
 ORDER_NEWEST = "coalesce(a.published_at, a.dato) DESC, a.id DESC"
 
@@ -175,7 +178,7 @@ async def search(session: AsyncSession, *, q: str = "", mode: str = "ord", tags:
         "nyeste": ORDER_NEWEST,
         "aeldste": "a.dato ASC, a.id ASC",
         "mest_laest": "a.views_imported + a.views DESC, a.id DESC",
-        "mest_kommenteret": "(SELECT count(*) FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig') DESC, " + ORDER_NEWEST,
+        "mest_kommenteret": COMMENTS_SQL + " DESC, " + ORDER_NEWEST,
         "hits": "(SELECT max(s.hits) FROM art_species s WHERE s.article_id = a.id AND s.artnr = ANY(:arter)) DESC NULLS LAST, " + ORDER_NEWEST,
     }[sort if sort != "hits" or arter else "nyeste"]
     page = max(1, page)
@@ -286,7 +289,8 @@ async def detail(session: AsyncSession, aid: int, *, can_edit: bool, user_id: in
         SELECT a.id, a.netfugl_id, a.kind, a.sprog, a.title, a.lead, a.body_html, a.dato, a.published_at, {AUTHORS_SQL} AS authors, a.status, a.publish_at, a.featured_until,
                a.comments_open, a.source, a.source_url, a.views_imported + a.views AS views, a.cover_media_id, a.cover_caption, a.version,
                a.locally_edited, a.import_errors, a.body_md, a.uploaded_by, a.updated_at, left(a.body_text, 400) AS body_start,
-               (SELECT count(*) FROM art_comments k WHERE k.article_id = a.id AND k.status = 'synlig') AS kommentarer
+               a.snak_tekst, {COMMENTS_SQL} AS kommentarer,
+               (SELECT sp.id FROM sn_posts sp WHERE sp.article_id = a.id AND sp.status <> 'slettet') AS snak_post_id
         FROM art_articles a WHERE a.id = :i AND {vis(can_edit)}"""), {"i": aid})).mappings().first()
     if r is None:
         return None
@@ -310,8 +314,8 @@ async def detail(session: AsyncSession, aid: int, *, can_edit: bool, user_id: in
     species = [dict(s) for s in (await session.execute(text("""
         SELECT s.artnr, sp.navn, sp.latin, s.source, s.hits FROM art_species s JOIN species sp ON sp.artnr = s.artnr
         WHERE s.article_id = :i AND s.source <> 'fravalgt' ORDER BY (s.source = 'ocr'), sp.sortering NULLS LAST"""), {"i": aid})).mappings()]
-    sub = (await session.execute(text("SELECT muted FROM art_subscriptions WHERE user_id = :u AND kind = 'artikel' AND ref = :i"),
-                                 {"u": user_id, "i": aid})).first()
+    sub = (await session.execute(text("SELECT f.muted FROM sn_follows f JOIN sn_posts p ON p.id = f.post_id WHERE f.user_id = :u AND p.article_id = :i"),
+                                 {"u": user_id, "i": aid})).first()  # «følg artikel» = følg artiklens Snak-opslag
     cover = next((i for i in images if i["id"] == r["cover_media_id"]), None) or next((i for i in images if not i["inline"]), None) or (images[0] if images else None)
     pdf_cover = pdfs[0] if r["kind"] == "pdf" and pdfs else None
     out = {k: _iso(v) for k, v in dict(r).items() if k not in ("body_md", "body_start")}

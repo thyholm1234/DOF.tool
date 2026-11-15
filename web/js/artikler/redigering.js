@@ -1,5 +1,6 @@
 // Redigering af en artikel: titel + markdown-editor til venstre, metadata-panel til højre (manchet, forfattere, dato, emneord, forsidebillede,
-// status/planlagt publicering, fremhævning, kommentarer, kilde). Optimistisk låsning, revisioner og kladde i browseren.
+// status/planlagt publicering, fremhævning, kommentarer, kilde) og under editoren teksten til artiklens opslag i Snak.
+// Optimistisk låsning, revisioner og kladde i browseren.
 import { api, h, toast, modal, ask } from "../core.js";
 import { BASE, cleanups, dkDate, ctx, loadCss, loadingBox } from "./common.js";
 import { mdEditor } from "../editor/md-editor.js";
@@ -7,6 +8,18 @@ import { mediaPicker } from "../editor/media-picker.js";
 
 const local = (iso) => { if (!iso) return ""; const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 const toIso = (v) => v ? new Date(v).toISOString() : null;
+
+const SNAK_MAX = 2000, EXCERPT = 300;
+/** Første tekstafsnit i markdown som ren tekst (til «Start med et uddrag»): billeder, bokse og overskrifter springes over. */
+function firstText(md) {
+  const paras = (md || "").replace(/^:::.*$/gm, "\n").split(/\n\s*\n/).map(p => p
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^#{1,6}\s.*$/gm, "")
+    .replace(/[*_`~>]/g, "").replace(/\s+/g, " ").trim()).filter(p => p.length > 1);
+  const t = paras.join(" ");
+  if (t.length <= EXCERPT) return t;
+  const cut = t.slice(0, EXCERPT + 1);
+  return cut.slice(0, cut.lastIndexOf(" ") > EXCERPT / 2 ? cut.lastIndexOf(" ") : EXCERPT).replace(/[\s,;:–.-]+$/, "") + " …";
+}
 
 async function load(id) {
   if (!id) return { id: null, title: "", lead: "", body_md: "", authors: [], tags_all: [], status: "kladde", comments_open: true, kind: "artikel", version: null, images: [], dato: null };
@@ -78,12 +91,30 @@ async function form(id) {
       S.cover ? h("button", { class: "btn sm ghost", type: "button", onclick: () => { S.cover = null; S.coverUrl = null; drawCover(); touch(); } }, "Fjern") : null));
   drawCover();
 
+  // Teksten i artiklens Snak-opslag: skal sælge artiklen. Tom → serveren bruger et uddrag af artiklens første tekst.
+  const snakTxt = h("textarea", { rows: 4, maxlength: SNAK_MAX, "aria-label": "Tekst til opslaget i Snak",
+    placeholder: "Fx: Hvorfor er der pludselig så mange silkehaler i år? Vi har talt med … (tom: de første ca. 300 tegn af artiklen)" });
+  snakTxt.value = a.snak_tekst || "";
+  const snakCount = h("small", { class: "muted" });
+  const countSnak = () => { snakCount.textContent = `${snakTxt.value.length} / ${SNAK_MAX}`; };
+  snakTxt.addEventListener("input", countSnak); countSnak();
+  const snakBox = h("section", { class: "card stack art-snak-box" },
+    h("h3", {}, "Opslag i Snak"),
+    h("p", { class: "muted small" }, "Når artiklen publiceres, får den automatisk et opslag i Snak med titlen og et kort, der åbner artiklen. Skriv den tekst, der skal få folk til at læse den. Er feltet tomt, bruges et uddrag af artiklens første tekst. Kommentarerne på opslaget og under artiklen er de samme."),
+    snakTxt,
+    h("div", { class: "row between" },
+      h("button", { class: "btn sm", type: "button", onclick: () => {
+        const ex = firstText(ed.value);
+        if (!ex) return toast("Artiklen har ingen tekst endnu", "err");
+        snakTxt.value = ex; countSnak(); touch(); snakTxt.focus();
+      } }, "Start med et uddrag af artiklen"), snakCount));
+
   const saved = h("span", { class: "muted small" }, id ? "Gemt" : "Ikke gemt endnu");
   function touch() { saved.textContent = "Ændringer ikke gemt"; }
-  [title, lead, dato, status, publishAt, featured, comments, source, kind, sprog, capt].forEach(x => x.addEventListener("input", touch));
+  [title, lead, dato, status, publishAt, featured, comments, source, kind, sprog, capt, snakTxt].forEach(x => x.addEventListener("input", touch));
 
   const body = (overrideStatus) => ({
-    title: title.value.trim(), lead: lead.value.trim() || null, body_md: ed.value, authors: S.authors.map(navn => ({ navn })), dato: toIso(dato.value), tags: S.tags,
+    title: title.value.trim(), lead: lead.value.trim() || null, snak_tekst: snakTxt.value.trim() || null, body_md: ed.value, authors: S.authors.map(navn => ({ navn })), dato: toIso(dato.value), tags: S.tags,
     cover_media_id: S.cover, cover_caption: capt.value.trim() || null, status: overrideStatus || status.value, publish_at: toIso(publishAt.value),
     featured_until: toIso(featured.value), comments_open: comments.checked, source_url: source.value.trim() || null, kind: kind.value, sprog: sprog.value, version: S.version,
   });
@@ -126,6 +157,6 @@ async function form(id) {
     h("label", { class: "check" }, comments, h("span", {}, "Kommentarer er åbne")), field("Kilde", source),
     S.id ? h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onclick: revisions }, "Versioner …"), h("a", { class: "btn sm", href: `${BASE}/${S.id}` }, "Vis artikel")) : null,
     a.source === "netfugl" ? h("p", { class: "muted small" }, "Importeret fra netfugl.dk. Når du gemmer, overskrives dine rettelser ikke af senere importer (medmindre importen bedes om det).") : null);
-  return h("div", {}, banner, h("div", { class: "art-edit" }, h("div", { class: "stack" }, title, ed.el), panel));
+  return h("div", {}, banner, h("div", { class: "art-edit" }, h("div", { class: "stack" }, title, ed.el, snakBox), panel));
 }
 export { loadingBox };

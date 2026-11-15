@@ -186,31 +186,39 @@ async def test_render_preview_and_media_upload(web, db):  # noqa: F811
     assert (await web["ed"].delete(f"/api/content/media/{m['id']}")).status_code == 200
 
 
-async def test_comments_reports_and_moderation_over_http(web, db):  # noqa: F811
+async def test_comments_are_the_articles_snak_thread_over_http(web, db):  # noqa: F811
+    """Nye kommentarer skrives i artiklens Snak-opslag – også af brugere uden Snak (kun artiklernes kommentarer slået til)."""
+    from portal.services import snak
+
+    async with db() as s:
+        await snak.seed_categories(s)
     await set_flag(db, artikler="on")
     aid = (await web["ed"].post("/api/admin/artikler", json={"title": "Debat", "body_md": "tekst", "status": "publiceret"})).json()["id"]
-    r = await web["a1"].post(f"/api/artikler/{aid}/kommentarer", json={"body": "Hej **verden**"})
+    art = (await web["a1"].get(f"/api/artikler/{aid}")).json()
+    pid = art["snak_post_id"]
+    assert pid and art["kommentarer"] == 0
+    assert (await web["a1"].get("/api/snak/feed")).status_code == 404  # Snak er ikke slået til for a1 …
+    r = await web["a1"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Hej **verden**"})  # … men artiklens kommentarspor er
     assert r.status_code == 200, r.text
     cid = r.json()["id"]
-    assert (await web["a2"].post(f"/api/artikler/{aid}/kommentarer", json={"body": "Svar", "parent_id": cid})).status_code == 200
-    tree = (await web["a2"].get(f"/api/artikler/{aid}/kommentarer")).json()
-    assert tree["comments"][0]["mine"] is False and tree["comments"][0]["svar"][0]["mine"] is True and "<strong>" in tree["comments"][0]["html"]
-    assert "report_count" not in tree["comments"][0]
-    assert (await web["a1"].post(f"/api/artikler/kommentarer/{cid}/anmeld", json={"reason": "spam"})).status_code == 400  # egen
-    assert (await web["a2"].post(f"/api/artikler/kommentarer/{cid}/anmeld", json={"reason": "opfundet"})).status_code == 400
-    assert (await web["a2"].post(f"/api/artikler/kommentarer/{cid}/anmeld", json={"reason": "chikane"})).status_code == 200
-    assert (await web["a1"].get("/api/admin/artikler/kommentarer")).status_code == 403
-    q = (await web["mo"].get("/api/admin/artikler/kommentarer", params={"tab": "anmeldte"})).json()
-    assert q[0]["id"] == cid and q[0]["reports"][0]["reason"] == "chikane"
-    assert (await web["mo"].get(f"/api/artikler/{aid}/kommentarer")).json()["comments"][0]["report_count"] == 1
-    assert (await web["mo"].post(f"/api/admin/artikler/kommentarer/{cid}/skjul", json={"reason": "regelbrud", "notify": True})).status_code == 200
-    hidden = (await web["a2"].get(f"/api/artikler/{aid}/kommentarer")).json()["comments"][0]
-    assert hidden["html"] == "" and hidden["status"] == "skjult" and "hidden_reason" not in hidden or hidden.get("hidden_reason") is None
-    assert (await web["a1"].get(f"/api/artikler/{aid}/kommentarer")).json()["comments"][0]["hidden_reason"] == "regelbrud"  # forfatteren ser årsagen
-    assert (await web["mo"].post(f"/api/admin/artikler/kommentarer/{cid}/gendan", json={})).status_code == 200
-    assert (await web["a1"].patch(f"/api/artikler/kommentarer/{cid}", json={"body": "Rettet"})).status_code == 200
-    assert (await web["a2"].patch(f"/api/artikler/kommentarer/{cid}", json={"body": "andres"})).status_code == 403
-    assert (await web["a1"].delete(f"/api/artikler/kommentarer/{cid}")).status_code == 200
+    assert (await web["a2"].post(f"/api/snak/{pid}/kommentarer", json={"body": "Svar", "parent_id": cid})).status_code == 200
+    t = (await web["a2"].get(f"/api/snak/{pid}/kommentarer")).json()
+    assert t["items"][0]["id"] == cid and "<strong>" in t["items"][0]["html"] and t["items"][0]["svar"][0]["mine"] is True
+    assert (await web["a1"].get(f"/api/artikler/{aid}")).json()["kommentarer"] == 2
+    assert (await web["a2"].put(f"/api/snak/kommentarer/{cid}/reaktion", json={"type": "love"})).status_code == 200
+    assert (await web["a2"].post(f"/api/snak/kommentarer/{cid}/anmeld", json={"reason": "spam"})).status_code == 200
+    assert (await web["a2"].post(f"/api/snak/kommentarer/{cid}/moderer", json={"action": "skjul"})).status_code == 403
+    assert (await web["mo"].post(f"/api/snak/kommentarer/{cid}/moderer", json={"action": "skjul", "reason": "regelbrud"})).status_code == 200
+    assert (await web["a1"].patch(f"/api/snak/kommentarer/{cid}", json={"body": "Rettet"})).status_code == 400  # skjult
+    # arkivets kommentarer kan kun læses; der skrives ikke længere til dem
+    assert (await web["a1"].get(f"/api/artikler/{aid}/kommentarer")).json() == {"archive": [], "comments": []}
+    assert (await web["a1"].post(f"/api/artikler/{aid}/kommentarer", json={"body": "x"})).status_code == 405
+    # andre Snak-opslag er stadig lukket for a1
+    other = (await web["su"].post("/api/snak", json={"category_id": 3, "body": "Et almindeligt opslag"})).json()["id"]
+    assert (await web["a1"].get(f"/api/snak/{other}/kommentarer")).status_code == 404
+    await set_flag(db, artikler_kommentarer="off")
+    assert (await web["a1"].post(f"/api/snak/{pid}/kommentarer", json={"body": "lukket"})).status_code == 404
+    await set_flag(db, artikler_kommentarer="on")
     # notifikationer og følg
     assert (await web["a1"].get("/api/artikler/notifikationer")).json()["alle"] is False
     r = await web["a1"].put("/api/artikler/notifikationer", json={"alle": True, "kommentarer": False})

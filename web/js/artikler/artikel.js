@@ -1,9 +1,10 @@
 // Artikelsiden: titel, manchet, byline, forsidebillede, brødtekst (renset HTML fra serveren), PDF-visning, galleri med lysboks,
-// kommentarer lige under artiklen, derefter emneord og relaterede artikler. Redaktører får redigér/slet og kan rette arterne
+// kommentarer lige under artiklen (artiklens Snak-opslag – samme tråd som i Snak – og arkivets kommentarer fra netfugl.dk under dem),
+// derefter emneord og relaterede artikler. Redaktører får redigér/slet og kan rette arterne
 // (arterne vises ikke på siden).
 import { api, h, toast, modal, state, backLayer, lightDismiss, ask } from "../core.js";
-import { BASE, cover, dkDate, nowrap, tagChips, listCard, ctx, on, cleanups } from "./common.js";
-import { commentsBox } from "./kommentarer.js";
+import { BASE, cover, dkDate, nowrap, tagChips, listCard, ctx, on, cleanups, params } from "./common.js";
+import { archiveBox } from "./kommentarer.js";
 
 const sizeLabel = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(n / 1e3))} kB`;
 const touch = () => matchMedia("(pointer: coarse)").matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -54,6 +55,24 @@ function speciesEditor(a, done) {
   out.append(h("p", { class: "muted small" }, "Arterne findes automatisk i teksten. Klik på en art for at fjerne den, hvis den er forkert – den kommer ikke igen ved genberegning."),
     list, q, dl);
   const m = modal("Ret arter i artiklen", out);
+}
+
+/** Kommentarer: artiklens Snak-opslag (nye kommentarer, fælles med Snak) og arkivet (kun til læsning). */
+async function commentsSection(a) {
+  const snakCtx = state.user?.snak || { features: {}, can_moderate: false };
+  const wrap = h("section", { class: "art-block art-thread", id: "kommentarer" });
+  if (a.status === "publiceret" && a.snak_post_id) {
+    const [{ commentBlock }, { loadCss }] = await Promise.all([import("../snak/kommentarer.js"), import("../snak/common.js")]);
+    loadCss("snak");
+    const post = { id: a.snak_post_id, status: "synlig", locked: !a.comments_open, har_loesning: false, mine: false, n_comments: 0 };
+    wrap.append(commentBlock(post, { highlight: +(params().sk || 0), lockedText: "Kommentarer er lukket for denne artikel.",
+      access: { can_moderate: ctx().can_moderate || snakCtx.can_moderate, features: snakCtx.features || {} } }));
+    if (snakCtx.features?.snak) wrap.append(h("p", { class: "muted small" }, "Kommentarerne er de samme som på ", h("a", { href: `#/snak/${a.snak_post_id}` }, "artiklens opslag i Snak"), "."));
+  } else {
+    wrap.append(h("h3", {}, "Kommentarer"), h("p", { class: "muted" }, "Der kan kommenteres, når artiklen er publiceret."));
+  }
+  wrap.append(archiveBox(a.id, { canModerate: ctx().can_moderate }));
+  return wrap;
 }
 
 export async function side(parts) {
@@ -108,7 +127,7 @@ export async function side(parts) {
       h("img", { src: i.thumb, alt: i.alt || "", loading: "lazy", style: { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: "4px" } })))) : null,
     (a.kind !== "pdf" ? a.pdfs : []).length || a.files.length ? h("div", { class: "art-block" }, h("h4", {}, "Vedhæftninger"),
       h("ul", {}, ...[...(a.kind !== "pdf" ? a.pdfs : []), ...a.files].map(f => h("li", {}, h("a", { href: f.url, target: "_blank", rel: "noopener" }, f.caption || f.filename), ` (${sizeLabel(f.size)}${f.pages ? `, ${f.pages} sider` : ""})`)))) : null,
-    a.comments_on ? commentsBox(id, { open: a.comments_open && a.status === "publiceret", canModerate: ctx().can_moderate }) : null,
+    a.comments_on ? await commentsSection(a) : null,
     a.tags.length ? h("div", { class: "art-block" }, h("h4", {}, "Emneord"), tagChips(a.tags)) : null,
     a.source_url ? h("p", { class: "muted small" }, "Oprindeligt bragt på netfugl.dk: ", h("a", { href: a.source_url, target: "_blank", rel: "noopener noreferrer" }, a.source_url.replace(/^https?:\/\/(www\.)?/, ""))) : null,
     ctx().can_edit && a.import_errors?.length ? h("details", { class: "muted small" }, h("summary", {}, `Importnoter (${a.import_errors.length})`), h("ul", {}, ...a.import_errors.map(e => h("li", {}, typeof e === "string" ? e : JSON.stringify(e))))) : null,

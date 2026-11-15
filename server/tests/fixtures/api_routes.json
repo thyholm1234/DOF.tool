@@ -2781,46 +2781,6 @@ false,
 "params": []
 }
 },
-"/api/artikler/kommentarer/{cid}": {
-"delete": {
-"body": false,
-"op": "slet_kommentar_api_artikler_kommentarer__cid__delete",
-"params": [
-[
-"cid",
-"path",
-true,
-"{\"title\": \"Cid\", \"type\": \"integer\"}"
-]
-]
-},
-"patch": {
-"body": true,
-"op": "ret_kommentar_api_artikler_kommentarer__cid__patch",
-"params": [
-[
-"cid",
-"path",
-true,
-"{\"title\": \"Cid\", \"type\": \"integer\"}"
-]
-]
-}
-},
-"/api/artikler/kommentarer/{cid}/anmeld": {
-"post": {
-"body": true,
-"op": "anmeld_api_artikler_kommentarer__cid__anmeld_post",
-"params": [
-[
-"cid",
-"path",
-true,
-"{\"title\": \"Cid\", \"type\": \"integer\"}"
-]
-]
-}
-},
 "/api/artikler/n/{netfugl_id}": {
 "get": {
 "body": false,
@@ -2891,18 +2851,6 @@ true,
 "get": {
 "body": false,
 "op": "kommentarer_api_artikler__aid__kommentarer_get",
-"params": [
-[
-"aid",
-"path",
-true,
-"{\"title\": \"Aid\", \"type\": \"integer\"}"
-]
-]
-},
-"post": {
-"body": true,
-"op": "skriv_kommentar_api_artikler__aid__kommentarer_post",
 "params": [
 [
 "aid",

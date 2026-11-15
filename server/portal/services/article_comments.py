@@ -1,19 +1,17 @@
-"""Kommentarer til artikler: visning, skrivning, anmeldelser og moderation (docs/artikler-modul-spec.md §8)."""
+"""Arkivets kommentarer til artikler: visning og moderation (docs/artikler-modul-spec.md §8).
+
+Kommentarerne fra netfugl.dk (og portalens fra før Snak) bliver på artiklen, kun til læsning. Nye kommentarer skrives i artiklens
+Snak-opslag (services/snak_articles, snak_comments) – det er fælles for artiklen og opslaget."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from portal.cache import kv
 from portal.models import ArtComment, User
-from portal.services import article_settings, content_render, moderation
-
-MAX_LEN = 5000
-REASONS = {"chikane", "spam", "forkert", "andet"}
-RATE_PER_MINUTE = 5
+from portal.services import moderation
 
 
 class CommentError(Exception):
@@ -77,98 +75,6 @@ async def _article_open(session: AsyncSession, article_id: int, can_edit: bool) 
     if a is None or (a["status"] != "publiceret" and not can_edit):
         raise CommentError(404, "Artiklen findes ikke")
     return dict(a)
-
-
-async def add(session: AsyncSession, user: User, article_id: int, body: str, parent_id: int | None, *, can_edit: bool) -> ArtComment:
-    body = (body or "").strip()
-    if not body:
-        raise CommentError(400, "Skriv en kommentar")
-    if len(body) > MAX_LEN:
-        raise CommentError(400, f"Kommentaren er for lang (højst {MAX_LEN} tegn)")
-    cfg = await article_settings.get(session)
-    a = await _article_open(session, article_id, can_edit)
-    if not cfg["comments_enabled"] or not a["comments_open"]:
-        raise CommentError(403, "Der kan ikke kommenteres på denne artikel")
-    ban = await moderation.active_ban(session, user.id)
-    if ban:
-        until = f" til {ban['until'][:10]}" if ban["until"] else ""
-        raise CommentError(403, f"Du er udelukket fra at kommentere{until}: {ban['reason']}")
-    key = f"artcomment:rate:{user.id}"
-    n = await kv().incr(key)
-    if n == 1:
-        await kv().expire(key, 60)
-    if n > RATE_PER_MINUTE:
-        raise CommentError(429, "Du kommenterer for hurtigt – vent lidt")
-    if parent_id:
-        p = (await session.execute(text("SELECT id, parent_id, article_id, user_id, status FROM art_comments WHERE id = :i"), {"i": parent_id})).mappings().first()
-        if p is None or p["article_id"] != article_id or p["status"] != "synlig":
-            raise CommentError(400, "Kommentaren, du svarer på, findes ikke")
-        parent_id = p["parent_id"] or p["id"]  # kun ét niveau, som på netfugl.dk
-    rendered = await content_render.render_for(session, body, "kommentar")
-    c = ArtComment(article_id=article_id, parent_id=parent_id, user_id=user.id, body_md=body, body_html=rendered.html)
-    session.add(c)
-    await session.flush()
-    # Første kommentar → følg artiklen, medmindre brugeren har valgt «følg ikke»
-    await session.execute(text("""INSERT INTO art_subscriptions (user_id, kind, ref, via) VALUES (:u, 'artikel', :a, 'kommentar') ON CONFLICT DO NOTHING"""),
-                          {"u": user.id, "a": article_id})
-    await session.commit()
-    await moderation.comments_changed(f"art:{article_id}", "add", c.id)
-    return c
-
-
-async def _own(session: AsyncSession, user: User, cid: int) -> ArtComment:
-    c = await session.get(ArtComment, cid)
-    if c is None or c.user_id is None:
-        raise CommentError(404, "Kommentaren findes ikke")
-    if c.user_id != user.id:
-        raise CommentError(403, "Du kan kun rette dine egne kommentarer")
-    return c
-
-
-async def edit(session: AsyncSession, user: User, cid: int, body: str) -> ArtComment:
-    c = await _own(session, user, cid)
-    cfg = await article_settings.get(session)
-    if c.status != "synlig":
-        raise CommentError(400, "Kommentaren kan ikke rettes")
-    if datetime.now(timezone.utc) - c.created_at > timedelta(minutes=cfg["comment_edit_minutes"]):
-        raise CommentError(403, f"Kommentarer kan kun rettes i de første {cfg['comment_edit_minutes']} minutter")
-    body = (body or "").strip()
-    if not body or len(body) > MAX_LEN:
-        raise CommentError(400, "Ugyldig kommentar")
-    c.body_md, c.body_html, c.edited_at = body, (await content_render.render_for(session, body, "kommentar")).html, datetime.now(timezone.utc)
-    await session.commit()
-    await moderation.comments_changed(f"art:{c.article_id}", "edit", c.id)
-    return c
-
-
-async def remove_own(session: AsyncSession, user: User, cid: int) -> None:
-    c = await _own(session, user, cid)
-    c.status = "slettet"
-    await session.commit()
-    await moderation.comments_changed(f"art:{c.article_id}", "delete", c.id)
-
-
-async def report(session: AsyncSession, user: User, cid: int, reason: str, note: str) -> bool:
-    """Anmeld en kommentar. Returnerer True, hvis kommentaren blev skjult automatisk (tærsklen er nået)."""
-    if reason not in REASONS:
-        raise CommentError(400, "Vælg en årsag")
-    c = await session.get(ArtComment, cid)
-    if c is None or c.status == "slettet":
-        raise CommentError(404, "Kommentaren findes ikke")
-    if c.user_id == user.id:
-        raise CommentError(400, "Du kan ikke anmelde din egen kommentar")
-    cfg = await article_settings.get(session)
-    await session.execute(text("""INSERT INTO art_comment_reports (comment_id, user_id, reason, note) VALUES (:c, :u, :r, :n)
-                                  ON CONFLICT (comment_id, user_id) DO NOTHING"""), {"c": cid, "u": user.id, "r": reason, "n": (note or "")[:500] or None})
-    n = (await session.execute(text("SELECT count(*) FROM art_comment_reports WHERE comment_id = :c AND resolved_at IS NULL"), {"c": cid})).scalar() or 0
-    c.report_count = n
-    auto = n >= cfg["report_threshold"] and c.status == "synlig"
-    if auto:
-        c.status, c.hidden_reason = "skjult", "Anmeldt – afventer moderator"
-    await session.commit()
-    if auto:
-        await moderation.comments_changed(f"art:{c.article_id}", "hide", c.id)
-    return auto
 
 
 # ---------------------------------------------------------------- moderation

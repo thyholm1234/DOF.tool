@@ -542,14 +542,21 @@ forsidebillede, status/planlagt, publiceret), liste over nyheder med Redigér/Sl
 
 ### 8.1 Kommentarer
 
-- Under artiklen: først “Kommentarer fra netfugl.dk (arkiv)” (read-only, navn + dato, ingen svar-knap), derefter
-  portalens kommentarer med navn/obserkode som i trådene.
+> **Ændret (nov. 2026):** Artiklerne og Snak er smeltet sammen. Hver publiceret artikel har et opslag i Snak (kategorien
+> «Artikler og læsning», `sn_posts.article_id`, `services/snak_articles.py`), og opslagets kommentarer er artiklens
+> kommentarspor – det samme på artikelsiden og i Snak. Se docs/snak-modul-spec.md §13. Teksten nedenfor om at skrive,
+> rette og anmelde gælder nu Snaks kommentarer (`snak_comments`, `snak_reports`); arkivet beskrives i det første punkt.
+
+- Under artiklen: først artiklens Snak-tråd (skriv, svar, ret, slet, reaktioner, anmeld, moderation – `snak/kommentarer.js`),
+  derefter “Kommentarer fra netfugl.dk” (arkivet i `art_comments`, kun til læsning; moderatorer kan skjule, gendanne og slette).
+  Der skrives ikke længere til `art_comments`; importen af arkivet gør stadig.
+- Tråden kan bruges, når `artikler_kommentarer` er synlig – også af brugere, der ikke har Snak (`api/snak.need_thread`).
 - Skriv: tekstfelt med let markdown (fed, kursiv, link, liste), højst 5 000 tegn, forhåndsvisning via
   `profile=kommentar`. Svar på en hovedkommentar (ét niveau, som netfugl).
 - Ret egen kommentar inden for `comment_edit_minutes` (vises “redigeret”); slet egen (status `slettet`, vises som
   “Kommentaren er slettet”, hvis den har svar).
 - Afvises med forklaring, hvis brugeren har en aktiv udelukkelse (`services/moderation.active_ban`), hvis
-  `comments_open` er falsk, eller ved mere end 5 kommentarer pr. minut (Valkey-tæller).
+  `comments_open` er falsk (opslaget er låst), eller ved for mange kommentarer pr. minut (Valkey-tæller).
 - Kommentarer fra udelukkede brugere med `hide_comments` filtreres med `moderation.VISIBLE`-betingelsen.
 - Live: efter ændringer publiceres en SSE-hændelse (som `moderation.comments_changed`, type `art_comment`, med
   `article`), og åbne artikelsider henter sporet igen. Se `web/js/live.js` for, hvilke kanaler strømmen sender.

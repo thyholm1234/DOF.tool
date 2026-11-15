@@ -185,6 +185,8 @@ async def clean_extras(session: AsyncSession, user: User, arter: list[int] | Non
 # ---------------------------------------------------------------- opslag: læsning
 
 def _author(r) -> dict:
+    if r.get("article_id"):  # artiklens opslag: forfatterne (ofte ikke brugere i DOF.tool)
+        return {"navn": r["eksempel_navn"] or "Artikler", "artikel": True}
     if r["user_id"] is None:
         return {"navn": r["eksempel_navn"] or "Slettet bruger", "eksempel": True}
     return {"navn": r["navn"] or r["obserkode"], "obserkode": r["obserkode"], "user_id": r["user_id"], "avatar": (avatar.urls(r["avatar"]) or {}).get("s")}
@@ -199,7 +201,8 @@ def post_out(r, viewer_id: int, staff: bool) -> dict:
            "md": r["body_md"] if mine else None, "locked": r["locked"], "pinned": r["pinned_at"] is not None, "solved": r["solution_comment_id"] is not None, "solution_comment_id": r["solution_comment_id"],
            "har_loesning": r["cat_loesning"], "eksempel": r["eksempel"], "n_comments": r["n_comments"], "n_reactions": r["n_reactions"],
            "views": r["views"], "created_at": _iso(r["created_at"]), "edited_at": _iso(r["edited_at"]), "last_activity_at": _iso(r["last_activity_at"]),
-           "arter": r["arter"] or [], "arter_navn": [], "loknr": r["loknr"], "lok_navn": r["lok_navn"], "images": [], "attachment": r["attachment"] if show else None, "following": bool(r["following"])}
+           "arter": r["arter"] or [], "arter_navn": [], "loknr": r["loknr"], "lok_navn": r["lok_navn"], "images": [], "attachment": r["attachment"] if show else None, "following": bool(r["following"]),
+           "article_id": r.get("article_id")}
     if hidden:
         out["hidden_reason"] = r["hidden_reason"] if staff or mine else None
     return out
@@ -207,7 +210,7 @@ def post_out(r, viewer_id: int, staff: bool) -> dict:
 
 _SELECT = """
     SELECT p.id, p.category_id, p.user_id, p.eksempel_navn, p.titel, p.body_md, p.body_html, p.attachment, p.arter, p.loknr, p.lok_navn, p.status, p.hidden_reason, p.locked,
-           p.pinned_at, p.solution_comment_id, p.n_comments, p.n_reactions, p.views, p.last_activity_at, p.eksempel, p.created_at, p.edited_at,
+           p.pinned_at, p.solution_comment_id, p.n_comments, p.n_reactions, p.views, p.last_activity_at, p.eksempel, p.created_at, p.edited_at, p.article_id,
            c.slug AS cat_slug, c.navn AS cat_navn, c.farve AS cat_farve, c.har_loesning AS cat_loesning, u.navn, u.obserkode, u.avatar,
            EXISTS (SELECT 1 FROM sn_follows f WHERE f.post_id = p.id AND f.user_id = :viewer AND NOT f.muted) AS following{extra}
     FROM sn_posts p JOIN sn_categories c ON c.id = p.category_id LEFT JOIN users u ON u.id = p.user_id"""

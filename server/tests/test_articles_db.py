@@ -334,79 +334,39 @@ async def test_scheduled_publish_and_views(db):
         assert (await s.execute(text("SELECT views FROM art_articles WHERE id = :i"), {"i": art.id})).scalar() == 2
 
 
-async def test_comments_reports_bans_and_notifications(db):
-    from portal.models import CommentBan, User
+async def test_legacy_comments_are_listed_and_moderated(db):
+    """Arkivets kommentarer (netfugl.dk og portalens fra før Snak) bliver på artiklen: de vises, kan modereres, men skrives ikke længere."""
+    from portal.models import ArtComment, CommentBan, User
     from portal.services import article_comments as ac
-    from portal.services import article_edit, article_notify, article_settings
+    from portal.services import article_edit
 
     async with db() as s:
         ed = await s.get(User, 3)
+        mod = await s.get(User, 4)
         art, _ = await article_edit.save(s, ed, {"title": "Debat", "body_md": "tekst", "status": "publiceret"})
-        u1, u2, mod = await s.get(User, 1), await s.get(User, 2), await s.get(User, 4)
-        c1 = await ac.add(s, u1, art.id, "Første **kommentar** <script>x</script>", None, can_edit=False)
-        assert "<script>" not in c1.body_html and "<strong>" in c1.body_html
-        # første kommentar tilmelder, og et svar går til forfatteren af kommentaren
-        assert (await s.execute(text("SELECT count(*) FROM art_subscriptions WHERE user_id = 1 AND kind = 'artikel'"))).scalar() == 1
-        c2 = await ac.add(s, u2, art.id, "Svar", c1.id, can_edit=False)
-        c3 = await ac.add(s, u1, art.id, "Svar på svar", c2.id, can_edit=False)
-        assert c2.parent_id == c1.id and c3.parent_id == c1.id  # kun ét niveau
-        await article_notify.on_comment(c2.id)
-        await article_notify.on_comment(c3.id)
-        notes = (await s.execute(text("SELECT user_id, dedup_key FROM notifications ORDER BY id"))).all()
-        assert (1, f"art:svar:{c2.id}") in notes
-        # u2 abonnerer via sin kommentar → får besked om c3, men ikke om sin egen
-        assert any(u == 2 for u, _ in notes) and len([n for n in notes if n[0] == 2]) == 1
-        # tider: dedup pr. time pr. artikel → en tredje kommentar samme time giver ikke endnu en besked til samme bruger
-        # udelukkelse
+        a1 = ArtComment(article_id=art.id, user_id=None, archive_author="Gammel Bruger", archive_key="nf:1", body_md="Fra arkivet", body_html="<p>Fra arkivet</p>")
+        s.add(a1)
+        await s.flush()
+        a2 = ArtComment(article_id=art.id, parent_id=a1.id, user_id=None, archive_author="Svarer", archive_key="nf:2", body_md="Svar", body_html="<p>Svar</p>")
+        p1 = ArtComment(article_id=art.id, user_id=2, body_md="Fra portalen", body_html="<p>Fra portalen</p>", report_count=2)
+        s.add_all([a2, p1])
+        await s.commit()
+        tree = await ac.list_comments(s, art.id, 1, False)
+        assert [c["id"] for c in tree["archive"]] == [a1.id] and tree["archive"][0]["svar"][0]["id"] == a2.id
+        assert tree["archive"][0]["author"] == {"navn": "Gammel Bruger"} and [c["id"] for c in tree["comments"]] == [p1.id]
+        # en udelukket bruger med skjulte kommentarer: andre ser dem ikke
         s.add(CommentBan(user_id=2, reason="Chikane", created_by=4))
         await s.commit()
-        with pytest.raises(ac.CommentError) as e:
-            await ac.add(s, u2, art.id, "igen", None, can_edit=False)
-        assert e.value.status == 403 and "Chikane" in e.value.message
-        # u2 er udelukket med skjulte kommentarer: u1 ser ikke u2's svar, men u2 ser det selv
-        seen_by_1 = await ac.list_comments(s, art.id, 1, False)
-        assert [c["id"] for c in seen_by_1["comments"]] == [c1.id] and [x["id"] for x in seen_by_1["comments"][0]["svar"]] == [c3.id]
-        assert {x["id"] for x in (await ac.list_comments(s, art.id, 2, False))["comments"][0]["svar"]} == {c2.id, c3.id}
+        assert (await ac.list_comments(s, art.id, 1, False))["comments"] == []
         await s.execute(text("DELETE FROM comment_bans"))
         await s.commit()
-        # anmeldelser: tærskel 3 skjuler automatisk
-        cfg = await article_settings.get(s)
-        assert cfg["report_threshold"] == 3
-        c4 = await ac.add(s, mod, art.id, "Slem kommentar", None, can_edit=False)
-        for uid in (1, 2):
-            assert not await ac.report(s, await s.get(User, uid), c4.id, "chikane", "")
-        with pytest.raises(ac.CommentError):
-            await ac.report(s, mod, c4.id, "spam", "")  # egen kommentar
-        await ac.report(s, await s.get(User, 1), c4.id, "spam", "")  # dobbelt anmeldelse tæller ikke
-        assert (await s.get(type(c4), c4.id)).status == "synlig"
-        assert await ac.report(s, ed, c4.id, "forkert", "") is True
-        listed = await ac.list_comments(s, art.id, 1, False)
-        assert c4.id not in [c["id"] for c in listed["comments"]]
         q = await ac.queue(s, "anmeldte")
-        assert q[0]["id"] == c4.id and q[0]["report_count"] == 3 and len(q[0]["reports"]) == 3
-        await ac.moderate(s, mod, c4.id, "afvis")
-        assert (await s.get(type(c4), c4.id)).status == "synlig" and (await s.get(type(c4), c4.id)).report_count == 0
-        await ac.moderate(s, mod, c4.id, "skjul", "regelbrud")
-        assert (await ac.list_comments(s, art.id, 1, True))["comments"][-1]["hidden_reason"] == "regelbrud"
-        # ret og slet egen
-        edited = await ac.edit(s, u1, c1.id, "Rettet")
-        assert edited.edited_at is not None
-        with pytest.raises(ac.CommentError):
-            await ac.edit(s, u2, c1.id, "andres")
-        await ac.remove_own(s, u1, c1.id)
-        tree = await ac.list_comments(s, art.id, 2, False)
-        assert tree["comments"][0]["html"] == "" and tree["comments"][0]["svar"]  # slettet, men svarene bevares
-        # rate limit
-        for i in range(5):
-            await ac.add(s, ed, art.id, f"hurtig {i}", None, can_edit=True)
-        with pytest.raises(ac.CommentError) as e:
-            await ac.add(s, ed, art.id, "for hurtig", None, can_edit=True)
-        assert e.value.status == 429
-        # kommentarer lukket
-        await s.execute(text("UPDATE art_articles SET comments_open = false WHERE id = :i"), {"i": art.id})
-        await s.commit()
-        with pytest.raises(ac.CommentError):
-            await ac.add(s, u1, art.id, "lukket", None, can_edit=False)
+        assert [r["id"] for r in q] == [p1.id]
+        await ac.moderate(s, mod, a1.id, "skjul", "regelbrud")
+        assert (await ac.list_comments(s, art.id, 4, True))["archive"][0]["hidden_reason"] == "regelbrud"
+        assert (await ac.list_comments(s, art.id, 1, False))["archive"][0]["html"] == ""  # skjult, men svaret bevares
+        await ac.moderate(s, mod, a1.id, "gendan")
+        assert (await s.get(ArtComment, a1.id)).status == "synlig"
 
 
 async def test_subscriptions_and_new_article_notifications(db):
@@ -425,12 +385,15 @@ async def test_subscriptions_and_new_article_notifications(db):
         await article_notify.on_publish(art.id)  # dedup
         rows = (await s.execute(text("SELECT user_id, title FROM notifications"))).all()
         assert [r[0] for r in rows] == [1] and "Ny artikel" in rows[0][1]
-        # «følg ikke» forhindrer at en kommentar tilmelder igen
-        await article_subs.follow(s, 2, art.id, False)
-        from portal.services import article_comments as ac
+        # «følg artikel» er at følge artiklens Snak-opslag; «følg ikke» forhindrer, at en kommentar tilmelder igen
+        from portal.services import snak, snak_comments
 
-        await ac.add(s, await s.get(User, 2), art.id, "hej", None, can_edit=False)
-        assert (await s.execute(text("SELECT muted FROM art_subscriptions WHERE user_id = 2 AND kind = 'artikel'"))).scalar() is True
+        await snak.seed_categories(s)
+        await article_edit._sync_snak(s, art.id)
+        assert await article_subs.follow(s, 2, art.id, False)
+        pid = (await s.execute(text("SELECT id FROM sn_posts WHERE article_id = :a"), {"a": art.id})).scalar()
+        await snak_comments.add(s, await s.get(User, 2), pid, "hej", None, staff=False)
+        assert (await s.execute(text("SELECT muted FROM sn_follows WHERE user_id = 2 AND post_id = :p"), {"p": pid})).scalar() is True
         await article_subs.set_prefs(s, 1, None, False)
         assert (await article_subs.get_prefs(s, 1))["kommentarer"] is False
 

@@ -774,3 +774,29 @@ Kør `pytest` og `ruff` før hvert commit. Opdatér `docs/funktioner.md` med mod
 | Lokalafdelings-grupper (lukkede rum) | Ikke i denne omgang; datamodellen kan senere få `sn_categories.afdeling_id` |
 | Integration med Feedet (fx «💬 3 opslag om denne art» på artssider) | Fase 5 – ikke i denne spec |
 | Nyheder («Nyt fra portalen») som opslag i Meddelelser | Nej; nyheder beholder deres egen side |
+
+
+## 13. Artiklernes opslag (`services/snak_articles.py`)
+
+Artikler og Snak er smeltet sammen: hver publiceret artikel har ét opslag i «Artikler og læsning» (`sn_posts.article_id`,
+unikt), og opslagets kommentarer er artiklens kommentarspor.
+
+- **Indhold:** titel = artiklens titel; tekst = `art_articles.snak_tekst` (boksen «Opslag i Snak» i artikel-editoren, markdown,
+  højst 2 000 tegn) eller, hvis den er tom, et uddrag af artiklens første tekst (ca. 300 tegn, skåret ved et ord). Artiklen er
+  vedhæftet som kort; op til 5 arter fra artiklen (og arter tagget i teksten) kommer på chipsene.
+- **Afsender:** artiklens forfattere (`eksempel_navn`, `user_id` er null) – vist med navn uden profillink og chippen «📰 Artikel».
+- **Dato:** netfugl-arkivets artikler dateres til artiklens dato, nye til publiceringen. Gamle artikler ligger derfor langt
+  nede i feedet og kommer kun op, når nogen kommenterer.
+- **Livscyklus:** `sync` kaldes, når artiklen gemmes (titel, tekst, forfattere, arter, `locked = not comments_open`).
+  Trækkes artiklen tilbage, skjules opslaget (`hidden_reason = «Artiklen er ikke publiceret»`); publiceres den igen, vises
+  det igen – medmindre en moderator har skjult det. Slettes artiklen, slettes opslaget (FK med CASCADE).
+  `backfill` (workerens job `articles_publish`, hvert 5. minut) opretter opslag til publicerede artikler, der mangler et:
+  første gang hele arkivet, siden planlagt publicerede og nyimporterede. Den flytter også gamle «følg artikel»
+  (`art_subscriptions` kind `artikel`) over på opslaget.
+- **Adgang:** kommentar- og reaktionskaldene på et artikelopslag (`need_thread`/`need_comment` i `api/snak.py`) virker,
+  når enten `snak` eller `artikler_kommentarer` er synlig – så artiklernes kommentarer virker for alle, mens Snak er i preview.
+- **Notifikationer:** svar og nye kommentarer i fulgte artikeltråde følger artiklernes indstillinger (`artikler_notifikationer`
+  og valget «nye kommentarer på artikler», `users.prefs.art_comments`) og linker til artikelsiden (`#/artikler/<id>?sk=<kommentar>`).
+- **Arkivet:** kommentarerne fra netfugl.dk (`art_comments`) indgår ikke i Snak; de bliver på artikelsiden, kun til læsning.
+- **Tæller:** artiklens «💬 N» = arkivets synlige kommentarer + opslagets `n_comments`.
+

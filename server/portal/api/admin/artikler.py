@@ -61,6 +61,7 @@ class AuthorIn(BaseModel):
 class ArticleIn(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     lead: str | None = Field(None, max_length=2000)
+    snak_tekst: str | None = Field(None, max_length=2000)  # teksten i artiklens Snak-opslag (tom: uddrag af brødteksten)
     body_md: str = Field("", max_length=400_000)
     authors: list[AuthorIn] = Field(default_factory=list, max_length=10)
     dato: datetime | None = None
@@ -143,7 +144,7 @@ async def gendan(aid: int, rid: int, tasks: BackgroundTasks, user: User = Depend
     if art is None or r is None:
         raise HTTPException(404, "Artiklen eller revisionen findes ikke")
     m = r["meta"] or {}
-    data = ArticleIn(title=r["title"], lead=m.get("lead"), body_md=r["body_md"], authors=m.get("authors") or [], tags=m.get("tags") or [],
+    data = ArticleIn(title=r["title"], lead=m.get("lead"), snak_tekst=m.get("snak_tekst"), body_md=r["body_md"], authors=m.get("authors") or [], tags=m.get("tags") or [],
                      cover_media_id=m.get("cover_media_id"), cover_caption=m.get("cover_caption"), status=art.status, publish_at=art.publish_at,
                      featured_until=art.featured_until, comments_open=bool(m.get("comments_open", True)), source_url=m.get("source_url"),
                      kind=m.get("kind") or "artikel", dato=art.dato, version=art.version)

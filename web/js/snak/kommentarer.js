@@ -8,12 +8,15 @@ import { avatar, authorLink, ctx, gallery, on, uploadImage } from "./common.js";
 
 const LIMIT_FEED = { kommentarer: 3, svar: 1 };
 
-/** Kommentarblok. inFeed: de nyeste få + «Se alle N»; ellers hele tråden med sortering og «Vis flere». */
-export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highlight = 0, onCount } = {}) {
+/** Kommentarblok. inFeed: de nyeste få + «Se alle N»; ellers hele tråden med sortering og «Vis flere».
+ *  access: rettigheder, når blokken vises uden for Snak (artiklens kommentarspor på artikelsiden): {can_moderate, features}.
+ *  lockedText: teksten, når tråden er låst (en artikel med lukkede kommentarer). */
+export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highlight = 0, onCount, access = null, lockedText = null } = {}) {
   const wrap = h("section", { class: "sn-comments", "aria-label": "Kommentarer" });
   const list = h("div", { class: "sn-clist" });
   const state_ = { items: post.comments?.items || [], total: post.comments?.total_top ?? 0, sort: "nyeste", skip: 0, more: false, open: new Set() };
-  const canModerate = ctx().can_moderate;
+  const acc = access || ctx();
+  const canModerate = acc.can_moderate;
   const locked = () => post.locked && !canModerate;
   let replyTo = null;
 
@@ -33,7 +36,7 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
       btn.disabled = false;
     } });
     const showImg = () => preview.replaceChildren(...(img ? [h("img", { src: img.thumb, alt: "" }), h("button", { type: "button", class: "icon-btn", "aria-label": "Fjern billede", onclick: () => { img = null; showImg(); } }, "✕")] : []));
-    const photoBtn = on("snak_billeder") ? h("button", { type: "button", class: "icon-btn", "aria-label": "Tilføj billede", title: "Tilføj billede", onclick: () => file.click() }, "📷") : null;
+    const photoBtn = (access ? access.features?.snak_billeder : on("snak_billeder")) ? h("button", { type: "button", class: "icon-btn", "aria-label": "Tilføj billede", title: "Tilføj billede", onclick: () => file.click() }, "📷") : null;
     const form = h("form", { class: "sn-compose", onsubmit: async (e) => {
       e.preventDefault();
       if (!ta.value.trim() && !img) return;
@@ -134,7 +137,7 @@ export function commentBlock(post, { inFeed = false, feed = LIMIT_FEED, highligh
     draw();
   }
 
-  const composeBox = () => !state.user ? null : locked() ? h("p", { class: "muted" }, "Tråden er låst af en moderator.")
+  const composeBox = () => !state.user ? null : locked() ? h("p", { class: "muted" }, lockedText || (post.article_id ? "Kommentarer er lukket for denne artikel." : "Tråden er låst af en moderator."))
     : post.status !== "synlig" ? null : compose(null);
   const head = !inFeed ? h("div", { class: "row between sn-chead" }, h("h2", {}, "Kommentarer"),
     seg([["nyeste", "Nyeste først"], ["aeldste", "Ældste først"], ["populaere", "Mest populære"]], state_.sort, (v) => { state_.sort = v; load().catch(e => toast(e.message, "err")); })) : null;

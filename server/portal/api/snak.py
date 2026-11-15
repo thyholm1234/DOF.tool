@@ -1,6 +1,8 @@
 """Snak (brugerdelen): feed, opslag, kommentarer og reaktioner (docs/snak-modul-spec.md §10).
 
-Alt kræver, at funktionen «snak» er synlig for brugeren (Admin → Funktioner); ellers svarer API'et 404. SQL ligger i services (snak*)."""
+Alt kræver, at funktionen «snak» er synlig for brugeren (Admin → Funktioner); ellers svarer API'et 404. Undtagelsen er kommentarsporet under
+en artikels opslag (services/snak_articles): det er også artiklens kommentarer og kan bruges, når «artikler_kommentarer» er synlig.
+SQL ligger i services (snak*)."""
 
 from __future__ import annotations
 
@@ -8,12 +10,13 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import activity, content_media, content_render, snak, snak_access, snak_admin, snak_attach, snak_comments, snak_links, snak_notify, snak_reactions, snak_reports
+from portal.services import activity, article_access, content_media, content_render, snak, snak_access, snak_admin, snak_attach, snak_comments, snak_links, snak_notify, snak_reactions, snak_reports
 
 router = APIRouter(prefix="/api/snak", tags=["snak"])
 ReactionType = Field(pattern="^(like|love|haha|wow|sad|angry)$")
@@ -25,6 +28,33 @@ def need(feature: str = "snak"):
         if not acc.on(feature):
             raise HTTPException(404, "Funktionen er ikke slået til")
         return acc
+
+    return dep
+
+
+async def _thread_access(db: AsyncSession, user: User, article_id: int | None) -> snak_access.Access:
+    acc = await snak_access.context(db, user)
+    if acc.on("snak"):
+        return acc
+    if article_id and article_access.Access(user=user, flags=acc.flags).on("artikler_kommentarer"):
+        return acc  # artiklens kommentarspor
+    raise HTTPException(404, "Funktionen er ikke slået til")
+
+
+def need_thread():
+    """Som need(), men et artikelopslags kommentarspor må også bruges med artiklernes kommentarer slået til."""
+    async def dep(post_id: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> snak_access.Access:
+        aid = (await db.execute(text("SELECT article_id FROM sn_posts WHERE id = :i"), {"i": post_id})).scalar()
+        return await _thread_access(db, user, aid)
+
+    return dep
+
+
+def need_comment():
+    """need_thread() for de kald, der går på en kommentar."""
+    async def dep(cid: int, user: User = Depends(require_user), db: AsyncSession = Depends(get_session)) -> snak_access.Access:
+        aid = (await db.execute(text("SELECT p.article_id FROM sn_comments c JOIN sn_posts p ON p.id = c.post_id WHERE c.id = :i"), {"i": cid})).scalar()
+        return await _thread_access(db, user, aid)
 
     return dep
 
@@ -387,23 +417,23 @@ async def fjern_opslag(post_id: int, user: User = Depends(require_user), acc: sn
 
 @router.get("/{post_id}/reaktioner")
 async def hvem_opslag(post_id: int, type: str | None = Query(None, max_length=5), offset: int = Query(0, ge=0, le=100000),
-                      acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+                      acc: snak_access.Access = Depends(need_thread()), db: AsyncSession = Depends(get_session)):
     return await _who(db, "post", post_id, type, offset)
 
 
 @router.put("/kommentarer/{cid}/reaktion")
-async def reager_kommentar(cid: int, body: ReactionIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+async def reager_kommentar(cid: int, body: ReactionIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need_comment()), db: AsyncSession = Depends(get_session)):
     return await _react(db, user, "comment", cid, body.type)
 
 
 @router.delete("/kommentarer/{cid}/reaktion")
-async def fjern_kommentar(cid: int, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+async def fjern_kommentar(cid: int, user: User = Depends(require_user), acc: snak_access.Access = Depends(need_comment()), db: AsyncSession = Depends(get_session)):
     return await _react(db, user, "comment", cid, None)
 
 
 @router.get("/kommentarer/{cid}/reaktioner")
 async def hvem_kommentar(cid: int, type: str | None = Query(None, max_length=5), offset: int = Query(0, ge=0, le=100000),
-                         acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+                         acc: snak_access.Access = Depends(need_comment()), db: AsyncSession = Depends(get_session)):
     return await _who(db, "comment", cid, type, offset)
 
 
@@ -425,7 +455,7 @@ async def _who(db, kind, target_id, rtype, offset):
 
 @router.get("/{post_id}/kommentarer")
 async def kommentarer(post_id: int, sort: str = "nyeste", skip: int = Query(0, ge=0, le=100000), around: int | None = None,
-                      user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+                      user: User = Depends(require_user), acc: snak_access.Access = Depends(need_thread()), db: AsyncSession = Depends(get_session)):
     try:
         await snak.get_post(db, post_id, user, staff=acc.can_moderate)  # 404 for skjulte/slettede opslag
         return await snak_comments.thread(db, post_id, user.id, acc.can_moderate, sort=sort, skip=skip, around=around)
@@ -434,7 +464,7 @@ async def kommentarer(post_id: int, sort: str = "nyeste", skip: int = Query(0, g
 
 
 @router.post("/{post_id}/kommentarer")
-async def kommenter(post_id: int, body: CommentIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+async def kommenter(post_id: int, body: CommentIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need_thread()), db: AsyncSession = Depends(get_session)):
     try:
         c = await snak_comments.add(db, user, post_id, body.body, body.parent_id, staff=acc.staff, media_id=body.media_id if acc.on('snak_billeder') else None)
     except snak.SnakError as e:
@@ -443,7 +473,7 @@ async def kommenter(post_id: int, body: CommentIn, user: User = Depends(require_
 
 
 @router.patch("/kommentarer/{cid}")
-async def ret_kommentar(cid: int, body: CommentIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+async def ret_kommentar(cid: int, body: CommentIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need_comment()), db: AsyncSession = Depends(get_session)):
     try:
         await snak_comments.edit(db, user, cid, body.body)
     except snak.SnakError as e:
@@ -452,7 +482,7 @@ async def ret_kommentar(cid: int, body: CommentIn, user: User = Depends(require_
 
 
 @router.delete("/kommentarer/{cid}")
-async def slet_kommentar(cid: int, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+async def slet_kommentar(cid: int, user: User = Depends(require_user), acc: snak_access.Access = Depends(need_comment()), db: AsyncSession = Depends(get_session)):
     try:
         await snak_comments.remove_own(db, user, cid)
     except snak.SnakError as e:
@@ -461,7 +491,7 @@ async def slet_kommentar(cid: int, user: User = Depends(require_user), acc: snak
 
 
 @router.post("/kommentarer/{cid}/moderer")
-async def moderer_kommentar(cid: int, body: CommentModerateIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()),
+async def moderer_kommentar(cid: int, body: CommentModerateIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need_comment()),
                             db: AsyncSession = Depends(get_session)):
     if not acc.can_moderate:
         raise HTTPException(403, "Kun moderatorer kan det")
@@ -474,7 +504,7 @@ async def moderer_kommentar(cid: int, body: CommentModerateIn, user: User = Depe
 
 
 @router.post("/kommentarer/{cid}/anmeld")
-async def anmeld_kommentar(cid: int, body: ReportIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need()), db: AsyncSession = Depends(get_session)):
+async def anmeld_kommentar(cid: int, body: ReportIn, user: User = Depends(require_user), acc: snak_access.Access = Depends(need_comment()), db: AsyncSession = Depends(get_session)):
     try:
         return {"hidden": await snak_reports.report(db, user, "comment", cid, body.reason, body.note)}
     except snak.SnakError as e:

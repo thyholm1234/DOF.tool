@@ -19,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
@@ -52,6 +53,7 @@ class SnPost(Base):
         Index("ix_sn_posts_user", "user_id"),
         Index("ix_sn_posts_search", "search", postgresql_using="gin"),
         Index("ix_sn_posts_arter", "arter", postgresql_using="gin"),
+        Index("ux_sn_posts_article", "article_id", unique=True, postgresql_where=text("article_id IS NOT NULL")),  # ét opslag pr. artikel
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -78,6 +80,8 @@ class SnPost(Base):
     views: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     eksempel: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Opslaget for en artikel (services/snak_articles): ingen bruger som afsender, eksempel_navn er forfatterne.
+    article_id: Mapped[int | None] = mapped_column(ForeignKey("art_articles.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     search = mapped_column(TSVECTOR, Computed(

@@ -4,6 +4,10 @@
 EXTRA_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_sn_comments_parent ON sn_comments (parent_id, status)",
     "ALTER TABLE sn_categories ADD COLUMN IF NOT EXISTS ikon varchar(24) NOT NULL DEFAULT 'chat'",
+    # Artiklernes Snak-opslag (services/snak_articles): højst ét opslag pr. artikel
+    "ALTER TABLE sn_posts ADD COLUMN IF NOT EXISTS article_id integer REFERENCES art_articles(id) ON DELETE CASCADE",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ux_sn_posts_article ON sn_posts (article_id) WHERE article_id IS NOT NULL",
+    "ALTER TABLE art_articles ADD COLUMN IF NOT EXISTS snak_tekst text",
     # Læring 2.0 (docs/laering-spec.md): kurser/øvelser og aktiviteter udvides
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS kind varchar(8) NOT NULL DEFAULT 'kursus'",
     "ALTER TABLE courses ADD COLUMN IF NOT EXISTS number integer",

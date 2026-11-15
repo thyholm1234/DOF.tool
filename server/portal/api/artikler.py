@@ -1,18 +1,18 @@
-"""Artikelmodulet (brugerdelen): forside, søgning, emneord, arter, forfattere, artikelside, kommentarer og notifikationer.
+"""Artikelmodulet (brugerdelen): forside, søgning, emneord, arter, forfattere, artikelside, arkivets kommentarer og notifikationer.
 
 Alt kræver, at funktionen «artikler» er synlig for brugeren (Admin → Funktioner); ellers svarer API'et 404. Redigering og import ligger i
-api/admin/artikler.py. SQL ligger i services (article_*)."""
+api/admin/artikler.py. Nye kommentarer skrives i artiklens Snak-opslag (api/snak.py). SQL ligger i services (article_*)."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.api.deps import require_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import article_access, article_comments, article_notify, article_settings, article_subs, articles
+from portal.services import article_access, article_comments, article_settings, article_subs, articles
 
 router = APIRouter(prefix="/api/artikler", tags=["artikler"])
 
@@ -98,50 +98,6 @@ async def set_prefs(body: PrefsIn, user: User = Depends(require_user), acc: arti
     return await article_subs.get_prefs(db, user.id)
 
 
-# ---------------------------------------------------------------- kommentarer (før /{id}, så stierne ikke forveksles)
-
-class CommentIn(BaseModel):
-    body: str = Field(min_length=1, max_length=article_comments.MAX_LEN)
-    parent_id: int | None = None
-
-
-class ReportIn(BaseModel):
-    reason: str = Field(max_length=40)
-    note: str = Field("", max_length=500)
-
-
-@router.patch("/kommentarer/{cid}")
-async def ret_kommentar(cid: int, body: CommentIn, user: User = Depends(require_user), acc: article_access.Access = Depends(need("artikler_kommentarer")),
-                        db: AsyncSession = Depends(get_session)):
-    try:
-        c = await article_comments.edit(db, user, cid, body.body)
-    except article_comments.CommentError as exc:
-        raise _comment_error(exc) from exc
-    return {"id": c.id, "html": c.body_html}
-
-
-@router.delete("/kommentarer/{cid}")
-async def slet_kommentar(cid: int, user: User = Depends(require_user), acc: article_access.Access = Depends(need("artikler_kommentarer")),
-                         db: AsyncSession = Depends(get_session)):
-    try:
-        await article_comments.remove_own(db, user, cid)
-    except article_comments.CommentError as exc:
-        raise _comment_error(exc) from exc
-    return {"ok": True}
-
-
-@router.post("/kommentarer/{cid}/anmeld")
-async def anmeld(cid: int, body: ReportIn, tasks: BackgroundTasks, user: User = Depends(require_user),
-                 acc: article_access.Access = Depends(need("artikler_kommentarer")), db: AsyncSession = Depends(get_session)):
-    try:
-        hidden = await article_comments.report(db, user, cid, body.reason, body.note)
-    except article_comments.CommentError as exc:
-        raise _comment_error(exc) from exc
-    if hidden:
-        tasks.add_task(article_notify.on_auto_hidden, cid)
-    return {"ok": True}
-
-
 # ---------------------------------------------------------------- artikelsiden
 
 @router.get("/{aid:int}")
@@ -159,6 +115,7 @@ async def artikel(aid: int, tasks: BackgroundTasks, user: User = Depends(require
 @router.get("/{aid:int}/kommentarer")
 async def kommentarer(aid: int, user: User = Depends(require_user), acc: article_access.Access = Depends(need("artikler_kommentarer")),
                       db: AsyncSession = Depends(get_session)):
+    """Arkivets kommentarer (netfugl.dk og portalens fra før Snak) – kun til læsning. Nye kommentarer ligger i artiklens Snak-opslag."""
     try:  # samme synlighed som artiklen: kommentarer til en kladde eller en trukket artikel ses kun af redaktører
         await article_comments.article_visible(db, aid, acc.can_edit)
     except article_comments.CommentError as exc:
@@ -166,21 +123,11 @@ async def kommentarer(aid: int, user: User = Depends(require_user), acc: article
     return await article_comments.list_comments(db, aid, user.id, acc.can_moderate)
 
 
-@router.post("/{aid:int}/kommentarer")
-async def skriv_kommentar(aid: int, body: CommentIn, tasks: BackgroundTasks, user: User = Depends(require_user),
-                          acc: article_access.Access = Depends(need("artikler_kommentarer")), db: AsyncSession = Depends(get_session)):
-    try:
-        c = await article_comments.add(db, user, aid, body.body, body.parent_id, can_edit=acc.can_edit)
-    except article_comments.CommentError as exc:
-        raise _comment_error(exc) from exc
-    tasks.add_task(article_notify.on_comment, c.id)
-    return {"id": c.id}
-
-
 @router.put("/{aid:int}/foelg")
 async def foelg(aid: int, user: User = Depends(require_user), acc: article_access.Access = Depends(need("artikler_notifikationer")),
                 db: AsyncSession = Depends(get_session)):
-    await article_subs.follow(db, user.id, aid, True)
+    if not await article_subs.follow(db, user.id, aid, True):
+        raise HTTPException(400, "Artiklen kan ikke følges, før den er publiceret")
     return {"foelger": True}
 
 

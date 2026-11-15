@@ -94,6 +94,7 @@ class ArtArticle(Base):
     title: Mapped[str] = mapped_column(String(300))
     slug: Mapped[str] = mapped_column(String(120), default="")
     lead: Mapped[str | None] = mapped_column(Text)
+    snak_tekst: Mapped[str | None] = mapped_column(Text)  # teksten i artiklens Snak-opslag; tom → et uddrag af brødteksten
     body_md: Mapped[str] = mapped_column(Text, default="")
     body_html: Mapped[str] = mapped_column(Text, default="")
     body_text: Mapped[str] = mapped_column(Text, default="")

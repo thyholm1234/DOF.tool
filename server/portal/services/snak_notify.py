@@ -50,8 +50,11 @@ async def set_prefs(session: AsyncSession, user_id: int, valg: dict) -> None:
     await session.commit()
 
 
-async def _eligible(session: AsyncSession, ids, kind: str) -> list[int]:
-    """Modtagere, der ser Snak-notifikationer (funktionsflag) og ikke har slået typen fra."""
+async def _eligible(session: AsyncSession, ids, kind: str, article: bool = False) -> list[int]:
+    """Modtagere, der ser Snak-notifikationer (funktionsflag) og ikke har slået typen fra.
+
+    article: kommentarsporet under en artikel – det følger artiklernes notifikationer (flaget «artikler_notifikationer» og valget
+    «nye kommentarer på artikler») i stedet for Snaks, så det også virker for dem, der ikke har Snak."""
     ids = sorted({int(i) for i in ids if i})
     if not ids:
         return []
@@ -61,18 +64,35 @@ async def _eligible(session: AsyncSession, ids, kind: str) -> list[int]:
         user = await session.get(User, u[0])
         if user is None:
             continue
-        insider = user.role == SUPERADMIN or can(user, "snak")
-        if not features.visible(flags, "snak_notifikationer", superadmin=user.role == SUPERADMIN, insider=insider):
+        sa = user.role == SUPERADMIN
+        prefs = user.prefs or {}
+        if article:
+            if not features.visible(flags, "artikler_notifikationer", superadmin=sa, insider=sa or can(user, "artikler")):
+                continue
+            if kind in ("svar", "foelg") and prefs.get("art_comments", True) is False:
+                continue
+        elif not features.visible(flags, "snak_notifikationer", superadmin=sa, insider=sa or can(user, "snak")):
             continue
-        if (user.prefs or {}).get("snak", {}).get(kind, True) is False:
+        if prefs.get("snak", {}).get(kind, True) is False and not (article and kind in ("svar", "foelg")):
             continue
         out.append(user.id)
     return out
 
 
-async def _send(session: AsyncSession, ids, kind: str, **kw) -> None:
+async def _article(session: AsyncSession, post_id: int | None) -> int | None:
+    return (await session.execute(text("SELECT article_id FROM sn_posts WHERE id = :i"), {"i": post_id})).scalar() if post_id else None
+
+
+def _url(post_id: int, article_id: int | None, comment_id: int | None = None) -> str:
+    """Kommentarer under en artikel åbnes på artikelsiden (sk = Snak-kommentaren), ellers på opslaget."""
+    if article_id:
+        return f"/#/artikler/{article_id}" + (f"?sk={comment_id}" if comment_id else "")
+    return f"/#/snak/{post_id}" + (f"?k={comment_id}" if comment_id else "")
+
+
+async def _send(session: AsyncSession, ids, kind: str, article: bool = False, **kw) -> None:
     try:
-        who = await _eligible(session, ids, kind)
+        who = await _eligible(session, ids, kind, article)
         if who:
             await notify.notify(session, who, **kw)
     except Exception:  # noqa: BLE001 – en notifikation må aldrig få en kommentar eller reaktion til at fejle
@@ -90,7 +110,9 @@ def _label(titel: str | None, body: str | None = None) -> str:
 
 async def comment_added(session: AsyncSession, author: User, c, post: dict) -> None:
     """Svar > kommentar på opslag > fulgt tråd. post: {id, user_id, titel}. c: den gemte kommentar."""
-    url = f"/#/snak/{post['id']}?k={c.id}"
+    aid = await _article(session, post["id"])
+    art = aid is not None
+    url = _url(post["id"], aid, c.id)
     done = {author.id}
     reply = set()
     if c.parent_id:
@@ -100,14 +122,14 @@ async def comment_added(session: AsyncSession, author: User, c, post: dict) -> N
         reply.add(c.reply_to_user_id)
     reply = {u for u in reply if u and u not in done}
     if reply:
-        await _send(session, reply, "svar", title=f"{_name(author)} svarede på din kommentar", body=(c.body_text or "")[:200] or "Billede", url=url, dedup=f"snak:svar:{c.id}")
+        await _send(session, reply, "svar", art, title=f"{_name(author)} svarede på din kommentar", body=(c.body_text or "")[:200] or "Billede", url=url, dedup=f"snak:svar:{c.id}")
         done |= reply
     if post["user_id"] and post["user_id"] not in done:
         await _send(session, [post["user_id"]], "kommentar", title=f"{_name(author)} kommenterede dit opslag", body=(c.body_text or "")[:200] or "Billede", url=url, dedup=f"snak:kom:{c.id}")
         done.add(post["user_id"])
     followers = {r[0] for r in (await session.execute(text("SELECT user_id FROM sn_follows WHERE post_id = :p AND NOT muted"), {"p": post["id"]})).all()} - done
     if followers:
-        await _send(session, followers, "foelg", title=f"Nye kommentarer: {_label(post['titel'])}"[:240], body=f"{_name(author)}: {(c.body_text or 'Billede')[:160]}", url=url,
+        await _send(session, followers, "foelg", art, title=f"Nye kommentarer: {_label(post['titel'])}"[:240], body=f"{_name(author)}: {(c.body_text or 'Billede')[:160]}", url=url,
                     dedup=f"snak:foelg:{post['id']}:{_hour()}")
 
 
@@ -122,8 +144,9 @@ async def reaction_added(session: AsyncSession, user: User, kind: str, target_id
     emoji = TYPES.get(top, TYPES[rtype])[0]
     what = "dit opslag" if kind == "post" else "din kommentar"
     who = _name(user) if total <= 1 else f"{_name(user)} og {total - 1} {'anden' if total == 2 else 'andre'}"
-    await _send(session, [owner_id], "reaktion", title=f"{who} reagerede på {what} {emoji}", body="", url=f"/#/snak/{post_id}" + (f"?k={target_id}" if kind == "comment" else ""),
-                dedup=f"snak:reak:{kind}:{target_id}:{_hour()}")
+    aid = await _article(session, post_id)
+    await _send(session, [owner_id], "reaktion", aid is not None, title=f"{who} reagerede på {what} {emoji}", body="",
+                url=_url(post_id, aid, target_id if kind == "comment" else None), dedup=f"snak:reak:{kind}:{target_id}:{_hour()}")
 
 
 async def solution_marked(session: AsyncSession, marker: User, post_id: int, comment_id: int) -> None:
@@ -138,5 +161,6 @@ async def hidden(session: AsyncSession, kind: str, target_id: int, reason: str |
     else:
         owner, post_id = (await session.execute(text("SELECT user_id, post_id FROM sn_comments WHERE id = :i"), {"i": target_id})).first() or (None, None)
     if owner:
-        await _send(session, [owner], "skjul", title="Dit opslag er skjult" if kind == "post" else "Din kommentar er skjult", body=(reason or "")[:300],
-                    url=f"/#/snak/{post_id}", dedup=f"snak:skjul:{kind}:{target_id}")
+        aid = await _article(session, post_id)
+        await _send(session, [owner], "skjul", aid is not None, title="Dit opslag er skjult" if kind == "post" else "Din kommentar er skjult", body=(reason or "")[:300],
+                    url=_url(post_id, aid), dedup=f"snak:skjul:{kind}:{target_id}")

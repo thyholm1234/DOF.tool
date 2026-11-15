@@ -50,6 +50,7 @@ from portal.services import (
     regions,
     schedule,
     seasons,
+    snak_articles,
     speechmodel,
     storage,
     weather_archive,
@@ -319,10 +320,15 @@ async def articles_publish() -> None:
     async with SessionLocal() as s:
         due = await article_edit.publish_due(s)
         n = await articles.flush_views(s)
+        for aid in due:  # et opslag, der blev skjult, da artiklen blev trukket tilbage, vises igen
+            await snak_articles.sync(s, aid)
+        await s.commit()
+        # Snak-opslag til artikler, der lige er publiceret (planlagt eller importeret) – første gang hele arkivet
+        posts = await snak_articles.backfill(s)
     for aid in due:
         await article_notify.on_publish(aid)
-    if due or n:
-        await jobstatus.step(f"{len(due)} publiceret, {n} læsetal")
+    if due or n or posts:
+        await jobstatus.step(f"{len(due)} publiceret, {n} læsetal, {posts} Snak-opslag")
 
 
 async def articles_species() -> None:

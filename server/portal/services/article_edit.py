@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timezone
 
@@ -11,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.cache import bump
 from portal.models import ArtArticle, ArtArticleTag, ArtRevision, ArtTag, ContentMedia, User
 from portal.services import article_authors, article_species, content_render
+
+log = logging.getLogger("portal.artikler")
 
 STATUSES = ("kladde", "planlagt", "publiceret", "skjult")
 KEEP_REVISIONS = 50
@@ -54,7 +57,7 @@ async def tag_ids(session: AsyncSession, names: list[str], matcher) -> list[int]
 def _meta(art: ArtArticle, tags: list[str]) -> dict:
     return {"lead": art.lead, "authors": art.authors, "dato": art.dato.isoformat(), "tags": tags, "cover_media_id": art.cover_media_id,
             "cover_caption": art.cover_caption, "status": art.status, "publish_at": art.publish_at.isoformat() if art.publish_at else None,
-            "comments_open": art.comments_open, "source_url": art.source_url, "kind": art.kind, "sprog": art.sprog}
+            "comments_open": art.comments_open, "source_url": art.source_url, "kind": art.kind, "sprog": art.sprog, "snak_tekst": art.snak_tekst}
 
 
 async def _tag_names(session: AsyncSession, aid: int) -> list[str]:
@@ -112,6 +115,7 @@ async def save(session: AsyncSession, user: User, data: dict, art: ArtArticle | 
     title = data["title"].strip()[:300]
     art.title, art.slug = title, content_render.slugify(title)
     art.lead = (data.get("lead") or "").strip() or None
+    art.snak_tekst = (data.get("snak_tekst") or "").strip() or None
     art.body_md = data.get("body_md") or ""
     art.sprog = data.get("sprog") if data.get("sprog") in ("da", "en") else (art.sprog or "da")
     if data.get("dato"):
@@ -142,8 +146,21 @@ async def save(session: AsyncSession, user: User, data: dict, art: ArtArticle | 
     if old:
         await session.execute(delete(ArtRevision).where(ArtRevision.id.in_(old)))
     await session.commit()
+    await _sync_snak(session, art.id)
     await bump("articles")
     return art, first_publish
+
+
+async def _sync_snak(session: AsyncSession, aid: int) -> None:
+    """Artiklens Snak-opslag følger artiklen (titel, tekst, status, lukkede kommentarer). Må aldrig få en gemning til at fejle."""
+    from portal.services import snak_articles
+
+    try:
+        await snak_articles.sync(session, aid)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        log.exception("Snak-opslaget til artikel %s kunne ikke opdateres", aid)
 
 
 async def delete_article(session: AsyncSession, art: ArtArticle) -> None:
