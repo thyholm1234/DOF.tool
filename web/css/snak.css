@@ -178,8 +178,11 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 .sn-tw-bar .icon-btn { padding: 2px 6px; font-size: .85rem; }
 .sn-suggest { align-self: flex-start; background: var(--brand-soft, var(--bg-2)); border: 1px dashed var(--line-strong); border-radius: 99px; padding: 4px 12px; font: inherit; font-size: .85rem; cursor: pointer; color: var(--brand); }
 .sn-pick-list { max-height: 50vh; overflow-y: auto; }
-.sn-pick { display: flex; flex-direction: column; text-align: left; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font: inherit; color: inherit; cursor: pointer; }
-.sn-pick:hover { background: var(--bg-2); }
+/* Rækkerne i vedhæft-vælgeren. Afgrænset til listen: .sn-pick er også knapperne i reaktionsvælgeren (runde, 44 px). */
+.sn-pick-list .sn-pick { width: 100%; height: auto; display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font: inherit; color: inherit; cursor: pointer; transition: none; }
+.sn-pick-list .sn-pick:hover, .sn-pick-list .sn-pick:focus-visible { transform: none; background: var(--bg-2); }
+.sn-pick-list .sn-pick:disabled { cursor: not-allowed; opacity: .55; background: var(--surface); }
+.sn-pick-list > .btn { align-self: flex-start; }
 .sn-cimg { display: flex; gap: 6px; align-items: flex-start; }
 .sn-cimg img { max-height: 80px; border-radius: 8px; }
 .sn-compose-row .icon-btn { align-self: flex-end; }
