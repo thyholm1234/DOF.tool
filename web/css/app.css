@@ -504,6 +504,8 @@ textarea.ask-input { resize: vertical; }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hide { display: none !important; }
+/* Brugernavn til adgangskodehuskeren: skal være et rigtigt tekstfelt (Safari ignorerer type=hidden), men usynligt */
+.pw-user { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .right { text-align: right; }
 .nowrap { white-space: nowrap; }
 .mt { margin-top: 12px; } .mt2 { margin-top: 20px; } .mb { margin-bottom: 12px; }

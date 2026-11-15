@@ -121,7 +121,7 @@ const SECTIONS = {
         pwForm.reset(); pwForm.classList.add("hide");
         show("Adgangskoden er skiftet. Dine andre enheder er logget ud.", true);
       } catch (err) { show(err.message); }
-    } }, h("input", { type: "hidden", autocomplete: "username", value: u.email || u.obserkode }), curL, nwL, nw2L,
+    } }, h("input", { type: "text", class: "pw-user", autocomplete: "username", value: u.email || u.obserkode, readonly: true, tabindex: -1, "aria-hidden": "true" }), curL, nwL, nw2L,
       h("div", { class: "row" }, h("button", { class: "btn primary" }, "Skift adgangskode"),
         h("button", { type: "button", class: "btn ghost", onclick: () => pwForm.classList.add("hide") }, "Annullér")));
 

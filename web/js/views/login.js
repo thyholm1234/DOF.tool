@@ -188,10 +188,11 @@ function showCreate(card, go, flow) {
   const b = flow.bind;
   const reset = b.has_account;
   const navn = h("input", { autocomplete: "name", maxlength: 160, value: b.navn || "", required: true });
-  const email = h("input", { type: "email", autocomplete: "email", maxlength: 254, required: !reset, placeholder: reset ? b.email || "" : "navn@eksempel.dk" });
+  const email = h("input", { type: "email", autocomplete: reset ? "email" : "username", maxlength: 254, required: !reset, placeholder: reset ? b.email || "" : "navn@eksempel.dk" });
   const pw = h("input", { type: "password", autocomplete: "new-password", required: true, minlength: PW_MIN, maxlength: 200 });
   const pw2 = h("input", { type: "password", autocomplete: "new-password", required: true, maxlength: 200 });
-  const user = h("input", { type: "hidden", autocomplete: "username", value: b.obserkode });  // til browserens adgangskodehusker
+  // Til browserens adgangskodehusker: ved ny konto er e-mailfeltet brugernavnet, ved nulstilling obserkoden
+  const user = reset ? h("input", { type: "text", class: "pw-user", autocomplete: "username", value: b.obserkode, readonly: true, tabindex: -1, "aria-hidden": "true" }) : null;
   const btn = big("primary", reset ? "Gem ny adgangskode" : "Opret konto");
   const msg = h("div", {});
   const rules = [
@@ -257,7 +258,7 @@ function showCreate(card, go, flow) {
 
 function showCreateLocal(card, go) {
   const navn = h("input", { autocomplete: "name", maxlength: 160, required: true });
-  const email = h("input", { type: "email", autocomplete: "email", maxlength: 254, required: true, placeholder: "navn@eksempel.dk" });
+  const email = h("input", { type: "email", autocomplete: "username", maxlength: 254, required: true, placeholder: "navn@eksempel.dk" });
   const pw = h("input", { type: "password", autocomplete: "new-password", required: true, minlength: PW_MIN, maxlength: 200 });
   const pw2 = h("input", { type: "password", autocomplete: "new-password", required: true, maxlength: 200 });
   const btn = big("primary", "Opret konto");
@@ -349,7 +350,7 @@ function showForgot(card, go, flow, prefill) {
       const done = busy(btn, "Sender…");
       try {
         const r = await api("/api/auth/konto/glemt", { method: "POST", body: { login: value() } });
-        go.reset(r);
+        go.reset({ ...r, login: value() });
       } catch (err) { msg.replaceChildren(notice(err.message)); } finally { done(); }
     } }, field("E-mail eller obserkode", ident), btn),
     msg,
@@ -390,6 +391,7 @@ function showReset(card, go, r, prefill) {
         msg.replaceChildren(/udløbet|for mange/i.test(err.message) ? again(err.message) : notice(err.message));
       } finally { done(); }
     } },
+      r.login ? h("input", { type: "text", class: "pw-user", autocomplete: "username", value: r.login, readonly: true, tabindex: -1, "aria-hidden": "true" }) : null,
       field("Kode fra mailen", code),
       field("Ny adgangskode", pw),
       field("Gentag adgangskoden", pw2),
