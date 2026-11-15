@@ -302,7 +302,7 @@ Til sidst: tæl `cache`-versionen op for artikler, så forside og søgning genbe
   bliver til en `<audio controls>`-afspiller med titlen som billedtekst).
 - `netfugl:<NNNN>` → `#/artikler/n/NNNN` (virker også, hvis artiklen importeres senere).
 - `artikel:<id>` → `#/artikler/<id>`.
-- `[[art:<artnr>]]` (inline) → artschip med navn, link til `#/arter/<artnr>`.
+- `[[art:<artnr>]]` (inline) → artschip med navn, link til artens side `#/art/<artnr>`.
 
 Så kan lageret flyttes (disk ↔ S3) uden at røre teksterne.
 

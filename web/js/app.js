@@ -404,6 +404,9 @@ async function show(y) {
     location.replace("#/login" + (path && path !== "/" ? `?next=${encodeURIComponent("#" + location.hash.slice(1))}` : ""));
     return;
   }
+  // Artschips i gemt opslags- og artikeltekst (body_html) blev før renderet med #/arter/<artnr>; artens side er #/art/<artnr>
+  const oldArt = path.match(/^\/arter\/(\d+)$/);
+  if (oldArt) { location.replace(`#/art/${oldArt[1]}`); return; }
   renderNav();
   if (state.user) trackView(path);
   if (state.user && state.unread) markSeen("/#" + path);

@@ -170,7 +170,7 @@ def _install_renderers(md: MarkdownIt, ctx: Ctx, profile: str) -> None:
         name = ctx.species.get(n)
         if not name:
             return htmllib.escape(f"[[art:{n}]]")
-        return f'<a class="art-chip" href="#/arter/{n}">{htmllib.escape(name)}</a>'
+        return f'<a class="art-chip" href="#/art/{n}">{htmllib.escape(name)}</a>'
 
     rules["art_ref"] = art_ref
 

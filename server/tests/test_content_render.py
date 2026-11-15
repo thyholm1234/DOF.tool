@@ -24,7 +24,7 @@ def test_markdown_basics_tables_and_containers():
 def test_portable_references_are_resolved():
     r = render('Se [artiklen](netfugl:155), [en anden](artikel:9), [rapport](media:8) og [[art:5]].\n\n![billede](media:7 "Billedtekst")')
     assert 'href="#/artikler/n/155"' in r.html and 'href="#/artikler/9"' in r.html and 'href="/media/art/cd/r.pdf" class="art-pdf"' in r.html.replace(' rel="noopener noreferrer"', "")
-    assert '<a class="art-chip" href="#/arter/5"' in r.html and ">Dværgterne</a>" in r.html
+    assert '<a class="art-chip" href="#/art/5"' in r.html and ">Dværgterne</a>" in r.html
     assert 'src="/media/art/ab/m.jpg"' in r.html and 'width="1000" height="800"' in r.html and "400w" in r.html and 'class="art-cap">Billedtekst<' in r.html
     assert r.media_ids == [7, 8] and r.species == [5]
 
