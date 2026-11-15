@@ -15,7 +15,7 @@ import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
-from email.utils import formataddr, make_msgid
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 
 from portal.config import get_settings
 
@@ -32,8 +32,13 @@ def configured() -> bool:
 
 
 def _sender() -> str:
+    """Afsenderlinjen. Visningsnavnet sættes i anførselstegn, når det kræver det: «DOF.tool <a@b.dk>» med punktum uden citering er ikke
+    gyldig adresse-syntaks (RFC 5322), og strenge modtagere som Gmail kan afvise eller omskrive mails med den."""
     s = get_settings()
-    return s.smtp_from or (formataddr((s.app_name, s.smtp_user)) if s.smtp_user else "")
+    if not s.smtp_from:
+        return formataddr((s.app_name, s.smtp_user)) if s.smtp_user else ""
+    name, addr = parseaddr(s.smtp_from)
+    return formataddr((name, addr)) if addr else s.smtp_from
 
 
 def _send_sync(msg: EmailMessage) -> None:
@@ -131,7 +136,8 @@ async def send(to: str, subject: str, text: str, html_body: str | None = None) -
     msg["From"] = sender
     msg["To"] = to
     msg["Subject"] = subject
-    msg["Message-ID"] = make_msgid(domain=sender.rsplit("@", 1)[-1].strip("> ") or None)
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain=parseaddr(sender)[1].rsplit("@", 1)[-1] or None)
     msg["Auto-Submitted"] = "auto-generated"
     msg.set_content(text)
     if html_body:
