@@ -22,6 +22,7 @@ const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
 const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
 const ARTIKLER = ["#/artikler", "news", "Artikler"];
 const FOTOS = ["#/fotos", "camera", "Fotos"];
+const SNAK = ["#/snak", "chat", "Snak"];
 const DAGSLISTE = ["#/dagsliste", "list", "Observationer"];
 const SEARCH = ["#/soeg", "search", "Søg"];
 const STATS = ["#/statistik", "chart", "Statistik"];
@@ -31,7 +32,7 @@ const SU = ["#/su", "flag", "SU"];
 const showcases = () => [state.user?.dofbasen?.features?.dofbasen ? DOFBASEN : null, state.user?.netfugl?.features?.netfugl ? NETFUGL : null].filter(Boolean);
 /** Menuens grupper for den indloggede: modulerne bag funktionsflag vises kun, når de er slået til (eller forhåndsvisning). */
 function sections() {
-  const extra = [state.user?.artikler?.features?.artikler ? ARTIKLER : null, state.user?.fotos?.features?.fotos ? FOTOS : null].filter(Boolean);
+  const extra = [state.user?.artikler?.features?.artikler ? ARTIKLER : null, state.user?.fotos?.features?.fotos ? FOTOS : null, state.user?.snak?.features?.snak ? SNAK : null].filter(Boolean);
   // DKU (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
   // Statistik-modulet og Søg under Data, når funktionerne er synlige for brugeren
@@ -50,7 +51,7 @@ function sections() {
   if (qa.length) out.splice(out.findIndex(([t]) => t === "Mit"), 0, ["Kvalitetssikring", qa]);  // lige før Mit
   return out;
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"], SU];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, SNAK, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"], SU];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
@@ -100,6 +101,7 @@ const ROUTES = [
   [/^\/netfugl(?:\/(.+))?$/, () => import("./views/netfugl.js")],
   [/^\/artikler(?:\/(.+))?$/, () => import("./views/artikler.js")],
   [/^\/fotos(?:\/(.+))?$/, () => import("./views/fotos.js")],
+  [/^\/snak(?:\/(.*))?$/, () => import("./views/snak.js")],
   [/^\/krydslister(?:\/(.+))?$/, () => import("./views/krydslister.js")],
   [/^\/nyheder\/(\d+)$/, () => import("./views/nyhed.js")],
 ];

@@ -16,6 +16,7 @@ from portal.dbrouter import router
 from portal.dof.reference import fix_list_species, seed_reference
 from portal.services.auth import ensure_roles, ensure_superadmin, seed_roles
 from portal.services.categories import seed_categories
+from portal.services.snak import seed_categories as seed_snak_categories
 from portal.services.danish_list import seed as seed_danish_list
 from portal.services.dofbasen import seed as seed_dofbasen
 from portal.services.learning import migrate_v2, seed_courses, seed_packs, seed_traekrute
@@ -44,6 +45,7 @@ async def init_db() -> None:
         await s.execute(text("SELECT pg_advisory_lock(424243)"))
         try:
             await seed_categories(s)
+            await seed_snak_categories(s)
             await seed_danish_list(s)
             await seed_manual_finds(s)
             await seed_presets(s)

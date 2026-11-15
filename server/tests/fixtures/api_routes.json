@@ -5567,6 +5567,46 @@ true,
 "params": []
 }
 },
+"/api/krydslister/person/{kode}": {
+"get": {
+"body": false,
+"op": "person_api_krydslister_person__kode__get",
+"params": [
+[
+"aar",
+"query",
+false,
+"{\"anyOf\": [{\"maximum\": 2100, \"minimum\": 1900, \"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Aar\"}"
+],
+[
+"kode",
+"path",
+true,
+"{\"title\": \"Kode\", \"type\": \"string\"}"
+]
+]
+}
+},
+"/api/krydslister/person/{kode}/{key}": {
+"get": {
+"body": false,
+"op": "person_liste_api_krydslister_person__kode___key__get",
+"params": [
+[
+"key",
+"path",
+true,
+"{\"title\": \"Key\", \"type\": \"string\"}"
+],
+[
+"kode",
+"path",
+true,
+"{\"title\": \"Kode\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/krydslister/sider/{slug}": {
 "get": {
 "body": false,
@@ -9008,6 +9048,20 @@ true,
 ]
 }
 },
+"/api/observers/{kode}/indhold": {
+"get": {
+"body": false,
+"op": "content_api_observers__kode__indhold_get",
+"params": [
+[
+"kode",
+"path",
+true,
+"{\"title\": \"Kode\", \"type\": \"string\"}"
+]
+]
+}
+},
 "/api/pheno/arrivals": {
 "get": {
 "body": false,
@@ -9348,6 +9402,346 @@ true,
 "body": false,
 "op": "public_settings_api_settings_public_get",
 "params": []
+}
+},
+"/api/snak": {
+"post": {
+"body": true,
+"op": "opret_api_snak_post",
+"params": []
+}
+},
+"/api/snak/feed": {
+"get": {
+"body": false,
+"op": "feed_api_snak_feed_get",
+"params": [
+[
+"cursor",
+"query",
+false,
+"{\"anyOf\": [{\"maxLength\": 200, \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Cursor\"}"
+],
+[
+"kategori",
+"query",
+false,
+"{\"anyOf\": [{\"maxLength\": 40, \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Kategori\"}"
+],
+[
+"sort",
+"query",
+false,
+"{\"default\": \"aktivitet\", \"title\": \"Sort\", \"type\": \"string\"}"
+],
+[
+"uloeste",
+"query",
+false,
+"{\"default\": false, \"title\": \"Uloeste\", \"type\": \"boolean\"}"
+]
+]
+}
+},
+"/api/snak/kategorier": {
+"get": {
+"body": false,
+"op": "kategorier_api_snak_kategorier_get",
+"params": []
+}
+},
+"/api/snak/kommentarer/{cid}": {
+"delete": {
+"body": false,
+"op": "slet_kommentar_api_snak_kommentarer__cid__delete",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+},
+"patch": {
+"body": true,
+"op": "ret_kommentar_api_snak_kommentarer__cid__patch",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/kommentarer/{cid}/moderer": {
+"post": {
+"body": true,
+"op": "moderer_kommentar_api_snak_kommentarer__cid__moderer_post",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/kommentarer/{cid}/reaktion": {
+"delete": {
+"body": false,
+"op": "fjern_kommentar_api_snak_kommentarer__cid__reaktion_delete",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "reager_kommentar_api_snak_kommentarer__cid__reaktion_put",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/kommentarer/{cid}/reaktioner": {
+"get": {
+"body": false,
+"op": "hvem_kommentar_api_snak_kommentarer__cid__reaktioner_get",
+"params": [
+[
+"cid",
+"path",
+true,
+"{\"title\": \"Cid\", \"type\": \"integer\"}"
+],
+[
+"offset",
+"query",
+false,
+"{\"default\": 0, \"maximum\": 100000, \"minimum\": 0, \"title\": \"Offset\", \"type\": \"integer\"}"
+],
+[
+"type",
+"query",
+false,
+"{\"anyOf\": [{\"maxLength\": 5, \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Type\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}": {
+"delete": {
+"body": false,
+"op": "slet_api_snak__post_id__delete",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+},
+"get": {
+"body": false,
+"op": "opslag_api_snak__post_id__get",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "ret_api_snak__post_id__put",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/fastgoer": {
+"post": {
+"body": true,
+"op": "fastgoer_api_snak__post_id__fastgoer_post",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/foelg": {
+"delete": {
+"body": false,
+"op": "foelg_ikke_api_snak__post_id__foelg_delete",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+},
+"post": {
+"body": false,
+"op": "foelg_api_snak__post_id__foelg_post",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/kommentarer": {
+"get": {
+"body": false,
+"op": "kommentarer_api_snak__post_id__kommentarer_get",
+"params": [
+[
+"around",
+"query",
+false,
+"{\"anyOf\": [{\"type\": \"integer\"}, {\"type\": \"null\"}], \"title\": \"Around\"}"
+],
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+],
+[
+"skip",
+"query",
+false,
+"{\"default\": 0, \"maximum\": 100000, \"minimum\": 0, \"title\": \"Skip\", \"type\": \"integer\"}"
+],
+[
+"sort",
+"query",
+false,
+"{\"default\": \"nyeste\", \"title\": \"Sort\", \"type\": \"string\"}"
+]
+]
+},
+"post": {
+"body": true,
+"op": "kommenter_api_snak__post_id__kommentarer_post",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/moderer": {
+"post": {
+"body": true,
+"op": "moderer_api_snak__post_id__moderer_post",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/reaktion": {
+"delete": {
+"body": false,
+"op": "fjern_opslag_api_snak__post_id__reaktion_delete",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+},
+"put": {
+"body": true,
+"op": "reager_opslag_api_snak__post_id__reaktion_put",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/reaktioner": {
+"get": {
+"body": false,
+"op": "hvem_opslag_api_snak__post_id__reaktioner_get",
+"params": [
+[
+"offset",
+"query",
+false,
+"{\"default\": 0, \"maximum\": 100000, \"minimum\": 0, \"title\": \"Offset\", \"type\": \"integer\"}"
+],
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+],
+[
+"type",
+"query",
+false,
+"{\"anyOf\": [{\"maxLength\": 5, \"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Type\"}"
+]
+]
+}
+},
+"/api/snak/{post_id}/visning": {
+"post": {
+"body": false,
+"op": "visning_api_snak__post_id__visning_post",
+"params": [
+[
+"post_id",
+"path",
+true,
+"{\"title\": \"Post Id\", \"type\": \"integer\"}"
+]
+]
 }
 },
 "/api/species": {

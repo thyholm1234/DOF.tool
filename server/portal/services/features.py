@@ -100,6 +100,11 @@ FEATURES: dict[str, tuple[str, str, str | None, str]] = {
     "artikler_notifikationer": ("Artikler: notifikationer", "Notifikationer om nye artikler og nye kommentarer på artikler, man "
                                 "selv har kommenteret.", "artikler", "on"),
     "artikler_editor": ("Artikler: oprettelse og redigering", "Markdown-editoren og metadata-panelet til artikler.", "artikler", "on"),
+    "snak": ("Snak (opslag, kommentarer og diskussioner)", "Feed med opslag i kategorier, kommentarer med svar, reaktioner (👍 ❤️ 😂 😮 😢 😡), "
+             "anmeld og moderation.", None, "preview"),
+    "snak_billeder": ("Snak: billeder", "Billeder i opslag (op til 10) og i kommentarer (1).", "snak", "on"),
+    "snak_links": ("Snak: forhåndsvisning af links", "Titel, beskrivelse og billede til eksterne links hentes af serveren.", "snak", "on"),
+    "snak_notifikationer": ("Snak: notifikationer", "Notifikationer om svar, kommentarer på egne opslag, reaktioner og fulgte tråde.", "snak", "on"),
     "fotos": ("Fotos (fotogalleri med netfugl-arkivet)", "Selvstændigt fotogalleri med søgning, upload, moderation og import af hele "
               "netfugl-arkivet. Importeres under Fotos → Admin → Import. Sættes først til «til», når rettighederne til arkivet er afklaret.",
               None, "preview"),

@@ -392,7 +392,7 @@ async def test_se_som_abonnerer_ikke_paa_maalbrugerens_kanal(monkeypatch):
     monkeypatch.setattr(feed, "_open_streams", {})
     monkeypatch.setattr(feed, "_events", events)
     target = SimpleNamespace(id=42)
-    for state, expected in ((SimpleNamespace(view_as={"user_id": 42}), ["feed"]), (SimpleNamespace(), ["feed", "user:42"])):
+    for state, expected in ((SimpleNamespace(view_as={"user_id": 42}), ["feed"]), (SimpleNamespace(), ["feed", "user:42", "snak"])):
         resp = await feed.stream(request=SimpleNamespace(state=state), user=target)
         async for _ in resp.body_iterator:
             pass

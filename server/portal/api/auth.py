@@ -18,7 +18,7 @@ from portal.dof import gateway
 from portal.dof.archive import MONTH_RE, archive_files
 from portal.models import User
 from portal.services import dofbinding, konto, passkeys, totp, zitadel
-from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, photo_privileges, position_privacy
+from portal.services import account, activity, learn_access, article_access, auth, dku, su, dofbasen, features, netfugl, kl_access, photo_access, snak_access, photo_privileges, position_privacy
 from portal.timeutil import dk_today
 from portal.services import dataset
 
@@ -499,6 +499,7 @@ async def me(request: Request, user: User | None = Depends(optional_user), db: A
                      "view_as": {"until": va["until"], "by": va["real_navn"], "grund": va["grund"]} if va else None, "dofbasen": (await dofbasen.context(db, user)).out(),
                      "netfugl": (await netfugl.context(db, user)).out(), "artikler": (await article_access.context(db, user)).out(),
                      "fotos": (await photo_access.context(db, user)).out(await photo_privileges.level(db, user.id)),
+                     "snak": (await snak_access.context(db, user)).out(),
                      "krydslister": (await kl_access.context(db, user)).out(), "dku": await dku.context(db, user), "su": await su.context(db, user),
                      "position": features.visible(flags, "position", superadmin=user.role == "superadmin", insider=False),
                      "voice": features.visible(flags, "voice", superadmin=user.role == "superadmin", insider=False),

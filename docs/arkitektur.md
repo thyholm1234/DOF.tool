@@ -29,7 +29,7 @@ for sig.
 - **Planlagte opgaver:** tilføj opgaven i `services/schedule.TASKS` *og* i `worker.SCHEDULED` (evt. med flag i
   `worker.FEATURE_OF`). `tests/test_schedule.py` fejler, hvis de to ikke passer sammen.
 - **SQL ligger i services.** API-modulerne validerer, tjekker adgang og kalder services. `tests/test_architecture.py`
-  holder øje: `domain/` er ren, `api/geo.py`, `api/calendar.py`, `api/dku.py`, `api/netfugl.py`, `api/artikler.py`, `api/fotos.py`, `api/admin/fotos.py`, `api/krydslister.py`, `api/admin/krydslister.py`, `api/admin/se_som.py`, `api/content.py`, `api/admin/artikler.py` og `api/admin/indhold.py` må ikke bruge
+  holder øje: `domain/` er ren, `api/geo.py`, `api/calendar.py`, `api/dku.py`, `api/netfugl.py`, `api/artikler.py`, `api/fotos.py`, `api/admin/fotos.py`, `api/snak.py`, `api/krydslister.py`, `api/admin/krydslister.py`, `api/admin/se_som.py`, `api/content.py`, `api/admin/artikler.py` og `api/admin/indhold.py` må ikke bruge
   `text()`/`select()`/`update()`/`delete()`, og der må ikke komme nye importer fra et API-modul til et andet (fælles kode
   hører hjemme i en service). De ældre krydsimporter står i testens `KNOWN_CROSS_IMPORTS` og fjernes, efterhånden som de
   flyttes.
