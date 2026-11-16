@@ -34,9 +34,9 @@ upstream doftool {
 server {
     server_name doftool.chfotofilm.dk;
 
-    listen 443 ssl; # managed by Certbot
-    listen [::]:443 ssl;
-    http2 on;
+    # «listen … ssl http2» virker på nginx 1.24 (Ubuntu 24.04); fra 1.25.1 kan det skiftes til «http2 on;»
+    listen 443 ssl http2; # managed by Certbot
+    listen [::]:443 ssl http2;
 
     ssl_certificate /etc/letsencrypt/live/doftool.chfotofilm.dk/fullchain.pem; # managed by Certbot
     ssl_certificate_key /etc/letsencrypt/live/doftool.chfotofilm.dk/privkey.pem; # managed by Certbot
