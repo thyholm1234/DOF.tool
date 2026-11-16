@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v5
       - run: docker build -f server/Dockerfile -t doftool-api:scan .
       - name: Trivy (OS-pakker og Python-pakker i imaget)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: doftool-api:scan
           scanners: vuln
