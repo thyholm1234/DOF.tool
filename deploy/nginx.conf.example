@@ -1,0 +1,159 @@
+# nginx-konfiguration til DOF.tool (doftool.chfotofilm.dk) bag Cloudflare – proxyen på 10.0.1.1 foran api'et på 10.0.1.8:8090.
+# Kopi af den konfiguration, der kører på proxyen. Skrevet 2026-11-16.
+#
+# Før reload:  1) kør scriptet nederst (laver cloudflare-realip.conf og cloudflare-geo.conf)
+#              2) nginx -t
+#              3) Cloudflare SSL/TLS-tilstand: Full (strict)
+# Efter reload: access-loggen bør vise danske IP'er i stedet for 104.x/172.68.x, og et direkte kald til origin
+#               uden om Cloudflare skal give et lukket svar (444).
+
+# ============================================================================ /etc/nginx/sites-available/doftool
+# (ligger i http-konteksten)
+
+# Cloudflares adresser: til nginx' egne logs (rigtig klient-IP) og til at afvise alt, der ikke kommer via Cloudflare.
+# Begge filer genereres af scriptet nedenfor.
+include /etc/nginx/cloudflare-realip.conf;   # set_real_ip_from …;
+real_ip_header CF-Connecting-IP;
+
+# $realip_remote_addr = den forbindelse, der faktisk ramte nginx (før real_ip skifter $remote_addr til brugeren)
+geo $realip_remote_addr $via_cloudflare {
+    default 0;
+    include /etc/nginx/cloudflare-geo.conf;  # 173.245.48.0/20 1; …
+    10.0.0.0/16 1;                           # LAN (pfSense) – til fejlsøgning uden om Cloudflare
+}
+
+# Mod crawling: grænse pr. rigtig bruger (efter real_ip). Login har sine egne, strammere grænser i appen.
+limit_req_zone $binary_remote_addr zone=doftool_api:10m rate=10r/s;
+limit_req_status 429;
+
+upstream doftool {
+    server 10.0.1.8:8090;
+    keepalive 32;                            # genbrug forbindelser til api'et
+}
+
+server {
+    server_name doftool.chfotofilm.dk;
+
+    listen 443 ssl; # managed by Certbot
+    listen [::]:443 ssl;
+    http2 on;
+
+    ssl_certificate /etc/letsencrypt/live/doftool.chfotofilm.dk/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/doftool.chfotofilm.dk/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+    server_tokens off;
+
+    # Kun via Cloudflare (og LAN): ellers kan WAF, bot-beskyttelse og rate limiting omgås
+    if ($via_cloudflare = 0) { return 444; }
+
+    # Appen sætter selv sine sikkerhedsheadere (CSP med Trusted Types, X-Frame-Options, Permissions-Policy …).
+    # Disse to sættes her, så de også er på nginx' egne fejlsider (502/504) – uden at stå dobbelt.
+    proxy_hide_header Strict-Transport-Security;
+    proxy_hide_header X-Content-Type-Options;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    # Største enkelt-request: medier ≤ 60 MB, store imports sendes i dele på 16–32 MB.
+    # Cloudflare (Free/Pro) afviser alligevel over 100 MB.
+    client_max_body_size 100m;
+    client_body_timeout 120s;
+
+    # Appen komprimerer selv (og springer SSE, lyd, Range og downloads over); Cloudflare tilføjer Brotli
+    gzip off;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";          # keepalive til upstream (appen bruger SSE, ikke WebSockets)
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;   # kun brugerens IP – ikke en kæde klienten selv kan skrive i
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_redirect http://$host/ https://$host/;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 120s;                 # DOFbasen-tjek ved login kan tage op til 60 s
+    proxy_send_timeout 120s;
+
+    location / {
+        proxy_pass http://doftool;
+    }
+
+    location /api/ {
+        limit_req zone=doftool_api burst=40 nodelay;
+        proxy_pass http://doftool;
+    }
+
+    # Live-strømmen (SSE): ingen buffering, lang levetid (appen pinger hvert 40. sekund)
+    location = /api/stream {
+        proxy_pass http://doftool;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+
+    # Store downloads: streames direkte i stedet for at blive skrevet til nginx' disk først
+    location ~ ^/api/(admin/backup/download/|me/export) {
+        proxy_pass http://doftool;
+        proxy_buffering off;
+        proxy_max_temp_file_size 0;
+        proxy_read_timeout 1h;
+    }
+
+    # Opdelte uploads (artikler, fotos, lokaliteter, talemodel): mere tid pr. del på langsomme forbindelser
+    location ~ ^/api/admin/(artikler/import|fotos/import|lokaliteter/import|speech-model/upload)/ {
+        limit_req zone=doftool_api burst=40 nodelay;
+        proxy_pass http://doftool;
+        client_body_timeout 300s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name doftool.chfotofilm.dk;
+    return 301 https://$host$request_uri;
+}
+
+
+# ============================================================================ /usr/local/sbin/cloudflare-ips-nginx
+# Genererer de to Cloudflare-filer. Kør som root og læg i cron, fx ugentligt:
+#   17 5 * * 1  /usr/local/sbin/cloudflare-ips-nginx
+#
+# #!/bin/sh
+# set -eu
+# ips=$( { curl -sf https://www.cloudflare.com/ips-v4; echo; curl -sf https://www.cloudflare.com/ips-v6; } | grep . )
+# [ "$(echo "$ips" | wc -l)" -ge 15 ] || { echo "for få adresser – beholder de gamle filer" >&2; exit 1; }
+# echo "$ips" | sed 's/.*/set_real_ip_from &;/' > /etc/nginx/cloudflare-realip.conf
+# echo "$ips" | sed 's/.*/& 1;/'                > /etc/nginx/cloudflare-geo.conf
+# nginx -t && nginx -s reload
+
+
+# ============================================================================ Noter
+#
+# Hvorfor sådan:
+# * real_ip + CF-Connecting-IP (kun fra Cloudflares adresser): rate limiting, nginx' logs og appens grænser bruger
+#   brugerens IP. X-Forwarded-For sættes til netop den IP i stedet for at bygge videre på en kæde, klienten selv har
+#   skrevet i. Virker sammen med appens eget CF-Connecting-IP-tjek (portal/cloudflare.py) – og også uden.
+# * return 444 uden for Cloudflare/LAN: ellers kan WAF, bot-beskyttelse og rate limiting omgås direkte på origin.
+#   Kan i stedet (bedre) laves som firewall-regel i pfSense med et alias for Cloudflares adresser.
+# * Ingen WebSocket-headere: appen bruger SSE (/api/stream). Connection: close lukkede desuden forbindelsen til
+#   api'et efter hvert kald; nu genbruges de (keepalive).
+# * SSE i egen location uden buffering og med lang timeout – ellers "hænger" strømmen og afbrydes.
+# * Uploads bufres igen (proxy_request_buffering off er fjernet): appen tillader højst 16 samtidige kald pr. proces,
+#   og en langsom mobil-upload ville ellers optage en plads, så længe den varer. Ingen request er over 60 MB.
+# * Timeouts 120 s for almindelige kald; 1 time kun for SSE, backup-download, data-eksport og opdelte uploads.
+# * gzip off: appen komprimerer selv og springer bevidst SSE, lyd, Range og downloads over.
+# * HSTS og nosniff: appens version skjules, og nginx sætter sin egen, så de også er på nginx' fejlsider.
+# * 10 req/s pr. bruger, burst 40: rammer ikke normal brug, men bremser systematisk høst.
+#
+# Capacitor-appen indlæser https://doftool.chfotofilm.dk direkte (samme origin som browseren) – ingen CORS eller
+# specialregler i nginx. Slås bot-beskyttelse til i Cloudflare, skal disse stier undtages (WAF-regel med Skip for
+# Bot Fight Mode, Managed Challenge og Rate Limiting), da de kaldes af native kode, Google/Apple eller andre apps:
+#   /api/location/native                        positionstjenesten (Nær mig i baggrunden)
+#   /models/*                                   talemodellen (Range-download, native)
+#   /.well-known/assetlinks.json                passkeys og App Links (Android) – 200 uden omdirigering
+#   /.well-known/apple-app-site-association     passkeys (iOS) – 200 uden omdirigering
+#   /api/dofbasen/v1/*, /api/netfugl/v1/*       API'er med token
+#   /api/ics/*                                  kalenderabonnementer
