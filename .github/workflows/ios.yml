@@ -21,7 +21,7 @@ jobs:
     runs-on: macos-15
     defaults: { run: { working-directory: app } }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
       - run: npm ci
@@ -46,7 +46,7 @@ jobs:
     env:
       HAS_CERT: ${{ secrets.IOS_CERT_P12_B64 != '' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: env.HAS_CERT == 'true'
       - uses: actions/setup-node@v5
         if: env.HAS_CERT == 'true'

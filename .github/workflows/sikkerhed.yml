@@ -19,7 +19,7 @@ jobs:
   python:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install pip-audit
@@ -29,7 +29,7 @@ jobs:
   npm:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with: { node-version: 22 }
       - name: npm audit (app/)
@@ -39,7 +39,7 @@ jobs:
   vendor:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: OSV-opslag for web/vendor
         run: |
           set -euo pipefail
@@ -60,7 +60,7 @@ jobs:
   image:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: docker build -f server/Dockerfile -t doftool-api:scan .
       - name: Trivy (OS-pakker og Python-pakker i imaget)
         uses: aquasecurity/trivy-action@0.33.1
