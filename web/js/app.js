@@ -43,7 +43,7 @@ function sections() {
   // Moderation øverst i Kvalitetssikring; ulæste support-samtaler vises her, medmindre brugeren har dem på Admin
   const modl = moderationLink();
   const modUnread = adminLink() && hasTab("support") ? 0 : state.adminSupportUnread;
-  const mod = modl ? [modl.href, "check", `${modl.label}${modUnread ? ` <span class="badge-inline">${+modUnread}</span>` : ""}`] : null;
+  const mod = modl ? [modl.href, "comment", `${modl.label}${modUnread ? ` <span class="badge-inline">${+modUnread}</span>` : ""}`] : null;
   const qa = [mod, dku, su].filter(Boolean);
   if (!extra.length && !qa.length && !stat.length && !dl) return SECTIONS;
   const out = SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Viden" ? [...items, ...extra]
@@ -257,7 +257,7 @@ function fillMenu() {
     h("a", { href: "#/profil", onclick: close, html: `${icon("user")} Profil og indstillinger` }),
     h("a", { href: "#/support", onclick: close, html: `${icon("chat")} Feedback og support${state.supportUnread ? ` <span class="badge-inline">${state.supportUnread}</span>` : ""}` }),
     h("a", { href: `#/lister`, onclick: close, html: `${icon("list")} Mine lister` }),
-    mod ? h("a", { href: mod.href, onclick: close, html: `${icon("check")} ${mod.long}` }) : null,
+    mod ? h("a", { href: mod.href, onclick: close, html: `${icon("comment")} ${mod.long}` }) : null,
     adm ? h("a", { href: adm.href, onclick: close, html: `${icon("shield")} ${adm.long}` }) : null,
     h("button", { type: "button", onclick: () => { close(); logout(); }, html: `${icon("logout")} Log ud` }),
     h("div", { class: "muted", style: { fontSize: ".72rem", padding: "6px 10px 2px" } }, `Version ${BUILD}`));
