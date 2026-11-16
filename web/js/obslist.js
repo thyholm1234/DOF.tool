@@ -6,10 +6,11 @@ import { state, h, fmtN, icon, layerRoot } from "./core.js";
 
 /** Artsnavn som link; for SU/SUB-arter er selve navnet et mærkat (hvid fed skrift på kategoriens farve).
  *  Bemærk-kategorien vises ikke. */
-/** Artsnavnet: rødt (SU) / grønt (SUB) mærke for de sjældne arter, lyseblåt for fænologi (arten ses uden for sin normale periode). */
+/** Artsnavnet: rødt (SU) / grønt (SUB) mærke for de sjældne arter, lyseblåt for fænologi (arten ses uden for sin normale periode);
+ *  øvrige arter i almindelig tekstfarve (sort / hvid i mørkt tema), ikke linkfarven. */
 export const artName = (artnr, navn, kat, pheno = false) => {
   const rare = kat === "SU" || kat === "SUB";
-  return h("a", { href: `#/art/${artnr}`, class: rare ? `dl-rare ${kat}` : pheno ? "dl-rare pheno" : null,
+  return h("a", { href: `#/art/${artnr}`, class: rare ? `dl-rare ${kat}` : pheno ? "dl-rare pheno" : "dl-art",
     title: rare ? kat : pheno ? "Fænologi: arten ses uden for sin normale periode" : null }, navn);
 };
 

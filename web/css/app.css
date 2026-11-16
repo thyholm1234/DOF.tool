@@ -1210,6 +1210,7 @@ body.is-viewas .topbar { top: 34px; }
 a.dl-rare { display: inline-block; padding: 0 6px; border-radius: 5px; color: #fff; font-weight: 600; text-decoration: none; line-height: 1.45; }
 /* faste, mørke farver, så den hvide skrift kan læses i begge temaer */
 a.dl-rare.SU { background: #d32f2f; } a.dl-rare.SUB { background: #2e7d32; } a.dl-rare.pheno { background: #bfe3f7; color: #0b3a5c; } a.dl-rare:hover { filter: brightness(.9); }
+a.dl-art { color: var(--text); }  /* almindelige arter: tekstfarve, ikke linkfarve */
 a.dl-ic { text-decoration: none; cursor: pointer; } a.dl-ic:hover { filter: brightness(.8); }
 .dl-pop { position: fixed; z-index: 1100; max-width: min(360px, calc(100vw - 16px)); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 22px rgb(0 0 0 / 22%); padding: 8px 11px; font-size: .84rem; line-height: 1.35; pointer-events: none; }
 .dl-pop b { display: block; font-size: .74rem; color: var(--text-3); } .dl-pop div { margin-top: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
