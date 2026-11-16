@@ -37,7 +37,7 @@ ROUTES = [
     "/matrikel?tab=score", "/matrikel?tab=matrikler",
     "/traek", "/traek?tab=status", "/traek?tab=ankomst", "/traek?tab=vejr", "/traek?tab=klima", "/traek?tab=metode",
     "/kort", "/kort?tab=dag", "/puls", "/arter", f"/art/{su['artnr']}", f"/art/{t['artnr']}", "/lokaliteter",
-    f"/lok/{t['loknr']}", f"/lok/{t['loknr']}/art/{t['artnr']}", "/soeg", "/statistik", "/statistik?tab=nfl",
+    f"/lok/{t['loknr']}", f"/lok/{t['loknr']}/art/{t['artnr']}", "/soeg", "/statistik", "/statistik?tab=nfl", "/statistik?tab=artsliste", "/statistik?tab=lokaliteter",
     "/laer", "/mobgang", "/alarmer", "/alarmer?tab=omraader", "/alarmer?tab=enheder", "/profil",
     "/admin?tab=drift", "/admin?tab=data", "/admin?tab=vejr", "/admin?tab=aktivitet", "/admin?tab=support",
     "/admin?tab=brugere", "/admin?tab=roller", "/admin?tab=funktioner",

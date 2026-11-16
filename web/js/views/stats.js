@@ -11,14 +11,14 @@ export async function render(view) {
   if (!state.user?.statistik) { view.append(empty("Statistik er ikke slået til", "Modulet slås til under Admin → Funktioner.")); return; }
   const p = params();
   const obs = !!state.user?.profiler;  // Observatører er en fane her, når profilfunktionen er slået til
-  const tab = p.tab === "nfl" ? "nfl" : p.tab === "observatorer" && obs ? "observatorer" : "arter";
+  const tab = ["nfl", "artsliste", "lokaliteter"].includes(p.tab) ? p.tab : p.tab === "observatorer" && obs ? "observatorer" : p.tab === "arter" ? "arter" : "artsliste";
   const body = h("div", {});
   view.append(h("div", { class: "page-head" },
-    h("div", {}, h("h1", {}, "Statistik"), h("p", { class: "lead" }, "Arter pr. år, nye arter for landet og observatører – beregnet fra DOFbasen-data.")),
+    h("div", {}, h("h1", {}, "Statistik"), h("p", { class: "lead" }, "Arter, lokaliteter, arter pr. år, nye arter for landet og observatører – beregnet fra DOFbasen-data.")),
     h("span", { class: "spacer" }),
     // Ny fane: kun tab bevares i adressen
-    seg([["arter", "Arter pr. år"], ["nfl", "NFL"], ...(obs ? [["observatorer", "Observatører"]] : [])], tab, (v) => { history.replaceState(null, "", `#/statistik?tab=${v}`); body.replaceChildren(); draw(v); })), body);
-  const draw = async (t) => t === "nfl" ? nflTab(body) : t === "observatorer" ? (await import("./observer.js")).searchTab(body) : regionsTab(body, "arter");
+    seg([["artsliste", "Arter"], ["lokaliteter", "Lokaliteter"], ["arter", "Arter pr. år"], ["nfl", "NFL"], ...(obs ? [["observatorer", "Observatører"]] : [])], tab, (v) => { history.replaceState(null, "", `#/statistik?tab=${v}`); body.replaceChildren(); draw(v); })), body);
+  const draw = async (t) => t === "artsliste" ? (await import("./arter.js")).tab(body) : t === "lokaliteter" ? (await import("./lokaliteter.js")).tab(body) : t === "nfl" ? nflTab(body) : t === "observatorer" ? (await import("./observer.js")).searchTab(body) : regionsTab(body, "arter");
   await draw(tab);
 }
 

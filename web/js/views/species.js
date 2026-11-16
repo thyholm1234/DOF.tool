@@ -18,7 +18,7 @@ export async function render(view, [artnr]) {
   const cleanups = [];
   const profile = ({ sommer: "sommergæst", vinter: "vintergæst", passage: "gennemtrækker/standfugl" })[ph.summary?.profile] || ph.type || "";
   view.replaceChildren(h("div", { class: "sp-page" },
-    h("a", { class: "sp-back", href: "#/arter", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage"),
+    h("a", { class: "sp-back", href: state.user?.statistik ? "#/statistik?tab=artsliste" : "#/arter", onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }, "← Tilbage"),
     h("header", { class: "page-head sp-head" }, h("div", {},
       sp.klass !== "Alm" || profile ? h("div", { class: "row sp-kicker" }, sp.klass !== "Alm" ? tag(sp.klass) : null, profile ? h("span", { class: "muted" }, profile) : null) : null,
       h("h1", {}, sp.navn), sp.latin ? h("p", { class: "lead" }, h("i", {}, sp.latin)) : null)),

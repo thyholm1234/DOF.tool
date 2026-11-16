@@ -1,11 +1,15 @@
 // Arter: indgang til alle arters sider – søg, filtrér på klasse og sortér efter systematik, navn eller årets tal.
-import { api, h, fmtN, fmtDate, tag, empty, errorBox, seg, store, sortBar, todayISO } from "../core.js";
+import { api, state, h, fmtN, fmtDate, tag, empty, errorBox, seg, store, sortBar, todayISO } from "../core.js";
 
 const KLASSER = [["all", "Alle"], ["SU", "SU"], ["SUB", "SUB"], ["Alm", "Alm."]];
 const TYPES = [["art", "Arter"], ["all", "Alle taxa"]];
 const YEAR = new Date().getFullYear();
 
-export async function render(view) {
+/** Som selvstændig side (kun når Statistik-modulet er slået fra) og som fane under Statistik (uden sidehoved). */
+export const render = (view) => state.user?.statistik ? location.replace("#/statistik?tab=artsliste") : build(view, true);  // med Statistik-modulet er listen en fane der
+export const tab = (view) => build(view, false);
+
+async function build(view, head) {
   const saved = store("arter") || {};
   const st = { q: "", klass: saved.klass || "all", type: saved.type || "art", seen: !!saved.seen };
   const sort = { key: saved.sort || "sortering", dir: saved.dir || 1 };
@@ -19,8 +23,8 @@ export async function render(view) {
   const bar = sortBar([["sortering", "Systematisk"], ["navn", "Navn"], ["n_year", `Obs. ${YEAR}`], ["last_date", "Senest set"]], sort, () => { save(); draw(); });
 
   view.append(
-    h("div", { class: "page-head" },
-      h("div", {}, h("h1", {}, "Arter"), h("p", { class: "lead" }, "Alle arter i DOFbasen – åbn en art for fænologi, fund, atlas og punkttællinger."))),
+    head ? h("div", { class: "page-head" },
+      h("div", {}, h("h1", {}, "Arter"), h("p", { class: "lead" }, "Alle arter i DOFbasen – åbn en art for fænologi, fund, atlas og punkttællinger."))) : null,
     h("div", { class: "card toolbox" },
       search,
       h("div", { class: "toolbar" },

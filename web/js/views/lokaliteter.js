@@ -7,7 +7,11 @@ const YEAR = new Date().getFullYear();
 const KATS = [["", "Alle"], ["SU", "SU"], ["SUB", "SUB"], ["bemaerk", "Bemærk"]];
 const PAGE = 100;
 
-export async function render(view) {
+/** Som selvstændig side (kun når Statistik-modulet er slået fra) og som fane under Statistik (uden sidehoved). */
+export const render = (view) => state.user?.statistik ? location.replace("#/statistik?tab=lokaliteter") : build(view, true);  // med Statistik-modulet er listen en fane der
+export const tab = (view) => build(view, false);
+
+async function build(view, head) {
   const saved = store("lokaliteter") || {};
   const st = { q: "", kat: saved.kat || "", kommune: saved.kommune || "", afdeling: saved.afdeling || "", active: saved.active ?? true,
     year: saved.year || "",  // "" = indeværende år, "alle" eller et årstal
@@ -67,8 +71,8 @@ export async function render(view) {
   };
 
   view.append(
-    h("div", { class: "page-head" },
-      h("div", {}, h("h1", {}, "Lokaliteter"), h("p", { class: "lead" }, "Alle lokaliteter i DOFbasen – åbn en lokalitet for arter, rekorder og de seneste dage."))),
+    head ? h("div", { class: "page-head" },
+      h("div", {}, h("h1", {}, "Lokaliteter"), h("p", { class: "lead" }, "Alle lokaliteter i DOFbasen – åbn en lokalitet for arter, rekorder og de seneste dage."))) : null,
     h("div", { class: "card toolbox" },
       search,
       h("div", { class: "toolbar" }, wrapSeg(seg(KATS, st.kat, (v) => { st.kat = v; save(); load(); })),

@@ -13,7 +13,7 @@ const SECTIONS = [
   ["Nu og her", [["#/", "now", "Mit overblik"]]],
   ["I felten", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],  // lige under Observationer
   ["Planlæg", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
-  ["Data", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
+  ["Data", [["#/traek", "trend", "Træk"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
   ["Viden", [["#/laer", "learn", "Læring"]]],
   ["Værktøjer", [["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
@@ -25,6 +25,8 @@ const FOTOS = ["#/fotos", "camera", "Fotos"];
 const SNAK = ["#/snak", "chat", "Snak"];
 const DAGSLISTE = ["#/dagsliste", "list", "Observationer"];
 const SEARCH = ["#/soeg", "search", "Søg"];
+const ARTER = ["#/arter", "bird", "Arter"];
+const LOKALITETER = ["#/lokaliteter", "pin", "Lokaliteter"];  // uden Statistik-modulet står de selv under Data
 const STATS = ["#/statistik", "chart", "Statistik"];
 const OBSERVERS = ["#/observator", "user", "Observatører"];
 const SU = ["#/su", "flag", "SU"];
@@ -36,7 +38,7 @@ function sections() {
   // DKU (med antal sager med ulæste beskeder), når modulet er synligt for brugeren
   const dku = state.user?.dku?.visible ? ["#/dku", "check", `DKU${state.user.dku.unread ? ` <span class="badge-inline">${+state.user.dku.unread}</span>` : ""}`] : null;
   // Statistik-modulet og Søg under Data, når funktionerne er synlige for brugeren
-  const stat = [state.user?.statistik ? STATS : null, state.user?.search ? SEARCH : null, state.user?.profiler && !state.user?.statistik ? OBSERVERS : null].filter(Boolean);  // Observatører er en fane under Statistik-modulet
+  const stat = [...(state.user?.statistik ? [STATS] : [ARTER, LOKALITETER]), state.user?.search ? SEARCH : null, state.user?.profiler && !state.user?.statistik ? OBSERVERS : null].filter(Boolean);  // Observatører er en fane under Statistik-modulet
   const dl = state.user?.dagsliste ? DAGSLISTE : null;  // Observationer (dagslisten) står lige under Mit overblik
   // SU (med antal ulæste sager) og DKU samles under overskriften Kvalitetssikring, når modulerne er synlige for brugeren
   const su = state.user?.su?.visible ? ["#/su", "flag", `SU${state.user.su.unread ? ` <span class="badge-inline">${+state.user.su.unread}</span>` : ""}`] : null;
@@ -51,14 +53,14 @@ function sections() {
   if (qa.length) out.push(["Kvalitetssikring", qa]);  // nederst
   return out;
 }
-const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, SNAK, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"], SU];
+const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, SNAK, STATS, DAGSLISTE, SEARCH, OBSERVERS, ARTER, LOKALITETER, ["#/dku", "check", "DKU"], SU];
 const navItem = (href) => NAV.find(n => n[0] === href);
 const BOTTOM = ["#/", "#/traek", "#/kalender"];  // mobilens faste knapper (plus Indtast og Mere)
 
 /** Det mest specifikke menupunkt der matcher stien (så #/kalender/mine ikke også markerer Kalender). */
 function activeHref(path, hrefs) {
   // en arts side hører under Arter, en lokalitets side under Lokaliteter
-  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? "#/arter" : path.startsWith("#/lok/") ? "#/lokaliteter"
+  const p = path === "#" ? "#/" : path.startsWith("#/art/") ? (state.user?.statistik ? "#/statistik" : "#/arter") : path.startsWith("#/lok/") ? (state.user?.statistik ? "#/statistik" : "#/lokaliteter")
     : path.startsWith("#/observator") && state.user?.statistik ? "#/statistik" : path;
   return hrefs.filter(href => href === "#/" ? p === "#/" : p === href || p.startsWith(href + "/") || p.startsWith(href + "?"))
     .sort((a, b) => b.length - a.length)[0];
