@@ -12,15 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from portal.api.deps import optional_user
 from portal.db import get_session
 from portal.models import User
-from portal.services import avatar, content_media, photo_access, photos, snak, snak_access, storage
+from portal.services import avatar, content_media, photo_access, photos, reports, snak, snak_access, storage
 
 router = APIRouter(include_in_schema=False)
 RANGE = storage.RANGE
 
 
 @router.api_route("/media/obs/{name}", methods=["GET", "HEAD"])
-async def obs_media(name: str, request: Request) -> Response:
-    if not storage.name_of(f"/media/obs/{name}"):
+async def obs_media(name: str, request: Request, user: User | None = Depends(optional_user), db: AsyncSession = Depends(get_session)) -> Response:
+    """Fotos og lyd fra feltmeldinger. Filer fra hemmelige meldinger kun for indtasteren (services/reports.media_visible)."""
+    url = f"/media/obs/{name}"
+    if not storage.name_of(url) or not await reports.media_visible(db, url, user):
         raise HTTPException(404)
     return await _serve(request, name, storage.PREFIX)
 

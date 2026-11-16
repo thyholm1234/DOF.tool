@@ -613,8 +613,7 @@ async def _run(s: AsyncSession, imp: ArtImport, run: Run, path: Path) -> None:
     hosts = set((await article_settings.get(s))["embed_hosts"])
     matcher = await article_species.load_matcher(s, fresh=True)
     # Billedadresserne kommer fra zip'ens indhold (kun netfugl.dk), men omdirigeringer kontrolleres også (SSRF, services/egress.py)
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True, max_redirects=5, headers={"User-Agent": "DOF.tool/1.0 (artikelimport)"},
-                                 event_hooks={"request": [egress.check_request]}) as http:
+    async with egress.client(timeout=30, max_redirects=5, headers={"User-Agent": "DOF.tool/1.0 (artikelimport)"}) as http:
         run.http = http
         await _loop(s, imp, run, arc, nos, matcher, hosts)
 

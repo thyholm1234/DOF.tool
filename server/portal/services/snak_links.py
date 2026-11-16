@@ -59,8 +59,7 @@ def parse(page: str, base: str) -> dict:
 async def fetch(url: str) -> dict:
     out = {"type": "link", "ref": url, "url": url, "host": host_of(url), "title": "", "teaser": "", "image": None}
     try:
-        async with httpx.AsyncClient(timeout=5, follow_redirects=True, max_redirects=3, event_hooks={"request": [egress.check_request]},
-                                     headers={"User-Agent": "DOF.tool-linkpreview", "Accept": "text/html"}) as client:
+        async with egress.client(timeout=5, max_redirects=3, headers={"User-Agent": "DOF.tool-linkpreview", "Accept": "text/html"}) as client:
             async with client.stream("GET", url) as r:
                 if r.status_code >= 400 or "text/html" not in r.headers.get("content-type", "").lower():
                     return out

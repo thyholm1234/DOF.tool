@@ -15,6 +15,7 @@ alarmregler og sendes ikke til dofbasen.dk.
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import text
@@ -217,6 +218,17 @@ async def add_status(session: AsyncSession, report: FieldReport, user: User, sta
     report.status_at = datetime.now(timezone.utc)
     await session.flush()
     return upd
+
+
+async def media_visible(session: AsyncSession, url: str, viewer: User | None) -> bool:
+    """Må viewer se filen (/media/obs/<navn>)? Filerne hører til en feltmelding (field_reports.media): en hemmelig
+    melding kun for indtasteren – som meldingen selv (_report_rows). En fil, ingen melding henviser til (slettet), vises ikke.
+    Opslaget bruger GIN-indekset ix_field_reports_media (models/ddl.py)."""
+    row = (await session.execute(text("SELECT user_id, hemmelig FROM field_reports WHERE media @> CAST(:m AS jsonb) LIMIT 1"),
+                                 {"m": json.dumps([{"url": url}])})).first()
+    if row is None:
+        return False
+    return not row.hemmelig or (viewer is not None and row.user_id == viewer.id)
 
 
 def is_live(status: str, status_at: datetime | None) -> bool:

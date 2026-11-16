@@ -25,8 +25,8 @@ x-app: &app
     ARCHIVE_DIR: /archive
     MEDIA_DIR: /data/media
     TZ: Europe/Copenhagen
-    # Proxyer, hvis X-Forwarded-For stoles på (bag Cloudflare: tilføj deres adresser)
-    FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+    # Kun proxyen må sætte X-Forwarded-For/-Proto (ellers kan klienter skrive deres egen IP og omgå grænserne pr. IP)
+    FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-10.0.1.1}
     # Filer i observationer (fotos og lyd) ligger i objektlageret. S3_* kan pege på en anden S3-tjeneste i stedet for RustFS.
     S3_ENDPOINT: ${S3_ENDPOINT:-rustfs:9000}
     S3_ACCESS_KEY: ${S3_ACCESS_KEY:-${RUSTFS_ACCESS_KEY:-doftool}}
@@ -46,6 +46,8 @@ x-app: &app
     - ./web:/app/web:ro
     - zitadel_key:/zitadel:ro
   depends_on:
+    data-perms-init:
+      condition: service_completed_successfully
     dbadmin:
       condition: service_started
     rustfs:
@@ -125,7 +127,7 @@ services:
       DBADMIN_SERVICE_TOKEN: ${DBADMIN_SERVICE_TOKEN:?sæt DBADMIN_SERVICE_TOKEN i .env}
       DBADMIN_PASSWORD: ${DBADMIN_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-10.0.1.1}
       # Den nuværende samlede database – kilden når panelet migrerer
       LEGACY_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       DBNODE_IMAGE: doftool-dbnode:latest
@@ -204,6 +206,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # api og worker kører som «app» (uid 1000, server/Dockerfile). Volumener og fotoarkivet oprettet før det (eller
+  # rsync'et ind som root) ejes af root – de gives til uid 1000 før start. Kun filer med en anden ejer røres.
+  data-perms-init:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    user: root
+    command: ["sh", "-c", "find /data \\! -user 1000 -exec chown -h 1000:1000 {} +"]
+    volumes:
+      - media:/data/media
+      - weather:/data/weather
+      - models:/data/models
+      - archive_upload:/data/archive-upload
+      - article_imports:/data/article-imports
+      - ${DOF_PHOTO_IMPORT_DIR:-./data/photo-imports}:/data/photo-imports
+    restart: "no"
 
   # Volumenet til servicekontoens token skal kunne skrives af Zitadel (kører som uid 1000)
   zitadel-key-init:

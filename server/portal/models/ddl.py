@@ -188,4 +188,6 @@ EXTRA_DDL = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at timestamptz",
     # Totrinslogin (TOTP) – hemmeligheden ligger i Zitadel; kolonnen spejler, at den er slået til (services/totp.py)
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_at timestamptz",
+    # Adgang til feltmeldingers filer (/media/obs/<navn>): hvilken melding har filen? (services/reports.media_visible)
+    "CREATE INDEX IF NOT EXISTS ix_field_reports_media ON field_reports USING gin (media jsonb_path_ops)",
 ]

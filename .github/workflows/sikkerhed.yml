@@ -1,0 +1,70 @@
+# Kendte sårbarheder i afhængighederne: Python (constraints.txt), npm (app/), de vendorede JS-biblioteker i web/vendor
+# og OS-pakkerne i server-imaget. Kører ved ændringer i afhængighederne, på pull requests og hver mandag (nye CVE'er
+# dukker op i uændrede afhængigheder).
+name: Sikkerhed – afhængigheder
+
+on:
+  push:
+    branches: [main]
+    paths: [server/constraints.txt, server/pyproject.toml, server/Dockerfile, dbadmin/Dockerfile, app/package-lock.json, web/vendor/**, .github/workflows/sikkerhed.yml]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install pip-audit
+      - name: pip-audit (låste versioner)
+        run: pip-audit --progress-spinner off -r server/constraints.txt
+
+  npm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: npm audit (app/)
+        working-directory: app
+        run: npm audit --audit-level=moderate
+
+  vendor:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: OSV-opslag for web/vendor
+        run: |
+          set -euo pipefail
+          leaflet=$(grep -oP 'Leaflet \K[0-9.]+' web/vendor/leaflet/leaflet.js | head -1)
+          geoman=$(grep -oP 'leaflet-geoman-free \K[0-9.]+' web/vendor/geoman/VERSION)
+          lame=$(grep -oP 'lamejs \K[0-9.]+' web/vendor/lamejs/README.txt | head -1)
+          echo "leaflet $leaflet · geoman $geoman · lamejs $lame"
+          body=$(jq -n --arg l "$leaflet" --arg g "$geoman" --arg m "$lame" '{queries: [
+            {package: {ecosystem: "npm", name: "leaflet"}, version: $l},
+            {package: {ecosystem: "npm", name: "@geoman-io/leaflet-geoman-free"}, version: $g},
+            {package: {ecosystem: "npm", name: "lamejs"}, version: $m}]}')
+          res=$(curl -sf https://api.osv.dev/v1/querybatch -d "$body")
+          echo "$res" | jq .
+          test "$(echo "$res" | jq '[.results[].vulns // [] | length] | add')" = 0
+
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -f server/Dockerfile -t doftool-api:scan .
+      - name: Trivy (OS-pakker og Python-pakker i imaget)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: doftool-api:scan
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

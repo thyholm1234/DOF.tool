@@ -167,13 +167,13 @@ async def test_egress_afviser_interne_adresser(url):
 
 
 async def test_artikelimport_bruger_egress_hook():
-    """Klienten i artikelimporten skal have SSRF-hooket (også omdirigeringer fra netfugl.dk kontrolleres)."""
+    """Klienten i artikelimporten skal være egress-klienten (hook + transport; også omdirigeringer fra netfugl.dk kontrolleres)."""
     import inspect
 
     from portal.services import article_import
 
     src = inspect.getsource(article_import)
-    assert "event_hooks={\"request\": [egress.check_request]}" in src
+    assert "egress.client(" in src
 
 
 async def test_artikelimport_omdirigering_til_internt_stoppes(monkeypatch):

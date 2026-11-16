@@ -586,8 +586,7 @@ async def fetch_feeds(session: AsyncSession, only: int | None = None) -> dict:
         q = select(NfFeed).where(NfFeed.id == only)
     feeds = (await session.execute(q)).scalars().all()
     ok = 0
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True, max_redirects=5, headers={"User-Agent": UA},
-                                 event_hooks={"request": [_check_request]}) as client:
+    async with egress.client(timeout=20, max_redirects=5, headers={"User-Agent": UA}) as client:
         for f in feeds:
             try:
                 if not f.feed_url:
