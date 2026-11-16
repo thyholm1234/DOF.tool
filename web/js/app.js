@@ -14,7 +14,7 @@ const SECTIONS = [
   ["I felten", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],  // lige under Observationer
   ["Planlæg", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
   ["Data", [["#/traek", "trend", "Træk"]]],
-  ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
+  ["Krydslister", [["#/lister", "list", "Krydslister"], ["#/matrikel", "home", "Matrikel"]]],
   ["Viden", [["#/laer", "learn", "Læring"]]],
   ["Værktøjer", [["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
 ];
@@ -49,7 +49,7 @@ function sections() {
   const qa = [mod, dku, su].filter(Boolean);
   if (!extra.length && !qa.length && !stat.length && !dl) return SECTIONS;
   const out = SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Viden" ? [...items, ...extra]
-    : t === "Data" ? [...items, ...stat] : items]);  // krydslisterne er en del af Lister
+    : t === "Data" ? [...items, ...stat] : items]);  // Krydslister-modulet (#/lister)
   if (qa.length) out.push(["Kvalitetssikring", qa]);  // nederst
   return out;
 }

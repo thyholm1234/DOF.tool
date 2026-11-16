@@ -40,11 +40,11 @@ export async function render(view, [sub] = []) {
     ...(klOn() && klOn("krydslister_wbl") ? [["artslister", "Artslister"]] : []), ...(klOn() ? [["regler", "Regler"]] : []), ...(klOn() && kl().can_admin ? [["admin", "Admin"]] : [])];
   const body = h("div", { class: "lister-body" });
   view.append(h("div", { class: "kl lister" },
-    h("header", { class: "page-head" }, h("div", {}, h("h1", {}, h("a", { href: "#/lister" }, "Lister")),
+    h("header", { class: "page-head" }, h("div", {}, h("h1", {}, h("a", { href: "#/lister" }, "Krydslister")),
       h("p", { class: "lead" }, "Dine årslister, livslister, ædelarter og krydslister – og hvordan du ligger på ranglisterne."))),
-    h("nav", { class: "lister-tabs", "aria-label": "Lister" }, ...tabs.map(([k, t]) => h("a", { href: k ? `#/lister/${k}` : "#/lister", class: k === active ? "on" : "", "aria-current": k === active ? "page" : null }, t))),
+    h("nav", { class: "lister-tabs", "aria-label": "Krydslister" }, ...tabs.map(([k, t]) => h("a", { href: k ? `#/lister/${k}` : "#/lister", class: k === active ? "on" : "", "aria-current": k === active ? "page" : null }, t))),
     body));
-  document.title = "Lister – DOF.tool";
+  document.title = "Krydslister – DOF.tool";
   const cleanups = [];
   try {
     if (isKl) {
