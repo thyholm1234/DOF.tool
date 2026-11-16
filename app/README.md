@@ -6,12 +6,14 @@ opdateres med serveren), men position kommer fra Android selv via appens eget pl
 med slukket skærm. iOS og ældre APK'er bruger [`@capgo/background-geolocation`](https://github.com/Cap-go/capacitor-background-geolocation).
 
 * **Ruteoptagelse** (Indtast → tur → Start rute): GPS, et punkt hvert 5. sekund ved flytning ≥ 5 m. Med appen i
-  baggrunden samles punkterne og leveres højst hvert minut, så processoren kan sove. I browseren `navigator.geolocation`.
+  baggrunden samles punkterne og leveres højst hvert 5. minut, så processoren kan sove (lukkes appen hårdt i baggrunden,
+  kan op til 5 min af ruten gå tabt). Ruten droppes, når appen fjernes fra oversigten eller åbnes forfra, og når turen
+  slettes eller man logger ud; en rute optager højst 12 timer (punkterne bliver på turen). I browseren `navigator.geolocation`.
 * **Nær mig**: slår man *Del min position i baggrunden* til under Profil, sender appen sin position direkte fra Android –
   uden GPS (Wi-Fi/mobilmaster, ~100 m), højst hvert 3. minut og kun ved flytning ≥ 150 m, leveret samlet højst hvert
   10. minut; til serveren højst hvert minut og kun ved flytning ≥ 100 m (eller hvert 10. minut). Står man stille, bruges
   der næsten ingen strøm. Afviser serveren tokenet (delingen slået fra), stopper tjenesten af sig selv.
-* **Strøm i øvrigt**: ingen wakelock; livestrømmen (SSE) lukkes, når appen har ligget i baggrunden et halvt minut (alarmer
+* **Strøm i øvrigt**: ingen wakelock; en rute kan ikke køre videre uden en tur (se Ruteoptagelse); livestrømmen (SSE) lukkes, når appen har ligget i baggrunden et halvt minut (alarmer
   kommer som push), og timere hviler, mens siden er skjult (`web/js/lifecycle.js`). Talemodellen kører uden aktiv venten i
   ONNX Runtime og bliver i hukommelsen, så den altid er klar (det koster ikke strøm).
 * Kode: `web/js/native.js` (bro), `server/portal/api/position.py` (API).

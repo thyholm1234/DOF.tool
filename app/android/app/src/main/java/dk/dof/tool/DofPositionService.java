@@ -44,7 +44,10 @@ import org.json.JSONObject;
  * afhænger af, hvad der er slået til:
  *
  *  - Rute: GPS-nøjagtighed, et punkt hvert 5. sekund (højst hvert 2.) og kun ved flytning ≥ 5 m. Ligger appen i
- *    baggrunden (skærmen slukket), samles punkterne og leveres højst hvert minut, så processoren kan sove imellem.
+ *    baggrunden (skærmen slukket), samles punkterne og leveres højst hvert 5. minut, så processoren kan sove imellem
+ *    (lukkes appen hårdt i baggrunden, kan op til 5 min af ruten gå tabt). Ruten droppes, når appen fjernes fra
+ *    oversigten eller åbnes forfra, og når turen slettes eller har varet 12 timer (webdelen) – så GPS'en aldrig kører
+ *    videre uden en tur; Nær mig fortsætter i den billige tilstand.
  *  - Kun Nær mig: ingen GPS – Wi-Fi/mobilmaster (~100 m, serveren afrunder alligevel til ~100 m), højst hvert 3. minut,
  *    kun ved flytning ≥ 150 m, og leveret samlet højst hvert 10. minut. Står man stille, sker der intet.
  *
@@ -61,7 +64,7 @@ public class DofPositionService extends Service {
     private static final String PREFS = "dof_position";
 
     // Rute
-    private static final long ROUTE_INTERVAL_MS = 5_000L, ROUTE_MIN_INTERVAL_MS = 2_000L, ROUTE_BATCH_HIDDEN_MS = 60_000L;
+    private static final long ROUTE_INTERVAL_MS = 5_000L, ROUTE_MIN_INTERVAL_MS = 2_000L, ROUTE_BATCH_HIDDEN_MS = 300_000L;
     private static final float ROUTE_MIN_DISTANCE_M = 5f;
     // Kun Nær mig
     private static final long SHARE_INTERVAL_MS = 5 * 60_000L, SHARE_MIN_INTERVAL_MS = 3 * 60_000L, SHARE_BATCH_MS = 10 * 60_000L;
@@ -164,6 +167,14 @@ public class DofPositionService extends Service {
         requestUpdates();
         if (share && lastPosted == null) firstFix();
         return shareNative ? START_STICKY : START_NOT_STICKY;
+    }
+
+    /** Appen er strøget væk fra oversigten: Android kalder ikke aktivitetens onDestroy, så ruten droppes her. */
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        listener = null;
+        dropRoute();
+        super.onTaskRemoved(rootIntent);
     }
 
     @Override

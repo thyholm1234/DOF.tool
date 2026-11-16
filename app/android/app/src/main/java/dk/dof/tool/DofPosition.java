@@ -33,6 +33,12 @@ public class DofPosition extends Plugin {
 
     private PluginCall watch;
 
+    @Override
+    public void load() {
+        // Pluginnet oprettes sammen med aktiviteten: en ny aktivitet har en ny WebView uden optagelse, så en rute i tjenesten er forældreløs
+        DofPositionService.dropRoute();
+    }
+
     @PluginMethod(returnType = PluginMethod.RETURN_CALLBACK)
     public void start(PluginCall call) {
         call.setKeepAlive(true);
@@ -107,6 +113,13 @@ public class DofPosition extends Plugin {
             watch = null;
         }
         DofPositionService.stop(getContext());
+        call.resolve();
+    }
+
+    /** Siden er indlæst forfra uden optagelse: en rute i tjenesten er forældreløs og droppes (Nær mig fortsætter). */
+    @PluginMethod
+    public void dropRoute(PluginCall call) {
+        DofPositionService.dropRoute();
         call.resolve();
     }
 
