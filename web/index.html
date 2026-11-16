@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#0d1013" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <script>try { var t = localStorage.getItem("theme"); if (t === "light" || t === "dark") { document.querySelector('meta[name="color-scheme"]').content = t; document.documentElement.setAttribute("data-theme", t); } } catch (e) {}</script>
+  <script>try { var f = parseFloat(localStorage.getItem("fontScale")); if (f >= 0.8 && f <= 1.5) document.documentElement.style.fontSize = (f * 100) + "%"; } catch (e) {}</script>
   <meta name="description" content="Portal for feltornitologer: live-observationer fra DOFbasen, notifikationer, årslister, fænologi og læring.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

@@ -239,8 +239,18 @@ function applyTheme() {
   if (t) document.documentElement.setAttribute("data-theme", t);
   else document.documentElement.removeAttribute("data-theme");
 }
-// Valget kan ændres i en anden fane
-addEventListener("storage", (e) => { if (e.key === "theme" || e.key === null) applyTheme(); });
+/** Tekststørrelsen gemmes også pr. enhed («fontScale», fx 1.125). Den sættes som procent på <html>, så alt i rem
+ *  skalerer med – og «Normal» (ingen gemt værdi) følger browserens egen skriftstørrelse. */
+function applyFontScale() {
+  let f = NaN;
+  try { f = parseFloat(localStorage.getItem("fontScale")); } catch { /* lager blokeret */ }
+  document.documentElement.style.fontSize = f >= 0.8 && f <= 1.5 && f !== 1 ? (f * 100) + "%" : "";
+}
+// Valgene kan ændres i en anden fane
+addEventListener("storage", (e) => {
+  if (e.key === "theme" || e.key === null) applyTheme();
+  if (e.key === "fontScale" || e.key === null) applyFontScale();
+});
 
 /** Brugermenuen er en popover="auto" (#usermenu i index.html) styret af #userbtn via popovertarget: browseren giver
  *  lys afvisning, Esc, aria-expanded på knappen og fokus tilbage. Indholdet bygges, hver gang den åbnes. */
@@ -488,6 +498,6 @@ function keyboardAware() {
   });
 }
 
-export { renderUser, renderNav, applyTheme };
+export { renderUser, renderNav, applyTheme, applyFontScale };
 keyboardAware();
 boot();

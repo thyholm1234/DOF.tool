@@ -2,7 +2,7 @@
 // emne pr. fane. Hver fane gemmer sine egne felter (PATCH /api/me tager delvise ændringer). Fanen står i adressen
 // (#/profil?fane=sikkerhed), så der kan linkes direkte til den.
 import { api, state, h, icon, fmtN, fmtDate, loadRef, requireLogin, toast, seg, params, setParams, ask } from "../core.js";
-import { refreshUser, applyTheme } from "../app.js";
+import { refreshUser, applyTheme, applyFontScale } from "../app.js";
 import { enablePush } from "./alerts.js";
 import { isApp, isPositionDevice, takeOverPosition, backgroundPositionStatus, requestBackgroundPosition, sharesInBackground } from "../native.js";
 import { forgetUser } from "../offline.js";
@@ -292,8 +292,16 @@ const SECTIONS = {
     const p = prefs();
     let gps = p.trip_gps || "ask";
     const theme = seg([["auto", "Automatisk"], ["light", "Lys"], ["dark", "Mørk"]], localStorage.getItem("theme") || "auto", (v) => { try { if (v === "auto") localStorage.removeItem("theme"); else localStorage.setItem("theme", v); } catch { /* blokeret */ } applyTheme(); });
+    let fs = "1";
+    try { fs = localStorage.getItem("fontScale") || "1"; } catch { /* blokeret */ }
+    const fontScale = seg([["0.9", "Mindre"], ["1", "Normal"], ["1.125", "Større"], ["1.25", "Størst"]], fs, (v) => {
+      try { if (v === "1") localStorage.removeItem("fontScale"); else localStorage.setItem("fontScale", v); } catch { /* blokeret */ }
+      applyFontScale();
+    });
     panel.append(
-      card("Udseende", "Gemmes straks og kun på denne enhed.", theme),
+      card("Udseende", "Gemmes straks og kun på denne enhed.",
+        h("div", { class: "field" }, h("span", { class: "label" }, "Tema"), theme),
+        h("div", { class: "field", style: { marginTop: "14px" } }, h("span", { class: "label" }, "Tekststørrelse"), fontScale)),
       card("Ture", "Optag GPS-rute, når du opretter en tur med dags dato. Ruten kan altid startes og stoppes på turen.",
         seg([["ask", "Spørg"], ["on", "Altid"], ["off", "Aldrig"]], gps, (v) => { gps = v; }),
         saveRow(() => patch({ trip_gps: gps }))));

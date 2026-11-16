@@ -115,7 +115,7 @@ html, body { margin: 0; overflow-x: clip; }
 html { height: 100%; }
 body { min-height: 100%; }
 body {
-  font-family: var(--font); font-size: 15px; line-height: 1.5; color: var(--text); background: var(--bg);
+  font-family: var(--font); font-size: .9375rem; line-height: 1.5; color: var(--text); background: var(--bg);
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
 }
 a { color: var(--brand); text-decoration: none; }
@@ -145,6 +145,10 @@ main#view:focus { outline: none; }
 svg.ic { width: 1.2em; height: 1.2em; flex: none; vertical-align: -.2em; }
 .brand svg { width: 30px; height: 30px; }
 .brand small { font-weight: 400; color: var(--text-3); font-size: .78rem; display: block; margin-top: -2px; letter-spacing: 0; }
+/* Ved større tekst (Profil → Præferencer) må undertitlen ikke bryde over to linjer og skubbe navnet ud af topbjælken */
+.brand { min-width: 0; }
+.brand > span { min-width: 0; }
+.brand small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar .spacer { flex: 1; }
 .live-dot { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; color: var(--text-3); }
 .live-dot i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); display: inline-block; }
