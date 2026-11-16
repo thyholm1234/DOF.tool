@@ -112,6 +112,21 @@ export function watchPosition(id, { distance = 10, precise = true } = {}, onPoin
   return () => navigator.geolocation.clearWatch(w);
 }
 
+/** «Tillad altid» til Nær mig (valgfri): "granted" | "denied" | "prompt" | "unsupported" (browser, iOS eller en APK uden metoden). */
+export async function backgroundPositionStatus() {
+  if (!isApp() || !own()) return "unsupported";
+  try { return (await cap().nativePromise(POS, "backgroundStatus")).state || "unsupported"; } catch { return "unsupported"; }
+}
+
+/** Bed om «Tillad altid» (Android sender brugeren til indstillingssiden). Kun som følge af en brugerhandling. */
+export async function requestBackgroundPosition() {
+  if (!isApp() || !own()) return "unsupported";
+  let state = "unsupported";
+  try { state = (await serial(() => cap().nativePromise(POS, "requestBackground"))).state || "unsupported"; } catch { /* gammel APK eller afvist */ }
+  diag("position-baggrund", state);
+  return state;
+}
+
 // ---------------------------------------------------------------- positionsdeling til 'Nær mig'
 
 let stopShare = null;

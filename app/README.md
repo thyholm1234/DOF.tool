@@ -13,6 +13,11 @@ med slukket skærm. iOS og ældre APK'er bruger [`@capgo/background-geolocation`
   uden GPS (Wi-Fi/mobilmaster, ~100 m), højst hvert 3. minut og kun ved flytning ≥ 150 m, leveret samlet højst hvert
   10. minut; til serveren højst hvert minut og kun ved flytning ≥ 100 m (eller hvert 10. minut). Står man stille, bruges
   der næsten ingen strøm. Afviser serveren tokenet (delingen slået fra), stopper tjenesten af sig selv.
+* **«Tillad altid» til Nær mig** (valgfri, `ACCESS_BACKGROUND_LOCATION`): slås delingen til, forklarer profilen det og sender brugeren
+  til Androids indstillingsside, hvor *Tillad altid* vælges (ingen anmodning ved opstart; ruteoptagelse kræver den ikke). Med den
+  genopstår tjenesten af sig selv, når Android har lukket processen (`START_STICKY`) og efter telefonens opstart
+  (`DofBootReceiver`, `BOOT_COMPLETED`); uden den står delingen stille, til appen åbnes, og tjenesten forsøger ikke at starte.
+  Google Play kræver særskilt godkendelse af baggrundsposition – i dag deles APK'en uden om Play.
 * **Strøm i øvrigt**: ingen wakelock; en rute kan ikke køre videre uden en tur (se Ruteoptagelse); livestrømmen (SSE) lukkes, når appen har ligget i baggrunden et halvt minut (alarmer
   kommer som push), og timere hviler, mens siden er skjult (`web/js/lifecycle.js`). Talemodellen kører uden aktiv venten i
   ONNX Runtime og bliver i hukommelsen, så den altid er klar (det koster ikke strøm).

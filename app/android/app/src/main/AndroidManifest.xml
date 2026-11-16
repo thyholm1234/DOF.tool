@@ -33,6 +33,16 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Genstarter Nær mig-delingen efter telefonens opstart. exported="false" er nok: systemets BOOT_COMPLETED når også
+             ikke-eksporterede modtagere (receiver-element-dokumentationen), og så kan andre apps ikke udløse den -->
+        <receiver
+            android:name=".DofBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -52,6 +62,10 @@
     <!-- Position (rute og Nær mig) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Nær mig, når appen ikke er åben (valgfri: «Tillad altid»). Uden den virker delingen kun, mens tjenesten lever -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Nær mig-delingen genstartes efter opstart af telefonen (DofBootReceiver) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

@@ -4,7 +4,7 @@
 import { api, state, h, icon, fmtN, fmtDate, loadRef, requireLogin, toast, seg, params, setParams, ask } from "../core.js";
 import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
-import { isApp, isPositionDevice, takeOverPosition } from "../native.js";
+import { isApp, isPositionDevice, takeOverPosition, backgroundPositionStatus, requestBackgroundPosition } from "../native.js";
 import { forgetUser } from "../offline.js";
 import * as passkey from "../passkey.js";
 import { openAvatarDialog } from "./avatar-dialog.js";
@@ -249,6 +249,7 @@ const SECTIONS = {
             if (dev && !(await ask(`Din position følges nu af «${dev.name}». Skift til denne enhed?`))) { share.checked = false; return; }
             const d = await takeOverPosition();
             toast(`Nær mig følger nu ${d.name}`);
+            await offerBackground();
           } else {
             await api("/api/me/location", { method: "DELETE" });
             toast("Positionen er slettet fra serveren");
@@ -256,9 +257,27 @@ const SECTIONS = {
           await refreshUser();
         } catch (err) { share.checked = !share.checked; toast(err.message, "err"); }
       } });
+      // «Tillad altid»: Nær mig kan så genopstå efter proceslukning og telefonens opstart. Spørges kun som følge af brugerens handling
+      const bgValue = h("span", {}), bgBtn = h("button", { type: "button", class: "btn sm ghost hide", onclick: async () => { await requestBackgroundPosition(); await showBackground(); } }, "Tillad altid");
+      const bgRow = row("Når appen er lukket", bgValue, bgBtn);
+      bgRow.classList.add("hide");
+      const showBackground = async () => {
+        const st = isApp() && prefs().share_location === true && isPositionDevice() ? await backgroundPositionStatus() : "unsupported";
+        bgRow.classList.toggle("hide", st === "unsupported");
+        bgBtn.classList.toggle("hide", st === "granted");
+        bgValue.textContent = st === "granted" ? "Følger dig også, når appen er lukket" : "Følger dig kun, mens appen kører";
+      };
+      const offerBackground = async () => {
+        const st = await backgroundPositionStatus();
+        if (st !== "prompt" && st !== "denied") return;
+        if (await ask("Skal Nær mig også følge dig, når appen er lukket? Så kan dine alarmer følge med, selv efter telefonen har været genstartet. Vælg «Tillad altid» på næste side. Positionen bruges kun til dine egne Nær mig-områder og afrundes til ca. 100 m.")) await requestBackgroundPosition();
+        await showBackground();
+      };
+      showBackground();
       const devNote = dev && !isPositionDevice() ? `Din position følges lige nu af «${dev.name}». ` : "";
       panel.append(card("Position og Nær mig", null,
         h("label", { class: "check" }, share, "Følg min position med denne enhed (appen)"),
+        bgRow,
         h("small", { class: "muted" }, devNote + (isApp()
           ? "Appen sender din seneste position, når du flytter dig, så feedet og din Nær mig-alarm gælder en radius omkring, hvor du er. Positionen følger én enhed ad gangen – slå den til her for at skifte til denne. Den bruges kun til dine egne filtre og slettes, når du slår delingen fra."
           : "Baggrundsposition kræver appen. I browseren kan du stadig vælge Nær mig i feedet – så bruges din position, mens du vælger."))));

@@ -24,10 +24,16 @@ import org.json.JSONObject;
  * start({route, share, url?, headers?, title, message}) er et vedvarende kald: hver position leveres som
  * {latitude, longitude, accuracy, time}. Fejl afvises med koden NOT_AUTHORIZED (tilladelse/positionstjenester slået fra)
  * eller START_FAILED. stop() stopper tjenesten.
+ *
+ * backgroundStatus() / requestBackground() svarer {state: "granted" | "denied" | "prompt" | "unsupported"} for «Tillad altid»
+ * (ACCESS_BACKGROUND_LOCATION), som gør, at Nær mig kan genopstå af sig selv, når Android har lukket appen eller telefonen er
+ * genstartet. start() beder aldrig om den, og ruteoptagelse kræver den ikke.
  */
 @CapacitorPlugin(name = "DofPosition", permissions = {
     @Permission(strings = { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, alias = "location"),
-    @Permission(strings = { "android.permission.POST_NOTIFICATIONS" }, alias = "notifications")
+    @Permission(strings = { "android.permission.POST_NOTIFICATIONS" }, alias = "notifications"),
+    // «Tillad altid» (valgfri, kun til Nær mig): findes først fra Android 10 – før da gælder almindelig position også i baggrunden
+    @Permission(strings = { "android.permission.ACCESS_BACKGROUND_LOCATION" }, alias = "backgroundLocation")
 })
 public class DofPosition extends Plugin {
 
@@ -103,6 +109,40 @@ public class DofPosition extends Plugin {
         o.put("accuracy", loc.hasAccuracy() ? loc.getAccuracy() : null);
         o.put("time", loc.getTime());
         c.resolve(o);
+    }
+
+    private JSObject backgroundState() {
+        String state = "unsupported";  // under Android 10 findes tilladelsen ikke (tjenesten behandler det som givet)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            PermissionState s = getPermissionState("backgroundLocation");
+            state = s == PermissionState.GRANTED ? "granted" : s == PermissionState.DENIED ? "denied" : "prompt";
+        }
+        return new JSObject().put("state", state);
+    }
+
+    @PluginMethod
+    public void backgroundStatus(PluginCall call) {
+        call.resolve(backgroundState());
+    }
+
+    @PluginMethod
+    public void requestBackground(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || getPermissionState("backgroundLocation") == PermissionState.GRANTED) {
+            call.resolve(backgroundState());
+            return;
+        }
+        // Skal bedes om alene og først, når almindelig position er givet – ellers afviser Android uden dialog
+        if (getPermissionState("location") != PermissionState.GRANTED) {
+            call.reject("Appen må ikke bruge din position", "NOT_AUTHORIZED");
+            return;
+        }
+        // Fra Android 11 sender systemet selv brugeren til indstillingssiden, hvor «Tillad altid» vælges
+        requestPermissionForAlias("backgroundLocation", call, "backgroundResult");
+    }
+
+    @PermissionCallback
+    private void backgroundResult(PluginCall call) {
+        call.resolve(backgroundState());
     }
 
     @PluginMethod

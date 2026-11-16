@@ -53,7 +53,9 @@ import org.json.JSONObject;
  *
  * Der holdes ingen wakelock og ingen vagthund, der genstarter GPS'en: fused-tjenesten vækker selv processen, når der er
  * noget at levere. Positionen til Nær mig sendes direkte herfra til serveren (også når appen er lukket), højst hvert
- * minut og kun ved flytning ≥ 100 m eller hvert 10. minut. Afviser serveren tokenet (deling slået fra et andet sted),
+ * minut og kun ved flytning ≥ 100 m eller hvert 10. minut. Med tilladelsen «Tillad altid» (ACCESS_BACKGROUND_LOCATION, valgfri)
+ * genopstår Nær mig-delingen af sig selv efter proceslukning (START_STICKY) og telefonens opstart (DofBootReceiver); uden den
+ * står den stille, til appen åbnes. Afviser serveren tokenet (deling slået fra et andet sted),
  * holder delingen op med det samme, så telefonen ikke bliver ved med at bruge strøm på det.
  */
 public class DofPositionService extends Service {
@@ -128,6 +130,12 @@ public class DofPositionService extends Service {
             || ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
+    /** «Tillad altid» (valgfri): uden den kan tjenesten ikke få position, når den genstartes fra baggrunden. Under Android 10 findes den ikke. */
+    static boolean hasBackgroundPermission(Context ctx) {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+            || ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
     // ---------------------------------------------------------------- livscyklus
 
     @Override
@@ -142,7 +150,11 @@ public class DofPositionService extends Service {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         boolean restart = intent == null || !intent.hasExtra("route");
         if (restart) {
-            // Android genstartede tjenesten (processen var lukket): kun Nær mig-delingen kan fortsætte uden appen
+            // Android genstartede tjenesten (processen var lukket) eller telefonen er startet: kun Nær mig-delingen kan fortsætte uden appen
+            if (!hasBackgroundPermission(this)) {  // uden «Tillad altid» kan position ikke fås fra baggrunden: ingen forsøg på promote()
+                shutdown();
+                return START_NOT_STICKY;
+            }
             route = false;
             share = prefs.getBoolean("share", false);
             url = prefs.getString("url", null);
