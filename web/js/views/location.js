@@ -113,7 +113,7 @@ export async function render(view, [loknr]) {
         speciesBody)));
   const map = baseMap(mapEl, { center: d.lat ? [d.lat, d.lon] : [56, 10.5], zoom: d.lat ? 12 : 6 });
   if (d.graense) {  // lokalitetens form (hjørnepunkterne fra DOFbasen eller portalen)
-    const shape = L.geoJSON(d.graense.geojson, { style: { color: "#1f5a44", weight: 2, fillOpacity: 0.12 } }).addTo(map);
+    const shape = L.geoJSON(d.graense.geojson, { style: { color: "#b5770f", weight: 2, fillOpacity: 0.1 } }).addTo(map);
     setTimeout(() => map.fitBounds(shape.getBounds(), { padding: [12, 12], maxZoom: 16 }), 60);
   }
   if (d.lat) L.marker([d.lat, d.lon]).addTo(map);

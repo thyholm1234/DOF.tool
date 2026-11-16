@@ -1,5 +1,5 @@
 // Opret og ret opslag (docs/snak-modul-spec.md §2.4, §5). Samme komponent bruges inline i feedet og på #/snak/ny og #/snak/<id>/rediger.
-import { api, fmtDate, h, modal, seg, toast, store } from "../core.js";
+import { api, fmtDate, h, icon, modal, seg, toast, store } from "../core.js";
 import { attachmentCard, ctx, on, uploadImage } from "./common.js";
 import { artMention } from "./artnavn.js";
 
@@ -139,8 +139,8 @@ export function composer({ categories, post = null, category = null, onDone, onC
         h("button", { type: "button", class: "icon-btn", "aria-label": "Fjern billede", onclick: () => { st.images.splice(i, 1); draw(); } }, "✕"),
         h("button", { type: "button", class: "icon-btn", "aria-label": "Flyt tilbage", disabled: i === st.images.length - 1, onclick: () => { [st.images[i + 1], st.images[i]] = [st.images[i], st.images[i + 1]]; draw(); } }, "›")))));
     attBox.replaceChildren(...(st.attachment ? [attachmentCard(st.attachment.snapshot || { type: st.attachment.type, title: st.attachment.ref }, { onRemove: () => { st.attachment = null; draw(); } })] : []));
-    tags.replaceChildren(...st.arter.map((a, i) => h("span", { class: "sn-chip" }, "🐦 ", a.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": `Fjern ${a.navn}`, onclick: () => { st.arter.splice(i, 1); draw(); } }, "✕"))),
-      st.lok ? h("span", { class: "sn-chip" }, "📍 ", st.lok.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": "Fjern lokalitet", onclick: () => { st.lok = null; draw(); } }, "✕")) : null);
+    tags.replaceChildren(...st.arter.map((a, i) => h("span", { class: "sn-chip" }, h("span", { class: "mi", html: icon("bird") }), a.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": `Fjern ${a.navn}`, onclick: () => { st.arter.splice(i, 1); draw(); } }, "✕"))),
+      st.lok ? h("span", { class: "sn-chip" }, h("span", { class: "mi", html: icon("pin") }), st.lok.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": "Fjern lokalitet", onclick: () => { st.lok = null; draw(); } }, "✕")) : null);
   };
 
   async function addFiles(list) {
@@ -175,10 +175,10 @@ export function composer({ categories, post = null, category = null, onDone, onC
   draw();
 
   const tools = h("div", { class: "sn-tools row" },
-    on("snak_billeder") ? h("button", { type: "button", class: "btn", onclick: () => files.click() }, "📷 Billeder") : null,
-    h("button", { type: "button", class: "btn", onclick: () => attachPicker(attach) }, "📎 Vedhæft"),
-    h("button", { type: "button", class: "btn", onclick: () => st.arter.length >= MAX_ARTER ? toast(`Højst ${MAX_ARTER} arter`, "err") : searchPicker("art", "Tilføj art", (r) => { if (!st.arter.some(a => a.artnr === +r.ref)) st.arter.push({ artnr: +r.ref, navn: r.title }); draw(); }) }, "🐦 Art"),
-    h("button", { type: "button", class: "btn", onclick: () => searchPicker("lokalitet", "Vælg lokalitet", (r) => { st.lok = { loknr: +r.ref, navn: r.title }; draw(); }) }, "📍 Sted"),
+    on("snak_billeder") ? h("button", { type: "button", class: "btn", onclick: () => files.click(), html: `${icon("camera")} Billeder` }) : null,
+    h("button", { type: "button", class: "btn", onclick: () => attachPicker(attach), html: `${icon("clip")} Vedhæft` }),
+    h("button", { type: "button", class: "btn", onclick: () => st.arter.length >= MAX_ARTER ? toast(`Højst ${MAX_ARTER} arter`, "err") : searchPicker("art", "Tilføj art", (r) => { if (!st.arter.some(a => a.artnr === +r.ref)) st.arter.push({ artnr: +r.ref, navn: r.title }); draw(); }), html: `${icon("bird")} Art` }),
+    h("button", { type: "button", class: "btn", onclick: () => searchPicker("lokalitet", "Vælg lokalitet", (r) => { st.lok = { loknr: +r.ref, navn: r.title }; draw(); }), html: `${icon("pin")} Sted` }),
     files);
 
   return h("form", { class: "sn-composer stack", onsubmit: async (e) => {

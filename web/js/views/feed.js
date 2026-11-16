@@ -203,7 +203,7 @@ export function threadCard(t, level, fresh = false) {
       h("div", { class: "meta" }, h("span", { class: "lok", title: t.lok || "" }, t.lok || "Ukendt lokalitet"), t.kommune ? h("span", { class: "muted" }, `\u00a0· ${t.kommune}`) : null),
       h("div", { class: "meta2" }, [last.adf, last.observer, last.tid].filter(Boolean).join(" · ")),
       t.pheno?.fra ? h("div", { class: "meta2", title: t.pheno.kilde === "dof" ? "Efter DOFbasens bemærk-vindue" : "Beregnet af observationerne de seneste 15 år" },
-        `🗓 Uden for sæson – normalt ${doyLabel(t.pheno.fra)} – ${doyLabel(t.pheno.til)}`) : null,
+        h("span", { class: "mi", html: icon("calendar") }), `Uden for sæson – normalt ${doyLabel(t.pheno.fra)} – ${doyLabel(t.pheno.til)}`) : null,
       t.portal || t.status ? h("div", { class: "row", style: { gap: "5px", marginTop: "5px" } },
         // Status meldt på tråden (SU/SUB) vinder over indtasterens egen status
         t.status ? statusBadge(t.status.status, t.status.live, t.status.status_at) : statusBadge(t.portal.status, t.portal.live, t.portal.status_at),
@@ -211,10 +211,11 @@ export function threadCard(t, level, fresh = false) {
         t.portal ? certaintyTag(t.portal.sikkerhed) : null) : null),
     h("div", { class: "side" }, tag(kat, KAT[kat]), h("span", { title: "Først set i portalen " + ago(t.first_seen) }, Date.now() - new Date(t.last_seen) < 45 * 60000 ? ago(t.last_seen) : (last.tid || ago(t.last_seen))),
       t.n_observers > 1 ? h("span", { title: "observatører" }, `${t.n_observers} obs.`) : null,
-      t.likes ? h("span", { class: "likes", title: "tommel op" }, `👍 ${t.likes}`) : null,
-      t.n_comments ? h("span", { title: "kommentarer" }, `💬 ${t.n_comments}`) : null,
-      t.media?.images || t.media?.sounds ? h("span", { title: "Billeder og lyd i DOFbasen" },
-        [t.media.images ? `📷 ${t.media.images}` : "", t.media.sounds ? `🔊 ${t.media.sounds}` : ""].filter(Boolean).join(" ")) : null,
+      t.likes ? h("span", { class: "likes mi-n", title: "tommel op" }, h("span", { class: "mi", html: icon("thumb") }), String(t.likes)) : null,
+      t.n_comments ? h("span", { class: "mi-n", title: "kommentarer" }, h("span", { class: "mi", html: icon("chat") }), String(t.n_comments)) : null,
+      t.media?.images || t.media?.sounds ? h("span", { class: "mi-n", title: "Billeder og lyd i DOFbasen" },
+        t.media.images ? h("span", { class: "mi", html: icon("camera") }) : null, t.media.images ? String(t.media.images) : null,
+        t.media.sounds ? h("span", { class: "mi", html: icon("sound") }) : null, t.media.sounds ? String(t.media.sounds) : null) : null,
       t.media?.dku?.length ? h("span", { class: "tag plain", title: "Status hos DKU" }, `DKU: ${t.media.dku.join(", ")}`) : null));
 }
 

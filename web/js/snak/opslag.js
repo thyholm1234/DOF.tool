@@ -1,5 +1,5 @@
 // Opslagskortet (feed og trådside) og trådsiden #/snak/<id> (docs/snak-modul-spec.md §2.1–2.2).
-import { api, h, toast, ask, askText, ago, state, errorBox, params } from "../core.js";
+import { api, h, icon, toast, ask, askText, ago, state, errorBox, params } from "../core.js";
 import { live } from "../live.js";
 import { BASE, attachmentCard, avatar, authorLink, categoryTag, cleanups, ctx, extras, gallery, loadCss, loadingBox, notice, plain } from "./common.js";
 import { commentBlock } from "./kommentarer.js";
@@ -70,23 +70,24 @@ export function postCard(post, { inFeed = false, cfg, categories, reload = () =>
   const long = inFeed && plain(post.html).length > CLAMP_CHARS;
   const text = h("div", { class: `sn-html sn-text ${long ? "clamp" : ""}`, html: post.html });
   const more = long ? h("button", { type: "button", class: "sn-more", onclick: () => { text.classList.remove("clamp"); more.remove(); } }, "Vis mere") : null;
-  const countEl = h("span", { class: "sn-count", title: "Kommentarer" }, `💬 ${post.n_comments}`);
+  const countN = h("span", {}, String(post.n_comments));
+  const countEl = h("span", { class: "sn-count", title: "Kommentarer" }, h("span", { class: "mi", html: icon("chat") }), countN);
   const comments = commentBlock(post, { inFeed, feed: cfg?.feed, highlight, onCount: () => {} });
   const commentBtn = h("button", { type: "button", class: "sn-act-btn", onclick: () => { if (inFeed) { location.hash = `${BASE}/${post.id}`; } else comments.querySelector("textarea")?.focus(); } },
-    h("span", { "aria-hidden": "true" }, "💬"), h("span", {}, inFeed ? "Se alle" : "Kommentér"));
+    h("span", { class: "mi", html: icon("chat") }), h("span", {}, inFeed ? "Se alle" : "Kommentér"));
   const react = reactionWidget("post", post.id, post.reactions);
   const titleId = `sp${post.id}`;
   const card = h("article", { class: `sn-card ${post.status === "skjult" ? "hidden" : ""}`, "aria-labelledby": post.titel ? titleId : undefined, "data-id": post.id },
-    post.pinned ? h("div", { class: "sn-pin" }, "📌 Fastgjort") : null,
+    post.pinned ? h("div", { class: "sn-pin" }, h("span", { class: "mi", html: icon("tack") }), "Fastgjort") : null,
     h("header", { class: "sn-head" }, avatar(post.author, 42),
       h("div", { class: "sn-who" }, h("div", {}, authorLink(post.author), " ", categoryTag(post.category)),
         h("div", { class: "muted small" }, h("time", { datetime: post.created_at, title: new Date(post.created_at).toLocaleString("da-DK") }, ago(post.created_at)),
           post.edited_at ? " · redigeret" : "")),
       h("span", { class: "sn-badges" },
         post.eksempel ? h("span", { class: "sn-chip" }, "Eksempel") : null,
-        post.article_id ? h("a", { class: "sn-chip", href: `#/artikler/${post.article_id}`, title: "Opslaget hører til en artikel – kommentarerne er de samme som under artiklen" }, "📰 Artikel") : null,
+        post.article_id ? h("a", { class: "sn-chip", href: `#/artikler/${post.article_id}`, title: "Opslaget hører til en artikel – kommentarerne er de samme som under artiklen" }, h("span", { class: "mi", html: icon("news") }), "Artikel") : null,
         post.solved ? h("span", { class: "sn-chip ok" }, "Løst ✓") : null,
-        post.locked ? h("span", { class: "sn-chip" }, post.article_id ? "🔒 Kommentarer lukket" : "🔒 Låst") : null,
+        post.locked ? h("span", { class: "sn-chip" }, h("span", { class: "mi", html: icon("lock") }), post.article_id ? "Kommentarer lukket" : "Låst") : null,
         post.status === "skjult" ? h("span", { class: "sn-chip warn" }, "Skjult") : null),
       state.user ? menu(post, { reload, categories }) : null),
     post.titel ? h("h2", { class: "sn-title", id: titleId }, inFeed ? h("a", { href: `${BASE}/${post.id}` }, post.titel) : post.titel) : null,
@@ -95,10 +96,10 @@ export function postCard(post, { inFeed = false, cfg, categories, reload = () =>
     attachmentCard(post.attachment),
     extras(post),
     post.status === "skjult" && post.hidden_reason ? h("p", { class: "muted small" }, `Skjult af en moderator: ${post.hidden_reason}`) : null,
-    h("div", { class: "sn-bar" }, react, h("span", { class: "spacer" }), countEl, h("span", { class: "sn-count", title: "Visninger" }, `👁 ${post.views}`)),
+    h("div", { class: "sn-bar" }, react, h("span", { class: "spacer" }), countEl, h("span", { class: "sn-count", title: "Visninger" }, h("span", { class: "mi", html: icon("eye") }), String(post.views))),
     h("div", { class: "sn-actions" }, commentBtn),
     comments);
-  card.setCount = (n) => { countEl.textContent = `💬 ${n}`; };
+  card.setCount = (n) => { countN.textContent = String(n); };
   card.react = react;
   card.comments = comments;
   return card;

@@ -1,5 +1,5 @@
 // Snak: fælles hjælpere (navn, rettigheder, CSS, avatar, kategori-tag, indlæsning). Navnet «Snak» står kun her og i funktionsflagets tekst.
-import { api, h, state, trustedHTML } from "../core.js";
+import { api, h, icon, state, trustedHTML } from "../core.js";
 
 export const NAME = "Snak";
 export const BASE = "#/snak";
@@ -97,8 +97,8 @@ export function extras(post) {
   const arter = post.arter_navn || [];
   if (!arter.length && !post.lok_navn) return null;
   return h("div", { class: "sn-extras" },
-    ...arter.map(a => h("a", { class: "sn-chip", href: `#/art/${a.artnr}` }, "🐦 ", a.navn)),
-    post.lok_navn && post.loknr ? h("a", { class: "sn-chip", href: `#/lok/${post.loknr}` }, "📍 ", post.lok_navn) : null);
+    ...arter.map(a => h("a", { class: "sn-chip", href: `#/art/${a.artnr}` }, h("span", { class: "mi", html: icon("bird") }), a.navn)),
+    post.lok_navn && post.loknr ? h("a", { class: "sn-chip", href: `#/lok/${post.loknr}` }, h("span", { class: "mi", html: icon("pin") }), post.lok_navn) : null);
 }
 
 /** Upload ét billede til opslag (kind «post») eller kommentar («comment»). Giver {id, url, thumb, medium, …}. */

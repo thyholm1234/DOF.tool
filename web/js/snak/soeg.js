@@ -1,5 +1,5 @@
 // Søg (#/snak/soeg?q=): fritekst i titel, tekst og kommentarer med filtre (docs/snak-modul-spec.md §2.5).
-import { api, ago, empty, errorBox, h, params, seg, setParams, state } from "../core.js";
+import { api, ago, empty, errorBox, h, icon, params, seg, setParams, state } from "../core.js";
 import { BASE, categoryTag, loadCss, loadingBox } from "./common.js";
 import { searchPicker } from "./composer.js";
 
@@ -28,8 +28,8 @@ export async function page() {
     ...meta.categories.map(c => h("option", { value: c.slug, selected: c.slug === f.kategori }, c.navn)));
   const artBox = h("span", { class: "row" });
   const drawArt = () => artBox.replaceChildren(f.art
-    ? h("span", { class: "sn-chip" }, "🐦 ", f.art.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": `Fjern ${f.art.navn}`, onclick: () => { f.art = null; drawArt(); run(true); } }, "✕"))
-    : h("button", { type: "button", class: "btn sm", onclick: () => searchPicker("art", "Filtrér på art", (r) => { f.art = { artnr: +r.ref, navn: r.title }; drawArt(); run(true); }) }, "🐦 Art"));
+    ? h("span", { class: "sn-chip" }, h("span", { class: "mi", html: icon("bird") }), f.art.navn, " ", h("button", { type: "button", class: "sn-x", "aria-label": `Fjern ${f.art.navn}`, onclick: () => { f.art = null; drawArt(); run(true); } }, "✕"))
+    : h("button", { type: "button", class: "btn sm", onclick: () => searchPicker("art", "Filtrér på art", (r) => { f.art = { artnr: +r.ref, navn: r.title }; drawArt(); run(true); }), html: `${icon("bird")} Art` }));
   drawArt();
 
   async function run(reset) {

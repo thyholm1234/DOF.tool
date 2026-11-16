@@ -1,6 +1,6 @@
 // Artikelmodulet (#/artikler/…): netfugl.dk-arkivet og nye artikler med avisforside, søgning på ord og råtekst, emneord, arter,
 // kommentarer og en markdown-editor. Skal og faner her; hver side er en fil under artikler/.
-import { h, params, errorBox, requireLogin, state, modal, api, toast } from "../core.js";
+import { h, icon, params, errorBox, requireLogin, state, modal, api, toast } from "../core.js";
 import { BASE, ctx, on, loadCss, loadingBox, notice, cleanups } from "../artikler/common.js";
 
 const MODULES = {
@@ -59,7 +59,7 @@ export async function render(view, [sub]) {
     h("nav", { class: "art-tabs", "aria-label": "Artikler" },
       h("div", { class: "seg" }, ...TABS.map(([k, t]) => h("a", { href: k ? `${BASE}/${k}` : BASE, class: active === k ? "on" : "" }, t)),
         c.admin ? h("a", { href: `${BASE}/admin`, class: active === "admin" ? "on" : "" }, "Admin") : null),
-      on("artikler_notifikationer") ? h("button", { class: "icon-btn", type: "button", title: "Notifikationer", "aria-label": "Notifikationer", onclick: notifications }, "🔔") : null),
+      on("artikler_notifikationer") ? h("button", { class: "icon-btn", type: "button", title: "Notifikationer", "aria-label": "Notifikationer", onclick: notifications, html: icon("bell") }) : null),
     content));
   try {
     if (!spec) { content.replaceChildren(notice("Siden findes ikke.", "err")); return; }

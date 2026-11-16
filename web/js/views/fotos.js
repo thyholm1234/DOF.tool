@@ -1,6 +1,6 @@
 // Fotomodulet (#/fotos/…): fotogalleri med netfugl-arkivet og nye fotos – søgning, fotoside, kommentarer, upload og moderation.
 // Skal og faner her; hver side er en fil under fotos/.
-import { api, h, params, errorBox, modal, requireLogin, state, toast } from "../core.js";
+import { api, h, icon, params, errorBox, modal, requireLogin, state, toast } from "../core.js";
 import { BASE, ctx, on, loadCss, loadingBox, notice, cleanups } from "../fotos/common.js";
 
 const MODULES = {
@@ -59,7 +59,7 @@ export async function render(view, [sub]) {
       h("div", { class: "seg" }, tab(BASE, "Galleri", first === undefined || first === "fotograf" || /^\d+$/.test(first || "")),
         tab(`${BASE}/mine`, "Mine fotos", first === "mine"), tab(`${BASE}/retningslinjer`, "Retningslinjer", first === "retningslinjer"),
         c.can_admin ? tab(`${BASE}/admin`, "Admin", first === "admin") : null),
-      h("button", { class: "icon-btn", type: "button", title: "Notifikationer", "aria-label": "Notifikationer", onclick: notifications }, "🔔")),
+      h("button", { class: "icon-btn", type: "button", title: "Notifikationer", "aria-label": "Notifikationer", onclick: notifications, html: icon("bell") })),
     content));
   try {
     if (!spec) { content.replaceChildren(notice("Siden findes ikke.", "err")); return; }

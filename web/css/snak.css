@@ -10,9 +10,9 @@
 .sn-toolbar { align-items: center; gap: 10px; }
 /* Kategorierne ombrydes i stedet for at rulle sidelæns: ellers skjules de sidste (fx «Ture og arrangementer») uden tegn på, at der er flere */
 .sn-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.sn-chips a { flex: none; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: .85rem; font-weight: 600; white-space: nowrap; }
+.sn-chips a { flex: none; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: .85rem; font-weight: 500; white-space: nowrap; }
 .sn-chips a:hover { text-decoration: none; border-color: var(--line-strong); }
-.sn-chips a.on { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.sn-chips a.on { background: var(--brand-soft); border-color: var(--brand); color: var(--text); }
 
 .sn-list { display: flex; flex-direction: column; gap: 14px; }
 /* Mens et nyt filter hentes: de gamle kort dæmpes (med lille forsinkelse, så hurtige svar slet ikke blinker) */
@@ -23,19 +23,19 @@
 .sn-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .sn-card.hidden { opacity: .8; border-style: dashed; }
 .sn-start { padding: 10px 12px; }
-.sn-start-btn { width: 100%; text-align: left; font: inherit; color: var(--text-3); background: var(--bg-2); border: 0; border-radius: 99px; padding: 10px 16px; cursor: pointer; }
+.sn-start-btn { width: 100%; text-align: left; font: inherit; color: var(--text-3); background: var(--bg-2); border: 0; border-radius: 6px; padding: 10px 16px; cursor: pointer; }
 .sn-start-btn:hover { background: var(--line); }
-.sn-pin { font-size: .8rem; color: var(--text-3); font-weight: 600; }
+.sn-pin { font-size: .8rem; color: var(--text-3); font-weight: 500; }
 
 .sn-head { display: flex; gap: 10px; align-items: flex-start; }
 .sn-who { flex: 1; min-width: 0; line-height: 1.3; }
 .sn-badges { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 img.sn-avatar { object-fit: cover; background: var(--surface-2); }
-.sn-avatar { flex: none; display: inline-grid; place-items: center; border-radius: 50%; font-weight: 700; color: #fff; background: hsl(var(--h) 38% 38%); }
-.sn-cat { display: inline-block; padding: 1px 9px; border-radius: 99px; font-size: .75rem; font-weight: 700; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+.sn-avatar { flex: none; display: inline-grid; place-items: center; border-radius: 50%; font-weight: 600; color: #fff; background: hsl(var(--h) 38% 38%); }
+.sn-cat { display: inline-block; padding: 1px 9px; border-radius: 6px; font-size: .75rem; font-weight: 600; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
   background: color-mix(in srgb, var(--c) 10%, transparent); vertical-align: 1px; }
 .sn-cat:hover { text-decoration: none; background: color-mix(in srgb, var(--c) 20%, transparent); }
-.sn-chip { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .72rem; font-weight: 700; background: var(--bg-2); color: var(--text-2); }
+.sn-chip { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: .72rem; font-weight: 600; background: var(--bg-2); color: var(--text-2); }
 .sn-chip.ok { background: var(--sub-soft); color: var(--sub); }
 .sn-chip.warn { background: var(--warn-soft); color: var(--warn); }
 .sn-title { margin: 0; font-size: 1.15rem; }
@@ -46,18 +46,18 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
 .sn-html > :last-child { margin-bottom: 0; }
 .sn-html p { margin: 0 0 .6em; }
 .sn-text.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; }
-.sn-more { background: none; border: 0; padding: 2px 0; font: inherit; font-size: .85rem; font-weight: 600; color: var(--brand); cursor: pointer; text-align: left; align-self: flex-start; }
+.sn-more { background: none; border: 0; padding: 2px 0; font: inherit; font-size: .85rem; font-weight: 500; color: var(--brand); cursor: pointer; text-align: left; align-self: flex-start; }
 .sn-more:hover { text-decoration: underline; }
 
 .sn-bar { display: flex; align-items: center; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .sn-count { font-size: .85rem; color: var(--text-3); }
 .sn-actions { display: flex; gap: 4px; border-top: 1px solid var(--line); padding-top: 6px; }
-.sn-act-btn { flex: 1; display: inline-flex; justify-content: center; gap: 6px; padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font: inherit; font-weight: 600; cursor: pointer; }
+.sn-act-btn { flex: 1; display: inline-flex; justify-content: center; gap: 6px; padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font: inherit; font-weight: 500; cursor: pointer; }
 .sn-act-btn:hover { background: var(--bg-2); }
 
 /* Reaktioner */
 .sn-react { display: inline-flex; align-items: center; gap: 8px; position: relative; }
-.sn-react-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-weight: 600; color: var(--text-2);
+.sn-react-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-weight: 500; color: var(--text-2);
   cursor: pointer; touch-action: manipulation; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .sn-react-btn:hover { background: var(--bg-2); }
 .sn-react-btn.on { color: var(--rc); }
@@ -80,7 +80,7 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
   .sn-picker { position-area: block-start span-inline-end; position-try-fallbacks: flip-block, flip-inline; margin-block: 2px; }
 }
 .sn-picker .sn-pick { position: relative; width: 46px; height: 50px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; border-radius: 0; font-size: 2rem; line-height: 1; cursor: pointer;
-  filter: drop-shadow(0 2px 3px rgb(0 0 0 / .28)) drop-shadow(0 0 1px rgb(0 0 0 / .18)); transition: transform .16s cubic-bezier(.3, 1.6, .5, 1), filter .16s ease; -webkit-tap-highlight-color: transparent; }
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / .28)) drop-shadow(0 0 1px rgb(0 0 0 / .18)); transition: transform .16s var(--ease-out), filter .16s ease; -webkit-tap-highlight-color: transparent; }
 .sn-picker .sn-pick:hover, .sn-picker .sn-pick:focus-visible { transform: scale(1.4) translateY(-6px); filter: drop-shadow(0 6px 6px rgb(0 0 0 / .3)); background: transparent; z-index: 1; }
 .sn-picker .sn-pick:focus-visible { outline: none; }
 .sn-picker .sn-pick:focus-visible > span { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 6px; }
@@ -93,7 +93,7 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
   @starting-style { .sn-picker:popover-open { opacity: 0; } }
   .sn-picker:not(:popover-open) { opacity: 0; }
   /* Emojierne hopper op én efter én */
-  .sn-picker:popover-open .sn-pick > span { display: block; animation: sn-pop .32s cubic-bezier(.3, 1.6, .5, 1) both; }
+  .sn-picker:popover-open .sn-pick > span { display: block; animation: sn-pop .32s var(--ease-out) both; }
   .sn-picker .sn-pick:nth-child(2) > span { animation-delay: .03s; }
   .sn-picker .sn-pick:nth-child(3) > span { animation-delay: .06s; }
   .sn-picker .sn-pick:nth-child(4) > span { animation-delay: .09s; }
@@ -124,11 +124,11 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
 .sn-comments { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
 .sn-chead h2 { margin: 0; font-size: 1.05rem; }
 .sn-clist { display: flex; flex-direction: column; gap: 10px; }
-.sn-all { font-size: .85rem; font-weight: 600; }
+.sn-all { font-size: .85rem; font-weight: 500; }
 .sn-comment { display: flex; gap: 8px; align-items: flex-start; }
 .sn-comment.reply { margin-top: 8px; }
 .sn-cbody { flex: 1; min-width: 0; }
-.sn-cbubble { display: inline-block; max-width: 100%; background: var(--bg-2); border-radius: 14px; padding: 7px 12px; }
+.sn-cbubble { display: inline-block; max-width: 100%; background: var(--bg-2); border-radius: 10px; padding: 7px 12px; }
 .sn-comment.hidden .sn-cbubble { opacity: .7; }
 .sn-comment.hl .sn-cbubble { outline: 2px solid var(--accent); animation: sn-hl 3s ease-out forwards; }
 @keyframes sn-hl { to { outline-color: transparent; } }
@@ -136,7 +136,7 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
 .sn-cwho { font-size: .88rem; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .sn-replyto { color: var(--text-3); font-size: .85rem; }
 .sn-cacts { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 2px 6px; font-size: .78rem; }
-.sn-act { border: 0; background: none; padding: 0; font: inherit; font-size: .78rem; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.sn-act { border: 0; background: none; padding: 0; font: inherit; font-size: .78rem; font-weight: 500; color: var(--text-2); cursor: pointer; }
 .sn-act:hover { text-decoration: underline; }
 .sn-compose { display: flex; flex-direction: column; gap: 6px; margin: 4px 0; }
 .sn-compose-row { display: flex; gap: 8px; align-items: flex-end; }
@@ -144,11 +144,11 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
 .sn-composer textarea { min-height: 120px; resize: vertical; width: 100%; }
 .sn-composer input[type="text"], .sn-composer select { width: 100%; }
 .sn-composer .row select { width: auto; max-width: 100%; }
-.sn-back { font-size: .9rem; font-weight: 600; }
+.sn-back { font-size: .9rem; font-weight: 500; }
 
 @media (max-width: 480px) {
   .snak { padding: 0 10px 40px; }
-  .sn-card { padding: 12px; border-radius: 12px; }
+  .sn-card { padding: 12px; border-radius: 10px; }
   .sn-badges { display: none; }
 }
 
@@ -157,7 +157,7 @@ img.sn-avatar { object-fit: cover; background: var(--surface-2); }
 .sn-gallery.n1 { grid-template-columns: 1fr; }
 .sn-gallery.n2, .sn-gallery.n4 { grid-template-columns: 1fr 1fr; }
 .sn-gallery.n3 { grid-template-columns: 1fr 1fr 1fr; }
-.sn-gallery.single { max-width: 260px; border-radius: 12px; }
+.sn-gallery.single { max-width: 260px; border-radius: 10px; }
 .sn-thumb { padding: 0; border: 0; background: var(--bg-2); cursor: zoom-in; aspect-ratio: 4 / 3; overflow: hidden; display: block; }
 .sn-gallery.n1 .sn-thumb { aspect-ratio: auto; max-height: 460px; }
 .sn-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -188,19 +188,19 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 .sn-composer textarea, .sn-composer input[type="text"], .sn-composer select { width: 100%; }
 .sn-tools .btn { padding: 6px 10px; }
 .sn-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
-.sn-tw { width: 96px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg-2); }
+.sn-tw { width: 96px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg-2); }
 .sn-tw img { width: 100%; height: 72px; object-fit: cover; display: block; }
 .sn-tw-bar { display: flex; justify-content: space-between; }
 .sn-tw-bar .icon-btn { padding: 2px 6px; font-size: .85rem; }
-.sn-suggest { align-self: flex-start; background: var(--brand-soft, var(--bg-2)); border: 1px dashed var(--line-strong); border-radius: 99px; padding: 4px 12px; font: inherit; font-size: .85rem; cursor: pointer; color: var(--brand); }
+.sn-suggest { align-self: flex-start; background: var(--brand-soft, var(--bg-2)); border: 1px dashed var(--line-strong); border-radius: 6px; padding: 4px 12px; font: inherit; font-size: .85rem; cursor: pointer; color: var(--brand); }
 .sn-pick-list { max-height: 50vh; overflow-y: auto; }
 /* Rækkerne i vedhæft-vælgeren. Afgrænset til listen: .sn-pick er også knapperne i reaktionsvælgeren (runde, 44 px). */
-.sn-pick-list .sn-pick { width: 100%; height: auto; display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font: inherit; color: inherit; cursor: pointer; transition: none; }
+.sn-pick-list .sn-pick { width: 100%; height: auto; display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font: inherit; color: inherit; cursor: pointer; transition: none; }
 .sn-pick-list .sn-pick:hover, .sn-pick-list .sn-pick:focus-visible { transform: none; background: var(--bg-2); }
 .sn-pick-list .sn-pick:disabled { cursor: not-allowed; opacity: .55; background: var(--surface); }
 .sn-pick-list > .btn { align-self: flex-start; }
 .sn-cimg { display: flex; gap: 6px; align-items: flex-start; }
-.sn-cimg img { max-height: 80px; border-radius: 8px; }
+.sn-cimg img { max-height: 80px; border-radius: 6px; }
 .sn-compose-row .icon-btn { align-self: flex-end; }
 @media (max-width: 480px) { .sn-att-img { width: 80px; } }
 @media (prefers-reduced-motion: reduce) { .sn-lightbox { scroll-behavior: auto; } }
@@ -208,7 +208,7 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 /* faner og 🔔 */
 .sn-tabs { display: flex; gap: 8px; align-items: center; margin: 4px 0 14px; }
 .sn-tabs .seg { flex: 0 1 auto; }
-.sn-tabs .seg a { font-size: .84rem; font-weight: 600; color: var(--text-2); padding: 6px 12px; border-radius: 8px; white-space: nowrap; flex: none; text-decoration: none; }
+.sn-tabs .seg a { font-size: .84rem; font-weight: 500; color: var(--text-2); padding: 6px 12px; border-radius: 6px; white-space: nowrap; flex: none; text-decoration: none; }
 .sn-tabs .seg a:hover { color: var(--text); }
 .sn-tabs .seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .sn-tabs .icon-btn { margin-left: auto; font-size: 1.1rem; }
@@ -221,8 +221,8 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 .sn-stat { display: flex; flex-direction: column; gap: 2px; padding: 12px; }
 .sn-stat b { font-size: 1.5rem; }
 .sn-bar-row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr auto; gap: 10px; align-items: center; }
-.sn-bar-track { background: var(--bg-2); border-radius: 99px; height: 10px; overflow: hidden; }
-.sn-bar-fill { display: block; height: 100%; border-radius: 99px; min-width: 2px; }
+.sn-bar-track { background: var(--bg-2); border-radius: 6px; height: 10px; overflow: hidden; }
+.sn-bar-fill { display: block; height: 100%; border-radius: 6px; min-width: 2px; }
 
 /* nav: søgefelt og «Nyt opslag» */
 .sn-tabs { flex-wrap: wrap; }
@@ -241,13 +241,13 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 .sn-panel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .sn-panel-list li { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .sn-panel-list a { color: var(--text); font-size: .88rem; overflow-wrap: anywhere; }
-.sn-panel-list a.on { font-weight: 700; }
+.sn-panel-list a.on { font-weight: 600; }
 .sn-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
-.sn-new-count { color: var(--brand); font-weight: 650; margin-left: 16px; }
+.sn-new-count { color: var(--brand); font-weight: 550; margin-left: 16px; }
 
 /* søgeresultater og Mine */
 .sn-hit { gap: 6px; }
-.sn-hit .sn-title { font-size: 1.05rem; font-weight: 650; margin: 0; }
+.sn-hit .sn-title { font-size: 1.05rem; font-weight: 550; margin: 0; }
 .sn-snip { margin: 0; overflow-wrap: anywhere; }
 .sn-snip mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
 
@@ -280,7 +280,7 @@ a.sn-att:hover { text-decoration: none; border-color: var(--line-strong); }
 }
 
 /* Artschip i opslag og kommentarer ([[art:N]]) – samme udtryk som i artiklerne */
-a.art-chip { display: inline-block; font-size: .8em; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line-strong); text-decoration: none; color: var(--text-2); background: var(--surface); white-space: nowrap; }
+a.art-chip { display: inline-block; font-size: .8em; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line-strong); text-decoration: none; color: var(--text-2); background: var(--surface); white-space: nowrap; }
 a.art-chip:hover { background: var(--brand-soft); }
 
 /* @-forslag til arter i tekstfelter */

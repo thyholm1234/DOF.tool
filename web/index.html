@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1f5a44" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#111613" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f9f7f3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1013" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <script>try { var t = localStorage.getItem("theme"); if (t === "light" || t === "dark") { document.querySelector('meta[name="color-scheme"]').content = t; document.documentElement.setAttribute("data-theme", t); } } catch (e) {}</script>
   <meta name="description" content="Portal for feltornitologer: live-observationer fra DOFbasen, notifikationer, årslister, fænologi og læring.">
@@ -12,28 +12,30 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="DOF.tool">
   <style>
-    #splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; align-content: center; gap: 18px; background: #1f5a44; color: #fff; font: 600 15px system-ui, -apple-system, sans-serif; transition: opacity .25s ease; }
+    #splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; align-content: center; gap: 18px; background: #0d1013; color: #eceff2; font: 500 15px system-ui, -apple-system, sans-serif; transition: opacity .25s ease; }
     #splash svg { width: 88px; height: 88px; }
     #splash b { font-size: 22px; letter-spacing: -.01em; }
     #splash span { opacity: .75; font-weight: 500; margin-top: -12px; }
-    #splash i { width: 36px; height: 3px; border-radius: 2px; background: rgb(255 255 255 / 25%); overflow: hidden; position: relative; }
-    #splash i::after { content: ""; position: absolute; inset: 0; width: 40%; background: #fff; border-radius: 2px; animation: splash 1s ease-in-out infinite alternate; }
+    #splash i { width: 36px; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 18%); overflow: hidden; position: relative; }
+    #splash i::after { content: ""; position: absolute; inset: 0; width: 40%; background: #f7b83d; border-radius: 2px; animation: splash 1s ease-in-out infinite alternate; }
     @keyframes splash { to { transform: translateX(150%); } }
     #splash.out { opacity: 0; pointer-events: none; }
+    @media (prefers-color-scheme: light) { #splash { background: #f9f7f3; color: #1a1512; } #splash i { background: rgb(0 0 0 / 12%); } #splash i::after { background: #975300; } #splash svg path { fill: #1a1512; } #splash svg circle { fill: #f9f7f3; } }
+    @media (prefers-reduced-motion: reduce) { #splash i::after { animation-duration: 3s; } }
   </style>
   <title>DOF.tool</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/apple-icon-180.png">
-  <link rel="preload" href="/vendor/inter/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/vendor/host-grotesk/host-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/v/__BUILD__/css/app.css">
 </head>
 <body>
-  <div id="splash" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 19c3.5-1 6-3.6 7.6-7.2.4-.9 1.6-1 2.1-.1l1 1.8 4.6-1.3c.6-.2 1 .5.6 1l-3.2 3.4c-1.4 4.3-5 6.9-9.6 6.9H7.6c-.9 0-1.2-1.2-.6-1.5z" fill="#fff"/><circle cx="17.6" cy="13.2" r=".9" fill="#1f5a44"/></svg><b>DOF.tool</b><span>feltornitologernes portal</span><i></i></div>
+  <div id="splash" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 19c3.5-1 6-3.6 7.6-7.2.4-.9 1.6-1 2.1-.1l1 1.8 4.6-1.3c.6-.2 1 .5.6 1l-3.2 3.4c-1.4 4.3-5 6.9-9.6 6.9H7.6c-.9 0-1.2-1.2-.6-1.5z" fill="#fff"/><circle cx="17.6" cy="13.2" r=".9" fill="#0d1013"/></svg><b>DOF.tool</b><span>feltornitologernes portal</span><i></i></div>
   <script>setTimeout(function () { var s = document.getElementById("splash"); if (s) s.remove(); }, 8000);</script>
   <header class="topbar">
     <a class="brand" href="#/">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--brand)"/><path d="M7 19c3.5-1 6-3.6 7.6-7.2.4-.9 1.6-1 2.1-.1l1 1.8 4.6-1.3c.6-.2 1 .5.6 1l-3.2 3.4c-1.4 4.3-5 6.9-9.6 6.9H7.6c-.9 0-1.2-1.2-.6-1.5z" fill="#fff"/><circle cx="17.6" cy="13.2" r=".9" fill="var(--brand)"/></svg>
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x=".5" y=".5" width="31" height="31" rx="7.5" fill="var(--surface)" stroke="var(--line-strong)"/><path d="M7 19c3.5-1 6-3.6 7.6-7.2.4-.9 1.6-1 2.1-.1l1 1.8 4.6-1.3c.6-.2 1 .5.6 1l-3.2 3.4c-1.4 4.3-5 6.9-9.6 6.9H7.6c-.9 0-1.2-1.2-.6-1.5z" fill="var(--brand)"/><circle cx="17.6" cy="13.2" r=".9" fill="var(--surface)"/></svg>
       <span>DOF.tool<small>feltornitologernes portal</small></span>
     </a>
     <span class="spacer"></span>

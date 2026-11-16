@@ -5,10 +5,10 @@
 .lister .spacer { flex: 1; }
 
 /* Faner: vandret rullende bjælke på mobil, ombrudt på brede skærme */
-.lister-tabs { display: flex; gap: 4px; margin: 0 0 18px; padding: 4px; background: var(--bg-2); border-radius: 12px; overflow-x: auto; scrollbar-width: none;
+.lister-tabs { display: flex; gap: 4px; margin: 0 0 18px; padding: 4px; background: var(--bg-2); border-radius: 10px; overflow-x: auto; scrollbar-width: none;
   -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
 .lister-tabs::-webkit-scrollbar { display: none; }
-.kl .lister-tabs a { flex: none; scroll-snap-align: start; padding: 8px 14px; border-radius: 9px; font-size: .88rem; font-weight: 600; color: var(--text-2); text-decoration: none; white-space: nowrap; }
+.kl .lister-tabs a { flex: none; scroll-snap-align: start; padding: 8px 14px; border-radius: 6px; font-size: .88rem; font-weight: 500; color: var(--text-2); text-decoration: none; white-space: nowrap; }
 .kl .lister-tabs a:hover { color: var(--text); }
 .kl .lister-tabs a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 @media (min-width: 900px) { .lister-tabs { flex-wrap: wrap; width: fit-content; max-width: 100%; } }
@@ -40,24 +40,24 @@
 
 .kl .lister-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: var(--radius);
   background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; transition: box-shadow .15s, border-color .15s, transform .15s; }
-.kl .lister-card:hover { box-shadow: var(--shadow); border-color: var(--line-strong); transform: translateY(-1px); }
+.kl .lister-card:hover { border-color: var(--line-strong); }
 .kl .lister-card:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
 .lister-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
-.lister-card-ic { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 8px; background: var(--brand-soft); color: var(--brand); }
+.lister-card-ic { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 6px; border: 1px solid var(--line); color: var(--text-2); }
 .lister-card-ic .ic { width: 16px; height: 16px; }
-.lister-card-title { flex: 1 1 7em; font-weight: 650; font-size: .92rem; min-width: 0; overflow-wrap: break-word; hyphens: auto; line-height: 1.25; }
-.lister-badge { margin-left: auto; flex: none; font-size: .72rem; font-weight: 650; color: var(--brand); background: var(--brand-soft); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.lister-card-title { flex: 1 1 7em; font-weight: 550; font-size: .92rem; min-width: 0; overflow-wrap: break-word; hyphens: auto; line-height: 1.25; }
+.lister-badge { margin-left: auto; flex: none; font-size: .72rem; font-weight: 550; color: var(--brand); background: var(--brand-soft); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
 .lister-badge:empty { display: none; }
-.lister-card-count { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; margin-top: 4px; }
-.lister-card-count small { font-size: .85rem; font-weight: 600; color: var(--text-3); letter-spacing: 0; }
+.lister-card-count { font-family: var(--mono); font-size: 1.9rem; font-weight: 400; letter-spacing: -0.04em; font-variant-numeric: tabular-nums slashed-zero; line-height: 1.1; margin-top: 4px; }
+.lister-card-count small { font-family: var(--font); font-size: .85rem; font-weight: 500; color: var(--text-3); letter-spacing: 0; }
 .lister-card-sub { font-size: .8rem; color: var(--text-3); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.kl .lister-card.hero { background: linear-gradient(135deg, var(--brand-soft), var(--surface) 70%); border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
+.kl .lister-card.hero { background: var(--surface); box-shadow: inset 3px 0 0 var(--brand); border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
 .kl .lister-card.hero .lister-card-count { font-size: 2.5rem; }
 .kl .lister-card.aedel .lister-card-ic { background: color-mix(in srgb, var(--star) 18%, transparent); color: var(--star); }
 .kl .lister-card.aedel .lister-badge { color: var(--star); background: color-mix(in srgb, var(--star) 14%, transparent); }
 .kl .lister-card.manual .lister-card-ic { background: var(--bg-2); color: var(--text-2); }
 .kl .lister-card.add { flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 92px; border-style: dashed; background: transparent;
-  color: var(--text-2); font-weight: 600; font-size: .88rem; text-align: center; }
+  color: var(--text-2); font-weight: 500; font-size: .88rem; text-align: center; }
 .kl .lister-card.add:hover { color: var(--brand); border-color: var(--brand); transform: none; }
 .lister-card.add .ic { width: 18px; height: 18px; flex: none; }
 @media (max-width: 520px) {
@@ -72,8 +72,8 @@
 
 /* Listevisning */
 .lister-hero-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.lister-big { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.lister-big span { font-size: 1rem; font-weight: 600; color: var(--text-3); letter-spacing: 0; }
+.lister-big { font-family: var(--mono); font-size: 2.4rem; font-weight: 400; letter-spacing: -0.04em; font-variant-numeric: tabular-nums slashed-zero; line-height: 1.1; }
+.lister-big span { font-size: 1rem; font-weight: 500; color: var(--text-3); letter-spacing: 0; }
 .lister-latest { display: flex; flex-direction: column; align-items: flex-end; text-align: right; font-size: .88rem; min-width: 0; }
 @media (max-width: 520px) { .lister-big { font-size: 1.9rem; } .lister-latest { align-items: flex-start; text-align: left; } }
 
@@ -90,7 +90,7 @@
 button.lister-star { width: 36px; height: 36px; margin: -8px -6px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: transform .12s, background .12s; }
 button.lister-star:hover { background: var(--bg-2); color: var(--star); }
 button.lister-star:active { transform: scale(.88); }
-button.lister-star:disabled { opacity: .5; cursor: progress; }
+button.lister-star:disabled { opacity: .5; cursor: progress; color: var(--text-3); }
 .lister-star-cell { width: 36px; text-align: center; }
 .list-table tr.is-aedel td { background: color-mix(in srgb, var(--star) 7%, transparent); }
 .list-table .lister-art { min-width: 0; }
