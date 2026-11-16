@@ -1,0 +1,11 @@
+#!/bin/sh
+# Genererer /etc/nginx/cloudflare-realip.conf og /etc/nginx/cloudflare-geo.conf ud fra Cloudflares adresser
+# (bruges af nginx.conf.example). Installeres som /usr/local/sbin/cloudflare-ips-nginx, køres som root og
+# lægges i cron, fx ugentligt:
+#   17 5 * * 1  /usr/local/sbin/cloudflare-ips-nginx
+set -eu
+ips=$( { curl -sf https://www.cloudflare.com/ips-v4; echo; curl -sf https://www.cloudflare.com/ips-v6; } | grep . )
+[ "$(echo "$ips" | wc -l)" -ge 15 ] || { echo "for få adresser – beholder de gamle filer" >&2; exit 1; }
+echo "$ips" | sed 's/.*/set_real_ip_from &;/' > /etc/nginx/cloudflare-realip.conf
+echo "$ips" | sed 's/.*/& 1;/'                > /etc/nginx/cloudflare-geo.conf
+nginx -t && nginx -s reload
