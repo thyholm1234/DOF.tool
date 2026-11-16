@@ -11,12 +11,12 @@ applyTheme();  // straks, så siden ikke blinker i det forkerte tema
 // Navigation i grupper – samme rækkefølge i sidepanelet (desktop) og i "Mere"-arket (mobil)
 const SECTIONS = [
   ["Nu og her", [["#/", "now", "Mit overblik"]]],
+  ["I felten", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],  // lige under Observationer
   ["Planlæg", [["#/kalender", "calendar", "Kalender"], ["#/ture", "flag", "DOF-ture"]]],
   ["Data", [["#/traek", "trend", "Træk"], ["#/arter", "bird", "Arter"], ["#/lokaliteter", "pin", "Lokaliteter"]]],
   ["Lister", [["#/lister", "list", "Lister"], ["#/matrikel", "home", "Matrikel"]]],
   ["Viden", [["#/laer", "learn", "Læring"]]],
   ["Værktøjer", [["#/kort", "map", "Kort"], ["#/mobgang", "sound", "Mobgang"]]],
-  ["Mit", [["#/indtast", "edit", "Indtastninger"], ["#/alarmer", "bell", "Alarmer"]]],
 ];
 const DOFBASEN = ["#/dofbasen", "db", "DOFbasen"];
 const NETFUGL = ["#/netfugl", "bird", "Netfugl"];
@@ -48,7 +48,7 @@ function sections() {
   if (!extra.length && !qa.length && !stat.length && !dl) return SECTIONS;
   const out = SECTIONS.map(([t, items]) => [t, t === "Nu og her" && dl ? [...items, dl] : t === "Viden" ? [...items, ...extra]
     : t === "Data" ? [...items, ...stat] : items]);  // krydslisterne er en del af Lister
-  if (qa.length) out.splice(out.findIndex(([t]) => t === "Mit"), 0, ["Kvalitetssikring", qa]);  // lige før Mit
+  if (qa.length) out.push(["Kvalitetssikring", qa]);  // nederst
   return out;
 }
 const NAV = [...SECTIONS.flatMap(([, items]) => items), DOFBASEN, NETFUGL, ARTIKLER, FOTOS, SNAK, STATS, DAGSLISTE, SEARCH, OBSERVERS, ["#/dku", "check", "DKU"], SU];
