@@ -40,3 +40,8 @@ data/
 
 # Sikkerhedsgennemgange med åbne punkter og interne adresser – kun på serveren (repoet er offentligt)
 docs/sikkerhed/
+
+# Interne dokumenter (specifikationer, arkitektur, drift) – kun på serveren, ikke i det offentlige repo.
+# Skærmbillederne til README'en må gerne være her.
+/docs/*
+!/docs/screenshots/
