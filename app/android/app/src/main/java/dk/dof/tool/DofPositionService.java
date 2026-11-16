@@ -43,17 +43,21 @@ import org.json.JSONObject;
  * Ruteoptagelse og Nær mig-deling stiller meget forskellige krav, så forespørgslen til Googles fused-positionstjeneste
  * afhænger af, hvad der er slået til:
  *
- *  - Rute: GPS-nøjagtighed, et punkt hvert 5. sekund (højst hvert 2.) og kun ved flytning ≥ 5 m. Ligger appen i
- *    baggrunden (skærmen slukket), samles punkterne og leveres højst hvert 5. minut, så processoren kan sove imellem
- *    (lukkes appen hårdt i baggrunden, kan op til 5 min af ruten gå tabt). Ruten droppes, når appen fjernes fra
+ *  - Rute: GPS-nøjagtighed (fused-tjenesten, ikke rå GPS), et punkt hvert 5. sekund (højst hvert 2.) og kun ved flytning
+ *    ≥ 5 m. Ligger appen i baggrunden (skærmen slukket), samles punkterne og leveres højst hvert 5. minut, så processoren
+ *    kan sove imellem (lukkes appen hårdt i baggrunden, kan op til 5 min af ruten gå tabt). Står brugeren stille (inden
+ *    for 30 m i 2 minutter – fx havobs fra samme punkt), bedes der kun om en position i minuttet, så GPS'en kan hvile
+ *    imellem; første position mere end 30 m væk sætter tempoet op igen (højst et minuts rute bliver grovere). Ruten
+ *    droppes, når appen fjernes fra
  *    oversigten eller åbnes forfra, og når turen slettes eller har varet 12 timer (webdelen) – så GPS'en aldrig kører
  *    videre uden en tur; Nær mig fortsætter i den billige tilstand.
- *  - Kun Nær mig: ingen GPS – Wi-Fi/mobilmaster (~100 m, serveren afrunder alligevel til ~100 m), højst hvert 3. minut,
- *    kun ved flytning ≥ 150 m, og leveret samlet højst hvert 10. minut. Står man stille, sker der intet.
+ *  - Kun Nær mig: ingen GPS – Wi-Fi/mobilmaster, højst hvert 10. minut, kun ved flytning ≥ 1 km, og leveret samlet
+ *    højst hvert 30. minut. Nær mig-områderne har en radius på 2–100 km (oftest over 20), så finere end det er spildt.
+ *    Står man stille, leveres intet, og telefonen laver højst et opslag hvert kvarter.
  *
  * Der holdes ingen wakelock og ingen vagthund, der genstarter GPS'en: fused-tjenesten vækker selv processen, når der er
  * noget at levere. Positionen til Nær mig sendes direkte herfra til serveren (også når appen er lukket), højst hvert
- * minut og kun ved flytning ≥ 100 m eller hvert 10. minut. Med tilladelsen «Tillad altid» (ACCESS_BACKGROUND_LOCATION, valgfri)
+ * minut og kun ved flytning ≥ 1 km eller hver halve time. Med tilladelsen «Tillad altid» (ACCESS_BACKGROUND_LOCATION, valgfri)
  * genopstår Nær mig-delingen af sig selv efter proceslukning (START_STICKY) og telefonens opstart (DofBootReceiver); uden den
  * står den stille, til appen åbnes. Afviser serveren tokenet (deling slået fra et andet sted),
  * holder delingen op med det samme, så telefonen ikke bliver ved med at bruge strøm på det.
@@ -68,12 +72,15 @@ public class DofPositionService extends Service {
     // Rute
     private static final long ROUTE_INTERVAL_MS = 5_000L, ROUTE_MIN_INTERVAL_MS = 2_000L, ROUTE_BATCH_HIDDEN_MS = 300_000L;
     private static final float ROUTE_MIN_DISTANCE_M = 5f;
+    // Rute, mens brugeren står stille: inden for STILL_RADIUS_M i STILL_AFTER_MS → et punkt i minuttet
+    private static final long STILL_INTERVAL_MS = 60_000L, STILL_MIN_INTERVAL_MS = 30_000L, STILL_AFTER_MS = 120_000L;
+    private static final float STILL_RADIUS_M = 30f;
     // Kun Nær mig
-    private static final long SHARE_INTERVAL_MS = 5 * 60_000L, SHARE_MIN_INTERVAL_MS = 3 * 60_000L, SHARE_BATCH_MS = 10 * 60_000L;
-    private static final float SHARE_MIN_DISTANCE_M = 150f;
+    private static final long SHARE_INTERVAL_MS = 15 * 60_000L, SHARE_MIN_INTERVAL_MS = 10 * 60_000L, SHARE_BATCH_MS = 30 * 60_000L;
+    private static final float SHARE_MIN_DISTANCE_M = 1000f;
     // Afsendelse til serveren
-    private static final long POST_MIN_INTERVAL_MS = 60_000L, POST_HEARTBEAT_MS = 10 * 60_000L;
-    private static final float POST_MIN_DISTANCE_M = 100f;
+    private static final long POST_MIN_INTERVAL_MS = 60_000L, POST_HEARTBEAT_MS = 30 * 60_000L;
+    private static final float POST_MIN_DISTANCE_M = 1000f;
 
     /** Modtager af positionerne i appen (pluginnet), null når ingen lytter. */
     interface Listener {
@@ -93,6 +100,10 @@ public class DofPositionService extends Service {
     private String url, headers, title, message;
     private Location lastPosted;
     private long lastPostedAt;
+    // Rute: stillestående? (anchor = stedet brugeren sidst flyttede sig væk fra; routeSent = seneste punkt givet til appen)
+    private Location anchor, routeSent;
+    private long anchorAt;
+    private boolean still;
 
     // ---------------------------------------------------------------- styring fra pluginnet
 
@@ -120,6 +131,7 @@ public class DofPositionService extends Service {
         if (s == null || !s.route) return;
         ContextCompat.getMainExecutor(s).execute(() -> {
             s.route = false;
+            s.resetStill();
             if (!s.share) s.shutdown();
             else s.requestUpdates();
         });
@@ -171,6 +183,7 @@ public class DofPositionService extends Service {
             prefs.edit().putBoolean("share", share && url != null).putString("url", url).putString("headers", DofSecret.encrypt(headers))
                 .putString("title", title).putString("message", message).apply();
         }
+        if (!route) resetStill();
         boolean shareNative = share && url != null;
         if ((!route && !shareNative && restart) || (!route && !share) || !hasLocationPermission(this) || !promote()) {
             shutdown();
@@ -243,10 +256,17 @@ public class DofPositionService extends Service {
     // ---------------------------------------------------------------- positioner
 
     private LocationRequest buildRequest() {
+        if (route && still) {
+            // Stillestående: en position i minuttet, leveret straks – så opdages det inden for et minut, når brugeren går videre
+            return new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, STILL_INTERVAL_MS)
+                .setMinUpdateIntervalMillis(STILL_MIN_INTERVAL_MS)
+                .setWaitForAccurateLocation(false)
+                .build();
+        }
         if (route) {
+            // Ingen afstandsgrænse i forespørgslen: alle positioner skal frem, så stilstand kan opdages (handle() sorterer < 5 m fra)
             return new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, ROUTE_INTERVAL_MS)
                 .setMinUpdateIntervalMillis(ROUTE_MIN_INTERVAL_MS)
-                .setMinUpdateDistanceMeters(ROUTE_MIN_DISTANCE_M)
                 .setMaxUpdateDelayMillis(appVisible ? 0 : ROUTE_BATCH_HIDDEN_MS)
                 .setWaitForAccurateLocation(false)
                 .build();
@@ -261,7 +281,7 @@ public class DofPositionService extends Service {
     @SuppressWarnings("MissingPermission")
     private synchronized void requestUpdates() {
         if (!route && !share) return;
-        String key = route + ":" + share + ":" + (route && !appVisible);
+        String key = route + ":" + share + ":" + (route && !appVisible) + ":" + (route && still);
         if (key.equals(activeKey)) return;
         removeUpdates();
         callback = new LocationCallback() {
@@ -291,7 +311,7 @@ public class DofPositionService extends Service {
         try {
             CurrentLocationRequest req = new CurrentLocationRequest.Builder()
                 .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
-                .setMaxUpdateAgeMillis(2 * 60_000L)
+                .setMaxUpdateAgeMillis(10 * 60_000L)
                 .setDurationMillis(30_000L)
                 .build();
             client.getCurrentLocation(req, null).addOnSuccessListener((loc) -> {
@@ -304,8 +324,35 @@ public class DofPositionService extends Service {
     private void handle(List<Location> locations) {
         if (locations == null || locations.isEmpty()) return;
         Listener l = listener;
-        if (l != null) for (Location loc : locations) l.onLocation(loc);
+        for (Location loc : locations) {
+            if (route) {
+                trackStill(loc);
+                if (routeSent != null && loc.distanceTo(routeSent) < ROUTE_MIN_DISTANCE_M) continue;
+                routeSent = loc;
+            }
+            if (l != null) l.onLocation(loc);
+        }
+        if (route) requestUpdates();  // skifter mellem 5 s og 1 min, når stilstand begynder eller hører op
         if (share && url != null) maybePost(locations.get(locations.size() - 1));
+    }
+
+    /** Står brugeren stille? Måles på positionernes egne tidsstempler, så det også virker for en samlet levering. */
+    private void trackStill(Location loc) {
+        long at = loc.getElapsedRealtimeNanos() / 1_000_000L;
+        float slack = Math.max(STILL_RADIUS_M, loc.hasAccuracy() ? loc.getAccuracy() : 0f);
+        if (anchor == null || loc.distanceTo(anchor) > slack) {
+            anchor = loc;
+            anchorAt = at;
+            still = false;
+        } else if (at - anchorAt >= STILL_AFTER_MS) {
+            still = true;
+        }
+    }
+
+    private void resetStill() {
+        anchor = null;
+        routeSent = null;
+        still = false;
     }
 
     private void maybePost(Location loc) {

@@ -3,15 +3,19 @@
 Appen er en indpakning om portalen: den åbner portalens adresse i en WebView (login-cookien er førsteparts, og siderne
 opdateres med serveren), men position kommer fra Android selv via appens eget plugin `DofPosition`
 (`DofPositionService.java`: Googles fused-positionstjeneste i en forgrundstjeneste med synlig notifikation), så den virker
-med slukket skærm. iOS og ældre APK'er bruger [`@capgo/background-geolocation`](https://github.com/Cap-go/capacitor-background-geolocation).
+med slukket skærm. iOS og ældre APK'er bruger [`@capgo/background-geolocation`](https://github.com/Cap-go/capacitor-background-geolocation)
+– kun til ruteoptagelse: pluginnet kører rå GPS uafbrudt, så Nær mig opdateres dér kun, når appen åbnes (én omtrentlig position, højst hvert 10. minut).
 
 * **Ruteoptagelse** (Indtast → tur → Start rute): GPS, et punkt hvert 5. sekund ved flytning ≥ 5 m. Med appen i
   baggrunden samles punkterne og leveres højst hvert 5. minut, så processoren kan sove (lukkes appen hårdt i baggrunden,
   kan op til 5 min af ruten gå tabt). Ruten droppes, når appen fjernes fra oversigten eller åbnes forfra, og når turen
-  slettes eller man logger ud; en rute optager højst 12 timer (punkterne bliver på turen). I browseren `navigator.geolocation`.
+  slettes eller man logger ud; en rute optager højst 12 timer (punkterne bliver på turen). Står man stille (inden for 30 m i
+  2 minutter), bedes der kun om en position i minuttet, så GPS'en hviler imellem; går man videre, er tempoet oppe igen
+  inden for et minut. I browseren `navigator.geolocation`.
 * **Nær mig**: slår man *Del min position i baggrunden* til under Profil, sender appen sin position direkte fra Android –
-  uden GPS (Wi-Fi/mobilmaster, ~100 m), højst hvert 3. minut og kun ved flytning ≥ 150 m, leveret samlet højst hvert
-  10. minut; til serveren højst hvert minut og kun ved flytning ≥ 100 m (eller hvert 10. minut). Står man stille, bruges
+  uden GPS (Wi-Fi/mobilmaster), højst hvert 10. minut og kun ved flytning ≥ 1 km, leveret samlet højst hver halve
+  time; til serveren kun ved flytning ≥ 1 km (eller hver halve time). Nær mig-områderne er 2–100 km i radius, så finere
+  er spildt. Står man stille, bruges
   der næsten ingen strøm. Afviser serveren tokenet (delingen slået fra), stopper tjenesten af sig selv.
 * **«Tillad altid» til Nær mig** (valgfri, `ACCESS_BACKGROUND_LOCATION`): slås delingen til, forklarer profilen det og sender brugeren
   til Androids indstillingsside, hvor *Tillad altid* vælges (ingen anmodning ved opstart; ruteoptagelse kræver den ikke). Med den
