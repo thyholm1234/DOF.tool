@@ -45,3 +45,6 @@ docs/sikkerhed/
 # Skærmbillederne til README'en må gerne være her.
 /docs/*
 !/docs/screenshots/
+
+# nginx/Cloudflare-opsætningen ligger kun på serveren
+/deploy/
