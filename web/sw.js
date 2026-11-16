@@ -1,7 +1,7 @@
 // DOF.tool service worker: app-shell offline, netværk-først for API, push-notifikationer.
 const VERSION = "doftool-v34";
 // App-filerne ligger under /v/<build>/ og caches løbende af fetch-handleren nedenfor
-const SHELL = ["/", "/vendor/leaflet/leaflet.js", "/vendor/leaflet/leaflet.css", "/manifest.webmanifest", "/icons/icon.svg", "/icons/icon-192.png"];
+const SHELL = ["/", "/vendor/leaflet/leaflet.js", "/vendor/leaflet/leaflet.css", "/manifest.webmanifest", "/icons/icon.svg?v=2", "/icons/icon-192.png?v=2"];
 // Svar, der viser brugerens position (eller Nær mig-områdets cirkel om den), gemmes aldrig på enheden
 const revealsPosition = (url) => url.pathname.startsWith("/api/me/location") || url.pathname === "/api/areas"
   || (url.searchParams.get("scope") || "").startsWith("near:");
@@ -90,7 +90,7 @@ self.addEventListener("push", (e) => {
   try { d = e.data.json(); } catch { d = { title: "DOF.tool", body: e.data?.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || "DOF.tool", {
     body: d.body || "", tag: d.tag || undefined, renotify: !!d.tag, data: { url: d.url || "/" },
-    icon: "/icons/icon-192.png", badge: "/icons/icon-192.png",
+    icon: "/icons/icon-192.png?v=2", badge: "/icons/icon-192.png?v=2",
   }));
 });
 
