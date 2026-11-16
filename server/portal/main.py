@@ -197,13 +197,14 @@ def csp(frame_hosts: list[str] | None = None) -> str:
             "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'", "worker-src 'self'", "manifest-src 'self'"]))
     # Indlejringer i artikler (xeno-canto, Vimeo …) og PDF-visning på egen side: frame-src følger tilladelseslisten under Artikler → Admin
     frames = " ".join(["'self'", *(f"https://{h}" for h in sorted({h for h in (frame_hosts or []) if re.fullmatch(r"[a-z0-9.-]+", h)}))])
-    # Trusted Types håndhæves: appens egen kode skriver HTML og script-URL'er via policyen «dof-html» (web/js/core.js);
+    # Trusted Types håndhæves: appens egen kode skriver HTML og script-URL'er via policyen «dof-html» (web/js/core.js), der renser
+    # med DOMPurify – som selv opretter policyen «dompurify» til sin fortolkning;
     # Leaflet/Geoman går gennem en «default»-policy, der kun godkender kald fra deres egne filer (web/js/maps.js).
     return f"{_csp['value']}; frame-src {frames}; {TRUSTED_TYPES}"
 
 
 _csp = {"at": None, "value": ""}
-TRUSTED_TYPES = "require-trusted-types-for 'script'; trusted-types dof-html default"
+TRUSTED_TYPES = "require-trusted-types-for 'script'; trusted-types dof-html dompurify default"
 
 
 class SelectiveGZip:

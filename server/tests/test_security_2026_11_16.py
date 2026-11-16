@@ -140,3 +140,24 @@ def test_obs_ruten_tjekker_adgang():
     from portal.api import media
 
     assert "reports.media_visible" in inspect.getsource(media.obs_media)
+
+
+# ---------------------------------------------------------------- DOMPurify
+
+
+def test_csp_tillader_dompurifys_policy():
+    """web/js/core.js renser med DOMPurify, som opretter policyen «dompurify» – den skal stå i CSP'ens trusted-types."""
+    from portal.main import TRUSTED_TYPES
+
+    assert TRUSTED_TYPES.split("trusted-types ", 2)[-1].split() == ["dof-html", "dompurify", "default"]
+
+
+def test_policyerne_renser_med_dompurify():
+    from pathlib import Path
+
+    web = Path(__file__).resolve().parents[2] / "web"
+    core = (web / "js" / "core.js").read_text(encoding="utf-8")
+    assert 'createPolicy?.("dof-html", { createHTML: purify' in core
+    assert ": purify(s);" in core  # også uden Trusted Types (Firefox/Safari)
+    assert "? purify(s) : undefined" in (web / "js" / "maps.js").read_text(encoding="utf-8")
+    assert (web / "vendor" / "dompurify" / "purify.es.js").read_text(encoding="utf-8").startswith("/*! @license DOMPurify 3.4.17")

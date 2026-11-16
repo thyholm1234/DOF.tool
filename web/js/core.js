@@ -1,4 +1,5 @@
 // Fælles hjælpere: API, tilstand, DOM, formattering, ikoner, modaler og toasts.
+import DOMPurify from "../vendor/dompurify/purify.es.js";
 
 export const state = { user: null, afdelinger: [], kommuner: [], unread: 0 };
 /** Har den indloggede adgang til et admin-modul (rolle eller individuel rettighed, se /api/me). */
@@ -70,9 +71,31 @@ async function request(path, { method = "GET", body, form } = {}) {
   return data;
 }
 
-// Trusted Types: alle HTML-sinks i appens egen kode går gennem policyen «dof-html». Den er KUN til markup, der bygges i koden
+// Trusted Types: alle HTML-sinks i appens egen kode går gennem policyen «dof-html». Den er til markup, der bygges i koden
 // af konstanter og esc()-escapede værdier (ikoner, mærker) eller er renset på serveren (Markdown via content_render) –
 // aldrig til rå brugerdata. Håndhæves via CSP (se csp() i server/portal/main.py).
+// Ekstra lag: policyen renser alt med DOMPurify (web/vendor/dompurify), så en glemt esc() ét sted ikke bliver til XSS.
+// DOMPurify opretter selv policyen «dompurify» til sin egen fortolkning (står derfor også i CSP'ens trusted-types).
+const PURIFY = {
+  ADD_TAGS: ["iframe"],  // indlejringer i artikler; værten begrænses af CSP'ens frame-src, og serveren sætter sandbox
+  ADD_ATTR: ["target", "allow", "allowfullscreen", "sandbox", "loading", "referrerpolicy"],
+};
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
+    const rel = new Set((node.getAttribute("rel") || "").split(/\s+/).filter(Boolean));
+    rel.add("noopener"); rel.add("noreferrer");
+    node.setAttribute("rel", [...rel].join(" "));
+  }
+});
+/** Rens en HTML-streng (DOMPurify). Bruges af policyerne her og i maps.js (Leaflet) – og direkte uden Trusted Types. */
+export function purify(s) {
+  const out = DOMPurify.sanitize(String(s ?? ""), PURIFY);
+  // Fejlsøgning: sæt globalThis.__purifyLog = [] for at se, hvad der blev fjernet (fx i en test eller fra konsollen)
+  if (DOMPurify.removed.length && Array.isArray(globalThis.__purifyLog)) {
+    globalThis.__purifyLog.push(...DOMPurify.removed.map(r => r.attribute ? `@${r.attribute.name}=${String(r.attribute.value).slice(0, 80)} på <${r.from?.tagName?.toLowerCase()}>` : `<${r.element?.tagName?.toLowerCase() || r.element?.nodeName}>`));
+  }
+  return out;
+}
 // Script-URL'er (service worker, Leaflet, Geoman, mp3-koderen) må kun være egne, kendte filer – evt. under /v/<build>/.
 const SCRIPT_URL = /^(\/v\/[^/]+)?\/(sw\.js|vendor\/leaflet\/leaflet\.js|vendor\/geoman\/leaflet-geoman\.js|vendor\/lamejs\/lame\.min\.js)$/;
 const scriptURL = (s) => {
@@ -80,9 +103,9 @@ const scriptURL = (s) => {
   if (u.origin === location.origin && SCRIPT_URL.test(u.pathname)) return u.href;
   throw new TypeError(`Trusted Types: script-URL ikke tilladt: ${s}`);
 };
-const ttPolicy = globalThis.trustedTypes?.createPolicy?.("dof-html", { createHTML: (s) => s, createScriptURL: scriptURL });
-/** Gør en appbygget/serverrenset HTML-streng klar til innerHTML under Trusted Types. */
-export const trustedHTML = (s) => ttPolicy ? ttPolicy.createHTML(String(s ?? "")) : String(s ?? "");
+const ttPolicy = globalThis.trustedTypes?.createPolicy?.("dof-html", { createHTML: purify, createScriptURL: scriptURL });
+/** Gør en HTML-streng klar til innerHTML: renset med DOMPurify – som TrustedHTML, hvor browseren har Trusted Types. */
+export const trustedHTML = (s) => ttPolicy ? ttPolicy.createHTML(String(s ?? "")) : purify(s);
 /** Script-URL til <script src>/serviceWorker.register under Trusted Types (kun egne filer, se SCRIPT_URL). */
 export const trustedScriptURL = (s) => ttPolicy ? ttPolicy.createScriptURL(s) : String(s);
 

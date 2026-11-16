@@ -1,16 +1,17 @@
 // Leaflet-hjælpere: grundkort, farver og tegneværktøj (polygon og radius).
 // Leaflet (JS + CSS fra /vendor) hentes først, når et modul med kort importerer denne fil – forsiden og de fleste andre
 // sider indlæser det aldrig. Top-level await: når importen er færdig, er det globale L klar til brug.
-import { h, api, esc, icon, trustedScriptURL } from "./core.js";
+import { h, api, esc, icon, purify, trustedScriptURL } from "./core.js";
 
 let loading = null;
 /** Trusted Types: Leaflet skriver selv innerHTML (feature-test, kontroller, popups, divIcon) og kender ikke vores policy.
  *  «default»-policyen kaldes for alle uindpakkede strenge, men godkender KUN kald, der kommer fra Leaflets (og Leaflet-Geomans) egne filer – alt
- *  andet returnerer undefined og er dermed fortsat en overtrædelse. Popup-/ikonindhold fra vores kode er escapet (esc). */
+ *  andet returnerer undefined og er dermed fortsat en overtrædelse. Popup-/ikonindhold fra vores kode er escapet (esc) og
+ *  renses desuden med DOMPurify (core.js), ligesom alt andet. */
 function leafletPolicy() {
   try {
     globalThis.trustedTypes?.createPolicy?.("default", {
-      createHTML: (s) => /\/vendor\/(leaflet\/leaflet|geoman\/leaflet-geoman)\.js/.test(new Error().stack || "") ? s : undefined,
+      createHTML: (s) => /\/vendor\/(leaflet\/leaflet|geoman\/leaflet-geoman)\.js/.test(new Error().stack || "") ? purify(s) : undefined,
     });
   } catch { /* allerede oprettet */ }
 }

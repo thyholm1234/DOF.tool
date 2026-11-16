@@ -46,8 +46,10 @@ jobs:
           leaflet=$(grep -oP 'Leaflet \K[0-9.]+' web/vendor/leaflet/leaflet.js | head -1)
           geoman=$(grep -oP 'leaflet-geoman-free \K[0-9.]+' web/vendor/geoman/VERSION)
           lame=$(grep -oP 'lamejs \K[0-9.]+' web/vendor/lamejs/README.txt | head -1)
-          echo "leaflet $leaflet · geoman $geoman · lamejs $lame"
-          body=$(jq -n --arg l "$leaflet" --arg g "$geoman" --arg m "$lame" '{queries: [
+          purify=$(grep -oP '^dompurify \K[0-9.]+' web/vendor/dompurify/VERSION)
+          echo "leaflet $leaflet · geoman $geoman · lamejs $lame · dompurify $purify"
+          body=$(jq -n --arg l "$leaflet" --arg g "$geoman" --arg m "$lame" --arg p "$purify" '{queries: [
+            {package: {ecosystem: "npm", name: "dompurify"}, version: $p},
             {package: {ecosystem: "npm", name: "leaflet"}, version: $l},
             {package: {ecosystem: "npm", name: "@geoman-io/leaflet-geoman-free"}, version: $g},
             {package: {ecosystem: "npm", name: "lamejs"}, version: $m}]}')
