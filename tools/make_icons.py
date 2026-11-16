@@ -39,6 +39,13 @@ def png(src: str, out: pathlib.Path, size: int) -> None:
     subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size), "-o", str(out)], input=src.encode(), check=True)
 
 
+def png_rgb(src: str, out: pathlib.Path, size: int) -> None:
+    """Som png(), men kontrollerer, at filen er uden alfakanal (App Store afviser app-ikoner med alfa). rsvg-convert
+    skriver RGB uden alfa, når billedet er helt uigennemsigtigt."""
+    png(src, out, size)
+    assert out.read_bytes()[25] == 2, f"{out} har alfakanal"
+
+
 web = ROOT / "web/icons"
 (web / "icon.svg").write_text(svg() + "\n")
 png(svg(), web / "icon-192.png", 192)
@@ -54,3 +61,7 @@ if res.is_dir():
         png(svg(bg=None, shape="square", scale=0.62, center=(296, 240), to=(256, 256)), res / f"mipmap-{d}/ic_launcher_foreground.png", n * 108 // 48)  # 66/108 dp sikkerhedszone
     (res / "values/ic_launcher_background.xml").write_text(
         f'<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">{AMBER.upper()}</color>\n</resources>\n')
+
+ios = ROOT / "app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"
+if ios.parent.is_dir():
+    png_rgb(svg(shape="square"), ios, 1024)  # iOS runder selv hjørnerne
