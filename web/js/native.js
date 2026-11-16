@@ -1,6 +1,7 @@
 // Bro til Android-appen (Capacitor): position fra Android selv, også når skærmen er slukket.
 // I browseren falder alt tilbage til navigator.geolocation, så resten af portalen ikke skal vide, hvor den kører.
 import { api, state, toast } from "./core.js";
+import { onVisibility } from "./lifecycle.js";
 
 const cap = () => window.Capacitor;
 export const isApp = () => !!cap()?.isNativePlatform?.();
@@ -9,7 +10,8 @@ export const isApp = () => !!cap()?.isNativePlatform?.();
  *  kalder broens egne funktioner, som appen injicerer på portalens adresse.
  *  - DofPosition (Android, appens eget): Googles fused-positionstjeneste uden wakelock – GPS kun under ruteoptagelse,
  *    Nær mig alene bruger Wi-Fi/mobilmaster og leverer samlet. Se app/android/…/DofPositionService.java.
- *  - BackgroundGeolocation (@capgo/background-geolocation): iOS og ældre Android-apps uden DofPosition. */
+ *  - BackgroundGeolocation (@capgo/background-geolocation): iOS og ældre Android-apps uden DofPosition. Det kører rå GPS
+ *    uafbrudt, så det bruges kun til ruteoptagelse – Nær mig opdateres dér kun, når appen åbnes (se syncSharing). */
 const POS = "DofPosition", LEGACY = "BackgroundGeolocation";
 const own = () => !!cap()?.isPluginAvailable?.(POS);
 const plugin = () => own() ? POS : LEGACY;
@@ -55,6 +57,8 @@ let nativeDelivery = null;  // { url, headers } når positionsdelingen er slået
 let chain = Promise.resolve();
 // En frisk indlæst side har ingen optagelse i gang, så en rute i tjenesten er forældreløs (appen strøget væk, turen slettet) og droppes
 if (bg.available() && own()) chain = chain.then(() => bg.dropRoute()).catch(() => {});  // ældre APK'er har ikke metoden
+// Det gamle plugin (iOS, ældre APK'er) kan stadig køre uafbrudt GPS for Nær mig fra før: det stoppes ved indlæsning
+else if (bg.available()) chain = chain.then(() => bg.stop()).catch(() => {});
 
 const dispatch = (fn) => { for (const s of [...subs.values()]) { try { fn(s); } catch { /* ét abonnement må ikke vælte de andre */ } } };
 
@@ -66,8 +70,7 @@ function reconcile() {
     const opts = !subs.size ? null : own()
       ? { title, message, route: subs.has("route"), share: subs.has("share"), requestPermissions: true, ...delivery }
       : { backgroundTitle: title, backgroundMessage: message, requestPermissions: true, stale: false,
-          distanceFilter: Math.min(...[...subs.values()].map((s) => s.distance)),
-          ...(nativeDelivery ? { ...delivery, minIntervalMs: 60_000, networkFallback: true } : {}) };
+          distanceFilter: Math.min(...[...subs.values()].map((s) => s.distance)) };
     const key = opts && JSON.stringify(opts);
     if (key === running) return;
     diag("position-tilstand", !opts ? "stoppet" : subs.has("route") ? "rute" : "naer-mig");
@@ -112,6 +115,9 @@ export function watchPosition(id, { distance = 10, precise = true } = {}, onPoin
   return () => navigator.geolocation.clearWatch(w);
 }
 
+/** Kan appen følge positionen i baggrunden? Kun Androids DofPosition – iOS og ældre APK'er opdaterer Nær mig, når appen åbnes. */
+export const sharesInBackground = () => isApp() && own();
+
 /** «Tillad altid» til Nær mig (valgfri): "granted" | "denied" | "prompt" | "unsupported" (browser, iOS eller en APK uden metoden). */
 export async function backgroundPositionStatus() {
   if (!isApp() || !own()) return "unsupported";
@@ -130,7 +136,9 @@ export async function requestBackgroundPosition() {
 // ---------------------------------------------------------------- positionsdeling til 'Nær mig'
 
 let stopShare = null;
-const SHARE_MIN_M = 100;
+const SHARE_MIN_M = 1000;
+const OPEN_SHARE_MIN_MS = 10 * 60_000;  // uden DofPosition: højst én position pr. 10 min, og kun når appen åbnes
+let openShareAt = 0;
 
 /** Fast id for denne installation – positionen følger én enhed ad gangen (api/position.py). */
 export function deviceId() {
@@ -181,7 +189,18 @@ export async function syncSharing(token = null) {
   // Ingen enhed er valgt til positionsdeling endnu: den første app, der starter, tager den
   if (isApp() && state.user?.position && prefs.share_location === true && !prefs.position_device) { await takeOverPosition().catch(() => {}); return; }
   const want = !!state.user?.position && prefs.share_location === true && isPositionDevice();
-  if (want && !stopShare) {
+  if (want && !stopShare && !own()) {
+    // iOS og ældre APK'er: det gamle plugin ville holde GPS'en tændt døgnet rundt for Nær mig. I stedet sendes én omtrentlig
+    // position, når appen åbnes eller kommer frem igen – intet kører i baggrunden.
+    const send = () => {
+      if (Date.now() - openShareAt < OPEN_SHARE_MIN_MS) return;
+      openShareAt = Date.now();
+      currentPosition({ timeout: 20000 }).then((p) => sendPosition(p)).catch(() => {});
+    };
+    send();
+    stopShare = onVisibility((visible) => { if (visible) send(); });
+    diag("position-deling", "kun når appen åbnes");
+  } else if (want && !stopShare) {
     stopShare = () => {};  // optaget, mens tokenet hentes
     try {
       token = token || (await api("/api/me/location/token", { method: "POST", body: { device_id: deviceId() } })).token;

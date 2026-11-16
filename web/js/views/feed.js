@@ -1,6 +1,7 @@
 import { statusBadge, certaintyTag } from "../reportui.js";
 import { api, state, h, icon, fmtN, fmtDate, ago, doyLabel, tag, todayISO, params, setParams, loadRef, store, empty, errorBox, modal, toast, KAT } from "../core.js";
 import { live } from "../live.js";
+import { isVisible } from "../lifecycle.js";
 import { isApp, currentPosition } from "../native.js";
 
 const LEVELS = [["SU", "SU"], ["SUB", "SUB+"], ["bemaerk", "Bemærk+"], ["local", "Lokale hits"], ["pheno", "Fænologi"], ["all", "Alle"]];
@@ -189,7 +190,7 @@ export async function render(view) {
     if (st.date !== todayISO() || d.type !== "feed") return;
     clearTimeout(timer); timer = setTimeout(load, 800);
   });
-  const poll = setInterval(() => { if (st.date === todayISO() && document.visibilityState === "visible") load(); }, 120000);
+  const poll = setInterval(() => { if (st.date === todayISO() && isVisible()) load(); }, 120000);
   return () => { off(); clearInterval(poll); clearTimeout(timer); };
 }
 

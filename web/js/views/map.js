@@ -1,6 +1,7 @@
 import { api, h, fmtN, fmtDate, esc, KAT, KAT_RANK, store, seg, compass, ago } from "../core.js";
 import { baseMap, katColor, cssVar, arrowSvg, GROUP_COLORS } from "../maps.js";
 import { live } from "../live.js";
+import { isVisible } from "../lifecycle.js";
 import { windLayer, speedLegend } from "../wind.js";
 
 // Klasser som i DOFbasen; almindelige arter vises kun når de er trækkende med retning
@@ -212,6 +213,6 @@ export async function render(view, { embedded = false } = {}) {
   await Promise.all([load(), wind()]);
   let t;
   const off = live.on("feed", () => { if (st.days !== "y") { clearTimeout(t); t = setTimeout(load, 1500); } });
-  const windTimer = setInterval(() => { if (st.wind && document.visibilityState === "visible") wind(); }, 15 * 60000);
+  const windTimer = setInterval(() => { if (st.wind && isVisible()) wind(); }, 15 * 60000);
   return () => { off(); clearTimeout(t); clearInterval(windTimer); windAnim?.remove(); map.remove(); };
 }

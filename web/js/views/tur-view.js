@@ -4,6 +4,7 @@ import { h, icon, fmtN, fmtDate, tag, toast, store, state, KAT, todayISO } from 
 import { tracker, nowHM, finishTrack, isCount, countLeft, FINN, COUNT_MIN, AFSLUTNING } from "../tur-data.js";
 import { quickSpecies } from "../tur-quick.js";
 import { isApp } from "../native.js";
+import { isVisible } from "../lifecycle.js";
 import { newId } from "../offline.js";
 import { openObsSheet, openPairSheet } from "../obs-sheet.js";
 import { voiceSupported, voiceContext, listen, modelStatus, installModel, prepareModel } from "../voice.js";
@@ -203,7 +204,7 @@ export function view(page, ref, store_, recent) {
       : [h("p", { class: "muted", style: { margin: 0 } }, "Ingen indtalte poster endnu – hold knappen nede og sig fx «2 bomlærker syd».")]));
   };
   const fadeTimer = setInterval(() => {
-    if (document.hidden) return;
+    if (!isVisible()) return;
     for (const r of speechList.children) if (r.dataset.ts != null) r.classList.toggle("speech-old", Date.now() - Number(r.dataset.ts) > OLD_MS);
   }, 10000);
 

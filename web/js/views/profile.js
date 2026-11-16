@@ -4,7 +4,7 @@
 import { api, state, h, icon, fmtN, fmtDate, loadRef, requireLogin, toast, seg, params, setParams, ask } from "../core.js";
 import { refreshUser, applyTheme } from "../app.js";
 import { enablePush } from "./alerts.js";
-import { isApp, isPositionDevice, takeOverPosition, backgroundPositionStatus, requestBackgroundPosition } from "../native.js";
+import { isApp, isPositionDevice, takeOverPosition, backgroundPositionStatus, requestBackgroundPosition, sharesInBackground } from "../native.js";
 import { forgetUser } from "../offline.js";
 import * as passkey from "../passkey.js";
 import { openAvatarDialog } from "./avatar-dialog.js";
@@ -278,7 +278,9 @@ const SECTIONS = {
       panel.append(card("Position og Nær mig", null,
         h("label", { class: "check" }, share, "Følg min position med denne enhed (appen)"),
         bgRow,
-        h("small", { class: "muted" }, devNote + (isApp()
+        h("small", { class: "muted" }, devNote + (isApp() && !sharesInBackground()
+          ? "På denne enhed opdateres din position, hver gang du åbner appen – ikke i baggrunden, da det ville holde GPS'en tændt hele tiden. Feedet og din Nær mig-alarm gælder en radius omkring, hvor du sidst åbnede appen. Positionen følger én enhed ad gangen og slettes, når du slår delingen fra."
+          : isApp()
           ? "Appen sender din seneste position, når du flytter dig, så feedet og din Nær mig-alarm gælder en radius omkring, hvor du er. Positionen følger én enhed ad gangen – slå den til her for at skifte til denne. Den bruges kun til dine egne filtre og slettes, når du slår delingen fra."
           : "Baggrundsposition kræver appen. I browseren kan du stadig vælge Nær mig i feedet – så bruges din position, mens du vælger."))));
     }
