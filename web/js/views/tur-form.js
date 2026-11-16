@@ -191,7 +191,7 @@ export function form(page, ref, store_, recent, isNew) {
     h("div", { class: "sheet-head" }, h("div", {}, h("small", { class: "kicker" }, isNew ? "Ny tur" : "Ret tur"), titleEl, h("div", { class: "sheet-sub", html: `${icon("calendar")} ` }, sub)),
       !isNew ? h("button", { class: "btn sm danger solid", type: "button", html: `${icon("trash")} Slet tur`, onclick: async () => {
         if (!(await ask("Er du sikker på at du vil slette turen og alle dens observationer?"))) return;
-        try { if (T.server_id) { await api(`/api/trips/${T.server_id}`, { method: "DELETE" }); await forgetTrip(T.server_id); } await store_.discard(); toast("Turen er slettet"); location.hash = "#/indtast"; } catch (err) { toast(err.message, "err"); }
+        try { if (tracker.cid === T.client_id) trackStop(); if (T.server_id) { await api(`/api/trips/${T.server_id}`, { method: "DELETE" }); await forgetTrip(T.server_id); } await store_.discard(); toast("Turen er slettet"); location.hash = "#/indtast"; } catch (err) { toast(err.message, "err"); }
       } }) : null),
     t.bar, h("div", { class: "sheet-body" }, t.panels),
     h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: async () => { if (isNew) { if (tracker.cid === T.client_id) trackStop(); await store_.discard(); } back(); } }, "Annullér"), submit)));

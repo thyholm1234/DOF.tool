@@ -283,6 +283,7 @@ function initMenu() {
 }
 
 async function logout() {
+  import("./tur-data.js").then(m => m.trackStop()).catch(() => {});  // en rute i gang må ikke fortsætte som ejerløs GPS-optagelse efter logout
   await stopAppPush();
   await api("/api/auth/logout", { method: "POST" });
   state.user = null;

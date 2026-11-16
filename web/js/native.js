@@ -17,6 +17,7 @@ const bg = {
   available: () => isApp() && typeof cap().nativeCallback === "function",
   start: (options, callback) => cap().nativeCallback(plugin(), "start", options, callback),
   stop: () => cap().nativePromise(plugin(), "stop"),
+  dropRoute: () => cap().nativePromise(POS, "dropRoute"),
 };
 
 // Android viser kun én tilladelsesdialog ad gangen: en samtidig anmodning (fx position og notifikationer ved opstart)
@@ -52,6 +53,8 @@ const subs = new Map();  // id → { onPoint, onError, distance }
 let running = null;      // konfigurationen tjenesten er startet med (JSON)
 let nativeDelivery = null;  // { url, headers } når positionsdelingen er slået til
 let chain = Promise.resolve();
+// En frisk indlæst side har ingen optagelse i gang, så en rute i tjenesten er forældreløs (appen strøget væk, turen slettet) og droppes
+if (bg.available() && own()) chain = chain.then(() => bg.dropRoute()).catch(() => {});  // ældre APK'er har ikke metoden
 
 const dispatch = (fn) => { for (const s of [...subs.values()]) { try { fn(s); } catch { /* ét abonnement må ikke vælte de andre */ } } };
 
@@ -67,6 +70,7 @@ function reconcile() {
           ...(nativeDelivery ? { ...delivery, minIntervalMs: 60_000, networkFallback: true } : {}) };
     const key = opts && JSON.stringify(opts);
     if (key === running) return;
+    diag("position-tilstand", !opts ? "stoppet" : subs.has("route") ? "rute" : "naer-mig");
     // DofPosition omstilles af et nyt start-kald uden at tjenesten stoppes; det gamle plugin skal stoppes først
     if (running !== null && (!opts || !own())) { try { await bg.stop(); } catch { /* ignore */ } }
     running = null;

@@ -63,7 +63,8 @@ export async function warmOffline() {
 
 // ---------------------------------------------------------------- GPS-rute (lever videre, når man forlader siden)
 
-export const tracker = { cid: null, watch: null, points: [], paused: false, lock: null, listeners: new Set(), saver: null, savedN: -1 };
+const TRACK_MAX_MS = 12 * 3600_000;  // en glemt rute optager højst så længe; punkterne bliver på turen
+export const tracker = { cid: null, watch: null, since: 0, points: [], paused: false, lock: null, listeners: new Set(), saver: null, savedN: -1 };
 export const meters = (a, b) => {
   const R = 6371000, rad = Math.PI / 180, dLat = (b[0] - a[0]) * rad, dLon = (b[1] - a[1]) * rad;
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLon / 2) ** 2;
@@ -75,6 +76,7 @@ export function trackStart(cid, points) {
   if (tracker.cid !== cid) { trackStop(); tracker.cid = cid; tracker.points = points; }
   tracker.paused = false;
   if (tracker.watch != null) return;
+  tracker.since = Date.now();
   // I appen kommer punkterne fra Androids positionstjeneste (forgrundstjeneste), så ruten optages med slukket skærm
   tracker.watch = watchPosition("route", { distance: 5, precise: true }, (p) => {
     const pt = [p.lat, p.lon, p.ts, Math.round(p.accuracy ?? 0)];
@@ -90,6 +92,7 @@ export function trackStart(cid, points) {
   // Ruten gemmes i den lokale kopi hvert 20. sekund, så den overlever, at appen lukkes
   // (kun når der er kommet nye punkter – ellers skrives den samme rute igen og igen)
   tracker.saver ||= setInterval(async () => {
+    if (tracker.watch != null && Date.now() - tracker.since > TRACK_MAX_MS) { trackPause(); return; }
     const n = tracker.points.length;
     if (!tracker.cid || n === tracker.savedN) return;
     const rec = await getLocal(tracker.cid);
@@ -105,7 +108,7 @@ export function trackPause() {
 export function trackStop() {
   trackPause();
   clearInterval(tracker.saver); tracker.saver = null;
-  tracker.cid = null; tracker.points = []; tracker.paused = false; tracker.savedN = -1;
+  tracker.cid = null; tracker.points = []; tracker.paused = false; tracker.savedN = -1; tracker.since = 0;
 }
 
 /** Beskærer ruten til turens start- og sluttidspunkt (punkternes tidsstempel er sekunder; turens tider er lokale).
