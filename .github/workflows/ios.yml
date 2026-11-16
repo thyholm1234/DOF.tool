@@ -101,7 +101,7 @@ jobs:
           xcodebuild -exportArchive -archivePath $RUNNER_TEMP/App.xcarchive -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/export
           mv $RUNNER_TEMP/export/*.ipa $RUNNER_TEMP/DOF-tool.ipa
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: env.HAS_CERT == 'true'
         with: { name: DOF-tool-ios, path: "${{ runner.temp }}/DOF-tool.ipa" }
       - name: Upload til TestFlight (valgfri)
