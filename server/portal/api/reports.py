@@ -218,6 +218,7 @@ async def patch_report(report_id: int, body: dict, tasks: BackgroundTasks, user:
     if merged.loknr != r.loknr:
         await _location_exists(db, merged.loknr)
     before = (r.artnr, r.loknr, r.dato, r.hemmelig)
+    alarm_before = (*before, r.antal, r.kategori)
     for k, v in merged.model_dump().items():
         if k == "status" or (k in ("dato", "loknr") and v is None):
             continue
@@ -231,6 +232,9 @@ async def patch_report(report_id: int, body: dict, tasks: BackgroundTasks, user:
         await pulse.record_deleted([-report_id])
         if not r.hemmelig and r.dato == dk_today():
             await pulse.record_report(db, r)
+    # Rettet melding (fx flere fugle, anden art eller ikke længere skjult) går gennem alarmerne som en ændret DOFbasen-observation
+    if not r.hemmelig and alarm_before != (r.artnr, r.loknr, r.dato, r.hemmelig, r.antal, r.kategori):
+        tasks.add_task(_in_background, reports.notify_new, [r.id])
     await publish("feed", {"type": "feed", "portal": True})
     tasks.add_task(dku.report_changed, report_id)  # åbne DKU-sager om meldingen får ændringerne
     await worker_command("doftool_sync")  # DOF.tool-datasættet (søgning, Observationer, lister) bygges om

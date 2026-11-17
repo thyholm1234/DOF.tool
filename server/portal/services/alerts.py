@@ -5,6 +5,8 @@ Regler (som i DOF.not, men generaliseret til vilkårlige områder):
   maksimale antal individer stiger.
 - Nye observationer i en eksisterende tråd sendes kun til brugere, der følger tråden.
 - Man får aldrig besked om egne observationer eller tråde, man selv har observeret i.
+- DOF.tool-indtastninger tæller på lige fod med DOFbasen: trådens maksimum og observatører, 'kun arter jeg mangler'
+  (som Lister) og lokale hits (forudberegnet over begge kilder) læser hele datasættet (services/dataset.py).
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from portal.cache import get_json, kv, publish, set_json
-from portal.services import seasons
+from portal.services import dataset, seasons
 from portal.services.areas import Scope
 from portal.services.lists import ListSpec, _where, matrikel_prefix
 from portal.services.push import send_many
@@ -187,10 +189,10 @@ async def deliver(session: AsyncSession, users: dict[int, dict] | None, outbox: 
 
 async def seed_threads(session: AsyncSession, day) -> None:
     """Gem dagens trådmaksima uden at sende noget (efter opstart midt på dagen)."""
-    rows = (await session.execute(text("""
+    rows = (await dataset.execute(session, """
         SELECT artnr, loknr, max(n) FROM (SELECT artnr, loknr, turid, sum(antal) AS n FROM observations
         WHERE dato = :d AND loknr IS NOT NULL GROUP BY artnr, loknr, turid) x GROUP BY artnr, loknr
-    """), {"d": day})).all()
+    """, {"d": day}, d1=day, d2=day)).all()
     if rows:
         key = f"alert:threadmax:{day}"
         await kv().hset(key, mapping={f"{a}:{l}": int(m or 0) for a, l, m in rows})
@@ -268,11 +270,12 @@ class Crossed:
         hit = await get_json(key)
         if hit is None:
             where, params = await _where(self.session, spec, await matrikel_prefix(self.session))
-            hit = list((await self.session.execute(text(f"""
+            # Som brugerens egne Lister: DOFbasen + DOF.tool, egne hemmelige DOF.tool-fund medregnet (cachen er pr. bruger)
+            hit = list((await dataset.execute(self.session, f"""
                 SELECT DISTINCT s.list_artnr FROM observations o
                 JOIN species s ON s.artnr = o.artnr JOIN species ls ON ls.artnr = s.list_artnr
                 WHERE o.obserkode = :kode AND {where}
-            """), {"kode": obserkode, **params})).scalars())
+            """, {"kode": obserkode, **params}, obserkode=obserkode, secret_for=obserkode)).scalars())
             await set_json(key, hit, self.TTL)
         self.memo[key] = set(hit)
         return self.memo[key]
@@ -334,12 +337,13 @@ async def _thread_state(session: AsyncSession, threads: set[tuple]) -> tuple[dic
     day = next(iter(threads))[0]
     arts = list({t[1] for t in threads})
     loks = list({t[2] for t in threads})
-    rows = (await session.execute(text("""
+    # Hele datasættet: en DOF.tool-indtastning hæver trådens maksimum, og dens observatør får ikke besked om tråden
+    rows = (await dataset.execute(session, """
         SELECT artnr, loknr, max(n) AS mx, array_agg(DISTINCT obserkode) AS obs FROM (
             SELECT artnr, loknr, turid, obserkode, sum(antal) AS n FROM observations
             WHERE dato = :d AND artnr = ANY(:a) AND loknr = ANY(:l) GROUP BY artnr, loknr, turid, obserkode) x
         GROUP BY artnr, loknr
-    """), {"d": day, "a": arts, "l": loks})).all()
+    """, {"d": day, "a": arts, "l": loks}, d1=day, d2=day, artnrs=arts)).all()
     mx, observers = {}, {}
     for artnr, loknr, m, obs in rows:
         mx[(day, artnr, loknr)] = int(m or 0)

@@ -325,6 +325,7 @@ async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> 
     by_cid = {r.client_id: r for r in existing.values() if r.client_id}
     created: list[int] = []
     changed: list[int] = []
+    edited: list[int] = []  # ændret, så alarmerne skal se på dem igen (som en rettet DOFbasen-observation)
     keep: set[int] = set()
     for o in body.observations:
         await _validate_codes(db, o)
@@ -348,6 +349,7 @@ async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> 
             created.append(r.id)
         else:
             before = (r.artnr, r.loknr, r.dato, r.hemmelig)
+            alarm_before = (*before, r.antal, r.kategori)
             for k, v in data.items():
                 setattr(r, k, v)
             r.obserkode = trip.obserkode
@@ -357,6 +359,8 @@ async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> 
             r.updated_at = datetime.now(timezone.utc)
             if before != (r.artnr, r.loknr, r.dato, r.hemmelig):
                 changed.append(r.id)
+            if alarm_before != (r.artnr, r.loknr, r.dato, r.hemmelig, r.antal, r.kategori):
+                edited.append(r.id)
         keep.add(r.id)
     gone = [i for i in existing if i not in keep]
     for i in gone:
@@ -374,7 +378,7 @@ async def _save(db: AsyncSession, user: User, trip: FieldTrip, body: TripIn) -> 
                                     "noter": p.noter, "hemmelig": p.hemmelig})
     await _sync_children(db, trip, FieldDisturbance, body.disturbances,
                          lambda d: {"type_id": d.type_id, "antal": d.antal, "noter": d.noter})
-    return created, changed, gone
+    return created, changed, gone, edited
 
 
 async def _sync_children(db: AsyncSession, trip: FieldTrip, model, items, fields) -> None:
@@ -399,17 +403,19 @@ async def _sync_children(db: AsyncSession, trip: FieldTrip, model, items, fields
 
 
 async def _after(db: AsyncSession, tasks: BackgroundTasks, user: User, trip: FieldTrip, created: list[int],
-                 changed: list[int], gone: list[int]) -> None:
+                 changed: list[int], gone: list[int], edited: list[int]) -> None:
     """Notifikationer, puls og live-opdatering – først når turen er gemt."""
     if gone or changed:
         await pulse.record_deleted([-i for i in gone + changed])
-    visible = [r for r in (await db.execute(select(FieldReport).where(FieldReport.id.in_(created + changed)))).scalars()
+    visible = [r for r in (await db.execute(select(FieldReport).where(FieldReport.id.in_(created + changed + edited)))).scalars()
                if not r.hemmelig]
-    if created:
-        new = [r.id for r in visible if r.id in created]
-        if new:
-            tasks.add_task(_in_background, reports.notify_new, new)
+    # Nye og rettede meldinger går gennem alarmerne som DOFbasens nye og ændrede observationer (dubletter frasorteres der)
+    alarm = [r.id for r in visible if r.id in created or r.id in edited]
+    if alarm:
+        tasks.add_task(_in_background, reports.notify_new, alarm)
     for r in visible:
+        if r.id not in created and r.id not in changed:
+            continue
         if r.dato == dk_today():
             await pulse.record_report(db, r)
     tasks.add_task(activity.track, user.id, "trip", None, {"loknr": trip.loknr, "n_obs": len(created)})
@@ -425,9 +431,9 @@ async def create_trip(body: TripIn, tasks: BackgroundTasks, user: User = Depends
         if old:  # samme tur sendt igen (fx efter tabt svar): returnér den, der allerede er gemt
             return await trip_out(db, old, user)
     trip = FieldTrip(user_id=user.id)
-    created, changed, gone = await _save(db, user, trip, body)
+    created, changed, gone, edited = await _save(db, user, trip, body)
     await db.commit()
-    await _after(db, tasks, user, trip, created, changed, gone)
+    await _after(db, tasks, user, trip, created, changed, gone, edited)
     return await trip_out(db, trip, user)
 
 
@@ -435,9 +441,9 @@ async def create_trip(body: TripIn, tasks: BackgroundTasks, user: User = Depends
 async def update_trip(trip_id: int, body: TripIn, tasks: BackgroundTasks, user: User = Depends(require_user),
                       db: AsyncSession = Depends(get_session)):
     trip = await _own_trip(db, trip_id, user)
-    created, changed, gone = await _save(db, user, trip, body)
+    created, changed, gone, edited = await _save(db, user, trip, body)
     await db.commit()
-    await _after(db, tasks, user, trip, created, changed, gone)
+    await _after(db, tasks, user, trip, created, changed, gone, edited)
     for rid in (await db.execute(select(FieldReport.id).where(FieldReport.trip_id == trip.id))).scalars():
         tasks.add_task(dku.report_changed, rid)  # åbne DKU-sager om turens meldinger får ændringerne
     return await trip_out(db, trip, user)

@@ -66,3 +66,43 @@ async def test_deliver_sender_alle_push_samtidig(db, monkeypatch):  # noqa: F811
         # Samme dedup-nøgle igen: intet nyt gemmes, intet sendes
         calls.clear()
         assert await alerts.deliver(s, None, outbox) == 0 and calls == []
+
+
+def _tool_obs(**kw):
+    """En DOF.tool-indtastning som den ligger i DOF.tool-gruppens datasæt (services/doftool_obs.py)."""
+    return {"obsid": -1_000_000_007, "turid": -1_000_000_003, "dato": "2026-10-27", "artnr": 1, "antal": 9, "loknr": 100,
+            "obserkode": "A2", "hemmelig": 0, "kategori": "alm", "afdelinger": [], "indtastning": "doftool", **kw}
+
+
+async def test_doftool_indtastninger_taeller_som_dofbasen_i_alarmer(db, monkeypatch):  # noqa: F811
+    """Trådens maksimum og observatører, dagens frø og 'arter jeg mangler' ser DOF.tool-indtastninger som DOFbasens."""
+    from datetime import date
+
+    from portal.cache import kv
+    from portal.services import alerts, dataset, lists
+    from portal.services.areas import Scope
+    from portal.services.lists import ListSpec
+
+    rows = [_tool_obs(), _tool_obs(obsid=-1_000_000_008, artnr=2, antal=50, hemmelig=1)]  # skjult: tæller ikke for andre
+
+    async def tool_data():
+        return {"obs": rows, "trips": []}
+
+    monkeypatch.setattr(dataset, "tool_data", tool_data)
+    monkeypatch.setattr(lists, "countable_sql", lambda: "TRUE")  # artskategorierne (A/B/C) er ikke i testdatabasen
+    day = date(2026, 10, 27)
+    async with db() as s:
+        mx, observers = await alerts._thread_state(s, {(day, 1, 100), (day, 2, 100)})
+        assert mx[(day, 1, 100)] == 9  # DOFbasen har 2 (LB) og 1 (A1) – DOF.tool-indtastningen på 9 er størst
+        assert observers[(day, 1, 100)] == {"LB", "A1", "A2"}  # A2 får ikke besked om en tråd, A2 selv har meldt i
+        assert (day, 2, 100) not in mx
+
+        await alerts.seed_threads(s, day)
+        seeded = await kv().hgetall(f"alert:threadmax:{day}")
+        assert seeded == {"1:100": "9"}
+
+        await s.execute(text("UPDATE species SET list_artnr = artnr"))
+        crossed = alerts.Crossed(s)
+        assert 1 in await crossed.species("A2", ListSpec(Scope("dk"), None))  # krydset via DOF.tool, som i Lister
+        assert 2 in await crossed.species("A2", ListSpec(Scope("dk"), 2026))  # egen skjult indtastning tæller på egen liste
+        assert await crossed.species("XX", ListSpec(Scope("dk"), None)) == set()
